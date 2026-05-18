@@ -553,12 +553,10 @@ internal fun shouldRenderBottomBarRefractionCapture(
     captureProgress: Float,
     isTransitionRunning: Boolean = false,
     isFeedScrollInProgress: Boolean = false,
-    isBottomBarInteractionActive: Boolean = false,
-    allowIdleGlassEffect: Boolean = false
+    isBottomBarInteractionActive: Boolean = false
 ): Boolean {
     if (!glassEnabled || !hasBackdrop || captureProgress <= BottomBarTransientAlphaThreshold) return false
     if (isTransitionRunning) return false
-    if (allowIdleGlassEffect) return true
     return shouldRenderBottomBarHeavyInteractiveEffects(
         isTransitionRunning = isTransitionRunning,
         isBottomBarInteractionActive = isBottomBarInteractionActive,
@@ -591,6 +589,12 @@ internal fun shouldRenderBottomBarHeavyInteractiveEffects(
 ): Boolean {
     if (isTransitionRunning) return false
     return isBottomBarInteractionActive && progress > BottomBarTransientAlphaThreshold
+}
+
+internal fun shouldUseBottomBarCombinedIndicatorBackdrop(
+    preset: BottomBarLiquidGlassPreset
+): Boolean {
+    return preset == BottomBarLiquidGlassPreset.BILIPAI_TUNED
 }
 
 internal fun shouldComposeBottomBarDockContent(
@@ -2815,8 +2819,7 @@ private fun KernelSuAlignedBottomBar(
                 captureProgress = effectiveCaptureProgress,
                 isTransitionRunning = isTransitionRunning,
                 isFeedScrollInProgress = isFeedScrollInProgress,
-                isBottomBarInteractionActive = isBottomBarInteractionActive,
-                allowIdleGlassEffect = transparentGlassPreset
+                isBottomBarInteractionActive = isBottomBarInteractionActive
             )
             val shouldRenderIndicatorBackdrop = shouldRenderBottomBarIndicatorBackdrop(
                 glassEnabled = glassEnabled,
@@ -2826,7 +2829,7 @@ private fun KernelSuAlignedBottomBar(
                 isBottomBarInteractionActive = isBottomBarInteractionActive,
                 allowIdleGlassEffect = transparentGlassPreset
             )
-            val contentBackdrop = if (shouldRenderIndicatorBackdrop && backdrop != null) {
+            val contentBackdrop = if (!transparentGlassPreset && shouldRenderIndicatorBackdrop && backdrop != null) {
                 rememberCombinedBackdrop(backdrop, tabsBackdrop)
             } else {
                 null
@@ -3197,7 +3200,11 @@ private fun KernelSuAlignedBottomBar(
                             .height(56.dp)
                             .align(Alignment.CenterStart)
                             .run {
-                                val indicatorBackdrop = contentBackdrop
+                                val indicatorBackdrop = if (shouldUseBottomBarCombinedIndicatorBackdrop(liquidGlassPreset)) {
+                                    contentBackdrop
+                                } else {
+                                    backdrop
+                                }
                                 if (indicatorBackdrop != null) {
                                     drawBackdrop(
                                         backdrop = indicatorBackdrop,

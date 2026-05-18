@@ -184,16 +184,15 @@ class BottomBarIndicatorPolicyTest {
     }
 
     @Test
-    fun `transparent glass preset keeps idle text capture for selected capsule`() {
-        assertTrue(
+    fun `transparent glass preset keeps idle background refraction without content capture`() {
+        assertFalse(
             shouldRenderBottomBarRefractionCapture(
                 glassEnabled = true,
                 hasBackdrop = true,
                 captureProgress = 1f,
                 isTransitionRunning = false,
                 isFeedScrollInProgress = false,
-                isBottomBarInteractionActive = false,
-                allowIdleGlassEffect = true
+                isBottomBarInteractionActive = false
             )
         )
         assertTrue(
@@ -214,6 +213,20 @@ class BottomBarIndicatorPolicyTest {
                 isTransitionRunning = true,
                 isBottomBarInteractionActive = false,
                 allowIdleGlassEffect = true
+            )
+        )
+    }
+
+    @Test
+    fun `transparent glass preset reads page backdrop instead of captured bottom bar content`() {
+        assertFalse(
+            shouldUseBottomBarCombinedIndicatorBackdrop(
+                preset = BottomBarLiquidGlassPreset.BACKDROP_NATIVE
+            )
+        )
+        assertTrue(
+            shouldUseBottomBarCombinedIndicatorBackdrop(
+                preset = BottomBarLiquidGlassPreset.BILIPAI_TUNED
             )
         )
     }
