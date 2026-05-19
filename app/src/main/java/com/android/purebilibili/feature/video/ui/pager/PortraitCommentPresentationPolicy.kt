@@ -49,6 +49,10 @@ internal fun resolvePortraitCommentExpandedPlayerScale(
 internal fun resolvePortraitCommentPlayerTransform(
     commentVisibilityProgress: Float,
     containerHeightPx: Int = 1,
+    containerWidthPx: Int = 0,
+    currentVideoAspect: Float = 0f,
+    viewportVerticalOffsetPx: Float = 0f,
+    fillContainer: Boolean = false,
     commentSheetHeightFraction: Float = MAIN_COMMENT_SHEET_HEIGHT_FRACTION
 ): PortraitCommentPlayerTransform {
     val progress = if (containerHeightPx > 0) {
@@ -60,7 +64,15 @@ internal fun resolvePortraitCommentPlayerTransform(
     val visibleHeightFraction = (1f - sheetFraction * progress).coerceIn(0f, 1f)
     val scale = 1f - ((1f - PORTRAIT_COMMENT_EXPANDED_PLAYER_SCALE) * progress)
     val translationYPx = if (containerHeightPx > 0) {
-        (visibleHeightFraction - scale) * containerHeightPx.toFloat()
+        val visibleBottomPx = visibleHeightFraction * containerHeightPx.toFloat()
+        val videoBottomPx = resolvePortraitCommentVideoBottomBeforeTransformPx(
+            containerWidthPx = containerWidthPx,
+            containerHeightPx = containerHeightPx,
+            currentVideoAspect = currentVideoAspect,
+            viewportVerticalOffsetPx = viewportVerticalOffsetPx,
+            fillContainer = fillContainer
+        )
+        visibleBottomPx - videoBottomPx * scale
     } else {
         0f
     }
@@ -73,6 +85,26 @@ internal fun resolvePortraitCommentPlayerTransform(
         overlayAlpha = (1f - progress).coerceIn(0f, 1f),
         playerGesturesEnabled = progress <= 0.001f
     )
+}
+
+private fun resolvePortraitCommentVideoBottomBeforeTransformPx(
+    containerWidthPx: Int,
+    containerHeightPx: Int,
+    currentVideoAspect: Float,
+    viewportVerticalOffsetPx: Float,
+    fillContainer: Boolean
+): Float {
+    if (containerWidthPx <= 0 || containerHeightPx <= 0 || currentVideoAspect <= 0f) {
+        return containerHeightPx.toFloat()
+    }
+    // 评论展开对齐的是用户看到的视频底边；横屏视频只占整层中部，不能按整层底边计算。
+    val viewportSize = resolvePortraitVideoViewportSize(
+        containerWidth = containerWidthPx,
+        containerHeight = containerHeightPx,
+        currentVideoAspect = currentVideoAspect,
+        fillContainer = fillContainer
+    )
+    return containerHeightPx / 2f + viewportVerticalOffsetPx + viewportSize.height / 2f
 }
 
 internal fun resolvePortraitCommentVisibilityProgress(

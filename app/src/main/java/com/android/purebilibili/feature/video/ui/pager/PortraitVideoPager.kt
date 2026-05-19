@@ -1205,11 +1205,31 @@ private fun VideoPageItem(
     var detailSheetUpOnlyMode by remember { mutableStateOf(false) }
     var isOverlayVisible by remember { mutableStateOf(true) }
     var commentSheetVisibilityProgress by remember { mutableFloatStateOf(0f) }
+    var portraitPageWidthPx by remember { mutableIntStateOf(0) }
     var portraitPageHeightPx by remember { mutableIntStateOf(0) }
-    val commentExpansionTransform = remember(commentSheetVisibilityProgress, portraitPageHeightPx) {
+    val density = LocalDensity.current
+    val portraitPagerFillContainer = resolvePortraitPagerFillContainer()
+    val portraitViewportVerticalOffsetPx = with(density) {
+        resolvePortraitVideoViewportVerticalOffsetDp(
+            currentVideoAspect = currentVideoAspect,
+            fillContainer = portraitPagerFillContainer
+        ).dp.toPx()
+    }
+    val commentExpansionTransform = remember(
+        commentSheetVisibilityProgress,
+        portraitPageWidthPx,
+        portraitPageHeightPx,
+        currentVideoAspect,
+        portraitViewportVerticalOffsetPx,
+        portraitPagerFillContainer
+    ) {
         resolvePortraitCommentPlayerTransform(
             commentVisibilityProgress = commentSheetVisibilityProgress,
-            containerHeightPx = portraitPageHeightPx
+            containerWidthPx = portraitPageWidthPx,
+            containerHeightPx = portraitPageHeightPx,
+            currentVideoAspect = currentVideoAspect,
+            viewportVerticalOffsetPx = portraitViewportVerticalOffsetPx,
+            fillContainer = portraitPagerFillContainer
         )
     }
 
@@ -1354,6 +1374,7 @@ private fun VideoPageItem(
         modifier = Modifier
             .fillMaxSize()
             .onSizeChanged { size ->
+                portraitPageWidthPx = size.width
                 portraitPageHeightPx = size.height
             }
             .pointerInput(isCurrentPage, bvid, commentExpansionTransform.playerGesturesEnabled) {
@@ -1527,7 +1548,6 @@ private fun VideoPageItem(
                 translationX = panX
                 translationY = panY
             }
-        val density = LocalDensity.current
         val pageDanmakuTopInset = with(density) {
             WindowInsets.statusBars.getTop(this).toDp()
         }
@@ -1540,7 +1560,7 @@ private fun VideoPageItem(
             PortraitVideoViewportContainer(
                 currentVideoAspect = currentVideoAspect,
                 modifier = mediaLayerModifier,
-                fillContainer = resolvePortraitPagerFillContainer()
+                fillContainer = portraitPagerFillContainer
             ) {
                 key(currentPlayingBvid, bvid) {
                     Box(

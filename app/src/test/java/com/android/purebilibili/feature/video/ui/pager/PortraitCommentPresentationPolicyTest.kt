@@ -83,6 +83,36 @@ class PortraitCommentPresentationPolicyTest {
     }
 
     @Test
+    fun `portrait comment transform aligns landscape video viewport bottom to sheet top`() {
+        val containerWidth = 600
+        val containerHeight = 1000
+        val videoAspect = 16f / 9f
+        val viewportOffsetPx = -48f
+        val transform = resolvePortraitCommentPlayerTransform(
+            commentVisibilityProgress = 1f,
+            containerWidthPx = containerWidth,
+            containerHeightPx = containerHeight,
+            currentVideoAspect = videoAspect,
+            viewportVerticalOffsetPx = viewportOffsetPx,
+            fillContainer = false
+        )
+        val viewportSize = resolvePortraitVideoViewportSize(
+            containerWidth = containerWidth,
+            containerHeight = containerHeight,
+            currentVideoAspect = videoAspect,
+            fillContainer = false
+        )
+        val viewportBottomBeforeTransformPx =
+            containerHeight / 2f + viewportOffsetPx + viewportSize.height / 2f
+        val viewportBottomAfterTransformPx =
+            transform.translationYPx + viewportBottomBeforeTransformPx * transform.scale
+
+        assertEquals(0.58f, transform.scale, 0.001f)
+        assertEquals(400f, viewportBottomAfterTransformPx, 0.75f)
+        assertTrue(transform.translationYPx > 0f)
+    }
+
+    @Test
     fun `portrait comment transform clamps unsafe inputs`() {
         assertEquals(
             1f,
