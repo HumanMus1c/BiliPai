@@ -8,35 +8,30 @@ import kotlin.test.assertTrue
 class HomeHeroFlyoutStructureTest {
 
     @Test
-    fun homeScreenDelaysNavigationUntilHeroFlyoutFinishes() {
+    fun homeScreenNavigatesImmediatelyAndDoesNotRunSourceFlyout() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
-        val flyoutEffectSource = source
-            .substringAfter("LaunchedEffect(pendingHeroFlyoutRequest)")
-            .substringBefore("//  包装 onVideoClick")
         val clickWrapperSource = source
             .substringAfter("val wrappedOnVideoClick")
             .substringBefore("val onTodayWatchVideoClick")
 
-        assertTrue(source.contains("pendingHeroFlyoutRequest"))
-        assertTrue(source.contains("shouldRunHomeHeroFlyoutBeforeNavigation(request)"))
-        assertTrue(source.contains("delay(resolveHomeHeroFlyoutNavigationDelayMillis())"))
-        assertTrue(source.contains("onVideoClick(pendingRequest)"))
-        assertTrue(source.contains("heroFlyoutBvid = pendingHeroFlyoutRequest?.bvid"))
-        assertTrue(flyoutEffectSource.contains("hideTopTabsForForwardDetailNav = true"))
-        assertTrue(flyoutEffectSource.contains("setBottomBarVisible(false)"))
-        assertTrue(flyoutEffectSource.contains("isVideoNavigating = true"))
-        assertTrue(clickWrapperSource.indexOf("pendingHeroFlyoutRequest = request") < clickWrapperSource.indexOf("hideTopTabsForForwardDetailNav = true"))
+        assertFalse(source.contains("pendingHeroFlyoutRequest"))
+        assertFalse(source.contains("shouldRunHomeHeroFlyoutBeforeNavigation(request)"))
+        assertFalse(source.contains("resolveHomeHeroFlyoutNavigationDelayMillis()"))
+        assertTrue(clickWrapperSource.contains("hideTopTabsForForwardDetailNav = true"))
+        assertTrue(clickWrapperSource.contains("setBottomBarVisible(false)"))
+        assertTrue(clickWrapperSource.contains("isVideoNavigating = true"))
+        assertTrue(clickWrapperSource.contains("onVideoClick(request)"))
     }
 
     @Test
-    fun ordinaryHomeVideoCardConsumesHeroFlyoutState() {
+    fun ordinaryHomeVideoCardDoesNotRunSourceFlyout() {
         val pageSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeCategoryPage.kt")
         val cardSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/cards/VideoCard.kt")
 
-        assertTrue(pageSource.contains("heroFlyoutBvid: String? = null"))
-        assertTrue(pageSource.contains("heroFlyoutActive = heroFlyoutBvid == video.bvid"))
-        assertTrue(cardSource.contains("heroFlyoutActive: Boolean = false"))
-        assertTrue(cardSource.contains("resolveHomeHeroFlyoutFrame("))
+        assertFalse(pageSource.contains("heroFlyoutBvid"))
+        assertFalse(pageSource.contains("heroFlyoutActive"))
+        assertFalse(cardSource.contains("heroFlyoutActive"))
+        assertFalse(cardSource.contains("resolveHomeHeroFlyoutFrame("))
     }
 
     @Test
