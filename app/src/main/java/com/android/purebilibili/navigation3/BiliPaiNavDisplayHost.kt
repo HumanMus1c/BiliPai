@@ -5,6 +5,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.HasDefaultViewModelProviderFactory
@@ -14,9 +15,15 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
+import androidx.navigation3.scene.SceneInfo
+import androidx.navigation3.scene.SinglePaneSceneStrategy
+import androidx.navigation3.scene.rememberSceneState
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import com.android.purebilibili.core.ui.ProvideAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 
@@ -57,6 +64,28 @@ internal fun BiliPaiNavDisplayHost(
             content = scopedContent
         )
     }
+    val entries = rememberDecoratedNavEntries(
+        backStack = safeBackStack,
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator(),
+            rememberViewModelStoreNavEntryDecorator()
+        ),
+        entryProvider = entryProvider
+    )
+    val sceneState = rememberSceneState(
+        entries = entries,
+        sceneStrategies = listOf(SinglePaneSceneStrategy()),
+        sceneDecoratorStrategies = emptyList(),
+        sharedTransitionScope = sharedTransitionScope,
+        onBack = onBack
+    )
+    val scene = sceneState.currentScene
+    val currentInfo = SceneInfo(scene)
+    val previousSceneInfos = sceneState.previousScenes.map { SceneInfo(it) }
+    val navigationEventState = rememberNavigationEventState(
+        currentInfo = currentInfo,
+        backInfo = previousSceneInfos
+    )
     val predictivePopRouteTransition = remember(motionMode, sourceMetadata, safeBackStack) {
         resolveBiliPaiNavDisplayPredictivePopRouteTransition(
             motionMode = motionMode,
@@ -66,25 +95,30 @@ internal fun BiliPaiNavDisplayHost(
         )
     }
 
+    NavigationBackHandler(
+        state = navigationEventState,
+        isBackEnabled = scene.previousEntries.isNotEmpty(),
+        onBackCompleted = { onBack() }
+    )
+
     NavDisplay(
-        backStack = safeBackStack,
+        sceneState = sceneState,
+        navigationEventState = navigationEventState,
         modifier = modifier,
-        onBack = onBack,
-        entryDecorators = listOf(
-            rememberSaveableStateHolderNavEntryDecorator(),
-            rememberViewModelStoreNavEntryDecorator()
-        ),
-        sharedTransitionScope = sharedTransitionScope,
+        contentAlignment = Alignment.TopStart,
+        sizeTransform = null,
         transitionSpec = {
             resolveBiliPaiNavContentTransform(BiliPaiNavRouteTransition.FALLBACK)
         },
         popTransitionSpec = {
             resolveBiliPaiNavContentTransform(BiliPaiNavRouteTransition.FALLBACK)
         },
-        predictivePopTransitionSpec = {
-            resolveBiliPaiNavContentTransform(predictivePopRouteTransition)
+        predictivePopTransitionSpec = { swipeEdge ->
+            resolveBiliPaiNavPredictivePopContentTransform(predictivePopRouteTransition)
+                ?: BiliPaiPredictiveBackMotion
+                    .defaultPredictivePopTransitionSpec<BiliPaiNavKey>()
+                    .invoke(this, swipeEdge)
         },
-        entryProvider = entryProvider
     )
 
 }

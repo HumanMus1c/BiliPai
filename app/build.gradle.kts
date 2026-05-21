@@ -325,6 +325,7 @@ dependencies {
     // --- 3.6 Navigation3 (Compose 自有返回栈与预测性返回迁移层) ---
     implementation("androidx.navigation3:navigation3-runtime:1.1.1")
     implementation("androidx.navigation3:navigation3-ui:1.1.1")
+    implementation("androidx.navigationevent:navigationevent-compose:1.1.1")
     
     // --- 3.7 Startup (应用初始化) ---
     implementation("androidx.startup:startup-runtime:1.2.0")

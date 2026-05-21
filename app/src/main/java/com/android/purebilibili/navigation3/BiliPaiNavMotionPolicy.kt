@@ -12,7 +12,7 @@ internal enum class BiliPaiNavRouteTransition {
     NO_OP_SHARED_ELEMENT,
     HOME_VIDEO_SHEET_FORWARD,
     HOME_VIDEO_SHEET_RETURN,
-    PREDICTIVE_PROGRESS,
+    NAV_DISPLAY_DEFAULT_PREDICTIVE,
     CLASSIC_CARD,
     FALLBACK
 }
@@ -73,7 +73,7 @@ internal fun resolveBiliPaiNavMotionDecision(
             (isVideoToCardReturn || isCardToVideoForward) ->
             BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         mode == BiliPaiNavMotionMode.PREDICTIVE_NAV_DISPLAY ->
-            BiliPaiNavRouteTransition.PREDICTIVE_PROGRESS
+            BiliPaiNavRouteTransition.NAV_DISPLAY_DEFAULT_PREDICTIVE
         mode == BiliPaiNavMotionMode.CLASSIC_CARD ->
             BiliPaiNavRouteTransition.CLASSIC_CARD
         else -> BiliPaiNavRouteTransition.FALLBACK
@@ -155,7 +155,7 @@ internal fun resolveBiliPaiNavDisplayPredictivePopRouteTransition(
         return BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
     }
     return if (shouldUseNavigation3PredictivePop(motionMode)) {
-        BiliPaiNavRouteTransition.PREDICTIVE_PROGRESS
+        BiliPaiNavRouteTransition.NAV_DISPLAY_DEFAULT_PREDICTIVE
     } else {
         BiliPaiNavRouteTransition.CLASSIC_CARD
     }

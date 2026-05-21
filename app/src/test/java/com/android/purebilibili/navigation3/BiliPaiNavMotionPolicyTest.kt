@@ -66,7 +66,7 @@ class BiliPaiNavMotionPolicyTest {
     }
 
     @Test
-    fun predictiveEnabledStaleVideoReturnKeepsNavDisplayPredictiveFallback() {
+    fun predictiveEnabledStaleVideoReturnUsesNavDisplayDefaultPredictivePop() {
         val decision = resolveBiliPaiBackGestureDecision(
             predictiveBackAnimationEnabled = true,
             cardTransitionEnabled = true,
@@ -82,7 +82,7 @@ class BiliPaiNavMotionPolicyTest {
         )
 
         assertEquals(BiliPaiBackGestureOwner.NAV_DISPLAY_PREDICTIVE, decision.owner)
-        assertEquals(BiliPaiNavRouteTransition.PREDICTIVE_PROGRESS, decision.routeTransition)
+        assertEquals(BiliPaiNavRouteTransition.NAV_DISPLAY_DEFAULT_PREDICTIVE, decision.routeTransition)
         assertFalse(decision.interceptSystemBack)
     }
 
@@ -141,7 +141,7 @@ class BiliPaiNavMotionPolicyTest {
     }
 
     @Test
-    fun navDisplayPredictivePop_withoutSharedReady_keepsPredictiveRouteLayer() {
+    fun navDisplayPredictivePop_withoutSharedReady_usesNavDisplayDefaultPredictivePop() {
         val transition = resolveBiliPaiNavDisplayPredictivePopRouteTransition(
             motionMode = BiliPaiNavMotionMode.PREDICTIVE_NAV_DISPLAY,
             sourceMetadata = BiliPaiNavSourceMetadata(
@@ -154,11 +154,11 @@ class BiliPaiNavMotionPolicyTest {
             toKey = BiliPaiNavKey.History
         )
 
-        assertEquals(BiliPaiNavRouteTransition.PREDICTIVE_PROGRESS, transition)
+        assertEquals(BiliPaiNavRouteTransition.NAV_DISPLAY_DEFAULT_PREDICTIVE, transition)
     }
 
     @Test
-    fun navDisplayPredictivePop_withStaleVideoSource_keepsPredictiveRouteLayer() {
+    fun navDisplayPredictivePop_withStaleVideoSource_usesNavDisplayDefaultPredictivePop() {
         val transition = resolveBiliPaiNavDisplayPredictivePopRouteTransition(
             motionMode = BiliPaiNavMotionMode.PREDICTIVE_NAV_DISPLAY,
             sourceMetadata = BiliPaiNavSourceMetadata(
@@ -171,7 +171,7 @@ class BiliPaiNavMotionPolicyTest {
             toKey = BiliPaiNavKey.History
         )
 
-        assertEquals(BiliPaiNavRouteTransition.PREDICTIVE_PROGRESS, transition)
+        assertEquals(BiliPaiNavRouteTransition.NAV_DISPLAY_DEFAULT_PREDICTIVE, transition)
     }
 
     @Test

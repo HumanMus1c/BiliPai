@@ -25,8 +25,23 @@ class BiliPaiNavDisplayHostStructureTest {
         val buildFile = buildFileSource()
 
         assertTrue(buildFile.contains("androidx.lifecycle:lifecycle-viewmodel-navigation3:"))
+        assertTrue(buildFile.contains("androidx.navigationevent:navigationevent-compose:1.1.1"))
+        assertTrue(source.contains("rememberDecoratedNavEntries("))
+        assertTrue(source.contains("rememberSceneState("))
         assertTrue(source.contains("rememberSaveableStateHolderNavEntryDecorator"))
         assertTrue(source.contains("rememberViewModelStoreNavEntryDecorator"))
+    }
+
+    @Test
+    fun navDisplayHostHoistsNavigationEventStateIntoNavDisplay() {
+        val source = navDisplayHostSource()
+
+        assertTrue(source.contains("rememberNavigationEventState("))
+        assertTrue(source.contains("NavigationBackHandler("))
+        assertTrue(source.contains("onBackCompleted = { onBack() }"))
+        assertTrue(source.contains("navigationEventState = navigationEventState"))
+        assertTrue(source.contains("sceneState = sceneState"))
+        kotlin.test.assertFalse(source.contains("NavDisplay(\n        backStack = safeBackStack"))
     }
 
     @Test
@@ -45,7 +60,7 @@ class BiliPaiNavDisplayHostStructureTest {
         assertTrue(source.contains("NavDisplay("))
         assertTrue(source.contains("onBack = onBack"))
         kotlin.test.assertFalse(source.contains("import androidx.activity.compose.BackHandler"))
-        kotlin.test.assertFalse(source.contains("BackHandler("))
+        kotlin.test.assertFalse(source.contains("BackHandler(enabled"))
     }
 
     private fun navDisplayHostSource(): String {

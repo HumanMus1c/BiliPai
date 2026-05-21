@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 
 private const val NAV3_FALLBACK_FADE_MILLIS = 180
-private const val NAV3_PREDICTIVE_FADE_MILLIS = 220
 private const val NAV3_HOME_VIDEO_SHEET_MILLIS = 416
 
 internal fun resolveBiliPaiNavContentTransform(
@@ -29,12 +28,19 @@ internal fun resolveBiliPaiNavContentTransform(
                     animationSpec = tween(NAV3_HOME_VIDEO_SHEET_MILLIS),
                     targetAlpha = 1f
                 )
-        BiliPaiNavRouteTransition.PREDICTIVE_PROGRESS ->
-            fadeIn(animationSpec = tween(NAV3_PREDICTIVE_FADE_MILLIS)) togetherWith
-                fadeOut(animationSpec = tween(NAV3_PREDICTIVE_FADE_MILLIS))
+        BiliPaiNavRouteTransition.NAV_DISPLAY_DEFAULT_PREDICTIVE,
         BiliPaiNavRouteTransition.CLASSIC_CARD,
         BiliPaiNavRouteTransition.FALLBACK ->
             fadeIn(animationSpec = tween(NAV3_FALLBACK_FADE_MILLIS)) togetherWith
                 fadeOut(animationSpec = tween(NAV3_FALLBACK_FADE_MILLIS))
+    }
+}
+
+internal fun resolveBiliPaiNavPredictivePopContentTransform(
+    routeTransition: BiliPaiNavRouteTransition
+): ContentTransform? {
+    return when (routeTransition) {
+        BiliPaiNavRouteTransition.NAV_DISPLAY_DEFAULT_PREDICTIVE -> null
+        else -> resolveBiliPaiNavContentTransform(routeTransition)
     }
 }
