@@ -134,7 +134,8 @@ internal fun VideoShareSheet(
                                     val packageName = item.target.packageName ?: return@VideoShareSheetItemView
                                     if (sharingTarget != null) return@VideoShareSheetItemView
                                     sharingTarget = item.target
-                                    Toast.makeText(context, "正在准备视频封面", Toast.LENGTH_SHORT).show()
+                                    clipboardManager.setText(AnnotatedString(payload.url))
+                                    Toast.makeText(context, "链接已复制，正在准备视频封面", Toast.LENGTH_SHORT).show()
                                     shareScope.launch {
                                         val coverFile = prepareVideoShareCoverFile(context, payload)
                                         if (coverFile == null && payload.coverUrl.isNotBlank()) {

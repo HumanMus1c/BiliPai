@@ -76,6 +76,13 @@ class VideoSharePolicyTest {
             source.contains("addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)"),
             "Cover sharing should grant temporary read permission"
         )
+        val coverShareIntentBody = source
+            .substringAfter("internal fun buildVideoCoverShareIntent")
+            .substringBefore("\n}")
+        assertTrue(
+            !coverShareIntentBody.contains("putExtra(Intent.EXTRA_TEXT"),
+            "Cover sharing should not include text extras because WeChat/QQ render that as a text bubble"
+        )
         assertTrue(
             !source.contains("哔哩哔哩"),
             "Generated cover share intent should not inject a bottom-left Bilibili brand label"

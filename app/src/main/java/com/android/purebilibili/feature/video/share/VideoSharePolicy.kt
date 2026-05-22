@@ -67,8 +67,6 @@ internal fun buildVideoCoverShareIntent(
 ): Intent {
     return Intent(Intent.ACTION_SEND).apply {
         type = mimeType
-        putExtra(Intent.EXTRA_SUBJECT, payload.title)
-        putExtra(Intent.EXTRA_TEXT, payload.text)
         putExtra(Intent.EXTRA_STREAM, coverUri)
         clipData = ClipData.newUri(contentResolver, "Video cover", coverUri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
