@@ -467,67 +467,51 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    fun phoneAutoRotateStabilization_keepsSameCandidateUntilDelayExpires() {
-        val pending = resolvePhoneAutoRotatePendingTarget(
-            current = null,
-            candidateOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
-            nowMs = 1_000L
-        )
-
-        assertEquals(
-            pending,
-            resolvePhoneAutoRotatePendingTarget(
-                current = pending,
-                candidateOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
-                nowMs = 1_500L
-            )
-        )
-        assertEquals(null, resolveStablePhoneAutoRotateTarget(pending, nowMs = 1_999L))
+    fun phoneAutoRotateApplyPolicy_appliesLandscapeCandidateImmediately() {
         assertEquals(
             ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
-            resolveStablePhoneAutoRotateTarget(pending, nowMs = 2_000L)
+            resolvePhoneAutoRotateTargetToApply(
+                candidateOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+                lastLandscapeAppliedAtMs = null,
+                nowMs = 1_000L
+            )
         )
     }
 
     @Test
-    fun phoneAutoRotateStabilization_cancelsLandscapeCandidateWhenBackToPortraitOrUnknown() {
-        val pending = PhoneAutoRotatePendingTarget(
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
-            requestedAtMs = 1_000L
-        )
-
+    fun phoneAutoRotateApplyPolicy_suppressesPortraitCandidateAfterRecentLandscape() {
         assertEquals(
             null,
-            resolvePhoneAutoRotatePendingTarget(
-                current = pending,
+            resolvePhoneAutoRotateTargetToApply(
                 candidateOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
-                nowMs = 1_300L
-            )
-        )
-        assertEquals(
-            null,
-            resolvePhoneAutoRotatePendingTarget(
-                current = pending,
-                candidateOrientation = null,
+                lastLandscapeAppliedAtMs = 1_000L,
                 nowMs = 1_300L
             )
         )
     }
 
     @Test
-    fun phoneAutoRotateStabilization_resetsWhenLandscapeSideChanges() {
-        val pending = PhoneAutoRotatePendingTarget(
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
-            requestedAtMs = 1_000L
+    fun phoneAutoRotateApplyPolicy_allowsPortraitCandidateAfterLandscapeSettleWindow() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            resolvePhoneAutoRotateTargetToApply(
+                candidateOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+                lastLandscapeAppliedAtMs = 1_000L,
+                nowMs = 1_000L + PHONE_AUTO_ROTATE_LANDSCAPE_SETTLE_MS
+            )
         )
-        val next = resolvePhoneAutoRotatePendingTarget(
-            current = pending,
-            candidateOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
-            nowMs = 1_300L
-        )
+    }
 
-        assertEquals(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, next?.requestedOrientation)
-        assertEquals(1_300L, next?.requestedAtMs)
+    @Test
+    fun phoneAutoRotateApplyPolicy_clearsUnknownCandidateImmediately() {
+        assertEquals(
+            null,
+            resolvePhoneAutoRotateTargetToApply(
+                candidateOrientation = null,
+                lastLandscapeAppliedAtMs = 1_000L,
+                nowMs = 1_300L
+            )
+        )
     }
 
     @Test

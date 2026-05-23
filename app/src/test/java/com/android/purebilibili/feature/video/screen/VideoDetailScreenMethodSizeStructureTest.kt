@@ -46,6 +46,17 @@ class VideoDetailScreenMethodSizeStructureTest {
         assertFalse(source.contains(".videoDetailEnterSettle("))
     }
 
+    @Test
+    fun phoneAutoRotateDoesNotUseGlobalCandidateStabilizationDelay() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+
+        assertFalse(source.contains("PHONE_AUTO_ROTATE_STABILIZATION_DELAY_MS"))
+        assertFalse(source.contains("PhoneAutoRotatePendingTarget"))
+        assertFalse(source.contains("resolveStablePhoneAutoRotateTarget"))
+        assertTrue(source.contains("PHONE_AUTO_ROTATE_LANDSCAPE_SETTLE_MS"))
+        assertTrue(source.contains("resolvePhoneAutoRotateTargetToApply("))
+    }
+
     private fun loadSource(path: String): String {
         val candidates = listOf(
             File(path),

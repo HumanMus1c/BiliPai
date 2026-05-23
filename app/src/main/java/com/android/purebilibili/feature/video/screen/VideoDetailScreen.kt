@@ -2129,26 +2129,7 @@ fun VideoDetailScreen(
             "🔄 Auto-rotate: enabled=$autoRotateEnabled, system=$systemAutoRotateEnabled, hold=$manualPortraitHoldActive, mode=$fullscreenMode, horizontal=$horizontalAdaptationEnabled, requested=$requestedOrientation, fullscreen=$isFullscreenMode, verticalVideo=$isVerticalVideo, isCompactDevice=${windowSizeClass.isCompactDevice}"
         )
     }
-    var pendingPhoneAutoRotateTarget by remember { mutableStateOf<PhoneAutoRotatePendingTarget?>(null) }
-
-    LaunchedEffect(
-        pendingPhoneAutoRotateTarget,
-        activity
-    ) {
-        val pending = pendingPhoneAutoRotateTarget ?: return@LaunchedEffect
-        val elapsedMs = SystemClock.elapsedRealtime() - pending.requestedAtMs
-        kotlinx.coroutines.delay(
-            (PHONE_AUTO_ROTATE_STABILIZATION_DELAY_MS - elapsedMs).coerceAtLeast(0L)
-        )
-        val stableOrientation = resolveStablePhoneAutoRotateTarget(
-            pending = pendingPhoneAutoRotateTarget,
-            nowMs = SystemClock.elapsedRealtime()
-        ) ?: return@LaunchedEffect
-        if (activity?.requestedOrientation != stableOrientation) {
-            activity?.requestedOrientation = stableOrientation
-        }
-        pendingPhoneAutoRotateTarget = null
-    }
+    var lastPhoneAutoRotateLandscapeAppliedAtMs by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(
         autoRotateEnabled,
@@ -2167,7 +2148,7 @@ fun VideoDetailScreen(
                 manualPortraitHoldActive = manualPortraitHoldActive
             )
         ) {
-            pendingPhoneAutoRotateTarget = null
+            lastPhoneAutoRotateLandscapeAppliedAtMs = null
         }
     }
 
@@ -2210,11 +2191,17 @@ fun VideoDetailScreen(
                     orientationDegrees = orientation,
                     isCurrentlyLandscape = isCurrentlyLandscape
                 )
-                pendingPhoneAutoRotateTarget = resolvePhoneAutoRotatePendingTarget(
-                    current = pendingPhoneAutoRotateTarget,
+                val nowMs = SystemClock.elapsedRealtime()
+                val targetToApply = resolvePhoneAutoRotateTargetToApply(
                     candidateOrientation = targetOrientation,
-                    nowMs = SystemClock.elapsedRealtime()
-                )
+                    lastLandscapeAppliedAtMs = lastPhoneAutoRotateLandscapeAppliedAtMs,
+                    nowMs = nowMs
+                ) ?: return
+                if (hostActivity.requestedOrientation != targetToApply) {
+                    hostActivity.requestedOrientation = targetToApply
+                }
+                lastPhoneAutoRotateLandscapeAppliedAtMs =
+                    if (isLandscapeRequestedOrientation(targetToApply)) nowMs else null
             }
         }
 
@@ -2224,7 +2211,7 @@ fun VideoDetailScreen(
 
         onDispose {
             orientationListener.disable()
-            pendingPhoneAutoRotateTarget = null
+            lastPhoneAutoRotateLandscapeAppliedAtMs = null
         }
     }
     val portraitExperienceEnabled = shouldEnablePortraitExperience()
@@ -5224,42 +5211,24 @@ internal fun resolvePhoneAutoRotateRequestedOrientation(
     }
 }
 
-internal const val PHONE_AUTO_ROTATE_STABILIZATION_DELAY_MS = 1_000L
+internal const val PHONE_AUTO_ROTATE_LANDSCAPE_SETTLE_MS = 500L
 
-internal data class PhoneAutoRotatePendingTarget(
-    val requestedOrientation: Int,
-    val requestedAtMs: Long
-)
-
-internal fun resolvePhoneAutoRotatePendingTarget(
-    current: PhoneAutoRotatePendingTarget?,
+internal fun resolvePhoneAutoRotateTargetToApply(
     candidateOrientation: Int?,
-    nowMs: Long
-): PhoneAutoRotatePendingTarget? {
+    lastLandscapeAppliedAtMs: Long?,
+    nowMs: Long,
+    landscapeSettleMs: Long = PHONE_AUTO_ROTATE_LANDSCAPE_SETTLE_MS
+): Int? {
     if (candidateOrientation == null) return null
+    // 系统配置切到横屏有延迟；按最近一次横屏写入时间保护，避免刚进横屏又被残留竖屏角度拉回。
     if (
-        current != null &&
-        current.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT &&
-        candidateOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        candidateOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT &&
+        lastLandscapeAppliedAtMs != null &&
+        nowMs - lastLandscapeAppliedAtMs < landscapeSettleMs
     ) {
         return null
     }
-    if (current?.requestedOrientation == candidateOrientation) return current
-    return PhoneAutoRotatePendingTarget(
-        requestedOrientation = candidateOrientation,
-        requestedAtMs = nowMs
-    )
-}
-
-internal fun resolveStablePhoneAutoRotateTarget(
-    pending: PhoneAutoRotatePendingTarget?,
-    nowMs: Long,
-    stabilizationDelayMs: Long = PHONE_AUTO_ROTATE_STABILIZATION_DELAY_MS
-): Int? {
-    val target = pending ?: return null
-    return target.requestedOrientation.takeIf {
-        nowMs - target.requestedAtMs >= stabilizationDelayMs
-    }
+    return candidateOrientation
 }
 
 private fun resolveCurrentExactLandscapeOrientation(currentRequestedOrientation: Int?): Int? {
@@ -5290,6 +5259,11 @@ private fun resolveExactLandscapeOrientation(
         ) -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         else -> null
     }
+}
+
+private fun isLandscapeRequestedOrientation(requestedOrientation: Int): Boolean {
+    return requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE ||
+        requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
 }
 
 internal fun shouldEnterPortraitFullscreenOnFullscreenToggle(
