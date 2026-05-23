@@ -174,3 +174,21 @@ internal fun resolveMd3TopTabIndicatorTranslationPx(
     val indicatorCenterPx = contentPaddingPx + (absolutePagerPosition * itemWidthPx) + (itemWidthPx / 2f)
     return indicatorCenterPx - rowScrollOffsetPx - (indicatorWidthPx / 2f)
 }
+
+internal fun resolveIosTopTabCapsuleTranslationPx(
+    absolutePagerPosition: Float,
+    itemWidthPx: Float,
+    rowScrollOffsetPx: Float,
+    contentPaddingPx: Float = 0f
+): Float {
+    if (itemWidthPx <= 0f) return contentPaddingPx
+    return contentPaddingPx + absolutePagerPosition.coerceAtLeast(0f) * itemWidthPx - rowScrollOffsetPx
+}
+
+internal fun shouldDrawLightweightTopTabItemContainer(
+    renderer: HomeTopTabRenderer,
+    skinPlainStyle: Boolean,
+    hasSkinStickerIcon: Boolean
+): Boolean {
+    return renderer != HomeTopTabRenderer.IOS || skinPlainStyle || hasSkinStickerIcon
+}

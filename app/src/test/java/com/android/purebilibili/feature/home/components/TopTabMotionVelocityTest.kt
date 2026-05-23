@@ -172,6 +172,46 @@ class TopTabMotionVelocityTest {
     }
 
     @Test
+    fun `ios capsule translation follows fractional pager position with viewport offset`() {
+        val translation = resolveIosTopTabCapsuleTranslationPx(
+            absolutePagerPosition = 1.4f,
+            itemWidthPx = 100f,
+            rowScrollOffsetPx = 20f,
+            contentPaddingPx = 2f
+        )
+
+        assertEquals(122f, translation, 0.001f)
+    }
+
+    @Test
+    fun `ios capsule uses moving shared container instead of per item fill`() {
+        assertEquals(
+            false,
+            shouldDrawLightweightTopTabItemContainer(
+                renderer = HomeTopTabRenderer.IOS,
+                skinPlainStyle = false,
+                hasSkinStickerIcon = false
+            )
+        )
+        assertEquals(
+            true,
+            shouldDrawLightweightTopTabItemContainer(
+                renderer = HomeTopTabRenderer.MD3,
+                skinPlainStyle = false,
+                hasSkinStickerIcon = false
+            )
+        )
+        assertEquals(
+            true,
+            shouldDrawLightweightTopTabItemContainer(
+                renderer = HomeTopTabRenderer.IOS,
+                skinPlainStyle = false,
+                hasSkinStickerIcon = true
+            )
+        )
+    }
+
+    @Test
     fun `follow scroll centers selected item on item boundaries while moving right`() {
         val target = resolveTopTabFollowScrollTarget(
             indicatorPosition = 4.2f,

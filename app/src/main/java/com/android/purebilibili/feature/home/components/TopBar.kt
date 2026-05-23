@@ -14,7 +14,9 @@ import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.Tv
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -709,11 +711,20 @@ private fun LightweightHomeTopTabs(
             HomeTopTabRenderer.MIUIX -> resolveMd3TopTabItemWidthDp(maxWidth.value).dp
         }
         val density = LocalDensity.current
+        val isDarkTheme = isSystemInDarkTheme()
         val md3IndicatorWidth = if (skinPlainStyle) 30.dp else 28.dp
         val md3TopTabVerticalLiftPx = if (skinPlainStyle) {
             0f
         } else {
             with(density) { resolveMd3TopTabVerticalLiftDp().dp.toPx() }
+        }
+        val rowScrollOffsetPx by remember(itemWidth, density, listState) {
+            derivedStateOf {
+                with(density) {
+                    listState.firstVisibleItemIndex * itemWidth.toPx() +
+                        listState.firstVisibleItemScrollOffset
+                }
+            }
         }
         val md3IndicatorTranslationXPx by remember(currentPosition, itemWidth, md3IndicatorWidth, density, listState) {
             derivedStateOf {
@@ -721,13 +732,35 @@ private fun LightweightHomeTopTabs(
                     resolveMd3TopTabIndicatorTranslationPx(
                         absolutePagerPosition = currentPosition,
                         itemWidthPx = itemWidth.toPx(),
-                        rowScrollOffsetPx = listState.firstVisibleItemIndex * itemWidth.toPx() +
-                            listState.firstVisibleItemScrollOffset,
+                        rowScrollOffsetPx = rowScrollOffsetPx,
                         indicatorWidthPx = md3IndicatorWidth.toPx()
                     )
                 }
             }
         }
+        val shouldUseMovingIosCapsule = effectiveRenderer == HomeTopTabRenderer.IOS &&
+            !skinPlainStyle &&
+            !hasSkinStickerIcons
+        val iosCapsuleTargetTranslationXPx by remember(currentPosition, itemWidth, density, rowScrollOffsetPx) {
+            derivedStateOf {
+                with(density) {
+                    resolveIosTopTabCapsuleTranslationPx(
+                        absolutePagerPosition = currentPosition,
+                        itemWidthPx = itemWidth.toPx(),
+                        rowScrollOffsetPx = rowScrollOffsetPx,
+                        contentPaddingPx = 2.dp.toPx()
+                    )
+                }
+            }
+        }
+        val iosCapsuleTranslationXPx by animateFloatAsState(
+            targetValue = iosCapsuleTargetTranslationXPx,
+            animationSpec = spring(
+                dampingRatio = 0.68f,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "iosTopTabCapsuleTranslation"
+        )
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -745,6 +778,27 @@ private fun LightweightHomeTopTabs(
                     .weight(1f)
                     .fillMaxHeight()
             ) {
+                if (shouldUseMovingIosCapsule) {
+                    val capsuleShape = resolveSharedBottomBarCapsuleShape()
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .graphicsLayer {
+                                translationX = iosCapsuleTranslationXPx
+                            }
+                            .width(itemWidth)
+                            .fillMaxHeight()
+                            .padding(horizontal = 3.dp, vertical = 4.dp)
+                            .clip(capsuleShape)
+                            .background(
+                                resolveIosTopTabCapsuleContainerColor(
+                                    isDarkTheme = isDarkTheme,
+                                    selectionFraction = 1f
+                                ),
+                                capsuleShape
+                            )
+                    )
+                }
                 LazyRow(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
@@ -758,6 +812,11 @@ private fun LightweightHomeTopTabs(
                     ) { index, category ->
                         val categoryKey = categoryKeys.getOrNull(index) ?: category
                         val selectionFraction = (1f - abs(currentPosition - index.toFloat())).coerceIn(0f, 1f)
+                        val drawItemContainer = shouldDrawLightweightTopTabItemContainer(
+                            renderer = effectiveRenderer,
+                            skinPlainStyle = skinPlainStyle,
+                            hasSkinStickerIcon = hasSkinStickerIcons
+                        )
                         LightweightTopTabItem(
                             renderer = effectiveRenderer,
                             category = category,
@@ -770,6 +829,7 @@ private fun LightweightHomeTopTabs(
                             itemWidth = itemWidth,
                             skinPlainStyle = skinPlainStyle,
                             skinPlainContentColor = skinPlainContentColor,
+                            drawContainer = drawItemContainer,
                             skinIconPaths = topTabSkinIconPaths[categoryKey.trim().uppercase()],
                             hasSkinStickerIcon = hasSkinStickerIcons,
                             onClick = {
@@ -865,6 +925,7 @@ private fun LightweightTopTabItem(
     itemWidth: Dp,
     skinPlainStyle: Boolean = false,
     skinPlainContentColor: Color? = null,
+    drawContainer: Boolean = true,
     skinIconPaths: TopTabSkinIconPaths? = null,
     hasSkinStickerIcon: Boolean = false,
     onClick: () -> Unit
@@ -903,6 +964,7 @@ private fun LightweightTopTabItem(
         selectionFraction
     )
     val containerColor = when {
+        !drawContainer -> Color.Transparent
         skinPlainStyle -> Color.Transparent
         renderer == HomeTopTabRenderer.IOS -> resolveIosTopTabCapsuleContainerColor(
             isDarkTheme = isDarkTheme,
