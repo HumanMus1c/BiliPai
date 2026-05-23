@@ -282,6 +282,22 @@ class TopTabStylePolicyTest {
     }
 
     @Test
+    fun `ios lightweight top tab capsule uses gray white while content keeps theme primary`() {
+        val colorScheme = lightColorScheme(primary = Color(0xFF2D6A4F))
+        val capsuleColor = resolveIosTopTabCapsuleContainerColor(
+            isDarkTheme = false,
+            selectionFraction = 1f
+        )
+
+        assertEquals(Color(0xFFF2F2F7), capsuleColor)
+        assertEquals(
+            colorScheme.primary,
+            resolveIosTopTabSelectedContentColor(colorScheme)
+        )
+        assertFalse(capsuleColor == colorScheme.primary.copy(alpha = 0.10f))
+    }
+
+    @Test
     fun `ios top tab icon modes use readable glyph sizes`() {
         assertEquals(18f, resolveTopTabIconSizeDp(labelMode = 0), 0.001f)
         assertEquals(22f, resolveTopTabIconSizeDp(labelMode = 1), 0.001f)

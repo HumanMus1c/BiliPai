@@ -537,6 +537,22 @@ internal fun resolveTopTabUnselectedColor(isLightMode: Boolean): Color {
     }
 }
 
+internal fun resolveIosTopTabSelectedContentColor(colorScheme: ColorScheme): Color =
+    colorScheme.primary
+
+internal fun resolveIosTopTabCapsuleContainerColor(
+    isDarkTheme: Boolean,
+    selectionFraction: Float
+): Color {
+    val selectedAlpha = selectionFraction.coerceIn(0f, 1f)
+    val baseColor = if (isDarkTheme) {
+        Color(0xFFE5E5EA).copy(alpha = 0.20f)
+    } else {
+        Color(0xFFF2F2F7)
+    }
+    return baseColor.copy(alpha = baseColor.alpha * selectedAlpha)
+}
+
 internal fun Modifier.homeTopBottomBarMatchedSurface(
     renderMode: HomeTopChromeRenderMode,
     shape: Shape,
@@ -855,6 +871,7 @@ private fun LightweightTopTabItem(
 ) {
     val uiPreset = LocalUiPreset.current
     val colorScheme = MaterialTheme.colorScheme
+    val isDarkTheme = isSystemInDarkTheme()
     val selected = selectionFraction > 0.5f || index == selectedIndex
     val skinIconPath = skinIconPaths?.pathFor(selected)
     val icon = resolveTopTabCategoryIcon(categoryKey, uiPreset)
@@ -862,7 +879,7 @@ private fun LightweightTopTabItem(
         HomeTopTabRenderer.IOS -> if (skinPlainStyle) {
             skinPlainContentColor ?: colorScheme.onSurface
         } else {
-            colorScheme.primary
+            resolveIosTopTabSelectedContentColor(colorScheme)
         }
         HomeTopTabRenderer.MD3 -> if (skinPlainStyle) {
             skinPlainContentColor ?: colorScheme.onSurface
@@ -887,7 +904,10 @@ private fun LightweightTopTabItem(
     )
     val containerColor = when {
         skinPlainStyle -> Color.Transparent
-        renderer == HomeTopTabRenderer.IOS -> colorScheme.primary.copy(alpha = 0.10f * selectionFraction)
+        renderer == HomeTopTabRenderer.IOS -> resolveIosTopTabCapsuleContainerColor(
+            isDarkTheme = isDarkTheme,
+            selectionFraction = selectionFraction
+        )
         renderer == HomeTopTabRenderer.MD3 -> Color.Transparent
         else -> colorScheme.secondaryContainer.copy(alpha = 0.70f * selectionFraction)
     }
