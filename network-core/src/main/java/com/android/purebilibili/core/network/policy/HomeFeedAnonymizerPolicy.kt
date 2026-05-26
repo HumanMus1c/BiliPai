@@ -2,13 +2,6 @@ package com.android.purebilibili.core.network.policy
 
 private const val BILIBILI_API_HOST = "api.bilibili.com"
 private const val WEB_HOME_FEED_PATH = "/x/web-interface/wbi/index/top/feed/rcmd"
-private val HOME_FEED_AUTH_COOKIE_NAMES = setOf(
-    "SESSDATA",
-    "bili_jct",
-    "DedeUserID",
-    "DedeUserID__ckMd5",
-    "sid"
-)
 
 data class HomeFeedAnonymizerStatsSnapshot(
     val totalHits: Long = 0L,
@@ -67,17 +60,21 @@ fun shouldClearHomeFeedCookies(
         encodedPath == WEB_HOME_FEED_PATH
 }
 
-fun shouldStripHomeFeedAuthCookie(
+fun filterHomeFeedCookieHeaderNames(
     pluginEnabled: Boolean,
     host: String,
     encodedPath: String,
-    cookieName: String
-): Boolean {
-    return shouldClearHomeFeedCookies(
+    cookieNames: List<String>
+): List<String> {
+    return if (shouldClearHomeFeedCookies(
         pluginEnabled = pluginEnabled,
         host = host,
         encodedPath = encodedPath
-    ) && cookieName in HOME_FEED_AUTH_COOKIE_NAMES
+    )) {
+        emptyList()
+    } else {
+        cookieNames
+    }
 }
 
 fun resolveHomeFeedCookieAnonymizerDecision(

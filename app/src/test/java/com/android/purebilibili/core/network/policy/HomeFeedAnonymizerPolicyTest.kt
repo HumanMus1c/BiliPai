@@ -31,8 +31,11 @@ class HomeFeedAnonymizerPolicyTest {
     }
 
     @Test
-    fun enabledPlugin_stripsOnlyLoginCookiesForWebHomeFeed() {
-        val authCookieNames = listOf(
+    fun enabledPlugin_clearsEntireCookieHeaderForWebHomeFeed() {
+        val cookieNames = listOf(
+            "buvid3",
+            "buvid4",
+            "b_nut",
             "SESSDATA",
             "bili_jct",
             "DedeUserID",
@@ -40,36 +43,28 @@ class HomeFeedAnonymizerPolicyTest {
             "sid"
         )
 
-        authCookieNames.forEach { cookieName ->
-            assertTrue(
-                shouldStripHomeFeedAuthCookie(
-                    pluginEnabled = true,
-                    host = "api.bilibili.com",
-                    encodedPath = "/x/web-interface/wbi/index/top/feed/rcmd",
-                    cookieName = cookieName
-                )
+        assertEquals(
+            emptyList(),
+            filterHomeFeedCookieHeaderNames(
+                pluginEnabled = true,
+                host = "api.bilibili.com",
+                encodedPath = "/x/web-interface/wbi/index/top/feed/rcmd",
+                cookieNames = cookieNames
             )
-        }
-        listOf("buvid3", "buvid4", "b_nut").forEach { cookieName ->
-            assertFalse(
-                shouldStripHomeFeedAuthCookie(
-                    pluginEnabled = true,
-                    host = "api.bilibili.com",
-                    encodedPath = "/x/web-interface/wbi/index/top/feed/rcmd",
-                    cookieName = cookieName
-                )
-            )
-        }
+        )
     }
 
     @Test
-    fun nonMatchingRequest_keepsLoginCookies() {
-        assertFalse(
-            shouldStripHomeFeedAuthCookie(
+    fun nonMatchingRequest_keepsEntireCookieHeader() {
+        val cookieNames = listOf("buvid3", "SESSDATA", "bili_jct")
+
+        assertEquals(
+            cookieNames,
+            filterHomeFeedCookieHeaderNames(
                 pluginEnabled = true,
                 host = "api.bilibili.com",
                 encodedPath = "/x/web-interface/nav",
-                cookieName = "SESSDATA"
+                cookieNames = cookieNames
             )
         )
     }

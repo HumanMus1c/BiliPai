@@ -17,6 +17,7 @@ class HomeFeedAnonymizerPluginTest {
 
         assertEquals(HOME_FEED_ANONYMIZER_PLUGIN_ID, plugin.id)
         assertEquals("初见推荐", plugin.name)
+        assertEquals("1.0.1", plugin.version)
         assertEquals("BiliPai项目组", plugin.author)
         assertFalse(plugin.unavailable)
         assertEquals(
@@ -91,6 +92,8 @@ class HomeFeedAnonymizerPluginTest {
         assertEquals("api.bilibili.com", model.lastHitRow.summary)
         assertTrue(model.lastHitRow.fullContent.contains("/x/web-interface/wbi/index/top/feed/rcmd"))
         assertTrue(model.scopeRow.fullContent.contains("https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd"))
+        assertTrue(model.scopeRow.fullContent.contains("频繁刷新"))
+        assertTrue(model.scopeRow.fullContent.contains("关闭插件"))
         assertEquals(2, model.scopeRow.maxLines)
     }
 

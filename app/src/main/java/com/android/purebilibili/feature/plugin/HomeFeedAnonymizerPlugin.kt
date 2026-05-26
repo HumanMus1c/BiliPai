@@ -54,7 +54,7 @@ class HomeFeedAnonymizerPlugin : Plugin {
     override val id: String = HOME_FEED_ANONYMIZER_PLUGIN_ID
     override val name: String = "初见推荐"
     override val description: String = "仅在 Web 首页推荐接口隐藏登录 Cookie，让推荐流更接近未登录公共热门"
-    override val version: String = "1.0.0"
+    override val version: String = "1.0.1"
     override val author: String = "BiliPai项目组"
     override val capabilityManifest: PluginCapabilityManifest = PluginCapabilityManifest(
         pluginId = id,
@@ -141,7 +141,7 @@ fun buildHomeFeedAnonymizerStatsUiModel(
         scopeRow = HomeFeedAnonymizerInfoRow(
             label = "影响范围",
             summary = "仅 Web 首页推荐接口",
-            fullContent = "影响范围：仅 $HOME_FEED_ANONYMIZER_WEB_ENDPOINT。启用后该接口请求不携带 Cookie，其他接口保持原登录态。",
+            fullContent = "影响范围：仅 $HOME_FEED_ANONYMIZER_WEB_ENDPOINT。启用后该接口请求不携带 Cookie，其他接口保持原登录态。频繁刷新可能触发访客侧限流；首页异常时请先关闭插件验证。",
             maxLines = 2,
             url = HOME_FEED_ANONYMIZER_WEB_ENDPOINT
         )

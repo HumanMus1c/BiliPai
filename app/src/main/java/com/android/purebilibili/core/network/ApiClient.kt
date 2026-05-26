@@ -6,7 +6,6 @@ import com.android.purebilibili.BuildConfig
 import com.android.purebilibili.core.network.policy.HomeFeedAnonymizerRuntime
 import com.android.purebilibili.core.network.policy.resolveHardcodedDnsFallback
 import com.android.purebilibili.core.network.policy.resolveHomeFeedCookieAnonymizerDecision
-import com.android.purebilibili.core.network.policy.shouldStripHomeFeedAuthCookie
 import com.android.purebilibili.core.network.policy.shouldEnableTrustAllCertificates
 import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.data.model.response.*
@@ -50,6 +49,19 @@ private class AppSessionCookieJar : okhttp3.CookieJar {
     }
 
     override fun loadForRequest(url: okhttp3.HttpUrl): List<okhttp3.Cookie> {
+        if (resolveHomeFeedCookieAnonymizerDecision(
+                pluginEnabled = HomeFeedAnonymizerRuntime.enabled,
+                host = url.host,
+                encodedPath = url.encodedPath
+            )
+        ) {
+            com.android.purebilibili.core.util.Logger.d(
+                "CookieJar",
+                " 初见推荐匿名化首页推荐请求: ${url.encodedPath}, clearCookieHeader=true"
+            )
+            return emptyList()
+        }
+
         val cookies = mutableListOf<okhttp3.Cookie>()
 
         synchronized(cookieLock) {
@@ -93,27 +105,6 @@ private class AppSessionCookieJar : okhttp3.CookieJar {
                     .name("bili_jct")
                     .value(biliJct)
                     .build()
-            )
-        }
-
-        if (resolveHomeFeedCookieAnonymizerDecision(
-                pluginEnabled = HomeFeedAnonymizerRuntime.enabled,
-                host = url.host,
-                encodedPath = url.encodedPath
-            )
-        ) {
-            val beforeCount = cookies.size
-            cookies.removeAll { cookie ->
-                shouldStripHomeFeedAuthCookie(
-                    pluginEnabled = true,
-                    host = url.host,
-                    encodedPath = url.encodedPath,
-                    cookieName = cookie.name
-                )
-            }
-            com.android.purebilibili.core.util.Logger.d(
-                "CookieJar",
-                " 初见推荐匿名化首页推荐请求: ${url.encodedPath}, removedAuthCookies=${beforeCount - cookies.size}, keptCookies=${cookies.size}"
             )
         }
 
