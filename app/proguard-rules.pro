@@ -76,9 +76,9 @@
 
 # Release-only player overlay regressions are hard to diagnose because gestures
 # can keep working while Compose control layers stop rendering. Keep the
-# player section and overlay Kt classes out of R8 optimization; this preserves
+# player section and overlay classes out of R8 optimization; this preserves
 # minification for the rest of the app while protecting the control UI path.
--keep class com.android.purebilibili.feature.video.ui.section.VideoPlayerSectionKt { *; }
+-keep class com.android.purebilibili.feature.video.ui.section.** { *; }
 -keep class com.android.purebilibili.feature.video.ui.overlay.** { *; }
 
 # === Haze (毛玻璃效果) ===

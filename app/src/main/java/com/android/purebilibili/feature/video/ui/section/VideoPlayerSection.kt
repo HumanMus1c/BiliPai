@@ -9,6 +9,7 @@ import com.android.purebilibili.feature.video.danmaku.resolveDanmakuCloudSyncSta
 import com.android.purebilibili.feature.video.danmaku.resolveDanmakuCloudSyncStateAfterStarted
 import com.android.purebilibili.feature.video.danmaku.shouldRunDanmakuManualCloudSync
 import com.android.purebilibili.feature.video.danmaku.filterVisibleCommandDanmakuItems
+import com.android.purebilibili.feature.video.danmaku.configureAsPassiveDanmakuOverlay
 import com.android.purebilibili.feature.video.state.VideoPlayerState
 import com.android.purebilibili.feature.video.viewmodel.PlayerUiState
 import com.android.purebilibili.feature.video.ui.overlay.FullscreenDoubleTapAction
@@ -2699,9 +2700,11 @@ fun VideoPlayerSection(
         pipNoDanmakuEnabled = pipNoDanmakuEnabled,
         hostLifecycleStarted = hostLifecycleStarted
     )
-    android.util.Log.d("VideoPlayerSection", "🔍 DanmakuView check: isInPipMode=$isInPipMode, danmakuEnabled=$danmakuEnabled, pipNoDanmakuEnabled=$pipNoDanmakuEnabled")
+    Logger.d("VideoPlayerSection") {
+        "DanmakuView check: isInPipMode=$isInPipMode, danmakuEnabled=$danmakuEnabled, pipNoDanmakuEnabled=$pipNoDanmakuEnabled"
+    }
         if (shouldShowDanmakuLayer) {
-            android.util.Log.d("VideoPlayerSection", " Conditions met, creating DanmakuView...")
+            Logger.d("VideoPlayerSection") { "Conditions met, creating DanmakuView" }
             //  计算状态栏高度
             val statusBarHeightPx = remember(context) {
                 val resourceId = context.resources.getIdentifier(
@@ -2750,13 +2753,18 @@ fun VideoPlayerSection(
                     factory = { ctx ->
                         DanmakuView(ctx).apply {
                             setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                            configureAsPassiveDanmakuOverlay()
                             danmakuManager.attachView(this)
-                            android.util.Log.d("VideoPlayerSection", " DanmakuView (RenderEngine) created, isFullscreen=$isFullscreen")
+                            Logger.d("VideoPlayerSection") {
+                                "DanmakuView (RenderEngine) created, isFullscreen=$isFullscreen"
+                            }
                         }
                     },
                     update = { view ->
                         //  [关键] 横竖屏切换后视图尺寸变化时，重新 attachView 确保弹幕正确显示
-                        android.util.Log.d("VideoPlayerSection", " DanmakuView update: size=${view.width}x${view.height}, isFullscreen=$isFullscreen")
+                        Logger.d("VideoPlayerSection") {
+                            "DanmakuView update: size=${view.width}x${view.height}, isFullscreen=$isFullscreen"
+                        }
                         // 只有当视图有有效尺寸时才 re-attach
                         if (view.width > 0 && view.height > 0) {
                             val sizeTag = "${view.width}x${view.height}"

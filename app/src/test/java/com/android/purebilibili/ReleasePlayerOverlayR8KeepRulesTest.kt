@@ -15,7 +15,7 @@ class ReleasePlayerOverlayR8KeepRulesTest {
 
         assertTrue(
             rules.contains(
-                "-keep class com.android.purebilibili.feature.video.ui.section.VideoPlayerSectionKt { *; }"
+                "-keep class com.android.purebilibili.feature.video.ui.section.** { *; }"
             )
         )
         assertTrue(
