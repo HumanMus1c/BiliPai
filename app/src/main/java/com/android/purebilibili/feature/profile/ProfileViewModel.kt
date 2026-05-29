@@ -4,11 +4,19 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.purebilibili.core.network.NetworkModule
+import com.android.purebilibili.core.network.WbiUtils
 import com.android.purebilibili.core.store.AccountSessionStore
 import com.android.purebilibili.core.store.StoredAccountSession
 import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.data.model.response.FavFolder
+import com.android.purebilibili.data.model.response.MemberAccountData
+import com.android.purebilibili.data.model.response.SpaceUserInfo
+import com.android.purebilibili.data.model.response.SpaceAggregateData
+import com.android.purebilibili.data.model.response.SpaceDynamicItem
+import com.android.purebilibili.data.model.response.WbiImg
 import com.android.purebilibili.data.repository.FavoriteRepository
+import com.android.purebilibili.data.repository.BangumiRepository
+import com.android.purebilibili.feature.bangumi.MY_FOLLOW_TYPE_BANGUMI
 import com.android.purebilibili.feature.home.UserState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,7 +41,9 @@ sealed class ProfileUiState {
     object Loading : ProfileUiState()
     data class Success(
         val user: UserState,
-        val favoriteFolders: List<FavFolder> = emptyList()
+        val favoriteFolders: List<FavFolder> = emptyList(),
+        val space: ProfileSpaceUiState = ProfileSpaceUiState(),
+        val editableAccount: ProfileEditableAccountState = ProfileEditableAccountState()
     ) : ProfileUiState()
     // LoggedOut 代表“当前是游客/未登录状态”，UI 应该显示“去登录”
     // [Modified] Support wallpaper in guest mode
@@ -170,8 +180,24 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                         // 绑定背景图
                         topPhoto = finalTopPhoto
                     )
-                    _uiState.value = ProfileUiState.Success(userState)
-                    refreshFavoriteFolders(data.mid)
+                    val profileData = loadProfileSpaceData(data.mid, data.wbi_img)
+                    val spaceState = resolveProfileSpaceStateFromAggregate(
+                        aggregate = profileData.aggregate,
+                        favoriteFoldersFallback = profileData.favoriteFolders,
+                        bangumiItems = profileData.bangumiItems,
+                        dynamicItems = profileData.dynamicItems
+                    )
+                    val editableAccount = resolveProfileEditableAccountState(
+                        account = profileData.account,
+                        user = userState,
+                        aggregateSign = profileData.spaceInfo?.sign ?: profileData.aggregate?.card?.sign.orEmpty()
+                    )
+                    _uiState.value = ProfileUiState.Success(
+                        user = userState,
+                        favoriteFolders = profileData.favoriteFolders,
+                        space = spaceState,
+                        editableAccount = editableAccount
+                    )
                     TokenManager.saveMid(getApplication(), data.mid)
                     TokenManager.saveVipStatus(data.vip.status == 1)
                     AccountSessionStore.upsertCurrentAccount(getApplication(), data)
@@ -218,6 +244,114 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             val current = _uiState.value as? ProfileUiState.Success ?: return@launch
             if (current.user.mid == mid) {
                 _uiState.value = current.copy(favoriteFolders = folders)
+            }
+        }
+    }
+
+    private data class ProfileSpaceLoadData(
+        val account: MemberAccountData?,
+        val spaceInfo: SpaceUserInfo?,
+        val aggregate: SpaceAggregateData?,
+        val favoriteFolders: List<FavFolder>,
+        val bangumiItems: List<com.android.purebilibili.data.model.response.FollowBangumiItem>,
+        val dynamicItems: List<SpaceDynamicItem>
+    )
+
+    private suspend fun loadProfileSpaceData(mid: Long, wbiImg: WbiImg?): ProfileSpaceLoadData {
+        return kotlinx.coroutines.supervisorScope {
+            val accountDeferred = async { runCatching { NetworkModule.api.getMemberAccount().data } }
+            val spaceInfoDeferred = async { runCatching { fetchProfileSpaceInfo(mid, wbiImg) } }
+            val aggregateDeferred = async { runCatching { NetworkModule.spaceApi.getSpaceAggregate(mid).data } }
+            val favoriteDeferred = async { FavoriteRepository.getFavFolders(mid).getOrElse { emptyList() } }
+            val bangumiDeferred = async {
+                BangumiRepository.getMyFollowBangumi(
+                    type = MY_FOLLOW_TYPE_BANGUMI,
+                    page = 1,
+                    pageSize = 12,
+                    vmid = mid
+                ).getOrNull()?.list.orEmpty()
+            }
+            val dynamicDeferred = async {
+                runCatching { NetworkModule.spaceApi.getSpaceDynamic(mid).data?.items.orEmpty() }
+                    .getOrElse { emptyList() }
+            }
+
+            ProfileSpaceLoadData(
+                account = accountDeferred.await().getOrNull(),
+                spaceInfo = spaceInfoDeferred.await().getOrNull(),
+                aggregate = aggregateDeferred.await().getOrNull(),
+                favoriteFolders = favoriteDeferred.await(),
+                bangumiItems = bangumiDeferred.await(),
+                dynamicItems = dynamicDeferred.await()
+            )
+        }
+    }
+
+    private suspend fun fetchProfileSpaceInfo(mid: Long, wbiImg: WbiImg?): SpaceUserInfo? {
+        val imgUrl = wbiImg?.img_url.orEmpty()
+        val subUrl = wbiImg?.sub_url.orEmpty()
+        val imgKey = imgUrl.substringAfterLast("/").substringBefore(".")
+        val subKey = subUrl.substringAfterLast("/").substringBefore(".")
+        if (imgKey.isBlank() || subKey.isBlank()) return null
+        val params = WbiUtils.sign(mapOf("mid" to mid.toString()), imgKey, subKey)
+        val response = NetworkModule.spaceApi.getSpaceInfo(params)
+        return if (response.code == 0) response.data else null
+    }
+
+    fun selectProfileSpaceTab(tab: ProfileSpaceMainTab) {
+        val current = _uiState.value as? ProfileUiState.Success ?: return
+        if (current.space.selectedTab == tab) return
+        _uiState.value = current.copy(space = current.space.copy(selectedTab = tab))
+    }
+
+    fun clearProfileSpaceMessage() {
+        val current = _uiState.value as? ProfileUiState.Success ?: return
+        _uiState.value = current.copy(space = current.space.copy(signSaveMessage = null, message = null))
+    }
+
+    fun updateProfileSign(sign: String) {
+        val validationError = validateProfileSign(sign)
+        val current = _uiState.value as? ProfileUiState.Success ?: return
+        if (validationError != null) {
+            _uiState.value = current.copy(
+                space = current.space.copy(signSaveMessage = validationError)
+            )
+            return
+        }
+
+        val csrf = TokenManager.csrfCache.orEmpty()
+        if (csrf.isBlank()) {
+            _uiState.value = current.copy(
+                space = current.space.copy(signSaveMessage = "请先登录后再修改签名")
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            val beforeSave = _uiState.value as? ProfileUiState.Success ?: return@launch
+            _uiState.value = beforeSave.copy(
+                space = beforeSave.space.copy(isSavingSign = true, signSaveMessage = null)
+            )
+            val result = runCatching {
+                NetworkModule.api.updateMemberSign(userSign = sign.trim(), csrf = csrf)
+            }
+            val latest = _uiState.value as? ProfileUiState.Success ?: return@launch
+            val response = result.getOrNull()
+            if (response?.code == 0) {
+                _uiState.value = latest.copy(
+                    editableAccount = latest.editableAccount.copy(sign = sign.trim()),
+                    space = latest.space.copy(
+                        isSavingSign = false,
+                        signSaveMessage = "签名已提交，等待审核后生效"
+                    )
+                )
+            } else {
+                _uiState.value = latest.copy(
+                    space = latest.space.copy(
+                        isSavingSign = false,
+                        signSaveMessage = response?.message?.ifBlank { null } ?: "签名保存失败"
+                    )
+                )
             }
         }
     }

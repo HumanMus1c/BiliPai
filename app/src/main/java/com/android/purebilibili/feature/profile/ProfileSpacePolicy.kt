@@ -1,0 +1,157 @@
+package com.android.purebilibili.feature.profile
+
+import com.android.purebilibili.data.model.response.FavFolder
+import com.android.purebilibili.data.model.response.FollowBangumiItem
+import com.android.purebilibili.data.model.response.MemberAccountData
+import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
+import com.android.purebilibili.data.model.response.SpaceAggregateData
+import com.android.purebilibili.data.model.response.SpaceAggregateFavoriteItem
+import com.android.purebilibili.data.model.response.SpaceDynamicItem
+import com.android.purebilibili.data.model.response.SpaceVideoItem
+import com.android.purebilibili.feature.home.UserState
+
+enum class ProfileSpaceMainTab(val title: String) {
+    HOME("主页"),
+    DYNAMIC("动态"),
+    CONTRIBUTION("投稿"),
+    FAVORITE("收藏"),
+    BANGUMI("追番")
+}
+
+data class ProfileSpaceTabItem(
+    val tab: ProfileSpaceMainTab,
+    val title: String
+)
+
+enum class ProfileSpaceHomeSection {
+    FAVORITES,
+    BANGUMI,
+    COIN_VIDEOS,
+    LIKE_VIDEOS,
+    CONTRIBUTIONS,
+    SERVICES
+}
+
+data class ProfileSpaceUiState(
+    val selectedTab: ProfileSpaceMainTab = ProfileSpaceMainTab.HOME,
+    val isLoading: Boolean = false,
+    val favoriteFolders: List<FavFolder> = emptyList(),
+    val bangumiItems: List<FollowBangumiItem> = emptyList(),
+    val contributionVideos: List<SpaceVideoItem> = emptyList(),
+    val coinVideos: List<SpaceAggregateArchiveItem> = emptyList(),
+    val likeVideos: List<SpaceAggregateArchiveItem> = emptyList(),
+    val dynamicItems: List<SpaceDynamicItem> = emptyList(),
+    val favoriteFolderCount: Int = 0,
+    val bangumiCount: Int = 0,
+    val contributionVideoCount: Int = 0,
+    val coinVideoCount: Int = 0,
+    val likeVideoCount: Int = 0,
+    val message: String? = null,
+    val signSaveMessage: String? = null,
+    val isSavingSign: Boolean = false
+)
+
+data class ProfileEditableAccountState(
+    val name: String = "",
+    val birthday: String = "",
+    val sex: String = "",
+    val sign: String = "",
+    val canEditName: Boolean = false,
+    val canEditBirthday: Boolean = false,
+    val canEditSex: Boolean = false
+) {
+    val normalizedSign: String = sign.trim()
+    val canSubmitSign: Boolean = validateProfileSign(sign) == null
+}
+
+fun defaultProfileSpaceTabs(): List<ProfileSpaceTabItem> {
+    return ProfileSpaceMainTab.entries.map { tab ->
+        ProfileSpaceTabItem(tab = tab, title = tab.title)
+    }
+}
+
+fun resolveProfileSpaceHomeSections(
+    favoriteFolders: List<FavFolder>,
+    bangumiItems: List<FollowBangumiItem>,
+    coinVideos: List<SpaceAggregateArchiveItem>,
+    likeVideos: List<SpaceAggregateArchiveItem>,
+    contributionVideos: List<SpaceVideoItem>
+): List<ProfileSpaceHomeSection> {
+    return buildList {
+        if (favoriteFolders.any { it.id > 0L && it.title.isNotBlank() }) add(ProfileSpaceHomeSection.FAVORITES)
+        if (bangumiItems.any { it.seasonId > 0L && it.title.isNotBlank() }) add(ProfileSpaceHomeSection.BANGUMI)
+        if (coinVideos.any { it.aid > 0L && it.title.isNotBlank() }) add(ProfileSpaceHomeSection.COIN_VIDEOS)
+        if (likeVideos.any { it.aid > 0L && it.title.isNotBlank() }) add(ProfileSpaceHomeSection.LIKE_VIDEOS)
+        if (contributionVideos.any { it.bvid.isNotBlank() || it.aid > 0L }) add(ProfileSpaceHomeSection.CONTRIBUTIONS)
+        add(ProfileSpaceHomeSection.SERVICES)
+    }
+}
+
+fun validateProfileSign(sign: String): String? {
+    return if (sign.length > 70) "签名最多支持 70 个字符" else null
+}
+
+fun resolveProfileEditableAccountState(
+    account: MemberAccountData?,
+    user: UserState,
+    aggregateSign: String = ""
+): ProfileEditableAccountState {
+    return ProfileEditableAccountState(
+        name = account?.uname?.ifBlank { user.name } ?: user.name,
+        birthday = account?.birthday.orEmpty(),
+        sex = account?.sex.orEmpty(),
+        sign = account?.sign?.ifBlank { aggregateSign }.orEmpty(),
+        canEditName = false,
+        canEditBirthday = false,
+        canEditSex = false
+    )
+}
+
+fun resolveProfileSpaceStateFromAggregate(
+    aggregate: SpaceAggregateData?,
+    favoriteFoldersFallback: List<FavFolder>,
+    bangumiItems: List<FollowBangumiItem>,
+    dynamicItems: List<SpaceDynamicItem>
+): ProfileSpaceUiState {
+    val aggregateFavoriteFolders = aggregate?.favourite2?.item.orEmpty().map(::mapProfileAggregateFavoriteFolder)
+    val contributionVideos = aggregate?.archive?.item.orEmpty().map(::mapProfileAggregateVideoItem)
+    return ProfileSpaceUiState(
+        favoriteFolders = aggregateFavoriteFolders.ifEmpty { favoriteFoldersFallback },
+        favoriteFolderCount = aggregate?.favourite2?.count ?: favoriteFoldersFallback.size,
+        bangumiItems = bangumiItems,
+        bangumiCount = bangumiItems.size,
+        contributionVideos = contributionVideos,
+        contributionVideoCount = aggregate?.archive?.count ?: contributionVideos.size,
+        coinVideos = aggregate?.coinArchive?.item.orEmpty(),
+        coinVideoCount = aggregate?.coinArchive?.count ?: aggregate?.coinArchive?.item.orEmpty().size,
+        likeVideos = aggregate?.likeArchive?.item.orEmpty(),
+        likeVideoCount = aggregate?.likeArchive?.count ?: aggregate?.likeArchive?.item.orEmpty().size,
+        dynamicItems = dynamicItems.filter { it.visible }
+    )
+}
+
+private fun mapProfileAggregateVideoItem(item: SpaceAggregateArchiveItem): SpaceVideoItem {
+    return SpaceVideoItem(
+        aid = item.aid,
+        bvid = item.bvid,
+        title = item.title,
+        pic = item.cover,
+        play = item.play,
+        comment = item.reply,
+        length = item.length,
+        created = item.ctime,
+        author = item.author,
+        typename = item.tname
+    )
+}
+
+private fun mapProfileAggregateFavoriteFolder(item: SpaceAggregateFavoriteItem): FavFolder {
+    val resolvedId = item.mediaId.takeIf { it > 0L } ?: item.id.takeIf { it > 0L } ?: item.fid
+    return FavFolder(
+        id = resolvedId,
+        fid = item.fid,
+        mid = item.mid,
+        title = item.title,
+        media_count = item.media_count.takeIf { it > 0 } ?: item.count
+    )
+}

@@ -99,6 +99,11 @@ import com.android.purebilibili.core.ui.components.IOSSwitchItem
 import com.android.purebilibili.core.ui.components.IOSSectionTitle
 import com.android.purebilibili.core.ui.components.IOSGridItem
 import com.android.purebilibili.core.store.StoredAccountSession
+import com.android.purebilibili.data.model.response.FavFolder
+import com.android.purebilibili.data.model.response.FollowBangumiItem
+import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
+import com.android.purebilibili.data.model.response.SpaceDynamicItem
+import com.android.purebilibili.data.model.response.SpaceVideoItem
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
@@ -215,6 +220,7 @@ fun ProfileScreen(
     onWatchLaterClick: () -> Unit = {}, // 稍后再看点击
     onInboxClick: () -> Unit = {},  //  [新增] 私信入口点击
     onVideoClick: (String) -> Unit = {},  // [新增] 视频点击（三连彩蛋跳转用）
+    onBangumiClick: (Long, Long) -> Unit = { _, _ -> },
     deferImmersiveRenderBudget: Boolean = false
     // [注意] 移除了 globalHazeState - 双 hazeSource 模式与 Haze 库冲突
 ) {
@@ -470,6 +476,12 @@ fun ProfileScreen(
                     ownerMid = currentUiState.user.mid
                 )
             }
+            LaunchedEffect(currentUiState.space.signSaveMessage) {
+                currentUiState.space.signSaveMessage?.let { message ->
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                    viewModel.clearProfileSpaceMessage()
+                }
+            }
             
             AdaptiveScaffold(
                 modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -514,52 +526,36 @@ fun ProfileScreen(
                         deferImmersiveRenderBudget = deferImmersiveRenderBudget
                     )
                     
-                    if (windowSizeClass.shouldUseSplitLayout) {
-                        TabletProfileContent(
-                            user = currentUiState.user,
-                            onLogout = {
-                                viewModel.logout()
-                                onLogoutSuccess()
-                            },
-                            onAccountManageClick = { showAccountSwitchDialog = true },
-                            onHistoryClick = onHistoryClick,
-                            showHistoryService = showHistoryService,
-                            onFavoriteClick = onFavoriteClick,
-                            favoriteFolderShortcuts = favoriteFolderShortcuts,
-                            onFavoriteFolderClick = onFavoriteFolderClick,
-                            onFollowingClick = { onFollowingClick(currentUiState.user.mid) },
-                            onDownloadClick = onDownloadClick,
-                            onWatchLaterClick = onWatchLaterClick,
-                            onInboxClick = onInboxClick,
-                            paddingValues = padding
-                        )
-                    } else {
-                        MobileProfileContent(
-                            viewModel = viewModel,
-                            user = currentUiState.user,
-                            onLogout = {
-                                viewModel.logout()
-                                onLogoutSuccess()
-                            },
-                            onAccountManageClick = { showAccountSwitchDialog = true },
-                            onHistoryClick = onHistoryClick,
-                            showHistoryService = showHistoryService,
-                            onFavoriteClick = onFavoriteClick,
-                            favoriteFolderShortcuts = favoriteFolderShortcuts,
-                            onFavoriteFolderClick = onFavoriteFolderClick,
-                            onFollowingClick = { onFollowingClick(currentUiState.user.mid) },
-                            onDownloadClick = onDownloadClick,
-                            onWatchLaterClick = onWatchLaterClick,
-                            onInboxClick = onInboxClick,  //  [新增] 私信入口
-                            onVideoClick = onVideoClick,  // [新增] 三连彩蛋跳转
-                            // [Immersive] Pass ScrollBehavior and Navigation Actions
-                            scrollBehavior = scrollBehavior,
-                            onBack = onBack,
-                            onSettingsClick = onSettingsClick,
-                            hazeState = hazeState,
-                            paddingValues = padding
-                        )
-                    }
+                    ProfileSpaceContent(
+                        viewModel = viewModel,
+                        user = currentUiState.user,
+                        space = currentUiState.space,
+                        editableAccount = currentUiState.editableAccount,
+                        favoriteFolderShortcuts = favoriteFolderShortcuts,
+                        onTabSelected = viewModel::selectProfileSpaceTab,
+                        onSignSave = viewModel::updateProfileSign,
+                        onLogout = {
+                            viewModel.logout()
+                            onLogoutSuccess()
+                        },
+                        onAccountManageClick = { showAccountSwitchDialog = true },
+                        onHistoryClick = onHistoryClick,
+                        showHistoryService = showHistoryService,
+                        onFavoriteClick = onFavoriteClick,
+                        onFavoriteFolderClick = onFavoriteFolderClick,
+                        onFollowingClick = { onFollowingClick(currentUiState.user.mid) },
+                        onDownloadClick = onDownloadClick,
+                        onWatchLaterClick = onWatchLaterClick,
+                        onInboxClick = onInboxClick,
+                        onVideoClick = onVideoClick,
+                        onBangumiClick = onBangumiClick,
+                        scrollBehavior = scrollBehavior,
+                        onBack = onBack,
+                        onSettingsClick = onSettingsClick,
+                        hazeState = hazeState,
+                        paddingValues = padding,
+                        isTablet = windowSizeClass.shouldUseSplitLayout
+                    )
                 }
             }
         }
@@ -807,6 +803,999 @@ private fun BoxScope.ProfileBackground(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
          )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfileSpaceContent(
+    viewModel: ProfileViewModel,
+    user: UserState,
+    space: ProfileSpaceUiState,
+    editableAccount: ProfileEditableAccountState,
+    favoriteFolderShortcuts: List<ProfileFavoriteFolderShortcut>,
+    onTabSelected: (ProfileSpaceMainTab) -> Unit,
+    onSignSave: (String) -> Unit,
+    onLogout: () -> Unit,
+    onAccountManageClick: () -> Unit,
+    onHistoryClick: () -> Unit,
+    showHistoryService: Boolean,
+    onFavoriteClick: () -> Unit,
+    onFavoriteFolderClick: (Long, Long, String) -> Unit,
+    onFollowingClick: () -> Unit,
+    onDownloadClick: () -> Unit,
+    onWatchLaterClick: () -> Unit,
+    onInboxClick: () -> Unit,
+    onVideoClick: (String) -> Unit,
+    onBangumiClick: (Long, Long) -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior,
+    onBack: () -> Unit,
+    onSettingsClick: () -> Unit,
+    hazeState: HazeState?,
+    paddingValues: PaddingValues,
+    isTablet: Boolean
+) {
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showAdjustmentSheet by remember { mutableStateOf(false) }
+    var tempSelectedUri by remember { mutableStateOf<Uri?>(null) }
+    val customBackgroundUri by viewModel.getProfileBgUri().collectAsState(
+        initial = null,
+        context = EmptyCoroutineContext
+    )
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            tempSelectedUri = uri
+            showAdjustmentSheet = true
+        }
+    }
+    var showWallpaperSheet by remember { mutableStateOf(false) }
+    var showPhotoPickerDialog by remember { mutableStateOf(false) }
+
+    if (showEditDialog) {
+        ProfileEditAccountDialog(
+            state = editableAccount,
+            isSaving = space.isSavingSign,
+            onDismiss = { showEditDialog = false },
+            onSaveSign = onSignSave
+        )
+    }
+    if (showAdjustmentSheet && tempSelectedUri != null) {
+        ProfileWallpaperAdjustmentSheet(
+            imageUri = tempSelectedUri.toString(),
+            initialMobileTransform = ProfileWallpaperTransform(),
+            initialTabletTransform = ProfileWallpaperTransform(),
+            onDismiss = { showAdjustmentSheet = false },
+            onSave = { mobileTransform, tabletTransform ->
+                showAdjustmentSheet = false
+                tempSelectedUri?.let { uri ->
+                    viewModel.updateCustomBackground(uri, mobileTransform, tabletTransform)
+                }
+            }
+        )
+    }
+    if (showWallpaperSheet) {
+        OfficialWallpaperSheet(viewModel = viewModel, onDismiss = { showWallpaperSheet = false })
+    }
+    if (showPhotoPickerDialog) {
+        AlertDialog(
+            onDismissRequest = { showPhotoPickerDialog = false },
+            title = { Text("选择照片", fontWeight = FontWeight.Bold) },
+            text = { Text("将打开系统相册选择一张照片作为背景。\n\n仅获取选中照片的访问权限，不会访问其他照片。") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPhotoPickerDialog = false
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }
+                ) {
+                    Text("选择照片")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPhotoPickerDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    val isImmersive = user.topPhoto.isNotEmpty()
+    val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val collapsedFraction = scrollBehavior.state.collapsedFraction.coerceIn(0f, 1f)
+    val topBarScrimColor = if (isImmersive) {
+        Color.Black.copy(alpha = resolveProfileTopBarScrimAlpha(true, collapsedFraction))
+    } else {
+        MaterialTheme.colorScheme.surface.copy(alpha = collapsedFraction)
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isTablet) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (hazeState != null) Modifier.hazeSource(hazeState) else Modifier)
+                    .padding(paddingValues)
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .widthIn(min = 300.dp, max = 360.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    ProfileSpaceHeader(
+                        user = user,
+                        editableAccount = editableAccount,
+                        compact = true,
+                        onEditClick = { showEditDialog = true },
+                        onFollowingClick = onFollowingClick
+                    )
+                    ProfileWallpaperActionCard(
+                        isImmersive = false,
+                        hazeState = hazeState,
+                        onOfficialWallpaperClick = { showWallpaperSheet = true },
+                        onLocalAlbumClick = { showPhotoPickerDialog = true },
+                        onResetWallpaperClick = { viewModel.clearCustomBackground() },
+                        isResetEnabled = !customBackgroundUri.isNullOrEmpty()
+                    )
+                    ProfileSpaceServices(
+                        favoriteFolderShortcuts = favoriteFolderShortcuts,
+                        onHistoryClick = onHistoryClick,
+                        showHistoryService = showHistoryService,
+                        onFavoriteClick = onFavoriteClick,
+                        onFavoriteFolderClick = onFavoriteFolderClick,
+                        onDownloadClick = onDownloadClick,
+                        onWatchLaterClick = onWatchLaterClick,
+                        onInboxClick = onInboxClick,
+                        onAccountManageClick = onAccountManageClick,
+                        onLogout = onLogout
+                    )
+                }
+                ProfileSpaceFeedColumn(
+                    user = user,
+                    space = space,
+                    showServicesInHome = false,
+                    favoriteFolderShortcuts = favoriteFolderShortcuts,
+                    onTabSelected = onTabSelected,
+                    onFavoriteClick = onFavoriteClick,
+                    onFavoriteFolderClick = onFavoriteFolderClick,
+                    onBangumiClick = onBangumiClick,
+                    onVideoClick = onVideoClick,
+                    onHistoryClick = onHistoryClick,
+                    showHistoryService = showHistoryService,
+                    onDownloadClick = onDownloadClick,
+                    onWatchLaterClick = onWatchLaterClick,
+                    onInboxClick = onInboxClick,
+                    onAccountManageClick = onAccountManageClick,
+                    onLogout = onLogout,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 48.dp)
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (hazeState != null) Modifier.hazeSource(hazeState) else Modifier),
+                contentPadding = PaddingValues(bottom = paddingValues.calculateBottomPadding() + 120.dp)
+            ) {
+                item {
+                    ProfileSpaceCoverHeader(
+                        user = user,
+                        editableAccount = editableAccount,
+                        onEditClick = { showEditDialog = true },
+                        onFollowingClick = onFollowingClick
+                    )
+                }
+                item {
+                    ProfileWallpaperActionCard(
+                        isImmersive = isImmersive,
+                        hazeState = hazeState,
+                        onOfficialWallpaperClick = { showWallpaperSheet = true },
+                        onLocalAlbumClick = { showPhotoPickerDialog = true },
+                        onResetWallpaperClick = { viewModel.clearCustomBackground() },
+                        isResetEnabled = !customBackgroundUri.isNullOrEmpty()
+                    )
+                }
+                item {
+                    ProfileSpaceTabs(
+                        selectedTab = space.selectedTab,
+                        onTabSelected = onTabSelected
+                    )
+                }
+                item {
+                    ProfileSpaceTabBody(
+                        user = user,
+                        space = space,
+                        showServicesInHome = true,
+                        favoriteFolderShortcuts = favoriteFolderShortcuts,
+                        onFavoriteClick = onFavoriteClick,
+                        onFavoriteFolderClick = onFavoriteFolderClick,
+                        onBangumiClick = onBangumiClick,
+                        onVideoClick = onVideoClick,
+                        onHistoryClick = onHistoryClick,
+                        showHistoryService = showHistoryService,
+                        onDownloadClick = onDownloadClick,
+                        onWatchLaterClick = onWatchLaterClick,
+                        onInboxClick = onInboxClick,
+                        onAccountManageClick = onAccountManageClick,
+                        onLogout = onLogout
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(statusBarTopPadding + 64.dp)
+                    .background(topBarScrimColor)
+                    .align(Alignment.TopCenter)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = statusBarTopPadding)
+                    .height(56.dp)
+                    .padding(horizontal = 8.dp)
+                    .align(Alignment.TopCenter),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(rememberAppBackIcon(), contentDescription = "返回", tint = Color.White)
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = onSettingsClick) {
+                    Icon(rememberAppSettingsIcon(), contentDescription = "设置", tint = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileSpaceFeedColumn(
+    user: UserState,
+    space: ProfileSpaceUiState,
+    showServicesInHome: Boolean,
+    favoriteFolderShortcuts: List<ProfileFavoriteFolderShortcut>,
+    onTabSelected: (ProfileSpaceMainTab) -> Unit,
+    onFavoriteClick: () -> Unit,
+    onFavoriteFolderClick: (Long, Long, String) -> Unit,
+    onBangumiClick: (Long, Long) -> Unit,
+    onVideoClick: (String) -> Unit,
+    onHistoryClick: () -> Unit,
+    showHistoryService: Boolean,
+    onDownloadClick: () -> Unit,
+    onWatchLaterClick: () -> Unit,
+    onInboxClick: () -> Unit,
+    onAccountManageClick: () -> Unit,
+    onLogout: () -> Unit,
+    modifier: Modifier,
+    contentPadding: PaddingValues
+) {
+    LazyColumn(modifier = modifier.fillMaxHeight(), contentPadding = contentPadding) {
+        item {
+            ProfileSpaceTabs(selectedTab = space.selectedTab, onTabSelected = onTabSelected)
+        }
+        item {
+            ProfileSpaceTabBody(
+                user = user,
+                space = space,
+                showServicesInHome = showServicesInHome,
+                favoriteFolderShortcuts = favoriteFolderShortcuts,
+                onFavoriteClick = onFavoriteClick,
+                onFavoriteFolderClick = onFavoriteFolderClick,
+                onBangumiClick = onBangumiClick,
+                onVideoClick = onVideoClick,
+                onHistoryClick = onHistoryClick,
+                showHistoryService = showHistoryService,
+                onDownloadClick = onDownloadClick,
+                onWatchLaterClick = onWatchLaterClick,
+                onInboxClick = onInboxClick,
+                onAccountManageClick = onAccountManageClick,
+                onLogout = onLogout
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileSpaceCoverHeader(
+    user: UserState,
+    editableAccount: ProfileEditableAccountState,
+    onEditClick: () -> Unit,
+    onFollowingClick: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        AsyncImage(
+            model = user.topPhoto.ifBlank { user.face },
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(320.dp)
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.82f)),
+                        startY = 90f
+                    )
+                )
+        )
+        ProfileSpaceHeader(
+            user = user,
+            editableAccount = editableAccount,
+            compact = false,
+            onEditClick = onEditClick,
+            onFollowingClick = onFollowingClick,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(top = 126.dp, bottom = 18.dp)
+        )
+    }
+}
+
+@Composable
+private fun ProfileSpaceHeader(
+    user: UserState,
+    editableAccount: ProfileEditableAccountState,
+    compact: Boolean,
+    onEditClick: () -> Unit,
+    onFollowingClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val textColor = if (compact) MaterialTheme.colorScheme.onSurface else Color.White
+    val secondaryColor = textColor.copy(alpha = 0.72f)
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AsyncImage(
+                model = user.face,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(if (compact) 72.dp else 88.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, Color.White.copy(alpha = 0.88f), CircleShape)
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            ProfileSpaceStat("粉丝", user.follower, textColor)
+            ProfileSpaceStat("关注", user.following, textColor, onClick = onFollowingClick)
+            ProfileSpaceStat("获赞", user.dynamic, textColor)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = user.name,
+                style = MaterialTheme.typography.titleLarge,
+                color = textColor,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            UserLevelBadge(level = user.level)
+            if (user.isVip) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = user.vipLabel.ifBlank { "大会员" },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(com.android.purebilibili.core.theme.iOSPink)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+        }
+        OutlinedButton(
+            onClick = onEditClick,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = textColor),
+            border = BorderStroke(1.dp, textColor.copy(alpha = 0.42f)),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text("编辑资料")
+        }
+        Text(
+            text = editableAccount.sign.ifBlank { "这个人很神秘，什么都没有写" },
+            style = MaterialTheme.typography.bodyMedium,
+            color = secondaryColor,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "IP 属地 · 未展示",
+                style = MaterialTheme.typography.labelMedium,
+                color = secondaryColor
+            )
+            if (editableAccount.sex.isNotBlank()) {
+                Text(
+                    text = editableAccount.sex,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = secondaryColor
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileSpaceStat(label: String, value: Int, color: Color, onClick: (() -> Unit)? = null) {
+    Column(
+        modifier = Modifier
+            .width(72.dp)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = FormatUtils.formatStat(value.toLong()),
+            style = MaterialTheme.typography.titleMedium,
+            color = color,
+            fontWeight = FontWeight.Bold
+        )
+        Text(text = label, style = MaterialTheme.typography.labelSmall, color = color.copy(alpha = 0.7f))
+    }
+}
+
+@Composable
+private fun ProfileSpaceTabs(selectedTab: ProfileSpaceMainTab, onTabSelected: (ProfileSpaceMainTab) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(28.dp)
+    ) {
+        defaultProfileSpaceTabs().forEach { item ->
+            val selected = item.tab == selectedTab
+            Column(
+                modifier = Modifier
+                    .height(50.dp)
+                    .clickable { onTabSelected(item.tab) },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (selected) com.android.purebilibili.core.theme.iOSPink else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .width(28.dp)
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(if (selected) com.android.purebilibili.core.theme.iOSPink else Color.Transparent)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileSpaceTabBody(
+    user: UserState,
+    space: ProfileSpaceUiState,
+    showServicesInHome: Boolean,
+    favoriteFolderShortcuts: List<ProfileFavoriteFolderShortcut>,
+    onFavoriteClick: () -> Unit,
+    onFavoriteFolderClick: (Long, Long, String) -> Unit,
+    onBangumiClick: (Long, Long) -> Unit,
+    onVideoClick: (String) -> Unit,
+    onHistoryClick: () -> Unit,
+    showHistoryService: Boolean,
+    onDownloadClick: () -> Unit,
+    onWatchLaterClick: () -> Unit,
+    onInboxClick: () -> Unit,
+    onAccountManageClick: () -> Unit,
+    onLogout: () -> Unit
+) {
+    when (space.selectedTab) {
+        ProfileSpaceMainTab.HOME -> ProfileSpaceHome(
+            user = user,
+            space = space,
+            showServices = showServicesInHome,
+            favoriteFolderShortcuts = favoriteFolderShortcuts,
+            onFavoriteClick = onFavoriteClick,
+            onFavoriteFolderClick = onFavoriteFolderClick,
+            onBangumiClick = onBangumiClick,
+            onVideoClick = onVideoClick,
+            onHistoryClick = onHistoryClick,
+            showHistoryService = showHistoryService,
+            onDownloadClick = onDownloadClick,
+            onWatchLaterClick = onWatchLaterClick,
+            onInboxClick = onInboxClick,
+            onAccountManageClick = onAccountManageClick,
+            onLogout = onLogout
+        )
+        ProfileSpaceMainTab.DYNAMIC -> ProfileDynamicList(space.dynamicItems, onVideoClick)
+        ProfileSpaceMainTab.CONTRIBUTION -> ProfileVideoList(space.contributionVideos, onVideoClick)
+        ProfileSpaceMainTab.FAVORITE -> ProfileFavoriteFolderList(user.mid, space.favoriteFolders, onFavoriteFolderClick)
+        ProfileSpaceMainTab.BANGUMI -> ProfileBangumiList(space.bangumiItems, onBangumiClick)
+    }
+}
+
+@Composable
+private fun ProfileSpaceHome(
+    user: UserState,
+    space: ProfileSpaceUiState,
+    showServices: Boolean,
+    favoriteFolderShortcuts: List<ProfileFavoriteFolderShortcut>,
+    onFavoriteClick: () -> Unit,
+    onFavoriteFolderClick: (Long, Long, String) -> Unit,
+    onBangumiClick: (Long, Long) -> Unit,
+    onVideoClick: (String) -> Unit,
+    onHistoryClick: () -> Unit,
+    showHistoryService: Boolean,
+    onDownloadClick: () -> Unit,
+    onWatchLaterClick: () -> Unit,
+    onInboxClick: () -> Unit,
+    onAccountManageClick: () -> Unit,
+    onLogout: () -> Unit
+) {
+    Column(
+        modifier = Modifier.padding(top = 10.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        resolveProfileSpaceHomeSections(
+            favoriteFolders = space.favoriteFolders,
+            bangumiItems = space.bangumiItems,
+            coinVideos = space.coinVideos,
+            likeVideos = space.likeVideos,
+            contributionVideos = space.contributionVideos
+        ).forEach { section ->
+            when (section) {
+                ProfileSpaceHomeSection.FAVORITES -> ProfileFavoriteFolderStrip(
+                    ownerMid = user.mid,
+                    folders = space.favoriteFolders,
+                    count = space.favoriteFolderCount,
+                    onMoreClick = onFavoriteClick,
+                    onFolderClick = onFavoriteFolderClick
+                )
+                ProfileSpaceHomeSection.BANGUMI -> ProfileBangumiStrip(space.bangumiItems, space.bangumiCount, onBangumiClick)
+                ProfileSpaceHomeSection.COIN_VIDEOS -> ProfileAggregateVideoStrip("最近投币的视频", space.coinVideoCount, space.coinVideos, onVideoClick)
+                ProfileSpaceHomeSection.LIKE_VIDEOS -> ProfileAggregateVideoStrip("最近点赞的视频", space.likeVideoCount, space.likeVideos, onVideoClick)
+                ProfileSpaceHomeSection.CONTRIBUTIONS -> ProfileVideoStrip("投稿预览", space.contributionVideoCount, space.contributionVideos, onVideoClick)
+                ProfileSpaceHomeSection.SERVICES -> if (showServices) {
+                    ProfileSpaceServices(
+                        favoriteFolderShortcuts = favoriteFolderShortcuts,
+                        onHistoryClick = onHistoryClick,
+                        showHistoryService = showHistoryService,
+                        onFavoriteClick = onFavoriteClick,
+                        onFavoriteFolderClick = onFavoriteFolderClick,
+                        onDownloadClick = onDownloadClick,
+                        onWatchLaterClick = onWatchLaterClick,
+                        onInboxClick = onInboxClick,
+                        onAccountManageClick = onAccountManageClick,
+                        onLogout = onLogout
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileSpaceServices(
+    favoriteFolderShortcuts: List<ProfileFavoriteFolderShortcut>,
+    onHistoryClick: () -> Unit,
+    showHistoryService: Boolean,
+    onFavoriteClick: () -> Unit,
+    onFavoriteFolderClick: (Long, Long, String) -> Unit,
+    onDownloadClick: () -> Unit,
+    onWatchLaterClick: () -> Unit,
+    onInboxClick: () -> Unit,
+    onAccountManageClick: () -> Unit,
+    onLogout: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "我的服务",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+        ServicesSection(
+            onHistoryClick = onHistoryClick,
+            showHistoryService = showHistoryService,
+            onFavoriteClick = onFavoriteClick,
+            favoriteFolderShortcuts = favoriteFolderShortcuts,
+            onFavoriteFolderClick = onFavoriteFolderClick,
+            onDownloadClick = onDownloadClick,
+            onWatchLaterClick = onWatchLaterClick,
+            onInboxClick = onInboxClick,
+            onAccountManageClick = onAccountManageClick,
+            onLogout = onLogout,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            isLogin = true
+        )
+    }
+}
+
+@Composable
+private fun ProfileFavoriteFolderStrip(
+    ownerMid: Long,
+    folders: List<FavFolder>,
+    count: Int,
+    onMoreClick: () -> Unit,
+    onFolderClick: (Long, Long, String) -> Unit
+) {
+    ProfileSpaceSection(title = "收藏", count = count, onMoreClick = onMoreClick) {
+        folders.take(6).forEach { folder ->
+            ProfileSpacePosterCard(
+                title = folder.title,
+                subtitle = "${folder.media_count} 个内容",
+                imageUrl = "",
+                width = 168.dp,
+                height = 152.dp,
+                onClick = { onFolderClick(folder.id, ownerMid, folder.title) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileBangumiStrip(items: List<FollowBangumiItem>, count: Int, onBangumiClick: (Long, Long) -> Unit) {
+    ProfileSpaceSection(title = "追番", count = count, onMoreClick = {}) {
+        items.take(8).forEach { item ->
+            ProfileSpacePosterCard(
+                title = item.title,
+                subtitle = item.progress.ifBlank { item.newEp?.indexShow.orEmpty() },
+                imageUrl = item.cover,
+                width = 126.dp,
+                height = 198.dp,
+                onClick = { onBangumiClick(item.seasonId, item.firstEp) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileAggregateVideoStrip(
+    title: String,
+    count: Int,
+    videos: List<SpaceAggregateArchiveItem>,
+    onVideoClick: (String) -> Unit
+) {
+    ProfileSpaceSection(title = title, count = count, onMoreClick = {}) {
+        videos.take(8).forEach { video ->
+            ProfileSpacePosterCard(
+                title = video.title,
+                subtitle = video.length,
+                imageUrl = video.cover,
+                width = 192.dp,
+                height = 148.dp,
+                onClick = { video.bvid.takeIf { it.isNotBlank() }?.let(onVideoClick) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileVideoStrip(title: String, count: Int, videos: List<SpaceVideoItem>, onVideoClick: (String) -> Unit) {
+    ProfileSpaceSection(title = title, count = count, onMoreClick = {}) {
+        videos.take(8).forEach { video ->
+            ProfileSpacePosterCard(
+                title = video.title,
+                subtitle = video.length,
+                imageUrl = video.pic,
+                width = 192.dp,
+                height = 148.dp,
+                onClick = { video.bvid.takeIf { it.isNotBlank() }?.let(onVideoClick) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileSpaceSection(title: String, count: Int, onMoreClick: () -> Unit, content: @Composable RowScope.() -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (count > 0) "$title  ${FormatUtils.formatStat(count.toLong())}" else title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onMoreClick) {
+                Text("查看更多")
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun ProfileSpacePosterCard(
+    title: String,
+    subtitle: String,
+    imageUrl: String,
+    width: androidx.compose.ui.unit.Dp,
+    height: androidx.compose.ui.unit.Dp,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .width(width)
+            .height(height)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        shadowElevation = 0.dp
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                if (imageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                } else {
+                    Icon(
+                        rememberAppFolderIcon(),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+                        modifier = Modifier
+                            .size(42.dp)
+                            .align(Alignment.Center)
+                    )
+                }
+            }
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = subtitle.ifBlank { "公开" },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileFavoriteFolderList(ownerMid: Long, folders: List<FavFolder>, onFolderClick: (Long, Long, String) -> Unit) {
+    if (folders.isEmpty()) {
+        ProfileSpaceEmpty("暂无公开收藏夹")
+        return
+    }
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        folders.forEach { folder ->
+            ProfileSpaceListRow(
+                title = folder.title,
+                subtitle = "${folder.media_count} 个内容",
+                imageUrl = "",
+                onClick = { onFolderClick(folder.id, ownerMid, folder.title) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileBangumiList(items: List<FollowBangumiItem>, onBangumiClick: (Long, Long) -> Unit) {
+    if (items.isEmpty()) {
+        ProfileSpaceEmpty("暂无追番")
+        return
+    }
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        items.forEach { item ->
+            ProfileSpaceListRow(
+                title = item.title,
+                subtitle = item.progress.ifBlank { item.newEp?.indexShow.orEmpty() },
+                imageUrl = item.cover,
+                onClick = { onBangumiClick(item.seasonId, item.firstEp) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileVideoList(videos: List<SpaceVideoItem>, onVideoClick: (String) -> Unit) {
+    if (videos.isEmpty()) {
+        ProfileSpaceEmpty("暂无投稿")
+        return
+    }
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        videos.forEach { video ->
+            ProfileSpaceListRow(
+                title = video.title,
+                subtitle = "${FormatUtils.formatStat(video.play.toLong())} 播放 · ${video.length}",
+                imageUrl = video.pic,
+                onClick = { video.bvid.takeIf { it.isNotBlank() }?.let(onVideoClick) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileDynamicList(items: List<SpaceDynamicItem>, onVideoClick: (String) -> Unit) {
+    if (items.isEmpty()) {
+        ProfileSpaceEmpty("暂无动态")
+        return
+    }
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        items.forEach { item ->
+            val dynamic = item.modules.module_dynamic
+            val archive = dynamic?.major?.archive
+            val title = archive?.title?.ifBlank { dynamic.desc?.text.orEmpty() }
+                ?: dynamic?.desc?.text.orEmpty()
+                .ifBlank { "动态" }
+            ProfileSpaceListRow(
+                title = title,
+                subtitle = item.modules.module_author?.pub_time.orEmpty(),
+                imageUrl = archive?.cover.orEmpty(),
+                onClick = { archive?.bvid?.takeIf { it.isNotBlank() }?.let(onVideoClick) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileSpaceListRow(title: String, subtitle: String, imageUrl: String, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
+        shadowElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(width = 112.dp, height = 64.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (imageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                } else {
+                    Icon(
+                        rememberAppFolderIcon(),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = subtitle.ifBlank { "公开" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileSpaceEmpty(text: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(48.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun ProfileEditAccountDialog(
+    state: ProfileEditableAccountState,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onSaveSign: (String) -> Unit
+) {
+    var sign by remember(state.sign) { mutableStateOf(state.sign) }
+    val signError = validateProfileSign(sign)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("编辑资料") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ProfileReadonlyAccountField("昵称", state.name)
+                ProfileReadonlyAccountField("生日", state.birthday.ifBlank { "未展示" })
+                ProfileReadonlyAccountField("性别", state.sex.ifBlank { "未展示" })
+                OutlinedTextField(
+                    value = sign,
+                    onValueChange = { sign = it },
+                    label = { Text("签名") },
+                    minLines = 3,
+                    maxLines = 4,
+                    isError = signError != null,
+                    supportingText = { Text(signError ?: "${sign.length}/70") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSaveSign(sign) },
+                enabled = !isSaving && signError == null
+            ) {
+                Text(if (isSaving) "保存中" else "保存签名")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ProfileReadonlyAccountField(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 

@@ -148,6 +148,16 @@ interface BilibiliApi {
     @GET("x/web-interface/nav/stat")
     suspend fun getNavStat(): NavStatResponse
 
+    @GET("x/member/web/account")
+    suspend fun getMemberAccount(): MemberAccountResponse
+
+    @retrofit2.http.FormUrlEncoded
+    @POST("x/member/web/sign/update")
+    suspend fun updateMemberSign(
+        @retrofit2.http.Field("user_sign") userSign: String,
+        @retrofit2.http.Field("csrf") csrf: String
+    ): SimpleApiResponse
+
     //  [New] 获取用户卡片信息 (轻量级用户信息)
     @GET("x/web-interface/card")
     suspend fun getUserCard(

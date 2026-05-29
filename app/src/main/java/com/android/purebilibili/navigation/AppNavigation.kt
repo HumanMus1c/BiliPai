@@ -1398,6 +1398,13 @@ fun AppNavigation(
                                 onWatchLaterClick = { navigateFromProfile(ScreenRoutes.WatchLater.route) },
                                 onInboxClick = { navigateFromProfile(ScreenRoutes.Inbox.route) },
                                 onVideoClick = { bvid -> navigateToVideoInNavigation3(bvid, 0L, "") },
+                                onBangumiClick = { seasonId, epId ->
+                                    if (seasonId > 0L || epId > 0L) {
+                                        pushNavigation3Key(
+                                            BiliPaiNavKey.BangumiDetail(seasonId = seasonId, epId = epId)
+                                        )
+                                    }
+                                },
                                 deferImmersiveRenderBudget = bottomPagerRenderBudget.deferProfileImmersiveBackground
                             )
                         }
