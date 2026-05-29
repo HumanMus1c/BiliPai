@@ -968,7 +968,7 @@ internal fun Modifier.kernelSuFloatingDockSurface(
                             Highlight.Default.copy(
                                 alpha = if (glassEnabled) 1f else 0f,
                                 width = baseWidth * materialSpec.highlightWidthScale,
-                                blurRadius = baseWidth * 0.4f
+                                blurRadius = baseWidth * 0.18f
                             )
                         }
                     },
@@ -3356,7 +3356,7 @@ private fun KernelSuAlignedBottomBar(
                                         Highlight.Default.copy(
                                             alpha = captureHighlightAlpha,
                                             width = baseWidth * materialSpec.highlightWidthScale,
-                                            blurRadius = baseWidth * 0.4f
+                                            blurRadius = baseWidth * 0.18f
                                         )
                                     }
                                 },

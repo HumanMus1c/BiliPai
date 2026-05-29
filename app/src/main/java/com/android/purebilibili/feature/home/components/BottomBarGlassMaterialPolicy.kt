@@ -72,7 +72,7 @@ internal fun resolveBottomBarGlassMaterialContainerColor(
     val isDarkSurface = surfaceColor.luminance() < 0.5f
     val alpha = when (preset) {
         BottomBarLiquidGlassPreset.BILIPAI_TUNED -> if (isDarkSurface) 0.30f else 0.38f
-        BottomBarLiquidGlassPreset.IOS26_REFINED -> if (isDarkSurface) 0.40f else 0.46f
+        BottomBarLiquidGlassPreset.IOS26_REFINED -> if (isDarkSurface) 0.34f else 0.40f
     }
     return surfaceColor.copy(alpha = alpha)
 }
@@ -106,13 +106,13 @@ private fun ios26BottomBarGlassMaterial(
     val scrollReadability = if (isScrolling) 1f else 0f
     val readabilityAlpha = lerp(0f, 0.05f, scrollReadability)
     return BottomBarGlassMaterialSpec(
-        blurRadiusDp = lerp(10f, 8f, activity),
+        blurRadiusDp = lerp(7f, 6f, activity),
         vibrancy = false,
         shellRefractionHeightDp = 0f,
         shellRefractionAmountDp = 0f,
         shellChromaticAberration = false,
         foregroundTint = (if (isDarkTheme) Color.Black else Color.White).copy(alpha = readabilityAlpha),
-        highlightWidthScale = lerp(1.8f, 2.0f, activity),
+        highlightWidthScale = lerp(1.2f, 1.3f, activity),
         shadowAlphaScale = 0.72f,
         innerRimGlow = BottomBarInnerRimGlowSpec(radiusDp = 5f, alpha = 0.09f),
         shellShader = BottomBarShellShaderSpec(
