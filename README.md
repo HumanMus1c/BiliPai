@@ -15,7 +15,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Version-8.6.0-007AFF?style=flat-square&labelColor=ffffff" alt="Version 8.6.0" />
+  <img src="https://img.shields.io/badge/Version-8.7.0-007AFF?style=flat-square&labelColor=ffffff" alt="Version 8.7.0" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-GPL--3.0-FF3B30?style=flat-square" alt="GPL-3.0" />
@@ -182,16 +182,17 @@ cd BiliPai
 
 ## 最近更新
 
-当前仓库版本号已更新到 `8.6.0 / versionCode 210`。公开发布说明请以 [CHANGELOG.md](CHANGELOG.md) 为准；最新完整记录为 `v8.6.0`：
+当前仓库版本号已更新到 `8.7.0 / versionCode 211`。公开发布说明请以 [CHANGELOG.md](CHANGELOG.md) 为准；最新完整记录为 `v8.7.0`：
 
-- 修复正式包播放器点击后控制层不响应，并补齐 Release 保留规则。
-- 修复分 P 切换继承旧进度，播放进度按 `bvid#cid` 精确隔离。
-- 新增视频笔记显示总开关和默认折叠开关；关闭后详情页不再加载或渲染视频笔记。
-- 修正 PBP 请求接口，弹幕密度进度条接入 PBP 数据，并整理弹幕设置显示区域。
-- 评论楼中楼默认内联展开，补齐楼中楼控制字段解析。
-- 统一 UP 认证蓝黄标策略，搜索、关注与空间页显示更一致。
-- 修复空间投稿布局切换闪退、设置页语义图标重复和长按倍速提示重复弹出。
-- 修复详情推荐来源、共享元素返回横向过渡和相关推荐卡片共享元素过渡。
+- 新增 iOS26 底栏液态玻璃预设，提供更厚边缘折射、轻色散和亮面滚动反馈。
+- 修复 iOS26 预设滑动停止时底栏整体闪烁，上下滑动时底栏会连续轻微提亮。
+- 修复首页竖屏视频入口，竖屏视频从首页进入详情时可提前进入竖屏全屏状态。
+- 将“我的”Tab 重写为空间首页式布局，个人资料、收藏和追番内容承载更统一。
+- 修复空间首页视频封面不可见、收藏夹封面字段缺失和服务入口展示不完整。
+- 完善空间首页动态、收藏和追番模块，追番卡片可跳转番剧详情。
+- 修复系统通知页面闪退、通知链接解析和动态时间显示问题。
+- 修复动态顶部遮挡用户信息，动态卡片和转发内容显示更稳定。
+- 修复低版本 Android 上 Haze 视觉效果闪退，并补齐可恢复视觉效果兜底。
 
 ## 路线图
 
