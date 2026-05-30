@@ -1620,47 +1620,20 @@ fun VideoDetailScreen(
     val isExitTransitionInProgress =
         rootAnimatedVisibilityScope?.transition?.targetState == EnterExitState.PostExit
     val rootSharedTransitionScope = LocalSharedTransitionScope.current
-    val detailShellSharedBoundsEnabled = shouldEnableVideoCoverSharedTransition(
+    val sharedBoundsActive = shouldEnableVideoCoverSharedTransition(
         transitionEnabled = transitionEnabled,
         hasSharedTransitionScope = rootSharedTransitionScope != null,
         hasAnimatedVisibilityScope = rootAnimatedVisibilityScope != null
     ) && !sourceRouteForSharedElement.isNullOrBlank()
+    // Shell sharedBounds 不再包裹整页，仅用于 route sheet 禁用标记
+    val detailShellSharedBoundsEnabled = false
     val routeSheetFrame = rememberVideoDetailRouteSheetFrame(
         motion = routeSheetMotion,
         isExitTransitionInProgress = isExitTransitionInProgress,
-        sharedBoundsActive = detailShellSharedBoundsEnabled
+        sharedBoundsActive = sharedBoundsActive
     )
-    val detailShellSharedBoundsModifier = if (detailShellSharedBoundsEnabled) {
-        with(requireNotNull(rootSharedTransitionScope)) {
-            Modifier.sharedBounds(
-                sharedContentState = rememberSharedContentState(
-                    key = com.android.purebilibili.core.ui.transition.videoCardShellSharedElementKey(
-                        bvid,
-                        sourceRoute = sourceRouteForSharedElement
-                    )
-                ),
-                animatedVisibilityScope = requireNotNull(rootAnimatedVisibilityScope),
-                boundsTransform = { _, _ ->
-                    tween(
-                        durationMillis = homeSharedTransitionMotionSpec.durationMillis,
-                        easing = homeSharedTransitionMotionSpec.easing
-                    )
-                },
-                clipInOverlayDuringTransition = OverlayClip(
-                    RoundedCornerShape(
-                        if (homeSharedTransitionCornerSpec.enabled) {
-                            homeSharedTransitionCornerSpec.endCornerDp.dp
-                        } else {
-                            12.dp
-                        }
-                    )
-                )
-            )
-        }
-    } else {
-        Modifier
-    }
-    val detailShellModifier = detailShellSharedBoundsModifier
+    // Shell sharedBounds 已移除，cover 独立 sharedBounds 处理播放器 → 封面映射
+    val detailShellModifier = Modifier
     val coverTakeoverBeforeBackDelayMillis = remember {
         resolveCoverTakeoverDelayBeforeBackNavigationMillis()
     }
@@ -3240,15 +3213,13 @@ fun VideoDetailScreen(
                         sourceRouteForSharedElement
                     )
                     
-                    //  为播放器容器添加共享元素标记（受开关控制）
-                    // shell sharedBounds 锚定整张详情壳时，cover 不再单独参与共享元素，
-                    // 避免两枚 sharedBounds 在重叠区域抢同一帧布局导致撕裂。
+                    //  为播放器容器添加共享元素标记（封面 ↔ 播放器区域映射）
                     val playerContainerModifier = if (
                         shouldEnableVideoCoverSharedTransition(
                             transitionEnabled = transitionEnabled,
                             hasSharedTransitionScope = sharedTransitionScope != null,
                             hasAnimatedVisibilityScope = animatedVisibilityScope != null
-                        ) && !forceCoverOnlyForReturn && !detailShellSharedBoundsEnabled
+                        ) && !forceCoverOnlyForReturn
                     ) {
                         with(requireNotNull(sharedTransitionScope)) {
                             Modifier
@@ -3284,7 +3255,39 @@ fun VideoDetailScreen(
                     } else {
                         Modifier
                     }
-                    
+
+                    // 🎬 返回时视频 → 封面 crossfade
+                    val isLeaving = isReturningFromDetail || isExitTransitionInProgress
+                    val coverCrossfadeAlpha by animateFloatAsState(
+                        targetValue = if (isLeaving) 1f else 0f,
+                        animationSpec = tween(
+                            durationMillis = 200,
+                            delayMillis = if (isLeaving) 100 else 0
+                        ),
+                        label = "coverCrossfade"
+                    )
+                    val playerFadeAlpha by animateFloatAsState(
+                        targetValue = if (isLeaving) 0f else 1f,
+                        animationSpec = tween(
+                            durationMillis = 200,
+                            delayMillis = if (isLeaving) 60 else 0
+                        ),
+                        label = "playerFade"
+                    )
+                    val crossfadeCoverUrl = remember(coverUrl) {
+                        if (coverUrl.isNotBlank()) {
+                            val url = coverUrl.trim()
+                            when {
+                                url.startsWith("https://") -> url
+                                url.startsWith("http://") -> url.replace("http://", "https://")
+                                url.startsWith("//") -> "https:$url"
+                                else -> url
+                            }
+                        } else {
+                            ""
+                        }
+                    }
+
                     //  播放器容器按当前顶部避让高度计算，避免隐藏状态栏后留下黑边。
                     //  [修复] 始终保持播放器在 Composition 中，避免隐藏时重新创建导致重载
                     Box(
@@ -3317,10 +3320,25 @@ fun VideoDetailScreen(
                                 videoPlayerBounds = nextBounds
                             }
                     ) {
+                        // 🎬 返回时视频 → 封面 crossfade：封面图叠在播放器上方
+                        if (crossfadeCoverUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                    .data(crossfadeCoverUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "cover",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .alpha(coverCrossfadeAlpha),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(top = playerTopInset)
+                                .alpha(playerFadeAlpha)
                         ) {
                         PortraitInlineVideoPlayerHost(
                             modifier = Modifier.align(Alignment.TopCenter),
@@ -3454,11 +3472,16 @@ fun VideoDetailScreen(
                                         ) {
                                             // [性能优化] 延迟显示下方内容，优先保证进场动画流畅
                                             // 配合 isTransitionFinished 状态
+                                            // 🎬 返回时非核心内容延迟淡出
                                             val detailContentRevealEnter =
                                                 fadeIn(tween(motionSpec.contentRevealFadeDurationMillis))
+                                            val detailContentExitFade =
+                                                fadeOut(tween(durationMillis = 180, delayMillis = 60))
+                                            val detailContentVisible = isTransitionFinished && !isLeaving
                                             androidx.compose.animation.AnimatedVisibility(
-                                                visible = isTransitionFinished,
-                                                enter = detailContentRevealEnter
+                                                visible = detailContentVisible,
+                                                enter = detailContentRevealEnter,
+                                                exit = detailContentExitFade
                                             ) {
                                                 Box(modifier = Modifier.fillMaxSize()) {
                                                     VideoContentSection(
