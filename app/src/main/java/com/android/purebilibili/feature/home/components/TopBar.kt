@@ -73,7 +73,6 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.feature.home.UserState
 import com.android.purebilibili.feature.home.HomeCategory
-import com.android.purebilibili.feature.home.HOME_TOP_PARTITION_TAB_ID
 import com.android.purebilibili.feature.home.resolveHomeTopCategories
 import com.android.purebilibili.core.store.LiquidGlassStyle
 import com.android.purebilibili.core.ui.AppShapes
@@ -1182,7 +1181,7 @@ fun CategoryTabRow(
         androidNativeVariant = LocalAndroidNativeVariant.current,
         labelMode = labelMode
     )
-    val showPartitionAction = categoryKeys.none { it.equals(HOME_TOP_PARTITION_TAB_ID, ignoreCase = true) }
+    val showPartitionAction = false
     val hasSkinStickerIcons = topTabSkinIconPaths.isNotEmpty() || !partitionSkinIconPath.isNullOrBlank()
     if (showPartitionAction && !hasSkinStickerIcons && !skinPlainStyle && presetStyle.renderer == HomeTopTabRenderer.MIUIX) {
         val haptic = com.android.purebilibili.core.util.rememberHapticFeedback()

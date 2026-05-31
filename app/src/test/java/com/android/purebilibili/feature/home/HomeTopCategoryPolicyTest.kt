@@ -105,6 +105,26 @@ class HomeTopCategoryPolicyTest {
     }
 
     @Test
+    fun `legacy default top tab settings should migrate to inline partition entry`() {
+        val entries = resolveHomeTopTabEntries(
+            customOrderIds = listOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME"),
+            visibleIds = setOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME")
+        )
+
+        assertEquals(
+            listOf(
+                HomeTopTabEntry.Category(HomeCategory.RECOMMEND),
+                HomeTopTabEntry.Category(HomeCategory.FOLLOW),
+                HomeTopTabEntry.Category(HomeCategory.POPULAR),
+                HomeTopTabEntry.Category(HomeCategory.LIVE),
+                HomeTopTabEntry.Category(HomeCategory.GAME),
+                HomeTopTabEntry.Partition
+            ),
+            entries
+        )
+    }
+
+    @Test
     fun `invalid custom ids should fallback to default set`() {
         val categories = resolveHomeTopCategories(
             customOrderIds = listOf("UNKNOWN", "INVALID"),
