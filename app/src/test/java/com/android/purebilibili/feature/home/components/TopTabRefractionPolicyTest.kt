@@ -17,10 +17,11 @@ class TopTabRefractionPolicyTest {
         assertTrue(source.contains("shouldUseMovingIosCapsule"))
         assertTrue(source.contains("shouldUseLiquidGlassIndicator"))
         assertTrue(source.contains("shouldForceDragLiquidGlassIndicator"))
-        assertTrue(source.contains("forceChromaticAberration = topTabDragActive"))
-        assertTrue(source.contains("indicatorHeight = (rowHeight - 8.dp).coerceAtLeast(2.dp)"))
-        assertTrue(source.contains("indicatorHeight = 4.dp"))
-        assertTrue(source.contains("lensAmountScale = 0.35f"))
+        assertTrue(source.contains("BottomBarLiquidIndicatorSurface("))
+        assertTrue(source.contains("resolveBottomBarRefractionMotionProfile("))
+        assertTrue(source.contains("resolveBottomBarBackdropPresetIndicatorLens("))
+        assertTrue(source.contains(".height((rowHeight - 8.dp).coerceAtLeast(2.dp))"))
+        assertTrue(source.contains(".height(4.dp)"))
     }
 
     @Test
@@ -308,7 +309,8 @@ class TopTabRefractionPolicyTest {
         assertTrue(source.contains("resolveTopTabIndicatorRenderPosition("))
         assertTrue(source.contains("pagerCurrentPageOffsetFraction = pagerState?.currentPageOffsetFraction"))
         assertTrue(source.contains("resolveTopTabClickAction(index, selectedIndex)"))
-        assertTrue(source.contains("LiquidIndicator("))
+        assertTrue(source.contains("BottomBarLiquidIndicatorSurface("))
+        assertFalse(source.contains("LiquidIndicator("))
         assertFalse(source.contains("SimpleLiquidIndicator("))
         assertFalse(source.contains("BottomBarStyleIndicatorSurface("))
         assertFalse(source.contains("drawBackdrop("))

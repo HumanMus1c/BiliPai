@@ -144,7 +144,7 @@ internal fun LiquidIndicator(
         label = "scaleY"
     )
     val dragScale by animateFloatAsState(
-        targetValue = if (isDragging) 1.10f else 1f,
+        targetValue = if (isDragging) 1.0f else 1f,
         animationSpec = motionSpec.indicator.dragScaleSpring.toSpringSpec(),
         label = "dragScale"
     )
