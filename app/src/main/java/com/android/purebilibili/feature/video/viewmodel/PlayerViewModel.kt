@@ -5561,7 +5561,8 @@ class PlayerViewModel : ViewModel() {
         targetTitle: String,
         targetLabel: String,
         targetCover: String,
-        qualityId: Int
+        qualityId: Int,
+        options: com.android.purebilibili.feature.download.DownloadOptions = com.android.purebilibili.feature.download.DownloadOptions()
     ): com.android.purebilibili.feature.download.DownloadTask? {
         val qualityDesc = resolveDownloadQualityDescription(current, qualityId)
         val isCurrentTarget = targetBvid == currentBvid && targetCid == currentCid
@@ -5610,6 +5611,7 @@ class PlayerViewModel : ViewModel() {
         }
 
         return com.android.purebilibili.feature.download.DownloadTask(
+            aid = current.info.aid,
             bvid = targetBvid,
             cid = targetCid,
             title = resolvedTitle,
@@ -5626,11 +5628,15 @@ class PlayerViewModel : ViewModel() {
             qualityDesc = qualityDesc,
             videoUrl = resolvedUrls.first,
             audioUrl = resolvedUrls.second,
-            isVerticalVideo = candidate?.isVerticalVideo ?: (current.info.dimension?.isVertical == true)
+            isVerticalVideo = candidate?.isVerticalVideo ?: (current.info.dimension?.isVertical == true),
+            options = options
         )
     }
     
-    fun downloadWithQuality(qualityId: Int) {
+    fun downloadWithQuality(
+        qualityId: Int,
+        options: com.android.purebilibili.feature.download.DownloadOptions = com.android.purebilibili.feature.download.DownloadOptions()
+    ) {
         val current = _uiState.value as? PlayerUiState.Success ?: return
         _showDownloadDialog.value = false
         
@@ -5642,7 +5648,8 @@ class PlayerViewModel : ViewModel() {
                 targetTitle = current.info.title,
                 targetLabel = current.info.title,
                 targetCover = current.info.pic,
-                qualityId = qualityId
+                qualityId = qualityId,
+                options = options
             )
             
             if (task == null) {
@@ -5666,6 +5673,7 @@ class PlayerViewModel : ViewModel() {
 
     internal fun downloadBatchWithQuality(
         qualityId: Int,
+        options: com.android.purebilibili.feature.download.DownloadOptions = com.android.purebilibili.feature.download.DownloadOptions(),
         candidates: List<com.android.purebilibili.feature.download.BatchDownloadCandidate>
     ) {
         val current = _uiState.value as? PlayerUiState.Success ?: return
@@ -5693,7 +5701,8 @@ class PlayerViewModel : ViewModel() {
                     targetTitle = candidate.title,
                     targetLabel = candidate.label,
                     targetCover = candidate.cover,
-                    qualityId = qualityId
+                    qualityId = qualityId,
+                    options = options
                 )
                 if (task == null) {
                     failedCount += 1

@@ -41,10 +41,15 @@ import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.feature.video.player.MiniPlayerManager
+import com.android.purebilibili.feature.video.danmaku.configureAsPassiveDanmakuOverlay
+import com.android.purebilibili.feature.video.danmaku.rememberDanmakuManager
+import com.bytedance.danmaku.render.engine.DanmakuView
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.abs
 
@@ -69,6 +74,7 @@ fun OfflineVideoPlayerScreen(
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
     val miniPlayerManager = remember(context) { MiniPlayerManager.getInstance(context) }
+    val danmakuManager = rememberDanmakuManager()
     
     val tasks by DownloadManager.tasks.collectAsState()
     var currentTaskId by remember(taskId) { mutableStateOf(taskId) }
@@ -166,6 +172,18 @@ fun OfflineVideoPlayerScreen(
     }
     val offlineMiniPlayerPayload = remember(task) {
         resolveOfflineMiniPlayerPayload(task)
+    }
+    val localDanmakuSegments by produceState<List<ByteArray>>(
+        initialValue = emptyList(),
+        key1 = task.localDanmakuSegmentPaths
+    ) {
+        value = if (task.localDanmakuSegmentPaths.isEmpty()) {
+            emptyList()
+        } else {
+            withContext(Dispatchers.IO) {
+                DownloadDanmakuAssetService.readLocalSegments(task)
+            }
+        }
     }
 
     fun persistCurrentPlaybackPosition(activeTask: DownloadTask, activePlayer: ExoPlayer) {
@@ -284,8 +302,10 @@ fun OfflineVideoPlayerScreen(
     }
 
     DisposableEffect(player, task.id) {
+        danmakuManager.attachPlayer(player)
         onDispose {
             persistCurrentPlaybackPosition(task, player)
+            danmakuManager.detachView()
             if (miniPlayerManager.isPlayerManaged(player)) {
                 miniPlayerManager.dismiss()
             } else {
@@ -297,6 +317,12 @@ fun OfflineVideoPlayerScreen(
                 val windowInsetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
                 windowInsetsController.show(WindowInsetsCompat.Type.systemBars())
             }
+        }
+    }
+
+    LaunchedEffect(danmakuManager, task.id, localDanmakuSegments) {
+        if (localDanmakuSegments.isNotEmpty()) {
+            danmakuManager.loadLocalDanmaku(task.cid, localDanmakuSegments)
         }
     }
 
@@ -536,6 +562,28 @@ fun OfflineVideoPlayerScreen(
             },
             modifier = Modifier.fillMaxSize()
         )
+
+        if (localDanmakuSegments.isNotEmpty() && !task.isAudioOnly) {
+            AndroidView(
+                factory = { ctx ->
+                    DanmakuView(ctx).apply {
+                        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        configureAsPassiveDanmakuOverlay()
+                        danmakuManager.attachView(this)
+                    }
+                },
+                update = { view ->
+                    if (view.width > 0 && view.height > 0) {
+                        val sizeTag = "${view.width}x${view.height}"
+                        if (view.tag != sizeTag) {
+                            view.tag = sizeTag
+                            danmakuManager.attachView(view)
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         
         // 2. 封面图（播放前显示，或是纯音频模式常驻显示）
         val showCover = (!player.isPlaying && player.playbackState == Player.STATE_IDLE) || task.isAudioOnly

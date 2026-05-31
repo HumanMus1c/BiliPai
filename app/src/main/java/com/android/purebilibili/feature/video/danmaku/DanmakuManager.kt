@@ -1536,6 +1536,64 @@ class DanmakuManager private constructor(
             }
         }
     }
+
+    /**
+     * 加载离线缓存弹幕。该路径只读取本地文件，不做网络补拉。
+     */
+    fun loadLocalDanmaku(cid: Long, segments: List<ByteArray>) {
+        Log.w(TAG, "========== loadLocalDanmaku CALLED cid=$cid, segments=${segments.size} ==========")
+        loadJob?.cancel()
+        isLoading = true
+        cachedCid = cid
+        clearExplicitSeekResyncMarker()
+        cachedDanmakuList = null
+        sourceDanmakuList = null
+        sourceAdvancedDanmakuList = null
+        sourceCommandDanmakuList = emptyList()
+        _advancedDanmakuFlow.value = emptyList()
+        _commandDanmakuFlow.value = emptyList()
+        controller?.stop()
+
+        loadJob = scope.launch {
+            try {
+                val parsedResult = withContext(Dispatchers.Default) {
+                    if (segments.isNotEmpty()) {
+                        DanmakuParser.parseProtobuf(segments)
+                    } else {
+                        ParsedDanmaku(emptyList(), emptyList())
+                    }
+                }
+                sourceDanmakuList = parsedResult.standardList
+                sourceAdvancedDanmakuList = parsedResult.advancedList
+
+                val rebuilt = withContext(Dispatchers.Default) {
+                    rebuildDanmakuCacheFromSource("offline_load")
+                }
+
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                    if (!rebuilt) {
+                        controller?.clear()
+                        isPlaying = false
+                        return@withContext
+                    }
+                    val currentPlayTime = player?.currentPosition ?: 0L
+                    resyncDanmakuTimeline(
+                        list = cachedDanmakuList ?: emptyList(),
+                        positionMs = currentPlayTime,
+                        shouldPlay = player?.isPlaying == true,
+                        invalidateView = true,
+                        reason = "offline_load"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, " Failed to load local danmaku for cid=$cid: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
+            }
+        }
+    }
     
     fun show() {
         Log.d(TAG, "👁️ show()")

@@ -4327,8 +4327,8 @@ fun VideoDetailScreen(
                 title = successForDownload.info.title,
                 qualityOptions = sortedQualityOptions,
                 currentQuality = highestQuality,
-                onQualitySelected = { quality ->
-                    viewModel.downloadWithQuality(quality)
+                onQualitySelected = { quality, options ->
+                    viewModel.downloadWithQuality(quality, options)
                     showQualitySelection = false
                 },
                 onDismiss = { showQualitySelection = false }
@@ -4358,9 +4358,10 @@ fun VideoDetailScreen(
                 qualityOptions = sortedQualityOptions,
                 currentQuality = highestQuality,
                 downloadedIds = downloadedCandidateIds,
-                onConfirm = { quality, selectedCandidates ->
+                onConfirm = { quality, options, selectedCandidates ->
                     viewModel.downloadBatchWithQuality(
                         qualityId = quality,
+                        options = options,
                         candidates = selectedCandidates
                     )
                     showBatchDownloadDialog = false
