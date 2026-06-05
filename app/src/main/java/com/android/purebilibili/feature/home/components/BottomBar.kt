@@ -64,6 +64,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer  //  晃动动画
 import androidx.compose.ui.graphics.shadow.Shadow as ComposeShadow
@@ -1271,8 +1272,8 @@ internal fun resolveBottomBarGlassExportContentColor(
     glassEnabled: Boolean
 ): Color {
     val clampedWeight = themeWeight.coerceIn(0f, 1f)
-    if (glassEnabled && clampedWeight > 0.001f) {
-        return selectedColor
+    if (glassEnabled) {
+        return unselectedColor
     }
     return lerpColor(
         start = unselectedColor,
@@ -2965,6 +2966,10 @@ private fun KernelSuAlignedBottomBar(
     )
     val selectedColor = skinContentColors.selectedColor
     val unselectedColor = skinContentColors.unselectedColor
+    val exportTintColor = resolveAndroidNativeExportTintColor(
+        themeColor = selectedColor,
+        darkTheme = isDarkTheme
+    )
     val totalItems = allItems.size.coerceAtLeast(1)
     val dampedDragState = rememberDampedDragAnimationState(
         initialIndex = selectedIndex,
@@ -3554,6 +3559,8 @@ private fun KernelSuAlignedBottomBar(
                                     }
                                 }
                             )
+                            // 对齐 KSU：隐藏采样层保持中性色内容，再由整层 tint 统一染成主题色。
+                            .graphicsLayer(colorFilter = ColorFilter.tint(exportTintColor))
                     ) {
                         Box(
                             modifier = Modifier

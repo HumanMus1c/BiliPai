@@ -410,7 +410,7 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `android native glass export content keeps full theme hue while partially covered`() {
+    fun `android native glass export content keeps neutral base while partially covered`() {
         val unselected = Color(0xFF202124)
         val selected = Color(0xFF00A1D6)
         val color = resolveBottomBarGlassExportContentColor(
@@ -420,9 +420,9 @@ class BottomBarSurfaceColorPolicyTest {
             glassEnabled = true
         )
 
-        assertEquals(selected.red, color.red, 0.001f)
-        assertEquals(selected.green, color.green, 0.001f)
-        assertEquals(selected.blue, color.blue, 0.001f)
+        assertEquals(unselected.red, color.red, 0.001f)
+        assertEquals(unselected.green, color.green, 0.001f)
+        assertEquals(unselected.blue, color.blue, 0.001f)
     }
 
     @Test

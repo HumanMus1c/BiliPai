@@ -102,7 +102,7 @@ class BottomBarMiuixStructureTest {
         assertFalse(kernelSuRendererSource.contains("selectedSettlePulseKey"))
         assertFalse(kernelSuRendererSource.contains("settlePulseKey = if (index == selectedIndex)"))
         assertTrue(kernelSuRendererSource.contains("if (effectiveSearchExpanded) {\n                                    Modifier.clickable("))
-        assertFalse(kernelSuRendererSource.contains("ColorFilter.tint(exportTintColor)"))
+        assertTrue(kernelSuRendererSource.contains("ColorFilter.tint(exportTintColor)"))
         assertFalse(kernelSuRendererSource.contains("ColorFilter.tint(uiSkinDecoration"))
         assertFalse(kernelSuRendererSource.contains("val contentColor = Color.White"))
         assertTrue(kernelSuRendererSource.contains("val contentColor = exportItemContentColor(item, coverage)"))
