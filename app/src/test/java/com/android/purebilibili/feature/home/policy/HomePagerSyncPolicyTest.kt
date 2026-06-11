@@ -252,4 +252,98 @@ class HomePagerSyncPolicyTest {
             )
         )
     }
+
+    @Test
+    fun pagerRestore_resolvesFollowByStableEntryAfterPopularAndFollowSwap() {
+        val reorderedEntries = listOf(
+            HomeTopTabEntry.Category(HomeCategory.RECOMMEND),
+            HomeTopTabEntry.Category(HomeCategory.POPULAR),
+            HomeTopTabEntry.Category(HomeCategory.FOLLOW)
+        )
+
+        assertEquals(
+            2,
+            resolveHomePagerTargetPage(
+                topTabEntries = reorderedEntries,
+                retainedEntry = HomeTopTabEntry.Category(HomeCategory.FOLLOW),
+                currentCategory = HomeCategory.FOLLOW,
+                hasSyncedPagerWithState = false
+            )
+        )
+    }
+
+    @Test
+    fun pagerRestore_resolvesPopularByStableEntryWhenRecommendMovesBack() {
+        val reorderedEntries = listOf(
+            HomeTopTabEntry.Category(HomeCategory.FOLLOW),
+            HomeTopTabEntry.Category(HomeCategory.POPULAR),
+            HomeTopTabEntry.Category(HomeCategory.RECOMMEND)
+        )
+
+        assertEquals(
+            1,
+            resolveHomePagerTargetPage(
+                topTabEntries = reorderedEntries,
+                retainedEntry = HomeTopTabEntry.Category(HomeCategory.POPULAR),
+                currentCategory = HomeCategory.POPULAR,
+                hasSyncedPagerWithState = false
+            )
+        )
+    }
+
+    @Test
+    fun pagerRestore_keepsPartitionInsteadOfFallingBackToCurrentCategory() {
+        val entries = listOf(
+            HomeTopTabEntry.Category(HomeCategory.RECOMMEND),
+            HomeTopTabEntry.Partition,
+            HomeTopTabEntry.Category(HomeCategory.POPULAR)
+        )
+
+        assertEquals(
+            1,
+            resolveHomePagerTargetPage(
+                topTabEntries = entries,
+                retainedEntry = HomeTopTabEntry.Partition,
+                currentCategory = HomeCategory.RECOMMEND,
+                hasSyncedPagerWithState = false
+            )
+        )
+    }
+
+    @Test
+    fun pagerStateDrive_followsCurrentCategoryAfterReturnSyncCompletes() {
+        val entries = listOf(
+            HomeTopTabEntry.Category(HomeCategory.FOLLOW),
+            HomeTopTabEntry.Category(HomeCategory.POPULAR),
+            HomeTopTabEntry.Category(HomeCategory.RECOMMEND)
+        )
+
+        assertEquals(
+            2,
+            resolveHomePagerTargetPage(
+                topTabEntries = entries,
+                retainedEntry = HomeTopTabEntry.Category(HomeCategory.FOLLOW),
+                currentCategory = HomeCategory.RECOMMEND,
+                hasSyncedPagerWithState = true
+            )
+        )
+    }
+
+    @Test
+    fun pagerRestore_fallsBackToCurrentCategoryWhenRetainedEntryWasHidden() {
+        val entries = listOf(
+            HomeTopTabEntry.Category(HomeCategory.RECOMMEND),
+            HomeTopTabEntry.Category(HomeCategory.POPULAR)
+        )
+
+        assertEquals(
+            1,
+            resolveHomePagerTargetPage(
+                topTabEntries = entries,
+                retainedEntry = HomeTopTabEntry.Category(HomeCategory.FOLLOW),
+                currentCategory = HomeCategory.POPULAR,
+                hasSyncedPagerWithState = false
+            )
+        )
+    }
 }

@@ -98,6 +98,7 @@ import com.android.purebilibili.feature.home.policy.resolveHomePagerSettledActio
 import com.android.purebilibili.feature.home.policy.shouldAnimateHomePagerToCategory
 import com.android.purebilibili.feature.home.policy.HomePagerSettledAction
 import com.android.purebilibili.feature.home.policy.resolveHomeInitialTopTabPage
+import com.android.purebilibili.feature.home.policy.resolveHomePagerTargetPage
 import com.android.purebilibili.feature.home.policy.shouldEnableHomeTopPagerUserScroll
 import com.android.purebilibili.feature.home.policy.shouldSkipHomePagerStateDrive
 import com.android.purebilibili.feature.home.policy.shouldTreatInitialHomePagerPageAsSyncedWithState
@@ -367,6 +368,10 @@ fun HomeScreen(
         currentCategory = currentCategory
     )
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(initialPage = initialPage) { topTabEntries.size }
+    // 返回详情页时按标签身份恢复，避免自定义顺序把旧页码解释成另一个分类。
+    var retainedTopTabEntry by remember {
+        mutableStateOf(resolveHomeTopTabEntryOrNull(topTabEntries, initialPage))
+    }
     var hasSyncedPagerWithState by remember(topTabEntries) { mutableStateOf(initialPageSyncedWithState) }
     var lastDrivenPagerCategory by remember(topTabEntries) {
         mutableStateOf(if (initialPageSyncedWithState) currentCategory else null)
@@ -403,6 +408,9 @@ fun HomeScreen(
                     .takeIf { it >= 0 } ?: 0
                 val settledEntry = resolveHomeTopTabEntryOrNull(topTabEntries, page)
                 val settledCategory = (settledEntry as? HomeTopTabEntry.Category)?.category
+                if (!scrolling && settledEntry != null) {
+                    retainedTopTabEntry = settledEntry
+                }
                 when (resolveHomePagerSettledAction(
                         isTopLevelActive = isTopLevelActive,
                         hasSyncedPagerWithState = hasSyncedPagerWithState,
@@ -451,7 +459,12 @@ fun HomeScreen(
     // [修复] 状态变化时驱动 Pager：首次使用无动画对齐，后续用动画跟随
     LaunchedEffect(currentCategory, topTabEntries, isTopLevelActive) {
         if (!isTopLevelActive) return@LaunchedEffect
-        val targetPage = topTabEntries.indexOf(HomeTopTabEntry.Category(currentCategory))
+        val targetPage = resolveHomePagerTargetPage(
+            topTabEntries = topTabEntries,
+            retainedEntry = retainedTopTabEntry,
+            currentCategory = currentCategory,
+            hasSyncedPagerWithState = hasSyncedPagerWithState
+        )
         if (targetPage < 0) return@LaunchedEffect
         if (shouldUseInitialHomePagerSnap(
                 hasSyncedPagerWithState = hasSyncedPagerWithState,
@@ -460,6 +473,7 @@ fun HomeScreen(
         ) {
             pagerState.scrollToPage(targetPage)
             hasSyncedPagerWithState = true
+            retainedTopTabEntry = resolveHomeTopTabEntryOrNull(topTabEntries, targetPage)
             lastDrivenPagerCategory = currentCategory
             return@LaunchedEffect
         }
@@ -1833,6 +1847,7 @@ fun HomeScreen(
             onCategorySelected = onCategorySelected@ { index ->
                 viewModel.updateDisplayedTabIndex(index)
                 val selectedEntry = topTabEntries.getOrNull(index) ?: return@onCategorySelected
+                retainedTopTabEntry = selectedEntry
                 if (pagerState.currentPage != index) {
                     programmaticPageSwitchInProgress = true
                     coroutineScope.launch {
