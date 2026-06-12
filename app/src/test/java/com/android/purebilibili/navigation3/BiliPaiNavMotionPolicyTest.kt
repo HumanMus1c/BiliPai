@@ -123,6 +123,42 @@ class BiliPaiNavMotionPolicyTest {
     }
 
     @Test
+    fun navDisplayPop_subscribedFavoriteCollectionReturn_keepsRouteLayerNoOp() {
+        val transition = resolveBiliPaiNavDisplayPopRouteTransition(
+            cardTransitionEnabled = true,
+            sourceMetadata = BiliPaiNavSourceMetadata(),
+            fromKey = BiliPaiNavKey.SeasonSeriesDetail(
+                type = "favorite_season",
+                id = 1324105L,
+                mid = 39366561L,
+                sharedElementTransition = true
+            ),
+            toKey = BiliPaiNavKey.MainHost
+        )
+
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transition)
+    }
+
+    @Test
+    fun subscribedFavoriteCollectionBackGestureKeepsSharedElementRouteLayer() {
+        val decision = resolveBiliPaiBackGestureDecision(
+            cardTransitionEnabled = true,
+            systemBackAction = AppSystemBackAction.NAVIGATE_UP,
+            currentKey = BiliPaiNavKey.SeasonSeriesDetail(
+                type = "favorite_season",
+                id = 1324105L,
+                mid = 39366561L,
+                sharedElementTransition = true
+            ),
+            previousKey = BiliPaiNavKey.MainHost,
+            sourceMetadata = BiliPaiNavSourceMetadata()
+        )
+
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, decision.routeTransition)
+        assertTrue(decision.interceptSystemBack)
+    }
+
+    @Test
     fun navDisplayPop_disabledSharedTransition_usesDirectionalReturnFallback() {
         val transition = resolveBiliPaiNavDisplayPopRouteTransition(
             cardTransitionEnabled = false,

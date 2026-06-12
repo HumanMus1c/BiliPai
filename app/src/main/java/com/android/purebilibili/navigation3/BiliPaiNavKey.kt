@@ -243,7 +243,8 @@ internal sealed interface BiliPaiNavKey : NavKey {
         val id: Long,
         val mid: Long,
         val title: String = "",
-        val ownerName: String = ""
+        val ownerName: String = "",
+        val sharedElementTransition: Boolean = false
     ) : BiliPaiNavKey {
         override val routeBase: String = "season_series_detail"
     }

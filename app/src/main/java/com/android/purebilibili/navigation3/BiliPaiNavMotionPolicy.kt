@@ -121,6 +121,14 @@ internal fun resolveBiliPaiNavDisplayPopRouteTransition(
     val fromVideoKey = fromKey as? BiliPaiNavKey.VideoDetail
     val toIsCardReturnTarget = toKey != null && isCardReturnTargetNavKey(toKey)
     if (cardTransitionEnabled) {
+        val sharedReadyFavoriteCollectionReturn =
+            fromKey is BiliPaiNavKey.SeasonSeriesDetail &&
+                fromKey.sharedElementTransition &&
+                (toKey == BiliPaiNavKey.MainHost || toKey == BiliPaiNavKey.Favorite)
+        if (sharedReadyFavoriteCollectionReturn) {
+            return BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
+        }
+
         val normalizedSourceRoute = sourceMetadata.sourceRoute?.substringBefore("?")
         val normalizedVideoRoute = fromVideoKey?.sourceRoute?.substringBefore("?")
         val sourceMatchesCurrentVideo = fromVideoKey != null &&

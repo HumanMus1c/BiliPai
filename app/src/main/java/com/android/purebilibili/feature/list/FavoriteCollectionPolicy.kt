@@ -14,8 +14,18 @@ data class FavoriteCollectionRoute(
     val id: Long,
     val mid: Long,
     val title: String,
-    val ownerName: String = ""
+    val ownerName: String = "",
+    val sharedElementTransition: Boolean = false
 )
+
+internal fun resolveFavoriteCollectionSharedElementId(
+    type: String,
+    id: Long
+): String? {
+    val normalizedType = type.trim()
+    if (normalizedType.isEmpty() || id <= 0L) return null
+    return "$normalizedType:$id"
+}
 
 internal fun mergeFavoriteFoldersForDisplay(
     ownedFolders: List<FavFolder>,
@@ -66,7 +76,8 @@ internal fun resolveSubscribedFavoriteCollectionRoute(folder: FavFolder): Favori
         id = folder.id,
         mid = folder.mid,
         title = folder.title,
-        ownerName = folder.upper?.name.orEmpty()
+        ownerName = folder.upper?.name.orEmpty(),
+        sharedElementTransition = true
     )
 }
 

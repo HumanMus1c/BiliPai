@@ -109,10 +109,21 @@ class FavoriteFolderAggregationPolicyTest {
                 id = 1324105L,
                 mid = 39366561L,
                 title = "一天体重测试系列",
-                ownerName = "测试UP"
+                ownerName = "测试UP",
+                sharedElementTransition = true
             ),
             route
         )
+    }
+
+    @Test
+    fun `favorite collection shared element id uses type and id`() {
+        assertEquals(
+            "favorite_season:1324105",
+            resolveFavoriteCollectionSharedElementId(" favorite_season ", 1324105L)
+        )
+        assertEquals(null, resolveFavoriteCollectionSharedElementId("", 1324105L))
+        assertEquals(null, resolveFavoriteCollectionSharedElementId("favorite_season", 0L))
     }
 
     @Test

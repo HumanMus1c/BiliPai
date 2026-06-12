@@ -10,6 +10,56 @@ import kotlin.test.assertTrue
 class BiliPaiNavEntryProviderPolicyTest {
 
     @Test
+    fun subscribedFavoriteCollectionUsesSharedElementRouteLayer() {
+        val transitions = resolveBiliPaiNavEntryRouteTransitions(
+            key = BiliPaiNavKey.SeasonSeriesDetail(
+                type = "favorite_season",
+                id = 1324105L,
+                mid = 39366561L,
+                title = "一天体重测试系列",
+                sharedElementTransition = true
+            ),
+            cardTransitionEnabled = true,
+            sourceMetadata = BiliPaiNavSourceMetadata()
+        )
+
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.forward)
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.pop)
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.predictivePop)
+    }
+
+    @Test
+    fun collectionWithoutSharedElementSourceKeepsFallbackRouteLayer() {
+        val transitions = resolveBiliPaiNavEntryRouteTransitions(
+            key = BiliPaiNavKey.SeasonSeriesDetail(
+                type = "favorite_season",
+                id = 1324105L,
+                mid = 39366561L,
+                title = "一天体重测试系列"
+            ),
+            cardTransitionEnabled = true,
+            sourceMetadata = BiliPaiNavSourceMetadata()
+        )
+
+        assertEquals(BiliPaiNavRouteTransition.FALLBACK, transitions.forward)
+        assertEquals(BiliPaiNavRouteTransition.FALLBACK, transitions.pop)
+    }
+
+    @Test
+    fun subscribedFavoriteCollectionPopKeepsSharedElementRouteLayer() {
+        val transition = resolveBiliPaiNavEntryPopRouteTransition(
+            defaultTransition = BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT,
+            fromRoute = "season_series_detail",
+            toRoute = "main_host",
+            cardTransitionEnabled = true,
+            sharedElementPopReady = true,
+            sourceMetadata = BiliPaiNavSourceMetadata()
+        )
+
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transition)
+    }
+
+    @Test
     fun sharedReadyMetadataAloneDoesNotDisableRouteLayerForReturnTarget() {
         val transitions = resolveBiliPaiNavEntryRouteTransitions(
             key = BiliPaiNavKey.Home,

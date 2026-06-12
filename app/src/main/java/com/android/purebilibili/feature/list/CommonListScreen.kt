@@ -89,7 +89,9 @@ import com.android.purebilibili.core.ui.animation.DissolvableVideoCard
 import com.android.purebilibili.core.ui.animation.jiggleOnDissolve
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
+import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.transition.BiliPaiSharedElementKey
 import com.android.purebilibili.core.util.VideoGridItemSkeleton
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard
@@ -166,7 +168,8 @@ fun CommonListScreen(
     onFavoriteFolderClick: ((Long, Long, String, String) -> Unit)? = null,
     onPlayAllAudioClick: ((String, Long) -> Unit)? = null,
     globalHazeState: HazeState? = null, // [新增] 接收全局 HazeState
-    scrollToTopChannel: Channel<Unit>? = null
+    scrollToTopChannel: Channel<Unit>? = null,
+    favoriteCollectionSharedElementRoute: FavoriteCollectionRoute? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val primaryGridState = rememberLazyGridState()
@@ -194,6 +197,8 @@ fun CommonListScreen(
         baseTier = deviceUiProfile.motionTier,
         animationEnabled = homeSettings.cardAnimationEnabled
     )
+    val favoriteCollectionSharedTransitionEnabled =
+        homeSettings.cardTransitionEnabled && LocalSharedTransitionEnabled.current
 
     val minColWidth = rememberResponsiveValue(compact = 170.dp, medium = 170.dp, expanded = 240.dp)
     val adaptiveColumns = rememberAdaptiveGridColumns(minColumnWidth = minColWidth)
@@ -577,6 +582,7 @@ fun CommonListScreen(
                         spacing = spacing.medium,
                         hasMore = subscribedFolderProgressState.hasMore,
                         isLoadingMore = subscribedFolderProgressState.isLoadingMore,
+                        transitionEnabled = favoriteCollectionSharedTransitionEnabled,
                         onLoadMore = { favoriteVm.loadMoreSubscribedFolders() },
                         onFolderClick = { folder ->
                             val collectionRoute = resolveSubscribedFavoriteCollectionRoute(folder)
@@ -807,6 +813,10 @@ fun CommonListScreen(
                 Column {
                     AdaptiveTopAppBar(
                         title = state.title,
+                        modifier = Modifier.favoriteCollectionSharedBounds(
+                            route = favoriteCollectionSharedElementRoute,
+                            transitionEnabled = favoriteCollectionSharedTransitionEnabled
+                        ),
                         navigationIcon = {
                             IconButton(onClick = onBack) {
                                 Icon(rememberAppBackIcon(), contentDescription = "Back")
@@ -1641,6 +1651,7 @@ private fun FavoriteSubscribedFolderList(
     spacing: androidx.compose.ui.unit.Dp,
     hasMore: Boolean,
     isLoadingMore: Boolean,
+    transitionEnabled: Boolean,
     onLoadMore: () -> Unit,
     onFolderClick: (com.android.purebilibili.data.model.response.FavFolder) -> Unit
 ) {
@@ -1678,7 +1689,11 @@ private fun FavoriteSubscribedFolderList(
         verticalArrangement = Arrangement.spacedBy(spacing)
     ) {
         items(items = folders, key = { "favorite_subscribed_${it.id}_${it.fid}" }) { folder ->
-            FavoriteSubscribedFolderRow(folder = folder, onClick = { onFolderClick(folder) })
+            FavoriteSubscribedFolderRow(
+                folder = folder,
+                transitionEnabled = transitionEnabled,
+                onClick = { onFolderClick(folder) }
+            )
         }
     }
 }
@@ -1691,11 +1706,19 @@ private sealed interface CommonListScrollState {
 @Composable
 private fun FavoriteSubscribedFolderRow(
     folder: com.android.purebilibili.data.model.response.FavFolder,
+    transitionEnabled: Boolean,
     onClick: () -> Unit
 ) {
+    val sharedElementRoute = remember(folder) {
+        resolveSubscribedFavoriteCollectionRoute(folder)
+    }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .favoriteCollectionSharedBounds(
+                route = sharedElementRoute,
+                transitionEnabled = transitionEnabled
+            )
             .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
         shape = RoundedCornerShape(14.dp)
@@ -1732,6 +1755,42 @@ private fun FavoriteSubscribedFolderRow(
                 label = { Text("订阅") }
             )
         }
+    }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun Modifier.favoriteCollectionSharedBounds(
+    route: FavoriteCollectionRoute?,
+    transitionEnabled: Boolean
+): Modifier {
+    val sharedTransitionScope = LocalSharedTransitionScope.current
+    val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
+    val sharedElementId = remember(route?.type, route?.id) {
+        route?.let { resolveFavoriteCollectionSharedElementId(it.type, it.id) }
+    }
+    if (
+        !transitionEnabled ||
+        route?.sharedElementTransition != true ||
+        sharedElementId == null ||
+        sharedTransitionScope == null ||
+        animatedVisibilityScope == null
+    ) {
+        return this
+    }
+    val sharedElementKey = remember(sharedElementId) {
+        BiliPaiSharedElementKey.Raw(
+            namespace = "favorite_collection",
+            id = sharedElementId
+        )
+    }
+    return with(sharedTransitionScope) {
+        this@favoriteCollectionSharedBounds.sharedBounds(
+            sharedContentState = rememberSharedContentState(key = sharedElementKey),
+            animatedVisibilityScope = animatedVisibilityScope,
+            boundsTransform = { _, _ -> spring(dampingRatio = 0.82f, stiffness = 260f) },
+            clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(14.dp))
+        )
     }
 }
 

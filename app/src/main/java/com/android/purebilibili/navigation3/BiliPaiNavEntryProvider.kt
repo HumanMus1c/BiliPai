@@ -182,6 +182,8 @@ internal fun biliPaiNavEntryMetadata(
             fromRoute = initialState.biliPaiRouteBase(),
             toRoute = targetState.biliPaiRouteBase(),
             cardTransitionEnabled = cardTransitionEnabled,
+            sharedElementPopReady = key is BiliPaiNavKey.SeasonSeriesDetail &&
+                key.sharedElementTransition,
             sourceMetadata = sourceMetadata
         )
         resolveBiliPaiNavContentTransform(transition)
@@ -222,6 +224,7 @@ internal fun resolveBiliPaiNavEntryPopRouteTransition(
     fromRoute: String?,
     toRoute: String?,
     cardTransitionEnabled: Boolean = true,
+    sharedElementPopReady: Boolean = false,
     sourceMetadata: BiliPaiNavSourceMetadata
 ): BiliPaiNavRouteTransition {
     val normalizedFromRoute = normalizeBiliPaiNavEntryRouteBase(fromRoute)
@@ -230,6 +233,10 @@ internal fun resolveBiliPaiNavEntryPopRouteTransition(
     val videoToCardReturnTarget = normalizedFromRoute == VIDEO_ROUTE_BASE &&
         normalizedToRoute != null &&
         isCardReturnTargetRouteBase(normalizedToRoute)
+
+    if (cardTransitionEnabled && sharedElementPopReady) {
+        return BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
+    }
 
     if (cardTransitionEnabled) {
         val sharedReadyVideoToSourceCard = sourceMetadata.sharedTransitionReady &&
@@ -285,17 +292,26 @@ internal fun resolveBiliPaiNavEntryRouteTransitions(
         sourceMetadata.sourceKey == "${sourceMetadata.sourceRoute}:${key.bvid}"
     val sharedReadyVideoPush = recordedMatchingVideoSource &&
         sourceMetadata.sharedTransitionReady
+    val sharedReadyFavoriteCollection =
+        key is BiliPaiNavKey.SeasonSeriesDetail && key.sharedElementTransition
     val forward = when {
+        cardTransitionEnabled && sharedReadyFavoriteCollection ->
+            BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         cardTransitionEnabled && sharedReadyVideoPush -> BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         !cardTransitionEnabled && sharedReadyVideoPush ->
             resolveCardDisabledVideoForwardTransition(sourceMetadata.cardSourceDirection)
                 ?: BiliPaiNavRouteTransition.FALLBACK
         else -> BiliPaiNavRouteTransition.FALLBACK
     }
+    val pop = if (cardTransitionEnabled && sharedReadyFavoriteCollection) {
+        BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
+    } else {
+        BiliPaiNavRouteTransition.FALLBACK
+    }
     return BiliPaiNavEntryRouteTransitions(
         forward = forward,
-        pop = BiliPaiNavRouteTransition.FALLBACK,
-        predictivePop = BiliPaiNavRouteTransition.FALLBACK
+        pop = pop,
+        predictivePop = pop
     )
 }
 

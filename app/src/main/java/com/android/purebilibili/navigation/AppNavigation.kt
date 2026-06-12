@@ -63,6 +63,7 @@ import com.android.purebilibili.feature.list.CommonListScreen
 import com.android.purebilibili.feature.list.HistoryViewModel
 import com.android.purebilibili.feature.list.LikedVideosViewModel
 import com.android.purebilibili.feature.list.FavoriteViewModel
+import com.android.purebilibili.feature.list.FavoriteCollectionRoute
 import com.android.purebilibili.feature.list.HistoryNavigationKind
 import com.android.purebilibili.feature.list.resolveHistoryNavigationKind
 import com.android.purebilibili.feature.list.resolveHistoryPlaybackCid
@@ -1901,7 +1902,8 @@ fun AppNavigation(
                                                 id = route.id,
                                                 mid = route.mid,
                                                 title = route.title,
-                                                ownerName = route.ownerName
+                                                ownerName = route.ownerName,
+                                                sharedElementTransition = route.sharedElementTransition
                                             )
                                         )
                                     },
@@ -2003,6 +2005,14 @@ fun AppNavigation(
                                     CommonListScreen(
                                         viewModel = viewModel,
                                         onBack = { performSystemBackAction() },
+                                        favoriteCollectionSharedElementRoute = FavoriteCollectionRoute(
+                                            type = seasonSeriesKey.type,
+                                            id = seasonSeriesKey.id,
+                                            mid = seasonSeriesKey.mid,
+                                            title = seasonSeriesKey.title,
+                                            ownerName = seasonSeriesKey.ownerName,
+                                            sharedElementTransition = seasonSeriesKey.sharedElementTransition
+                                        ),
                                         onVideoClick = { bvid, cid, cover ->
                                             navigateToVideoInNavigation3(
                                                 bvid = bvid,
@@ -2018,7 +2028,8 @@ fun AppNavigation(
                                                     id = route.id,
                                                     mid = route.mid,
                                                     title = route.title,
-                                                    ownerName = route.ownerName
+                                                    ownerName = route.ownerName,
+                                                    sharedElementTransition = route.sharedElementTransition
                                                 )
                                             )
                                         }
