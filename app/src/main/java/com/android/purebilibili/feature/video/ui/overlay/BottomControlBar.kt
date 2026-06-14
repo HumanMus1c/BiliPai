@@ -38,6 +38,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -565,7 +566,8 @@ fun BottomControlBar(
             sponsorMarkers = sponsorMarkers,
             pbpRidgeSamples = pbpRidgeSamples,
             currentChapter = currentChapter,
-            onChapterClick = onChapterClick
+            onChapterClick = onChapterClick,
+            modifier = Modifier.testTag("player_progress")
         )
     }
 
@@ -590,6 +592,7 @@ fun BottomControlBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .testTag("player_control_row")
                 .padding(horizontal = layoutPolicy.horizontalPaddingDp.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1112,7 +1115,8 @@ fun VideoProgressBar(
     sponsorMarkers: List<SponsorProgressMarker> = emptyList(),
     pbpRidgeSamples: List<PbpRidgeSample> = emptyList(),
     currentChapter: String? = null,
-    onChapterClick: () -> Unit = {}
+    onChapterClick: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     var containerWidthPx by remember { mutableFloatStateOf(0f) }
     var dragTargetPositionMs by remember { mutableLongStateOf(displayPositionMs.coerceAtLeast(0L)) }
@@ -1168,7 +1172,7 @@ fun VideoProgressBar(
     val trackHeightPx = with(LocalDensity.current) { layoutPolicy.trackHeightDp.dp.toPx() }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(baseHeightDp + previewAreaHeightDp)
     ) {

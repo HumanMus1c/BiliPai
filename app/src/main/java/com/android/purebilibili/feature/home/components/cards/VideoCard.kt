@@ -30,6 +30,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -588,6 +589,7 @@ fun ElegantVideoCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .testTag("home_video_cover")
                 .aspectRatio(coverAspectRatio)
                 .clip(coverShape)
                 .onGloballyPositioned { coordinates ->

@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -298,6 +299,7 @@ fun DanmakuSendDialog(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .testTag("danmaku_compact_input")
                                     .focusRequester(focusRequester),
                                 textStyle = TextStyle(
                                     fontSize = 15.sp,

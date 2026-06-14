@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -306,6 +307,7 @@ fun StoryVideoCard(
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .testTag("home_story_video_cover")
                     .aspectRatio(coverAspectRatio)
                     .clip(RoundedCornerShape(cardCornerRadius)),
                 contentScale = ContentScale.Crop

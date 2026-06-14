@@ -1714,7 +1714,7 @@ fun AppearanceSettingsContent(
     }
 }
 
-private enum class ThemeRoleColorTarget(val label: String) {
+internal enum class ThemeRoleColorTarget(val label: String) {
     LIGHT_BACKGROUND("浅色背景"),
     LIGHT_PRIMARY_TEXT("浅色主要文字"),
     LIGHT_SECONDARY_TEXT("浅色次要文字"),
@@ -1772,7 +1772,7 @@ private fun ThemeRoleOverrideEditor(
 }
 
 @Composable
-private fun ThemeRoleModeEditor(
+internal fun ThemeRoleModeEditor(
     title: String,
     roles: ThemeModeRoleOverrides,
     targets: List<ThemeRoleColorTarget>,
