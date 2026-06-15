@@ -1410,7 +1410,7 @@ fun AppearanceSettingsContent(
                         Column(modifier = Modifier.padding(16.dp)) {
                             IOSSlidingSegmentedSetting(
                                 title = "首页卡片样式：${homeFeedCardStyle.label}",
-                                subtitle = "官方样式使用 4:3 封面、贴边宽图与更紧凑的信息区",
+                                subtitle = "当前样式使用 16:9；官方样式使用更宽的 4:3 卡片与紧凑信息区",
                                 options = HomeFeedCardStyle.entries.map {
                                     PlaybackSegmentOption(it, it.label)
                                 },

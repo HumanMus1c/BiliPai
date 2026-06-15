@@ -70,7 +70,7 @@ import kotlin.math.roundToInt
  *  故事卡片 - 影院海报风格
  * 
  * 特点：
- * - 16:10 宽屏比例
+ * - 封面比例由首页卡片样式统一配置
  * - 大圆角 (24dp)
  * - 标题叠加在封面底部
  * - 沉浸电影感
@@ -297,7 +297,7 @@ fun StoryVideoCard(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceVariant) // 封面占位色
         ) {
-            //  封面 - 16:10 统一共享比例
+            // 封面比例由首页卡片样式统一配置。
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(coverUrl)

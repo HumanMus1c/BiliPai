@@ -296,7 +296,7 @@ private fun resolveVideoCardPillColors(
 /**
  *  官方 B 站风格视频卡片
  * 采用与 Bilibili 官方 App 一致的设计：
- * - 封面 16:10 比例
+ * - 封面比例由首页卡片样式统一配置
  * - 左下角：播放量 + 弹幕数
  * - 右下角：时长
  * - 标题：2行

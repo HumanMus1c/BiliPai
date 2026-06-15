@@ -25,8 +25,8 @@ class HomeCardStyleUiRegressionTest {
 
     @Test
     fun storyCover_appliesConfiguredAspectRatio() {
-        assertCoverRatio(16f / 10f)
         assertCoverRatio(16f / 9f)
+        assertCoverRatio(4f / 3f)
     }
 
     private fun assertCoverRatio(ratio: Float) {

@@ -14,7 +14,7 @@ internal data class HomeFeedCardLayout(
 internal fun resolveHomeFeedCardLayout(style: HomeFeedCardStyle): HomeFeedCardLayout {
     return when (style) {
         HomeFeedCardStyle.CURRENT -> HomeFeedCardLayout(
-            coverAspectRatio = 16f / 10f,
+            coverAspectRatio = 16f / 9f,
             outerPaddingDp = 8,
             itemSpacingDp = 8,
             verticalItemSpacingDp = 8,
@@ -24,8 +24,8 @@ internal fun resolveHomeFeedCardLayout(style: HomeFeedCardStyle): HomeFeedCardLa
 
         HomeFeedCardStyle.OFFICIAL -> HomeFeedCardLayout(
             coverAspectRatio = 4f / 3f,
-            outerPaddingDp = 10,
-            itemSpacingDp = 10,
+            outerPaddingDp = 6,
+            itemSpacingDp = 6,
             verticalItemSpacingDp = 6,
             storyCardHorizontalPaddingDp = 0,
             compactMetadata = true
