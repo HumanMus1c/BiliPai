@@ -638,6 +638,13 @@ fun TabletSettingsLayout(
                                     .padding(top = layoutPolicy.detailPanePaddingDp.dp)
                                     .statusBarsPadding()
                             )
+
+                            FollowAuthorSection(
+                                onTelegramClick = onTelegramClick,
+                                onTwitterClick = onTwitterClick,
+                                onDonateClick = onDonateClick
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
                             
                             SettingsRootCategoryContent(
                                 category = category,

@@ -72,11 +72,11 @@ class VideoCardCoverStatsLayoutPolicyTest {
     }
 
     @Test
-    fun `cover overlay keeps original bottom padding without history progress bar`() {
+    fun `cover overlay keeps stable bottom padding without history progress bar`() {
         val layout = resolveVideoCardCoverOverlayBottomLayout(showHistoryProgressBar = false)
 
         assertEquals(2f, layout.historyProgressBarHeightDp, 0.0001f)
-        assertEquals(6f, layout.compactStatsBottomPaddingDp, 0.0001f)
-        assertEquals(10f, layout.floatingDurationBottomPaddingDp, 0.0001f)
+        assertEquals(10f, layout.compactStatsBottomPaddingDp, 0.0001f)
+        assertEquals(14f, layout.floatingDurationBottomPaddingDp, 0.0001f)
     }
 }

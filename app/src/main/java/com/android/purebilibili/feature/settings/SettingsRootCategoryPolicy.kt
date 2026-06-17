@@ -105,5 +105,5 @@ internal fun isSceneSettingsSearchTarget(target: SettingsSearchTarget): Boolean 
 internal fun resolveSettingsRootCategoryListIndex(category: SettingsRootCategory): Int {
     val orderIndex = resolveSettingsRootCategoryOrder().indexOf(category)
     if (orderIndex < 0) return 0
-    return 1 + orderIndex
+    return 2 + orderIndex
 }

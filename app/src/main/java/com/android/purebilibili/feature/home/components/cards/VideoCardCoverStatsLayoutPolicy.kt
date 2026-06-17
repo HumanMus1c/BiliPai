@@ -74,11 +74,7 @@ internal fun resolveVideoCardCompactCoverStatsLayout(
 internal fun resolveVideoCardCoverOverlayBottomLayout(
     showHistoryProgressBar: Boolean
 ): VideoCardCoverOverlayBottomLayout {
-    val progressReserve = if (showHistoryProgressBar) {
-        HISTORY_PROGRESS_BAR_HEIGHT_DP + HISTORY_PROGRESS_BAR_CLEARANCE_DP
-    } else {
-        0f
-    }
+    val progressReserve = HISTORY_PROGRESS_BAR_HEIGHT_DP + HISTORY_PROGRESS_BAR_CLEARANCE_DP
     return VideoCardCoverOverlayBottomLayout(
         historyProgressBarHeightDp = HISTORY_PROGRESS_BAR_HEIGHT_DP,
         compactStatsBottomPaddingDp = COMPACT_STATS_BASE_BOTTOM_PADDING_DP + progressReserve,

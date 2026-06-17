@@ -113,6 +113,17 @@ class VideoCardScrollLiteVisualPolicyTest {
     }
 
     @Test
+    fun `cover stats do not use shared bounds inside lazy grid`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/home/components/cards/VideoCard.kt")
+            .readText()
+        val coverStatsBlock = source
+            .substringAfter("if (scrollLitePolicy.showCompactStatsOnCover) {")
+            .substringBefore("//  时长标签")
+
+        assertFalse(coverStatsBlock.contains("sharedBounds("))
+    }
+
+    @Test
     fun `return target cover disables crossfade during shared transition`() {
         assertFalse(
             shouldEnableVideoCardCoverCrossfade(

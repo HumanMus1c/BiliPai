@@ -108,7 +108,37 @@ class SettingsRootCategoryContentStructureTest {
     }
 
     @Test
-    fun aboutSupport_keepsReleaseChannelBelowAboutDetails() {
+    fun mobileSettingsRootPinsFollowAuthorSectionAboveCategories() {
+        val source = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/settings/screen/SettingsScreen.kt"),
+            File("src/main/java/com/android/purebilibili/feature/settings/screen/SettingsScreen.kt")
+        ).first { it.exists() }.readText()
+
+        val rootListBlock = source
+            .substringAfter("LazyColumn(")
+            .substringBefore("sectionOrder.forEachIndexed")
+
+        assertTrue(rootListBlock.contains("FollowAuthorSection("))
+        assertTrue(rootListBlock.indexOf("FollowAuthorSection(") > rootListBlock.indexOf("SettingsSearchBarSection("))
+    }
+
+    @Test
+    fun tabletSettingsRootPinsFollowAuthorSectionAboveCategoryContent() {
+        val source = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/settings/screen/TabletSettingsLayout.kt"),
+            File("src/main/java/com/android/purebilibili/feature/settings/screen/TabletSettingsLayout.kt")
+        ).first { it.exists() }.readText()
+
+        val rootDetailBlock = source
+            .substringAfter("// Category Root")
+            .substringBefore("Spacer(modifier = Modifier\n                                .windowInsetsBottomHeight")
+
+        assertTrue(rootDetailBlock.contains("FollowAuthorSection("))
+        assertTrue(rootDetailBlock.indexOf("FollowAuthorSection(") < rootDetailBlock.indexOf("SettingsRootCategoryContent("))
+    }
+
+    @Test
+    fun aboutSupport_keepsReleaseChannelBelowAboutDetailsWithoutDuplicateAuthorCard() {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
@@ -119,7 +149,7 @@ class SettingsRootCategoryContentStructureTest {
             .substringBefore("SupportToolsSection(")
 
         assertTrue(aboutBlock.indexOf("AboutSection(") < aboutBlock.indexOf("ReleaseChannelPinnedCard("))
-        assertTrue(aboutBlock.contains("FollowAuthorSection("))
+        assertFalse(aboutBlock.contains("FollowAuthorSection("))
     }
 
     @Test

@@ -808,20 +808,8 @@ fun ElegantVideoCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        var viewsOnCoverModifier = Modifier.widthIn(min = compactStatsLayout.primaryMinWidthDp.dp)
-                        if (metadataSharedEnabled) {
-                            with(requireNotNull(sharedTransitionScope)) {
-                                viewsOnCoverModifier = viewsOnCoverModifier.sharedBounds(
-                                    sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoViewsSharedElementKey(video.bvid)),
-                                    animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                                    boundsTransform = { _, _ ->
-                                        videoSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
-                                    }
-                                )
-                            }
-                        }
                         HomeVideoBadgePill(
-                            modifier = viewsOnCoverModifier,
+                            modifier = Modifier.widthIn(min = compactStatsLayout.primaryMinWidthDp.dp),
                             style = badgeStylePolicy.coverStyle,
                             shape = AppShapes.container(ContainerLevel.Pill),
                             containerColor = coverPillColors.containerColor,

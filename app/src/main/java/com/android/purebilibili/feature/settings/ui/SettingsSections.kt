@@ -402,12 +402,6 @@ internal fun SettingsRootCategoryContent(
                 )
             }
             SettingsRootCategory.EXTENSION_ABOUT -> {
-                FollowAuthorSection(
-                    onTelegramClick = actions.onTelegramClick,
-                    onTwitterClick = actions.onTwitterClick,
-                    onDonateClick = actions.onDonateClick
-                )
-                Spacer(modifier = Modifier.height(12.dp))
                 SettingsSceneShortcutSection(
                     shortcuts = listOf(
                         SettingsSceneShortcut(

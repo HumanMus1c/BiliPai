@@ -57,9 +57,9 @@ class SettingsRootCategoryPolicyTest {
 
     @Test
     fun `root category list index points to content cards after search bar`() {
-        assertEquals(1, resolveSettingsRootCategoryListIndex(SettingsRootCategory.INTERFACE_HOME))
-        assertEquals(2, resolveSettingsRootCategoryListIndex(SettingsRootCategory.DYNAMIC_RECOMMEND))
-        assertEquals(3, resolveSettingsRootCategoryListIndex(SettingsRootCategory.PLAYBACK_INTERACTION))
-        assertEquals(6, resolveSettingsRootCategoryListIndex(SettingsRootCategory.EXTENSION_ABOUT))
+        assertEquals(2, resolveSettingsRootCategoryListIndex(SettingsRootCategory.INTERFACE_HOME))
+        assertEquals(3, resolveSettingsRootCategoryListIndex(SettingsRootCategory.DYNAMIC_RECOMMEND))
+        assertEquals(4, resolveSettingsRootCategoryListIndex(SettingsRootCategory.PLAYBACK_INTERACTION))
+        assertEquals(7, resolveSettingsRootCategoryListIndex(SettingsRootCategory.EXTENSION_ABOUT))
     }
 }

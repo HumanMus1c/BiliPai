@@ -1439,11 +1439,25 @@ private fun MobileSettingsLayout(
                 }
                 item { Spacer(modifier = Modifier.height(16.dp)) }
             } else {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .entrance()
+                    ) {
+                        FollowAuthorSection(
+                            onTelegramClick = onTelegramClick,
+                            onTwitterClick = onTwitterClick,
+                            onDonateClick = onDonateClick
+                        )
+                    }
+                }
+
                 sectionOrder.forEachIndexed { index, section ->
                     item {
                         Box(
                             modifier = Modifier
-                                .padding(top = if (index == 0) 8.dp else 16.dp)
+                                .padding(top = 16.dp)
                                 .entrance()
                         ) {
                             SettingsRootCategoryContent(
