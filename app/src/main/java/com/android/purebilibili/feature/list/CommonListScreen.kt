@@ -986,12 +986,13 @@ fun CommonListScreen(
 
             // 2. 顶层：悬浮顶栏 (使用 onGloballyPositioned 测量高度)
             Box(
-                modifier = topBarBackgroundModifier
+                modifier = Modifier
                     .zIndex(1f)
                     .align(Alignment.TopCenter)
                     .graphicsLayer {
                         translationY = commonListHeaderOffsetPx
                     }
+                    .then(topBarBackgroundModifier)
                     .onGloballyPositioned { coordinates ->
                         headerHeightPx = coordinates.size.height
                     }
