@@ -1,6 +1,8 @@
 package com.android.purebilibili.feature.settings
 
 import java.io.File
+import com.android.purebilibili.core.store.HomeSettings
+import com.android.purebilibili.core.store.resolveEffectiveHomeSettings
 import com.android.purebilibili.core.store.resolveEffectiveLiquidGlassEnabled
 import com.android.purebilibili.core.theme.UiPreset
 import kotlin.test.Test
@@ -83,28 +85,21 @@ class VisualEffectTogglePolicyTest {
     }
 
     @Test
-    fun `android native preset preserves liquid glass when enabled`() {
-        assertFalse(
-            resolveEffectiveLiquidGlassEnabled(
-                requestedEnabled = true,
-                uiPreset = UiPreset.MD3,
-                androidNativeLiquidGlassEnabled = false
-            )
+    fun `android native preset preserves the bottom bar liquid glass choice`() {
+        val enabled = resolveEffectiveHomeSettings(
+            HomeSettings(isBottomBarLiquidGlassEnabled = true),
+            UiPreset.MD3
         )
-        assertTrue(
-            resolveEffectiveLiquidGlassEnabled(
-                requestedEnabled = true,
-                uiPreset = UiPreset.MD3,
+        val disabled = resolveEffectiveHomeSettings(
+            HomeSettings(
+                isBottomBarLiquidGlassEnabled = false,
                 androidNativeLiquidGlassEnabled = true
-            )
+            ),
+            UiPreset.MD3
         )
-        assertFalse(
-            resolveEffectiveLiquidGlassEnabled(
-                requestedEnabled = false,
-                uiPreset = UiPreset.MD3,
-                androidNativeLiquidGlassEnabled = true
-            )
-        )
+
+        assertTrue(enabled.isBottomBarLiquidGlassEnabled)
+        assertFalse(disabled.isBottomBarLiquidGlassEnabled)
     }
 
     @Test
@@ -142,5 +137,25 @@ class VisualEffectTogglePolicyTest {
         assertTrue(source.contains("toggleHomeSearchLiquidGlass"))
         assertTrue(source.contains("顶部栏磨砂"))
         assertTrue(source.contains("底栏液态玻璃"))
+    }
+
+    @Test
+    fun `bottom bar visual effects are persisted together with matching defaults`() {
+        val sourceFile = listOf(
+            File("app/src/main/java/com/android/purebilibili/core/store/SettingsManager.kt"),
+            File("src/main/java/com/android/purebilibili/core/store/SettingsManager.kt")
+        ).firstOrNull { it.exists() }
+        requireNotNull(sourceFile)
+        val source = sourceFile.readText()
+
+        assertTrue(source.contains("fun setBottomBarVisualEffects("))
+        assertTrue(source.contains("preferences[KEY_BOTTOM_BAR_BLUR_ENABLED] = blurEnabled"))
+        assertTrue(source.contains("preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] = liquidGlassEnabled"))
+        assertTrue(
+            source.contains(
+                "preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] ?: " +
+                    "(preferences[KEY_LIQUID_GLASS_ENABLED] ?: false)"
+            )
+        )
     }
 }

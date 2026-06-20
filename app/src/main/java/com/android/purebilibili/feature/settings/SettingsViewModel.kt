@@ -781,8 +781,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 enableBottomBarBlur = value,
                 currentLiquidGlassEnabled = state.value.bottomBarLiquidGlassEnabled
             )
-            SettingsManager.setBottomBarBlurEnabled(context, resolved.bottomBarBlurEnabled)
-            SettingsManager.setBottomBarLiquidGlassEnabled(context, resolved.liquidGlassEnabled)
+            SettingsManager.setBottomBarVisualEffects(
+                context = context,
+                blurEnabled = resolved.bottomBarBlurEnabled,
+                liquidGlassEnabled = resolved.liquidGlassEnabled
+            )
         }
     }
     fun setBlurIntensity(intensity: BlurIntensity) { viewModelScope.launch { SettingsManager.setBlurIntensity(context, intensity) } }  //  模糊强度设置
@@ -867,8 +870,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 enableLiquidGlass = enabled,
                 currentBottomBarBlurEnabled = state.value.bottomBarBlurEnabled
             )
-            SettingsManager.setBottomBarLiquidGlassEnabled(context, resolved.liquidGlassEnabled)
-            SettingsManager.setBottomBarBlurEnabled(context, resolved.bottomBarBlurEnabled)
+            SettingsManager.setBottomBarVisualEffects(
+                context = context,
+                blurEnabled = resolved.bottomBarBlurEnabled,
+                liquidGlassEnabled = resolved.liquidGlassEnabled
+            )
         }
     }
 
@@ -898,8 +904,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     enableLiquidGlass = true,
                     currentBottomBarBlurEnabled = state.value.bottomBarBlurEnabled
                 )
-                SettingsManager.setBottomBarLiquidGlassEnabled(context, bottomBarResolved.liquidGlassEnabled)
-                SettingsManager.setBottomBarBlurEnabled(context, bottomBarResolved.bottomBarBlurEnabled)
+                SettingsManager.setBottomBarVisualEffects(
+                    context = context,
+                    blurEnabled = bottomBarResolved.bottomBarBlurEnabled,
+                    liquidGlassEnabled = bottomBarResolved.liquidGlassEnabled
+                )
             }
         }
     }

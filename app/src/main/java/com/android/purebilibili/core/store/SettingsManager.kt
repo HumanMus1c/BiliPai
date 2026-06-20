@@ -2767,6 +2767,17 @@ object SettingsManager {
     suspend fun setBottomBarBlurEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences -> preferences[KEY_BOTTOM_BAR_BLUR_ENABLED] = value }
     }
+
+    suspend fun setBottomBarVisualEffects(
+        context: Context,
+        blurEnabled: Boolean,
+        liquidGlassEnabled: Boolean
+    ) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_BOTTOM_BAR_BLUR_ENABLED] = blurEnabled
+            preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] = liquidGlassEnabled
+        }
+    }
     
     //  [New] --- Liquid Glass Effect ---
 
@@ -2811,7 +2822,7 @@ object SettingsManager {
 
     fun getBottomBarLiquidGlassEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences ->
-            preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] ?: (preferences[KEY_LIQUID_GLASS_ENABLED] ?: true)
+            preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] ?: (preferences[KEY_LIQUID_GLASS_ENABLED] ?: false)
         }
 
     suspend fun setBottomBarLiquidGlassEnabled(context: Context, value: Boolean) {

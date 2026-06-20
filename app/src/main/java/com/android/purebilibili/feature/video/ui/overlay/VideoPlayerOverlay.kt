@@ -42,6 +42,7 @@ import com.android.purebilibili.feature.video.danmaku.DanmakuCloudSyncUiState
 // Import reusable components from standalone files
 import com.android.purebilibili.feature.video.ui.components.QualitySelectionMenu
 import com.android.purebilibili.feature.video.ui.components.SpeedSelectionMenuDialog
+import com.android.purebilibili.feature.video.ui.components.SpeedSelectionMenuPlacement
 import com.android.purebilibili.feature.video.ui.components.DanmakuSettingsPanel
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.AspectRatioMenu
@@ -1666,7 +1667,12 @@ fun VideoPlayerOverlay(
                     }
                     showSpeedMenu = false
                 },
-                onDismiss = { showSpeedMenu = false }
+                onDismiss = { showSpeedMenu = false },
+                placement = if (isFullscreen) {
+                    SpeedSelectionMenuPlacement.RIGHT_SIDE
+                } else {
+                    SpeedSelectionMenuPlacement.CENTER
+                }
             )
         }
         

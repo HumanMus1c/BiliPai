@@ -276,7 +276,8 @@ fun SpeedSelectionMenu(
 fun SpeedSelectionMenuDialog(
     currentSpeed: Float,
     onSpeedSelected: (Float) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    placement: SpeedSelectionMenuPlacement = SpeedSelectionMenuPlacement.CENTER
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -286,7 +287,7 @@ fun SpeedSelectionMenuDialog(
             currentSpeed = currentSpeed,
             onSpeedSelected = onSpeedSelected,
             onDismiss = onDismiss,
-            placement = SpeedSelectionMenuPlacement.CENTER
+            placement = placement
         )
     }
 }

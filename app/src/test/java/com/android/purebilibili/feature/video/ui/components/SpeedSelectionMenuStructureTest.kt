@@ -14,12 +14,17 @@ class SpeedSelectionMenuStructureTest {
         val fullscreenSource = File(
             "src/main/java/com/android/purebilibili/feature/video/ui/overlay/FullscreenPlayerOverlay.kt"
         ).readText()
+        val playerOverlaySource = File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/overlay/VideoPlayerOverlay.kt"
+        ).readText()
 
         assertTrue(menuSource.contains("enum class SpeedSelectionMenuPlacement"))
         assertTrue(menuSource.contains("SpeedSelectionMenuPlacement.RIGHT_SIDE -> Alignment.CenterEnd"))
         assertTrue(menuSource.contains("SpeedSelectionMenuPlacement.RIGHT_SIDE -> Color.Transparent"))
         assertTrue(menuSource.contains(".padding(end = 24.dp)"))
         assertTrue(fullscreenSource.contains("placement = SpeedSelectionMenuPlacement.RIGHT_SIDE"))
+        assertTrue(playerOverlaySource.contains("placement = if (isFullscreen)"))
+        assertTrue(playerOverlaySource.contains("SpeedSelectionMenuPlacement.RIGHT_SIDE"))
     }
 
     @Test

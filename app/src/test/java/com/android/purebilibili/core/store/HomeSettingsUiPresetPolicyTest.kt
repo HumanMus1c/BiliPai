@@ -8,26 +8,17 @@ import kotlin.test.assertTrue
 class HomeSettingsUiPresetPolicyTest {
 
     @Test
-    fun androidNativeLiquidGlass_isGlobalOptInForMd3Preset() {
-        assertFalse(
-            resolveEffectiveLiquidGlassEnabled(
-                requestedEnabled = true,
-                uiPreset = UiPreset.MD3,
-                androidNativeLiquidGlassEnabled = false
-            )
+    fun bottomBarLiquidGlass_respectsUserChoiceForMd3Preset() {
+        val settings = HomeSettings(
+            isBottomBarLiquidGlassEnabled = true,
+            androidNativeLiquidGlassEnabled = false
         )
 
-        assertTrue(
-            resolveEffectiveLiquidGlassEnabled(
-                requestedEnabled = true,
-                uiPreset = UiPreset.MD3,
-                androidNativeLiquidGlassEnabled = true
-            )
-        )
+        assertTrue(resolveEffectiveHomeSettings(settings, UiPreset.MD3).isBottomBarLiquidGlassEnabled)
     }
 
     @Test
-    fun androidNativeLiquidGlassOptIn_appliesOnlyToBottomHomeSettingsAndKeepsTopDockIndependent() {
+    fun bottomBarLiquidGlass_keepsTopDockIndependent() {
         val disabled = resolveEffectiveHomeSettings(
             homeSettings = HomeSettings(
                 isTopBarLiquidGlassEnabled = true,
@@ -38,7 +29,7 @@ class HomeSettingsUiPresetPolicyTest {
         )
 
         assertTrue(disabled.isTopBarLiquidGlassEnabled)
-        assertFalse(disabled.isBottomBarLiquidGlassEnabled)
+        assertTrue(disabled.isBottomBarLiquidGlassEnabled)
 
         val enabled = resolveEffectiveHomeSettings(
             homeSettings = HomeSettings(
