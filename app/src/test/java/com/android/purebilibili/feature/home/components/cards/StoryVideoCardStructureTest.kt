@@ -8,10 +8,10 @@ import kotlin.test.assertTrue
 class StoryVideoCardStructureTest {
 
     @Test
-    fun storySharedMetadataUsesCoverTimelineWithoutSpringOvershoot() {
+    fun storySharedMetadataUsesShorterBoundsTimelineWithoutSpringOvershoot() {
         val source = File("src/main/java/com/android/purebilibili/feature/home/components/cards/StoryVideoCard.kt")
             .readText()
-        val sharedTimelineCall = "videoSharedElementBoundsTransformSpec(cardSharedTransitionMotionSpec)"
+        val sharedTimelineCall = "videoMetadataSharedElementBoundsTransformSpec(cardSharedTransitionMotionSpec)"
 
         assertTrue(
             source.windowed(sharedTimelineCall.length).count { it == sharedTimelineCall } >= 5

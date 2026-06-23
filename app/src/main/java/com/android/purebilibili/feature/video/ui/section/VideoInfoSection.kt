@@ -62,7 +62,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.resolveVideoMetadataSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoMetadataSharedTransition
-import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
+import com.android.purebilibili.core.ui.transition.videoMetadataSharedElementBoundsTransformSpec
 import com.android.purebilibili.data.model.response.BgmDetailData
 import com.android.purebilibili.data.model.response.BgmInfo
 import com.android.purebilibili.data.model.response.AiSummaryData
@@ -367,7 +367,7 @@ fun VideoTitleWithDesc(
                         sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoTitleSharedElementKey(info.bvid)),
                         animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                         boundsTransform = { _, _ ->
-                            videoSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                            videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
                         }
                     )
                 }
@@ -418,7 +418,7 @@ fun VideoTitleWithDesc(
                             sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoViewsSharedElementKey(info.bvid)),
                             animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                             boundsTransform = { _, _ ->
-                                videoSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                                videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
                             }
                         )
                     }
@@ -444,7 +444,7 @@ fun VideoTitleWithDesc(
                             sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoDanmakuSharedElementKey(info.bvid)),
                             animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                             boundsTransform = { _, _ ->
-                                videoSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                                videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
                             }
                         )
                     }
@@ -734,7 +734,7 @@ fun UpInfoSection(
                             sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoAvatarSharedElementKey(info.bvid)),
                             animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                             boundsTransform = { _, _ ->
-                                videoSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                                videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
                             },
                             clipInOverlayDuringTransition = OverlayClip(CircleShape)
                         )
@@ -783,7 +783,7 @@ fun UpInfoSection(
                                 sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoUpNameSharedElementKey(info.bvid)),
                                 animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                                 boundsTransform = { _, _ ->
-                                    videoSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                                    videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
                                 }
                             )
                         }
@@ -842,7 +842,7 @@ fun UpInfoSection(
                             sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoUpActionSharedElementKey(info.bvid)),
                             animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                             boundsTransform = { _, _ ->
-                                videoSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                                videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
                             },
                             clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(16.dp))
                         )

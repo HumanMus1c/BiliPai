@@ -180,7 +180,7 @@ class VideoSharedTransitionPolicyTest {
     }
 
     @Test
-    fun videoMetadataSharedTransitionMotion_matchesCoverTimeline() {
+    fun videoMetadataSharedTransitionMotion_usesCoverTimingButBoundsFinishEarlier() {
         val coverMotion = resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = "home",
             transitionEnabled = true
@@ -194,6 +194,8 @@ class VideoSharedTransitionPolicyTest {
         assertEquals(coverMotion.fullscreenDurationMillis, metadataMotion.fullscreenDurationMillis)
         assertEquals(0, metadataMotion.contentDelayMillis)
         assertSame(coverMotion.easing, metadataMotion.easing)
+        assertEquals(331, resolveVideoMetadataSharedBoundsDurationMillis(metadataMotion))
+        assertTrue(resolveVideoMetadataSharedBoundsDurationMillis(metadataMotion) < metadataMotion.durationMillis)
     }
 
     @Test
@@ -223,20 +225,20 @@ class VideoSharedTransitionPolicyTest {
             "src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt"
         ).readText()
 
-        assertTrue(homeCardSource.contains("videoSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)"))
+        assertTrue(homeCardSource.contains("videoMetadataSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)"))
         assertFalse(homeCardSource.contains("AppMotionTokens.spatialSpec()"))
         assertTrue(detailInfoSource.contains("resolveVideoMetadataSharedTransitionMotionSpec("))
-        assertTrue(detailInfoSource.contains("videoSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)"))
+        assertTrue(detailInfoSource.contains("videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)"))
         assertFalse(detailInfoSource.contains("spring(dampingRatio = 0.8f, stiffness = 200f)"))
-        assertTrue(partitionSource.contains("videoSharedElementBoundsTransformSpec(sharedTransitionMotionSpec)"))
+        assertTrue(partitionSource.contains("videoMetadataSharedElementBoundsTransformSpec(sharedTransitionMotionSpec)"))
         assertFalse(partitionSource.contains("spring(dampingRatio = 0.8f, stiffness = 200f)"))
-        assertTrue(cinematicCardSource.contains("videoSharedElementBoundsTransformSpec(cardSharedTransitionMotionSpec)"))
+        assertTrue(cinematicCardSource.contains("videoMetadataSharedElementBoundsTransformSpec(cardSharedTransitionMotionSpec)"))
         assertFalse(cinematicCardSource.contains("spring(dampingRatio = 0.8f, stiffness = 200f)"))
         assertTrue(glassCardSource.contains("videoTitleSharedElementKey(video.bvid)"))
-        assertTrue(glassCardSource.contains("videoSharedElementBoundsTransformSpec(cardSharedTransitionMotionSpec)"))
-        assertTrue(dynamicCardSource.contains("videoSharedElementBoundsTransformSpec(sharedTransitionMotionSpec)"))
-        assertTrue(watchLaterSource.contains("videoSharedElementBoundsTransformSpec(sharedTransitionMotionSpec)"))
-        assertTrue(spaceSource.contains("videoSharedElementBoundsTransformSpec(cardSharedTransitionMotionSpec)"))
+        assertTrue(glassCardSource.contains("videoMetadataSharedElementBoundsTransformSpec(cardSharedTransitionMotionSpec)"))
+        assertTrue(dynamicCardSource.contains("videoMetadataSharedElementBoundsTransformSpec(sharedTransitionMotionSpec)"))
+        assertTrue(watchLaterSource.contains("videoMetadataSharedElementBoundsTransformSpec(sharedTransitionMotionSpec)"))
+        assertTrue(spaceSource.contains("videoMetadataSharedElementBoundsTransformSpec(cardSharedTransitionMotionSpec)"))
     }
 
     @Test

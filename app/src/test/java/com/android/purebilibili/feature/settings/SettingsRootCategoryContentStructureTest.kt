@@ -195,6 +195,7 @@ class SettingsRootCategoryContentStructureTest {
         assertTrue(source.contains("AboutContributor(\"jay3-yy\", \"jay3-yy\")"))
         assertTrue(source.contains("AboutContributor(\"Chenx Dust\""))
         assertTrue(source.contains("AboutContributor(\"usontong\""))
+        assertTrue(source.contains("AboutContributor(\"Leko\", \"lekoOwO\")"))
     }
 
     @Test

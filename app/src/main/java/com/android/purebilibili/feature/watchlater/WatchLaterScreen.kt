@@ -62,7 +62,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
-import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
+import com.android.purebilibili.core.ui.transition.videoMetadataSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.ui.transition.videoTitleSharedElementKey
 import com.android.purebilibili.core.ui.transition.videoUpNameSharedElementKey
 import com.android.purebilibili.core.ui.transition.videoViewsSharedElementKey
@@ -999,17 +999,17 @@ private fun WatchLaterVideoCard(
             titleModifier = titleModifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = videoTitleSharedElementKey(item.bvid)),
                 animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                boundsTransform = { _, _ -> videoSharedElementBoundsTransformSpec(sharedTransitionMotionSpec) }
+                boundsTransform = { _, _ -> videoMetadataSharedElementBoundsTransformSpec(sharedTransitionMotionSpec) }
             )
             upNameModifier = upNameModifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = videoUpNameSharedElementKey(item.bvid)),
                 animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                boundsTransform = { _, _ -> videoSharedElementBoundsTransformSpec(sharedTransitionMotionSpec) }
+                boundsTransform = { _, _ -> videoMetadataSharedElementBoundsTransformSpec(sharedTransitionMotionSpec) }
             )
             viewsModifier = viewsModifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = videoViewsSharedElementKey(item.bvid)),
                 animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                boundsTransform = { _, _ -> videoSharedElementBoundsTransformSpec(sharedTransitionMotionSpec) }
+                boundsTransform = { _, _ -> videoMetadataSharedElementBoundsTransformSpec(sharedTransitionMotionSpec) }
             )
         }
     }

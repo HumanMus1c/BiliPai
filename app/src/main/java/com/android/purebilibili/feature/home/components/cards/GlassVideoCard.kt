@@ -57,7 +57,7 @@ import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RAT
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoMetadataSharedTransition
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
-import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
+import com.android.purebilibili.core.ui.transition.videoMetadataSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.ui.transition.videoTitleSharedElementKey
 import com.android.purebilibili.feature.home.resolveHomeCardEnterAnimationEnabledAtMount
 import kotlin.math.roundToInt
@@ -458,7 +458,7 @@ fun GlassVideoCard(
                                 ),
                                 animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                                 boundsTransform = { _, _ ->
-                                    videoSharedElementBoundsTransformSpec(cardSharedTransitionMotionSpec)
+                                    videoMetadataSharedElementBoundsTransformSpec(cardSharedTransitionMotionSpec)
                                 }
                             )
                         }

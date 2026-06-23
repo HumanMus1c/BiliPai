@@ -1658,7 +1658,7 @@ internal val AboutContributors = listOf(
     AboutContributor("jay3-yy", "jay3-yy"),
     AboutContributor("Chenx Dust", "chenx-dust"),
     AboutContributor("usontong", "usontong"),
-    AboutContributor("Leko", "Leko"),
+    AboutContributor("Leko", "lekoOwO"),
     AboutContributor("TanakaLun", "TanakaLun"),
     AboutContributor("UsonTong", "UsonTong"),
     AboutContributor("Matt Van Horn", "mvanhorn")

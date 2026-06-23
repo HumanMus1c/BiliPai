@@ -37,6 +37,9 @@ private const val HOME_DETAIL_REVEAL_MIN_DURATION_MILLIS = 220
 private const val HOME_DETAIL_REVEAL_MAX_DURATION_MILLIS = 360
 private const val HOME_DETAIL_REVEAL_SLIDE_OFFSET_DP = 14
 private const val HOME_DETAIL_REVEAL_INITIAL_SCALE = 0.985f
+private const val VIDEO_METADATA_SHARED_BOUNDS_RATIO = 0.72f
+private const val VIDEO_METADATA_SHARED_BOUNDS_MIN_MILLIS = 200
+private const val VIDEO_METADATA_SHARED_BOUNDS_MAX_MILLIS = 360
 private const val HOME_SHARED_TRANSITION_CARD_CORNER_DP = 16
 private const val HOME_SHARED_TRANSITION_PLAYER_CORNER_DP = 12
 private const val DEFAULT_VIDEO_CARD_CORNER_DP = 12
@@ -303,6 +306,27 @@ internal fun <T> videoSharedElementBoundsTransformSpec(
         durationMillis = motion.durationMillis,
         easing = motion.easing
     )
+}
+
+internal fun <T> videoMetadataSharedElementBoundsTransformSpec(
+    motion: VideoSharedTransitionMotionSpec
+): FiniteAnimationSpec<T> {
+    return tween(
+        durationMillis = resolveVideoMetadataSharedBoundsDurationMillis(motion),
+        easing = motion.easing
+    )
+}
+
+internal fun resolveVideoMetadataSharedBoundsDurationMillis(
+    motion: VideoSharedTransitionMotionSpec
+): Int {
+    if (!motion.enabled) return 0
+    return (motion.durationMillis * VIDEO_METADATA_SHARED_BOUNDS_RATIO)
+        .roundToInt()
+        .coerceIn(
+            VIDEO_METADATA_SHARED_BOUNDS_MIN_MILLIS,
+            VIDEO_METADATA_SHARED_BOUNDS_MAX_MILLIS
+        )
 }
 
 internal fun resolveHomeVideoSharedTransitionCornerSpec(

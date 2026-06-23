@@ -79,7 +79,7 @@ import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionV
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoMetadataSharedTransition
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
-import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
+import com.android.purebilibili.core.ui.transition.videoMetadataSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.ui.transition.videoTitleSharedElementKey
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.data.model.response.VideoItem
@@ -996,7 +996,7 @@ private fun PartitionVideoRow(
                         ),
                         animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                         boundsTransform = { _, _ ->
-                            videoSharedElementBoundsTransformSpec(sharedTransitionMotionSpec)
+                            videoMetadataSharedElementBoundsTransformSpec(sharedTransitionMotionSpec)
                         }
                     )
                 }

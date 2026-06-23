@@ -46,7 +46,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
-import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
+import com.android.purebilibili.core.ui.transition.videoMetadataSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.ui.transition.videoTitleSharedElementKey
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.data.model.response.ArchiveMajor
@@ -164,7 +164,7 @@ fun VideoCardLarge(
             Modifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = videoTitleSharedElementKey(archive.bvid)),
                 animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                boundsTransform = { _, _ -> videoSharedElementBoundsTransformSpec(sharedTransitionMotionSpec) }
+                boundsTransform = { _, _ -> videoMetadataSharedElementBoundsTransformSpec(sharedTransitionMotionSpec) }
             )
         }
     } else {

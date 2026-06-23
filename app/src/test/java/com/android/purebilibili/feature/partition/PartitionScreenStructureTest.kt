@@ -26,7 +26,7 @@ class PartitionScreenStructureTest {
         assertTrue(source.contains("videoCoverSharedElementKey("))
         assertTrue(source.contains("shouldEnableVideoMetadataSharedTransition("))
         assertTrue(source.contains("videoTitleSharedElementKey(video.bvid)"))
-        assertTrue(source.contains("videoSharedElementBoundsTransformSpec(sharedTransitionMotionSpec)"))
+        assertTrue(source.contains("videoMetadataSharedElementBoundsTransformSpec(sharedTransitionMotionSpec)"))
         assertTrue(source.contains("LocalVideoCardSharedElementSourceRoute.current"))
         assertTrue(source.contains("VideoRepository.getPopularVideos(page = currentPage)"))
         assertTrue(source.contains("VideoRepository.getRegionVideos(tid = partition.id, page = currentPage)"))

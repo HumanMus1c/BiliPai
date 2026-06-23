@@ -73,7 +73,7 @@ import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransit
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionOwnership
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
-import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
+import com.android.purebilibili.core.ui.transition.videoMetadataSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
 import com.android.purebilibili.feature.home.resolveHomeCardEnterAnimationEnabledAtMount
 import com.android.purebilibili.feature.home.resolveHomeCardInfoSurfaceAppearance
@@ -972,7 +972,7 @@ fun ElegantVideoCard(
                         sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoTitleSharedElementKey(video.bvid)),
                         animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                         boundsTransform = { _, _ ->
-                            videoSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
+                            videoMetadataSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
                         }
                     )
                 }
@@ -1095,7 +1095,7 @@ fun ElegantVideoCard(
                         sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoUpNameSharedElementKey(video.bvid)),
                         animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                         boundsTransform = { _, _ ->
-                            videoSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
+                            videoMetadataSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
                         }
                     )
                 }
@@ -1107,7 +1107,7 @@ fun ElegantVideoCard(
                         sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoUpActionSharedElementKey(video.bvid)),
                         animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                         boundsTransform = { _, _ ->
-                            videoSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
+                            videoMetadataSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
                         }
                     )
                 }
@@ -1160,7 +1160,7 @@ fun ElegantVideoCard(
                                     sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoAvatarSharedElementKey(video.bvid)),
                                     animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                                     boundsTransform = { _, _ ->
-                                        videoSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
+                                        videoMetadataSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
                                     },
                                     clipInOverlayDuringTransition = OverlayClip(CircleShape)
                                 )
@@ -1217,7 +1217,7 @@ fun ElegantVideoCard(
                             sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoViewsSharedElementKey(video.bvid)),
                             animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                             boundsTransform = { _, _ ->
-                                videoSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
+                                videoMetadataSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
                             }
                         )
                     }
