@@ -20,9 +20,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.android.purebilibili.feature.video.ui.pager.PORTRAIT_PLAYBACK_TARGET_QUALITY
+import com.android.purebilibili.feature.video.ui.pager.shouldUsePortraitParallelPlaybackBootstrap
 import kotlinx.coroutines.flow.first
 import okhttp3.CacheControl
 import okhttp3.Request
@@ -379,6 +382,80 @@ object VideoRepository {
             )
         }
         fetchResult.data
+    }
+
+    suspend fun getPortraitPlaybackDetails(
+        bvid: String,
+        aid: Long = 0,
+        requestedCid: Long = 0,
+        targetQuality: Int = PORTRAIT_PLAYBACK_TARGET_QUALITY,
+        audioLang: String? = null
+    ): Result<Pair<ViewInfo, PlayUrlData>> = withContext(Dispatchers.IO) {
+        try {
+            if (shouldUsePortraitParallelPlaybackBootstrap(bvid, requestedCid)) {
+                coroutineScope {
+                    val infoDeferred = async {
+                        getVideoInfoOnly(
+                            bvid = bvid,
+                            aid = aid,
+                            requestedCid = requestedCid
+                        )
+                    }
+                    val playUrlDeferred = async {
+                        getInitialPlayUrlData(
+                            bvid = bvid,
+                            cid = requestedCid,
+                            targetQuality = targetQuality,
+                            audioLang = audioLang
+                        ) ?: throw Exception("无法获取播放地址")
+                    }
+                    infoDeferred.await().fold(
+                        onSuccess = { info ->
+                            Result.success(info to playUrlDeferred.await())
+                        },
+                        onFailure = { error ->
+                            Result.failure(error)
+                        }
+                    )
+                }
+            } else {
+                getVideoDetails(
+                    bvid = bvid,
+                    aid = aid,
+                    requestedCid = requestedCid,
+                    targetQuality = targetQuality,
+                    audioLang = audioLang
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun preloadPortraitPlayUrl(
+        bvid: String,
+        cid: Long,
+        targetQuality: Int = PORTRAIT_PLAYBACK_TARGET_QUALITY
+    ) {
+        if (bvid.isBlank() || cid <= 0L) return
+        withContext(Dispatchers.IO) {
+            if (PlayUrlCache.get(bvid = bvid, cid = cid, requestedQuality = targetQuality) != null) {
+                com.android.purebilibili.core.util.Logger.d(
+                    "VideoRepo",
+                    "🚀 Portrait preload skip (cached): bvid=$bvid"
+                )
+                return@withContext
+            }
+            getInitialPlayUrlData(
+                bvid = bvid,
+                cid = cid,
+                targetQuality = targetQuality
+            )
+            com.android.purebilibili.core.util.Logger.d(
+                "VideoRepo",
+                "🚀 Portrait preloaded playurl: bvid=$bvid"
+            )
+        }
     }
 
     private suspend fun awaitHomePreloadResult(): Result<List<VideoItem>>? {

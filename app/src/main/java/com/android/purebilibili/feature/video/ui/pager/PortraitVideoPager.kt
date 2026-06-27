@@ -95,13 +95,15 @@ import com.android.purebilibili.feature.video.usecase.togglePlayerPlaybackFromUs
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.android.purebilibili.core.network.NetworkModule
+import com.android.purebilibili.core.plugin.PluginManager
 import com.android.purebilibili.core.store.DanmakuSettings
+import com.android.purebilibili.core.util.NetworkUtils
+import com.android.purebilibili.feature.plugin.PlaybackCdnPlugin
 import com.android.purebilibili.core.store.DanmakuSettingsScope
 import com.android.purebilibili.core.store.PlaybackCompletionBehavior
 import com.android.purebilibili.core.store.SettingsManager
@@ -250,6 +252,15 @@ fun PortraitVideoPager(
         .collectAsStateWithLifecycle(initialValue = PlaybackCompletionBehavior.CONTINUE_CURRENT_LOGIC
         )
     val isExternalPlaylist by PlaylistManager.isExternalPlaylist.collectAsStateWithLifecycle()
+    val prefetchVideoEnabled by SettingsManager.getPrefetchVideo(context)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val portraitMediaSourceFactory = remember(context) {
+        buildPortraitCachedMediaSourceFactory(context)
+    }
+    val portraitPlaybackCdnPlugin = remember {
+        PluginManager.getEnabledPlugins(PlaybackCdnPlugin::class).firstOrNull()
+    }
+    val portraitPrefetchedPlayUrlBvids = remember { mutableSetOf<String>() }
     val recommendationShuffleSeed = remember(initialInfo.bvid, initialInfo.aid) {
         resolvePortraitRecommendationShuffleSeed(
             initialBvid = initialInfo.bvid,
@@ -653,9 +664,10 @@ fun PortraitVideoPager(
             .collect { committedPage ->
                 lastCommittedPage = committedPage
                 val item = pageItems.getOrNull(committedPage) ?: return@collect
-
-                val bvid = if (item is ViewInfo) item.bvid else (item as RelatedVideo).bvid
-                val aid = if (item is ViewInfo) item.aid else (item as RelatedVideo).aid
+                val playbackIdentity = resolvePortraitPagePlaybackIdentity(item) ?: return@collect
+                val bvid = playbackIdentity.bvid
+                val aid = playbackIdentity.aid
+                val requestedCid = playbackIdentity.cid
 
                 commentViewModel.clearForVideoChange()
                 onVideoChange(bvid)
@@ -749,57 +761,49 @@ fun PortraitVideoPager(
 
                 launch {
                     try {
-                        val result = com.android.purebilibili.data.repository.VideoRepository.getVideoDetails(
+                        val result = VideoRepository.getPortraitPlaybackDetails(
                             bvid = bvid,
                             aid = aid,
-                            targetQuality = 64
+                            requestedCid = requestedCid,
+                            targetQuality = resolvePortraitPlaybackTargetQuality()
                         )
 
                         result.fold(
                             onSuccess = { (info, playData) ->
-                                val videoUrl = playData.dash?.video?.firstOrNull()?.baseUrl
-                                    ?: playData.durl?.firstOrNull()?.url
-                                val audioUrl = playData.dash?.audio?.firstOrNull()?.baseUrl
-
-                                if (videoUrl.isNullOrEmpty()) {
-                                    pendingAutoPlayGeneration = -1
-                                    if (shouldApplyLoadResult(
-                                            requestGeneration = requestGeneration,
-                                            activeGeneration = activeLoadGeneration,
-                                            expectedBvid = bvid,
-                                            currentPlayingBvid = currentPlayingBvid
-                                        )
-                                    ) {
-                                        isLoading = false
+                                val streamUrls = resolvePortraitPlaybackStreamUrls(playData)
+                                    ?: run {
+                                        pendingAutoPlayGeneration = -1
+                                        if (shouldApplyLoadResult(
+                                                requestGeneration = requestGeneration,
+                                                activeGeneration = activeLoadGeneration,
+                                                expectedBvid = bvid,
+                                                currentPlayingBvid = currentPlayingBvid
+                                            )
+                                        ) {
+                                            isLoading = false
+                                        }
+                                        return@fold
                                     }
-                                    return@fold
-                                }
-
-                                val headers = mapOf(
-                                    "Referer" to "https://www.bilibili.com",
-                                    "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                                val resolvedUrls = resolvePortraitPlaybackCdnUrls(
+                                    streamUrls = streamUrls,
+                                    cachedDashVideos = playData.dash?.video.orEmpty(),
+                                    cachedDashAudios = playData.dash?.audio.orEmpty(),
+                                    cdnPlugin = portraitPlaybackCdnPlugin
                                 )
-                                val dataSourceFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
-                                    .setUserAgent(headers["User-Agent"])
-                                    .setDefaultRequestProperties(headers)
-                                val mediaSourceFactory = DefaultMediaSourceFactory(context)
-                                    .setDataSourceFactory(dataSourceFactory)
 
                                 val videoItem = MediaItem.Builder()
-                                    .setUri(videoUrl)
+                                    .setUri(resolvedUrls.videoUrl)
                                     .setMediaId(bvid)
                                     .build()
-                                val videoSource = mediaSourceFactory.createMediaSource(videoItem)
-                                val finalSource = if (!audioUrl.isNullOrEmpty()) {
+                                val videoSource = portraitMediaSourceFactory.createMediaSource(videoItem)
+                                val finalSource = resolvedUrls.audioUrl?.takeIf { it.isNotEmpty() }?.let { audioUrl ->
                                     val audioItem = MediaItem.Builder()
                                         .setUri(audioUrl)
                                         .setMediaId("audio_$bvid")
                                         .build()
-                                    val audioSource = mediaSourceFactory.createMediaSource(audioItem)
+                                    val audioSource = portraitMediaSourceFactory.createMediaSource(audioItem)
                                     MergingMediaSource(videoSource, audioSource)
-                                } else {
-                                    videoSource
-                                }
+                                } ?: videoSource
 
                                 if (!shouldApplyLoadResult(
                                         requestGeneration = requestGeneration,
@@ -857,6 +861,31 @@ fun PortraitVideoPager(
                             )
                         ) {
                             isLoading = false
+                        }
+                    }
+                }
+
+                launch(Dispatchers.IO) {
+                    val pageSnapshot = pageItems.toList()
+                    val preloadCount = resolvePortraitPlayUrlPreloadCount(
+                        prefetchVideoEnabled = prefetchVideoEnabled,
+                        isWifi = NetworkUtils.isWifi(context),
+                        availableTargets = (pageSnapshot.size - committedPage - 1).coerceAtLeast(0)
+                    )
+                    val preloadTargets = resolvePortraitPlayUrlPreloadTargets(
+                        committedPage = committedPage,
+                        pageItems = pageSnapshot,
+                        preloadCount = preloadCount
+                    )
+                    preloadTargets.forEach { target ->
+                        if (!portraitPrefetchedPlayUrlBvids.add(target.bvid)) return@forEach
+                        if (target.cid <= 0L) return@forEach
+                        runCatching {
+                            VideoRepository.preloadPortraitPlayUrl(
+                                bvid = target.bvid,
+                                cid = target.cid,
+                                targetQuality = resolvePortraitPlaybackTargetQuality()
+                            )
                         }
                     }
                 }
