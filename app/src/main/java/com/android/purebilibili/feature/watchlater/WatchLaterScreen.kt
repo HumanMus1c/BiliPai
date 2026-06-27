@@ -60,6 +60,7 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
 import com.android.purebilibili.core.ui.transition.videoMetadataSharedElementBoundsTransformSpec
@@ -918,6 +919,7 @@ private fun WatchLaterVideoCard(
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenWidthPx = remember(configuration.screenWidthDp, density) {
@@ -958,10 +960,16 @@ private fun WatchLaterVideoCard(
         }
         onClick()
     }
-    val sharedTransitionVisualSpec = remember(sourceRoute, transitionEnabled) {
+    val videoSharedPlaybackIntent = remember(context) {
+        resolveVideoSharedTransitionPlaybackIntent(
+            clickToPlayEnabled = SettingsManager.getClickToPlaySync(context)
+        )
+    }
+    val sharedTransitionVisualSpec = remember(sourceRoute, transitionEnabled, videoSharedPlaybackIntent) {
         resolveVideoSharedTransitionVisualSpec(
             sourceRoute = sourceRoute,
-            sourceCornerDp = 8
+            sourceCornerDp = 8,
+            playbackIntent = videoSharedPlaybackIntent
         )
     }
     val coverShape = RoundedCornerShape(sharedTransitionVisualSpec.sourceCornerDp.dp)

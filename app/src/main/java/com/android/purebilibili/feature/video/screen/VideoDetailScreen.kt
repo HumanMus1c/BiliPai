@@ -161,9 +161,12 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionEasing
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
+import com.android.purebilibili.core.ui.transition.shouldFadePlayerSurfaceOnDetailReturn
+import com.android.purebilibili.core.ui.transition.shouldUseDetailReturnCoverCrossfade
 import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.ui.rememberAppCollectionIcon
 import com.android.purebilibili.core.ui.rememberAppDownloadIcon
@@ -1162,11 +1165,10 @@ fun VideoDetailScreen(
             ?: resolveVideoSharedTransitionSourceCornerDp(sourceRouteForSharedElement)
     }
     val videoSharedPlaybackIntent = remember(context, startAudioFromRoute) {
-        if (!startAudioFromRoute && !com.android.purebilibili.core.store.SettingsManager.getClickToPlaySync(context)) {
-            VideoSharedTransitionPlaybackIntent.CoverFirst
-        } else {
-            VideoSharedTransitionPlaybackIntent.ImmediatePlayback
-        }
+        resolveVideoSharedTransitionPlaybackIntent(
+            clickToPlayEnabled = com.android.purebilibili.core.store.SettingsManager.getClickToPlaySync(context),
+            forceImmediatePlayback = startAudioFromRoute
+        )
     }
     val routeSheetMotion = remember(sourceRouteForSharedElement, transitionEnabled) {
         resolveVideoDetailRouteSheetMotion(
@@ -3474,7 +3476,16 @@ fun VideoDetailScreen(
                             0
                         }
                         val coverCrossfadeAlpha = animateFloatAsState(
-                            targetValue = if (isLeaving) 1f else 0f,
+                            targetValue = if (
+                                shouldUseDetailReturnCoverCrossfade(
+                                    isLeaving = isLeaving,
+                                    playbackIntent = videoSharedPlaybackIntent
+                                )
+                            ) {
+                                1f
+                            } else {
+                                0f
+                            },
                             animationSpec = tween(
                                 durationMillis = returnAlphaDurationMillis,
                                 easing = homeSharedTransitionMotionSpec.easing
@@ -3482,7 +3493,16 @@ fun VideoDetailScreen(
                             label = "coverCrossfade"
                         )
                         val playerFadeAlpha = animateFloatAsState(
-                            targetValue = if (isLeaving) 0f else 1f,
+                            targetValue = if (
+                                shouldFadePlayerSurfaceOnDetailReturn(
+                                    isLeaving = isLeaving,
+                                    playbackIntent = videoSharedPlaybackIntent
+                                )
+                            ) {
+                                0f
+                            } else {
+                                1f
+                            },
                             animationSpec = tween(
                                 durationMillis = returnAlphaDurationMillis,
                                 easing = homeSharedTransitionMotionSpec.easing

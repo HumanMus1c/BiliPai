@@ -127,6 +127,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.util.CardPositionManager
@@ -2637,15 +2638,18 @@ fun VideoPlayerSection(
         hasManualStartPlaybackIntent
     ) {
         val coverFirstBySetting = !autoPlayOnOpenEnabled && !hasManualStartPlaybackIntent
+        val playbackIntent = if (keepCoverForManualStart || coverFirstBySetting) {
+            VideoSharedTransitionPlaybackIntent.CoverFirst
+        } else {
+            resolveVideoSharedTransitionPlaybackIntent(
+                clickToPlayEnabled = autoPlayOnOpenEnabled
+            )
+        }
         resolveVideoSharedTransitionVisualSpec(
             sourceRoute = sourceRouteForSharedElement,
             sourceCornerDp = CardPositionManager.lastClickedVideoSourceCornerDp
                 ?: resolveVideoSharedTransitionSourceCornerDp(sourceRouteForSharedElement),
-            playbackIntent = if (keepCoverForManualStart || coverFirstBySetting) {
-                VideoSharedTransitionPlaybackIntent.CoverFirst
-            } else {
-                VideoSharedTransitionPlaybackIntent.ImmediatePlayback
-            },
+            playbackIntent = playbackIntent,
             fullscreen = isFullscreen && !isPortraitFullscreen,
             autoPortrait = isPortraitFullscreen || isVerticalVideo,
             initialVertical = isPortraitFullscreen || isVerticalVideo,

@@ -367,6 +367,70 @@ class VideoSharedTransitionPolicyTest {
     }
 
     @Test
+    fun sharedTransitionPlaybackIntent_mapsClickToPlaySetting() {
+        assertEquals(
+            VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+            resolveVideoSharedTransitionPlaybackIntent(clickToPlayEnabled = true)
+        )
+        assertEquals(
+            VideoSharedTransitionPlaybackIntent.CoverFirst,
+            resolveVideoSharedTransitionPlaybackIntent(clickToPlayEnabled = false)
+        )
+        assertEquals(
+            VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+            resolveVideoSharedTransitionPlaybackIntent(
+                clickToPlayEnabled = false,
+                forceImmediatePlayback = true
+            )
+        )
+    }
+
+    @Test
+    fun detailReturnFade_onlyAppliesToImmediatePlaybackProfile() {
+        assertTrue(
+            shouldFadePlayerSurfaceOnDetailReturn(
+                isLeaving = true,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback
+            )
+        )
+        assertFalse(
+            shouldFadePlayerSurfaceOnDetailReturn(
+                isLeaving = true,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.CoverFirst
+            )
+        )
+        assertFalse(
+            shouldFadePlayerSurfaceOnDetailReturn(
+                isLeaving = false,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback
+            )
+        )
+        assertTrue(
+            shouldUseDetailReturnCoverCrossfade(
+                isLeaving = true,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback
+            )
+        )
+        assertFalse(
+            shouldUseDetailReturnCoverCrossfade(
+                isLeaving = true,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.CoverFirst
+            )
+        )
+    }
+
+    @Test
+    fun homeVideoCardPropagatesClickToPlayPlaybackIntent() {
+        val cardSource = File(
+            "src/main/java/com/android/purebilibili/feature/home/components/cards/VideoCard.kt"
+        ).readText()
+
+        assertTrue(cardSource.contains("resolveVideoSharedTransitionPlaybackIntent("))
+        assertTrue(cardSource.contains("SettingsManager.getClickToPlaySync(context)"))
+        assertTrue(cardSource.contains("playbackIntent = videoSharedPlaybackIntent"))
+    }
+
+    @Test
     fun sharedTransitionSourceCorner_mapsKnownNonHomeSources() {
         assertEquals(10, resolveVideoSharedTransitionSourceCornerDp("dynamic", fallbackCornerDp = 12))
         assertEquals(8, resolveVideoSharedTransitionSourceCornerDp("watch_later", fallbackCornerDp = 12))

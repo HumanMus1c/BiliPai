@@ -75,6 +75,7 @@ import com.android.purebilibili.core.theme.LocalUiPreset
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoMetadataSharedTransition
@@ -858,6 +859,7 @@ private fun PartitionVideoRow(
     video: VideoItem,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenWidthPx = remember(configuration.screenWidthDp, density) {
@@ -892,10 +894,16 @@ private fun PartitionVideoRow(
             speedSettings = sharedTransitionSpeedSettings
         )
     }
-    val sharedTransitionVisualSpec = remember(sharedElementSourceRoute) {
+    val videoSharedPlaybackIntent = remember(context) {
+        resolveVideoSharedTransitionPlaybackIntent(
+            clickToPlayEnabled = SettingsManager.getClickToPlaySync(context)
+        )
+    }
+    val sharedTransitionVisualSpec = remember(sharedElementSourceRoute, videoSharedPlaybackIntent) {
         resolveVideoSharedTransitionVisualSpec(
             sourceRoute = sharedElementSourceRoute,
-            sourceCornerDp = 10
+            sourceCornerDp = 10,
+            playbackIntent = videoSharedPlaybackIntent
         )
     }
     val coverShape = remember(sharedTransitionVisualSpec) {

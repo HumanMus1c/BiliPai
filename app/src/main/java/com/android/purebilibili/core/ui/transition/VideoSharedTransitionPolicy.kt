@@ -16,6 +16,31 @@ internal enum class VideoSharedTransitionPlaybackIntent {
     CoverFirst
 }
 
+internal fun resolveVideoSharedTransitionPlaybackIntent(
+    clickToPlayEnabled: Boolean,
+    forceImmediatePlayback: Boolean = false
+): VideoSharedTransitionPlaybackIntent {
+    return if (!forceImmediatePlayback && !clickToPlayEnabled) {
+        VideoSharedTransitionPlaybackIntent.CoverFirst
+    } else {
+        VideoSharedTransitionPlaybackIntent.ImmediatePlayback
+    }
+}
+
+internal fun shouldFadePlayerSurfaceOnDetailReturn(
+    isLeaving: Boolean,
+    playbackIntent: VideoSharedTransitionPlaybackIntent
+): Boolean {
+    return isLeaving && playbackIntent == VideoSharedTransitionPlaybackIntent.ImmediatePlayback
+}
+
+internal fun shouldUseDetailReturnCoverCrossfade(
+    isLeaving: Boolean,
+    playbackIntent: VideoSharedTransitionPlaybackIntent
+): Boolean {
+    return isLeaving && playbackIntent == VideoSharedTransitionPlaybackIntent.ImmediatePlayback
+}
+
 internal enum class VideoSharedTransitionTargetMode {
     InlineCover,
     InlinePlayer,

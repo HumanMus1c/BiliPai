@@ -44,7 +44,9 @@ import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
 import com.android.purebilibili.core.ui.transition.videoMetadataSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.ui.transition.videoTitleSharedElementKey
@@ -126,10 +128,16 @@ fun VideoCardLarge(
     } else {
         sharedElementKey
     }
-    val sharedTransitionVisualSpec = remember(sourceRoute) {
+    val videoSharedPlaybackIntent = remember(context) {
+        resolveVideoSharedTransitionPlaybackIntent(
+            clickToPlayEnabled = SettingsManager.getClickToPlaySync(context)
+        )
+    }
+    val sharedTransitionVisualSpec = remember(sourceRoute, videoSharedPlaybackIntent) {
         resolveVideoSharedTransitionVisualSpec(
             sourceRoute = sourceRoute,
-            sourceCornerDp = 10
+            sourceCornerDp = 10,
+            playbackIntent = videoSharedPlaybackIntent
         )
     }
     val coverShape = RoundedCornerShape(sharedTransitionVisualSpec.sourceCornerDp.dp)

@@ -71,7 +71,9 @@ import com.android.purebilibili.core.ui.transition.VideoSharedTransitionMotionSp
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionOwnership
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
 import com.android.purebilibili.core.ui.transition.videoMetadataSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
@@ -572,11 +574,17 @@ fun ElegantVideoCard(
             coverSharedEnabled = coverSharedEnabled,
             isQuickReturnLimited = isQuickReturnLimited
         )
+        val videoSharedPlaybackIntent = remember(context) {
+            resolveVideoSharedTransitionPlaybackIntent(
+                clickToPlayEnabled = SettingsManager.getClickToPlaySync(context)
+            )
+        }
         val homeSharedTransitionSpecs = remember(
             effectiveSharedElementSourceRoute,
             effectiveTransitionEnabled,
             cardCornerRadius,
-            sharedTransitionSpeedSettings
+            sharedTransitionSpeedSettings,
+            videoSharedPlaybackIntent
         ) {
             VideoCardSharedTransitionSpecs(
                 motion = resolveVideoCardSharedTransitionMotionSpec(
@@ -586,7 +594,8 @@ fun ElegantVideoCard(
                 ),
                 visual = resolveVideoSharedTransitionVisualSpec(
                     sourceRoute = effectiveSharedElementSourceRoute,
-                    sourceCornerDp = cardCornerRadius.value.roundToInt()
+                    sourceCornerDp = cardCornerRadius.value.roundToInt(),
+                    playbackIntent = videoSharedPlaybackIntent
                 )
             )
         }

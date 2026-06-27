@@ -232,6 +232,22 @@ class VideoPlayerCoverPolicyTest {
     }
 
     @Test
+    fun detailReturnCoverCrossfade_skipsCoverFirstProfile() {
+        assertFalse(
+            com.android.purebilibili.core.ui.transition.shouldUseDetailReturnCoverCrossfade(
+                isLeaving = true,
+                playbackIntent = com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent.CoverFirst
+            )
+        )
+        assertFalse(
+            com.android.purebilibili.core.ui.transition.shouldFadePlayerSurfaceOnDetailReturn(
+                isLeaving = true,
+                playbackIntent = com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent.CoverFirst
+            )
+        )
+    }
+
+    @Test
     fun detailReturnCoverUsesSingleAlphaTimelineWithoutCoilCrossfade() {
         val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
             .readText()
