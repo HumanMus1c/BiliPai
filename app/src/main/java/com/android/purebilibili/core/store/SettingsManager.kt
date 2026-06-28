@@ -691,7 +691,8 @@ data class AppNavigationSettings(
     val bottomBarVisibilityMode: SettingsManager.BottomBarVisibilityMode = SettingsManager.BottomBarVisibilityMode.ALWAYS_VISIBLE,
     val orderedVisibleTabIds: List<String> = listOf("HOME", "DYNAMIC", "HISTORY", "PROFILE"),
     val bottomBarItemColors: Map<String, Int> = emptyMap(),
-    val tabletUseSidebar: Boolean = false
+    val tabletUseSidebar: Boolean = false,
+    val predictiveBackAnimationStyle: String = "scale",
 )
 
 data class HomeTopTabSettings(
@@ -5620,6 +5621,7 @@ object SettingsManager {
     // ========== 📱 平板导航模式 ==========
     
     private val KEY_TABLET_NAVIGATION_MODE = booleanPreferencesKey("tablet_use_sidebar")
+    private val KEY_PREDICTIVE_BACK_ANIMATION_STYLE = stringPreferencesKey("predictive_back_animation_style")
     
     /**
      *  平板导航模式
@@ -5640,7 +5642,8 @@ object SettingsManager {
             ),
             orderedVisibleTabIds = resolveOrderedVisibleBottomTabs(order, visible),
             bottomBarItemColors = parseBottomBarItemColors(preferences[KEY_BOTTOM_BAR_ITEM_COLORS] ?: ""),
-            tabletUseSidebar = preferences[KEY_TABLET_NAVIGATION_MODE] ?: false
+            tabletUseSidebar = preferences[KEY_TABLET_NAVIGATION_MODE] ?: false,
+            predictiveBackAnimationStyle = preferences[KEY_PREDICTIVE_BACK_ANIMATION_STYLE] ?: "scale",
         )
     }
 

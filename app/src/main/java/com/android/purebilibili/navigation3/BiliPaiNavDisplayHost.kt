@@ -31,6 +31,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import com.android.purebilibili.core.ui.ProvideAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationHandler
+import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
 import com.android.purebilibili.navigation3.predictiveback.resolveBiliPaiPredictiveBackAnimationHandler
 import kotlinx.coroutines.launch
 
@@ -38,6 +39,7 @@ import kotlinx.coroutines.launch
 internal fun BiliPaiNavDisplayHost(
     backStack: List<BiliPaiNavKey>,
     cardTransitionEnabled: Boolean = true,
+    predictiveBackAnimationStyle: BiliPaiPredictiveBackAnimationStyle = BiliPaiPredictiveBackAnimationStyle.SCALE,
     sourceMetadata: BiliPaiNavSourceMetadata,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -60,8 +62,14 @@ internal fun BiliPaiNavDisplayHost(
             toKey = safeBackStack.getOrNull(safeBackStack.lastIndex - 1)
         )
     }
-    val predictiveBackHandler: BiliPaiPredictiveBackAnimationHandler = remember(popRouteTransition) {
-        resolveBiliPaiPredictiveBackAnimationHandler(popRouteTransition)
+    val predictiveBackHandler: BiliPaiPredictiveBackAnimationHandler = remember(
+        popRouteTransition,
+        predictiveBackAnimationStyle,
+    ) {
+        resolveBiliPaiPredictiveBackAnimationHandler(
+            routeTransition = popRouteTransition,
+            style = predictiveBackAnimationStyle,
+        )
     }
     val performBack: () -> Unit = {
         navigationScope.launch {

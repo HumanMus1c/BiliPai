@@ -8,7 +8,7 @@ import android.content.ContextWrapper
 import android.net.Uri
 import android.os.SystemClock
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
+
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
@@ -143,6 +143,7 @@ import com.android.purebilibili.navigation3.resolveBiliPaiNavCardSourceDirection
 import com.android.purebilibili.navigation3.resolveBiliPaiNavEntryContentRole
 import com.android.purebilibili.navigation3.resolveBiliPaiNavSourceMetadata
 import com.android.purebilibili.navigation3.resolveBiliPaiVideoSource
+import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
 import com.android.purebilibili.navigation3.resolveInitialBiliPaiBackStack
 import com.android.purebilibili.navigation3.toLegacyRoute
 import androidx.compose.ui.Alignment
@@ -847,6 +848,11 @@ fun AppNavigation(
             )
         }
         val shouldInterceptSystemBack = backGestureDecision.interceptSystemBack
+        val predictiveBackAnimationStyle = remember(appNavigationSettings.predictiveBackAnimationStyle) {
+            BiliPaiPredictiveBackAnimationStyle.fromStorageValue(
+                appNavigationSettings.predictiveBackAnimationStyle
+            )
+        }
         val activeBottomTabRoute = resolveActiveBottomTabRoute(
             currentKey = currentNavigation3Key,
             currentBottomItem = currentBottomNavItem
@@ -2448,6 +2454,7 @@ fun AppNavigation(
                 BiliPaiNavDisplayHost(
                     backStack = navigation3BackStack,
                     cardTransitionEnabled = cardTransitionEnabled,
+                    predictiveBackAnimationStyle = predictiveBackAnimationStyle,
                     sourceMetadata = navigation3SourceMetadata,
                     onBack = { performSystemBackAction() },
                     modifier = Modifier.fillMaxSize(),
@@ -2555,10 +2562,16 @@ fun AppNavigation(
     }
 }
 
-            // 在 NavDisplay 之后注册经典回退拦截器，由应用壳接管返回动作。
-            BackHandler(enabled = shouldInterceptSystemBack) {
-                performSystemBackAction()
-            }
+            // 在 NavDisplay 之后注册 Tab 二级返回，保留预测性返回手势预览。
+            MainHostTabBackHandler(
+                enabled = shouldInterceptSystemBack,
+                onReturnToHomeTab = {
+                    val homeIndex = visibleBottomBarItems.indexOf(BottomNavItem.HOME)
+                    if (homeIndex >= 0) {
+                        mainBottomPagerState.animateToPage(homeIndex)
+                    }
+                },
+            )
 
             if (showLaunchDisclaimer) {
                 ReleaseChannelDisclaimerDialog(

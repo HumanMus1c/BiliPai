@@ -210,7 +210,7 @@ class AppNavigationNavigation3BridgeStructureTest {
         val source = appNavigationSource()
 
         val decisionIndex = source.indexOf("val backGestureDecision = remember(")
-        val handlerIndex = source.indexOf("BackHandler(enabled = shouldInterceptSystemBack)")
+        val handlerIndex = source.indexOf("MainHostTabBackHandler(")
 
         assertTrue(decisionIndex >= 0)
         assertTrue(handlerIndex > decisionIndex)
@@ -230,7 +230,7 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertFalse(source.contains("video" + "PredictiveReturnToCardEnabled"))
         assertFalse(source.contains("video" + "PredictiveReturnSourceBounds"))
         assertFalse(source.contains("shouldEnableVideo" + "PredictiveReturnToCard"))
-        assertFalse(source.contains("predictive" + "BackAnimationStyle"))
+        assertTrue(source.contains("predictiveBackAnimationStyle"))
     }
 
     @Test

@@ -123,20 +123,20 @@ class AppTopLevelNavigationPolicyTest {
     }
 
     @Test
-    fun classicBackHandler_isComposedAfterNavDisplaySoItCanOwnAppBackAction() {
+    fun mainHostTabBackHandler_isComposedAfterNavDisplaySoItCanOwnTabBackAction() {
         val sourceFile = listOf(
             File("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt"),
             File("src/main/java/com/android/purebilibili/navigation/AppNavigation.kt")
         ).first { it.exists() }
         val source = sourceFile.readText()
         val navDisplayIndex = source.indexOf("BiliPaiNavDisplayHost(")
-        val classicBackHandlerIndex = source.indexOf("BackHandler(enabled = shouldInterceptSystemBack)")
+        val tabBackHandlerIndex = source.indexOf("MainHostTabBackHandler(")
 
         assertTrue(navDisplayIndex >= 0)
-        assertTrue(classicBackHandlerIndex >= 0)
+        assertTrue(tabBackHandlerIndex >= 0)
         assertTrue(
-            classicBackHandlerIndex > navDisplayIndex,
-            "经典 BackHandler 必须在 NavDisplay 之后组合，才能由应用壳接管返回动作。"
+            tabBackHandlerIndex > navDisplayIndex,
+            "MainHostTabBackHandler 必须在 NavDisplay 之后组合，才能接管 Tab 二级返回。"
         )
     }
 
