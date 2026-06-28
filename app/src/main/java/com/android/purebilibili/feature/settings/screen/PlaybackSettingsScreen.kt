@@ -83,8 +83,9 @@ fun PlaybackSettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppSurfaceTokens.cardContainer(),
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = AppSurfaceTokens.groupedListContainer(),
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },

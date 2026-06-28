@@ -8,14 +8,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
@@ -23,14 +21,15 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,17 +48,18 @@ import com.android.purebilibili.core.theme.iOSGreen
 import com.android.purebilibili.core.theme.iOSOrange
 import com.android.purebilibili.core.theme.iOSPink
 import com.android.purebilibili.core.theme.iOSPurple
+import com.android.purebilibili.core.ui.AdaptiveScaffold
+import com.android.purebilibili.core.ui.AdaptiveTopAppBar
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.IOSAlertDialog
 import com.android.purebilibili.core.ui.IOSDialogAction
-import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.components.IOSClickableItem
 import com.android.purebilibili.core.ui.components.IOSDivider
 import com.android.purebilibili.core.ui.components.IOSGroup
 import com.android.purebilibili.core.ui.components.IOSSectionTitle
-import com.android.purebilibili.core.ui.iOSLargeTitleBar
-import dev.chrisbanes.haze.HazeState
-import com.android.purebilibili.core.ui.blur.hazeSourceCompat
+import com.android.purebilibili.core.ui.rememberAppBackIcon
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsShareScreen(
     onBack: () -> Unit,
@@ -74,14 +74,6 @@ fun SettingsShareScreen(
     val viewSkippedLabel = stringResource(R.string.settings_share_view_skipped)
     val cancelLabel = stringResource(R.string.common_cancel)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val listState = rememberLazyListState()
-    val hazeState = com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState()
-    val scrollOffset by remember {
-        derivedStateOf {
-            if (listState.firstVisibleItemIndex > 0) 2000f
-            else listState.firstVisibleItemScrollOffset.toFloat()
-        }
-    }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -117,18 +109,34 @@ fun SettingsShareScreen(
         viewModel.consumeShareUri()
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .globalWallpaperAwareBackground()
-    ) {
-        LazyColumn(
-            state = listState,
+    AdaptiveScaffold(
+        topBar = {
+            AdaptiveTopAppBar(
+                title = screenTitle,
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(rememberAppBackIcon(), contentDescription = backLabel)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppSurfaceTokens.groupedListContainer(),
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        },
+        containerColor = AppSurfaceTokens.groupedListContainer(),
+        contentWindowInsets = WindowInsets(0.dp)
+    ) { padding ->
+        Box(
             modifier = Modifier
+                .padding(padding)
                 .fillMaxSize()
-                .hazeSourceCompat(state = hazeState),
-            contentPadding = PaddingValues(top = 118.dp, bottom = 24.dp)
         ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 24.dp)
+            ) {
             item {
                 IOSSectionTitle("执行状态")
                 IOSGroup {
@@ -216,28 +224,15 @@ fun SettingsShareScreen(
                     )
                 }
             }
-        }
+            }
 
-        iOSLargeTitleBar(
-            title = screenTitle,
-            scrollOffset = scrollOffset,
-            leadingContent = {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = backLabel
-                    )
+            if (uiState.isBusy) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
-            },
-            hazeState = hazeState
-        )
-
-        if (uiState.isBusy) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
             }
         }
     }
