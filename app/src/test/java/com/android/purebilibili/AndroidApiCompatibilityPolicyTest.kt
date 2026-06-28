@@ -36,7 +36,7 @@ class AndroidApiCompatibilityPolicyTest {
     }
 
     @Test
-    fun `manifest opts out of system predictive back while feature is paused`() {
+    fun `manifest enables system predictive back callback`() {
         val manifest = listOf(
             File("app/src/main/AndroidManifest.xml"),
             File("src/main/AndroidManifest.xml")
@@ -44,13 +44,13 @@ class AndroidApiCompatibilityPolicyTest {
 
         val source = manifest.readText()
 
-        assertFalse(
-            source.contains("""android:enableOnBackInvokedCallback="true""""),
-            "预测性返回功能暂停期间，不能继续全局接入系统返回预览。"
-        )
         assertTrue(
+            source.contains("""android:enableOnBackInvokedCallback="true""""),
+            "预测性返回已接入 Navigation3，manifest 必须启用系统返回预览回调。"
+        )
+        assertFalse(
             source.contains("""android:enableOnBackInvokedCallback="false""""),
-            "预测性返回功能暂停期间，必须全局退出系统返回预览以避免和应用返回动画冲突。"
+            "预测性返回已恢复，不能再全局禁用系统返回预览。"
         )
     }
 }

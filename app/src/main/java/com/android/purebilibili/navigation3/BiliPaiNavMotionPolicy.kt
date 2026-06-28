@@ -1,6 +1,7 @@
 package com.android.purebilibili.navigation3
 
 import com.android.purebilibili.navigation.AppSystemBackAction
+import com.android.purebilibili.navigation.shouldInterceptSystemBackForAppAction
 
 internal enum class BiliPaiNavMotionMode {
     CARD_DISABLED,
@@ -96,7 +97,7 @@ internal fun resolveBiliPaiBackGestureDecision(
         } else {
             routeTransition
         },
-        interceptSystemBack = isAppAction || motionMode == BiliPaiNavMotionMode.CLASSIC_CARD
+        interceptSystemBack = shouldInterceptSystemBackForAppAction(systemBackAction)
     )
 }
 
@@ -155,8 +156,7 @@ internal fun shouldInterceptSystemBackForNavigation3(
     mode: BiliPaiNavMotionMode,
     appBackActionRequiresInterception: Boolean
 ): Boolean {
-    if (appBackActionRequiresInterception) return true
-    return mode == BiliPaiNavMotionMode.CLASSIC_CARD
+    return appBackActionRequiresInterception
 }
 
 private fun resolveCardDisabledReturnTransition(

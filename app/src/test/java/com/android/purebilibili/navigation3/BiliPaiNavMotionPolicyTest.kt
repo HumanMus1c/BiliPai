@@ -36,7 +36,7 @@ class BiliPaiNavMotionPolicyTest {
         )
 
         assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, decision.routeTransition)
-        assertTrue(decision.interceptSystemBack)
+        assertFalse(decision.interceptSystemBack)
     }
 
     @Test
@@ -69,7 +69,7 @@ class BiliPaiNavMotionPolicyTest {
         )
 
         assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, decision.routeTransition)
-        assertTrue(decision.interceptSystemBack)
+        assertFalse(decision.interceptSystemBack)
     }
 
     @Test
@@ -88,7 +88,7 @@ class BiliPaiNavMotionPolicyTest {
         )
 
         assertEquals(BiliPaiNavRouteTransition.CLASSIC_CARD, decision.routeTransition)
-        assertTrue(decision.interceptSystemBack)
+        assertFalse(decision.interceptSystemBack)
     }
 
     @Test
@@ -155,7 +155,7 @@ class BiliPaiNavMotionPolicyTest {
         )
 
         assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, decision.routeTransition)
-        assertTrue(decision.interceptSystemBack)
+        assertFalse(decision.interceptSystemBack)
     }
 
     @Test
@@ -316,11 +316,11 @@ class BiliPaiNavMotionPolicyTest {
         )
 
         assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, decision.routeTransition)
-        assertTrue(decision.interceptSystemBack)
+        assertFalse(decision.interceptSystemBack)
     }
 
     @Test
-    fun classicCardMode_interceptsSystemBackSoAppOwnsBackAction() {
+    fun classicCardMode_defersBackToNavigationBackHandler() {
         val decision = resolveBiliPaiNavMotionDecision(
             fromKey = BiliPaiNavKey.VideoDetail("BV1"),
             toKey = BiliPaiNavKey.Home,
@@ -330,6 +330,6 @@ class BiliPaiNavMotionPolicyTest {
 
         assertEquals(BiliPaiNavMotionMode.CLASSIC_CARD, decision.mode)
         assertEquals(BiliPaiNavRouteTransition.CLASSIC_CARD, decision.routeTransition)
-        assertTrue(decision.interceptSystemBack)
+        assertFalse(decision.interceptSystemBack)
     }
 }

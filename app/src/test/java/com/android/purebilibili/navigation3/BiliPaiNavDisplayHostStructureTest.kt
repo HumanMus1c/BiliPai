@@ -39,7 +39,7 @@ class BiliPaiNavDisplayHostStructureTest {
 
         assertTrue(source.contains("rememberNavigationEventState("))
         assertTrue(source.contains("NavigationBackHandler("))
-        assertTrue(source.contains("onBackCompleted = onBack"))
+        assertTrue(source.contains("onBackCompleted = performBack"))
         assertTrue(source.contains("navigationEventState = navigationEventState"))
         assertTrue(source.contains("sceneState = sceneState"))
         kotlin.test.assertFalse(source.contains("NavDisplay(\n        backStack = safeBackStack"))
@@ -59,32 +59,31 @@ class BiliPaiNavDisplayHostStructureTest {
         val source = navDisplayHostSource()
 
         assertTrue(source.contains("NavDisplay("))
-        assertTrue(source.contains("onBack = onBack"))
+        assertTrue(source.contains("onBack = performBack"))
+        assertTrue(source.contains("onBack()"))
         assertFalse(source.contains("import androidx.activity.compose.BackHandler"))
         assertFalse(source.contains("BackHandler(enabled"))
     }
 
     @Test
-    fun navDisplayHostDoesNotKeepRemovedVideoReturnState() {
+    fun navDisplayHostIntegratesPredictiveBackHandlerDecorator() {
         val source = navDisplayHostSource()
 
+        assertTrue(source.contains("resolveBiliPaiPredictiveBackAnimationHandler"))
+        assertTrue(source.contains("predictiveBackAnimationDecorator"))
+        assertTrue(source.contains("NavEntryDecorator("))
+        assertTrue(source.contains("onPredictivePopTransitionSpec"))
         assertFalse(source.contains("LocalVideo" + "PredictiveReturnState"))
-        assertFalse(source.contains("Video" + "PredictiveReturnState"))
-        assertFalse(source.contains("video" + "PredictiveReturnToCardEnabled"))
-        assertFalse(source.contains("video" + "PredictiveReturnSourceBounds"))
-        assertFalse(source.contains("predictive" + "BackAnimationDecorator"))
-        assertFalse(source.contains("rememberBiliPai" + "PredictiveBackMotion"))
         assertFalse(source.contains("onPredictiveBackGestureChange"))
-        assertFalse(source.contains("LaunchedEffect(predictiveBackGestureState)"))
     }
 
     @Test
-    fun navDisplayHostRoutesPlainPopThroughRouteTransitionPolicyBeforeDefaultMotion() {
+    fun navDisplayHostRoutesPredictivePopThroughHandlerPolicy() {
         val source = navDisplayHostSource()
 
         assertTrue(source.contains("val popRouteTransition = remember("))
-        assertTrue(source.contains("resolveBiliPaiNavPopContentTransform(popRouteTransition)"))
-        assertFalse(source.contains("predictiveBackMotion"))
+        assertTrue(source.contains("resolveBiliPaiPredictiveBackAnimationHandler"))
+        assertFalse(source.contains("resolveBiliPaiNavPopContentTransform(popRouteTransition)"))
     }
 
     private fun navDisplayHostSource(): String {
