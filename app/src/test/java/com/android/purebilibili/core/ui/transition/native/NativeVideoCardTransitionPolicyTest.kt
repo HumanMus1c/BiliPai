@@ -164,4 +164,21 @@ class NativeVideoCardTransitionPolicyTest {
         assertTrue(middle.scrimAlpha >= 0.3f)
         assertTrue(middle.contentScale <= 0.94f)
     }
+
+    @Test
+    fun portraitTargetRectCreatesCenteredTallBlackCardWithinSafeArea() {
+        val target = resolveNativeVideoCardTransitionTargetRect(
+            sourceRect = sourceRect,
+            viewportWidth = 500f,
+            viewportHeight = 1080f,
+            topInsetPx = 48f,
+            bottomInsetPx = 28f
+        )
+
+        assertEquals(55f, target.rect.left, 0.001f)
+        assertEquals(149.16666f, target.rect.top, 0.001f)
+        assertEquals(445f, target.rect.right, 0.001f)
+        assertEquals(950.8333f, target.rect.bottom, 0.001f)
+        assertEquals(22f, target.cornerRadiusDp)
+    }
 }

@@ -550,7 +550,6 @@ fun AppNavigation(
             val sourceRect = resolveLastClickedHomeVideoSourceRect(videoKey.bvid) ?: return null
             return NativeVideoCardTransitionCloseRequest(
                 videoKey = videoKey.bvid,
-                coverUrl = videoKey.coverUrl,
                 sourceRect = sourceRect,
                 sourceCornerRadiusPx = resolveLastClickedVideoSourceCornerRadiusPx()
             )
@@ -865,10 +864,7 @@ fun AppNavigation(
                                 sourceRoute = ScreenRoutes.Home.route
                             )
                         }
-                        val sourceRect = if (
-                            intent.source == HomeVideoClickSource.GRID &&
-                            !intent.isVerticalVideo
-                        ) {
+                        val sourceRect = if (intent.source == HomeVideoClickSource.GRID) {
                             resolveLastClickedHomeVideoSourceRect(intent.bvid)
                         } else {
                             null
@@ -878,10 +874,8 @@ fun AppNavigation(
                             controller.startOpen(
                                 request = NativeVideoCardTransitionOpenRequest(
                                     videoKey = intent.bvid,
-                                    coverUrl = intent.coverUrl,
                                     sourceRect = sourceRect,
-                                    sourceCornerRadiusPx = resolveLastClickedVideoSourceCornerRadiusPx(),
-                                    fallbackTargetCornerRadiusPx = 12f * CardPositionManager.lastScreenDensity
+                                    sourceCornerRadiusPx = resolveLastClickedVideoSourceCornerRadiusPx()
                                 ),
                                 navigateAction = navigateToVideo
                             )

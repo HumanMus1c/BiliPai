@@ -39,14 +39,60 @@ internal data class NativeVideoCardTransitionFrame(
     val cornerRadiusPx: Float,
     val blurRadiusPx: Float,
     val scrimAlpha: Float,
-    val contentScale: Float,
-    val coverAlpha: Float
+    val contentScale: Float
+)
+
+internal data class NativeVideoCardTransitionTargetSpec(
+    val rect: NativeVideoTransitionRect,
+    val cornerRadiusDp: Float = NATIVE_VIDEO_CARD_TRANSITION_TARGET_CORNER_DP
 )
 
 internal const val NATIVE_VIDEO_CARD_TRANSITION_DURATION_MILLIS = 420L
 internal const val NATIVE_VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_PX = 48f
+internal const val NATIVE_VIDEO_CARD_TRANSITION_TARGET_CORNER_DP = 22f
 private const val NATIVE_VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA = 0.34f
 private const val NATIVE_VIDEO_CARD_TRANSITION_MIN_CONTENT_SCALE = 0.92f
+private const val NATIVE_VIDEO_CARD_TRANSITION_TARGET_WIDTH_FRACTION = 0.78f
+private const val NATIVE_VIDEO_CARD_TRANSITION_TARGET_WIDTH_RATIO = 9f
+private const val NATIVE_VIDEO_CARD_TRANSITION_TARGET_HEIGHT_RATIO = 18.5f
+
+internal fun resolveNativeVideoCardTransitionTargetRect(
+    sourceRect: NativeVideoTransitionRect,
+    viewportWidth: Float,
+    viewportHeight: Float,
+    topInsetPx: Float = 0f,
+    bottomInsetPx: Float = 0f
+): NativeVideoCardTransitionTargetSpec {
+    if (viewportWidth <= 1f || viewportHeight <= 1f) {
+        return NativeVideoCardTransitionTargetSpec(rect = sourceRect)
+    }
+    val safeTop = topInsetPx.coerceIn(0f, viewportHeight)
+    val safeBottom = (viewportHeight - bottomInsetPx.coerceAtLeast(0f)).coerceIn(safeTop, viewportHeight)
+    val safeHeight = (safeBottom - safeTop).coerceAtLeast(1f)
+    val preferredWidth = (viewportWidth * NATIVE_VIDEO_CARD_TRANSITION_TARGET_WIDTH_FRACTION)
+        .coerceIn(1f, viewportWidth)
+    val preferredHeight = preferredWidth *
+        (NATIVE_VIDEO_CARD_TRANSITION_TARGET_HEIGHT_RATIO / NATIVE_VIDEO_CARD_TRANSITION_TARGET_WIDTH_RATIO)
+    val targetHeight = preferredHeight.coerceAtMost(safeHeight)
+    val targetWidth = if (targetHeight < preferredHeight) {
+        (targetHeight *
+            (NATIVE_VIDEO_CARD_TRANSITION_TARGET_WIDTH_RATIO / NATIVE_VIDEO_CARD_TRANSITION_TARGET_HEIGHT_RATIO))
+            .coerceIn(1f, preferredWidth)
+    } else {
+        preferredWidth
+    }
+    val left = ((viewportWidth - targetWidth) / 2f).coerceAtLeast(0f)
+    val top = safeTop + ((safeHeight - targetHeight) / 2f).coerceAtLeast(0f)
+
+    return NativeVideoCardTransitionTargetSpec(
+        rect = NativeVideoTransitionRect(
+            left = left,
+            top = top,
+            right = left + targetWidth,
+            bottom = top + targetHeight
+        )
+    )
+}
 
 internal fun resolveNativeVideoCardTransitionFrame(
     spec: NativeVideoCardTransitionSpec,
@@ -61,10 +107,6 @@ internal fun resolveNativeVideoCardTransitionFrame(
     } else {
         0f
     }
-    val coverAlpha = when (phase) {
-        NativeVideoCardTransitionPhase.Opening -> 1f - clampedProgress
-        NativeVideoCardTransitionPhase.Closing -> clampedProgress
-    }
 
     return NativeVideoCardTransitionFrame(
         cardRect = lerp(spec.sourceRect, spec.targetRect, clampedProgress),
@@ -75,8 +117,7 @@ internal fun resolveNativeVideoCardTransitionFrame(
         ),
         blurRadiusPx = blurRadiusPx,
         scrimAlpha = spec.maxScrimAlpha.coerceIn(0f, 1f) * effectStrength,
-        contentScale = lerp(1f, spec.minContentScale.coerceIn(0.9f, 1f), effectStrength),
-        coverAlpha = coverAlpha
+        contentScale = lerp(1f, spec.minContentScale.coerceIn(0.9f, 1f), effectStrength)
     )
 }
 

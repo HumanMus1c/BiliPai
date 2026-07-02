@@ -97,6 +97,7 @@ class AppNavigationNavigation3BridgeStructureTest {
             .substringBefore(") { key ->")
 
         assertTrue(source.contains("fun shouldUseNativeVideoCardTransition("))
+        assertFalse(source.contains("&&\n                            !intent.isVerticalVideo"))
         assertTrue(videoDetailBranch.contains("!shouldUseNativeVideoCardTransition(videoKey)"))
         assertTrue(videoDetailBranch.contains("nativeVideoBackPreviewVideoKey == videoKey.bvid"))
         assertTrue(videoDetailBranch.contains("alpha = if (hideVideoDetailForNativeBackPreview) 0f else 1f"))
