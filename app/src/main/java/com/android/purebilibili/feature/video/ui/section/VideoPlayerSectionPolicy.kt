@@ -866,7 +866,7 @@ internal fun resolveVideoPlayerEntryPresentationSpec(
     val fillCoverViewport = !forceCoverDuringReturnAnimation &&
         (targetFillsViewport || (shouldKeepCoverForManualStart && isVerticalVideo))
     return VideoPlayerEntryPresentationSpec(
-        coverUsesSharedBounds = forceCoverDuringReturnAnimation || shouldKeepCoverForManualStart,
+        coverUsesSharedBounds = shouldKeepCoverForManualStart,
         fillCoverViewport = fillCoverViewport,
         showManualStartPlayButton = shouldKeepCoverForManualStart,
         enableManualStartCoverOverlay = shouldKeepCoverForManualStart,

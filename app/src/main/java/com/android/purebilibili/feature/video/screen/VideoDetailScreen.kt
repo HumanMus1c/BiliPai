@@ -809,6 +809,7 @@ private fun VideoDetailRouteSheetHost(
     motion: VideoDetailRouteSheetMotion,
     isFullscreenMode: Boolean,
     backgroundColor: Color,
+    backgroundAlpha: Float = 1f,
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
     overlayContent: @Composable BoxScope.() -> Unit
@@ -836,7 +837,10 @@ private fun VideoDetailRouteSheetHost(
                 clip = motion.enabled && frame.cornerDp > 0.01f
                 shape = RoundedCornerShape(frame.cornerDp.dp)
             }
-            .background(if (isFullscreenMode) Color.Black else backgroundColor),
+            .background(
+                if (isFullscreenMode) Color.Black.copy(alpha = backgroundAlpha)
+                else backgroundColor.copy(alpha = backgroundAlpha)
+            ),
     ) {
         content()
         overlayContent()
@@ -1757,6 +1761,14 @@ fun VideoDetailScreen(
         forceCoverOnlyForReturn = forceCoverOnlyForReturn,
         isReturningFromDetail = isReturningFromDetail,
         isExitTransitionInProgress = isExitTransitionInProgress
+    )
+    val shellBackgroundAlpha by animateFloatAsState(
+        targetValue = if (useReturningVideoDetailVisualState && sharedBoundsActive) 0f else 1f,
+        animationSpec = tween(
+            durationMillis = homeSharedTransitionMotionSpec.durationMillis.coerceAtLeast(1),
+            easing = homeSharedTransitionMotionSpec.easing
+        ),
+        label = "shellBackgroundAlpha"
     )
 
     val handleTopBarAction = remember(
@@ -3433,8 +3445,7 @@ fun VideoDetailScreen(
                                 hasAnimatedVisibilityScope = animatedVisibilityScope != null
                             ) &&
                             activeVideoSharedTransitionVisualSpec.useCoverSharedBounds &&
-                            videoSharedPlaybackIntent == VideoSharedTransitionPlaybackIntent.ImmediatePlayback &&
-                            !forceCoverOnlyForReturn
+                            videoSharedPlaybackIntent == VideoSharedTransitionPlaybackIntent.ImmediatePlayback
                         ) {
                             with(requireNotNull(sharedTransitionScope)) {
                                 Modifier
@@ -4576,6 +4587,7 @@ fun VideoDetailScreen(
         motion = routeSheetMotion,
         isFullscreenMode = isFullscreenMode,
         backgroundColor = MaterialTheme.colorScheme.background,
+        backgroundAlpha = shellBackgroundAlpha,
         modifier = detailShellModifier,
         content = { VideoDetailRouteSheetMainContent() },
         overlayContent = { VideoDetailRouteSheetOverlayContent() }
