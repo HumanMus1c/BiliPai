@@ -580,25 +580,10 @@ private fun PartitionSideRailMovingIndicator(
     val indicatorDragScaleProgress = rememberBottomBarIndicatorDragScaleProgress(
         isDragging = dragState.isDragging
     )
-    val indicatorLayerScaleTransform = BottomBarIndicatorLayerTransform(
-        scaleX = dragState.scaleX,
-        scaleY = dragState.scaleY
-    )
-    val backdropPresetProgress = resolveBottomBarBackdropPresetProgress(
-        motionProgress = motionProgress,
-        verticalProgress = 0f,
-        pressProgress = pressProgress
-    )
+    val indicatorLayerScaleProgress = maxOf(indicatorDragScaleProgress, pressProgress)
+    // Align with home bottom bar indicator: press-driven lens + no compound scale transform.
     val indicatorLensSpec = resolveBottomBarBackdropPresetIndicatorLens(
-        progress = backdropPresetProgress.indicatorProgress
-    )
-    val indicatorHighlightAlpha = resolveBottomBarLiquidGlassHighlightAlpha(
-        motionProgress = backdropPresetProgress.indicatorProgress
-    )
-    val indicatorGlowAlpha = resolveBottomBarIndicatorGlowAlpha(
-        glassEnabled = liquidGlassIndicatorEnabled,
-        pressProgress = pressProgress,
-        motionProgress = motionProgress
+        progress = pressProgress
     )
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -625,8 +610,8 @@ private fun PartitionSideRailMovingIndicator(
             motionProgress = motionProgress,
             velocityItemsPerSecond = dragState.deformationVelocityItemsPerSecond,
             isDragging = dragState.isDragging,
-            indicatorLayerScaleProgress = indicatorDragScaleProgress,
-            indicatorLayerScaleTransform = indicatorLayerScaleTransform,
+            indicatorLayerScaleProgress = indicatorLayerScaleProgress,
+            indicatorLayerScaleTransform = null,
             bottomBarMotionSpec = motionSpec,
             isDarkTheme = isDarkTheme,
             swapMotionAxes = true,

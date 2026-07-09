@@ -900,15 +900,60 @@ class BottomBarIndicatorPolicyTest {
     }
 
     @Test
-    fun `shared segmented control motion is calmer than bottom dock`() {
+    fun `shared segmented control motion matches bottom dock floating profile`() {
         val bottomDock = resolveBottomBarMotionSpec(BottomBarMotionProfile.ANDROID_NATIVE_FLOATING)
         val segmented = resolveSegmentedControlMotionSpec()
 
-        assertTrue(segmented.drag.selectionSpring.stiffness < bottomDock.drag.selectionSpring.stiffness)
-        assertTrue(segmented.drag.selectionSpring.dampingRatio > bottomDock.drag.selectionSpring.dampingRatio)
-        assertTrue(segmented.refraction.speedProgressDivisorPxPerSecond > bottomDock.refraction.speedProgressDivisorPxPerSecond)
-        assertTrue(segmented.refraction.dragProgressFloor < bottomDock.refraction.dragProgressFloor)
-        assertTrue(segmented.refraction.panelOffsetMaxDp < bottomDock.refraction.panelOffsetMaxDp)
+        assertEquals(bottomDock.drag.selectionSpring.stiffness, segmented.drag.selectionSpring.stiffness)
+        assertEquals(bottomDock.drag.selectionSpring.dampingRatio, segmented.drag.selectionSpring.dampingRatio)
+        assertEquals(
+            bottomDock.refraction.speedProgressDivisorPxPerSecond,
+            segmented.refraction.speedProgressDivisorPxPerSecond
+        )
+        assertEquals(bottomDock.refraction.dragProgressFloor, segmented.refraction.dragProgressFloor)
+        assertEquals(bottomDock.refraction.panelOffsetMaxDp, segmented.refraction.panelOffsetMaxDp)
+        assertEquals(
+            bottomDock.indicator.capsuleVelocityScaleXMultiplier,
+            segmented.indicator.capsuleVelocityScaleXMultiplier
+        )
+    }
+
+    @Test
+    fun `shared liquid indicator panel offset matches bottom dock formula`() {
+        val maxOffset = 12f
+        assertEquals(
+            0f,
+            resolveSharedLiquidIndicatorPanelOffsetPx(
+                dragOffsetPx = 0f,
+                dockWidthPx = 200f,
+                maxOffsetPx = maxOffset
+            ),
+            0.001f
+        )
+        val half = resolveSharedLiquidIndicatorPanelOffsetPx(
+            dragOffsetPx = 100f,
+            dockWidthPx = 200f,
+            maxOffsetPx = maxOffset
+        )
+        assertTrue(half > 0f && half < maxOffset)
+        assertEquals(
+            maxOffset,
+            resolveSharedLiquidIndicatorPanelOffsetPx(
+                dragOffsetPx = 200f,
+                dockWidthPx = 200f,
+                maxOffsetPx = maxOffset
+            ),
+            0.001f
+        )
+        assertEquals(
+            -maxOffset,
+            resolveSharedLiquidIndicatorPanelOffsetPx(
+                dragOffsetPx = -400f,
+                dockWidthPx = 200f,
+                maxOffsetPx = maxOffset
+            ),
+            0.001f
+        )
     }
 
     @Test

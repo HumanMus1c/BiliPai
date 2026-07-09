@@ -938,25 +938,18 @@ private fun LightweightHomeTopTabs(
         } else {
             0f
         }
-        val topTabIndicatorLayerScaleTransform = BottomBarIndicatorLayerTransform(
-            scaleX = topTabDragState.scaleX,
-            scaleY = topTabDragState.scaleY
-        )
         val topTabIndicatorLayerScaleProgress = resolveTopTabIndicatorScaleProgress(
             pagerSliding = !topTabDragActive && topTabShouldStretchIndicator,
             dragScaleProgress = topTabIndicatorDragScaleProgress,
             pressProgress = topTabPressProgress
         )
+        // Match home bottom bar: velocity stretch from items/sec only (no dragState.scale compound).
         val topTabIndicatorLayerTransform = resolveBottomBarIndicatorLayerTransform(
             motionProgress = topTabPressProgress,
             velocityItemsPerSecond = topTabIndicatorLayerVelocityItemsPerSecond,
             isDragging = topTabShouldStretchIndicator,
             dragScaleProgress = topTabIndicatorLayerScaleProgress,
-            dragScaleTransform = if (topTabDragActive) {
-                topTabIndicatorLayerScaleTransform
-            } else {
-                null
-            },
+            dragScaleTransform = null,
             motionSpec = topTabDragMotionSpec
         )
         val topTabRefractionMotionProfile = resolveBottomBarRefractionMotionProfile(
@@ -970,19 +963,17 @@ private fun LightweightHomeTopTabs(
             refractionProgress = topTabRefractionMotionProfile.progress,
             tapPressRefractionEnabled = true
         )
-        val topTabPanelOffsetPx by remember(density, itemWidth, topTabDragState, topTabDragMotionSpec) {
+        val topTabPanelOffsetPx by remember(density, itemWidth, categories.size, topTabDragState) {
             derivedStateOf {
-                val itemWidthPx = with(density) { itemWidth.toPx() }
-                val fraction = if (itemWidthPx > 0f) {
-                    (topTabDragState.dragOffset / itemWidthPx).coerceIn(-1f, 1f)
-                } else {
-                    0f
-                }
-                with(density) {
-                    topTabDragMotionSpec.refraction.panelOffsetMaxDp.dp.toPx() *
-                        fraction.sign *
-                        EaseOut.transform(abs(fraction))
-                }
+                val dockWidthPx = with(density) {
+                    (itemWidth * categories.size.coerceAtLeast(1)).toPx()
+                }.coerceAtLeast(1f)
+                val maxOffsetPx = with(density) { 4.dp.toPx() }
+                resolveSharedLiquidIndicatorPanelOffsetPx(
+                    dragOffsetPx = topTabDragState.dragOffset,
+                    dockWidthPx = dockWidthPx,
+                    maxOffsetPx = maxOffsetPx
+                )
             }
         }
         val topTabBackdropPresetProgress = resolveBottomBarBackdropPresetProgress(
@@ -990,8 +981,9 @@ private fun LightweightHomeTopTabs(
             verticalProgress = 0f,
             pressProgress = topTabPressProgress
         )
+        // Align lens with bottom bar (press-driven).
         val topTabIndicatorLensSpec = resolveBottomBarBackdropPresetIndicatorLens(
-            progress = topTabBackdropPresetProgress.indicatorProgress
+            progress = topTabPressProgress
         )
         val topTabIndicatorHighlightAlpha = resolveBottomBarLiquidGlassHighlightAlpha(
             motionProgress = topTabBackdropPresetProgress.indicatorProgress
@@ -1206,11 +1198,7 @@ private fun LightweightHomeTopTabs(
                         velocityItemsPerSecond = topTabIndicatorLayerVelocityItemsPerSecond,
                         isDragging = topTabShouldStretchIndicator,
                         indicatorLayerScaleProgress = topTabIndicatorLayerScaleProgress,
-                        indicatorLayerScaleTransform = if (topTabDragActive) {
-                            topTabIndicatorLayerScaleTransform
-                        } else {
-                            null
-                        },
+                        indicatorLayerScaleTransform = null,
                         bottomBarMotionSpec = topTabDragMotionSpec,
                         isDarkTheme = isDarkTheme
                     )
@@ -1238,11 +1226,7 @@ private fun LightweightHomeTopTabs(
                         velocityItemsPerSecond = topTabIndicatorLayerVelocityItemsPerSecond,
                         isDragging = topTabShouldStretchIndicator,
                         indicatorLayerScaleProgress = topTabIndicatorLayerScaleProgress,
-                        indicatorLayerScaleTransform = if (topTabDragActive) {
-                            topTabIndicatorLayerScaleTransform
-                        } else {
-                            null
-                        },
+                        indicatorLayerScaleTransform = null,
                         bottomBarMotionSpec = topTabDragMotionSpec,
                         isDarkTheme = isDarkTheme
                     )
@@ -1273,11 +1257,7 @@ private fun LightweightHomeTopTabs(
                         velocityItemsPerSecond = topTabIndicatorLayerVelocityItemsPerSecond,
                         isDragging = topTabShouldStretchIndicator,
                         indicatorLayerScaleProgress = topTabIndicatorLayerScaleProgress,
-                        indicatorLayerScaleTransform = if (topTabDragActive) {
-                            topTabIndicatorLayerScaleTransform
-                        } else {
-                            null
-                        },
+                        indicatorLayerScaleTransform = null,
                         bottomBarMotionSpec = topTabDragMotionSpec,
                         isDarkTheme = isDarkTheme
                     )
