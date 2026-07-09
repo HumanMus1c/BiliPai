@@ -318,6 +318,18 @@ internal fun resolveSharedLiquidIndicatorCaptureLensProgress(
     return lensProgress.coerceIn(0f, 1f)
 }
 
+/**
+ * Export-layer glyph color before [ColorFilter.tint].
+ * Must stay near-white so SrcIn tint resolves to pure theme/primary color.
+ */
+internal fun resolveSharedLiquidExportMonochromeColor(
+    darkTheme: Boolean
+): Color = if (darkTheme) {
+    Color.White.copy(alpha = 0.96f)
+} else {
+    Color.White
+}
+
 @Composable
 fun BottomBarLiquidSegmentedControl(
     items: List<String>,
@@ -422,13 +434,16 @@ fun BottomBarLiquidSegmentedControl(
         blurIntensity = blurIntensity,
         liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset
     )
-    val selectedTextColor = selectedTextColorOverride ?: MaterialTheme.colorScheme.primary
+    val themeColor = MaterialTheme.colorScheme.primary
+    val selectedTextColor = selectedTextColorOverride ?: themeColor
     val unselectedTextColor = unselectedTextColorOverride
         ?: MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.78f else 0.42f)
+    // Bottom-bar path: export is monochrome so SrcIn tint becomes pure theme color under glass.
     val exportTintColor = resolveAndroidNativeExportTintColor(
-        themeColor = selectedTextColor,
+        themeColor = themeColor,
         darkTheme = isDarkTheme
     )
+    val exportMonochromeColor = resolveSharedLiquidExportMonochromeColor(darkTheme = isDarkTheme)
     fun selectFromTap(index: Int) {
         if (!enabled || index !in items.indices) return
         clickPulseKey.intValue += 1
@@ -641,8 +656,9 @@ fun BottomBarLiquidSegmentedControl(
                 indicatorPosition = indicatorPosition,
                 motionProgress = motionProgress,
                 selectionEmphasis = refractionMotionProfile.exportSelectionEmphasis,
-                selectedTextColor = selectedTextColor,
-                unselectedTextColor = selectedTextColor,
+                // Monochrome white glyphs → ColorFilter.tint(theme) = pure primary under glass.
+                selectedTextColor = exportMonochromeColor,
+                unselectedTextColor = exportMonochromeColor,
                 enabled = enabled,
                 labelFontSize = labelFontSize,
                 indicatorCorner = indicatorCorner,

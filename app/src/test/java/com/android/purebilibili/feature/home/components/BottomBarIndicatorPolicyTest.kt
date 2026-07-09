@@ -999,6 +999,17 @@ class BottomBarIndicatorPolicyTest {
     }
 
     @Test
+    fun `shared liquid export monochrome is near white for theme tint`() {
+        val light = resolveSharedLiquidExportMonochromeColor(darkTheme = false)
+        val dark = resolveSharedLiquidExportMonochromeColor(darkTheme = true)
+        assertEquals(1f, light.red, 0.001f)
+        assertEquals(1f, light.green, 0.001f)
+        assertEquals(1f, light.blue, 0.001f)
+        assertTrue(dark.alpha >= 0.9f)
+        assertEquals(1f, dark.red, 0.001f)
+    }
+
+    @Test
     fun `idle refraction profile disables offset and keeps full visible emphasis`() {
         val profile = resolveBottomBarRefractionMotionProfile(
             position = 2f,

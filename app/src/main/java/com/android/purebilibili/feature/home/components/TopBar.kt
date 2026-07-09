@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
@@ -981,9 +982,13 @@ private fun LightweightHomeTopTabs(
             verticalProgress = 0f,
             pressProgress = topTabPressProgress
         )
-        // Align lens with bottom bar (press-driven).
+        // Swipe/press lens progress so theme-tinted glass follows the capsule.
         val topTabIndicatorLensSpec = resolveBottomBarBackdropPresetIndicatorLens(
-            progress = topTabPressProgress
+            progress = resolveSharedLiquidIndicatorLensProgress(
+                pressProgress = topTabPressProgress,
+                motionProgress = topTabMotionProgress,
+                isDragging = topTabDragActive
+            )
         )
         val topTabIndicatorHighlightAlpha = resolveBottomBarLiquidGlassHighlightAlpha(
             motionProgress = topTabBackdropPresetProgress.indicatorProgress
@@ -1087,6 +1092,24 @@ private fun LightweightHomeTopTabs(
                 rememberCombinedBackdrop(backdrop, topTabContentBackdrop)
             else -> topTabContentBackdrop
         }
+        val topTabLensProgress = resolveSharedLiquidIndicatorLensProgress(
+            pressProgress = topTabPressProgress,
+            motionProgress = topTabMotionProgress,
+            isDragging = topTabDragActive
+        )
+        val useTopTabGlassColorPath = resolveSharedLiquidIndicatorUseGlassColorPath(
+            liquidGlassEnabled = shouldUseLiquidGlassIndicator,
+            lensProgress = topTabLensProgress
+        )
+        val topTabThemeColor = MaterialTheme.colorScheme.primary
+        val topTabExportTintColor = resolveAndroidNativeExportTintColor(
+            themeColor = topTabThemeColor,
+            darkTheme = isDarkTheme
+        )
+        val topTabExportMonochromeColor = resolveSharedLiquidExportMonochromeColor(
+            darkTheme = isDarkTheme
+        )
+        val topTabExportPanelOffsetPx = topTabPanelOffsetPx
         val measuredSelectedItemLeftPx by remember(shouldUseMovingIosCapsule) {
             derivedStateOf {
                 if (!shouldUseMovingIosCapsule ||
@@ -1187,7 +1210,7 @@ private fun LightweightHomeTopTabs(
                         contentBackdrop = effectiveTopTabIndicatorContentBackdrop,
                         backdrop = backdrop,
                         indicatorLensSpec = topTabIndicatorLensSpec,
-                        effectivePressProgress = topTabPressProgress,
+                        effectivePressProgress = topTabLensProgress,
                         indicatorIdleSurfaceColor = resolveIosTopTabCapsuleContainerColor(
                             isDarkTheme = isDarkTheme,
                             selectionFraction = 1f
@@ -1217,7 +1240,7 @@ private fun LightweightHomeTopTabs(
                         contentBackdrop = effectiveTopTabIndicatorContentBackdrop,
                         backdrop = backdrop,
                         indicatorLensSpec = topTabIndicatorLensSpec,
-                        effectivePressProgress = topTabPressProgress,
+                        effectivePressProgress = topTabLensProgress,
                         indicatorIdleSurfaceColor = resolveAndroidNativeIdleIndicatorSurfaceColor(
                             darkTheme = isDarkTheme
                         ),
@@ -1246,7 +1269,7 @@ private fun LightweightHomeTopTabs(
                         contentBackdrop = effectiveTopTabIndicatorContentBackdrop,
                         backdrop = backdrop,
                         indicatorLensSpec = topTabIndicatorLensSpec,
-                        effectivePressProgress = topTabPressProgress,
+                        effectivePressProgress = topTabLensProgress,
                         indicatorIdleSurfaceColor = if (isDarkTheme) {
                             Color.White.copy(alpha = 0.1f)
                         } else {
@@ -1262,26 +1285,80 @@ private fun LightweightHomeTopTabs(
                         isDarkTheme = isDarkTheme
                     )
                 }
+                val topTabContentPadding = PaddingValues(
+                    horizontal = if (effectiveRenderer == HomeTopTabRenderer.IOS) {
+                        IOS_TOP_TAB_CONTENT_PADDING_DP.dp
+                    } else {
+                        md3ContentPadding
+                    }
+                )
+                // Hidden monochrome export row: theme tint → pure primary under glass (bottom-bar path).
+                // Own LazyListState synced to the visible row (two LazyRows cannot share one state).
+                val exportListState = rememberLazyListState()
+                LaunchedEffect(
+                    listState.firstVisibleItemIndex,
+                    listState.firstVisibleItemScrollOffset,
+                    shouldPrimeTopTabLiquidGlassCapture
+                ) {
+                    if (!shouldPrimeTopTabLiquidGlassCapture) return@LaunchedEffect
+                    exportListState.scrollToItem(
+                        index = listState.firstVisibleItemIndex,
+                        scrollOffset = listState.firstVisibleItemScrollOffset
+                    )
+                }
+                if (shouldPrimeTopTabLiquidGlassCapture) {
+                    LazyRow(
+                        state = exportListState,
+                        userScrollEnabled = false,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clearAndSetSemantics {}
+                            .alpha(0f)
+                            .layerBackdrop(topTabContentBackdrop)
+                            .graphicsLayer {
+                                translationX = topTabExportPanelOffsetPx
+                                colorFilter = ColorFilter.tint(topTabExportTintColor)
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Start,
+                        contentPadding = topTabContentPadding
+                    ) {
+                        itemsIndexed(
+                            items = categories,
+                            key = { index, category ->
+                                "export_${categoryKeys.getOrNull(index) ?: category}"
+                            }
+                        ) { index, category ->
+                            val categoryKey = categoryKeys.getOrNull(index) ?: category
+                            LightweightTopTabItem(
+                                renderer = effectiveRenderer,
+                                category = category,
+                                categoryKey = categoryKey,
+                                index = index,
+                                selectionFraction = 1f,
+                                selectedIndex = selectedIndex,
+                                showIcon = showIcon,
+                                showText = showText,
+                                itemWidth = itemWidth,
+                                skinPlainStyle = false,
+                                drawContainer = false,
+                                skinIconPaths = null,
+                                hasSkinStickerIcon = false,
+                                useClickIndication = false,
+                                colorMode = TopTabLiquidColorMode.GLASS_EXPORT,
+                                exportMonochromeColor = topTabExportMonochromeColor,
+                                modifier = Modifier,
+                                onClick = {}
+                            )
+                        }
+                    }
+                }
                 LazyRow(
                     state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .run {
-                            if (shouldPrimeTopTabLiquidGlassCapture) {
-                                layerBackdrop(topTabContentBackdrop)
-                            } else {
-                                this
-                            }
-                        },
+                    modifier = Modifier.fillMaxSize(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start,
-                    contentPadding = PaddingValues(
-                        horizontal = if (effectiveRenderer == HomeTopTabRenderer.IOS) {
-                            IOS_TOP_TAB_CONTENT_PADDING_DP.dp
-                        } else {
-                            md3ContentPadding
-                        }
-                    )
+                    contentPadding = topTabContentPadding
                 ) {
                     itemsIndexed(
                         items = categories,
@@ -1335,6 +1412,11 @@ private fun LightweightHomeTopTabs(
                                     shouldUseMd3LiquidCapsule ||
                                     shouldUseMd3DockBackedCapsule
                             ),
+                            colorMode = if (useTopTabGlassColorPath) {
+                                TopTabLiquidColorMode.GLASS_VISIBLE
+                            } else {
+                                TopTabLiquidColorMode.NORMAL
+                            },
                             modifier = gestureItemModifier,
                             onClick = {
                                 performHomeTopBarTap(haptic = haptic, onClick = {
@@ -1421,6 +1503,15 @@ private fun LightweightHomeTopTabs(
     }
 }
 
+internal enum class TopTabLiquidColorMode {
+    /** Normal selected/unselected lerp. */
+    NORMAL,
+    /** Visible layer while glass is sliding — neutral so theme color lives under glass. */
+    GLASS_VISIBLE,
+    /** Hidden export layer monochrome glyphs before theme ColorFilter.tint. */
+    GLASS_EXPORT
+}
+
 @Composable
 private fun LightweightTopTabItem(
     renderer: HomeTopTabRenderer,
@@ -1438,6 +1529,8 @@ private fun LightweightTopTabItem(
     skinIconPaths: TopTabSkinIconPaths? = null,
     hasSkinStickerIcon: Boolean = false,
     useClickIndication: Boolean = true,
+    colorMode: TopTabLiquidColorMode = TopTabLiquidColorMode.NORMAL,
+    exportMonochromeColor: Color = Color.White,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -1469,19 +1562,25 @@ private fun LightweightTopTabItem(
     } else {
         colorScheme.onSurfaceVariant
     }
-    val contentColor = androidx.compose.ui.graphics.lerp(
-        unselectedColor,
-        selectedColor,
-        selectionFraction
-    )
-    val containerColor = when {
-        !drawContainer -> Color.Transparent
-        skinPlainStyle -> Color.Transparent
-        renderer == HomeTopTabRenderer.IOS -> resolveIosTopTabCapsuleContainerColor(
-            isDarkTheme = isDarkTheme,
-            selectionFraction = selectionFraction
+    val contentColor = when (colorMode) {
+        TopTabLiquidColorMode.GLASS_EXPORT -> exportMonochromeColor
+        TopTabLiquidColorMode.GLASS_VISIBLE -> unselectedColor
+        TopTabLiquidColorMode.NORMAL -> androidx.compose.ui.graphics.lerp(
+            unselectedColor,
+            selectedColor,
+            selectionFraction
         )
+    }
+    val containerColor = when {
+        !drawContainer || colorMode == TopTabLiquidColorMode.GLASS_EXPORT -> Color.Transparent
+        skinPlainStyle -> Color.Transparent
+        renderer == HomeTopTabRenderer.IOS && colorMode == TopTabLiquidColorMode.NORMAL ->
+            resolveIosTopTabCapsuleContainerColor(
+                isDarkTheme = isDarkTheme,
+                selectionFraction = selectionFraction
+            )
         renderer == HomeTopTabRenderer.MD3 -> Color.Transparent
+        colorMode == TopTabLiquidColorMode.GLASS_VISIBLE -> Color.Transparent
         else -> colorScheme.secondaryContainer.copy(alpha = 0.70f * selectionFraction)
     }
     val itemShape = when {

@@ -179,6 +179,10 @@ class HomeChromeLiquidSurfaceStructureTest {
                 topBarSource.contains("val topTabContentBackdrop = rememberLayerBackdrop()") &&
                 topBarSource.contains("rememberCombinedBackdrop(backdrop, topTabContentBackdrop)") &&
                 topBarSource.contains("layerBackdrop(topTabContentBackdrop)") &&
+                topBarSource.contains("ColorFilter.tint(topTabExportTintColor)") &&
+                topBarSource.contains("TopTabLiquidColorMode.GLASS_EXPORT") &&
+                topBarSource.contains("TopTabLiquidColorMode.GLASS_VISIBLE") &&
+                topBarSource.contains("resolveSharedLiquidExportMonochromeColor(") &&
                 topBarSource.contains("shouldRenderBottomBarIndicatorBackdrop(") &&
                 topBarSource.contains("val glassLayersAlwaysOn = shouldUseLiquidGlassIndicator") &&
                 topBarSource.contains("resolveTopTabIndicatorBackdropPolicy(") &&
