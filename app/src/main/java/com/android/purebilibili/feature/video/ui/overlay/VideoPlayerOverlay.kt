@@ -589,6 +589,11 @@ fun VideoPlayerOverlay(
     currentPlayMode: com.android.purebilibili.feature.video.player.PlayMode = com.android.purebilibili.feature.video.player.PlayMode.SEQUENTIAL,
     onPlayModeClick: () -> Unit = {},
     onPlaybackSpeedChange: (Float) -> Unit = { speed -> player.setPlaybackSpeed(speed) },
+    endDrawerVisible: Boolean = false,
+    endDrawerInitialTab: Int = 0,
+    endDrawerReservedWidth: androidx.compose.ui.unit.Dp = 0.dp,
+    onShowEndDrawer: (Int) -> Unit = {},
+    onDismissEndDrawer: () -> Unit = {},
     
     // [新增] 侧边栏抽屉数据与交互
     relatedVideos: List<com.android.purebilibili.data.model.response.RelatedVideo> = emptyList(),
@@ -616,9 +621,6 @@ fun VideoPlayerOverlay(
     var showQualityMenu by remember { mutableStateOf(false) }
     var showSpeedMenu by remember { mutableStateOf(false) }
     var showRatioMenu by remember { mutableStateOf(false) }
-    // [新增] 侧边栏显示状态
-    var showEndDrawer by remember { mutableStateOf(false) }
-    var endDrawerInitialTab by remember { mutableIntStateOf(0) }
     var showDanmakuSettings by remember { mutableStateOf(false) }
     var showVideoSettings by remember { mutableStateOf(false) }  //  新增
     var showChapterList by remember { mutableStateOf(false) }  // 📖 章节列表
@@ -894,6 +896,9 @@ fun VideoPlayerOverlay(
             widthDp = configuration.screenWidthDp
         )
     }
+    val overlayContentModifier = Modifier
+        .fillMaxSize()
+        .padding(end = endDrawerReservedWidth)
 
     // 📺 按需权限请求
     val dlnaPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -1149,7 +1154,9 @@ fun VideoPlayerOverlay(
             enter = fadeIn(),
             exit = fadeOut(),
             //  [修复] align 必须在 AnimatedVisibility 的 modifier 上，而不是内部 Box 上
-            modifier = Modifier.align(Alignment.TopCenter)
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(end = endDrawerReservedWidth)
         ) {
             Box(
                 modifier = Modifier
@@ -1172,7 +1179,9 @@ fun VideoPlayerOverlay(
             visible = isVisible,
             enter = fadeIn(),
             exit = fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(end = endDrawerReservedWidth)
         ) {
             Box(
                 modifier = Modifier
@@ -1201,7 +1210,9 @@ fun VideoPlayerOverlay(
             PersistentBottomProgressBar(
                 current = displayedProgressState.current,
                 duration = displayedProgressState.duration,
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(end = endDrawerReservedWidth)
             )
         }
 
@@ -1212,7 +1223,7 @@ fun VideoPlayerOverlay(
             enter = fadeIn(tween(300)),
             exit = fadeOut(tween(300)),
             //  [修复] 确保 AnimatedVisibility 填充整个父容器
-            modifier = Modifier.fillMaxSize()
+            modifier = overlayContentModifier
         ) {
             //  [修复] 使用 Box 分别定位顶部和底部控制栏
             Box(modifier = Modifier.fillMaxSize()) {
@@ -1243,8 +1254,7 @@ fun VideoPlayerOverlay(
                         onCastClick = onCastClickAction,
                         showCastButton = playerControlVisibility.showCastButton,
                         onMoreClick = {
-                            endDrawerInitialTab = 0
-                            showEndDrawer = true
+                            onShowEndDrawer(0)
                         },
                         modifier = Modifier.align(Alignment.TopCenter)
                     )
@@ -1319,8 +1329,9 @@ fun VideoPlayerOverlay(
                         if (pages.size > 1) {
                             showPageSelectorSheet = true
                         } else {
-                            endDrawerInitialTab = if (ugcSeason?.sections?.any { it.episodes.isNotEmpty() } == true) 1 else 0
-                            showEndDrawer = true
+                            onShowEndDrawer(
+                                if (ugcSeason?.sections?.any { it.episodes.isNotEmpty() } == true) 1 else 0
+                            )
                         }
                     },
                     hasEpisodeEntry = hasEpisodeEntry,
@@ -1965,11 +1976,11 @@ fun VideoPlayerOverlay(
             }
         }
 
-        if (shouldConsumeBackgroundGesturesForEndDrawer(showEndDrawer)) {
+        if (shouldConsumeBackgroundGesturesForEndDrawer(endDrawerVisible)) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .pointerInput(showEndDrawer) {
+                    .pointerInput(endDrawerVisible) {
                         detectDragGestures(
                             onDrag = { change, _ ->
                                 change.consume()
@@ -1981,8 +1992,8 @@ fun VideoPlayerOverlay(
         
         // --- 11. [新增] 侧边栏抽屉 ---
         LandscapeEndDrawer(
-            visible = showEndDrawer,
-            onDismiss = { showEndDrawer = false },
+            visible = endDrawerVisible,
+            onDismiss = onDismissEndDrawer,
             relatedVideos = relatedVideos,
             ugcSeason = ugcSeason,
             currentBvid = bvid,
@@ -1994,7 +2005,7 @@ fun VideoPlayerOverlay(
             onToggleFollow = onToggleFollow,
             onVideoClick = { vid, options ->
                 onDrawerVideoClick(vid, options)
-                showEndDrawer = false
+                onDismissEndDrawer()
             },
             hazeState = drawerHazeState,
             modifier = Modifier.align(Alignment.CenterEnd)

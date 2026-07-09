@@ -20,6 +20,7 @@ import com.android.purebilibili.feature.video.ui.overlay.nextFullscreenSeekFeedb
 import com.android.purebilibili.feature.video.ui.overlay.resolveFullscreenDoubleTapAction
 import com.android.purebilibili.feature.video.ui.overlay.resolveBottomControlBarLayoutPolicy
 import com.android.purebilibili.feature.video.ui.overlay.resolveVideoProgressBarLayoutPolicy
+import com.android.purebilibili.feature.video.ui.overlay.resolveLandscapeEndDrawerReservedWidthDp
 import com.android.purebilibili.feature.video.ui.components.SponsorSkipButton
 import com.android.purebilibili.feature.video.ui.components.TwoFingerSpeedFeedbackOverlay
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
@@ -66,6 +67,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -1012,6 +1014,18 @@ fun VideoPlayerSection(
     //  共享弹幕管理器（用于所有 seek 路径的一致同步）
     val danmakuManager = rememberDanmakuManager()
     val overlayDrawerHazeState = com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState()
+    var showEndDrawer by remember { mutableStateOf(false) }
+    var endDrawerInitialTab by remember { mutableIntStateOf(0) }
+    val endDrawerReservedWidthDp = resolveLandscapeEndDrawerReservedWidthDp(
+        drawerVisible = showEndDrawer,
+        isFullscreen = isFullscreen,
+        screenWidthDp = configuration.screenWidthDp
+    )
+    val animatedEndDrawerReservedWidth by animateDpAsState(
+        targetValue = endDrawerReservedWidthDp.dp,
+        animationSpec = tween(durationMillis = 220),
+        label = "landscape_end_drawer_reserved_width"
+    )
 
     fun commitExplicitSeek(positionMs: Long) {
         val commitResult = commitPlaybackSeekInteraction(
@@ -1189,6 +1203,9 @@ fun VideoPlayerSection(
         .clipToBounds()
         .background(Color.Black)
         .hazeSourceCompat(overlayDrawerHazeState)
+    val playerContentModifier = Modifier
+        .fillMaxSize()
+        .padding(end = animatedEndDrawerReservedWidth)
 
     // 应用共享元素
     val livePlayerSharedElementEnabled = shouldEnableLivePlayerSharedElement(
@@ -2408,7 +2425,7 @@ fun VideoPlayerSection(
         key(isFlippedHorizontal, isFlippedVertical, isPortraitFullscreen) {
             val viewportAspectRatio = if (isFullscreen) currentAspectRatio else VideoAspectRatio.FIT
             BoxWithConstraints(
-                modifier = Modifier.fillMaxSize(),
+                modifier = playerContentModifier,
                 contentAlignment = Alignment.Center
             ) {
                 val density = LocalDensity.current
@@ -2776,7 +2793,7 @@ fun VideoPlayerSection(
             Modifier
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = playerContentModifier) {
             val coverContainerModifier = if (fillPlayerViewportForManualStartCover) {
                 sharedCoverOverlayModifier
                     .matchParentSize()
@@ -2927,8 +2944,7 @@ fun VideoPlayerSection(
             // 使用 remember 保存 DanmakuView 引用，在 update 回调中处理尺寸变化
             val viewportAspectRatio = if (isFullscreen) currentAspectRatio else VideoAspectRatio.FIT
             BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxSize()
+                modifier = playerContentModifier
                     .then(
                         if (!isFullscreen) {
                             Modifier.padding(top = with(LocalContext.current.resources.displayMetrics) {
@@ -2989,8 +3005,7 @@ fun VideoPlayerSection(
 
         if (shouldShowDanmakuLayer && advancedDanmakuList.isNotEmpty()) {
              Box(
-                modifier = Modifier
-                    .fillMaxSize()
+                modifier = playerContentModifier
                     .clipToBounds()
             ) {
                 com.android.purebilibili.feature.video.ui.overlay.AdvancedDanmakuOverlay(
@@ -3010,8 +3025,7 @@ fun VideoPlayerSection(
         }
         if (shouldShowDanmakuLayer && visibleCommandDanmakuList.isNotEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
+                modifier = playerContentModifier
                     .clipToBounds()
             ) {
                 com.android.purebilibili.feature.video.ui.overlay.CommandDanmakuOverlay(
@@ -3233,6 +3247,7 @@ fun VideoPlayerSection(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .padding(end = animatedEndDrawerReservedWidth)
                     .offset {
                         IntOffset(
                             x = 0,
@@ -4341,6 +4356,16 @@ fun VideoPlayerSection(
                 currentPlayMode = currentPlayMode,
                 onPlayModeClick = onPlayModeClick,
                 onPlaybackSpeedChange = ::applyExplicitPlaybackSpeedChange,
+                endDrawerVisible = showEndDrawer,
+                endDrawerInitialTab = endDrawerInitialTab,
+                endDrawerReservedWidth = animatedEndDrawerReservedWidth,
+                onShowEndDrawer = { initialTab ->
+                    endDrawerInitialTab = initialTab
+                    showEndDrawer = true
+                },
+                onDismissEndDrawer = {
+                    showEndDrawer = false
+                },
                 
                 // [新增] 侧边栏抽屉数据与交互
                 relatedVideos = relatedVideos,
