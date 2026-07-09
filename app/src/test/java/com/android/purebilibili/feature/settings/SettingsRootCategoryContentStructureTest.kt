@@ -60,6 +60,8 @@ class SettingsRootCategoryContentStructureTest {
         assertTrue(feedApiBlock.contains("SettingSwitchItem("))
         assertTrue(feedApiBlock.contains("SettingSliderItem("))
         assertTrue(feedApiBlock.contains("SettingsAdaptiveDivider()"))
+        assertTrue(feedApiBlock.contains("动态顶栏下滑折叠"))
+        assertTrue(feedApiBlock.contains("dynamicTopBarCollapseOnScroll"))
         assertFalse(feedApiBlock.contains("private fun FeedSwitchItem("))
     }
 

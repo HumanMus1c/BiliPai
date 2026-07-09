@@ -107,6 +107,31 @@ class DynamicScreenStatePolicyTest {
     }
 
     @Test
+    fun `dynamic top bar collapse respects optional setting`() {
+        assertFalse(
+            shouldCollapseDynamicTopBar(
+                collapseOnScrollEnabled = false,
+                firstVisibleItemIndex = 1,
+                firstVisibleItemScrollOffset = 20
+            )
+        )
+        assertTrue(
+            shouldCollapseDynamicTopBar(
+                collapseOnScrollEnabled = true,
+                firstVisibleItemIndex = 0,
+                firstVisibleItemScrollOffset = 12
+            )
+        )
+        assertFalse(
+            shouldCollapseDynamicTopBar(
+                collapseOnScrollEnabled = true,
+                firstVisibleItemIndex = 0,
+                firstVisibleItemScrollOffset = 0
+            )
+        )
+    }
+
+    @Test
     fun `error overlay should show when active list is empty and error exists`() {
         assertTrue(
             shouldShowDynamicErrorOverlay(

@@ -153,6 +153,10 @@ private fun DynamicCompactTabRow(
     backdrop: Backdrop? = null,
     indicatorPositionProvider: (() -> Float)? = null
 ) {
+    val context = LocalContext.current
+    val homeSettings by SettingsManager
+        .getHomeSettings(context)
+        .collectAsStateWithLifecycle(initialValue = HomeSettings())
     BottomBarLiquidSegmentedControl(
         items = tabs,
         selectedIndex = selectedTab,
@@ -161,7 +165,10 @@ private fun DynamicCompactTabRow(
         height = 44.dp,
         indicatorHeight = 36.dp,
         labelFontSize = 14.sp,
-        preferInlineContentStyle = true,
+        // Keep MD3 underline when reuse is off; force liquid pill when reuse is on.
+        preferInlineContentStyle = !homeSettings.androidNativeLiquidGlassEnabled,
+        forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
+        liquidGlassEffectsEnabled = backdrop != null,
         backdrop = backdrop,
         indicatorPositionProvider = indicatorPositionProvider
     )
@@ -198,10 +205,13 @@ internal fun shouldReuseDynamicTopBarLiquidGlassDock(
     androidNativeLiquidGlassEnabled: Boolean
 ): Boolean {
     if (!hasBackdrop) return false
+    // Global liquid-glass reuse must win over MD3 inline underline chrome so the
+    // dynamic top bar can share the same floating liquid dock as the home bottom bar.
+    val preferInlineContentStyle = !androidNativeLiquidGlassEnabled
     val chromeStyle = resolveSegmentedControlChromeStyle(
         uiPreset = uiPreset,
         androidNativeLiquidGlassEnabled = androidNativeLiquidGlassEnabled,
-        preferInlineContentStyle = true
+        preferInlineContentStyle = preferInlineContentStyle
     )
     if (chromeStyle != SegmentedControlChromeStyle.LIQUID_PILL) return false
     return resolveSegmentedControlLiquidGlassEnabled(

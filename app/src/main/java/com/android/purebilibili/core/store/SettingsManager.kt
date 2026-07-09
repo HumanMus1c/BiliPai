@@ -1051,6 +1051,8 @@ object SettingsManager {
         booleanPreferencesKey("dynamic_image_preview_text_visible")
     private val KEY_DYNAMIC_ALL_TAB_HORIZONTAL_USER_LIST_VISIBLE =
         booleanPreferencesKey("dynamic_all_tab_horizontal_user_list_visible")
+    private val KEY_DYNAMIC_TOP_BAR_COLLAPSE_ON_SCROLL =
+        booleanPreferencesKey("dynamic_top_bar_collapse_on_scroll")
     private val KEY_LIVE_FAVORITE_TAGS = stringPreferencesKey("live_favorite_tags")
     
     //  [新增] 开屏壁纸
@@ -2743,6 +2745,21 @@ object SettingsManager {
     suspend fun setDynamicAllTabHorizontalUserListVisible(context: Context, visible: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[KEY_DYNAMIC_ALL_TAB_HORIZONTAL_USER_LIST_VISIBLE] = visible
+        }
+    }
+
+    /**
+     * When true, the dynamic Tab top bar collapses as soon as the feed leaves the top.
+     * Default false: keep the Tab bar pinned (horizontal UP list still collapses separately).
+     */
+    fun getDynamicTopBarCollapseOnScroll(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { prefs ->
+            prefs[KEY_DYNAMIC_TOP_BAR_COLLAPSE_ON_SCROLL] ?: false
+        }
+
+    suspend fun setDynamicTopBarCollapseOnScroll(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_DYNAMIC_TOP_BAR_COLLAPSE_ON_SCROLL] = enabled
         }
     }
 
@@ -6102,6 +6119,10 @@ object SettingsManager {
             ),
             BooleanShareablePreferenceDefinition(
                 KEY_DYNAMIC_ALL_TAB_HORIZONTAL_USER_LIST_VISIBLE,
+                SettingsShareSection.NAVIGATION
+            ),
+            BooleanShareablePreferenceDefinition(
+                KEY_DYNAMIC_TOP_BAR_COLLAPSE_ON_SCROLL,
                 SettingsShareSection.NAVIGATION
             ),
             IntShareablePreferenceDefinition(KEY_HOME_REFRESH_COUNT, SettingsShareSection.NAVIGATION)

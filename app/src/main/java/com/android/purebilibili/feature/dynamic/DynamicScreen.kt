@@ -167,6 +167,9 @@ fun DynamicScreen(
     val dynamicAllTabHorizontalUserListVisible by SettingsManager
         .getDynamicAllTabHorizontalUserListVisible(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    val dynamicTopBarCollapseOnScroll by SettingsManager
+        .getDynamicTopBarCollapseOnScroll(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val visibleTabs = remember(dynamicVisibleTabIds) {
         resolveDynamicVisibleTabs(dynamicVisibleTabIds)
     }
@@ -287,10 +290,11 @@ fun DynamicScreen(
                 )
         }
     }
-    val shouldCollapseTopBar by remember(activeListState) {
+    val shouldCollapseTopBar by remember(activeListState, dynamicTopBarCollapseOnScroll) {
         derivedStateOf {
             val state = activeListState ?: return@derivedStateOf false
-            shouldCollapseDynamicHorizontalUserList(
+            shouldCollapseDynamicTopBar(
+                collapseOnScrollEnabled = dynamicTopBarCollapseOnScroll,
                 firstVisibleItemIndex = state.firstVisibleItemIndex,
                 firstVisibleItemScrollOffset = state.firstVisibleItemScrollOffset
             )
@@ -826,7 +830,8 @@ fun DynamicScreen(
                                             },
                                             displayMode = displayMode,
                                             onDisplayModeChange = { viewModel.setDisplayMode(it) },
-                                            hazeState = null,
+                                            hazeState = hazeState,
+                                            backdrop = dynamicChromeBackdrop,
                                             indicatorPositionProvider = dynamicTabIndicatorPositionProvider
                                         )
                                     }

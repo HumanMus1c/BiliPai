@@ -96,6 +96,24 @@ internal fun shouldCollapseDynamicHorizontalUserList(
     return firstVisibleItemIndex > 0 || firstVisibleItemScrollOffset > topTolerancePx
 }
 
+/**
+ * Tab top-bar collapse is optional. When [collapseOnScrollEnabled] is false the bar stays pinned;
+ * the horizontal UP list still uses [shouldCollapseDynamicHorizontalUserList] independently.
+ */
+internal fun shouldCollapseDynamicTopBar(
+    collapseOnScrollEnabled: Boolean,
+    firstVisibleItemIndex: Int,
+    firstVisibleItemScrollOffset: Int,
+    topTolerancePx: Int = 8
+): Boolean {
+    if (!collapseOnScrollEnabled) return false
+    return shouldCollapseDynamicHorizontalUserList(
+        firstVisibleItemIndex = firstVisibleItemIndex,
+        firstVisibleItemScrollOffset = firstVisibleItemScrollOffset,
+        topTolerancePx = topTolerancePx
+    )
+}
+
 internal fun resolveDynamicSelectedUserIdAfterClick(
     selectedUserId: Long?,
     clickedUserId: Long?

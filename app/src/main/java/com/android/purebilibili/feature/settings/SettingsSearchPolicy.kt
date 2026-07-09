@@ -67,9 +67,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.HOME_FEED,
         title = "首页与推荐",
-        subtitle = "首页展示、推荐流、刷新数量、动态栏位、首页壁纸与底栏搜索入口",
+        subtitle = "首页展示、推荐流、刷新数量、动态栏位、动态顶栏折叠、首页壁纸与底栏搜索入口",
         section = "设置",
-        aliases = listOf("首页", "推荐", "推荐流", "首页展示", "首页壁纸", "壁纸效果", "刷新数量", "动态栏位", "底栏搜索入口", "搜索入口")
+        aliases = listOf("首页", "推荐", "推荐流", "首页展示", "首页壁纸", "壁纸效果", "刷新数量", "动态栏位", "动态顶栏", "动态顶栏下滑折叠", "底栏搜索入口", "搜索入口")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.NAVIGATION,

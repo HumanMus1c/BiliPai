@@ -362,8 +362,11 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(dynamicScreen.contains("val dynamicChromeBackdrop = rememberLayerBackdrop()"))
         assertTrue(dynamicScreen.contains(".layerBackdrop(dynamicChromeBackdrop)"))
         assertTrue(dynamicScreen.contains("backdrop = dynamicChromeBackdrop"))
+        assertTrue(dynamicScreen.contains("shouldCollapseDynamicTopBar("))
+        assertTrue(dynamicScreen.contains("getDynamicTopBarCollapseOnScroll(context)"))
         assertTrue(dynamicTopBar.contains("backdrop: Backdrop? = null"))
         assertTrue(dynamicTopBar.contains("backdrop = backdrop"))
+        assertTrue(dynamicTopBar.contains("forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled"))
         assertTrue(iosSegmented.contains("backdrop: Backdrop? = null"))
         assertTrue(iosSegmented.contains("backdrop = backdrop"))
     }

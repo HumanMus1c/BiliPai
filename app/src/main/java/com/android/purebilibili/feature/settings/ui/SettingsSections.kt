@@ -245,6 +245,7 @@ internal data class SettingsRootCategoryActions(
     val onIncrementalTimelineRefreshChange: (Boolean) -> Unit,
     val onDynamicImagePreviewTextVisibleChange: (Boolean) -> Unit,
     val onDynamicAllTabHorizontalUserListVisibleChange: (Boolean) -> Unit,
+    val onDynamicTopBarCollapseOnScrollChange: (Boolean) -> Unit,
     val onDynamicTabVisibilityChange: (String) -> Unit,
     val onHomeRefreshCountChange: (Int) -> Unit
 )
@@ -276,6 +277,7 @@ internal data class SettingsRootCategoryState(
     val incrementalTimelineRefreshEnabled: Boolean,
     val dynamicImagePreviewTextVisible: Boolean,
     val dynamicAllTabHorizontalUserListVisible: Boolean,
+    val dynamicTopBarCollapseOnScroll: Boolean,
     val dynamicVisibleTabIds: Set<String>,
     val homeRefreshCount: Int
 )
@@ -713,6 +715,9 @@ internal fun SettingsRootCategoryContent(
                             dynamicAllTabHorizontalUserListVisible = state.dynamicAllTabHorizontalUserListVisible,
                             onDynamicAllTabHorizontalUserListVisibleChange =
                                 actions.onDynamicAllTabHorizontalUserListVisibleChange,
+                            dynamicTopBarCollapseOnScroll = state.dynamicTopBarCollapseOnScroll,
+                            onDynamicTopBarCollapseOnScrollChange =
+                                actions.onDynamicTopBarCollapseOnScrollChange,
                             dynamicVisibleTabIds = state.dynamicVisibleTabIds,
                             onDynamicTabVisibilityChange = actions.onDynamicTabVisibilityChange,
                             homeRefreshCount = state.homeRefreshCount,
@@ -1034,6 +1039,8 @@ fun FeedApiSection(
     onDynamicImagePreviewTextVisibleChange: (Boolean) -> Unit,
     dynamicAllTabHorizontalUserListVisible: Boolean,
     onDynamicAllTabHorizontalUserListVisibleChange: (Boolean) -> Unit,
+    dynamicTopBarCollapseOnScroll: Boolean,
+    onDynamicTopBarCollapseOnScrollChange: (Boolean) -> Unit,
     dynamicVisibleTabIds: Set<String>,
     onDynamicTabVisibilityChange: (String) -> Unit,
     homeRefreshCount: Int,
@@ -1046,6 +1053,7 @@ fun FeedApiSection(
     val refreshIcon = rememberSettingsSemanticIcon(SettingsIconRole.REFRESH_COUNT, uiPreset)
     val visibilityIcon = rememberSettingsSemanticIcon(SettingsIconRole.DYNAMIC_TAB_VISIBILITY, uiPreset)
     val previewTextIcon = rememberSettingsSemanticIcon(SettingsIconRole.DYNAMIC_PREVIEW_TEXT, uiPreset)
+    val topBarCollapseIcon = rememberSettingsSemanticIcon(SettingsIconRole.NAVIGATION, uiPreset)
     SettingsCardGroup {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -1106,6 +1114,19 @@ fun FeedApiSection(
             subtitle = "关闭后，“全部”tab 顶部不再弹出 UP 主横向栏，UP tab 仍可选择关注用户",
             checked = dynamicAllTabHorizontalUserListVisible,
             onCheckedChange = onDynamicAllTabHorizontalUserListVisibleChange,
+            iconTint = feedTint
+        )
+        SettingsAdaptiveDivider()
+        SettingSwitchItem(
+            icon = topBarCollapseIcon,
+            title = "动态顶栏下滑折叠",
+            subtitle = if (dynamicTopBarCollapseOnScroll) {
+                "列表下滑时折叠 Tab 顶栏；横向 UP 主栏仍会单独收起"
+            } else {
+                "Tab 顶栏固定在顶部；横向 UP 主栏仍会单独收起"
+            },
+            checked = dynamicTopBarCollapseOnScroll,
+            onCheckedChange = onDynamicTopBarCollapseOnScrollChange,
             iconTint = feedTint
         )
         SettingsAdaptiveDivider()

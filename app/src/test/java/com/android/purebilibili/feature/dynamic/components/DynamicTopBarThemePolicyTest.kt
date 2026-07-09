@@ -77,7 +77,7 @@ class DynamicTopBarThemePolicyTest {
     }
 
     @Test
-    fun `dynamic top bar reuses liquid dock only when segmented control will draw liquid pill`() {
+    fun `dynamic top bar reuses liquid dock when global reuse enables liquid pill`() {
         assertEquals(
             true,
             shouldReuseDynamicTopBarLiquidGlassDock(
@@ -88,11 +88,29 @@ class DynamicTopBarThemePolicyTest {
             )
         )
         assertEquals(
+            true,
+            shouldReuseDynamicTopBarLiquidGlassDock(
+                hasBackdrop = true,
+                storedLiquidGlassEnabled = false,
+                uiPreset = UiPreset.MD3,
+                androidNativeLiquidGlassEnabled = true
+            )
+        )
+        assertEquals(
             false,
             shouldReuseDynamicTopBarLiquidGlassDock(
                 hasBackdrop = true,
                 storedLiquidGlassEnabled = true,
                 uiPreset = UiPreset.MD3,
+                androidNativeLiquidGlassEnabled = false
+            )
+        )
+        assertEquals(
+            false,
+            shouldReuseDynamicTopBarLiquidGlassDock(
+                hasBackdrop = false,
+                storedLiquidGlassEnabled = true,
+                uiPreset = UiPreset.IOS,
                 androidNativeLiquidGlassEnabled = true
             )
         )
