@@ -64,6 +64,25 @@ class MusicPlaybackSessionPolicyTest {
     }
 
     @Test
+    fun `video audio remains owned by player view model`() {
+        assertEquals(
+            MusicPlaybackOwner.MINI_PLAYER_MANAGER,
+            resolveMusicPlaybackOwner(MusicPlaybackSource.AudioSong(42L))
+        )
+        assertEquals(
+            MusicPlaybackOwner.PLAYER_VIEW_MODEL,
+            resolveMusicPlaybackOwner(MusicPlaybackSource.VideoAudio("BV1abc", 7L, "Title"))
+        )
+
+        val screenSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/audio/screen/MusicDetailScreen.kt",
+            "src/main/java/com/android/purebilibili/feature/audio/screen/MusicDetailScreen.kt"
+        )
+        assertTrue(screenSource.contains("AudioModeScreen("))
+        assertFalse(screenSource.contains("loadMusicFromVideo("))
+    }
+
+    @Test
     fun `music view model delegates ownership to mini player manager`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/audio/viewmodel/MusicViewModel.kt",

@@ -73,6 +73,21 @@ class LyricsRepositoryTest {
         assertIs<LyricsLoadResult.NotFound>(result)
     }
 
+    @Test
+    fun `adjusted lyric offset is persisted without losing manual selection`() = runTest {
+        val cache = FakeLyricsCache()
+        val repository = LyricsRepository(emptyList(), cache)
+        val adjusted = parseSplLyrics("[00:01.00]Manual", source = LyricSource.MANUAL)
+            .copy(manuallySelected = true)
+            .withOffset(2_000L)
+
+        repository.save("au:1", adjusted)
+
+        assertEquals(adjusted, cache.saved)
+        assertEquals(true, cache.saved?.manuallySelected)
+        assertEquals(2_000L, cache.saved?.offsetMs)
+    }
+
     private fun query() = LyricQuery("Song", "Artist", 180_000L)
 
     private fun candidate(

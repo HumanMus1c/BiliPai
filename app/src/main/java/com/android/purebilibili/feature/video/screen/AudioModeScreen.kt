@@ -165,7 +165,8 @@ fun AudioModeScreen(
     isInPipMode: Boolean = false,
     initialBvid: String = "",
     initialCid: Long = 0L,
-    initialResumePositionMs: Long = 0L
+    initialResumePositionMs: Long = 0L,
+    titleOverride: String? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsStateWithLifecycle()
@@ -225,6 +226,7 @@ fun AudioModeScreen(
         showPipButton = shouldShowAudioModePipButton(Build.VERSION.SDK_INT),
         onEnterPip = enterPip,
         sleepTimerMinutes = sleepTimerMinutes,
+        titleOverride = titleOverride,
         liquidGlassEffectsEnabled = homeSettings.androidNativeLiquidGlassEnabled
     )
 }

@@ -92,6 +92,10 @@ internal class LyricsRepository(
         return withTimeoutOrNull(totalTimeoutMs) { searchAllProviders(query) }.orEmpty()
     }
 
+    suspend fun save(cacheKey: String, document: LyricDocument) {
+        cache.write(cacheKey, document)
+    }
+
     suspend fun select(
         cacheKey: String,
         providerCandidate: LyricCandidate

@@ -20,6 +20,16 @@ internal sealed interface MusicPlaybackSource {
     }
 }
 
+internal enum class MusicPlaybackOwner {
+    MINI_PLAYER_MANAGER,
+    PLAYER_VIEW_MODEL
+}
+
+internal fun resolveMusicPlaybackOwner(source: MusicPlaybackSource): MusicPlaybackOwner = when (source) {
+    is MusicPlaybackSource.AudioSong -> MusicPlaybackOwner.MINI_PLAYER_MANAGER
+    is MusicPlaybackSource.VideoAudio -> MusicPlaybackOwner.PLAYER_VIEW_MODEL
+}
+
 internal data class MusicQueueControlState(
     val hasPrevious: Boolean,
     val hasNext: Boolean,

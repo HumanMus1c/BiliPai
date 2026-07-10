@@ -57,6 +57,7 @@ internal class MusicViewModel : ViewModel() {
     private var observedPlayer: ExoPlayer? = null
     private var progressJob: Job? = null
     private var lyricsJob: Job? = null
+    private var lyricsOffsetSaveJob: Job? = null
     private var lastLyricsCacheKey: String? = null
     private var lastLyricsQuery: LyricQuery? = null
     private var lastBilibiliLyrics: String? = null
@@ -153,41 +154,6 @@ internal class MusicViewModel : ViewModel() {
         }
     }
 
-    fun loadMusicFromVideo(musicTitle: String, bvid: String, cid: Long) {
-        val manager = miniPlayerManager ?: return
-        viewModelScope.launch {
-            val source = MusicPlaybackSource.VideoAudio(title = musicTitle, bvid = bvid, cid = cid)
-            _uiState.update {
-                MusicUiState(
-                    isLoading = true,
-                    musicTitle = musicTitle,
-                    musicArtist = "B站视频音频",
-                    source = source
-                )
-            }
-            val audioUrl = AudioRepository.getAudioStreamFromVideo(bvid, cid)
-            if (audioUrl.isNullOrBlank()) {
-                _uiState.update { it.copy(isLoading = false, error = "无法获取音频流，请稍后重试") }
-                return@launch
-            }
-
-            _uiState.update { it.copy(isLoading = false) }
-            val player = manager.startAudio(
-                mediaId = source.stableId,
-                title = musicTitle,
-                cover = "",
-                artist = "B站视频音频",
-                audioUrl = audioUrl
-            )
-            observePlayer(player)
-            loadLyrics(
-                cacheKey = source.stableId,
-                query = LyricQuery(musicTitle, "", player.duration.coerceAtLeast(0L)),
-                bilibiliLyrics = null
-            )
-        }
-    }
-
     fun togglePlayPause() {
         miniPlayerManager?.togglePlayPause()
     }
@@ -209,10 +175,14 @@ internal class MusicViewModel : ViewModel() {
     }
 
     fun adjustLyricsOffset(offsetMs: Long) {
-        _uiState.update { state ->
-            val document = state.lyricsDocument ?: return@update state
-            val adjusted = document.withOffset(document.offsetMs + offsetMs)
-            state.copy(lyricsDocument = adjusted)
+        val document = _uiState.value.lyricsDocument ?: return
+        val adjusted = document.withOffset(document.offsetMs + offsetMs)
+        _uiState.update { it.copy(lyricsDocument = adjusted) }
+        val cacheKey = lastLyricsCacheKey ?: return
+        val repository = lyricsRepository ?: return
+        lyricsOffsetSaveJob?.cancel()
+        lyricsOffsetSaveJob = viewModelScope.launch {
+            repository.save(cacheKey, adjusted)
         }
     }
 
@@ -321,6 +291,7 @@ internal class MusicViewModel : ViewModel() {
     override fun onCleared() {
         progressJob?.cancel()
         lyricsJob?.cancel()
+        lyricsOffsetSaveJob?.cancel()
         observedPlayer?.removeListener(playerListener)
         observedPlayer = null
         super.onCleared()

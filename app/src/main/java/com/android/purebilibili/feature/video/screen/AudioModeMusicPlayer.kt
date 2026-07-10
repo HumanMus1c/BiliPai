@@ -49,6 +49,7 @@ internal fun AudioModeMusicPlayer(
     showPipButton: Boolean,
     onEnterPip: () -> Unit,
     sleepTimerMinutes: Int?,
+    titleOverride: String?,
     liquidGlassEffectsEnabled: Boolean
 ) {
     if (successState == null) {
@@ -65,6 +66,7 @@ internal fun AudioModeMusicPlayer(
 
     val context = LocalContext.current
     val info = successState.info
+    val displayTitle = titleOverride?.takeIf { it.isNotBlank() } ?: info.title
     val playlist by PlaylistManager.playlist.collectAsStateWithLifecycle()
     val playlistIndex by PlaylistManager.currentIndex.collectAsStateWithLifecycle()
     val playMode by PlaylistManager.playMode.collectAsStateWithLifecycle()
@@ -86,9 +88,9 @@ internal fun AudioModeMusicPlayer(
     LaunchedEffect(Unit) {
         lyricsViewModel.initPlayer(context)
     }
-    LaunchedEffect(info.bvid, info.cid, info.title, info.owner.name, lyricsDurationMs) {
+    LaunchedEffect(info.bvid, info.cid, displayTitle, info.owner.name, lyricsDurationMs) {
         lyricsViewModel.loadLyricsForVideo(
-            title = info.title,
+            title = displayTitle,
             artist = info.owner.name,
             bvid = info.bvid,
             cid = info.cid,
@@ -100,7 +102,7 @@ internal fun AudioModeMusicPlayer(
         listOf(
             MusicQueueItemUi(
                 stableId = "video:${info.bvid}:${info.cid}",
-                title = info.title,
+                title = displayTitle,
                 artist = info.owner.name,
                 coverUrl = FormatUtils.fixImageUrl(info.pic)
             )
@@ -120,7 +122,7 @@ internal fun AudioModeMusicPlayer(
 
     MusicPlayerContent(
         state = MusicPlayerUiState(
-            title = info.title,
+            title = displayTitle,
             artist = info.owner.name,
             coverUrl = coverUrl,
             isLoading = player == null,

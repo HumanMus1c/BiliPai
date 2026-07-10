@@ -13,6 +13,8 @@ import com.android.purebilibili.feature.audio.player.MusicLyricCandidateUi
 import com.android.purebilibili.feature.audio.player.MusicQueueItemUi
 import com.android.purebilibili.feature.audio.viewmodel.MusicUiState
 import com.android.purebilibili.feature.audio.viewmodel.MusicViewModel
+import com.android.purebilibili.feature.video.screen.AudioModeScreen
+import com.android.purebilibili.feature.video.viewmodel.PlayerViewModel
 
 /** AU 音频入口。播放器由 MiniPlayerManager 持有，离开页面后继续播放。 */
 @Composable
@@ -39,17 +41,17 @@ internal fun MusicDetailScreen(
     bvid: String,
     cid: Long,
     onBack: () -> Unit,
-    viewModel: MusicViewModel = viewModel()
+    onVideoModeClick: (String, Long) -> Unit,
+    playerViewModel: PlayerViewModel = viewModel()
 ) {
-    val context = LocalContext.current
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(musicTitle, bvid, cid) {
-        viewModel.initPlayer(context)
-        viewModel.loadMusicFromVideo(musicTitle, bvid, cid)
-    }
-
-    MusicDetailContent(state, onBack, viewModel)
+    AudioModeScreen(
+        viewModel = playerViewModel,
+        onBack = onBack,
+        onVideoModeClick = onVideoModeClick,
+        initialBvid = bvid,
+        initialCid = cid,
+        titleOverride = musicTitle
+    )
 }
 
 @Composable

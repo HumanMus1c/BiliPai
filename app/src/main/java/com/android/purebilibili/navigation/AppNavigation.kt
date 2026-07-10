@@ -2509,7 +2509,11 @@ fun AppNavigation(
                                     musicTitle = nativeMusicKey.title.ifEmpty { "背景音乐" },
                                     bvid = nativeMusicKey.bvid,
                                     cid = nativeMusicKey.cid,
-                                    onBack = { performSystemBackAction() }
+                                    onBack = { performSystemBackAction() },
+                                    onVideoModeClick = { currentBvid, currentCid ->
+                                        navigation3BackStack = popBiliPaiNavKey(navigation3BackStack)
+                                        navigateToVideoInNavigation3(currentBvid, currentCid, "")
+                                    }
                                 )
                             }
                         BiliPaiNavEntryContentRole.SPACE -> {
