@@ -43,6 +43,7 @@ import coil.transform.RoundedCornersTransformation
 import com.android.purebilibili.R
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.player.PlaybackMediaCache
+import com.android.purebilibili.core.player.PlayerVolumeController
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.core.store.normalizeAppIconKey
@@ -1104,6 +1105,9 @@ class MiniPlayerManager private constructor(private val context: Context) :
     var currentBvid by mutableStateOf<String?>(null)
         private set
 
+    var currentAudioMediaId by mutableStateOf<String?>(null)
+        private set
+
     var currentTitle by mutableStateOf("")
         private set
 
@@ -1675,6 +1679,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
         }
 
         currentBvid = bvid
+        currentAudioMediaId = null
         currentTitle = title
         currentCover = cover
         currentOwner = owner
@@ -1712,6 +1717,66 @@ class MiniPlayerManager private constructor(private val context: Context) :
 
         // 更新媒体元数据
         updateMediaMetadata(title, owner, cover)
+    }
+
+    /**
+     * Starts a standalone audio item on the manager-owned player. The player and
+     * MediaSession outlive the screen that initiated playback.
+     */
+    fun startAudio(
+        mediaId: String,
+        title: String,
+        cover: String,
+        artist: String,
+        audioUrl: String
+    ): ExoPlayer {
+        resetExternalPlayer()
+        val audioPlayer = ensurePlayer()
+        PlaylistManager.clearPlaylist()
+        onNavigateNextCallback = null
+        onNavigatePreviousCallback = null
+        onHasNextNavigationCallback = null
+        onHasPreviousNavigationCallback = null
+
+        currentAudioMediaId = mediaId
+        currentBvid = null
+        currentCid = 0L
+        currentAid = 0L
+        currentTitle = title
+        currentCover = cover
+        currentOwner = artist
+        isLiveMode = false
+        currentRoomId = 0L
+        currentLiveUname = ""
+        isActive = true
+        isMiniMode = false
+        isLeavingByNavigation = false
+
+        val metadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(artist)
+            .setDisplayTitle(title)
+            .setIsPlayable(true)
+            .apply {
+                if (cover.isNotBlank()) {
+                    setArtworkUri(Uri.parse(FormatUtils.fixImageUrl(cover)))
+                }
+            }
+            .build()
+        val mediaItem = MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setUri(audioUrl)
+            .setMediaMetadata(metadata)
+            .build()
+
+        audioPlayer.setMediaItem(mediaItem)
+        PlayerVolumeController.applyPreferredVolume(audioPlayer)
+        audioPlayer.prepare()
+        audioPlayer.playWhenReady = true
+        audioPlayer.play()
+        updateMediaSession(audioPlayer)
+        updateMediaMetadata(title, artist, cover)
+        return audioPlayer
     }
 
     /**
@@ -1856,6 +1921,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
     ) {
         Logger.d(TAG, "setVideoInfo: bvid=$bvid, title=$title, cid=$cid, aid=$aid, fromLeft=$fromLeft")
         currentBvid = bvid
+        currentAudioMediaId = null
         currentTitle = title
         currentCover = cover
         currentOwner = owner
@@ -1913,6 +1979,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
         currentOwner = uname
         currentLiveUname = uname
         currentBvid = null  // 直播没有 bvid
+        currentAudioMediaId = null
         currentCid = 0L
         currentAid = 0L
         isLiveMode = true
@@ -1972,8 +2039,10 @@ class MiniPlayerManager private constructor(private val context: Context) :
             val sessionActivityPendingIntent = PendingIntent.getActivity(
                 context, 0,
                 Intent(context, com.android.purebilibili.MainActivity::class.java).apply {
-                    action = Intent.ACTION_VIEW
-                    data = Uri.parse("https://www.bilibili.com/video/$currentBvid")
+                    if (currentBvid != null) {
+                        action = Intent.ACTION_VIEW
+                        data = Uri.parse("https://www.bilibili.com/video/$currentBvid")
+                    }
                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 },
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT

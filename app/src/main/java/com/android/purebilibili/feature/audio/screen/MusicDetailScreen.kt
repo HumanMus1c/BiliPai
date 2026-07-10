@@ -43,7 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MusicDetailScreen(
+internal fun MusicDetailScreen(
     sid: Long,
     onBack: () -> Unit,
     viewModel: MusicViewModel = viewModel()
@@ -70,7 +70,7 @@ fun MusicDetailScreen(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MusicDetailScreen(
+internal fun MusicDetailScreen(
     musicTitle: String,
     bvid: String,
     cid: Long,
