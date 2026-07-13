@@ -20,5 +20,5 @@ jobs:
           git remote add upstream https://github.com/jay3-yy/BiliPai.git
           git fetch upstream
           git checkout main
-          git merge upstream/main --ff-only   # 快进合并，避免冲突
+          git merge upstream/main --no-ff -m "chore: merge upstream/main"
           git push origin main
