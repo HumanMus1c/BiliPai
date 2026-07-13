@@ -2,8 +2,11 @@ name: Sync Upstream
 
 on:
   schedule:
-    - cron: '0 2 * * *'   # 每天 UTC 02:00（北京时间 10:00）自动运行
-  workflow_dispatch:       # 允许手动触发
+    - cron: '0 2 * * *'        # 每天 UTC 02:00 = 北京时间 10:00
+  workflow_dispatch:            # 允许在 Actions 页面手动触发
+
+permissions:
+  contents: write              # 授予 GITHUB_TOKEN 写权限，无需自建 secret
 
 jobs:
   sync:
@@ -15,12 +18,32 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sync upstream
+      - name: Configure git
         run: |
-          UPSTREAM_BRANCH=$(git ls-remote --symref upstream HEAD | grep '^ref:' | sed 's@.*/heads/@@; s@\t.*@@') echo "Upstream default branch: $UPSTREAM_BRANCH"
-          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" merge upstream/main --no-ff -m "chore: merge upstream/main"
-          git remote add upstream https://github.com/jay3-yy/BiliPai.git
-          git fetch upstream
-          git checkout main
-          git merge upstream/main --no-ff -m "chore: merge upstream/main"
-          git push origin main
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        # ↓↓↓ 务必把「上游所有者/上游仓库名」换成真实地址，例如 octocat/hello-world
+        run: git remote add upstream https://github.com/jay3-yy/BiliPai.git
+
+      - name: Show remotes (debug)
+        run: git remote -v
+
+      - name: Fetch upstream
+        run: git fetch upstream
+
+      - name: Show upstream branches (debug)
+        run: git branch -r
+
+      - name: Checkout default branch
+        run: git checkout main     # 若你的 fork 默认分支是 master，改这里
+
+      - name: Merge upstream
+        run: |
+          UPSTREAM_BRANCH=$(git ls-remote --symref upstream HEAD | grep '^ref:' | sed 's@.*/heads/@@; s@\t.*@@')
+          echo "Upstream default branch: $UPSTREAM_BRANCH"
+          git merge "upstream/$UPSTREAM_BRANCH" --no-ff -m "chore: merge upstream/$UPSTREAM_BRANCH"
+
+      - name: Push to fork
+        run: git push origin main    # 与上面 checkout 的分支保持一致
