@@ -17,6 +17,7 @@ jobs:
 
       - name: Sync upstream
         run: |
+          UPSTREAM_BRANCH=$(git ls-remote --symref upstream HEAD | grep '^ref:' | sed 's@.*/heads/@@; s@\t.*@@') echo "Upstream default branch: $UPSTREAM_BRANCH"
           git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" merge upstream/main --no-ff -m "chore: merge upstream/main"
           git remote add upstream https://github.com/jay3-yy/BiliPai.git
           git fetch upstream
