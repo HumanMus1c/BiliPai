@@ -6,7 +6,7 @@ import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.net.Uri
 import android.provider.Settings
-import androidx.activity.compose.BackHandler
+import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -296,7 +296,7 @@ fun OfflineVideoPlayerScreen(
     }
     
     // 返回键处理
-    BackHandler(enabled = isFullscreen) { toggleFullscreen() }
+    LocalNavigationBackHandler(enabled = isFullscreen) { toggleFullscreen() }
     
     LaunchedEffect(activity, isFullscreen) {
         applyWindowMode(isFullscreen)

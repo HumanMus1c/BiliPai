@@ -50,27 +50,25 @@ class RelatedVideoItemPolicyTest {
     }
 
     @Test
-    fun `related cards default to video source route for detail to detail shared element`() {
+    fun `related cards preserve the detail source route for detail to detail shared element`() {
         assertEquals("video", resolveRelatedVideoSharedElementSourceRoute(null))
         assertEquals("video", resolveRelatedVideoSharedElementSourceRoute(""))
-        assertEquals("video", resolveRelatedVideoSharedElementSourceRoute("video?from=related"))
+        assertEquals("video/BV1", resolveRelatedVideoSharedElementSourceRoute("video/BV1?from=related"))
         assertEquals("home", resolveRelatedVideoSharedElementSourceRoute("home"))
     }
 
     @Test
-    fun `related card shell shared bounds are owned by the whole card`() {
+    fun `related detail transition shares the cover instead of the whole card shell`() {
         val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/RelatedVideoItem.kt")
             .readText()
         val surfaceBlock = source
             .substringAfter("Surface(")
             .substringBefore("val relatedCoverWidth")
-        val coverBlock = source
-            .substringAfter("// Video cover")
-            .substringBefore("AsyncImage(")
 
         assertTrue(source.contains("videoCardShellSharedBoundsOrEmpty("))
         assertTrue(surfaceBlock.contains("videoCardShellSharedBoundsOrEmpty("))
-        assertFalse(coverBlock.contains("videoCardShellSharedElementKey("))
+        assertTrue(source.contains("videoCoverSharedElementKey("))
+        assertTrue(source.contains("relatedCoverSharedBoundsModifier"))
     }
 
     @Test

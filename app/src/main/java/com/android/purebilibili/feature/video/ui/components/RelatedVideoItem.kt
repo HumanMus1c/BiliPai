@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.video.ui.components
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope.OverlayClip
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -40,6 +41,7 @@ import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RAT
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
+import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
 import com.android.purebilibili.feature.video.ui.FollowBadgeTone
 import com.android.purebilibili.feature.video.ui.resolveVideoFollowVisualPolicy
 import com.android.purebilibili.navigation.VideoRoute
@@ -185,6 +187,29 @@ fun RelatedVideoItem(
         sourceRoute = sourceRoute,
         transitionEnabled = coverSharedEnabled
     )
+    val relatedCoverShape = RoundedCornerShape(12.dp)
+    val relatedCoverSharedBoundsModifier = if (coverSharedEnabled && !useCardShellSharedBounds) {
+        with(requireNotNull(sharedTransitionScope)) {
+            Modifier.sharedBounds(
+                sharedContentState = rememberSharedContentState(
+                    key = videoCoverSharedElementKey(
+                        bvid = video.bvid,
+                        sourceRoute = sourceRoute
+                    )
+                ),
+                animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
+                boundsTransform = { _, _ ->
+                    tween(
+                        durationMillis = cardSharedTransitionMotionSpec.durationMillis,
+                        easing = cardSharedTransitionMotionSpec.easing
+                    )
+                },
+                clipInOverlayDuringTransition = OverlayClip(relatedCoverShape)
+            )
+        }
+    } else {
+        Modifier
+    }
 
     Box(
         modifier = Modifier
@@ -226,7 +251,8 @@ fun RelatedVideoItem(
                 modifier = Modifier
                     .width(relatedCoverWidth)
                     .height(relatedCoverHeight)
-                    .clip(RoundedCornerShape(12.dp))
+                    .then(relatedCoverSharedBoundsModifier)
+                    .clip(relatedCoverShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 AsyncImage(

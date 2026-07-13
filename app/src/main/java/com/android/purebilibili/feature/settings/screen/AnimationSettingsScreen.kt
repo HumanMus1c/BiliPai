@@ -27,6 +27,7 @@ import com.android.purebilibili.core.theme.*
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import com.android.purebilibili.core.ui.blur.shouldAllowHomeChromeLiquidGlass
 import com.android.purebilibili.core.store.LiquidGlassMode
+import com.android.purebilibili.core.store.AppNavigationSettings
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -123,12 +124,10 @@ fun AnimationSettingsContent(
     }
     val isLiquidGlassAvailable = shouldAllowHomeChromeLiquidGlass(Build.VERSION.SDK_INT)
     val bottomBarLiquidGlassEnabled = state.bottomBarLiquidGlassEnabled
-    val appNavigationSettings by SettingsManager.getAppNavigationSettings(context)
-        .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.AppNavigationSettings())
     val uiEntranceAnimationEnabled by SettingsManager.getUiEntranceAnimationEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
-    val predictiveBackStyleOptions = remember { resolvePredictiveBackStyleOptions() }
-    val predictiveBackExitDirectionOptions = remember { resolvePredictiveBackExitDirectionOptions() }
+    val appNavigationSettings by SettingsManager.getAppNavigationSettings(context)
+        .collectAsStateWithLifecycle(initialValue = AppNavigationSettings())
     val effectiveEntranceSpec = rememberEffectiveEntranceMotionSpec()
     // 开关开着、但有效参数被降级为不动画 → 系统减弱动效在生效。
     val entranceDowngradedBySystem = uiEntranceAnimationEnabled && !effectiveEntranceSpec.animate
@@ -230,6 +229,20 @@ fun AnimationSettingsContent(
                             iconTint = iOSTeal
                         )
                         IOSDivider()
+                        IOSSwitchItem(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
+                            title = "视频详情跟手返回",
+                            subtitle = "从视频详情返回原列表时，卡片随边缘手势收拢",
+                            checked = appNavigationSettings.predictiveBackEnabled,
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    SettingsManager.setPredictiveBackEnabled(context, enabled)
+                                }
+                            },
+                            enabled = state.cardTransitionEnabled,
+                            iconTint = iOSTeal
+                        )
+                        IOSDivider()
                         IOSSlidingSegmentedSetting(
                             title = "共享元素速度：${state.videoSharedTransitionSpeed.label}",
                             subtitle = "先快后慢的统一曲线；自定义只调整时长",
@@ -311,56 +324,6 @@ fun AnimationSettingsContent(
                 }
             }
 
-            item {
-                Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("返回手势")
-                }
-            }
-            item {
-                Box(modifier = Modifier.entrance()) {
-                    IOSGroup {
-                        IOSSwitchItem(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PREDICTIVE_BACK),
-                            title = "预测性返回",
-                            subtitle = "边缘滑动时预览返回动画（Android 13+）",
-                            checked = appNavigationSettings.predictiveBackEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    SettingsManager.setPredictiveBackEnabled(context, enabled)
-                                }
-                            },
-                            iconTint = iOSBlue
-                        )
-                        if (appNavigationSettings.predictiveBackEnabled) {
-                            IOSDivider()
-                            IOSSlidingSegmentedSetting(
-                                title = "返回动画：${resolvePredictiveBackStyleLabel(appNavigationSettings.predictiveBackAnimationStyle)}",
-                                subtitle = "卡片缩放适合共享元素返场；系统跨页更接近原生体验",
-                                options = predictiveBackStyleOptions,
-                                selectedValue = appNavigationSettings.predictiveBackAnimationStyle,
-                                onSelectionChange = { style ->
-                                    scope.launch {
-                                        SettingsManager.setPredictiveBackAnimationStyle(context, style)
-                                    }
-                                }
-                            )
-                            IOSDivider()
-                            IOSSlidingSegmentedSetting(
-                                title = "退出方向：${resolvePredictiveBackExitDirectionLabel(appNavigationSettings.predictiveBackExitDirection)}",
-                                subtitle = "跟随卡片时按来源位置决定滑出方向；共享元素返场始终跟随手势",
-                                options = predictiveBackExitDirectionOptions,
-                                selectedValue = appNavigationSettings.predictiveBackExitDirection,
-                                onSelectionChange = { direction ->
-                                    scope.launch {
-                                        SettingsManager.setPredictiveBackExitDirection(context, direction)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-            
             // ✨ 视觉效果
             item {
                 Box(modifier = Modifier.entrance()) {

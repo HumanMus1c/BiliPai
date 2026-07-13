@@ -632,24 +632,6 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.ANIMATION,
-        title = "预测性返回 / 返回动画",
-        subtitle = "边缘滑动返回预览、卡片缩放、系统跨页",
-        section = "动画与效果",
-        aliases = listOf(
-            "预测性返回",
-            "预测返回",
-            "返回手势",
-            "返回动画",
-            "边缘返回",
-            "滑动返回",
-            "卡片缩放",
-            "系统跨页",
-            "经典滑出"
-        ),
-        focusId = SettingsSearchFocusIds.PREDICTIVE_BACK
-    ),
-    SettingsSearchEntry(
-        target = SettingsSearchTarget.ANIMATION,
         title = "顶部 Dock / 搜索框 / 底栏液态玻璃",
         subtitle = "顶部 Dock、首页搜索框、底栏材质",
         section = "动画与效果",

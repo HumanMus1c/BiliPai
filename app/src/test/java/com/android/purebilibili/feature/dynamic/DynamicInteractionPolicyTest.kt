@@ -43,6 +43,23 @@ class DynamicInteractionPolicyTest {
     }
 
     @Test
+    fun `pgc tab includes items identified by their major pgc payload`() {
+        val item = DynamicItem(
+            type = "DYNAMIC_TYPE_COMMON_SQUARE",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    major = DynamicMajor(
+                        type = "MAJOR_TYPE_PGC",
+                        pgc = ArchiveMajor(aid = "123")
+                    )
+                )
+            )
+        )
+
+        assertTrue(shouldIncludeDynamicItemInPgcTab(item))
+    }
+
+    @Test
     fun `video tab excludes word dynamics`() {
         val item = DynamicItem(type = "DYNAMIC_TYPE_WORD")
 

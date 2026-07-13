@@ -6,14 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,14 +25,7 @@ import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarHorizontalPa
 import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarLiquidTabSpec
 import com.android.purebilibili.core.ui.blur.BlurStyles
 import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
-import com.android.purebilibili.core.store.HomeSettings
-import com.android.purebilibili.core.store.SettingsManager
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
-import com.android.purebilibili.feature.home.components.SegmentedControlChromeStyle
-import com.android.purebilibili.feature.home.components.resolveSegmentedControlChromeStyle
-import com.android.purebilibili.feature.home.components.resolveSegmentedControlLiquidGlassEnabled
-import com.kyant.backdrop.Backdrop
+import com.android.purebilibili.feature.home.components.AndroidNativeUnderlinedSegmentedControl
 import dev.chrisbanes.haze.HazeState
 
 //  动态页面布局模式
@@ -57,25 +46,11 @@ fun DynamicTopBarWithTabs(
     displayMode: DynamicDisplayMode = DynamicDisplayMode.SIDEBAR,
     onDisplayModeChange: (DynamicDisplayMode) -> Unit = {},
     hazeState: HazeState? = null,
-    backdrop: Backdrop? = null,
     indicatorPositionProvider: (() -> Float)? = null
 ) {
     val density = LocalDensity.current
-    val context = LocalContext.current
-    val uiPreset = LocalUiPreset.current
-    val homeSettings by SettingsManager
-        .getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings(),
-            context = kotlin.coroutines.EmptyCoroutineContext
-        )
     val statusBarHeight = WindowInsets.statusBars.getTop(density).let { with(density) { it.toDp() } }
     val liquidTabSpec = resolveDynamicTopBarLiquidTabSpec()
-    val reusesLiquidGlassDock = shouldReuseDynamicTopBarLiquidGlassDock(
-        hasBackdrop = backdrop != null,
-        storedLiquidGlassEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
-        uiPreset = uiPreset,
-        androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
-    )
     
     //  读取当前模糊强度以确定背景透明度
     val blurIntensity = currentUnifiedBlurIntensity()
@@ -83,8 +58,7 @@ fun DynamicTopBarWithTabs(
     val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
     val shouldUseHeaderBlur = shouldUseDynamicTopBarHeaderBlur(
         hasHazeState = hazeState != null,
-        globalWallpaperVisible = globalWallpaperVisible,
-        reusesLiquidGlassDock = reusesLiquidGlassDock
+        globalWallpaperVisible = globalWallpaperVisible
     )
     
     //  使用 blurIntensity 对应的背景透明度实现毛玻璃质感
@@ -118,7 +92,6 @@ fun DynamicTopBarWithTabs(
                     tabs = tabs,
                     onTabSelected = onTabSelected,
                     modifier = Modifier.weight(1f),
-                    backdrop = backdrop,
                     indicatorPositionProvider = indicatorPositionProvider
                 )
                 
@@ -150,26 +123,15 @@ private fun DynamicCompactTabRow(
     tabs: List<String>,
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    backdrop: Backdrop? = null,
     indicatorPositionProvider: (() -> Float)? = null
 ) {
-    val context = LocalContext.current
-    val homeSettings by SettingsManager
-        .getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings())
-    BottomBarLiquidSegmentedControl(
+    AndroidNativeUnderlinedSegmentedControl(
         items = tabs,
         selectedIndex = selectedTab,
         onSelected = onTabSelected,
         modifier = modifier,
         height = 44.dp,
-        indicatorHeight = 36.dp,
         labelFontSize = 14.sp,
-        // Keep MD3 underline when reuse is off; force liquid pill when reuse is on.
-        preferInlineContentStyle = !homeSettings.androidNativeLiquidGlassEnabled,
-        forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
-        liquidGlassEffectsEnabled = backdrop != null,
-        backdrop = backdrop,
         indicatorPositionProvider = indicatorPositionProvider
     )
 }
@@ -194,33 +156,8 @@ internal fun resolveDynamicTopBarHeaderColor(
 
 internal fun shouldUseDynamicTopBarHeaderBlur(
     hasHazeState: Boolean,
-    globalWallpaperVisible: Boolean,
-    reusesLiquidGlassDock: Boolean = false
-): Boolean = hasHazeState && !globalWallpaperVisible && !reusesLiquidGlassDock
-
-internal fun shouldReuseDynamicTopBarLiquidGlassDock(
-    hasBackdrop: Boolean,
-    storedLiquidGlassEnabled: Boolean,
-    uiPreset: com.android.purebilibili.core.theme.UiPreset,
-    androidNativeLiquidGlassEnabled: Boolean
-): Boolean {
-    if (!hasBackdrop) return false
-    // Global liquid-glass reuse must win over MD3 inline underline chrome so the
-    // dynamic top bar can share the same floating liquid dock as the home bottom bar.
-    val preferInlineContentStyle = !androidNativeLiquidGlassEnabled
-    val chromeStyle = resolveSegmentedControlChromeStyle(
-        uiPreset = uiPreset,
-        androidNativeLiquidGlassEnabled = androidNativeLiquidGlassEnabled,
-        preferInlineContentStyle = preferInlineContentStyle
-    )
-    if (chromeStyle != SegmentedControlChromeStyle.LIQUID_PILL) return false
-    return resolveSegmentedControlLiquidGlassEnabled(
-        storedLiquidGlassEnabled = storedLiquidGlassEnabled,
-        liquidGlassEffectsEnabled = true,
-        uiPreset = uiPreset,
-        androidNativeLiquidGlassEnabled = androidNativeLiquidGlassEnabled
-    )
-}
+    globalWallpaperVisible: Boolean
+): Boolean = hasHazeState && !globalWallpaperVisible
 
 @Composable
 private fun rememberDynamicTabUnselectedColor(): Color {

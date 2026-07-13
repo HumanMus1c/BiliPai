@@ -4,7 +4,7 @@ import com.android.purebilibili.core.util.WindowWidthSizeClass
 
 data class ProfileLayoutTokens(
     val heroHeightFraction: Float = 0.36f,
-    val heroMinHeightDp: Int = 280,
+    val heroMinHeightDp: Int = 336,
     val heroMaxHeightDp: Int = 360,
     val contentSheetTopRadiusDp: Int = 20,
     val contentSheetTopOverlapDp: Int = 20,

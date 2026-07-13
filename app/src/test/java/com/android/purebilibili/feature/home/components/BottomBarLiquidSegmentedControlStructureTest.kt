@@ -2,12 +2,51 @@ package com.android.purebilibili.feature.home.components
 
 import java.io.File
 import com.android.purebilibili.core.theme.UiPreset
+import androidx.compose.ui.graphics.Color
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BottomBarLiquidSegmentedControlStructureTest {
+
+    @Test
+    fun `liquid segmented labels keep bottom bar foreground opacity`() {
+        val onSurface = Color(0xFFF1F1F1)
+
+        assertEquals(
+            onSurface,
+            resolveLiquidSegmentedControlUnselectedTextColor(
+                onSurface = onSurface,
+                enabled = true
+            )
+        )
+        assertEquals(
+            onSurface.copy(alpha = 0.42f),
+            resolveLiquidSegmentedControlUnselectedTextColor(
+                onSurface = onSurface,
+                enabled = false
+            )
+        )
+    }
+
+    @Test
+    fun `segmented labels reuse bottom bar glass content colors while moving`() {
+        val unselected = Color(0xFF666666)
+        val selected = Color(0xFFFF6699)
+
+        val colors = resolveLiquidGlassSelectionContentColors(
+            unselectedColor = unselected,
+            selectedColor = selected,
+            themeWeight = 1f,
+            glassEnabled = true,
+            indicatorProgress = 0.8f,
+            indicatorBackdropEnabled = true
+        )
+
+        assertEquals(unselected, colors.visibleColor)
+        assertEquals(unselected, colors.exportColor)
+    }
 
     @Test
     fun `segmented indicator keeps slot width so content remains centered`() {
@@ -206,9 +245,9 @@ class BottomBarLiquidSegmentedControlStructureTest {
     }
 
     @Test
-    fun `android native inline segmented control avoids liquid pill when global glass is enabled`() {
+    fun `global glass overrides inline segmented control preference`() {
         assertEquals(
-            SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE,
+            SegmentedControlChromeStyle.LIQUID_PILL,
             resolveSegmentedControlChromeStyle(
                 uiPreset = UiPreset.MD3,
                 androidNativeLiquidGlassEnabled = true,
@@ -364,10 +403,25 @@ class BottomBarLiquidSegmentedControlStructureTest {
     }
 
     @Test
-    fun `common list and dynamic tabs pass page backdrop into segmented control`() {
+    fun `dynamic top tabs temporarily opt out of liquid glass reuse`() {
+        val dynamicScreen = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/dynamic/DynamicScreen.kt"
+        )
+        val dynamicTopBar = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt"
+        )
+
+        assertTrue(dynamicTopBar.contains("AndroidNativeUnderlinedSegmentedControl("))
+        assertFalse(dynamicTopBar.contains("BottomBarLiquidSegmentedControl("))
+        assertFalse(dynamicTopBar.contains("MiuixBackdrop"))
+        assertFalse(dynamicTopBar.contains("miuixBackdrop"))
+        assertFalse(dynamicScreen.contains("dynamicChromeBackdrop"))
+        assertFalse(dynamicScreen.contains("miuixLayerBackdrop"))
+    }
+
+    @Test
+    fun `common list and video tabs pass page backdrop into segmented control`() {
         val commonList = loadSource("app/src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt")
-        val dynamicScreen = loadSource("app/src/main/java/com/android/purebilibili/feature/dynamic/DynamicScreen.kt")
-        val dynamicTopBar = loadSource("app/src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt")
         val iosSegmented = loadSource("app/src/main/java/com/android/purebilibili/feature/settings/IOSSlidingSegmentedControl.kt")
 
         val videoContent = loadSource("app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt")
@@ -388,14 +442,6 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(commentSortBar.contains("backdrop = backdrop"))
         assertTrue(commentSheetHost.contains("val commentChromeBackdrop = rememberLayerBackdrop()"))
         assertTrue(commentSheetHost.contains(".layerBackdrop(commentChromeBackdrop)"))
-        assertTrue(dynamicScreen.contains("val dynamicChromeBackdrop = rememberLayerBackdrop()"))
-        assertTrue(dynamicScreen.contains(".layerBackdrop(dynamicChromeBackdrop)"))
-        assertTrue(dynamicScreen.contains("backdrop = dynamicChromeBackdrop"))
-        assertTrue(dynamicScreen.contains("shouldCollapseDynamicTopBar("))
-        assertTrue(dynamicScreen.contains("getDynamicTopBarCollapseOnScroll(context)"))
-        assertTrue(dynamicTopBar.contains("backdrop: Backdrop? = null"))
-        assertTrue(dynamicTopBar.contains("backdrop = backdrop"))
-        assertTrue(dynamicTopBar.contains("forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled"))
         assertTrue(iosSegmented.contains("backdrop: Backdrop? = null"))
         assertTrue(iosSegmented.contains("backdrop = backdrop"))
     }
@@ -417,7 +463,6 @@ class BottomBarLiquidSegmentedControlStructureTest {
         val paths = listOf(
             "app/src/main/java/com/android/purebilibili/feature/video/ui/components/CommentSortFilterBar.kt",
             "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt",
-            "app/src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt",
             "app/src/main/java/com/android/purebilibili/feature/live/LiveListScreen.kt",
             "app/src/main/java/com/android/purebilibili/feature/live/LiveAreaScreen.kt",
             "app/src/main/java/com/android/purebilibili/feature/live/LivePlayerScreen.kt"

@@ -41,11 +41,16 @@ internal fun shouldIncludeDynamicItemInVideoTab(item: DynamicItem): Boolean {
 }
 
 internal fun shouldIncludeDynamicItemInPgcTab(item: DynamicItem): Boolean {
-    return when (item.type.trim()) {
-        "DYNAMIC_TYPE_PGC",
-        "DYNAMIC_TYPE_PGC_UNION" -> true
-        else -> false
+    if (item.type.trim() in setOf(
+            "DYNAMIC_TYPE_PGC",
+            "DYNAMIC_TYPE_PGC_UNION"
+        )
+    ) {
+        return true
     }
+
+    val major = item.modules.module_dynamic?.major
+    return major?.type == "MAJOR_TYPE_PGC" || major?.pgc != null
 }
 
 internal fun shouldIncludeDynamicItemInArticleTab(item: DynamicItem): Boolean {

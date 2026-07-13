@@ -12,13 +12,13 @@ class ProfileLayoutPolicyTest {
         val tokens = resolveProfileLayoutTokens()
         val heroHeight = resolveProfileHeroHeightDp(screenHeightDp = 800)
 
-        assertEquals(800 * tokens.heroHeightFraction, heroHeight, 0.001f)
+        assertEquals(tokens.heroMinHeightDp.toFloat(), heroHeight, 0.001f)
         assertTrue(heroHeight in tokens.heroMinHeightDp.toFloat()..tokens.heroMaxHeightDp.toFloat())
     }
 
     @Test
     fun heroHeight_clampsOnVerySmallScreens() {
-        assertEquals(280f, resolveProfileHeroHeightDp(screenHeightDp = 500))
+        assertEquals(336f, resolveProfileHeroHeightDp(screenHeightDp = 500))
     }
 
     @Test

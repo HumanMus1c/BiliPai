@@ -868,14 +868,12 @@ fun VideoPlayerSection(
     val shouldBindInlinePlayerView = remember(
         isPortraitFullscreen,
         hostLifecycleStarted,
-        isInPipMode,
-        forceCoverDuringReturnAnimation
+        isInPipMode
     ) {
         shouldBindInlinePlayerViewToPlayer(
             isPortraitFullscreen = isPortraitFullscreen,
             hostLifecycleStarted = hostLifecycleStarted,
-            isInPipMode = isInPipMode,
-            forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation
+            isInPipMode = isInPipMode
         )
     }
 
@@ -2286,8 +2284,7 @@ fun VideoPlayerSection(
                         if (!shouldBindInlinePlayerViewToPlayer(
                                 isPortraitFullscreen = isPortraitFullscreen,
                                 hostLifecycleStarted = true,
-                                isInPipMode = isInPipMode,
-                                forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation
+                                isInPipMode = isInPipMode
                             )
                         ) {
                             return@LifecycleEventObserver

@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.luminance  //  状态栏亮度计算
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -90,6 +91,7 @@ import com.android.purebilibili.feature.home.policy.HomeBottomBarScrollState
 import com.android.purebilibili.feature.home.policy.reduceHomePreScroll
 import com.android.purebilibili.feature.home.policy.resolveHomeHeaderTransitionRunning
 import com.android.purebilibili.feature.home.policy.resolveHomeHeaderSettleTransition
+import com.android.purebilibili.feature.home.policy.resolveHomeHeaderReleaseTarget
 import com.android.purebilibili.feature.home.policy.shouldHandleHomeVerticalPreScroll
 import com.android.purebilibili.feature.home.policy.reduceHomeBottomBarListScroll
 import com.android.purebilibili.feature.home.policy.resolveHomeBottomBarBaseVisibility
@@ -1300,6 +1302,17 @@ fun HomeScreen(
                 }
 
                 return Offset.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (!isAnyHeaderCollapseEnabled) return Velocity.Zero
+
+                val targetOffset = resolveHomeHeaderReleaseTarget(
+                    maxHeaderCollapsePx = headerAutoCollapseDistancePx,
+                    canRevealHeader = canRevealHeader
+                )
+                animateHeaderOffsetTo(targetOffset)
+                return Velocity.Zero
             }
         }
     }

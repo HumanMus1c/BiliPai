@@ -112,13 +112,14 @@ class VideoSharedTransitionPolicyTest {
     }
 
     @Test
-    fun videoCardShellSharedBounds_enabledForAllVideoSourcesWhenTransitionOn() {
+    fun videoCardShellSharedBounds_excludesRelatedDetailSources() {
         assertTrue(shouldUseVideoCardShellSharedBounds("home", transitionEnabled = true))
         assertTrue(shouldUseVideoCardShellSharedBounds("dynamic", transitionEnabled = true))
         assertTrue(shouldUseVideoCardShellSharedBounds("watch_later", transitionEnabled = true))
         assertTrue(shouldUseVideoCardShellSharedBounds("partition", transitionEnabled = true))
         assertTrue(shouldUseVideoCardShellSharedBounds("space", transitionEnabled = true))
         assertTrue(shouldUseVideoCardShellSharedBounds("video", transitionEnabled = true))
+        assertFalse(shouldUseVideoCardShellSharedBounds("video/BV_A", transitionEnabled = true))
         assertFalse(shouldUseVideoCardShellSharedBounds("home", transitionEnabled = false))
         assertFalse(shouldUseVideoCardShellSharedBounds(null, transitionEnabled = true))
     }
@@ -128,6 +129,14 @@ class VideoSharedTransitionPolicyTest {
         assertTrue(
             shouldUseVideoCardShellContainerTransform(
                 sourceRoute = "home",
+                transitionEnabled = true,
+                hasSharedTransitionScope = true,
+                hasAnimatedVisibilityScope = true
+            )
+        )
+        assertFalse(
+            shouldUseVideoCardShellContainerTransform(
+                sourceRoute = "video/BV_A",
                 transitionEnabled = true,
                 hasSharedTransitionScope = true,
                 hasAnimatedVisibilityScope = true

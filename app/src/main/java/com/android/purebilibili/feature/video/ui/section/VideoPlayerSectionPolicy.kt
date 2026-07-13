@@ -1164,11 +1164,9 @@ internal fun shouldLogPlaybackStall(
 internal fun shouldBindInlinePlayerViewToPlayer(
     isPortraitFullscreen: Boolean,
     hostLifecycleStarted: Boolean,
-    isInPipMode: Boolean,
-    forceCoverDuringReturnAnimation: Boolean
+    isInPipMode: Boolean
 ): Boolean {
     return !isPortraitFullscreen &&
-        !forceCoverDuringReturnAnimation &&
         (hostLifecycleStarted || isInPipMode)
 }
 

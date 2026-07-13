@@ -1,12 +1,7 @@
 package com.android.purebilibili.navigation3
 
-import com.android.purebilibili.navigation3.predictiveback.BiliPaiAospCrossActivityPredictiveBackAnimation
-import com.android.purebilibili.navigation3.predictiveback.BiliPaiCardDisabledReturnPredictiveBackAnimation
-import com.android.purebilibili.navigation3.predictiveback.BiliPaiClassicPredictiveBackAnimation
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiDefaultPredictiveBackAnimation
-import com.android.purebilibili.navigation3.predictiveback.BiliPaiDisabledPredictiveBackAnimation
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
-import com.android.purebilibili.navigation3.predictiveback.BiliPaiScalePredictiveBackAnimation
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiSharedElementPredictiveBackAnimation
 import com.android.purebilibili.navigation3.predictiveback.resolveBiliPaiPredictiveBackAnimationHandler
 import java.io.File
@@ -26,6 +21,15 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
     }
 
     @Test
+    fun relatedDetailRoute_usesNavigationDefaultHandler() {
+        val handler = resolveBiliPaiPredictiveBackAnimationHandler(
+            routeTransition = BiliPaiNavRouteTransition.FALLBACK,
+        )
+
+        assertTrue(handler is BiliPaiDefaultPredictiveBackAnimation)
+    }
+
+    @Test
     fun sharedElementPredictivePop_keepsRouteLayerStillForCardReturn() {
         val function = sharedElementPredictivePopFunction()
 
@@ -36,11 +40,11 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
     }
 
     @Test
-    fun classicCardRoute_usesScaleHandlerByDefault() {
+    fun classicCardRoute_usesNavigationDefaults() {
         val handler = resolveBiliPaiPredictiveBackAnimationHandler(
             routeTransition = BiliPaiNavRouteTransition.CLASSIC_CARD,
         )
-        assertTrue(handler is BiliPaiScalePredictiveBackAnimation)
+        assertTrue(handler is BiliPaiDefaultPredictiveBackAnimation)
     }
 
     @Test
@@ -53,56 +57,39 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
     }
 
     @Test
-    fun classicCardRoute_scaleStyle_usesScaleHandler() {
+    fun legacyScaleStyle_doesNotOverrideNavigationDefaults() {
         val handler = resolveBiliPaiPredictiveBackAnimationHandler(
             routeTransition = BiliPaiNavRouteTransition.CLASSIC_CARD,
             style = BiliPaiPredictiveBackAnimationStyle.SCALE,
         )
-        assertTrue(handler is BiliPaiScalePredictiveBackAnimation)
+        assertTrue(handler is BiliPaiDefaultPredictiveBackAnimation)
     }
 
     @Test
-    fun scalePredictiveBack_keepsBackgroundSceneAtFullScale() {
-        val source = scalePredictiveBackSource()
-
-        assertFalse(source.contains("EnterExitState.PostExit -> 0.85f"))
-        assertFalse(source.contains("scaleX = animatedScale"))
-        assertFalse(source.contains("scaleY = animatedScale"))
-    }
-
-    @Test
-    fun scalePredictiveBack_doesNotDrawTargetPageScrim() {
-        val source = scalePredictiveBackSource()
-
-        assertFalse(source.contains("drawRect(color = Color.Black"))
-        assertFalse(source.contains("dynamicAlpha"))
-    }
-
-    @Test
-    fun classicCardRoute_aospStyle_usesAospHandler() {
+    fun legacyAospStyle_doesNotOverrideNavigationDefaults() {
         val handler = resolveBiliPaiPredictiveBackAnimationHandler(
             routeTransition = BiliPaiNavRouteTransition.CLASSIC_CARD,
             style = BiliPaiPredictiveBackAnimationStyle.AOSP,
         )
-        assertTrue(handler is BiliPaiAospCrossActivityPredictiveBackAnimation)
+        assertTrue(handler is BiliPaiDefaultPredictiveBackAnimation)
     }
 
     @Test
-    fun classicCardRoute_classicStyle_usesClassicHandler() {
+    fun legacyClassicStyle_doesNotOverrideNavigationDefaults() {
         val handler = resolveBiliPaiPredictiveBackAnimationHandler(
             routeTransition = BiliPaiNavRouteTransition.CLASSIC_CARD,
             style = BiliPaiPredictiveBackAnimationStyle.CLASSIC,
         )
-        assertTrue(handler is BiliPaiClassicPredictiveBackAnimation)
+        assertTrue(handler is BiliPaiDefaultPredictiveBackAnimation)
     }
 
     @Test
-    fun disabledClassicCard_usesDisabledHandler() {
+    fun legacyDisabledPreference_doesNotDisablePlatformPredictiveBack() {
         val handler = resolveBiliPaiPredictiveBackAnimationHandler(
             routeTransition = BiliPaiNavRouteTransition.CLASSIC_CARD,
             predictiveBackEnabled = false,
         )
-        assertTrue(handler is BiliPaiDisabledPredictiveBackAnimation)
+        assertTrue(handler is BiliPaiDefaultPredictiveBackAnimation)
     }
 
     @Test
@@ -115,32 +102,19 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
     }
 
     @Test
-    fun cardDisabledReturnLeft_usesDirectionalReturnHandler() {
+    fun cardWithoutSharedSource_usesNavigationDefaultFallback() {
         val handler = resolveBiliPaiPredictiveBackAnimationHandler(
             routeTransition = BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT,
         )
-        assertTrue(handler is BiliPaiCardDisabledReturnPredictiveBackAnimation)
+        assertTrue(handler is BiliPaiDefaultPredictiveBackAnimation)
     }
 
     @Test
-    fun cardDisabledReturnRight_usesDirectionalReturnHandler() {
+    fun cardWithoutSharedSourceIgnoresLegacyDirection() {
         val handler = resolveBiliPaiPredictiveBackAnimationHandler(
             routeTransition = BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT,
         )
-        assertTrue(handler is BiliPaiCardDisabledReturnPredictiveBackAnimation)
-    }
-
-    @Test
-    fun cardDisabledReturn_predictiveAndPopUseSameDirectionalTransform() {
-        val source = cardDisabledReturnSource()
-        // 预测手势(onPredictivePopTransitionSpec)与提交 pop(onPopTransitionSpec)复用同一
-        // resolveBiliPaiNavContentTransform(routeTransition)，保证手势预览与松手/按钮返回视觉一致。
-        val usages = Regex("resolveBiliPaiNavContentTransform\\(routeTransition\\)")
-            .findAll(source)
-            .count()
-        assertTrue(usages >= 2)
-        assertTrue(source.contains("onPredictivePopTransitionSpec"))
-        assertTrue(source.contains("onPopTransitionSpec"))
+        assertTrue(handler is BiliPaiDefaultPredictiveBackAnimation)
     }
 
     @Test
@@ -165,17 +139,4 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
         ).first { it.exists() }.readText()
     }
 
-    private fun scalePredictiveBackSource(): String {
-        return listOf(
-            File("app/src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiScalePredictiveBackAnimation.kt"),
-            File("src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiScalePredictiveBackAnimation.kt")
-        ).first { it.exists() }.readText()
-    }
-
-    private fun cardDisabledReturnSource(): String {
-        return listOf(
-            File("app/src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiCardDisabledReturnPredictiveBackAnimation.kt"),
-            File("src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiCardDisabledReturnPredictiveBackAnimation.kt")
-        ).first { it.exists() }.readText()
-    }
 }

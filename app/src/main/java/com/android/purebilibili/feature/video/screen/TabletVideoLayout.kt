@@ -59,6 +59,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
+import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -739,6 +740,7 @@ private fun TabletSecondaryContent(
                             RelatedVideoItem(
                                 video = video,
                                 isFollowed = video.owner.mid in success.followingMids,
+                                transitionEnabled = LocalSharedTransitionEnabled.current,
                                 showUpBadge = showUpBadge,
                                 onClick = {
                                     val activity = (context as? android.app.Activity) ?: (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity

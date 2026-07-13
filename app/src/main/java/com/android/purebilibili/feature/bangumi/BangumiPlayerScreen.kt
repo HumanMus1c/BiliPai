@@ -7,7 +7,7 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
+import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -422,7 +422,7 @@ fun BangumiPlayerScreen(
     }
     
     // 拦截系统返回键
-    BackHandler(enabled = isLandscape) {
+    LocalNavigationBackHandler(enabled = isLandscape) {
         toggleOrientation()
     }
     

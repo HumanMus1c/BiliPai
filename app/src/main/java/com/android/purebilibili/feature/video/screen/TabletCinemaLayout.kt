@@ -89,6 +89,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
+import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.store.SettingsManager
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -1350,6 +1351,7 @@ private fun CinemaRelatedPane(
             RelatedVideoItem(
                 video = video,
                 isFollowed = video.owner.mid in success.followingMids,
+                transitionEnabled = LocalSharedTransitionEnabled.current,
                 showUpBadge = showUpBadge,
                 onClick = {
                     val activity = (context as? Activity)

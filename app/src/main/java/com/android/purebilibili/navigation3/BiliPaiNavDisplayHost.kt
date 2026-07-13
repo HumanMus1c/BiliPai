@@ -11,6 +11,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -99,6 +100,22 @@ internal fun BiliPaiNavDisplayHost(
     }
     var videoCardReturnGestureInProgress by remember { mutableStateOf(false) }
     var videoCardBackgroundGestureRestoreInProgress by remember { mutableStateOf(false) }
+    var videoCardGestureStartBlurProgress by remember { mutableFloatStateOf(1f) }
+    var videoCardGestureProgress by remember { mutableStateOf<Float?>(null) }
+    val videoCardBackgroundProgressProvider = remember(videoCardTransitionBackgroundProgress) {
+        {
+            val backProgress = videoCardGestureProgress
+            if (videoCardReturnGestureInProgress && backProgress != null) {
+                resolveVideoCardTransitionBackgroundGestureBlurProgress(
+                    phase = VideoCardTransitionBackgroundPhase.OPENING,
+                    currentBlurProgress = videoCardGestureStartBlurProgress,
+                    backProgress = backProgress,
+                )
+            } else {
+                videoCardTransitionBackgroundProgress.value
+            }
+        }
+    }
     // 系统减弱动画(省电/无障碍/开发者选项)时，过渡背景降级为仅 scrim，跳过全屏 GPU 实时模糊。
     val transitionBackgroundMotionTier =
         if (rememberSystemReduceMotion()) MotionTier.Reduced else MotionTier.Normal
@@ -113,6 +130,8 @@ internal fun BiliPaiNavDisplayHost(
         val previousTop = previousVideoCardTransitionBackStack.lastOrNull()
         val currentTop = safeBackStack.lastOrNull()
         val hasVideoCardTransitionSource = isVideoCardReturnTargetRoute(sourceMetadata.sourceRoute)
+        val switchedBetweenVideoDetails =
+            previousTop is BiliPaiNavKey.VideoDetail && currentTop is BiliPaiNavKey.VideoDetail
         val openedVideoDetail = currentTop is BiliPaiNavKey.VideoDetail &&
             previousTop !is BiliPaiNavKey.VideoDetail &&
             hasVideoCardTransitionSource
@@ -121,8 +140,14 @@ internal fun BiliPaiNavDisplayHost(
             hasVideoCardTransitionSource
         previousVideoCardTransitionBackStack = safeBackStack
 
-        if (!cardTransitionEnabled || !hasVideoCardTransitionSource) {
+        if (
+            switchedBetweenVideoDetails ||
+            !cardTransitionEnabled ||
+            !hasVideoCardTransitionSource
+        ) {
             videoCardTransitionBackgroundPhase = VideoCardTransitionBackgroundPhase.IDLE
+            videoCardReturnGestureInProgress = false
+            videoCardGestureProgress = null
             videoCardTransitionBackgroundProgress.snapTo(0f)
             return@LaunchedEffect
         }
@@ -143,10 +168,12 @@ internal fun BiliPaiNavDisplayHost(
 
             returnedFromVideoDetail -> {
                 // pop 后首页层已含共享元素回收中的卡片；任何 route 级 blur/scrim 都会让落位封面发糊/闪烁。
-                // 手势阶段已在详情页覆盖下消解虚化(见 performBack 最终进度捕获 + gesture LaunchedEffect)。
+                // 手势阶段已在详情页覆盖下消解虚化(见 performBack 最终进度捕获 + progressProvider)。
                 // performBack 通常已在 pop 前归零；若仍有残留(非 performBack 路径或竞态)，用与剩余
                 // 虚化成比例的短 animateTo 收尾，避免 OPENING 快速返回周边首页模糊硬切。
                 videoCardTransitionBackgroundPhase = VideoCardTransitionBackgroundPhase.IDLE
+                videoCardReturnGestureInProgress = false
+                videoCardGestureProgress = null
                 val remainingBlur = videoCardTransitionBackgroundProgress.value
                 if (remainingBlur > 0.001f) {
                     videoCardTransitionBackgroundProgress.animateTo(
@@ -225,8 +252,8 @@ internal fun BiliPaiNavDisplayHost(
             if (shouldCaptureVideoCardGestureBlur) {
                 videoCardTransitionBackgroundProgress.snapTo(
                     resolveVideoCardTransitionBackgroundGestureBlurProgress(
-                        phase = videoCardTransitionBackgroundPhase,
-                        currentBlurProgress = videoCardTransitionBackgroundProgress.value,
+                        phase = VideoCardTransitionBackgroundPhase.OPENING,
+                        currentBlurProgress = videoCardGestureStartBlurProgress,
                         backProgress = finalVideoCardGestureBackProgress,
                     )
                 )
@@ -273,6 +300,8 @@ internal fun BiliPaiNavDisplayHost(
             if (isVideoCardActiveReturn && videoCardTransitionBackgroundProgress.value > 0f) {
                 videoCardTransitionBackgroundProgress.snapTo(0f)
             }
+            videoCardReturnGestureInProgress = false
+            videoCardGestureProgress = null
             commitTransitionCallBack()
             onBack()
             predictiveBackBackgroundProgress.snapTo(0f)
@@ -283,6 +312,7 @@ internal fun BiliPaiNavDisplayHost(
         application,
         safeBackStack,
         videoCardTransitionBackgroundProgress,
+        videoCardBackgroundProgressProvider,
         predictiveBackBackgroundProgress,
         transitionBackgroundMotionTier,
         isLightBackground,
@@ -296,9 +326,7 @@ internal fun BiliPaiNavDisplayHost(
                     CompositionLocalProvider(
                         LocalVideoCardSharedElementSourceRoute provides entryRoute,
                         LocalVideoCardTransitionBackgroundState provides VideoCardTransitionBackgroundState(
-                            progressProvider = {
-                                videoCardTransitionBackgroundProgress.value
-                            },
+                            progressProvider = videoCardBackgroundProgressProvider,
                             phaseProvider = {
                                 videoCardTransitionBackgroundPhase
                             },
@@ -409,22 +437,12 @@ internal fun BiliPaiNavDisplayHost(
         targetBackKey != null &&
         isVideoCardReturnTargetRoute(sourceMetadata.sourceRoute)
     SideEffect {
-        videoCardReturnGestureInProgress = gestureReturningVideoCard && inProgressState != null
-    }
-    val gestureBackgroundBlurTarget: Float? =
-        if (gestureReturningVideoCard && nativeVideoBackProgress != null) {
-            resolveVideoCardTransitionBackgroundGestureBlurProgress(
-                phase = videoCardTransitionBackgroundPhase,
-                currentBlurProgress = videoCardTransitionBackgroundProgress.value,
-                backProgress = nativeVideoBackProgress,
-            )
-        } else {
-            null
+        val gestureActive = gestureReturningVideoCard && nativeVideoBackProgress != null
+        if (gestureActive && !videoCardReturnGestureInProgress) {
+            videoCardGestureStartBlurProgress = videoCardTransitionBackgroundProgress.value
         }
-    LaunchedEffect(gestureBackgroundBlurTarget) {
-        val target = gestureBackgroundBlurTarget ?: return@LaunchedEffect
-        // HELD 阶段主状态机未占用该 Animatable，可安全直接 snapTo 跟随手势。
-        videoCardTransitionBackgroundProgress.snapTo(target)
+        videoCardGestureProgress = nativeVideoBackProgress.takeIf { gestureActive }
+        videoCardReturnGestureInProgress = gestureActive
     }
 
     val predictiveBackGestureBlurEnabled = shouldApplyPredictiveBackGestureBlur(
@@ -453,14 +471,18 @@ internal fun BiliPaiNavDisplayHost(
         onBackCompleted = performBack,
         onBackCancelled = { commitTransition ->
             onNativeVideoBackCancelled(currentBackKey, targetBackKey)
+            val cancelledVideoCardBlur = videoCardBackgroundProgressProvider()
+            videoCardReturnGestureInProgress = false
+            videoCardGestureProgress = null
             // 手势取消且详情页仍在栈顶(HELD/OPENING)：把随手势消退的背景虚化平滑复原到满值，
             // 与详情页回弹到全屏保持一致，避免下次手势从残留的中间虚化值起跳。
             if (isVideoCardTransitionBackgroundGesturePhase(videoCardTransitionBackgroundPhase) &&
-                videoCardTransitionBackgroundProgress.value < 1f
+                cancelledVideoCardBlur < 1f
             ) {
                 navigationScope.launch {
                     videoCardBackgroundGestureRestoreInProgress = true
                     try {
+                        videoCardTransitionBackgroundProgress.snapTo(cancelledVideoCardBlur)
                         videoCardTransitionBackgroundProgress.animateTo(
                             targetValue = 1f,
                             animationSpec = tween(
@@ -468,6 +490,7 @@ internal fun BiliPaiNavDisplayHost(
                                 easing = FastOutLinearInEasing
                             )
                         )
+                        videoCardTransitionBackgroundPhase = VideoCardTransitionBackgroundPhase.HELD
                     } finally {
                         videoCardBackgroundGestureRestoreInProgress = false
                     }
@@ -494,12 +517,13 @@ internal fun BiliPaiNavDisplayHost(
         cardTransitionEnabled = cardTransitionEnabled,
         phase = videoCardTransitionBackgroundPhase,
         isVideoDetailOnStack = currentBackKey is BiliPaiNavKey.VideoDetail,
+        isReturningToVideoDetail = targetBackKey is BiliPaiNavKey.VideoDetail,
     )
 
     Box(modifier = modifier.fillMaxSize()) {
         VideoCardTransitionNavBackdrop(
             visible = showVideoCardNavBackdrop,
-            progress = videoCardTransitionBackgroundProgress.value,
+            progressProvider = videoCardBackgroundProgressProvider,
             phase = videoCardTransitionBackgroundPhase,
             isLightBackground = isLightBackground,
         )

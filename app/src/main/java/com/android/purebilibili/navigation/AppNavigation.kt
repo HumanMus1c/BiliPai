@@ -8,7 +8,6 @@ import android.content.ContextWrapper
 import android.net.Uri
 import android.os.SystemClock
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
@@ -158,8 +157,10 @@ import com.android.purebilibili.navigation3.pushBiliPaiNavKey
 import com.android.purebilibili.navigation3.resolveBiliPaiBackGestureDecision
 import com.android.purebilibili.navigation3.resolveBiliPaiNavCardSourceDirection
 import com.android.purebilibili.navigation3.resolveBiliPaiNavEntryContentRole
+import com.android.purebilibili.navigation3.resolveNavigation3SaveableStateKey
 import com.android.purebilibili.navigation3.resolveBiliPaiNavSourceMetadata
 import com.android.purebilibili.navigation3.resolveBiliPaiVideoSource
+import com.android.purebilibili.navigation3.shouldUseClassicVideoCardBackHandler
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
 import com.android.purebilibili.navigation3.resolveInitialBiliPaiBackStack
 import com.android.purebilibili.navigation3.toLegacyRoute
@@ -483,6 +484,7 @@ fun AppNavigation(
             pageCount = { visibleBottomBarItems.size.coerceAtLeast(1) }
         )
         val bottomPagerSaveableStateHolder = rememberSaveableStateHolder()
+        val navigation3SaveableStateHolder = rememberSaveableStateHolder()
         val mainBottomPagerState = rememberMainBottomPagerState(bottomPagerState)
         var bottomPagerContentReady by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) {
@@ -864,16 +866,10 @@ fun AppNavigation(
                 sourceMetadata = navigation3SourceMetadata
             )
         }
-        val predictiveBackEnabled = appNavigationSettings.predictiveBackEnabled
+        val predictiveBackEnabled = true
         val shouldInterceptTabBack = backGestureDecision.interceptSystemBack
-        val shouldUseClassicBackHandler = !predictiveBackEnabled &&
-            systemBackAction != AppSystemBackAction.FINISH_ACTIVITY
-        val predictiveBackAnimationStyle = remember(appNavigationSettings.predictiveBackAnimationStyle) {
-            BiliPaiPredictiveBackAnimationStyle.fromStorageValue(
-                appNavigationSettings.predictiveBackAnimationStyle
-            )
-        }
-        val predictiveBackExitDirection = appNavigationSettings.predictiveBackExitDirection
+        val predictiveBackAnimationStyle = BiliPaiPredictiveBackAnimationStyle.DEFAULT
+        val predictiveBackExitDirection = "auto"
         val activeBottomTabRoute = resolveActiveBottomTabRoute(
             currentKey = currentNavigation3Key,
             currentBottomItem = currentBottomNavItem
@@ -1880,6 +1876,15 @@ fun AppNavigation(
                                 transitionEnabled = shouldEnableVideoDetailSharedTransition(
                                     cardTransitionEnabled = cardTransitionEnabled
                                 ),
+                                useClassicVideoCardBackHandler = shouldUseClassicVideoCardBackHandler(
+                                    settingEnabled = appNavigationSettings.predictiveBackEnabled,
+                                    cardTransitionEnabled = cardTransitionEnabled,
+                                    videoKey = videoKey,
+                                    previousKey = navigation3BackStack.getOrNull(
+                                        navigation3BackStack.lastIndex - 1
+                                    ),
+                                    sourceMetadata = navigation3SourceMetadata
+                                ),
                                 transitionEnterDurationMillis = navMotionSpec.slowFadeDurationMillis,
                                 onBack = {
                                     popVideoDetailWithSharedReturnState(
@@ -1924,7 +1929,7 @@ fun AppNavigation(
                                         bvid = vid,
                                         cid = targetCid,
                                         coverUrl = "",
-                                        sourceRoute = VideoRoute.base
+                                        sourceRoute = "video/${videoKey.bvid}"
                                     )
                                 },
                                 onBgmClick = { bgm ->
@@ -2783,8 +2788,12 @@ fun AppNavigation(
                     activeMainHostRoute = activeBottomTabRoute,
                     isLightBackground = isLightBackground,
                 ) { key ->
-                    VideoCardTransitionBackgroundRouteContent(key) {
-                        RenderNavigationContent(key)
+                    navigation3SaveableStateHolder.SaveableStateProvider(
+                        key = resolveNavigation3SaveableStateKey(key)
+                    ) {
+                        VideoCardTransitionBackgroundRouteContent(key) {
+                            RenderNavigationContent(key)
+                        }
                     }
                 }
                 }
@@ -2886,19 +2895,15 @@ fun AppNavigation(
                 }
             }
 
-            if (predictiveBackEnabled) {
-                MainHostTabBackHandler(
-                    enabled = shouldInterceptTabBack,
-                    onReturnToHomeTab = {
-                        val homeIndex = visibleBottomBarItems.indexOf(BottomNavItem.HOME)
-                        if (homeIndex >= 0) {
-                            mainBottomPagerState.snapToPage(homeIndex)
-                        }
-                    },
-                )
-            } else if (shouldUseClassicBackHandler) {
-                BackHandler { performSystemBackAction() }
-            }
+            MainHostTabBackHandler(
+                enabled = shouldInterceptTabBack,
+                onReturnToHomeTab = {
+                    val homeIndex = visibleBottomBarItems.indexOf(BottomNavItem.HOME)
+                    if (homeIndex >= 0) {
+                        mainBottomPagerState.snapToPage(homeIndex)
+                    }
+                },
+            )
 
             if (showLaunchDisclaimer) {
                 ReleaseChannelDisclaimerDialog(

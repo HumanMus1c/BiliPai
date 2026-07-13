@@ -366,7 +366,7 @@ class VideoPlayerSectionPolicyTest {
     }
 
     @Test
-    fun forcedReturnTakeover_disablesInlinePlayerRetentionBindingAndVisibility() {
+    fun forcedReturnTakeover_hidesInlinePlayerButKeepsItsSurfaceBound() {
         assertFalse(
             shouldKeepInlinePlayerContentOnReset(
                 isPortraitFullscreen = false,
@@ -379,12 +379,11 @@ class VideoPlayerSectionPolicyTest {
                 forceCoverDuringReturnAnimation = true
             )
         )
-        assertFalse(
+        assertTrue(
             shouldBindInlinePlayerViewToPlayer(
                 isPortraitFullscreen = false,
                 hostLifecycleStarted = true,
-                isInPipMode = false,
-                forceCoverDuringReturnAnimation = true
+                isInPipMode = false
             )
         )
     }
@@ -688,16 +687,14 @@ class VideoPlayerSectionPolicyTest {
             shouldBindInlinePlayerViewToPlayer(
                 isPortraitFullscreen = false,
                 hostLifecycleStarted = true,
-                isInPipMode = false,
-                forceCoverDuringReturnAnimation = false
+                isInPipMode = false
             )
         )
         assertTrue(
             shouldBindInlinePlayerViewToPlayer(
                 isPortraitFullscreen = false,
                 hostLifecycleStarted = false,
-                isInPipMode = true,
-                forceCoverDuringReturnAnimation = false
+                isInPipMode = true
             )
         )
     }
@@ -708,16 +705,14 @@ class VideoPlayerSectionPolicyTest {
             shouldBindInlinePlayerViewToPlayer(
                 isPortraitFullscreen = false,
                 hostLifecycleStarted = false,
-                isInPipMode = false,
-                forceCoverDuringReturnAnimation = false
+                isInPipMode = false
             )
         )
         assertFalse(
             shouldBindInlinePlayerViewToPlayer(
                 isPortraitFullscreen = true,
                 hostLifecycleStarted = true,
-                isInPipMode = false,
-                forceCoverDuringReturnAnimation = false
+                isInPipMode = false
             )
         )
     }

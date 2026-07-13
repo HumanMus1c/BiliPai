@@ -19,6 +19,18 @@ class VideoDetailEntryLoadPolicyTest {
     }
 
     @Test
+    fun deferLoad_disabledWhenReturningFromRelatedVideoDetail() {
+        assertFalse(
+            shouldDeferVideoDetailLoadUntilEntryTransitionFinished(
+                transitionEnabled = true,
+                detailShellSharedBoundsEnabled = true,
+                reuseFromMiniPlayerAtEntry = false,
+                isReturningFromDetail = true,
+            )
+        )
+    }
+
+    @Test
     fun deferLoad_disabledWhenTransitionOffOrNoShellOrMiniPlayerReuse() {
         assertFalse(
             shouldDeferVideoDetailLoadUntilEntryTransitionFinished(

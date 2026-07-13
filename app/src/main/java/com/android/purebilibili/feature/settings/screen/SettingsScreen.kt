@@ -882,37 +882,38 @@ fun SettingsScreen(
             Toast.makeText(context, "无法打开设置", Toast.LENGTH_SHORT).show()
         }
     }
-    SettingsLocalBackHandler(enabled = showCacheAnimation) {
-        showCacheAnimation = false
-        cacheProgress = null
-    }
-    SettingsLocalBackHandler(enabled = showCacheDialog && !showCacheAnimation) {
-        showCacheDialog = false
-    }
-    SettingsLocalBackHandler(enabled = showPathDialog) {
-        showPathDialog = false
-    }
-    SettingsLocalBackHandler(enabled = showImageSavePathDialog) {
-        showImageSavePathDialog = false
-    }
-    SettingsLocalBackHandler(enabled = showEasterEggDialog) {
-        showEasterEggDialog = false
-        versionClickCount = 0
-    }
-    SettingsLocalBackHandler(enabled = showDonateDialog) {
-        showDonateDialog = false
-    }
-    SettingsLocalBackHandler(enabled = showReleaseDisclaimerDialog) {
-        showReleaseDisclaimerDialog = false
-    }
-    SettingsLocalBackHandler(enabled = updateCheckResult != null) {
-        updateCheckResult = null
-    }
-    SettingsLocalBackHandler(enabled = changelogCheckResult != null) {
-        changelogCheckResult = null
-    }
-    SettingsLocalBackHandler(enabled = shouldConsumeSettingsBack(showBlockedList)) {
-        showBlockedList = false
+    val settingsBackTarget = resolveSettingsBackTarget(
+        showCacheAnimation = showCacheAnimation,
+        showCacheDialog = showCacheDialog,
+        showPathDialog = showPathDialog,
+        showImageSavePathDialog = showImageSavePathDialog,
+        showEasterEggDialog = showEasterEggDialog,
+        showDonateDialog = showDonateDialog,
+        showReleaseDisclaimerDialog = showReleaseDisclaimerDialog,
+        showUpdateResult = updateCheckResult != null,
+        showChangelogResult = changelogCheckResult != null,
+        showBlockedList = showBlockedList,
+    )
+    SettingsLocalBackHandler(enabled = settingsBackTarget != SettingsBackTarget.NONE) {
+        when (settingsBackTarget) {
+            SettingsBackTarget.NONE -> Unit
+            SettingsBackTarget.CACHE_ANIMATION -> {
+                showCacheAnimation = false
+                cacheProgress = null
+            }
+            SettingsBackTarget.CACHE_DIALOG -> showCacheDialog = false
+            SettingsBackTarget.PATH_DIALOG -> showPathDialog = false
+            SettingsBackTarget.IMAGE_SAVE_PATH_DIALOG -> showImageSavePathDialog = false
+            SettingsBackTarget.EASTER_EGG_DIALOG -> {
+                showEasterEggDialog = false
+                versionClickCount = 0
+            }
+            SettingsBackTarget.DONATE_DIALOG -> showDonateDialog = false
+            SettingsBackTarget.RELEASE_DISCLAIMER_DIALOG -> showReleaseDisclaimerDialog = false
+            SettingsBackTarget.UPDATE_RESULT -> updateCheckResult = null
+            SettingsBackTarget.CHANGELOG_RESULT -> changelogCheckResult = null
+            SettingsBackTarget.BLOCKED_LIST -> showBlockedList = false
+        }
     }
 
     // 页面跳转逻辑

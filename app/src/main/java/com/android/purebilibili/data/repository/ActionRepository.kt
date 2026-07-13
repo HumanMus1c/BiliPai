@@ -8,6 +8,7 @@ import com.android.purebilibili.data.model.response.FollowingUser
 import com.android.purebilibili.data.model.response.RecommendationFeedbackMetadata
 import com.android.purebilibili.data.model.response.RecommendationFeedbackReason
 import com.android.purebilibili.data.model.response.RecommendationFeedbackType
+import com.android.purebilibili.data.model.response.WatchLaterItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -17,6 +18,10 @@ import kotlinx.coroutines.withContext
 private const val FAVORITE_SEASON_PATH = "x/v3/fav/season/fav"
 private const val UNFAVORITE_SEASON_PATH = "x/v3/fav/season/unfav"
 private const val COLLECTION_SUBSCRIPTION_PLATFORM = "web"
+
+internal fun isWatchLaterAid(items: List<WatchLaterItem>, aid: Long): Boolean {
+    return aid > 0L && items.any { it.aid == aid }
+}
 
 internal data class CollectionSubscriptionRequest(
     val path: String,
@@ -873,5 +878,13 @@ object ActionRepository {
                 Result.failure(e)
             }
         }
+    }
+
+    suspend fun checkWatchLaterStatus(aid: Long): Boolean = withContext(Dispatchers.IO) {
+        if (aid <= 0L || TokenManager.sessDataCache.isNullOrEmpty()) return@withContext false
+        runCatching {
+            val response = api.getWatchLaterList()
+            response.code == 0 && isWatchLaterAid(response.data?.list.orEmpty(), aid)
+        }.getOrDefault(false)
     }
 }

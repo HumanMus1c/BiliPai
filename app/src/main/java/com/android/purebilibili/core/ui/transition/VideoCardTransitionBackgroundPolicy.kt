@@ -217,6 +217,12 @@ internal fun shouldApplyVideoCardTransitionBackgroundToRoute(
 ): Boolean {
     val normalizedEntryRoute = normalizeVideoCardTransitionRoute(entryRoute) ?: return false
     val normalizedSourceRoute = normalizeVideoCardTransitionRoute(sourceRoute) ?: return false
+    if (
+        normalizedEntryRoute.startsWith("video/") &&
+        normalizedSourceRoute.startsWith("video/")
+    ) {
+        return false
+    }
     if (!isVideoCardReturnTargetRoute(normalizedSourceRoute)) return false
     if (normalizedEntryRoute == normalizedSourceRoute) return true
     return normalizedEntryRoute == "main_host" &&
@@ -236,8 +242,9 @@ internal fun shouldShowVideoCardTransitionNavBackdrop(
     cardTransitionEnabled: Boolean,
     phase: VideoCardTransitionBackgroundPhase,
     isVideoDetailOnStack: Boolean,
+    isReturningToVideoDetail: Boolean = false,
 ): Boolean {
-    if (!cardTransitionEnabled || !isVideoDetailOnStack) return false
+    if (!cardTransitionEnabled || !isVideoDetailOnStack || isReturningToVideoDetail) return false
     return phase == VideoCardTransitionBackgroundPhase.HELD ||
         phase == VideoCardTransitionBackgroundPhase.OPENING
 }

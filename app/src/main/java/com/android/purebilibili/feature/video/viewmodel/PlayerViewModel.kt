@@ -824,6 +824,29 @@ internal fun shouldTreatAsSamePlaybackRequest(
     return effectiveCid > 0L && effectiveCid == requestCid
 }
 
+internal fun shouldRestoreAttachedPlayerFromLoadedUi(
+    force: Boolean,
+    requestBvid: String,
+    requestCid: Long,
+    requestAudioLang: String?,
+    ignoreSavedProgress: Boolean,
+    videoCodecOverride: String?,
+    loadedBvid: String?,
+    loadedCid: Long,
+    loadedAudioLang: String?,
+    loadedPlayUrlAvailable: Boolean,
+    attachedPlayerMediaItemCount: Int,
+): Boolean {
+    return !force &&
+        !ignoreSavedProgress &&
+        videoCodecOverride == null &&
+        loadedPlayUrlAvailable &&
+        attachedPlayerMediaItemCount == 0 &&
+        loadedBvid == requestBvid &&
+        (requestCid <= 0L || loadedCid == requestCid) &&
+        loadedAudioLang == requestAudioLang
+}
+
 internal fun resolveExternalPlaylistSyncDecision(
     isExternalPlaylist: Boolean,
     playlist: List<PlaylistItem>,
@@ -2477,6 +2500,37 @@ class PlayerViewModel : ViewModel() {
             currentSuccess.info.bvid == playbackRequest.bvid &&
             (playbackRequest.cid <= 0L || currentSuccess.info.cid == playbackRequest.cid)
 
+        if (currentSuccess != null && player != null && shouldRestoreAttachedPlayerFromLoadedUi(
+                force = playbackRequest.force,
+                requestBvid = playbackRequest.bvid,
+                requestCid = playbackRequest.cid,
+                requestAudioLang = playbackRequest.audioLang,
+                ignoreSavedProgress = playbackRequest.ignoreSavedProgress,
+                videoCodecOverride = playbackRequest.videoCodecOverride,
+                loadedBvid = currentSuccess.info.bvid,
+                loadedCid = currentSuccess.info.cid,
+                loadedAudioLang = currentSuccess.currentAudioLang,
+                loadedPlayUrlAvailable = currentSuccess.playUrl.isNotBlank(),
+                attachedPlayerMediaItemCount = player.mediaItemCount,
+            )
+        ) {
+            currentBvid = playbackRequest.bvid
+            currentCid = currentSuccess.info.cid
+            val restorePositionMs = playbackUseCase.getCachedPosition(currentBvid, currentCid)
+            val shouldAutoPlay = playbackRequest.autoPlay ?: appContext?.let {
+                com.android.purebilibili.core.store.SettingsManager.getClickToPlaySync(it)
+            } ?: true
+            playResolvedPlayback(
+                videoUrl = currentSuccess.playUrl,
+                audioUrl = currentSuccess.audioUrl,
+                adaptiveDashSource = currentSuccess.adaptiveDashSource,
+                startPositionMs = restorePositionMs,
+                playWhenReady = shouldAutoPlay,
+            )
+            Logger.d("PlayerVM", "Restored attached player for ${playbackRequest.bvid} without reloading detail UI")
+            return
+        }
+
         if (!playbackRequest.force && isPlayerPlayingSameVideo && isUiLoaded) {
             Logger.d("PlayerVM", "🎯 ${playbackRequest.bvid} already playing healthy + UI loaded, skip reload")
             // 补全 ViewModel 状态：currentBvid 可能为空，需要同步
@@ -4084,6 +4138,7 @@ class PlayerViewModel : ViewModel() {
                 else false
             }
             val favoriteDeferred = async { com.android.purebilibili.data.repository.ActionRepository.checkFavoriteStatus(aid) }
+            val watchLaterDeferred = async { com.android.purebilibili.data.repository.ActionRepository.checkWatchLaterStatus(aid) }
             val likeDeferred = async { com.android.purebilibili.data.repository.ActionRepository.checkLikeStatus(aid) }
             val coinDeferred = async { com.android.purebilibili.data.repository.ActionRepository.checkCoinStatus(aid) }
             val vipDeferred = async {
@@ -4099,6 +4154,7 @@ class PlayerViewModel : ViewModel() {
 
             val fetchedFollow = followDeferred.await()
             val fetchedFavorite = favoriteDeferred.await()
+            val fetchedWatchLater = watchLaterDeferred.await()
             val fetchedLike = likeDeferred.await()
             val fetchedCoinCount = coinDeferred.await()
             val fetchedVip = vipDeferred.await()
@@ -4122,6 +4178,7 @@ class PlayerViewModel : ViewModel() {
                         isVip = success.isVip || fetchedVip,
                         isFollowing = resolvedFollow,
                         isFavorited = success.isFavorited || fetchedFavorite,
+                        isInWatchLater = success.isInWatchLater || fetchedWatchLater,
                         isLiked = success.isLiked || fetchedLike,
                         coinCount = maxOf(success.coinCount, fetchedCoinCount),
                         followingMids = mergedFollowingMids

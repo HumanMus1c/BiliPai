@@ -1,7 +1,6 @@
 package com.android.purebilibili.feature.dynamic.components
 
 import androidx.compose.ui.graphics.Color
-import com.android.purebilibili.core.theme.UiPreset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -64,55 +63,4 @@ class DynamicTopBarThemePolicyTest {
         )
     }
 
-    @Test
-    fun `dynamic header blur is disabled when liquid dock is reused`() {
-        assertEquals(
-            false,
-            shouldUseDynamicTopBarHeaderBlur(
-                hasHazeState = true,
-                globalWallpaperVisible = false,
-                reusesLiquidGlassDock = true
-            )
-        )
-    }
-
-    @Test
-    fun `dynamic top bar reuses liquid dock when global reuse enables liquid pill`() {
-        assertEquals(
-            true,
-            shouldReuseDynamicTopBarLiquidGlassDock(
-                hasBackdrop = true,
-                storedLiquidGlassEnabled = true,
-                uiPreset = UiPreset.IOS,
-                androidNativeLiquidGlassEnabled = true
-            )
-        )
-        assertEquals(
-            true,
-            shouldReuseDynamicTopBarLiquidGlassDock(
-                hasBackdrop = true,
-                storedLiquidGlassEnabled = false,
-                uiPreset = UiPreset.MD3,
-                androidNativeLiquidGlassEnabled = true
-            )
-        )
-        assertEquals(
-            false,
-            shouldReuseDynamicTopBarLiquidGlassDock(
-                hasBackdrop = true,
-                storedLiquidGlassEnabled = true,
-                uiPreset = UiPreset.MD3,
-                androidNativeLiquidGlassEnabled = false
-            )
-        )
-        assertEquals(
-            false,
-            shouldReuseDynamicTopBarLiquidGlassDock(
-                hasBackdrop = false,
-                storedLiquidGlassEnabled = true,
-                uiPreset = UiPreset.IOS,
-                androidNativeLiquidGlassEnabled = true
-            )
-        )
-    }
 }

@@ -4,7 +4,44 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
 
-internal fun shouldConsumeSettingsBack(showBlockedList: Boolean): Boolean = showBlockedList
+internal enum class SettingsBackTarget {
+    NONE,
+    CACHE_ANIMATION,
+    CACHE_DIALOG,
+    PATH_DIALOG,
+    IMAGE_SAVE_PATH_DIALOG,
+    EASTER_EGG_DIALOG,
+    DONATE_DIALOG,
+    RELEASE_DISCLAIMER_DIALOG,
+    UPDATE_RESULT,
+    CHANGELOG_RESULT,
+    BLOCKED_LIST,
+}
+
+internal fun resolveSettingsBackTarget(
+    showCacheAnimation: Boolean = false,
+    showCacheDialog: Boolean = false,
+    showPathDialog: Boolean = false,
+    showImageSavePathDialog: Boolean = false,
+    showEasterEggDialog: Boolean = false,
+    showDonateDialog: Boolean = false,
+    showReleaseDisclaimerDialog: Boolean = false,
+    showUpdateResult: Boolean = false,
+    showChangelogResult: Boolean = false,
+    showBlockedList: Boolean = false,
+): SettingsBackTarget = when {
+    showBlockedList -> SettingsBackTarget.BLOCKED_LIST
+    showChangelogResult -> SettingsBackTarget.CHANGELOG_RESULT
+    showUpdateResult -> SettingsBackTarget.UPDATE_RESULT
+    showReleaseDisclaimerDialog -> SettingsBackTarget.RELEASE_DISCLAIMER_DIALOG
+    showDonateDialog -> SettingsBackTarget.DONATE_DIALOG
+    showEasterEggDialog -> SettingsBackTarget.EASTER_EGG_DIALOG
+    showImageSavePathDialog -> SettingsBackTarget.IMAGE_SAVE_PATH_DIALOG
+    showPathDialog -> SettingsBackTarget.PATH_DIALOG
+    showCacheDialog && !showCacheAnimation -> SettingsBackTarget.CACHE_DIALOG
+    showCacheAnimation -> SettingsBackTarget.CACHE_ANIMATION
+    else -> SettingsBackTarget.NONE
+}
 
 internal fun resolveSettingsBottomBarReservedPadding(
     bottomBarVisible: Boolean,

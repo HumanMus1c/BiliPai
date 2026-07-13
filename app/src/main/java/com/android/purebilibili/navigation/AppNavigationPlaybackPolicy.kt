@@ -49,7 +49,8 @@ internal fun shouldClearReturningStateWhenDisposingVideoDestination(
 
 internal fun isVideoCardReturnTargetRoute(route: String?): Boolean {
     val routeBase = route?.substringBefore("?") ?: return false
-    return routeBase == "main_host" ||
+    return isVideoDetailRoute(routeBase) ||
+        routeBase == "main_host" ||
         routeBase == ScreenRoutes.Home.route ||
         routeBase == ScreenRoutes.ListenVideo.route ||
         routeBase == ScreenRoutes.History.route ||

@@ -2,21 +2,19 @@ package com.android.purebilibili.feature.settings
 
 import java.io.File
 import kotlin.test.Test
-import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 class AnimationSettingsScreenStructureTest {
 
     @Test
-    fun animationSettingsScreen_exposesPredictiveBackToggleAndStylePicker() {
+    fun animationSettingsScreen_leavesPredictiveBackToThePlatform() {
         val source = animationSettingsSource()
 
-        assertTrue(source.contains("预测性返回"))
-        assertTrue(source.contains("setPredictiveBackEnabled"))
-        assertTrue(source.contains("setPredictiveBackAnimationStyle"))
-        assertTrue(source.contains("setPredictiveBackExitDirection"))
-        assertTrue(source.contains("resolvePredictiveBackStyleOptions"))
-        assertTrue(source.contains("resolvePredictiveBackExitDirectionOptions"))
-        assertTrue(source.contains("SettingsIconRole.PREDICTIVE_BACK"))
+        assertFalse(source.contains("setPredictiveBackEnabled"))
+        assertFalse(source.contains("setPredictiveBackAnimationStyle"))
+        assertFalse(source.contains("setPredictiveBackExitDirection"))
+        assertFalse(source.contains("resolvePredictiveBackStyleOptions"))
+        assertFalse(source.contains("resolvePredictiveBackExitDirectionOptions"))
     }
 
     private fun animationSettingsSource(): String {

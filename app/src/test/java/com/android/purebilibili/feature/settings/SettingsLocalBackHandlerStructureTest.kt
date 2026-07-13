@@ -50,14 +50,14 @@ class SettingsLocalBackHandlerStructureTest {
     }
 
     @Test
-    fun settingsScreen_registersLocalBackHandlersForDialogsAndOverlays() {
+    fun settingsScreen_registersOneCoordinatedLocalBackHandler() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/settings/screen/SettingsScreen.kt"
         )
 
-        assertTrue(source.contains("SettingsLocalBackHandler(enabled = showCacheDialog"))
-        assertTrue(source.contains("SettingsLocalBackHandler(enabled = shouldConsumeSettingsBack(showBlockedList)"))
-        assertFalse(source.contains("SettingsLocalBackHandler(\n        enabled = searchQuery.isNotBlank()"))
+        assertTrue(source.contains("val settingsBackTarget = resolveSettingsBackTarget("))
+        assertTrue(source.contains("SettingsLocalBackHandler(enabled = settingsBackTarget != SettingsBackTarget.NONE)"))
+        assertTrue(source.indexOf("SettingsLocalBackHandler(") == source.lastIndexOf("SettingsLocalBackHandler("))
     }
 
     private fun loadSource(path: String): String {

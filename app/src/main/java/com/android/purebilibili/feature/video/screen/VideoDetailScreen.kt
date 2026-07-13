@@ -35,6 +35,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleOut
 import androidx.activity.compose.BackHandler
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
@@ -284,25 +287,25 @@ internal const val VIDEO_CONTENT_COMMENT_TAB_INDEX = 1
 
 internal fun resolveForceCoverOnlyForReturn(
     forceCoverOnlyOnReturn: Boolean,
-    isReturningFromDetail: Boolean,
-    isExitTransitionInProgress: Boolean,
     transitionEnabled: Boolean = true,
     isCardReturnExitInProgress: Boolean = false
 ): Boolean {
     if (!transitionEnabled) return false
-    // 壳体 sharedBounds 只负责整体落位；返回中仍需要封面压住播放器，避免加载完成后的播放器层缩回卡片。
-    // isCardReturnExitInProgress: 仅在"存在卡片共享元素配对且本页正在退出"时为真(调用点用
-    // isExitTransitionInProgress && sharedBoundsActive 计算)，使预测式返回手势拖动期间就让封面接管，
-    // 与共享元素 morph 同步；手势取消时 PostExit 回退 → 该值转 false → 封面淡出复原，避免 player↔cover 硬切。
-    return forceCoverOnlyOnReturn || isReturningFromDetail || isCardReturnExitInProgress
+    return forceCoverOnlyOnReturn || isCardReturnExitInProgress
 }
 
 internal fun shouldUseReturningVideoDetailVisualState(
-    forceCoverOnlyForReturn: Boolean,
-    isReturningFromDetail: Boolean,
-    isExitTransitionInProgress: Boolean
+    forceCoverOnlyForReturn: Boolean
 ): Boolean {
-    return forceCoverOnlyForReturn || isReturningFromDetail
+    return forceCoverOnlyForReturn
+}
+
+internal fun shouldTreatVideoDetailCardExitAsReturning(
+    isExitTransitionInProgress: Boolean,
+    sharedBoundsActive: Boolean,
+): Boolean {
+    return isExitTransitionInProgress &&
+        sharedBoundsActive
 }
 
 internal fun resolveCoverTakeoverDelayBeforeBackNavigationMillis(): Long {
@@ -1107,6 +1110,7 @@ fun VideoDetailScreen(
     onMarkReturningFromDetail: () -> Unit = {},
     onClearReturningFromDetail: () -> Unit = {},
     transitionEnabled: Boolean = false,
+    useClassicVideoCardBackHandler: Boolean = false,
     transitionEnterDurationMillis: Int = 320,
     onBack: () -> Unit,
     onHomeClick: () -> Unit = onBack,
@@ -1206,6 +1210,7 @@ fun VideoDetailScreen(
         transitionEnabled = transitionEnabled,
         detailShellSharedBoundsEnabled = detailShellSharedBoundsEnabledForEntry,
         reuseFromMiniPlayerAtEntry = reuseFromMiniPlayerAtEntry,
+        isReturningFromDetail = isReturningFromDetail,
     )
     val entryTransitionFinished = rememberVideoDetailEntryTransitionFinished(
         deferLoad = deferVideoDetailEntryLoad,
@@ -1791,26 +1796,17 @@ fun VideoDetailScreen(
     // 预测式返回手势拖动期间(video → card)：本页 AnimatedContent 进入 PostExit(isExitTransitionInProgress)
     // 且存在共享元素配对(sharedBoundsActive)时，提前让封面接管，避免提交返回瞬间 player→cover 硬切闪烁。
     // 仅在有卡片可落位(sharedBoundsActive)时启用，普通退出/无共享元素场景保持原行为。
-    val isCardReturnExitInProgress = isExitTransitionInProgress && sharedBoundsActive
+    val isCardReturnExitInProgress = shouldTreatVideoDetailCardExitAsReturning(
+        isExitTransitionInProgress = isExitTransitionInProgress,
+        sharedBoundsActive = sharedBoundsActive,
+    )
     val forceCoverOnlyForReturn = resolveForceCoverOnlyForReturn(
         forceCoverOnlyOnReturn = forceCoverOnlyOnReturn,
-        isReturningFromDetail = isReturningFromDetail,
-        isExitTransitionInProgress = isExitTransitionInProgress,
         transitionEnabled = transitionEnabled,
         isCardReturnExitInProgress = isCardReturnExitInProgress
     )
     val useReturningVideoDetailVisualState = shouldUseReturningVideoDetailVisualState(
-        forceCoverOnlyForReturn = forceCoverOnlyForReturn,
-        isReturningFromDetail = isReturningFromDetail,
-        isExitTransitionInProgress = isExitTransitionInProgress
-    )
-    val shellBackgroundAlpha by animateFloatAsState(
-        targetValue = if (useReturningVideoDetailVisualState && sharedBoundsActive) 0f else 1f,
-        animationSpec = tween(
-            durationMillis = homeSharedTransitionMotionSpec.durationMillis.coerceAtLeast(1),
-            easing = homeSharedTransitionMotionSpec.easing
-        ),
-        label = "shellBackgroundAlpha"
+        forceCoverOnlyForReturn = forceCoverOnlyForReturn
     )
 
     val handleTopBarAction = remember(
@@ -2955,15 +2951,28 @@ fun VideoDetailScreen(
         )
     }
 
-    //  拦截系统返回键：如果是全屏模式，则先退出全屏
-    BackHandler(enabled = isFullscreenMode) {
-        toggleFullscreen()
-    }
-
-    // 📱 拦截系统返回键：如果是竖屏全屏模式，则先退出竖屏全屏
-    BackHandler(enabled = isPortraitFullscreen) {
-        isPortraitFullscreen = false
-    }
+    val localBackTarget = resolveVideoDetailLocalBackTarget(
+        isLandscapeFullscreen = isFullscreenMode,
+        isPortraitFullscreen = isPortraitFullscreen,
+    )
+    val localBackEventState = rememberNavigationEventState(NavigationEventInfo.None)
+    BackHandler(
+        enabled = useClassicVideoCardBackHandler &&
+            localBackTarget == VideoDetailLocalBackTarget.NAVIGATE_BACK,
+        onBack = handleBack
+    )
+    NavigationBackHandler(
+        state = localBackEventState,
+        isBackEnabled = localBackTarget != VideoDetailLocalBackTarget.NAVIGATE_BACK,
+        onBackCompleted = { commitTransition: () -> Unit ->
+            when (localBackTarget) {
+                VideoDetailLocalBackTarget.EXIT_PORTRAIT_FULLSCREEN -> isPortraitFullscreen = false
+                VideoDetailLocalBackTarget.EXIT_LANDSCAPE_FULLSCREEN -> toggleFullscreen()
+                VideoDetailLocalBackTarget.NAVIGATE_BACK -> Unit
+            }
+            commitTransition()
+        },
+    )
 
     // 以下 BackHandler 会阻止 Compose Navigation 的返回路由动画，由根导航统一处理。
     // 显式点击返回时由 handleBack 提前标记 returning，系统路径仍由 onDispose 兜底标记。
@@ -4636,7 +4645,7 @@ fun VideoDetailScreen(
         motion = routeSheetMotion,
         isFullscreenMode = isFullscreenMode,
         backgroundColor = MaterialTheme.colorScheme.background,
-        backgroundAlpha = shellBackgroundAlpha,
+        backgroundAlpha = 1f,
         modifier = detailShellModifier,
         content = { VideoDetailRouteSheetMainContent() },
         overlayContent = { VideoDetailRouteSheetOverlayContent() }

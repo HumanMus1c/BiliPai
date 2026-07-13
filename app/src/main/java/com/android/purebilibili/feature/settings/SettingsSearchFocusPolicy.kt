@@ -28,7 +28,6 @@ object SettingsSearchFocusIds {
     const val BOTTOM_BAR_AVAILABLE = "bottom_bar_available"
 
     const val ANIMATION_VISUAL_EFFECTS = "animation_visual_effects"
-    const val PREDICTIVE_BACK = "predictive_back"
 }
 
 data class SettingsSearchFocusRequest(
@@ -111,9 +110,7 @@ internal fun resolveAnimationSettingsScrollIndex(
     focusId: String
 ): Int? {
     return when (focusId) {
-        SettingsSearchFocusIds.PREDICTIVE_BACK -> 4
-        // 「返回手势」分组(标题+开关 2 项)插入后,视觉效果分组下移到 index 6。
-        SettingsSearchFocusIds.ANIMATION_VISUAL_EFFECTS -> 6
+        SettingsSearchFocusIds.ANIMATION_VISUAL_EFFECTS -> 4
         else -> null
     }
 }

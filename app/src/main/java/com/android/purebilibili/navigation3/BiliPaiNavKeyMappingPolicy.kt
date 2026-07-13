@@ -6,6 +6,10 @@ import com.android.purebilibili.feature.settings.SettingsRootCategory
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
+internal fun resolveNavigation3SaveableStateKey(key: BiliPaiNavKey): String {
+    return "${key.routeBase}:${key}"
+}
+
 internal fun BiliPaiNavKey.toLegacyRoute(): String {
     return when (this) {
         BiliPaiNavKey.MainHost -> "main_host"

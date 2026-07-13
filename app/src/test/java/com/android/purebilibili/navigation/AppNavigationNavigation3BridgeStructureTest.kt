@@ -75,7 +75,7 @@ class AppNavigationNavigation3BridgeStructureTest {
     }
 
     @Test
-    fun videoDetailRelatedVideoClickUsesVideoSourceRouteForSharedElementPairing() {
+    fun videoDetailRelatedVideoClickUsesParentDetailRouteForSharedElementPairing() {
         val source = appNavigationSource()
         val videoDetailBranch = source
             .substringAfter("BiliPaiNavEntryContentRole.VIDEO_DETAIL ->")
@@ -83,7 +83,7 @@ class AppNavigationNavigation3BridgeStructureTest {
         val onVideoClickBlock = videoDetailBranch
             .substringAfter("onVideoClick = { vid, options ->")
 
-        assertTrue(onVideoClickBlock.contains("sourceRoute = VideoRoute.base"))
+        assertTrue(onVideoClickBlock.contains("sourceRoute = \"video/${'$'}{videoKey.bvid}\""))
     }
 
     @Test
@@ -282,9 +282,9 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertFalse(source.contains("video" + "PredictiveReturnToCardEnabled"))
         assertFalse(source.contains("video" + "PredictiveReturnSourceBounds"))
         assertFalse(source.contains("shouldEnableVideo" + "PredictiveReturnToCard"))
-        assertTrue(source.contains("predictiveBackEnabled"))
-        assertTrue(source.contains("predictiveBackAnimationStyle"))
-        assertTrue(source.contains("shouldUseClassicBackHandler"))
+        assertTrue(source.contains("val predictiveBackEnabled = true"))
+        assertTrue(source.contains("BiliPaiPredictiveBackAnimationStyle.DEFAULT"))
+        assertFalse(source.contains("shouldUseClassicBackHandler"))
     }
 
     @Test
@@ -391,7 +391,7 @@ class AppNavigationNavigation3BridgeStructureTest {
             .substringBefore("} // End of Content Box")
         val bottomBarOverlay = source
             .substringAfter("if (bottomBarMountGate && bottomBarVisibilityMode")
-            .substringBefore("if (predictiveBackEnabled)")
+            .substringBefore("MainHostTabBackHandler(")
 
         assertTrue(mainHostBranch.contains("VideoCardTransitionBackgroundRouteContent(bottomPagerNavKeyForItem(currentBottomNavItem))"))
         assertTrue(source.contains("val isVideoDetailDestination = isVideoDetailRoute(currentRoute)"))

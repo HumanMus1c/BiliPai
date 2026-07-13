@@ -9,6 +9,18 @@ import kotlin.test.assertTrue
 class VideoCardTransitionBackgroundPolicyTest {
 
     @Test
+    fun navBackdrop_isHiddenWhenPredictiveReturnTargetsAnotherVideoDetail() {
+        assertFalse(
+            shouldShowVideoCardTransitionNavBackdrop(
+                cardTransitionEnabled = true,
+                phase = VideoCardTransitionBackgroundPhase.HELD,
+                isVideoDetailOnStack = true,
+                isReturningToVideoDetail = true,
+            )
+        )
+    }
+
+    @Test
     fun reducedMotionTierSkipsRealtimeBlurButKeepsOpeningScrimAndScale() {
         val opening = resolveVideoCardTransitionBackgroundFrame(
             progress = 1f,
@@ -118,6 +130,17 @@ class VideoCardTransitionBackgroundPolicyTest {
         assertEquals(1f, start.contentScale)
         assertEquals(1f, middle.contentScale)
         assertEquals(1f, end.contentScale)
+    }
+
+    @Test
+    fun detailToDetailSourceDoesNotBlurThePreviousDetailEntry() {
+        assertFalse(
+            shouldApplyVideoCardTransitionBackgroundToRoute(
+                entryRoute = "video/BV_A",
+                sourceRoute = "video/BV_A",
+                activeMainHostRoute = "home"
+            )
+        )
     }
 
     @Test

@@ -82,6 +82,7 @@ class AppNavigationPlaybackPolicyTest {
         ).forEach { route ->
             assertTrue(isVideoCardReturnTargetRoute(route), "共享元素返回应支持来源路由：$route")
         }
+        assertTrue(isVideoCardReturnTargetRoute("video/BV1?cid=11"))
         assertFalse(isVideoCardReturnTargetRoute(ScreenRoutes.Settings.route))
     }
 

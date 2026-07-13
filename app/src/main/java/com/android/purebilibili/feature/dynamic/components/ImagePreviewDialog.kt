@@ -10,7 +10,6 @@ import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -83,6 +82,10 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import java.io.File
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.NavigationEventTransitionState
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 
 /**
  *  图片预览对话框 - 支持左右滑动切换和3D立体动画
@@ -450,9 +453,34 @@ private fun ImagePreviewOverlayContent(
                 }
             }
 
-            BackHandler(enabled = !isDismissing) {
-                triggerDismiss()
+            val backEventState = rememberNavigationEventState(NavigationEventInfo.None)
+            val backProgress =
+                (backEventState.transitionState as? NavigationEventTransitionState.InProgress)
+                    ?.latestEvent
+                    ?.progress
+                    ?: 0f
+            LaunchedEffect(backProgress, isDismissing) {
+                if (!isDismissing && backProgress > 0f) {
+                    animateTrigger.snapTo(1f - backProgress)
+                }
             }
+            NavigationBackHandler(
+                state = backEventState,
+                isBackEnabled = !isDismissing,
+                onBackCancelled = { commitTransition: () -> Unit ->
+                    scope.launch {
+                        animateTrigger.animateTo(
+                            targetValue = 1f,
+                            animationSpec = emphasizedEnterTween(durationMillis = 160),
+                        )
+                        commitTransition()
+                    }
+                },
+                onBackCompleted = { commitTransition: () -> Unit ->
+                    triggerDismiss()
+                    commitTransition()
+                },
+            )
             
             val (currentLeft, currentTop, currentWidth, currentHeight) = if (shouldUseRectAnim) {
                 val source = sourceRect

@@ -3,15 +3,31 @@ package com.android.purebilibili.feature.settings
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class SettingsScreenPolicyTest {
 
     @Test
-    fun blockedListSubscreen_consumesBackBeforeLeavingSettings() {
-        assertTrue(shouldConsumeSettingsBack(showBlockedList = true))
-        assertFalse(shouldConsumeSettingsBack(showBlockedList = false))
+    fun `settings back target chooses the topmost overlay`() {
+        assertEquals(
+            SettingsBackTarget.BLOCKED_LIST,
+            resolveSettingsBackTarget(
+                showBlockedList = true,
+                showCacheDialog = true,
+                showCacheAnimation = true,
+            )
+        )
+        assertEquals(
+            SettingsBackTarget.CACHE_ANIMATION,
+            resolveSettingsBackTarget(
+                showCacheDialog = true,
+                showCacheAnimation = true,
+            )
+        )
+    }
+
+    @Test
+    fun `settings back target is none without a local overlay`() {
+        assertEquals(SettingsBackTarget.NONE, resolveSettingsBackTarget())
     }
 
     @Test

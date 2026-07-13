@@ -89,6 +89,7 @@ import com.android.purebilibili.feature.video.ui.components.rememberVideoComment
 import com.android.purebilibili.feature.video.ui.components.resolveReplyItemContentType
 import com.android.purebilibili.feature.video.ui.components.shouldShowReplyTopAction
 import com.android.purebilibili.feature.video.ui.components.shouldShowVideoCommentBackToTop
+import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
@@ -359,6 +360,7 @@ fun VideoContentSection(
     onToggleTopComment: (ReplyItem) -> Unit = {},
     // 🔗 [新增] 共享元素过渡开关
     transitionEnabled: Boolean = false,
+    relatedVideoTransitionEnabled: Boolean = transitionEnabled,
     isQuickReturnLimitedForSharedElements: Boolean = false,
     sourceRouteForSharedElement: String? = null,
     // [新增] 收藏夹相关参数
@@ -588,6 +590,7 @@ fun VideoContentSection(
                         onShareClick = onShareClick,
                         contentPadding = PaddingValues(bottom = bottomContentPadding),
                         transitionEnabled = transitionEnabled,
+                        relatedVideoTransitionEnabled = relatedVideoTransitionEnabled,
                         isQuickReturnLimitedForSharedElements = isQuickReturnLimitedForSharedElements,
                         sourceRouteForSharedElement = sourceRouteForSharedElement,
                         ownerFollowerCount = ownerFollowerCount,
@@ -751,6 +754,7 @@ private fun VideoIntroTab(
     onDescriptionUrlClick: ((String) -> Unit)? = null,
     contentPadding: PaddingValues,
     transitionEnabled: Boolean = false,  // 🔗 共享元素过渡开关
+    relatedVideoTransitionEnabled: Boolean = transitionEnabled,
     isQuickReturnLimitedForSharedElements: Boolean = false,
     sourceRouteForSharedElement: String? = null,
     ownerFollowerCount: Int? = null,
@@ -882,16 +886,20 @@ private fun VideoIntroTab(
                 onRelatedVideoClick(video.bvid, navOptions)
             }
 
-            Box(
-                modifier = Modifier.fillMaxWidth()
+            CompositionLocalProvider(
+                LocalVideoCardSharedElementSourceRoute provides "video/${info.bvid}"
             ) {
-                RelatedVideoItem(
-                    video = video,
-                    isFollowed = video.owner.mid in followingMids,
-                    transitionEnabled = transitionEnabled,  // 🔗 传递共享元素开关
-                    showUpBadge = showUpBadge,
-                    onClick = openRelatedVideo
-                )
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    RelatedVideoItem(
+                        video = video,
+                        isFollowed = video.owner.mid in followingMids,
+                        transitionEnabled = relatedVideoTransitionEnabled,
+                        showUpBadge = showUpBadge,
+                        onClick = openRelatedVideo
+                    )
+                }
             }
         }
     }

@@ -181,7 +181,6 @@ object SsdpDiscovery {
                 runCatching { activeNetwork.bindSocket(socket) }
                     .onSuccess {
                         Logger.i(TAG, "📺 [DLNA] SSDP socket bound to active network")
-                        return
                     }
                     .onFailure { error ->
                         Logger.w(TAG, "📺 [DLNA] activeNetwork.bindSocket failed: ${error.message}")

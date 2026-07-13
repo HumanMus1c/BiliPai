@@ -8,6 +8,19 @@ import kotlin.test.assertTrue
 class DynamicCommentImagePreviewStructureTest {
 
     @Test
+    fun imagePreview_returnGestureDrivesTheExistingDismissTimeline() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/ImagePreviewDialog.kt"
+        ).readText()
+
+        assertTrue(source.contains("NavigationBackHandler("))
+        assertTrue(source.contains("?.latestEvent"))
+        assertTrue(source.contains("?.progress"))
+        assertTrue(source.contains("animateTrigger.snapTo(1f - backProgress)"))
+        assertFalse(source.contains("BackHandler(enabled = !isDismissing)"))
+    }
+
+    @Test
     fun dynamicCommentPictures_openInAppPreviewInsteadOfBrowser() {
         val source = File(
             "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCommentSheet.kt"

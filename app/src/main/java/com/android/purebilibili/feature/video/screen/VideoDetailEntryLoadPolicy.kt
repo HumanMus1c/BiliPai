@@ -7,10 +7,12 @@ internal fun shouldDeferVideoDetailLoadUntilEntryTransitionFinished(
     transitionEnabled: Boolean,
     detailShellSharedBoundsEnabled: Boolean,
     reuseFromMiniPlayerAtEntry: Boolean,
+    isReturningFromDetail: Boolean = false,
 ): Boolean {
     if (!transitionEnabled) return false
     if (!detailShellSharedBoundsEnabled) return false
     if (reuseFromMiniPlayerAtEntry) return false
+    if (isReturningFromDetail) return false
     return true
 }
 

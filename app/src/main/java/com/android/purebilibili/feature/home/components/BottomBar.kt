@@ -885,15 +885,6 @@ internal fun shouldUseBottomBarCombinedIndicatorBackdrop(
     }
 }
 
-internal fun shouldRenderBottomBarForegroundAboveIndicator(
-    preset: BottomBarLiquidGlassPreset
-): Boolean {
-    return when (preset) {
-        BottomBarLiquidGlassPreset.BILIPAI_TUNED,
-        BottomBarLiquidGlassPreset.IOS26_REFINED -> false
-    }
-}
-
 internal fun shouldUseBottomBarIndicatorLens(
     preset: BottomBarLiquidGlassPreset
 ): Boolean {
@@ -1297,41 +1288,6 @@ internal fun resolveAndroidNativeExportTintColor(
     glassEnabled: Boolean = false
 ): Color {
     return themeColor
-}
-
-internal fun resolveBottomBarGlassVisibleContentColor(
-    unselectedColor: Color,
-    selectedColor: Color,
-    themeWeight: Float,
-    glassEnabled: Boolean,
-    indicatorProgress: Float,
-    indicatorBackdropEnabled: Boolean = true
-): Color {
-    if (glassEnabled && indicatorBackdropEnabled && indicatorProgress > 0.001f) {
-        return unselectedColor
-    }
-    return lerpColor(
-        start = unselectedColor,
-        stop = selectedColor,
-        fraction = themeWeight.coerceIn(0f, 1f)
-    )
-}
-
-internal fun resolveBottomBarGlassExportContentColor(
-    unselectedColor: Color,
-    selectedColor: Color,
-    themeWeight: Float,
-    glassEnabled: Boolean
-): Color {
-    val clampedWeight = themeWeight.coerceIn(0f, 1f)
-    if (glassEnabled) {
-        return unselectedColor
-    }
-    return lerpColor(
-        start = unselectedColor,
-        stop = selectedColor,
-        fraction = clampedWeight
-    )
 }
 
 internal data class BottomBarSkinContentColors(
@@ -3971,7 +3927,7 @@ private fun KernelSuBottomBarShell(
 }
 
 @Composable
-private fun BoxScope.KernelSuMiuixBottomBarIndicatorLayer(
+internal fun BoxScope.KernelSuMiuixBottomBarIndicatorLayer(
     visible: Boolean,
     dockContentAlpha: Float,
     indicatorTranslationXPx: Float,

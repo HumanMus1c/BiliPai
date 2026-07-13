@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.GraphicsLayerScope
@@ -72,6 +73,13 @@ import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
+import com.android.purebilibili.feature.home.components.liquid.lens as miuixLens
+import com.android.purebilibili.feature.home.components.liquid.vibrancy as miuixVibrancy
+import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
+import top.yukonga.miuix.kmp.blur.blur as miuixBlur
+import top.yukonga.miuix.kmp.blur.drawBackdrop as miuixDrawBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sign
@@ -106,12 +114,17 @@ internal fun resolveSegmentedControlChromeStyle(
     androidNativeLiquidGlassEnabled: Boolean,
     preferInlineContentStyle: Boolean = false
 ): SegmentedControlChromeStyle {
-    return if (uiPreset == UiPreset.MD3 && (preferInlineContentStyle || !androidNativeLiquidGlassEnabled)) {
+    return if (uiPreset == UiPreset.MD3 && !androidNativeLiquidGlassEnabled) {
         SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE
     } else {
         SegmentedControlChromeStyle.LIQUID_PILL
     }
 }
+
+internal fun resolveLiquidSegmentedControlUnselectedTextColor(
+    onSurface: Color,
+    enabled: Boolean
+): Color = if (enabled) onSurface else onSurface.copy(alpha = 0.42f)
 
 internal fun resolveSegmentedControlIndicatorWidthDp(
     slotWidthDp: Float,
@@ -359,6 +372,7 @@ fun BottomBarLiquidSegmentedControl(
     preferInlineContentStyle: Boolean = false,
     forceLiquidChrome: Boolean = false,
     backdrop: Backdrop? = null,
+    miuixBackdrop: MiuixBackdrop? = null,
     tapPressRefractionEnabled: Boolean = true,
     containerColorOverride: Color? = null,
     selectedTextColorOverride: Color? = null,
@@ -448,7 +462,10 @@ fun BottomBarLiquidSegmentedControl(
     val themeColor = MaterialTheme.colorScheme.primary
     val selectedTextColor = selectedTextColorOverride ?: themeColor
     val unselectedTextColor = unselectedTextColorOverride
-        ?: MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.78f else 0.42f)
+        ?: resolveLiquidSegmentedControlUnselectedTextColor(
+            onSurface = MaterialTheme.colorScheme.onSurface,
+            enabled = enabled
+        )
     // Bottom-bar path: export is monochrome so SrcIn tint becomes pure theme color under glass.
     val exportTintColor = resolveAndroidNativeExportTintColor(
         themeColor = themeColor,
@@ -575,11 +592,13 @@ fun BottomBarLiquidSegmentedControl(
         val panelOffsetPx = presetPanelOffsets.indicatorPanelOffsetPx
         val exportPanelOffsetPx = presetPanelOffsets.exportPanelOffsetPx
         val tabsBackdrop = rememberLayerBackdrop()
+        val tabsMiuixBackdrop = rememberMiuixLayerBackdrop()
         // Never fall back export/shell sampling to tabsBackdrop: that LayerBackdrop is
         // recorded on the export node, and self-drawBackdrop overflows HyperOS
         // MiBackgroundBlurBlend (RenderThread stack overflow). Also never CombinedBackdrop
         // the page + tabs layers — same nested RenderNode failure mode as the dock bar.
         val hasExternalBackdrop = backdrop != null
+        val hasMiuixExternalBackdrop = miuixBackdrop != null
         val containerBackdrop = backdrop
         val captureLensProgress = resolveSharedLiquidIndicatorCaptureLensProgress(
             lensProgress = lensProgress,
@@ -604,23 +623,44 @@ fun BottomBarLiquidSegmentedControl(
                 preset = homeSettings.bottomBarLiquidGlassPreset,
                 darkTheme = isDarkTheme
             )
+        val foregroundAboveIndicator = shouldRenderBottomBarForegroundAboveIndicator(
+            homeSettings.bottomBarLiquidGlassPreset
+        )
 
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .kernelSuFloatingDockSurface(
-                    shape = containerShape,
-                    backdrop = backdrop,
-                    containerColor = containerColor,
-                    blurEnabled = liquidGlassEnabled,
-                    glassEnabled = liquidGlassEnabled,
-                    blurRadius = androidNativeTuning.shellBlurRadiusDp.dp,
-                    hazeState = null,
-                    motionTier = MotionTier.Normal,
-                    isTransitionRunning = false,
-                    forceLowBlurBudget = false,
-                    liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset
-                )
+                .run {
+                    if (miuixBackdrop != null) {
+                        this.kernelSuMiuixFloatingDockSurface(
+                            shape = containerShape,
+                            backdrop = miuixBackdrop,
+                            containerColor = containerColor,
+                            blurEnabled = liquidGlassEnabled,
+                            glassEnabled = liquidGlassEnabled,
+                            blurRadius = androidNativeTuning.shellBlurRadiusDp.dp,
+                            hazeState = null,
+                            motionTier = MotionTier.Normal,
+                            isTransitionRunning = false,
+                            forceLowBlurBudget = false,
+                            liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset
+                        )
+                    } else {
+                        this.kernelSuFloatingDockSurface(
+                            shape = containerShape,
+                            backdrop = backdrop,
+                            containerColor = containerColor,
+                            blurEnabled = liquidGlassEnabled,
+                            glassEnabled = liquidGlassEnabled,
+                            blurRadius = androidNativeTuning.shellBlurRadiusDp.dp,
+                            hazeState = null,
+                            motionTier = MotionTier.Normal,
+                            isTransitionRunning = false,
+                            forceLowBlurBudget = false,
+                            liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset
+                        )
+                    }
+                }
         )
 
         // 1) Visible labels BEHIND the capsule (bottom-bar z-order).
@@ -643,6 +683,7 @@ fun BottomBarLiquidSegmentedControl(
             modifier = Modifier
                 .matchParentSize()
                 .padding(horizontal = contentPadding, vertical = contentVerticalInset)
+                .zIndex(if (foregroundAboveIndicator) 1f else 0f)
                 .graphicsLayer { translationX = panelOffsetPx }
         )
 
@@ -652,39 +693,72 @@ fun BottomBarLiquidSegmentedControl(
                 .matchParentSize()
                 .clearAndSetSemantics {}
                 .alpha(0f)
-                .layerBackdrop(tabsBackdrop)
-                .graphicsLayer { translationX = exportPanelOffsetPx }
                 .run {
-                    if (
-                        shouldDrawSegmentedControlExportCaptureBackdrop(
-                            liquidGlassEnabled = liquidGlassEnabled,
-                            hasExternalBackdrop = hasExternalBackdrop
-                        ) && containerBackdrop != null
-                    ) {
-                        drawBackdrop(
-                            backdrop = containerBackdrop,
-                            shape = { containerShape },
-                            effects = {
-                                vibrancy()
-                                blur(androidNativeTuning.shellBlurRadiusDp.dp.toPx())
-                                if (captureLensProgress > 0.001f) {
-                                    lens(
-                                        refractionHeight = captureLensSpec.refractionHeightDp.dp.toPx(),
-                                        refractionAmount = captureLensSpec.refractionAmountDp.dp.toPx(),
-                                        depthEffect = true,
-                                        chromaticAberration = true
+                    if (hasMiuixExternalBackdrop) {
+                        this.miuixLayerBackdrop(tabsMiuixBackdrop)
+                            .graphicsLayer { translationX = exportPanelOffsetPx }
+                            .run {
+                                if (
+                                    shouldDrawSegmentedControlExportCaptureBackdrop(
+                                        liquidGlassEnabled = liquidGlassEnabled,
+                                        hasExternalBackdrop = true
                                     )
+                                ) {
+                                    miuixDrawBackdrop(
+                                        backdrop = miuixBackdrop,
+                                        shape = { containerShape },
+                                        effects = {
+                                            miuixVibrancy()
+                                            miuixBlur(4.dp.toPx(), 4.dp.toPx())
+                                            if (captureLensProgress > 0.001f) {
+                                                miuixLens(
+                                                    refractionHeight = captureLensSpec.refractionHeightDp.dp.toPx(),
+                                                    refractionAmount = captureLensSpec.refractionAmountDp.dp.toPx(),
+                                                    depthEffect = true,
+                                                    chromaticAberration = 0.5f
+                                                )
+                                            }
+                                        },
+                                        onDrawSurface = { drawRect(containerColor) }
+                                    )
+                                } else {
+                                    this
                                 }
-                            },
-                            highlight = {
-                                Highlight.Default.copy(alpha = captureHighlightAlpha)
-                            },
-                            onDrawSurface = {
-                                drawRect(containerColor)
                             }
-                        )
                     } else {
-                        this
+                        this.layerBackdrop(tabsBackdrop)
+                            .graphicsLayer { translationX = exportPanelOffsetPx }
+                            .run {
+                                if (
+                                    shouldDrawSegmentedControlExportCaptureBackdrop(
+                                        liquidGlassEnabled = liquidGlassEnabled,
+                                        hasExternalBackdrop = hasExternalBackdrop
+                                    ) && containerBackdrop != null
+                                ) {
+                                    drawBackdrop(
+                                        backdrop = containerBackdrop,
+                                        shape = { containerShape },
+                                        effects = {
+                                            vibrancy()
+                                            blur(androidNativeTuning.shellBlurRadiusDp.dp.toPx())
+                                            if (captureLensProgress > 0.001f) {
+                                                lens(
+                                                    refractionHeight = captureLensSpec.refractionHeightDp.dp.toPx(),
+                                                    refractionAmount = captureLensSpec.refractionAmountDp.dp.toPx(),
+                                                    depthEffect = true,
+                                                    chromaticAberration = true
+                                                )
+                                            }
+                                        },
+                                        highlight = {
+                                            Highlight.Default.copy(alpha = captureHighlightAlpha)
+                                        },
+                                        onDrawSurface = { drawRect(containerColor) }
+                                    )
+                                } else {
+                                    this
+                                }
+                            }
                     }
                 }
         ) {
@@ -712,31 +786,56 @@ fun BottomBarLiquidSegmentedControl(
         }
 
         // 3) Capsule on top — samples export theme glyphs through glass.
-        KernelSuBottomBarIndicatorLayer(
-            visible = true,
-            dockContentAlpha = 1f,
-            indicatorTranslationXPx = with(density) { indicatorOffset.toPx() },
-            indicatorPanelOffsetPx = panelOffsetPx,
-            indicatorSettleReboundTransform = clickPulseTransform,
-            indicatorWidth = indicatorWidth,
-            indicatorHeight = resolvedIndicatorHeight,
-            shellShape = indicatorShape,
-            liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
-            // Prefer tabs export so capsule shows theme glyphs, not page feed colors.
-            contentBackdrop = tabsBackdrop,
-            backdrop = backdrop,
-            indicatorLensSpec = indicatorLensSpec,
-            effectivePressProgress = lensProgress,
-            indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
-            glassEnabled = liquidGlassEnabled,
-            motionProgress = motionProgress,
-            velocityItemsPerSecond = dragState.deformationVelocityItemsPerSecond,
-            isDragging = dragState.isDragging,
-            indicatorLayerScaleProgress = indicatorLayerScaleProgress,
-            indicatorLayerScaleTransform = null,
-            bottomBarMotionSpec = motionSpec,
-            isDarkTheme = isDarkTheme
-        )
+        if (miuixBackdrop != null) {
+            KernelSuMiuixBottomBarIndicatorLayer(
+                visible = true,
+                dockContentAlpha = 1f,
+                indicatorTranslationXPx = with(density) { indicatorOffset.toPx() },
+                indicatorPanelOffsetPx = panelOffsetPx,
+                indicatorWidth = indicatorWidth,
+                indicatorHeight = resolvedIndicatorHeight,
+                shellShape = indicatorShape,
+                liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
+                contentBackdrop = tabsMiuixBackdrop,
+                backdrop = miuixBackdrop,
+                indicatorLensSpec = indicatorLensSpec,
+                effectivePressProgress = lensProgress,
+                indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
+                glassEnabled = liquidGlassEnabled,
+                motionProgress = motionProgress,
+                velocityItemsPerSecond = dragState.deformationVelocityItemsPerSecond,
+                isDragging = dragState.isDragging,
+                indicatorLayerScaleProgress = indicatorLayerScaleProgress,
+                indicatorLayerScaleTransform = null,
+                bottomBarMotionSpec = motionSpec,
+                isDarkTheme = isDarkTheme
+            )
+        } else {
+            KernelSuBottomBarIndicatorLayer(
+                visible = true,
+                dockContentAlpha = 1f,
+                indicatorTranslationXPx = with(density) { indicatorOffset.toPx() },
+                indicatorPanelOffsetPx = panelOffsetPx,
+                indicatorSettleReboundTransform = clickPulseTransform,
+                indicatorWidth = indicatorWidth,
+                indicatorHeight = resolvedIndicatorHeight,
+                shellShape = indicatorShape,
+                liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
+                contentBackdrop = tabsBackdrop,
+                backdrop = backdrop,
+                indicatorLensSpec = indicatorLensSpec,
+                effectivePressProgress = lensProgress,
+                indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
+                glassEnabled = liquidGlassEnabled,
+                motionProgress = motionProgress,
+                velocityItemsPerSecond = dragState.deformationVelocityItemsPerSecond,
+                isDragging = dragState.isDragging,
+                indicatorLayerScaleProgress = indicatorLayerScaleProgress,
+                indicatorLayerScaleTransform = null,
+                bottomBarMotionSpec = motionSpec,
+                isDarkTheme = isDarkTheme
+            )
+        }
 
         // 4) Invisible hit / drag layer above everything.
         BottomBarLiquidSegmentedLabels(
@@ -766,7 +865,7 @@ fun BottomBarLiquidSegmentedControl(
 }
 
 @Composable
-private fun AndroidNativeUnderlinedSegmentedControl(
+internal fun AndroidNativeUnderlinedSegmentedControl(
     items: List<String>,
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
@@ -886,17 +985,18 @@ private fun BottomBarLiquidSegmentedLabels(
                 motionProgress = motionProgress,
                 selectionEmphasis = selectionEmphasis
             )
+            val contentColors = resolveLiquidGlassSelectionContentColors(
+                unselectedColor = unselectedTextColor,
+                selectedColor = selectedTextColor,
+                themeWeight = visual.themeWeight,
+                glassEnabled = forceUnselectedColor,
+                indicatorProgress = motionProgress,
+                indicatorBackdropEnabled = true
+            )
             val textColor = if (!enabled) {
                 unselectedTextColor.copy(alpha = 0.44f)
-            } else if (forceUnselectedColor) {
-                // Match bottom-bar glass path: visible content stays neutral while sliding.
-                unselectedTextColor
             } else {
-                androidx.compose.ui.graphics.lerp(
-                    start = unselectedTextColor,
-                    stop = selectedTextColor,
-                    fraction = visual.themeWeight
-                )
+                contentColors.visibleColor
             }
             val labelScale = if (applyItemScale) visual.scale else 1f
             Box(

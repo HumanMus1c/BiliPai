@@ -236,7 +236,8 @@ internal fun shouldUseVideoCardShellSharedBounds(
     transitionEnabled: Boolean
 ): Boolean {
     if (!transitionEnabled) return false
-    return !sourceRoute?.substringBefore("?").isNullOrBlank()
+    val sourceRouteBase = sourceRoute?.substringBefore("?")
+    return !sourceRouteBase.isNullOrBlank() && !sourceRouteBase.startsWith("video/")
 }
 
 internal fun shouldUseHomeVideoCardShellContainerTransform(
@@ -260,7 +261,10 @@ internal fun shouldUseVideoCardShellContainerTransform(
     hasAnimatedVisibilityScope: Boolean
 ): Boolean {
     if (!transitionEnabled || !hasSharedTransitionScope || !hasAnimatedVisibilityScope) return false
-    return isVideoCardReturnTargetRoute(sourceRoute)
+    val sourceRouteBase = sourceRoute?.substringBefore("?")
+    return !sourceRouteBase.isNullOrBlank() &&
+        !sourceRouteBase.startsWith("video/") &&
+        isVideoCardReturnTargetRoute(sourceRouteBase)
 }
 
 internal fun shouldEnableVideoMetadataSharedTransition(

@@ -4,8 +4,18 @@ import com.android.purebilibili.navigation.ScreenRoutes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 
 class BiliPaiNavKeyMappingPolicyTest {
+
+    @Test
+    fun `navigation state keys distinguish detail entries`() {
+        val first = BiliPaiNavKey.VideoDetail(bvid = "BV1", cid = 1L, coverUrl = "", sourceRoute = "video/BV0")
+        val second = first.copy(sourceRoute = "video/BV2")
+
+        assertEquals(resolveNavigation3SaveableStateKey(first), resolveNavigation3SaveableStateKey(first))
+        assertNotEquals(resolveNavigation3SaveableStateKey(first), resolveNavigation3SaveableStateKey(second))
+    }
 
     @Test
     fun topLevelRoutes_mapToNavigation3Keys() {

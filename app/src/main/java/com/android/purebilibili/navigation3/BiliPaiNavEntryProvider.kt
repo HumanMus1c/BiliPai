@@ -330,6 +330,8 @@ internal fun resolveBiliPaiNavEntryRouteTransitions(
     val sharedReadyFavoriteCollection =
         key is BiliPaiNavKey.SeasonSeriesDetail && key.sharedElementTransition
     val forward = when {
+        cardTransitionEnabled && isRelatedVideoDetailEntry(key, sourceMetadata) ->
+            BiliPaiNavRouteTransition.FALLBACK
         cardTransitionEnabled && sharedReadyFavoriteCollection ->
             BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         cardTransitionEnabled && sharedReadyVideoPush -> BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
