@@ -15,12 +15,7 @@ internal fun resolveEffectiveNavigationBottomBarBlur(
     homeSettings: HomeSettings,
     uiPreset: UiPreset,
     androidNativeVariant: AndroidNativeVariant
-): Boolean = when {
-    uiPreset == UiPreset.MD3 &&
-        androidNativeVariant == AndroidNativeVariant.MATERIAL3 &&
-        !homeSettings.androidNativeLiquidGlassEnabled -> false
-    else -> homeSettings.isBottomBarBlurEnabled
-}
+): Boolean = homeSettings.isBottomBarBlurEnabled
 
 internal fun resolveAppNavigationAppearance(
     homeSettings: HomeSettings,

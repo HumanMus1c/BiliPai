@@ -45,8 +45,24 @@ class AppNavigationAppearancePolicyTest {
         )
 
         assertTrue(appearance.bottomBarFloating)
-        assertFalse(appearance.bottomBarBlurEnabled)
+        assertTrue(appearance.bottomBarBlurEnabled)
         kotlin.test.assertEquals(0, appearance.bottomBarLabelMode)
+    }
+
+    @Test
+    fun md3Material3_keepsDockedBottomBarBlurWhenLiquidGlassIsDisabled() {
+        val appearance = resolveAppNavigationAppearance(
+            homeSettings = HomeSettings(
+                isBottomBarFloating = false,
+                isBottomBarBlurEnabled = true,
+                androidNativeLiquidGlassEnabled = false,
+            ),
+            uiPreset = UiPreset.MD3,
+            androidNativeVariant = AndroidNativeVariant.MATERIAL3,
+        )
+
+        assertFalse(appearance.bottomBarFloating)
+        assertTrue(appearance.bottomBarBlurEnabled)
     }
 
     @Test
