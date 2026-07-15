@@ -66,6 +66,15 @@ internal fun shouldStartProfileLoad(
     return !hasLoadedOnce && !isLoadInFlight
 }
 
+internal fun shouldForceProfileLoadForAccountSessionRefresh(
+    isCurrentPage: Boolean,
+    accountSessionRefreshGeneration: Int,
+    handledAccountSessionRefreshGeneration: Int
+): Boolean {
+    return isCurrentPage &&
+        accountSessionRefreshGeneration > handledAccountSessionRefreshGeneration
+}
+
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
     val uiState = _uiState.asStateFlow()

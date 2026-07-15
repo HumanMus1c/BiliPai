@@ -56,4 +56,29 @@ class ProfileLoadPolicyTest {
             )
         )
     }
+
+    @Test
+    fun accountSessionRefresh_forcesExactlyOneProfileReload() {
+        assertTrue(
+            shouldForceProfileLoadForAccountSessionRefresh(
+                isCurrentPage = true,
+                accountSessionRefreshGeneration = 1,
+                handledAccountSessionRefreshGeneration = 0
+            )
+        )
+        assertFalse(
+            shouldForceProfileLoadForAccountSessionRefresh(
+                isCurrentPage = true,
+                accountSessionRefreshGeneration = 1,
+                handledAccountSessionRefreshGeneration = 1
+            )
+        )
+        assertFalse(
+            shouldForceProfileLoadForAccountSessionRefresh(
+                isCurrentPage = false,
+                accountSessionRefreshGeneration = 2,
+                handledAccountSessionRefreshGeneration = 1
+            )
+        )
+    }
 }

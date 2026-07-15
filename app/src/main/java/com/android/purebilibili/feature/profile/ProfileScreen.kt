@@ -228,6 +228,7 @@ internal fun shouldShowProfileHistoryService(bottomBarVisibleTabIds: Collection<
 fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel(),
     isCurrentPage: Boolean = true,
+    accountSessionRefreshGeneration: Int = 0,
     onBack: () -> Unit,
     onGoToLogin: () -> Unit,
     onLogoutSuccess: () -> Unit,
@@ -259,6 +260,9 @@ fun ProfileScreen(
     val isImmersiveMobileProfile = !windowSizeClass.shouldUseSplitLayout &&
         (state as? ProfileUiState.Success)?.user?.topPhoto?.isNotEmpty() == true
     val shouldControlSystemBars = isLoggedOut || isImmersiveMobileProfile
+    var handledAccountSessionRefreshGeneration by remember(viewModel) {
+        mutableIntStateOf(0)
+    }
     val lightStatusBars = resolveProfileLightStatusBars(
         isImmersive = shouldControlSystemBars,
         useSplitLayout = windowSizeClass.shouldUseSplitLayout,
@@ -306,9 +310,17 @@ fun ProfileScreen(
         }
     }
 
-    LaunchedEffect(viewModel, isCurrentPage) {
+    LaunchedEffect(viewModel, isCurrentPage, accountSessionRefreshGeneration) {
         if (isCurrentPage) {
-            viewModel.loadProfile()
+            val force = shouldForceProfileLoadForAccountSessionRefresh(
+                isCurrentPage = isCurrentPage,
+                accountSessionRefreshGeneration = accountSessionRefreshGeneration,
+                handledAccountSessionRefreshGeneration = handledAccountSessionRefreshGeneration
+            )
+            viewModel.loadProfile(force = force)
+            if (force) {
+                handledAccountSessionRefreshGeneration = accountSessionRefreshGeneration
+            }
         }
     }
 

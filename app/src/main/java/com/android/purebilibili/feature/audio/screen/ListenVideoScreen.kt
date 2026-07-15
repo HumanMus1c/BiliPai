@@ -72,8 +72,6 @@ import com.android.purebilibili.feature.audio.viewmodel.ListenVideoUiState
 import com.android.purebilibili.feature.audio.viewmodel.ListenVideoViewModel
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.video.player.PlaylistManager
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -155,7 +153,6 @@ internal fun ListenVideoScreen(
         pageCount = { ListenVideoSection.entries.size }
     )
     val scope = rememberCoroutineScope()
-    val selectionBackdrop = rememberLayerBackdrop()
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }
@@ -198,9 +195,7 @@ internal fun ListenVideoScreen(
                     .padding(horizontal = 20.dp),
                 height = 52.dp,
                 indicatorHeight = 46.dp,
-                forceLiquidChrome = true,
                 preferInlineContentStyle = false,
-                backdrop = selectionBackdrop,
                 indicatorPositionProvider = {
                     pagerState.currentPage + pagerState.currentPageOffsetFraction
                 }
@@ -210,7 +205,6 @@ internal fun ListenVideoScreen(
                 state = pagerState,
                 modifier = Modifier
                     .weight(1f)
-                    .layerBackdrop(selectionBackdrop)
             ) { page ->
                 ListenVideoPage(
                     section = ListenVideoSection.entries[page],
