@@ -1374,7 +1374,10 @@ private fun Md3BottomBarDisplayMode.toMiuixNavigationDisplayMode(): MiuixNavigat
     return when (this) {
         Md3BottomBarDisplayMode.IconAndText -> MiuixNavigationBarDisplayMode.IconAndText
         Md3BottomBarDisplayMode.IconOnly -> MiuixNavigationBarDisplayMode.IconOnly
-        Md3BottomBarDisplayMode.TextOnly -> MiuixNavigationBarDisplayMode.TextOnly
+        // Miuix 0.9.3 removed NavigationBarDisplayMode.TextOnly. Docked items still
+        // honor showIcon/showText via MiuixDockedBottomBarItem; IconOnly keeps the
+        // single-line centered arrangement closest to pure text mode.
+        Md3BottomBarDisplayMode.TextOnly -> MiuixNavigationBarDisplayMode.IconOnly
     }
 }
 
