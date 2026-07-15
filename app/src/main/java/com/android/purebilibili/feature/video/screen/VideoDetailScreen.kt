@@ -20,6 +20,7 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -160,6 +161,7 @@ import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
+import com.android.purebilibili.core.ui.transition.VIDEO_CARD_TRANSITION_BACKGROUND_CANCEL_DURATION_MS
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionEasing
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
@@ -290,8 +292,8 @@ internal fun resolveForceCoverOnlyForReturn(
     transitionEnabled: Boolean = true,
     isCardReturnExitInProgress: Boolean = false
 ): Boolean {
-    if (!transitionEnabled) return false
-    return forceCoverOnlyOnReturn || isCardReturnExitInProgress
+    if (!transitionEnabled || isCardReturnExitInProgress) return false
+    return forceCoverOnlyOnReturn
 }
 
 internal fun shouldUseReturningVideoDetailVisualState(
@@ -303,9 +305,18 @@ internal fun shouldUseReturningVideoDetailVisualState(
 internal fun shouldTreatVideoDetailCardExitAsReturning(
     isExitTransitionInProgress: Boolean,
     sharedBoundsActive: Boolean,
+    keepLoadedContentForBackPreview: Boolean = false,
 ): Boolean {
     return isExitTransitionInProgress &&
-        sharedBoundsActive
+        sharedBoundsActive &&
+        !keepLoadedContentForBackPreview
+}
+
+internal fun shouldForceBackPreviewPlayerCover(
+    keepLoadedContentForBackPreview: Boolean,
+    bindLivePlayerForBackPreview: Boolean
+): Boolean {
+    return keepLoadedContentForBackPreview && !bindLivePlayerForBackPreview
 }
 
 internal fun resolveCoverTakeoverDelayBeforeBackNavigationMillis(): Long {
@@ -641,6 +652,21 @@ internal data class VideoDetailRouteSheetFrame(
     val backgroundScrimAlpha: Float,
     val settleProgress: Float
 )
+
+internal data class VideoDetailCardReturnSecondaryContentTiming(
+    val delayMillis: Int,
+    val durationMillis: Int
+)
+
+internal fun resolveVideoDetailCardReturnSecondaryContentTiming(
+    fullDurationMillis: Int
+): VideoDetailCardReturnSecondaryContentTiming {
+    val safeDuration = fullDurationMillis.coerceAtLeast(0)
+    return VideoDetailCardReturnSecondaryContentTiming(
+        delayMillis = (safeDuration * 0.58f).roundToInt(),
+        durationMillis = (safeDuration * 0.32f).roundToInt()
+    )
+}
 
 internal data class VideoDetailMotionSpec(
     val entryPhaseDurationMillis: Int,
@@ -1005,6 +1031,9 @@ private fun PortraitInlineVideoPlayerHost(
     audioQualityPreference: Int,
     onNavigateToAudioMode: () -> Unit,
     forceCoverOnly: Boolean,
+    liveBackPreview: Boolean,
+    useTextureSurfaceForNavigation: Boolean,
+    predictiveBackCancelRecoveryGeneration: Int,
     allowLivePlayerSharedElement: Boolean,
     sourceRouteForSharedElement: String?,
     suppressSubtitleOverlay: Boolean,
@@ -1075,6 +1104,9 @@ private fun PortraitInlineVideoPlayerHost(
             onSaveCover = { viewModel.saveCover(context) },
             onDownloadAudio = { viewModel.downloadAudio(context) },
             forceCoverOnly = forceCoverOnly,
+            liveBackPreview = liveBackPreview,
+            useTextureSurfaceForNavigation = useTextureSurfaceForNavigation,
+            predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
             allowLivePlayerSharedElement = allowLivePlayerSharedElement,
             sourceRouteForSharedElement = sourceRouteForSharedElement,
             suppressSubtitleOverlay = suppressSubtitleOverlay,
@@ -1105,12 +1137,14 @@ fun VideoDetailScreen(
     openCommentRootRpidFromRoute: Long = 0L,
     openCommentTargetRpidFromRoute: Long = 0L,
     sourceRouteForSharedElement: String? = null,
+    keepLoadedContentForBackPreview: Boolean = false,
+    bindLivePlayerForBackPreview: Boolean = keepLoadedContentForBackPreview,
+    predictiveBackCancelRecoveryGeneration: Int = 0,
     isReturningFromDetail: Boolean = false,
     isQuickReturningFromDetail: Boolean = false,
     onMarkReturningFromDetail: () -> Unit = {},
     onClearReturningFromDetail: () -> Unit = {},
     transitionEnabled: Boolean = false,
-    useClassicVideoCardBackHandler: Boolean = false,
     transitionEnterDurationMillis: Int = 320,
     onBack: () -> Unit,
     onHomeClick: () -> Unit = onBack,
@@ -1766,6 +1800,36 @@ fun VideoDetailScreen(
         hasSharedTransitionScope = rootSharedTransitionScope != null,
         hasAnimatedVisibilityScope = rootAnimatedVisibilityScope != null
     )
+    val secondaryContentTiming = remember(homeSharedTransitionMotionSpec.durationMillis) {
+        resolveVideoDetailCardReturnSecondaryContentTiming(
+            fullDurationMillis = homeSharedTransitionMotionSpec.durationMillis
+        )
+    }
+    val detailSecondaryContentAlpha = if (
+        detailShellSharedBoundsEnabled && rootAnimatedVisibilityScope != null
+    ) {
+        rootAnimatedVisibilityScope.transition.animateFloat(
+            transitionSpec = {
+                if (targetState == EnterExitState.PostExit) {
+                    tween(
+                        durationMillis = secondaryContentTiming.durationMillis,
+                        delayMillis = secondaryContentTiming.delayMillis,
+                        easing = com.android.purebilibili.core.ui.motion.AppMotionEasing.EmphasizedExit
+                    )
+                } else {
+                    tween(
+                        durationMillis = VIDEO_CARD_TRANSITION_BACKGROUND_CANCEL_DURATION_MS,
+                        easing = FastOutSlowInEasing
+                    )
+                }
+            },
+            label = "video-detail-card-return-secondary-content"
+        ) { state ->
+            if (state == EnterExitState.PostExit) 0f else 1f
+        }
+    } else {
+        remember { mutableFloatStateOf(1f) }
+    }
     val detailChildTransitionEnabled = transitionEnabled && !detailShellSharedBoundsEnabled
     val coverSharedBoundsActive = shouldEnableVideoCoverSharedTransition(
         transitionEnabled = detailChildTransitionEnabled,
@@ -1793,12 +1857,12 @@ fun VideoDetailScreen(
     val coverTakeoverBeforeBackDelayMillis = remember {
         resolveCoverTakeoverDelayBeforeBackNavigationMillis()
     }
-    // 预测式返回手势拖动期间(video → card)：本页 AnimatedContent 进入 PostExit(isExitTransitionInProgress)
-    // 且存在共享元素配对(sharedBoundsActive)时，提前让封面接管，避免提交返回瞬间 player→cover 硬切闪烁。
-    // 仅在有卡片可落位(sharedBoundsActive)时启用，普通退出/无共享元素场景保持原行为。
+    // 仅当详情页自身正在回收到来源卡片时让封面接管。详情页作为上层页面的
+    // 直接返回目标时必须保留已加载的播放器与内容，避免预测返回预览变成封面占位。
     val isCardReturnExitInProgress = shouldTreatVideoDetailCardExitAsReturning(
         isExitTransitionInProgress = isExitTransitionInProgress,
         sharedBoundsActive = sharedBoundsActive,
+        keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
     )
     val forceCoverOnlyForReturn = resolveForceCoverOnlyForReturn(
         forceCoverOnlyOnReturn = forceCoverOnlyOnReturn,
@@ -1819,8 +1883,6 @@ fun VideoDetailScreen(
             if (isActuallyLeaving) return@action
             isActuallyLeaving = true // 标记确实是用户通过点击或返回键离开
             isScreenActive = false  // 标记页面正在退出
-            forceCoverOnlyOnReturn = true
-            // 进入返回流程时立即标记，确保封面优先接管。
             latestOnMarkReturningFromDetail()
             // 🎯 通知小窗管理器这是用户主动导航离开（用于控制后台音频）
             miniPlayerManager?.markLeavingByNavigation(expectedBvid = currentBvid)
@@ -2210,6 +2272,7 @@ fun VideoDetailScreen(
         fallbackResumePositionMs = resumePositionMsFromRoute,
         startPaused = isPortraitFullscreen && !useSharedPortraitPlayer,
         entryTransitionFinished = entryTransitionFinished,
+        playbackSessionActive = isVisible,
     )
     val shouldKeepVideoScreenAwake by produceState(
         initialValue = shouldKeepVideoPlaybackAwake(
@@ -2795,7 +2858,8 @@ fun VideoDetailScreen(
         }
     }
 
-    LaunchedEffect(uiState, currentBvid, currentBvidCid, isPortraitFullscreen, bvid) {
+    LaunchedEffect(uiState, currentBvid, currentBvidCid, isPortraitFullscreen, bvid, isVisible) {
+        if (!isVisible) return@LaunchedEffect
         val success = uiState as? PlayerUiState.Success ?: return@LaunchedEffect
         if (!shouldSyncMainPlayerToInternalBvid(
                 isPortraitFullscreen = isPortraitFullscreen,
@@ -2866,7 +2930,7 @@ fun VideoDetailScreen(
     var lastCachedMiniPlayerBvid by remember { mutableStateOf<String?>(null) }
 
     //  核心修改：初始化评论 & 媒体中心信息
-    LaunchedEffect(uiState) {
+    LaunchedEffect(uiState, isVisible) {
         if (uiState is PlayerUiState.Success) {
             val info = (uiState as PlayerUiState.Success).info
             val success = uiState as PlayerUiState.Success
@@ -2895,7 +2959,7 @@ fun VideoDetailScreen(
             // 🔧 [性能优化] 只有首次加载或视频切换时才缓存 MiniPlayer 信息
             val shouldCacheMiniPlayer = lastCachedMiniPlayerBvid != currentBvid
 
-            if (miniPlayerManager != null && shouldCacheMiniPlayer) {
+            if (miniPlayerManager != null && shouldCacheMiniPlayer && isVisible) {
                 lastCachedMiniPlayerBvid = currentBvid
 
                 // PiP 判断依赖 MiniPlayerManager 的 active/player/playing/bvid 状态。
@@ -2956,11 +3020,6 @@ fun VideoDetailScreen(
         isPortraitFullscreen = isPortraitFullscreen,
     )
     val localBackEventState = rememberNavigationEventState(NavigationEventInfo.None)
-    BackHandler(
-        enabled = useClassicVideoCardBackHandler &&
-            localBackTarget == VideoDetailLocalBackTarget.NAVIGATE_BACK,
-        onBack = handleBack
-    )
     NavigationBackHandler(
         state = localBackEventState,
         isBackEnabled = localBackTarget != VideoDetailLocalBackTarget.NAVIGATE_BACK,
@@ -3198,6 +3257,8 @@ fun VideoDetailScreen(
                         showExternalPlaylistQueueSheet = true
                     },
                     forceCoverOnly = forceCoverOnlyForReturn,
+                    useTextureSurfaceForNavigation = transitionEnabled,
+                    predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
                     allowLivePlayerSharedElement = true,
                     sourceRouteForSharedElement = sourceRouteForSharedElement,
                     suppressSubtitleOverlay = shouldSuppressSubtitleOverlay,
@@ -3262,7 +3323,8 @@ fun VideoDetailScreen(
                             // 🔁 [新增] 播放模式
                             currentPlayMode = currentPlayMode,
                             onPlayModeClick = { com.android.purebilibili.feature.video.player.PlaylistManager.togglePlayMode() },
-                            forceCoverOnlyOnReturn = forceCoverOnlyForReturn
+                            forceCoverOnlyOnReturn = forceCoverOnlyForReturn,
+                            predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration
                         )
                     } else {
                         // 📱 手机竖屏：原有单列布局
@@ -3692,7 +3754,14 @@ fun VideoDetailScreen(
                                     isNavigatingToAudioMode = true
                                     onNavigateToAudioMode()
                                 },
-                                forceCoverOnly = forceCoverOnlyForReturn,
+                                forceCoverOnly = forceCoverOnlyForReturn ||
+                                    shouldForceBackPreviewPlayerCover(
+                                        keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
+                                        bindLivePlayerForBackPreview = bindLivePlayerForBackPreview
+                                    ),
+                                liveBackPreview = bindLivePlayerForBackPreview,
+                                useTextureSurfaceForNavigation = transitionEnabled,
+                                predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
                                 allowLivePlayerSharedElement = true,
                                 sourceRouteForSharedElement = sourceRouteForSharedElement,
                                 suppressSubtitleOverlay = shouldSuppressSubtitleOverlay,
@@ -3706,6 +3775,7 @@ fun VideoDetailScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(MaterialTheme.colorScheme.background)
+                                .graphicsLayer { alpha = detailSecondaryContentAlpha.value }
                                 // .nestedScroll(nestedScrollConnection) // [Remove] 移除嵌套滚动，确保 Tabs 正常滑动
                         ) {
                             when (uiState) {

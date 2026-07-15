@@ -25,6 +25,45 @@ class VideoDetailReturnCoverPolicyTest {
     }
 
     @Test
+    fun `detail used as immediate back target keeps its loaded player and controls`() {
+        assertFalse(
+            shouldTreatVideoDetailCardExitAsReturning(
+                isExitTransitionInProgress = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = true,
+            )
+        )
+    }
+
+    @Test
+    fun `video target without player ownership uses its own cover behind the live outgoing video`() {
+        assertTrue(
+            shouldForceBackPreviewPlayerCover(
+                keepLoadedContentForBackPreview = true,
+                bindLivePlayerForBackPreview = false
+            )
+        )
+        assertFalse(
+            shouldForceBackPreviewPlayerCover(
+                keepLoadedContentForBackPreview = true,
+                bindLivePlayerForBackPreview = true
+            )
+        )
+    }
+
+    @Test
+    fun `immediate back target mounts the live inline player`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+            .readText()
+        val inlinePlayerCall = source
+            .substringAfter("PortraitInlineVideoPlayerHost(", "")
+            .substringAfter("PortraitInlineVideoPlayerHost(", "")
+            .substringBefore("allowLivePlayerSharedElement = true")
+
+        assertTrue(inlinePlayerCall.contains("liveBackPreview = bindLivePlayerForBackPreview"))
+    }
+
+    @Test
     fun `detail route does not manually fade its background during return`() {
         val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
             .readText()
@@ -86,10 +125,8 @@ class VideoDetailReturnCoverPolicyTest {
     }
 
     @Test
-    fun `force cover activates during predictive card return exit`() {
-        // 预测式返回手势拖动期间(存在共享元素配对且本页退出中)提前让封面接管，
-        // 与共享元素 morph 同步，消除提交返回瞬间的 player→cover 硬切。
-        assertTrue(
+    fun `predictive card return keeps the live player instead of forcing cover`() {
+        assertFalse(
             resolveForceCoverOnlyForReturn(
                 forceCoverOnlyOnReturn = false,
                 isCardReturnExitInProgress = true
@@ -143,6 +180,18 @@ class VideoDetailReturnCoverPolicyTest {
     @Test
     fun `cover takeover delay keeps a one-frame budget before back navigation`() {
         assertEquals(16L, resolveCoverTakeoverDelayBeforeBackNavigationMillis())
+    }
+
+    @Test
+    fun `navigation actions do not switch the loaded player to a cover`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+            .readText()
+        val actionBlock = source
+            .substringAfter("action@{ action: VideoDetailTopBarAction ->")
+            .substringBefore("val handleBack =")
+
+        assertFalse(actionBlock.contains("forceCoverOnlyOnReturn = true"))
+        assertTrue(source.contains("useTextureSurfaceForNavigation = transitionEnabled"))
     }
 
     @Test

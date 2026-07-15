@@ -449,6 +449,9 @@ fun VideoPlayerSection(
     hasFavoritePlaylist: Boolean = false,
     onFavoritePlaylistClick: () -> Unit = {},
     forceCoverOnly: Boolean = false,
+    liveBackPreview: Boolean = false,
+    useTextureSurfaceForNavigation: Boolean = false,
+    predictiveBackCancelRecoveryGeneration: Int = 0,
     allowLivePlayerSharedElement: Boolean = true,
     sourceRouteForSharedElement: String? = null,
     suppressSubtitleOverlay: Boolean = false,
@@ -868,12 +871,14 @@ fun VideoPlayerSection(
     val shouldBindInlinePlayerView = remember(
         isPortraitFullscreen,
         hostLifecycleStarted,
-        isInPipMode
+        isInPipMode,
+        liveBackPreview
     ) {
         shouldBindInlinePlayerViewToPlayer(
             isPortraitFullscreen = isPortraitFullscreen,
             hostLifecycleStarted = hostLifecycleStarted,
-            isInPipMode = isInPipMode
+            isInPipMode = isInPipMode,
+            liveBackPreview = liveBackPreview
         )
     }
 
@@ -2075,6 +2080,45 @@ fun VideoPlayerSection(
         }
 
         LaunchedEffect(
+            predictiveBackCancelRecoveryGeneration,
+            playerViewRef,
+            shouldBindInlinePlayerView,
+            isInPipMode
+        ) {
+            if (!shouldRecoverInlinePlayerAfterPredictiveBackCancel(
+                    recoveryGeneration = predictiveBackCancelRecoveryGeneration,
+                    hasPlayerView = playerViewRef != null,
+                    shouldBindInlinePlayerView = shouldBindInlinePlayerView,
+                    isInPipMode = isInPipMode
+                )
+            ) {
+                return@LaunchedEffect
+            }
+            val player = playerState.player
+            playerViewRef?.let { playerView ->
+                rebindPlayerSurfaceIfNeeded(playerView = playerView, player = player)
+            }
+            if (shouldKickPlaybackAfterSurfaceRecovery(
+                    playWhenReady = player.playWhenReady,
+                    isPlaying = player.isPlaying,
+                    playbackState = player.playbackState,
+                    hasPlaybackResumeIntent = true
+                )
+            ) {
+                player.play()
+            }
+            danmakuManager.recoverAfterForeground(
+                positionMs = player.currentPosition.coerceAtLeast(0L),
+                playWhenReady = player.playWhenReady,
+                playbackState = player.playbackState
+            )
+            Logger.d("VideoPlayerSection") {
+                "↩️ Predictive back cancel restored current video surface: " +
+                    "generation=$predictiveBackCancelRecoveryGeneration, pos=${player.currentPosition}"
+            }
+        }
+
+        LaunchedEffect(
             foregroundRecoveryGeneration,
             playerViewRef,
             shouldBindInlinePlayerView,
@@ -2458,7 +2502,9 @@ fun VideoPlayerSection(
                     factory = { ctx ->
                         val useTextureSurface = shouldUseTextureSurfaceForFlip(
                             isFlippedHorizontal = isFlippedHorizontal,
-                            isFlippedVertical = isFlippedVertical
+                            isFlippedVertical = isFlippedVertical,
+                            liveBackPreview = liveBackPreview,
+                            navigationTransformEnabled = useTextureSurfaceForNavigation
                         )
                         val basePlayerView = if (useTextureSurface) {
                             LayoutInflater.from(ctx)

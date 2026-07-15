@@ -718,6 +718,46 @@ class VideoPlayerSectionPolicyTest {
     }
 
     @Test
+    fun inlinePlayerBinding_attachesBackgroundTarget_forLiveBackPreview() {
+        assertTrue(
+            shouldBindInlinePlayerViewToPlayer(
+                isPortraitFullscreen = false,
+                hostLifecycleStarted = false,
+                isInPipMode = false,
+                liveBackPreview = true
+            )
+        )
+        assertFalse(
+            shouldBindInlinePlayerViewToPlayer(
+                isPortraitFullscreen = true,
+                hostLifecycleStarted = false,
+                isInPipMode = false,
+                liveBackPreview = true
+            )
+        )
+    }
+
+    @Test
+    fun predictiveBackCancelRecovery_runsOnlyForTheCurrentBoundInlinePlayer() {
+        assertTrue(
+            shouldRecoverInlinePlayerAfterPredictiveBackCancel(
+                recoveryGeneration = 1,
+                hasPlayerView = true,
+                shouldBindInlinePlayerView = true,
+                isInPipMode = false
+            )
+        )
+        assertFalse(
+            shouldRecoverInlinePlayerAfterPredictiveBackCancel(
+                recoveryGeneration = 1,
+                hasPlayerView = true,
+                shouldBindInlinePlayerView = false,
+                isInPipMode = false
+            )
+        )
+    }
+
+    @Test
     fun danmakuReload_runsOnlyWhenForegroundHostCanActuallyLoad() {
         assertTrue(
             shouldLoadDanmakuForForegroundHost(

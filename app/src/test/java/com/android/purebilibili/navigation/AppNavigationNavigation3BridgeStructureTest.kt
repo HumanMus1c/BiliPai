@@ -87,6 +87,42 @@ class AppNavigationNavigation3BridgeStructureTest {
     }
 
     @Test
+    fun immediateVideoDetailBackTargetKeepsLoadedPreviewContent() {
+        val videoDetailBranch = appNavigationSource()
+            .substringAfter("BiliPaiNavEntryContentRole.VIDEO_DETAIL ->")
+            .substringBefore("BiliPaiNavEntryContentRole.ARTICLE_DETAIL ->")
+
+        assertTrue(videoDetailBranch.contains("keepLoadedContentForBackPreview ="))
+        assertTrue(
+            videoDetailBranch.contains(
+                "navigation3BackStack.getOrNull(navigation3BackStack.lastIndex - 1) == videoKey"
+            )
+        )
+    }
+
+    @Test
+    fun videoBackCancellationRestoresOnlyTheCurrentVideoPlayerSurface() {
+        val source = appNavigationSource()
+        val navHostCall = source
+            .substringAfter("BiliPaiNavDisplayHost(")
+            .substringBefore(") { key ->")
+
+        assertTrue(navHostCall.contains("onNativeVideoBackCancelled ="))
+        assertTrue(source.contains("predictiveBackCancelRecoveryGeneration ="))
+        assertTrue(source.contains("shouldBindVideoDetailBackPreviewPlayer("))
+    }
+
+    @Test
+    fun videoBackPreviewDoesNotActivateTheTargetPlaybackSession() {
+        val videoDetailBranch = appNavigationSource()
+            .substringAfter("BiliPaiNavEntryContentRole.VIDEO_DETAIL ->")
+            .substringBefore("BiliPaiNavEntryContentRole.ARTICLE_DETAIL ->")
+
+        assertTrue(videoDetailBranch.contains("isVisible = shouldActivateVideoDetailPlaybackSession("))
+        assertFalse(videoDetailBranch.contains("isVisible = true"))
+    }
+
+    @Test
     fun homeVideoUsesComposeCardShellContainerTransformWithoutNativeBackgroundPreview() {
         val source = appNavigationSource()
         val videoDetailBranch = source
@@ -282,7 +318,7 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertFalse(source.contains("video" + "PredictiveReturnToCardEnabled"))
         assertFalse(source.contains("video" + "PredictiveReturnSourceBounds"))
         assertFalse(source.contains("shouldEnableVideo" + "PredictiveReturnToCard"))
-        assertTrue(source.contains("val predictiveBackEnabled = true"))
+        assertTrue(source.contains("val predictiveBackEnabled = appNavigationSettings.predictiveBackEnabled"))
         assertTrue(source.contains("BiliPaiPredictiveBackAnimationStyle.DEFAULT"))
         assertFalse(source.contains("shouldUseClassicBackHandler"))
     }

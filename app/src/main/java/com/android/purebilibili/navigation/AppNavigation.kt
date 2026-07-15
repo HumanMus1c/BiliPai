@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue //  新增
 import androidx.compose.runtime.LaunchedEffect // 新增
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -99,6 +100,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSo
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionSpeedSettings
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionDurationMillis
 import com.android.purebilibili.core.ui.transition.predictiveBackBackgroundEffect
 import com.android.purebilibili.core.ui.transition.shouldApplyPredictiveBackBlurToRoute
 import com.android.purebilibili.core.ui.transition.shouldApplyVideoCardTransitionBackgroundToRoute
@@ -159,8 +161,10 @@ import com.android.purebilibili.navigation3.resolveBiliPaiNavCardSourceDirection
 import com.android.purebilibili.navigation3.resolveBiliPaiNavEntryContentRole
 import com.android.purebilibili.navigation3.resolveNavigation3SaveableStateKey
 import com.android.purebilibili.navigation3.resolveBiliPaiNavSourceMetadata
+import com.android.purebilibili.navigation3.shouldBindVideoDetailBackPreviewPlayer
+import com.android.purebilibili.navigation3.shouldActivateVideoDetailPlaybackSession
+import com.android.purebilibili.navigation3.shouldRecoverVideoPlayerAfterBackCancellation
 import com.android.purebilibili.navigation3.resolveBiliPaiVideoSource
-import com.android.purebilibili.navigation3.shouldUseClassicVideoCardBackHandler
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
 import com.android.purebilibili.navigation3.resolveInitialBiliPaiBackStack
 import com.android.purebilibili.navigation3.toLegacyRoute
@@ -395,12 +399,21 @@ fun AppNavigation(
         SettingsManager.isLaunchToPortraitFeedOnStartupSync(context)
     }
 
+    val videoSharedTransitionSpeedSettings = remember(
+        homeSettings.videoSharedTransitionSpeed,
+        homeSettings.videoSharedTransitionCustomDurationMillis,
+    ) {
+        VideoSharedTransitionSpeedSettings(
+            speed = homeSettings.videoSharedTransitionSpeed,
+            customDurationMillis = homeSettings.videoSharedTransitionCustomDurationMillis,
+        )
+    }
+    val videoSharedTransitionDurationMillis = remember(videoSharedTransitionSpeedSettings) {
+        resolveVideoSharedTransitionDurationMillis(videoSharedTransitionSpeedSettings)
+    }
     SharedTransitionProvider(enabled = cardTransitionEnabled) {
         CompositionLocalProvider(
-            LocalVideoSharedTransitionSpeedSettings provides VideoSharedTransitionSpeedSettings(
-                speed = homeSettings.videoSharedTransitionSpeed,
-                customDurationMillis = homeSettings.videoSharedTransitionCustomDurationMillis
-            )
+            LocalVideoSharedTransitionSpeedSettings provides videoSharedTransitionSpeedSettings
         ) {
         // [新增] 全局底栏状态管理
         var navigation3BackStack by remember(startDestination, launchToPortraitFeedOnStartupAtInit) {
@@ -412,6 +425,7 @@ fun AppNavigation(
                 )
             )
         }
+        var predictiveBackCancelRecoveryGeneration by remember { mutableIntStateOf(0) }
         val currentNavigation3Key = navigation3BackStack.lastOrNull()
         val currentRoute = currentNavigation3Key?.toLegacyRoute()
         val configuredHomeWallpaperUri by SettingsManager.getHomeWallpaperUri(context).collectAsStateWithLifecycle(initialValue = ""
@@ -866,7 +880,7 @@ fun AppNavigation(
                 sourceMetadata = navigation3SourceMetadata
             )
         }
-        val predictiveBackEnabled = true
+        val predictiveBackEnabled = appNavigationSettings.predictiveBackEnabled
         val shouldInterceptTabBack = backGestureDecision.interceptSystemBack
         val predictiveBackAnimationStyle = BiliPaiPredictiveBackAnimationStyle.DEFAULT
         val predictiveBackExitDirection = "auto"
@@ -1338,17 +1352,15 @@ fun AppNavigation(
                     val entryRoute = key.toLegacyRoute()
                     val backgroundState = LocalVideoCardTransitionBackgroundState.current
                     val predictiveBackState = LocalPredictiveBackBackgroundState.current
-                    val predictiveBlurProgress = predictiveBackState.progressProvider()
                     val shouldApplyBackground = cardTransitionEnabled &&
                         shouldApplyVideoCardTransitionBackgroundToRoute(
                             entryRoute = entryRoute,
-                            sourceRoute = navigation3SourceMetadata.sourceRoute,
+                            sourceRoute = backgroundState.sourceRouteProvider(),
                             activeMainHostRoute = activeBottomTabRoute
                         )
                     val shouldApplyPredictiveBlur = shouldApplyPredictiveBackBlurToRoute(
                         entryKey = key,
                         targetBackKey = predictiveBackState.targetKeyProvider(),
-                        blurProgress = predictiveBlurProgress,
                     )
                     val routeModifier = Modifier
                         .fillMaxSize()
@@ -1856,7 +1868,12 @@ fun AppNavigation(
                                 onUpClick = { mid -> pushNavigation3Route(ScreenRoutes.Space.createRoute(mid)) },
                                 miniPlayerManager = miniPlayerManager,
                                 isInPipMode = isInPipMode,
-                                isVisible = true,
+                                isVisible = shouldActivateVideoDetailPlaybackSession(
+                                    currentKey = navigation3BackStack.lastOrNull(),
+                                    detailKey = videoKey,
+                                    isImmediateBackPreview =
+                                        navigation3BackStack.getOrNull(navigation3BackStack.lastIndex - 1) == videoKey
+                                ),
                                 startInFullscreen = videoKey.fullscreen,
                                 startAudioFromRoute = videoKey.startAudio,
                                 autoEnterPortraitFromRoute = videoKey.autoPortrait,
@@ -1865,6 +1882,18 @@ fun AppNavigation(
                                 openCommentRootRpidFromRoute = videoKey.commentRootRpid,
                                 openCommentTargetRpidFromRoute = videoKey.commentTargetRpid,
                                 sourceRouteForSharedElement = videoKey.sourceRoute,
+                                keepLoadedContentForBackPreview =
+                                    navigation3BackStack.getOrNull(navigation3BackStack.lastIndex - 1) == videoKey,
+                                bindLivePlayerForBackPreview =
+                                    navigation3BackStack.getOrNull(navigation3BackStack.lastIndex - 1) == videoKey &&
+                                        shouldBindVideoDetailBackPreviewPlayer(
+                                            currentKey = navigation3BackStack.lastOrNull(),
+                                            previewKey = videoKey
+                                        ),
+                                predictiveBackCancelRecoveryGeneration =
+                                    predictiveBackCancelRecoveryGeneration.takeIf {
+                                        navigation3BackStack.lastOrNull() == videoKey
+                                    } ?: 0,
                                 isReturningFromDetail = navigation3ReturnSession.isReturningFromDetail,
                                 isQuickReturningFromDetail = navigation3ReturnSession.isQuickReturnFromDetail,
                                 onMarkReturningFromDetail = {
@@ -1875,15 +1904,6 @@ fun AppNavigation(
                                 },
                                 transitionEnabled = shouldEnableVideoDetailSharedTransition(
                                     cardTransitionEnabled = cardTransitionEnabled
-                                ),
-                                useClassicVideoCardBackHandler = shouldUseClassicVideoCardBackHandler(
-                                    settingEnabled = appNavigationSettings.predictiveBackEnabled,
-                                    cardTransitionEnabled = cardTransitionEnabled,
-                                    videoKey = videoKey,
-                                    previousKey = navigation3BackStack.getOrNull(
-                                        navigation3BackStack.lastIndex - 1
-                                    ),
-                                    sourceMetadata = navigation3SourceMetadata
                                 ),
                                 transitionEnterDurationMillis = navMotionSpec.slowFadeDurationMillis,
                                 onBack = {
@@ -2777,11 +2797,17 @@ fun AppNavigation(
                 BiliPaiNavDisplayHost(
                     backStack = navigation3BackStack,
                     cardTransitionEnabled = cardTransitionEnabled,
+                    videoSharedTransitionDurationMillis = videoSharedTransitionDurationMillis,
                     predictiveBackEnabled = predictiveBackEnabled,
                     predictiveBackAnimationStyle = predictiveBackAnimationStyle,
                     predictiveBackExitDirectionOverride = predictiveBackExitDirection,
                     sourceMetadata = navigation3SourceMetadata,
                     onBack = { performSystemBackAction() },
+                    onNativeVideoBackCancelled = { currentKey, targetKey ->
+                        if (shouldRecoverVideoPlayerAfterBackCancellation(currentKey, targetKey)) {
+                            predictiveBackCancelRecoveryGeneration += 1
+                        }
+                    },
                     modifier = Modifier.fillMaxSize(),
                     sharedTransitionScope = LocalSharedTransitionScope.current,
                     visibleBottomBarRoutes = visibleBottomBarRoutes,

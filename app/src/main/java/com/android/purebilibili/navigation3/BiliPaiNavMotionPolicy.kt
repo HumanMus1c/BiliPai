@@ -47,35 +47,6 @@ internal fun resolveBiliPaiNavMotionMode(
     }
 }
 
-internal fun shouldUseClassicVideoCardBackHandler(
-    settingEnabled: Boolean,
-    cardTransitionEnabled: Boolean,
-    videoKey: BiliPaiNavKey.VideoDetail,
-    previousKey: BiliPaiNavKey?,
-    sourceMetadata: BiliPaiNavSourceMetadata
-): Boolean {
-    return (!settingEnabled || !cardTransitionEnabled) &&
-        isVideoCardReturnWithRecordedSource(
-            videoKey = videoKey,
-            previousKey = previousKey,
-            sourceMetadata = sourceMetadata
-        )
-}
-
-private fun isVideoCardReturnWithRecordedSource(
-    videoKey: BiliPaiNavKey.VideoDetail,
-    previousKey: BiliPaiNavKey?,
-    sourceMetadata: BiliPaiNavSourceMetadata
-): Boolean {
-    if (previousKey == null) return false
-    return resolveBiliPaiNavDisplayPopRouteTransition(
-        cardTransitionEnabled = true,
-        sourceMetadata = sourceMetadata,
-        fromKey = videoKey,
-        toKey = previousKey
-    ) == BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
-}
-
 internal fun resolveBiliPaiNavMotionDecision(
     fromKey: BiliPaiNavKey?,
     toKey: BiliPaiNavKey?,
@@ -135,6 +106,29 @@ internal fun resolveBiliPaiBackGestureDecision(
     )
 }
 
+internal fun shouldBindVideoDetailBackPreviewPlayer(
+    currentKey: BiliPaiNavKey?,
+    previewKey: BiliPaiNavKey?
+): Boolean {
+    return previewKey is BiliPaiNavKey.VideoDetail && currentKey !is BiliPaiNavKey.VideoDetail
+}
+
+internal fun shouldActivateVideoDetailPlaybackSession(
+    currentKey: BiliPaiNavKey?,
+    detailKey: BiliPaiNavKey.VideoDetail,
+    isImmediateBackPreview: Boolean
+): Boolean {
+    return currentKey == detailKey ||
+        (isImmediateBackPreview && currentKey !is BiliPaiNavKey.VideoDetail)
+}
+
+internal fun shouldRecoverVideoPlayerAfterBackCancellation(
+    currentKey: BiliPaiNavKey?,
+    targetKey: BiliPaiNavKey?
+): Boolean {
+    return currentKey is BiliPaiNavKey.VideoDetail && targetKey is BiliPaiNavKey.VideoDetail
+}
+
 /**
  * 解析 [BiliPaiNavDisplayHost] 全局 `popTransitionSpec` / `predictivePopTransitionSpec` 使用的过渡。
  *
@@ -159,8 +153,8 @@ internal fun resolveBiliPaiNavDisplayPopRouteTransition(
     val fromVideoKey = fromKey as? BiliPaiNavKey.VideoDetail
     val toIsCardReturnTarget = toKey != null && isCardReturnTargetNavKey(toKey)
     if (cardTransitionEnabled) {
-        if (isRelatedVideoDetailReturn(fromVideoKey, toKey, sourceMetadata)) {
-            return BiliPaiNavRouteTransition.FALLBACK
+        if (isRelatedVideoDetailReturn(fromVideoKey, toKey)) {
+            return BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         }
         val sharedReadyFavoriteCollectionReturn =
             fromKey is BiliPaiNavKey.SeasonSeriesDetail &&
@@ -203,16 +197,12 @@ internal fun isRelatedVideoDetailEntry(
         sourceMetadata.sourceKey == "$sourceRoute:${videoKey.bvid}"
 }
 
-private fun isRelatedVideoDetailReturn(
+internal fun isRelatedVideoDetailReturn(
     fromKey: BiliPaiNavKey.VideoDetail?,
-    toKey: BiliPaiNavKey?,
-    sourceMetadata: BiliPaiNavSourceMetadata
+    toKey: BiliPaiNavKey?
 ): Boolean {
     val targetKey = toKey as? BiliPaiNavKey.VideoDetail ?: return false
-    val sourceRoute = sourceMetadata.sourceRoute?.substringBefore("?") ?: return false
-    return sourceRoute == "video/${targetKey.bvid}" &&
-        fromKey?.sourceRoute?.substringBefore("?") == sourceRoute &&
-        sourceMetadata.sourceKey == "$sourceRoute:${fromKey.bvid}"
+    return fromKey?.sourceRoute?.substringBefore("?") == "video/${targetKey.bvid}"
 }
 
 internal fun shouldInterceptSystemBackForNavigation3(

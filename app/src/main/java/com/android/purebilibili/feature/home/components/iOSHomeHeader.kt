@@ -165,7 +165,11 @@ internal fun resolveHomeTopLinkedBottomBarAppearance(
     )
     return HomeTopLinkedBottomBarAppearance(
         isFloating = navigationAppearance.bottomBarFloating,
-        blurEnabled = navigationAppearance.bottomBarBlurEnabled,
+        blurEnabled = navigationAppearance.bottomBarBlurEnabled && !(
+            uiPreset == UiPreset.MD3 &&
+                androidNativeVariant == AndroidNativeVariant.MATERIAL3 &&
+                !resolvedHomeSettings.androidNativeLiquidGlassEnabled
+            ),
         liquidGlassEnabled = resolveHomeTopChromeLiquidGlassEnabled(
             homeSettings = resolvedHomeSettings,
             uiPreset = uiPreset

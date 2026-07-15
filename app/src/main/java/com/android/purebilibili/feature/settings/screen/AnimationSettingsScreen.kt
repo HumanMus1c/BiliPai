@@ -231,21 +231,20 @@ fun AnimationSettingsContent(
                         IOSDivider()
                         IOSSwitchItem(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
-                            title = "视频详情跟手返回",
-                            subtitle = "从视频详情返回原列表时，卡片随边缘手势收拢",
+                            title = "预测性返回手势",
+                            subtitle = "关闭后仍可边缘返回，但不显示跟手预览，松手后执行普通返回动画",
                             checked = appNavigationSettings.predictiveBackEnabled,
                             onCheckedChange = { enabled ->
                                 scope.launch {
                                     SettingsManager.setPredictiveBackEnabled(context, enabled)
                                 }
                             },
-                            enabled = state.cardTransitionEnabled,
                             iconTint = iOSTeal
                         )
                         IOSDivider()
                         IOSSlidingSegmentedSetting(
                             title = "共享元素速度：${state.videoSharedTransitionSpeed.label}",
-                            subtitle = "先快后慢的统一曲线；自定义只调整时长",
+                            subtitle = "Material 强调曲线；自定义只调整时长",
                             options = sharedTransitionSpeedOptions,
                             selectedValue = state.videoSharedTransitionSpeed,
                             onSelectionChange = viewModel::setVideoSharedTransitionSpeed

@@ -1,11 +1,13 @@
 package com.android.purebilibili.navigation3
 
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiDefaultPredictiveBackAnimation
+import com.android.purebilibili.navigation3.predictiveback.BiliPaiDisabledPredictiveBackAnimation
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiSharedElementPredictiveBackAnimation
 import com.android.purebilibili.navigation3.predictiveback.resolveBiliPaiPredictiveBackAnimationHandler
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -27,6 +29,21 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
         )
 
         assertTrue(handler is BiliPaiDefaultPredictiveBackAnimation)
+    }
+
+    @Test
+    fun classicCardRoute_doesNotInstallTargetSpecificPredictiveHandler() {
+        val handler = resolveBiliPaiPredictiveBackAnimationHandler(
+            routeTransition = BiliPaiNavRouteTransition.CLASSIC_CARD,
+        )
+
+        assertTrue(handler is BiliPaiDefaultPredictiveBackAnimation)
+    }
+
+    @Test
+    fun targetSpecificPredictiveHandler_isNotPresent() {
+        val sourceRoot = listOf(File("app/src/main"), File("src/main")).first { it.exists() }
+        assertFalse(sourceRoot.walkTopDown().any { it.name == "BiliPaiVideoDetailTargetPredictiveBackAnimation.kt" })
     }
 
     @Test
@@ -84,21 +101,54 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
     }
 
     @Test
-    fun legacyDisabledPreference_doesNotDisablePlatformPredictiveBack() {
+    fun disabledPreference_suppressesGlobalPredictivePreview() {
         val handler = resolveBiliPaiPredictiveBackAnimationHandler(
             routeTransition = BiliPaiNavRouteTransition.CLASSIC_CARD,
             predictiveBackEnabled = false,
         )
-        assertTrue(handler is BiliPaiDefaultPredictiveBackAnimation)
+        assertTrue(handler is BiliPaiDisabledPredictiveBackAnimation)
     }
 
     @Test
-    fun disabledSharedElementRoute_keepsSharedElementHandler() {
+    fun disabledSharedElementRoute_suppressesPredictivePreviewBeforeRoutePolicy() {
         val handler = resolveBiliPaiPredictiveBackAnimationHandler(
             routeTransition = BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT,
             predictiveBackEnabled = false,
         )
-        assertTrue(handler is BiliPaiSharedElementPredictiveBackAnimation)
+        assertTrue(handler is BiliPaiDisabledPredictiveBackAnimation)
+    }
+
+    @Test
+    fun disabledPredictivePreview_keepsRelatedDetailSharedElementPop() {
+        val from = BiliPaiNavKey.VideoDetail("BV_B", sourceRoute = "video/BV_A")
+        val to = BiliPaiNavKey.VideoDetail("BV_A")
+
+        assertTrue(
+            resolveBiliPaiPredictiveBackAnimationHandler(
+                routeTransition = BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT,
+                predictiveBackEnabled = false,
+            ) is BiliPaiDisabledPredictiveBackAnimation
+        )
+        assertEquals(
+            BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT,
+            resolveBiliPaiNavDisplayPopRouteTransition(
+                cardTransitionEnabled = true,
+                sourceMetadata = BiliPaiNavSourceMetadata(),
+                fromKey = from,
+                toKey = to,
+            )
+        )
+        assertEquals(
+            BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT,
+            resolveBiliPaiNavEntryPopRouteTransition(
+                defaultTransition = BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT,
+                fromRoute = from.routeBase,
+                toRoute = to.routeBase,
+                cardTransitionEnabled = true,
+                sharedElementPopReady = true,
+                sourceMetadata = BiliPaiNavSourceMetadata(),
+            )
+        )
     }
 
     @Test

@@ -38,6 +38,28 @@ class VideoPlayerSurfacePolicyTest {
     }
 
     @Test
+    fun `live back preview requires texture surface`() {
+        assertTrue(
+            shouldUseTextureSurfaceForFlip(
+                isFlippedHorizontal = false,
+                isFlippedVertical = false,
+                liveBackPreview = true
+            )
+        )
+    }
+
+    @Test
+    fun `navigation transform requires texture surface before back starts`() {
+        assertTrue(
+            shouldUseTextureSurfaceForFlip(
+                isFlippedHorizontal = false,
+                isFlippedVertical = false,
+                navigationTransformEnabled = true
+            )
+        )
+    }
+
+    @Test
     fun `player surface stays hidden until smooth reveal starts`() {
         val spec = resolveVideoPlayerSurfaceRevealSpec(
             forceCoverDuringReturnAnimation = false,

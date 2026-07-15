@@ -11,74 +11,52 @@ import kotlin.test.assertTrue
 class BiliPaiNavMotionPolicyTest {
 
     @Test
-    fun classicVideoCardBackHandler_usedForNonHomeListWhenPreviewSettingIsOff() {
+    fun videoToVideoBackPreview_doesNotStealTheSharedPlayerSurface() {
+        val current = BiliPaiNavKey.VideoDetail("BV_B", sourceRoute = "video/BV_A")
+        val preview = BiliPaiNavKey.VideoDetail("BV_A")
+
+        assertFalse(
+            shouldBindVideoDetailBackPreviewPlayer(
+                currentKey = current,
+                previewKey = preview
+            )
+        )
         assertTrue(
-            shouldUseClassicVideoCardBackHandler(
-                settingEnabled = false,
-                cardTransitionEnabled = true,
-                videoKey = BiliPaiNavKey.VideoDetail("BV1", sourceRoute = "history"),
-                previousKey = BiliPaiNavKey.History,
-                sourceMetadata = BiliPaiNavSourceMetadata(
-                    sourceKey = "history:BV1",
-                    sourceRoute = "history",
-                    clickedBoundsRecorded = true
-                )
+            shouldActivateVideoDetailPlaybackSession(
+                currentKey = current,
+                detailKey = current,
+                isImmediateBackPreview = false
+            )
+        )
+        assertFalse(
+            shouldActivateVideoDetailPlaybackSession(
+                currentKey = current,
+                detailKey = preview,
+                isImmediateBackPreview = true
+            )
+        )
+        assertTrue(
+            shouldRecoverVideoPlayerAfterBackCancellation(
+                currentKey = current,
+                targetKey = preview
             )
         )
     }
 
     @Test
-    fun classicVideoCardBackHandler_usedWhenSharedTransitionIsOff() {
+    fun nonVideoBackPreview_canBindTheTargetDetailPlayer() {
+        val preview = BiliPaiNavKey.VideoDetail("BV_A")
         assertTrue(
-            shouldUseClassicVideoCardBackHandler(
-                settingEnabled = true,
-                cardTransitionEnabled = false,
-                videoKey = BiliPaiNavKey.VideoDetail("BV1", sourceRoute = "favorite"),
-                previousKey = BiliPaiNavKey.Favorite,
-                sourceMetadata = BiliPaiNavSourceMetadata(
-                    sourceKey = "favorite:BV1",
-                    sourceRoute = "favorite",
-                    clickedBoundsRecorded = true
-                )
+            shouldBindVideoDetailBackPreviewPlayer(
+                currentKey = BiliPaiNavKey.Settings,
+                previewKey = preview
             )
         )
-    }
-
-    @Test
-    fun classicVideoCardBackHandler_doesNotInterceptEnabledPreviewOrDeepLink() {
-        assertFalse(
-            shouldUseClassicVideoCardBackHandler(
-                settingEnabled = true,
-                cardTransitionEnabled = true,
-                videoKey = BiliPaiNavKey.VideoDetail("BV1", sourceRoute = "home"),
-                previousKey = BiliPaiNavKey.MainHost,
-                sourceMetadata = BiliPaiNavSourceMetadata(
-                    sourceKey = "home:BV1",
-                    sourceRoute = "home",
-                    clickedBoundsRecorded = true
-                )
-            )
-        )
-        assertFalse(
-            shouldUseClassicVideoCardBackHandler(
-                settingEnabled = false,
-                cardTransitionEnabled = true,
-                videoKey = BiliPaiNavKey.VideoDetail("BV1", sourceRoute = "home"),
-                previousKey = BiliPaiNavKey.MainHost,
-                sourceMetadata = BiliPaiNavSourceMetadata()
-            )
-        )
-        assertFalse(
-            shouldUseClassicVideoCardBackHandler(
-                settingEnabled = false,
-                cardTransitionEnabled = true,
-                videoKey = BiliPaiNavKey.VideoDetail("BV1", sourceRoute = "search"),
-                previousKey = BiliPaiNavKey.Search,
-                sourceMetadata = BiliPaiNavSourceMetadata(
-                    sourceKey = "search:BV0",
-                    sourceRoute = "search",
-                    clickedBoundsRecorded = true
-                )
+        assertTrue(
+            shouldActivateVideoDetailPlaybackSession(
+                currentKey = BiliPaiNavKey.Settings,
+                detailKey = preview,
+                isImmediateBackPreview = true
             )
         )
     }
@@ -213,7 +191,7 @@ class BiliPaiNavMotionPolicyTest {
     }
 
     @Test
-    fun navDisplayPop_relatedDetailReturnUsesNavigationDefault() {
+    fun navDisplayPop_relatedDetailReturnUsesStackOwnedSharedElementSource() {
         val transition = resolveBiliPaiNavDisplayPopRouteTransition(
             cardTransitionEnabled = true,
             sourceMetadata = BiliPaiNavSourceMetadata(
@@ -225,7 +203,35 @@ class BiliPaiNavMotionPolicyTest {
             toKey = BiliPaiNavKey.VideoDetail("BV_A")
         )
 
-        assertEquals(BiliPaiNavRouteTransition.FALLBACK, transition)
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transition)
+    }
+
+    @Test
+    fun relatedDetailReturnDoesNotDependOnLastClickedGlobalMetadata() {
+        val transition = resolveBiliPaiNavDisplayPopRouteTransition(
+            cardTransitionEnabled = true,
+            sourceMetadata = BiliPaiNavSourceMetadata(
+                sourceKey = "video/BV_B:BV_C",
+                sourceRoute = "video/BV_B",
+                clickedBoundsRecorded = true
+            ),
+            fromKey = BiliPaiNavKey.VideoDetail("BV_B", sourceRoute = "video/BV_A"),
+            toKey = BiliPaiNavKey.VideoDetail("BV_A")
+        )
+
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transition)
+    }
+
+    @Test
+    fun relatedDetailReturnWithMismatchedParentFallsBack() {
+        val transition = resolveBiliPaiNavDisplayPopRouteTransition(
+            cardTransitionEnabled = true,
+            sourceMetadata = BiliPaiNavSourceMetadata(),
+            fromKey = BiliPaiNavKey.VideoDetail("BV_B", sourceRoute = "video/BV_X"),
+            toKey = BiliPaiNavKey.VideoDetail("BV_A")
+        )
+
+        assertEquals(BiliPaiNavRouteTransition.CLASSIC_CARD, transition)
     }
 
     @Test
