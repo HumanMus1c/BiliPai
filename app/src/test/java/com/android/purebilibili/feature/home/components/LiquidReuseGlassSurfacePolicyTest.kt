@@ -74,14 +74,28 @@ class LiquidReuseGlassSurfacePolicyTest {
     }
 
     @Test
-    fun reuseIdleOverlayCapIsBelowFullDock() {
+    fun topTabIdleSurfaceMatchesFloatingDock() {
+        listOf(false, true).forEach { darkTheme ->
+            assertEquals(
+                resolveLiquidReuseIndicatorIdleSurfaceColor(
+                    darkTheme = darkTheme,
+                    chromeContext = LiquidReuseChromeContext.FLOATING_DOCK,
+                ),
+                resolveLiquidReuseIndicatorIdleSurfaceColor(
+                    darkTheme = darkTheme,
+                    chromeContext = LiquidReuseChromeContext.TOP_TAB,
+                ),
+            )
+        }
         assertEquals(
             1f,
             resolveLiquidReuseIdleSurfaceMaxAlpha(LiquidReuseChromeContext.FLOATING_DOCK),
             absoluteTolerance = 0.001f,
         )
-        assertTrue(
-            resolveLiquidReuseIdleSurfaceMaxAlpha(LiquidReuseChromeContext.TOP_TAB) <= 0.30f
+        assertEquals(
+            resolveLiquidReuseIdleSurfaceMaxAlpha(LiquidReuseChromeContext.FLOATING_DOCK),
+            resolveLiquidReuseIdleSurfaceMaxAlpha(LiquidReuseChromeContext.TOP_TAB),
+            absoluteTolerance = 0.001f,
         )
         assertTrue(
             resolveLiquidReuseIdleSurfaceMaxAlpha(LiquidReuseChromeContext.IN_CONTENT_SEGMENTED) <= 0.28f

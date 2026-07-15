@@ -94,7 +94,6 @@ internal enum class SegmentedControlChromeStyle {
 
 internal const val BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_HEIGHT_DP = 58
 internal const val BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_INDICATOR_HEIGHT_DP = 56
-internal const val LIQUID_REUSE_FOREGROUND_Z_INDEX = 3f
 private const val SEGMENTED_CONTROL_MIN_INDICATOR_ASPECT_RATIO = 1.6f
 
 internal fun resolveSegmentedControlChromeStyle(
@@ -210,12 +209,14 @@ internal fun resolveLiquidReuseIndicatorContentBackdrop(
     exportBackdrop: Backdrop?,
     useCombined: Boolean,
     combinedBackdrop: Backdrop?,
+    allowExportOnly: Boolean = false,
 ): Backdrop? {
     if (useCombined && pageBackdrop != null && exportBackdrop != null && combinedBackdrop != null) {
         return combinedBackdrop
     }
     // Prefer page alone over export-only to avoid black empty export sampling.
     if (pageBackdrop != null) return pageBackdrop
+    if (allowExportOnly) return exportBackdrop
     return null
 }
 
@@ -325,9 +326,9 @@ internal fun resolveLiquidReuseIndicatorIdleSurfaceColor(
     chromeContext: LiquidReuseChromeContext,
 ): Color {
     return when (chromeContext) {
-        LiquidReuseChromeContext.FLOATING_DOCK ->
+        LiquidReuseChromeContext.FLOATING_DOCK,
+        LiquidReuseChromeContext.TOP_TAB ->
             resolveAndroidNativeIdleIndicatorSurfaceColor(darkTheme)
-        LiquidReuseChromeContext.TOP_TAB,
         LiquidReuseChromeContext.IN_CONTENT_SEGMENTED ->
             if (darkTheme) {
                 Color.White.copy(alpha = 0.04f)
@@ -341,8 +342,8 @@ internal fun resolveLiquidReuseIndicatorIdleSurfaceColor(
 internal fun resolveLiquidReuseIdleSurfaceMaxAlpha(
     chromeContext: LiquidReuseChromeContext,
 ): Float = when (chromeContext) {
-    LiquidReuseChromeContext.FLOATING_DOCK -> 1f
-    LiquidReuseChromeContext.TOP_TAB -> 0.28f
+    LiquidReuseChromeContext.FLOATING_DOCK,
+    LiquidReuseChromeContext.TOP_TAB -> 1f
     LiquidReuseChromeContext.IN_CONTENT_SEGMENTED -> 0.24f
 }
 
@@ -643,7 +644,14 @@ fun BottomBarLiquidSegmentedControl(
         val panelOffsetPx = presetPanelOffsets.indicatorPanelOffsetPx
         val exportPanelOffsetPx = presetPanelOffsets.exportPanelOffsetPx
         // Export capture layer (InstallerX/Miuix). Never self-sample this LayerBackdrop.
-        val tabsBackdrop = rememberLayerBackdrop()
+        val tabsBackdrop = rememberLayerBackdrop(
+            onDraw = {
+                // The local export shares the control's coordinates and stays opaque enough to
+                // prevent Miuix from treating transparent pixels as a black sample.
+                drawRect(surfaceColor)
+                drawContent()
+            }
+        )
         // Dock parity: Combined(page, export) as indicator contentBackdrop.
         // Never drawBackdrop(tabsBackdrop) on the same node that layerBackdrop(tabsBackdrop).
         val hasExternalBackdrop = samplingBackdrop != null
@@ -657,6 +665,7 @@ fun BottomBarLiquidSegmentedControl(
             exportBackdrop = tabsBackdrop,
             useCombined = hasExternalBackdrop,
             combinedBackdrop = combinedIndicatorBackdrop,
+            allowExportOnly = liquidGlassEnabled,
         )
         val captureLensProgress = resolveSharedLiquidIndicatorCaptureLensProgress(
             lensProgress = lensProgress,
@@ -710,7 +719,7 @@ fun BottomBarLiquidSegmentedControl(
             modifier = Modifier
                 .matchParentSize()
                 .padding(horizontal = contentPadding, vertical = contentVerticalInset)
-                .zIndex(LIQUID_REUSE_FOREGROUND_Z_INDEX)
+                .zIndex(0f)
                 .graphicsLayer { translationX = panelOffsetPx }
         )
 

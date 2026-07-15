@@ -329,7 +329,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(source.contains("dragSelectionEnabled: Boolean = true"))
         assertFalse(source.contains("shellBackdrop"))
         assertFalse(source.contains("miuixBackdrop:"))
-        assertTrue(source.contains("val tabsBackdrop = rememberLayerBackdrop()"))
+        assertTrue(source.contains("val tabsBackdrop = rememberLayerBackdrop("))
         assertTrue(source.contains(".layerBackdrop(tabsBackdrop)"))
         assertTrue(source.contains("val exportTintColor = resolveAndroidNativeExportTintColor("))
         assertTrue(source.contains(".graphicsLayer(colorFilter = ColorFilter.tint(exportTintColor))"))
@@ -378,12 +378,14 @@ class BottomBarLiquidSegmentedControlStructureTest {
             "selectionEmphasis = refractionMotionProfile.visibleSelectionEmphasis"
         )
         assertTrue(indicatorIndex >= 0)
-        // Visible labels are composed before the capsule but must be lifted above it explicitly.
+        // Visible neutral labels stay below the capsule; tinted local export is revealed through it.
         assertTrue(visibleLabelsIndex >= 0)
         assertTrue(visibleLabelsIndex < indicatorIndex)
-        assertTrue(source.contains(".zIndex(LIQUID_REUSE_FOREGROUND_Z_INDEX)"))
+        assertTrue(source.contains(".zIndex(0f)"))
         assertTrue(source.contains("val samplingBackdrop = resolveInContentLiquidSamplingBackdrop(backdrop)"))
         assertTrue(source.contains("backdrop = samplingBackdrop,"))
+        assertTrue(source.contains("rememberLayerBackdrop(") && source.contains("onDraw = {"))
+        assertTrue(source.contains("allowExportOnly = liquidGlassEnabled"))
         assertTrue(source.contains("contentBackdrop = indicatorContentBackdrop"))
         assertFalse(source.contains("val indicatorPolicy = remember(itemCount)"))
         assertFalse(source.contains("resolveBottomBarIndicatorPolicy(itemCount = itemCount)"))

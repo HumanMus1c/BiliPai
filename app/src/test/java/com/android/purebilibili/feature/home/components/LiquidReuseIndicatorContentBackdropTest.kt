@@ -96,6 +96,18 @@ class LiquidReuseIndicatorContentBackdropTest {
     }
 
     @Test
+    fun usesAlignedLocalExportWhenCallerGuaranteesItIsSafe() {
+        val result = resolveLiquidReuseIndicatorContentBackdrop(
+            pageBackdrop = null,
+            exportBackdrop = ExportBackdrop,
+            useCombined = false,
+            combinedBackdrop = null,
+            allowExportOnly = true,
+        )
+        assertSame(ExportBackdrop, result)
+    }
+
+    @Test
     fun returnsNullWhenNoPage() {
         val result = resolveLiquidReuseIndicatorContentBackdrop(
             pageBackdrop = null,
