@@ -3,7 +3,6 @@ package com.android.purebilibili.feature.space
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -110,6 +109,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
+import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.core.ui.components.UserLevelBadge
@@ -2531,11 +2531,12 @@ private fun Modifier.spaceVideoCoverSharedBounds(
                 )
             ),
             animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-            boundsTransform = { _, _ ->
+            boundsTransform = { initialBounds, targetBounds ->
                 if (cardSharedTransitionMotionSpec.enabled) {
-                    tween(
-                        durationMillis = cardSharedTransitionMotionSpec.durationMillis,
-                        easing = cardSharedTransitionMotionSpec.easing
+                    videoSharedElementBoundsTransformSpec(
+                        motion = cardSharedTransitionMotionSpec,
+                        initialBounds = initialBounds,
+                        targetBounds = targetBounds
                     )
                 } else {
                     com.android.purebilibili.core.ui.motion.AppMotionTokens.spatialSpec()
@@ -2570,16 +2571,48 @@ private fun SpaceHomeVideoCard(
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val coverShape = RoundedCornerShape(14.dp)
-    val coverModifier = Modifier.spaceVideoCoverSharedBounds(
-        sharedTransitionKey = sharedTransitionKey,
-        coverShape = coverShape,
-        sharedTransitionScope = sharedTransitionScope,
-        animatedVisibilityScope = animatedVisibilityScope
+    val sharedTransitionReady = sharedTransitionKey != null &&
+        sharedTransitionScope != null &&
+        animatedVisibilityScope != null
+    val sharedTransitionSpeedSettings = LocalVideoSharedTransitionSpeedSettings.current
+    val cardSharedTransitionMotionSpec = remember(
+        sourceRoute,
+        sharedTransitionKey,
+        sharedTransitionSpeedSettings
+    ) {
+        resolveVideoCardSharedTransitionMotionSpec(
+            sourceRoute = sourceRoute,
+            transitionEnabled = sharedTransitionReady,
+            speedSettings = sharedTransitionSpeedSettings
+        )
+    }
+    val useCardShellSharedBounds = shouldUseVideoCardShellSharedBounds(
+        sourceRoute = sourceRoute,
+        transitionEnabled = sharedTransitionReady
     )
+    val coverModifier = if (useCardShellSharedBounds) {
+        Modifier
+    } else {
+        Modifier.spaceVideoCoverSharedBounds(
+            sharedTransitionKey = sharedTransitionKey,
+            coverShape = coverShape,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope
+        )
+    }
 
     Column(
         modifier = modifier
             .padding(horizontal = 8.dp)
+            .videoCardShellSharedBoundsOrEmpty(
+                enabled = useCardShellSharedBounds,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                bvid = sharedTransitionKey.orEmpty(),
+                sourceRoute = sourceRoute,
+                motionSpec = cardSharedTransitionMotionSpec,
+                clipShape = coverShape
+            )
             .clip(coverShape)
             .clickable {
                 coverBounds?.let { bounds ->

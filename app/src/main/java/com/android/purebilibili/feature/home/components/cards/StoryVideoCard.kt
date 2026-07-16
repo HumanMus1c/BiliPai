@@ -119,6 +119,12 @@ fun StoryVideoCard(
             scrollLiteModeEnabled = scrollLiteModeEnabled
         )
     }
+    val coverCrossfadeEnabled = shouldEnableVideoCardCoverCrossfade(
+        isScrollInProgress = scrollLiteModeEnabled,
+        isReturningFromDetail = isReturningFromVideoDetail,
+        useCoverSharedBounds = false,
+        isSharedReturnTarget = false
+    )
     val badgeStylePolicy = remember(showCoverGlassBadges, showInfoGlassBadges) {
         resolveHomeVideoGlassBadgeStylePolicy(
             showCoverGlassBadges = showCoverGlassBadges,
@@ -282,7 +288,7 @@ fun StoryVideoCard(
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(coverUrl)
-                    .crossfade(150)
+                    .crossfade(coverCrossfadeEnabled)
                     .memoryCacheKey("story_${video.bvid}")
                     .diskCacheKey("story_${video.bvid}")
                     .build(),

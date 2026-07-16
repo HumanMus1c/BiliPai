@@ -35,10 +35,12 @@ internal fun resolveVideoCardScrollLiteVisualPolicy(
 }
 
 internal fun shouldEnableVideoCardCoverCrossfade(
+    isScrollInProgress: Boolean,
     isReturningFromDetail: Boolean,
     useCoverSharedBounds: Boolean,
     isSharedReturnTarget: Boolean
 ): Boolean {
+    if (isScrollInProgress) return false
     // 返回目标封面由 sharedBounds 承接播放器画面，Coil 淡入会在落位后再次改变亮度导致闪烁。
     return !(isReturningFromDetail && useCoverSharedBounds && isSharedReturnTarget)
 }

@@ -426,6 +426,7 @@ fun AppNavigation(
             )
         }
         var predictiveBackCancelRecoveryGeneration by remember { mutableIntStateOf(0) }
+        var accountSessionRefreshGeneration by remember { mutableIntStateOf(0) }
         val currentNavigation3Key = navigation3BackStack.lastOrNull()
         val currentRoute = currentNavigation3Key?.toLegacyRoute()
         val configuredHomeWallpaperUri by SettingsManager.getHomeWallpaperUri(context).collectAsStateWithLifecycle(initialValue = ""
@@ -1787,6 +1788,7 @@ fun AppNavigation(
                             }
                             ProfileScreen(
                                 isCurrentPage = isBottomPagerPageActive,
+                                accountSessionRefreshGeneration = accountSessionRefreshGeneration,
                                 onBack = { pushNavigation3Route(ScreenRoutes.Home.route) },
                                 onGoToLogin = { pushNavigation3Key(BiliPaiNavKey.Login) },
                                 onLogoutSuccess = { homeViewModel.refresh() },
@@ -2406,6 +2408,7 @@ fun AppNavigation(
                         BiliPaiNavEntryContentRole.LOGIN -> LoginScreen(
                                 onClose = { performSystemBackAction() },
                                 onLoginSuccess = {
+                                    accountSessionRefreshGeneration += 1
                                     performSystemBackAction()
                                     homeViewModel.refresh()
                                 }

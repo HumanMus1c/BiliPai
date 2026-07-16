@@ -130,6 +130,7 @@ class VideoCardScrollLiteVisualPolicyTest {
     fun `return target cover disables crossfade during shared transition`() {
         assertFalse(
             shouldEnableVideoCardCoverCrossfade(
+                isScrollInProgress = false,
                 isReturningFromDetail = true,
                 useCoverSharedBounds = true,
                 isSharedReturnTarget = true
@@ -141,6 +142,7 @@ class VideoCardScrollLiteVisualPolicyTest {
     fun `non return target cover keeps crossfade`() {
         assertTrue(
             shouldEnableVideoCardCoverCrossfade(
+                isScrollInProgress = false,
                 isReturningFromDetail = true,
                 useCoverSharedBounds = true,
                 isSharedReturnTarget = false
@@ -148,9 +150,22 @@ class VideoCardScrollLiteVisualPolicyTest {
         )
         assertTrue(
             shouldEnableVideoCardCoverCrossfade(
+                isScrollInProgress = false,
                 isReturningFromDetail = false,
                 useCoverSharedBounds = true,
                 isSharedReturnTarget = true
+            )
+        )
+    }
+
+    @Test
+    fun `scrolling disables cover crossfade`() {
+        assertFalse(
+            shouldEnableVideoCardCoverCrossfade(
+                isScrollInProgress = true,
+                isReturningFromDetail = false,
+                useCoverSharedBounds = false,
+                isSharedReturnTarget = false
             )
         )
     }

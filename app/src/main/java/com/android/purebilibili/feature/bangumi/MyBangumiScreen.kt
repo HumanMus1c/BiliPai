@@ -35,6 +35,7 @@ import coil.compose.AsyncImage
 import com.android.purebilibili.core.theme.iOSYellow
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.FollowBangumiItem
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 
 /**
  * 我的追番列表组件
@@ -475,52 +476,21 @@ private fun MyFollowTypeTabs(
     selectedType: Int,
     onTypeChange: (Int) -> Unit
 ) {
-    Row(
+    BottomBarLiquidSegmentedControl(
+        items = listOf("追番", "追剧"),
+        selectedIndex = if (selectedType == MY_FOLLOW_TYPE_CINEMA) 1 else 0,
+        onSelected = { index ->
+            onTypeChange(if (index == 1) MY_FOLLOW_TYPE_CINEMA else MY_FOLLOW_TYPE_BANGUMI)
+        },
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        FollowTypeTab(
-            text = "追番",
-            selected = selectedType == MY_FOLLOW_TYPE_BANGUMI,
-            onClick = { onTypeChange(MY_FOLLOW_TYPE_BANGUMI) },
-            modifier = Modifier.weight(1f)
-        )
-        FollowTypeTab(
-            text = "追剧",
-            selected = selectedType == MY_FOLLOW_TYPE_CINEMA,
-            onClick = { onTypeChange(MY_FOLLOW_TYPE_CINEMA) },
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun FollowTypeTab(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier,
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-    ) {
-        Box(
-            modifier = Modifier.padding(vertical = 8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                fontSize = 13.sp,
-                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal
-            )
-        }
-    }
+        height = 44.dp,
+        indicatorHeight = 38.dp,
+        labelFontSize = 14.sp,
+        dragSelectionEnabled = true,
+        preferInlineContentStyle = false
+    )
 }
 
 @Composable

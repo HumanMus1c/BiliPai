@@ -42,7 +42,6 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.navigationevent.NavigationEventTransitionState
 import com.android.purebilibili.core.ui.ProvideAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.adaptive.MotionTier
-import com.android.purebilibili.core.ui.motion.emphasizedEnterTween
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.core.ui.transition.LocalPredictiveBackBackgroundState
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
@@ -56,6 +55,8 @@ import com.android.purebilibili.core.ui.transition.resolvePredictiveBackCommitBl
 import com.android.purebilibili.core.ui.transition.resolvePredictiveBackGestureBlurProgress
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundGestureBlurProgress
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundReturnDurationMs
+import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionEnterEasing
+import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionReturnEasing
 import com.android.purebilibili.core.ui.transition.isVideoCardTransitionBackgroundGesturePhase
 import com.android.purebilibili.core.ui.transition.shouldApplyPredictiveBackGestureBlur
 import com.android.purebilibili.core.ui.transition.shouldShowVideoCardTransitionNavBackdrop
@@ -156,8 +157,9 @@ internal fun BiliPaiNavDisplayHost(
                 videoCardTransitionBackgroundProgress.snapTo(0f)
                 videoCardTransitionBackgroundProgress.animateTo(
                     targetValue = 1f,
-                    animationSpec = emphasizedEnterTween(
+                    animationSpec = tween(
                         durationMillis = videoSharedTransitionDurationMillis,
+                        easing = resolveVideoCardSharedTransitionEnterEasing(),
                     )
                 )
                 // 详情页覆盖期间保持 blur-only 状态，避免返回 pop 后先清晰一帧再补模糊。
@@ -171,11 +173,12 @@ internal fun BiliPaiNavDisplayHost(
                     val remainingBlur = videoCardTransitionBackgroundProgress.value
                     videoCardTransitionBackgroundProgress.animateTo(
                         targetValue = 0f,
-                        animationSpec = emphasizedEnterTween(
+                        animationSpec = tween(
                             durationMillis = resolveVideoCardTransitionBackgroundReturnDurationMs(
                                 startProgress = remainingBlur,
                                 fullDurationMs = videoSharedTransitionDurationMillis,
                             ),
+                            easing = resolveVideoCardSharedTransitionReturnEasing(),
                         ),
                     )
                     val parentSourceRoute = (currentTop as? BiliPaiNavKey.VideoDetail)?.sourceRoute
@@ -316,11 +319,12 @@ internal fun BiliPaiNavDisplayHost(
                 launch {
                     videoCardTransitionBackgroundProgress.animateTo(
                         targetValue = 0f,
-                        animationSpec = emphasizedEnterTween(
+                        animationSpec = tween(
                             durationMillis = resolveVideoCardTransitionBackgroundReturnDurationMs(
                                 startProgress = blurAtCommit,
                                 fullDurationMs = videoSharedTransitionDurationMillis,
                             ),
+                            easing = resolveVideoCardSharedTransitionReturnEasing(),
                         ),
                     )
                 }

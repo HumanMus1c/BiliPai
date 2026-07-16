@@ -2,7 +2,6 @@ package com.android.purebilibili.feature.video.ui.components
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope.OverlayClip
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +41,7 @@ import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransit
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
+import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
 import com.android.purebilibili.feature.video.ui.FollowBadgeTone
 import com.android.purebilibili.feature.video.ui.resolveVideoFollowVisualPolicy
 import com.android.purebilibili.navigation.VideoRoute
@@ -198,10 +198,11 @@ fun RelatedVideoItem(
                     )
                 ),
                 animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                boundsTransform = { _, _ ->
-                    tween(
-                        durationMillis = cardSharedTransitionMotionSpec.durationMillis,
-                        easing = cardSharedTransitionMotionSpec.easing
+                boundsTransform = { initialBounds, targetBounds ->
+                    videoSharedElementBoundsTransformSpec(
+                        motion = cardSharedTransitionMotionSpec,
+                        initialBounds = initialBounds,
+                        targetBounds = targetBounds
                     )
                 },
                 clipInOverlayDuringTransition = OverlayClip(relatedCoverShape)

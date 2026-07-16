@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.SharedTransitionScope.OverlayClip
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
@@ -33,11 +32,12 @@ internal fun Modifier.videoCardShellSharedBoundsOrEmpty(
                     )
                 ),
                 animatedVisibilityScope = animatedVisibilityScope,
-                boundsTransform = { _, _ ->
+                boundsTransform = { initialBounds, targetBounds ->
                     if (motionSpec.enabled) {
-                        tween(
-                            durationMillis = motionSpec.durationMillis,
-                            easing = motionSpec.easing
+                        videoSharedElementBoundsTransformSpec(
+                            motion = motionSpec,
+                            initialBounds = initialBounds,
+                            targetBounds = targetBounds
                         )
                     } else {
                         com.android.purebilibili.core.ui.motion.AppMotionTokens.spatialSpec()

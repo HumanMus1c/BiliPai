@@ -236,6 +236,18 @@ class VideoPlayerOverlayPolicyTest {
     }
 
     @Test
+    fun drawerDismissesBeforeSwitchingVideo() {
+        val drawerClickBlock = loadVideoPlayerOverlaySource()
+            .substringAfter("onVideoClick = { vid, options ->")
+            .substringBefore("},\n            hazeState")
+
+        assertTrue(
+            drawerClickBlock.indexOf("onDismissEndDrawer()") <
+                drawerClickBlock.indexOf("onDrawerVideoClick(vid, options)")
+        )
+    }
+
+    @Test
     fun centerPlayButtonHiddenWhenScrubbingOrBuffering() {
         assertFalse(
             shouldShowCenterPlayButton(

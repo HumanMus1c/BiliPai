@@ -68,4 +68,34 @@ class BangumiResumePolicyTest {
             )
         )
     }
+
+    @Test
+    fun `reattached player restores cached dash playback for the same episode`() {
+        assertTrue(
+            shouldRestoreBangumiCachedPlayback(
+                requestedSeasonId = 1L,
+                requestedEpisodeId = 2L,
+                loadedSeasonId = 1L,
+                loadedEpisodeId = 2L,
+                cachedVideoUrl = "https://video",
+                cachedAudioUrl = "https://audio",
+                attachedPlayerMediaItemCount = 0
+            )
+        )
+    }
+
+    @Test
+    fun `cached bangumi durl does not bypass a reload without its segment list`() {
+        assertFalse(
+            shouldRestoreBangumiCachedPlayback(
+                requestedSeasonId = 1L,
+                requestedEpisodeId = 2L,
+                loadedSeasonId = 1L,
+                loadedEpisodeId = 2L,
+                cachedVideoUrl = "https://video",
+                cachedAudioUrl = null,
+                attachedPlayerMediaItemCount = 0
+            )
+        )
+    }
 }

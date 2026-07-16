@@ -254,7 +254,7 @@ class HomePagerSyncPolicyTest {
     }
 
     @Test
-    fun pagerRestore_resolvesFollowByStableEntryAfterPopularAndFollowSwap() {
+    fun pagerRestore_usesCurrentCategoryInsteadOfStaleRetainedCategory() {
         val reorderedEntries = listOf(
             HomeTopTabEntry.Category(HomeCategory.RECOMMEND),
             HomeTopTabEntry.Category(HomeCategory.POPULAR),
@@ -262,11 +262,11 @@ class HomePagerSyncPolicyTest {
         )
 
         assertEquals(
-            2,
+            1,
             resolveHomePagerTargetPage(
                 topTabEntries = reorderedEntries,
                 retainedEntry = HomeTopTabEntry.Category(HomeCategory.FOLLOW),
-                currentCategory = HomeCategory.FOLLOW,
+                currentCategory = HomeCategory.POPULAR,
                 hasSyncedPagerWithState = false
             )
         )

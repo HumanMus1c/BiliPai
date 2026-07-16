@@ -137,6 +137,20 @@ class HomeRefreshPolicyTest {
     }
 
     @Test
+    fun undoRefreshButton_consumesHorizontalDragsBeforeTheDrawer() {
+        val source = listOf(
+            java.io.File("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt"),
+            java.io.File("src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
+        ).first { it.exists() }.readText()
+        val undoButton = source
+            .substringAfter("onClick = { viewModel.undoRefresh() },")
+            .substringBefore("colors = androidx.compose.material3.ButtonDefaults.buttonColors(")
+
+        assertTrue(undoButton.contains("detectHorizontalDragGestures"))
+        assertTrue(undoButton.contains("change.consume()"))
+    }
+
+    @Test
     fun buildHomeRefreshUndoSnapshot_returnsNull_forNonRecommendCategory() {
         val snapshot = buildHomeRefreshUndoSnapshot(
             refreshingCategory = HomeCategory.POPULAR,

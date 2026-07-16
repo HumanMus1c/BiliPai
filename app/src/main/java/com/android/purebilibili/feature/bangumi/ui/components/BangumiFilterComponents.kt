@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.sp
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.ChevronDown
 import com.android.purebilibili.core.ui.AppShapes
-import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.data.model.response.BangumiFilter
 import com.android.purebilibili.data.model.response.BangumiIndexFilterGroup
 import com.android.purebilibili.data.model.response.BangumiIndexFilterOption
@@ -46,43 +46,19 @@ fun BangumiModeTabs(
         }
     }
     
-    Surface(
+    BottomBarLiquidSegmentedControl(
+        items = modes.map { it.second },
+        selectedIndex = modes.indexOfFirst { it.first == currentMode }.coerceAtLeast(0),
+        onSelected = { index -> modes.getOrNull(index)?.first?.let(onModeChange) },
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp),
-        shape = AppShapes.container(ContainerLevel.Sheet),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            modes.forEach { (mode, label) ->
-                val isSelected = currentMode == mode
-                Surface(
-                    modifier = Modifier.weight(1f),
-                    onClick = { onModeChange(mode) },
-                    shape = AppShapes.container(ContainerLevel.Dialog),
-                    color = if (isSelected) AppSurfaceTokens.cardContainer() else Color.Transparent,
-                    shadowElevation = if (isSelected) 1.dp else 0.dp
-                ) {
-                    Box(
-                        modifier = Modifier.padding(vertical = 9.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = label,
-                            fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-    }
+        height = 48.dp,
+        indicatorHeight = 42.dp,
+        labelFontSize = 14.sp,
+        dragSelectionEnabled = true,
+        preferInlineContentStyle = false
+    )
 }
 
 /**

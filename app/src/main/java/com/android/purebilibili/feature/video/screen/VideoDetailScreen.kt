@@ -161,9 +161,9 @@ import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
-import com.android.purebilibili.core.ui.transition.VIDEO_CARD_TRANSITION_BACKGROUND_CANCEL_DURATION_MS
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
-import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionEasing
+import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionEnterEasing
+import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionReturnEasing
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
@@ -636,7 +636,8 @@ internal data class VideoDetailRouteSheetMotion(
     val initialBackgroundScrimAlpha: Float,
     val settleScaleDelta: Float,
     val settleTranslationDp: Float,
-    val easing: Easing
+    val enterEasing: Easing,
+    val returnEasing: Easing
 )
 
 internal enum class VideoDetailRouteSheetSettleDirection {
@@ -653,18 +654,24 @@ internal data class VideoDetailRouteSheetFrame(
     val settleProgress: Float
 )
 
-internal data class VideoDetailCardReturnSecondaryContentTiming(
-    val delayMillis: Int,
-    val durationMillis: Int
+internal data class VideoDetailSecondaryContentTiming(
+    val enterDelayMillis: Int,
+    val enterDurationMillis: Int,
+    val returnDelayMillis: Int,
+    val returnDurationMillis: Int
 )
 
-internal fun resolveVideoDetailCardReturnSecondaryContentTiming(
-    fullDurationMillis: Int
-): VideoDetailCardReturnSecondaryContentTiming {
+internal fun resolveVideoDetailSecondaryContentTiming(
+    fullDurationMillis: Int,
+    enterDelayMillis: Int,
+    enterDurationMillis: Int
+): VideoDetailSecondaryContentTiming {
     val safeDuration = fullDurationMillis.coerceAtLeast(0)
-    return VideoDetailCardReturnSecondaryContentTiming(
-        delayMillis = (safeDuration * 0.58f).roundToInt(),
-        durationMillis = (safeDuration * 0.32f).roundToInt()
+    return VideoDetailSecondaryContentTiming(
+        enterDelayMillis = enterDelayMillis.coerceAtLeast(0),
+        enterDurationMillis = enterDurationMillis.coerceAtLeast(0),
+        returnDelayMillis = 0,
+        returnDurationMillis = (safeDuration * 0.4f).roundToInt()
     )
 }
 
@@ -717,7 +724,8 @@ internal fun resolveVideoDetailRouteSheetMotion(
         initialBackgroundScrimAlpha = HOME_VIDEO_ROUTE_SHEET_INITIAL_SCRIM_ALPHA,
         settleScaleDelta = HOME_VIDEO_ROUTE_SHEET_SETTLE_SCALE_DELTA,
         settleTranslationDp = HOME_VIDEO_ROUTE_SHEET_SETTLE_TRANSLATION_DP,
-        easing = resolveVideoCardSharedTransitionEasing()
+        enterEasing = resolveVideoCardSharedTransitionEnterEasing(),
+        returnEasing = resolveVideoCardSharedTransitionReturnEasing()
     )
 }
 
@@ -784,6 +792,8 @@ private fun rememberVideoDetailRouteSheetFrameProvider(
         effectiveMotion.enabled,
         effectiveMotion.mainDurationMillis,
         effectiveMotion.settleDurationMillis,
+        effectiveMotion.enterEasing,
+        effectiveMotion.returnEasing,
         isExitTransitionInProgress
     ) {
         if (!effectiveMotion.enabled) {
@@ -800,7 +810,11 @@ private fun rememberVideoDetailRouteSheetFrameProvider(
             targetValue = targetProgress,
             animationSpec = tween(
                 durationMillis = effectiveMotion.mainDurationMillis,
-                easing = effectiveMotion.easing
+                easing = if (isExitTransitionInProgress) {
+                    effectiveMotion.returnEasing
+                } else {
+                    effectiveMotion.enterEasing
+                }
             )
         )
         settleDirection = if (isExitTransitionInProgress) {
@@ -813,7 +827,11 @@ private fun rememberVideoDetailRouteSheetFrameProvider(
             targetValue = 0f,
             animationSpec = tween(
                 durationMillis = effectiveMotion.settleDurationMillis,
-                easing = effectiveMotion.easing
+                easing = if (isExitTransitionInProgress) {
+                    effectiveMotion.returnEasing
+                } else {
+                    effectiveMotion.enterEasing
+                }
             )
         )
         settleDirection = VideoDetailRouteSheetSettleDirection.None
@@ -1800,9 +1818,11 @@ fun VideoDetailScreen(
         hasSharedTransitionScope = rootSharedTransitionScope != null,
         hasAnimatedVisibilityScope = rootAnimatedVisibilityScope != null
     )
-    val secondaryContentTiming = remember(homeSharedTransitionMotionSpec.durationMillis) {
-        resolveVideoDetailCardReturnSecondaryContentTiming(
-            fullDurationMillis = homeSharedTransitionMotionSpec.durationMillis
+    val secondaryContentTiming = remember(homeSharedTransitionMotionSpec) {
+        resolveVideoDetailSecondaryContentTiming(
+            fullDurationMillis = homeSharedTransitionMotionSpec.durationMillis,
+            enterDelayMillis = homeSharedTransitionMotionSpec.contentDelayMillis,
+            enterDurationMillis = homeSharedTransitionMotionSpec.contentDurationMillis
         )
     }
     val detailSecondaryContentAlpha = if (
@@ -1812,14 +1832,15 @@ fun VideoDetailScreen(
             transitionSpec = {
                 if (targetState == EnterExitState.PostExit) {
                     tween(
-                        durationMillis = secondaryContentTiming.durationMillis,
-                        delayMillis = secondaryContentTiming.delayMillis,
-                        easing = com.android.purebilibili.core.ui.motion.AppMotionEasing.EmphasizedExit
+                        durationMillis = secondaryContentTiming.returnDurationMillis,
+                        delayMillis = secondaryContentTiming.returnDelayMillis,
+                        easing = homeSharedTransitionMotionSpec.returnEasing
                     )
                 } else {
                     tween(
-                        durationMillis = VIDEO_CARD_TRANSITION_BACKGROUND_CANCEL_DURATION_MS,
-                        easing = FastOutSlowInEasing
+                        durationMillis = secondaryContentTiming.enterDurationMillis,
+                        delayMillis = secondaryContentTiming.enterDelayMillis,
+                        easing = homeSharedTransitionMotionSpec.enterEasing
                     )
                 }
             },
@@ -3578,20 +3599,20 @@ fun VideoDetailScreen(
                                             )
                                         ),
                                         animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                                        boundsTransform = { _, _ ->
-                                            if (homeSharedTransitionMotionSpec.enabled) {
-                                                val duration = if (isFullscreenTarget) {
-                                                    homeSharedTransitionMotionSpec.fullscreenDurationMillis
-                                                } else {
-                                                    homeSharedTransitionMotionSpec.durationMillis
-                                                }
-                                                tween(
-                                                    durationMillis = duration,
-                                                    easing = homeSharedTransitionMotionSpec.easing
-                                                )
+                                        boundsTransform = { initialBounds, targetBounds ->
+                                            val duration = if (
+                                                homeSharedTransitionMotionSpec.enabled && isFullscreenTarget
+                                            ) {
+                                                homeSharedTransitionMotionSpec.fullscreenDurationMillis
                                             } else {
-                                                videoSharedElementBoundsTransformSpec(homeSharedTransitionMotionSpec)
+                                                homeSharedTransitionMotionSpec.durationMillis
                                             }
+                                            videoSharedElementBoundsTransformSpec(
+                                                motion = homeSharedTransitionMotionSpec,
+                                                initialBounds = initialBounds,
+                                                targetBounds = targetBounds,
+                                                durationMillis = duration
+                                            )
                                         },
                                         clipInOverlayDuringTransition = OverlayClip(
                                             RoundedCornerShape(activeVideoSharedTransitionVisualSpec.targetCornerDp.dp)
@@ -3621,7 +3642,11 @@ fun VideoDetailScreen(
                             },
                             animationSpec = tween(
                                 durationMillis = returnAlphaDurationMillis,
-                                easing = homeSharedTransitionMotionSpec.easing
+                                easing = if (isLeaving) {
+                                    homeSharedTransitionMotionSpec.returnEasing
+                                } else {
+                                    homeSharedTransitionMotionSpec.enterEasing
+                                }
                             ),
                             label = "coverCrossfade"
                         )
@@ -3638,7 +3663,11 @@ fun VideoDetailScreen(
                             },
                             animationSpec = tween(
                                 durationMillis = returnAlphaDurationMillis,
-                                easing = homeSharedTransitionMotionSpec.easing
+                                easing = if (isLeaving) {
+                                    homeSharedTransitionMotionSpec.returnEasing
+                                } else {
+                                    homeSharedTransitionMotionSpec.enterEasing
+                                }
                             ),
                             label = "playerFade"
                         )

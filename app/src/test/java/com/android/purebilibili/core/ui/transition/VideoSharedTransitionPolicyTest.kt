@@ -1,6 +1,7 @@
 package com.android.purebilibili.core.ui.transition
 
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
+import androidx.compose.ui.geometry.Rect
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,8 +12,29 @@ import kotlin.test.assertTrue
 class VideoSharedTransitionPolicyTest {
 
     @Test
-    fun videoSharedTransitionUsesMaterialEmphasizedEnterEasing() {
-        assertSame(AppMotionEasing.EmphasizedEnter, resolveVideoCardSharedTransitionEasing())
+    fun videoSharedTransitionUsesResponsiveEnterAndBalancedReturnEasing() {
+        val enter = resolveVideoCardSharedTransitionEnterEasing()
+        val returning = resolveVideoCardSharedTransitionReturnEasing()
+
+        assertSame(AppMotionEasing.EmphasizedEnter, enter)
+        assertTrue(returning.transform(0.1f) in 0.03f..0.06f)
+        assertTrue(returning.transform(0.35f) in 0.54f..0.58f)
+        assertTrue(returning.transform(0.75f) in 0.95f..0.97f)
+    }
+
+    @Test
+    fun videoSharedTransitionDirection_followsBoundsArea() {
+        val cardBounds = Rect(0f, 0f, 160f, 100f)
+        val detailBounds = Rect(0f, 0f, 360f, 800f)
+
+        assertEquals(
+            VideoSharedTransitionDirection.ENTER,
+            resolveVideoSharedTransitionDirection(cardBounds, detailBounds)
+        )
+        assertEquals(
+            VideoSharedTransitionDirection.RETURN,
+            resolveVideoSharedTransitionDirection(detailBounds, cardBounds)
+        )
     }
 
     @Test
@@ -131,7 +153,7 @@ class VideoSharedTransitionPolicyTest {
     }
 
     @Test
-    fun videoCardShellContainerTransform_supportsReturnTargetSourcesAndScopes() {
+    fun videoCardShellContainerTransform_includesSpaceSources() {
         assertTrue(
             shouldUseVideoCardShellContainerTransform(
                 sourceRoute = "home",
@@ -249,9 +271,10 @@ class VideoSharedTransitionPolicyTest {
         assertEquals(276, motion.contentDurationMillis)
         assertEquals(14, motion.contentSlideOffsetDp)
         assertEquals(0.985f, motion.contentInitialScale, 0.0001f)
-        assertTrue(motion.easing.transform(0.35f) > 0.7f)
-        assertTrue(motion.easing.transform(0.35f) < 0.9f)
-        assertTrue(motion.easing.transform(0.75f) > 0.96f)
+        assertTrue(motion.enterEasing.transform(0.35f) > 0.7f)
+        assertTrue(motion.enterEasing.transform(0.35f) < 0.9f)
+        assertTrue(motion.enterEasing.transform(0.75f) > 0.96f)
+        assertTrue(motion.returnEasing.transform(0.35f) in 0.54f..0.58f)
     }
 
     @Test
@@ -328,7 +351,8 @@ class VideoSharedTransitionPolicyTest {
         assertEquals(coverMotion.durationMillis, metadataMotion.durationMillis)
         assertEquals(coverMotion.fullscreenDurationMillis, metadataMotion.fullscreenDurationMillis)
         assertEquals(0, metadataMotion.contentDelayMillis)
-        assertSame(coverMotion.easing, metadataMotion.easing)
+        assertSame(coverMotion.enterEasing, metadataMotion.enterEasing)
+        assertSame(coverMotion.returnEasing, metadataMotion.returnEasing)
         assertEquals(331, resolveVideoMetadataSharedBoundsDurationMillis(metadataMotion))
         assertTrue(resolveVideoMetadataSharedBoundsDurationMillis(metadataMotion) < metadataMotion.durationMillis)
     }

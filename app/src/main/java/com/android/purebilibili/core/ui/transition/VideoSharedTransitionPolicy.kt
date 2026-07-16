@@ -1,8 +1,10 @@
 package com.android.purebilibili.core.ui.transition
 
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.geometry.Rect
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.navigation.isVideoCardReturnTargetRoute
 import kotlin.math.roundToInt
@@ -72,7 +74,8 @@ private const val DEFAULT_VIDEO_CARD_CORNER_DP = 12
 private const val DEFAULT_VIDEO_PLAYER_CORNER_DP = 12
 private const val DYNAMIC_VIDEO_CARD_CORNER_DP = 10
 private const val WATCH_LATER_VIDEO_CARD_CORNER_DP = 8
-private val VIDEO_CARD_MATERIAL_EMPHASIZED_EASING = AppMotionEasing.EmphasizedEnter
+private val VIDEO_CARD_ENTER_EASING = AppMotionEasing.EmphasizedEnter
+private val VIDEO_CARD_RETURN_EASING = CubicBezierEasing(0.32f, 0f, 0.20f, 1f)
 
 enum class VideoSharedTransitionSpeed(val value: Int, val label: String) {
     FAST(0, "快速"),
@@ -105,8 +108,14 @@ internal data class VideoSharedTransitionMotionSpec(
     val contentDurationMillis: Int,
     val contentSlideOffsetDp: Int,
     val contentInitialScale: Float,
-    val easing: Easing
+    val enterEasing: Easing,
+    val returnEasing: Easing
 )
+
+internal enum class VideoSharedTransitionDirection {
+    ENTER,
+    RETURN
+}
 
 internal data class VideoSharedCornerSpec(
     val enabled: Boolean,
@@ -127,8 +136,32 @@ internal fun resolveVideoSharedTransitionProfile(): VideoSharedTransitionProfile
     return VideoSharedTransitionProfile.COVER_AND_METADATA
 }
 
-internal fun resolveVideoCardSharedTransitionEasing(): Easing {
-    return VIDEO_CARD_MATERIAL_EMPHASIZED_EASING
+internal fun resolveVideoCardSharedTransitionEnterEasing(): Easing = VIDEO_CARD_ENTER_EASING
+
+internal fun resolveVideoCardSharedTransitionReturnEasing(): Easing = VIDEO_CARD_RETURN_EASING
+
+internal fun resolveVideoSharedTransitionDirection(
+    initialBounds: Rect,
+    targetBounds: Rect
+): VideoSharedTransitionDirection {
+    val initialArea = initialBounds.width * initialBounds.height
+    val targetArea = targetBounds.width * targetBounds.height
+    return if (targetArea < initialArea) {
+        VideoSharedTransitionDirection.RETURN
+    } else {
+        VideoSharedTransitionDirection.ENTER
+    }
+}
+
+internal fun resolveVideoSharedTransitionEasing(
+    motion: VideoSharedTransitionMotionSpec,
+    initialBounds: Rect,
+    targetBounds: Rect
+): Easing {
+    return when (resolveVideoSharedTransitionDirection(initialBounds, targetBounds)) {
+        VideoSharedTransitionDirection.ENTER -> motion.enterEasing
+        VideoSharedTransitionDirection.RETURN -> motion.returnEasing
+    }
 }
 
 internal fun normalizeVideoSharedTransitionCustomDurationMillis(durationMillis: Int): Int {
@@ -260,7 +293,8 @@ internal fun shouldUseVideoCardShellContainerTransform(
     hasAnimatedVisibilityScope: Boolean
 ): Boolean {
     if (!transitionEnabled || !hasSharedTransitionScope || !hasAnimatedVisibilityScope) return false
-    return isVideoCardReturnTargetRoute(sourceRoute?.substringBefore("?"))
+    val normalizedSourceRoute = sourceRoute?.substringBefore("?")
+    return isVideoCardReturnTargetRoute(normalizedSourceRoute)
 }
 
 internal fun shouldEnableVideoMetadataSharedTransition(
@@ -324,7 +358,8 @@ internal fun resolveVideoCardSharedTransitionMotionSpec(
             contentDurationMillis = 0,
             contentSlideOffsetDp = 0,
             contentInitialScale = 1f,
-            easing = VIDEO_CARD_MATERIAL_EMPHASIZED_EASING
+            enterEasing = VIDEO_CARD_ENTER_EASING,
+            returnEasing = VIDEO_CARD_RETURN_EASING
         )
     }
     val durationMillis = resolveVideoSharedTransitionDurationMillis(speedSettings)
@@ -337,7 +372,8 @@ internal fun resolveVideoCardSharedTransitionMotionSpec(
         contentDurationMillis = resolveVideoSharedTransitionContentDurationMillis(durationMillis),
         contentSlideOffsetDp = HOME_DETAIL_REVEAL_SLIDE_OFFSET_DP,
         contentInitialScale = HOME_DETAIL_REVEAL_INITIAL_SCALE,
-        easing = VIDEO_CARD_MATERIAL_EMPHASIZED_EASING
+        enterEasing = VIDEO_CARD_ENTER_EASING,
+        returnEasing = VIDEO_CARD_RETURN_EASING
     )
 }
 
@@ -362,25 +398,31 @@ internal fun resolveVideoMetadataSharedTransitionMotionSpec(
         contentDurationMillis = durationMillis,
         contentSlideOffsetDp = 0,
         contentInitialScale = 1f,
-        easing = VIDEO_CARD_MATERIAL_EMPHASIZED_EASING
+        enterEasing = VIDEO_CARD_ENTER_EASING,
+        returnEasing = VIDEO_CARD_RETURN_EASING
     )
 }
 
-internal fun <T> videoSharedElementBoundsTransformSpec(
-    motion: VideoSharedTransitionMotionSpec
-): FiniteAnimationSpec<T> {
+internal fun videoSharedElementBoundsTransformSpec(
+    motion: VideoSharedTransitionMotionSpec,
+    initialBounds: Rect,
+    targetBounds: Rect,
+    durationMillis: Int = motion.durationMillis
+): FiniteAnimationSpec<Rect> {
     return tween(
-        durationMillis = motion.durationMillis,
-        easing = motion.easing
+        durationMillis = durationMillis,
+        easing = resolveVideoSharedTransitionEasing(motion, initialBounds, targetBounds)
     )
 }
 
-internal fun <T> videoMetadataSharedElementBoundsTransformSpec(
-    motion: VideoSharedTransitionMotionSpec
-): FiniteAnimationSpec<T> {
+internal fun videoMetadataSharedElementBoundsTransformSpec(
+    motion: VideoSharedTransitionMotionSpec,
+    initialBounds: Rect,
+    targetBounds: Rect
+): FiniteAnimationSpec<Rect> {
     return tween(
         durationMillis = resolveVideoMetadataSharedBoundsDurationMillis(motion),
-        easing = motion.easing
+        easing = resolveVideoSharedTransitionEasing(motion, initialBounds, targetBounds)
     )
 }
 

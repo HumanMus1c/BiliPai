@@ -100,6 +100,7 @@ import top.yukonga.miuix.kmp.basic.InputField
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard  //  使用首页卡片
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.home.resolveReturnAnimationSuppressionDurationMs
+import com.android.purebilibili.core.store.HomeDurationStyle
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.SettingsManager  //  读取动画设置
 import com.android.purebilibili.data.repository.SearchOrder
@@ -627,6 +628,9 @@ fun SearchScreen(
         )
     }
     val cardAnimationEnabled by SettingsManager.getCardAnimationEnabled(context).collectAsStateWithLifecycle(initialValue = true)
+    val homeDurationStyle by SettingsManager
+        .getHomeDurationStyle(context)
+        .collectAsStateWithLifecycle(initialValue = HomeDurationStyle.OUTSIDE_COVER)
     val hotSearchEnabled by SettingsManager.getSearchHotSectionEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val discoverSectionEnabled by SettingsManager.getSearchDiscoverSectionEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val liquidGlassEnabled by SettingsManager.getLiquidGlassEnabled(context).collectAsStateWithLifecycle(initialValue = true)
@@ -1002,6 +1006,7 @@ fun SearchScreen(
                                             coverAspectRatio = cardLayout.coverAspectRatio,
                                             compactMetadata = cardLayout.compactMetadata,
                                             titleMinLines = 1,
+                                            homeDurationStyle = homeDurationStyle,
                                             highlightedTitle = highlightedTitle,
                                             showOnlineCount = showOnlineCount,
                                             modifier = Modifier,

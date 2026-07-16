@@ -8,11 +8,17 @@ import kotlin.test.assertTrue
 class VideoDetailRouteSheetPolicyTest {
 
     @Test
-    fun cardReturnSecondaryContent_fadesLateWhilePlayerRemainsVisible() {
-        val timing = resolveVideoDetailCardReturnSecondaryContentTiming(fullDurationMillis = 400)
+    fun cardSecondaryContent_entersAfterGeometryStartsAndFadesEarlyOnReturn() {
+        val timing = resolveVideoDetailSecondaryContentTiming(
+            fullDurationMillis = 460,
+            enterDelayMillis = 40,
+            enterDurationMillis = 276
+        )
 
-        assertEquals(232, timing.delayMillis)
-        assertEquals(128, timing.durationMillis)
+        assertEquals(40, timing.enterDelayMillis)
+        assertEquals(276, timing.enterDurationMillis)
+        assertEquals(0, timing.returnDelayMillis)
+        assertEquals(184, timing.returnDurationMillis)
     }
 
     @Test
@@ -40,8 +46,9 @@ class VideoDetailRouteSheetPolicyTest {
             assertEquals(28f, motion.initialCornerDp)
             assertTrue(motion.settleScaleDelta in 0f..0.002f)
             assertTrue(motion.settleTranslationDp in 0f..2f)
-            assertTrue(motion.easing.transform(0.35f) > 0.7f)
-            assertTrue(motion.easing.transform(0.75f) > 0.96f)
+            assertTrue(motion.enterEasing.transform(0.35f) > 0.7f)
+            assertTrue(motion.enterEasing.transform(0.75f) > 0.96f)
+            assertTrue(motion.returnEasing.transform(0.35f) in 0.54f..0.58f)
         }
     }
 

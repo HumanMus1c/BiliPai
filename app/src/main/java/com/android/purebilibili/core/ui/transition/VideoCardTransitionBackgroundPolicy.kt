@@ -88,12 +88,14 @@ internal fun resolveVideoCardTransitionReturningScrimAlpha(
     return maxAlpha * blurStrength
 }
 
-internal fun resolveVideoCardTransitionOpeningContentScale(
+@Suppress("UNUSED_PARAMETER")
+internal fun resolveVideoCardTransitionContentScale(
     progress: Float,
     phase: VideoCardTransitionBackgroundPhase,
+    motionTier: MotionTier,
     isGestureRestoreInProgress: Boolean,
 ): Float {
-    if (phase != VideoCardTransitionBackgroundPhase.OPENING || isGestureRestoreInProgress) {
+    if (phase == VideoCardTransitionBackgroundPhase.IDLE || motionTier == MotionTier.Reduced) {
         return 1f
     }
     val clamped = progress.coerceIn(0f, 1f)
@@ -110,7 +112,7 @@ internal fun resolveVideoCardTransitionBackgroundFrame(
 ): VideoCardTransitionBackgroundFrame {
     val clamped = progress.coerceIn(0f, 1f)
     val blurStrength = resolveVideoCardTransitionBlurStrength(clamped)
-    // 低端/省电/无障碍减弱动画(Reduced)时跳过整帧 GPU 实时模糊，仅保留 scrim + 轻微缩放作为回退。
+    // 低端/省电/无障碍减弱动画(Reduced)时跳过整帧 GPU 实时模糊与景深缩放，仅保留 scrim。
     val rawBlurRadiusPx = if (
         phase != VideoCardTransitionBackgroundPhase.IDLE &&
         motionTier != MotionTier.Reduced &&
@@ -138,9 +140,10 @@ internal fun resolveVideoCardTransitionBackgroundFrame(
             VideoCardTransitionBackgroundPhase.IDLE,
             VideoCardTransitionBackgroundPhase.HELD -> 0f
         },
-        contentScale = resolveVideoCardTransitionOpeningContentScale(
+        contentScale = resolveVideoCardTransitionContentScale(
             progress = clamped,
             phase = phase,
+            motionTier = motionTier,
             isGestureRestoreInProgress = isGestureRestoreInProgress,
         ),
         useLightScrimTint = isLightBackground,

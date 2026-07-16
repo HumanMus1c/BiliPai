@@ -2010,8 +2010,8 @@ fun VideoPlayerOverlay(
             isFollowed = isFollowed,
             onToggleFollow = onToggleFollow,
             onVideoClick = { vid, options ->
-                onDrawerVideoClick(vid, options)
                 onDismissEndDrawer()
+                onDrawerVideoClick(vid, options)
             },
             hazeState = drawerHazeState,
             modifier = Modifier.align(Alignment.CenterEnd)

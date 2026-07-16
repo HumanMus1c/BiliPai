@@ -21,7 +21,7 @@ class VideoCardTransitionBackgroundPolicyTest {
     }
 
     @Test
-    fun reducedMotionTierSkipsRealtimeBlurButKeepsOpeningScrimAndScale() {
+    fun reducedMotionTierSkipsRealtimeBlurAndDepthScaleButKeepsScrim() {
         val opening = resolveVideoCardTransitionBackgroundFrame(
             progress = 1f,
             phase = VideoCardTransitionBackgroundPhase.OPENING,
@@ -37,7 +37,7 @@ class VideoCardTransitionBackgroundPolicyTest {
 
         assertEquals(0f, opening.blurRadiusPx)
         assertTrue(opening.scrimAlpha > 0f)
-        assertTrue(opening.contentScale < 1f)
+        assertEquals(1f, opening.contentScale)
         assertEquals(0f, returning.blurRadiusPx)
         assertTrue(returning.scrimAlpha > 0f)
     }
@@ -127,8 +127,8 @@ class VideoCardTransitionBackgroundPolicyTest {
         assertTrue(start.scrimAlpha > middle.scrimAlpha)
         assertTrue(middle.scrimAlpha > 0f)
         assertEquals(0f, end.scrimAlpha)
-        assertEquals(1f, start.contentScale)
-        assertEquals(1f, middle.contentScale)
+        assertEquals(0.955f, start.contentScale, 0.0001f)
+        assertEquals(0.9775f, middle.contentScale, 0.0001f)
         assertEquals(1f, end.contentScale)
     }
 
@@ -144,7 +144,7 @@ class VideoCardTransitionBackgroundPolicyTest {
     }
 
     @Test
-    fun heldFrameKeepsBackgroundBlurReadyForReturnWithoutScrimOrScale() {
+    fun heldFrameKeepsBackgroundBlurAndDepthReadyForReturnWithoutScrim() {
         val frame = resolveVideoCardTransitionBackgroundFrame(
             progress = 1f,
             phase = VideoCardTransitionBackgroundPhase.HELD,
@@ -153,24 +153,26 @@ class VideoCardTransitionBackgroundPolicyTest {
 
         assertEquals(36f, frame.blurRadiusPx)
         assertEquals(0f, frame.scrimAlpha)
-        assertEquals(1f, frame.contentScale)
+        assertEquals(0.955f, frame.contentScale, 0.0001f)
     }
 
     @Test
-    fun openingFrameKeepsScaleDuringReturnButFreezesDuringGestureRestore() {
-        val openingScale = resolveVideoCardTransitionOpeningContentScale(
+    fun gestureRestoreSmoothlyReturnsBackgroundToHeldDepth() {
+        val openingScale = resolveVideoCardTransitionContentScale(
             progress = 1f,
             phase = VideoCardTransitionBackgroundPhase.OPENING,
+            motionTier = MotionTier.Normal,
             isGestureRestoreInProgress = false,
         )
-        val restoreScale = resolveVideoCardTransitionOpeningContentScale(
-            progress = 1f,
-            phase = VideoCardTransitionBackgroundPhase.OPENING,
+        val restoreScale = resolveVideoCardTransitionContentScale(
+            progress = 0.5f,
+            phase = VideoCardTransitionBackgroundPhase.HELD,
+            motionTier = MotionTier.Normal,
             isGestureRestoreInProgress = true,
         )
 
-        assertTrue(openingScale < 1f)
-        assertEquals(1f, restoreScale)
+        assertEquals(0.955f, openingScale, 0.0001f)
+        assertEquals(0.9775f, restoreScale, 0.0001f)
     }
 
     @Test
@@ -215,7 +217,7 @@ class VideoCardTransitionBackgroundPolicyTest {
 
         assertTrue(frame.blurRadiusPx > 0f)
         assertTrue(frame.scrimAlpha > 0f)
-        assertEquals(1f, frame.contentScale)
+        assertEquals(0.98875f, frame.contentScale, 0.0001f)
     }
 
     @Test

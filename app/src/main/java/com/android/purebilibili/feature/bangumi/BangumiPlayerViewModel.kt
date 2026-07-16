@@ -37,6 +37,22 @@ internal fun resolveBangumiPlaybackAuthState(
     return isLoggedIn to isVip
 }
 
+internal fun shouldRestoreBangumiCachedPlayback(
+    requestedSeasonId: Long,
+    requestedEpisodeId: Long,
+    loadedSeasonId: Long,
+    loadedEpisodeId: Long,
+    cachedVideoUrl: String?,
+    cachedAudioUrl: String?,
+    attachedPlayerMediaItemCount: Int
+): Boolean {
+    return requestedSeasonId == loadedSeasonId &&
+        requestedEpisodeId == loadedEpisodeId &&
+        cachedVideoUrl?.isNotBlank() == true &&
+        cachedAudioUrl?.isNotBlank() == true &&
+        attachedPlayerMediaItemCount == 0
+}
+
 /**
  * 番剧播放器 UI 状态
  */
@@ -224,12 +240,43 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
     ) {
         val startPositionMs = resumePositionMs.coerceAtLeast(0L)
         com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", "📥 loadBangumiPlay: seasonId=$seasonId, epId=$epId, resume=${startPositionMs}ms, exoPlayer=${exoPlayer?.hashCode()}")
-        if (seasonId == currentSeasonId && epId == currentEpId && _uiState.value is BangumiPlayerState.Success) {
-            com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", "⏭️ loadBangumiPlay: skipped (already loaded)")
-            if (startPositionMs > 0L) {
-                exoPlayer?.seekTo(startPositionMs)
+        val cachedState = _uiState.value as? BangumiPlayerState.Success
+        if (seasonId == currentSeasonId && epId == currentEpId && cachedState != null) {
+            com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", "♻️ loadBangumiPlay: restore cached detail")
+            val player = exoPlayer
+            if (player != null && shouldRestoreBangumiCachedPlayback(
+                    requestedSeasonId = seasonId,
+                    requestedEpisodeId = epId,
+                    loadedSeasonId = cachedState.seasonDetail.seasonId,
+                    loadedEpisodeId = cachedState.currentEpisode.id,
+                    cachedVideoUrl = cachedState.playUrl,
+                    cachedAudioUrl = cachedState.audioUrl,
+                    attachedPlayerMediaItemCount = player.mediaItemCount
+                )
+            ) {
+                val restorePositionMs = resolveBangumiPlaybackStartPositionMs(
+                    routeResumePositionMs = startPositionMs,
+                    savedEpisodePositionMs = progressManager?.getCachedPosition(
+                        bvid = cachedState.currentEpisode.bvid,
+                        cid = cachedState.currentEpisode.cid
+                    ) ?: 0L
+                )
+                playDashVideo(
+                    videoUrl = requireNotNull(cachedState.playUrl),
+                    audioUrl = cachedState.audioUrl,
+                    seekToMs = restorePositionMs,
+                    referer = "https://www.bilibili.com/bangumi/play/ep${cachedState.currentEpisode.id}"
+                )
+                return
             }
-            return // 避免重复加载
+            if (player?.mediaItemCount ?: 0 > 0) {
+                player?.seekTo(startPositionMs)
+                return
+            }
+            com.android.purebilibili.core.util.Logger.d(
+                "BangumiPlayerVM",
+                "Cached playback is incomplete; reload the episode source"
+            )
         }
         
         currentSeasonId = seasonId

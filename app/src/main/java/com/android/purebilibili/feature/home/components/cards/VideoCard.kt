@@ -625,6 +625,7 @@ fun ElegantVideoCard(
             isVideoCardReturnGestureInProgress = videoCardTransitionBackgroundState.isReturnGestureInProgressProvider(),
         )
         val coverCrossfadeEnabled = shouldEnableVideoCardCoverCrossfade(
+            isScrollInProgress = scrollLiteModeEnabled,
             isReturningFromDetail = isReturningFromVideoDetail,
             useCoverSharedBounds = useCardShellSharedBounds,
             isSharedReturnTarget = isCoverSharedReturnTarget

@@ -142,7 +142,7 @@ class BiliPaiNavDisplayHostStructureTest {
         assertTrue(preOnBack.contains("VideoCardTransitionBackgroundPhase.HELD"))
         assertTrue(preOnBack.contains("VideoCardTransitionBackgroundPhase.OPENING"))
         assertTrue(preOnBack.contains("VideoCardTransitionBackgroundPhase.RETURNING"))
-        assertTrue(preOnBack.contains("emphasizedEnterTween("))
+        assertTrue(preOnBack.contains("resolveVideoCardSharedTransitionReturnEasing()"))
         assertFalse(preOnBack.contains("videoCardTransitionBackgroundProgress.snapTo(0f)"))
     }
 

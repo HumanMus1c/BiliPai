@@ -378,8 +378,12 @@ fun VideoTitleWithDesc(
                             )
                         ),
                         animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                        boundsTransform = { _, _ ->
-                            videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                        boundsTransform = { initialBounds, targetBounds ->
+                            videoMetadataSharedElementBoundsTransformSpec(
+                                motion = metadataSharedTransitionMotionSpec,
+                                initialBounds = initialBounds,
+                                targetBounds = targetBounds
+                            )
                         }
                     )
                 }
@@ -434,8 +438,12 @@ fun VideoTitleWithDesc(
                                 )
                             ),
                             animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                            boundsTransform = { _, _ ->
-                                videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                            boundsTransform = { initialBounds, targetBounds ->
+                                videoMetadataSharedElementBoundsTransformSpec(
+                                    motion = metadataSharedTransitionMotionSpec,
+                                    initialBounds = initialBounds,
+                                    targetBounds = targetBounds
+                                )
                             }
                         )
                     }
@@ -465,8 +473,12 @@ fun VideoTitleWithDesc(
                                 )
                             ),
                             animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                            boundsTransform = { _, _ ->
-                                videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                            boundsTransform = { initialBounds, targetBounds ->
+                                videoMetadataSharedElementBoundsTransformSpec(
+                                    motion = metadataSharedTransitionMotionSpec,
+                                    initialBounds = initialBounds,
+                                    targetBounds = targetBounds
+                                )
                             }
                         )
                     }
@@ -766,8 +778,12 @@ fun UpInfoSection(
                                 )
                             ),
                             animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                            boundsTransform = { _, _ ->
-                                videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                            boundsTransform = { initialBounds, targetBounds ->
+                                videoMetadataSharedElementBoundsTransformSpec(
+                                    motion = metadataSharedTransitionMotionSpec,
+                                    initialBounds = initialBounds,
+                                    targetBounds = targetBounds
+                                )
                             },
                             clipInOverlayDuringTransition = OverlayClip(CircleShape)
                         )
@@ -820,8 +836,12 @@ fun UpInfoSection(
                                     )
                                 ),
                                 animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                                boundsTransform = { _, _ ->
-                                    videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                                boundsTransform = { initialBounds, targetBounds ->
+                                    videoMetadataSharedElementBoundsTransformSpec(
+                                        motion = metadataSharedTransitionMotionSpec,
+                                        initialBounds = initialBounds,
+                                        targetBounds = targetBounds
+                                    )
                                 }
                             )
                         }
@@ -884,8 +904,12 @@ fun UpInfoSection(
                                 )
                             ),
                             animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                            boundsTransform = { _, _ ->
-                                videoMetadataSharedElementBoundsTransformSpec(metadataSharedTransitionMotionSpec)
+                            boundsTransform = { initialBounds, targetBounds ->
+                                videoMetadataSharedElementBoundsTransformSpec(
+                                    motion = metadataSharedTransitionMotionSpec,
+                                    initialBounds = initialBounds,
+                                    targetBounds = targetBounds
+                                )
                             },
                             clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(16.dp))
                         )

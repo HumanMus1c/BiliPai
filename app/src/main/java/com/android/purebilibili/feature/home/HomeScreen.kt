@@ -1048,24 +1048,6 @@ fun HomeScreen(
         isVideoNavigating = false
     }
     
-    //  [新增] 滚动方向检测状态（用于上滑隐藏模式）
-    var bottomBarScrollState by remember(currentCategory, popularSubCategory) {
-        mutableStateOf(
-            HomeBottomBarScrollState(
-                firstVisibleItem = if (currentCategory == HomeCategory.POPULAR) {
-                    popularGridStates[popularSubCategory]?.firstVisibleItemIndex ?: 0
-                } else {
-                    gridStates[currentCategory]?.firstVisibleItemIndex ?: 0
-                },
-                scrollOffset = if (currentCategory == HomeCategory.POPULAR) {
-                    popularGridStates[popularSubCategory]?.firstVisibleItemScrollOffset ?: 0
-                } else {
-                    gridStates[currentCategory]?.firstVisibleItemScrollOffset ?: 0
-                }
-            )
-        )
-    }
-    
     //  [新增] 滚动方向检测逻辑
     LaunchedEffect(currentCategory, popularSubCategory, bottomBarVisibilityMode, useSideNavigation) {
         resolveHomeBottomBarBaseVisibility(
@@ -1082,20 +1064,24 @@ fun HomeScreen(
         } else {
             gridStates[currentCategory]
         } ?: return@LaunchedEffect
+        var previousScrollState = HomeBottomBarScrollState(
+            firstVisibleItem = currentGridState.firstVisibleItemIndex,
+            scrollOffset = currentGridState.firstVisibleItemScrollOffset
+        )
         snapshotFlow {
             Pair(currentGridState.firstVisibleItemIndex, currentGridState.firstVisibleItemScrollOffset)
         }
         .distinctUntilChanged()
         .collect { (firstVisibleItem, scrollOffset) ->
             val scrollUpdate = reduceHomeBottomBarListScroll(
-                previousState = bottomBarScrollState,
+                previousState = previousScrollState,
                 firstVisibleItem = firstVisibleItem,
                 scrollOffset = scrollOffset,
                 isVideoNavigating = isVideoNavigating,
                 contentInteractionRestored = isHomeContentInteractionRestored
             )
 
-            bottomBarScrollState = scrollUpdate.state
+            previousScrollState = scrollUpdate.state
             when (scrollUpdate.visibilityIntent) {
                 BottomBarVisibilityIntent.SHOW -> setBottomBarVisible(true)
                 BottomBarVisibilityIntent.HIDE -> setBottomBarVisible(false)
@@ -2014,6 +2000,11 @@ fun HomeScreen(
             ) {
             androidx.compose.material3.Button(
                 onClick = { viewModel.undoRefresh() },
+                modifier = Modifier.pointerInput(Unit) {
+                    detectHorizontalDragGestures { change, _ ->
+                        change.consume()
+                    }
+                },
                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                     containerColor = overlayPillColors.containerColor,
                     contentColor = MaterialTheme.colorScheme.onSurface

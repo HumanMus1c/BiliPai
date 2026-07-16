@@ -126,8 +126,7 @@ internal fun resolveHomePagerTargetPage(
     if (topTabEntries.isEmpty()) return -1
     val targetEntry = when {
         retainedEntry == HomeTopTabEntry.Partition -> HomeTopTabEntry.Partition
-        hasSyncedPagerWithState -> HomeTopTabEntry.Category(currentCategory)
-        else -> retainedEntry ?: HomeTopTabEntry.Category(currentCategory)
+        else -> HomeTopTabEntry.Category(currentCategory)
     }
     val targetIndex = topTabEntries.indexOf(targetEntry)
     if (targetIndex >= 0) return targetIndex

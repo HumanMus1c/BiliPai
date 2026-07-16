@@ -25,6 +25,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned // [New]
 import com.android.purebilibili.core.store.SettingsManager // [New]
 import com.android.purebilibili.core.store.CommonListHeaderCollapseMode
+import com.android.purebilibili.core.store.HomeDurationStyle
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.ui.blur.BlurStyles // [New]
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
@@ -922,6 +923,7 @@ fun CommonListScreen(
                         cardMotionTier = cardMotionTier,
                         showOnlineCount = showOnlineCount,
                         videoCardAppearance = videoCardAppearance,
+                        homeDurationStyle = homeSettings.homeDurationStyle,
                         onVideoClick = { bvid, cid, coverUrl, isVertical ->
                             if (shouldUseFavoritePlaybackQueue) {
                                 playFavoriteVideo(state.items, bvid, cid, coverUrl, null, false)
@@ -1598,6 +1600,7 @@ private fun CommonListContent(
     cardMotionTier: MotionTier,
     showOnlineCount: Boolean,
     videoCardAppearance: CommonListVideoCardAppearance,
+    homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
     onVideoClick: (String, Long, String, Boolean) -> Unit,
     onCollectionClick: ((FavoriteCollectionRoute) -> Unit)? = null,
     onRetry: (() -> Unit)? = null,
@@ -1808,6 +1811,7 @@ private fun CommonListContent(
                                     showUpBadge = historyCardPresentation?.showUpBadge ?: true,
                                     coverAspectRatio = cardLayout.coverAspectRatio,
                                     compactMetadata = cardLayout.compactMetadata,
+                                    homeDurationStyle = homeDurationStyle,
                                     showOnlineCount = showOnlineCount,
                                     onClick = { _, _ ->
                                         if (historyBatchMode) {

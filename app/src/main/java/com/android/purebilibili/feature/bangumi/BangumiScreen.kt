@@ -72,6 +72,7 @@ import com.android.purebilibili.data.model.response.resolveBangumiSearchPlacehol
 // [重构] 使用提取的可复用组件
 import com.android.purebilibili.feature.bangumi.ui.components.BangumiModeTabs
 import com.android.purebilibili.feature.bangumi.ui.components.BangumiIndexFilterRows
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.bangumi.ui.list.BangumiCard
 import com.android.purebilibili.feature.bangumi.ui.list.BangumiGrid
 import com.android.purebilibili.feature.bangumi.ui.list.BangumiSearchCardGrid
@@ -102,6 +103,7 @@ fun BangumiScreen(
     val myFollowStats by viewModel.myFollowStats.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val searchKeyword by viewModel.searchKeyword.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
     
     // 搜索状态
     var showSearchBar by remember { mutableStateOf(false) }
@@ -145,7 +147,6 @@ fun BangumiScreen(
     }
     
     //  [修复] 设置导航栏透明，确保底部手势栏沉浸式效果
-    val context = androidx.compose.ui.platform.LocalContext.current
     androidx.compose.runtime.DisposableEffect(Unit) {
         val window = (context as? android.app.Activity)?.window
         val originalNavBarColor = window?.navigationBarColor ?: android.graphics.Color.TRANSPARENT
@@ -1062,43 +1063,19 @@ private fun BangumiTypeTabs(
     selectedType: Int,
     onTypeSelected: (Int) -> Unit
 ) {
-    val configuration = LocalConfiguration.current
-    val tabFontSize = resolveBangumiTypeTabFontSizeSp(configuration.screenWidthDp).sp
-
-    Surface(color = MaterialTheme.colorScheme.surface) {
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            items(types, key = { it.value }) { type ->
-                val selected = type.value == selectedType
-                Column(
-                    modifier = Modifier
-                        .clickable { onTypeSelected(type.value) }
-                        .padding(top = 10.dp, bottom = 2.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = type.label,
-                        fontSize = tabFontSize,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .height(3.dp)
-                            .width(28.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
-                            )
-                    )
-                }
-            }
-        }
-    }
+    BottomBarLiquidSegmentedControl(
+        items = types.map { it.label },
+        selectedIndex = types.indexOfFirst { it.value == selectedType }.coerceAtLeast(0),
+        onSelected = { index -> types.getOrNull(index)?.let { onTypeSelected(it.value) } },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        height = 46.dp,
+        indicatorHeight = 40.dp,
+        labelFontSize = 14.sp,
+        dragSelectionEnabled = true,
+        preferInlineContentStyle = false
+    )
 }
 
 /**

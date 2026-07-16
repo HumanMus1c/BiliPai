@@ -133,6 +133,7 @@ import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransit
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
+import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.HapticType
@@ -2841,10 +2842,11 @@ fun VideoPlayerSection(
                         )
                     ),
                     animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
-                    boundsTransform = { _, _ ->
-                        tween(
-                            durationMillis = coverOverlaySharedTransitionMotionSpec.durationMillis,
-                            easing = coverOverlaySharedTransitionMotionSpec.easing
+                    boundsTransform = { initialBounds, targetBounds ->
+                        videoSharedElementBoundsTransformSpec(
+                            motion = coverOverlaySharedTransitionMotionSpec,
+                            initialBounds = initialBounds,
+                            targetBounds = targetBounds
                         )
                     },
                     clipInOverlayDuringTransition = OverlayClip(coverCardShape)
