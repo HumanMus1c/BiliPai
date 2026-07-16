@@ -48,6 +48,8 @@ import com.android.purebilibili.feature.video.player.PlayMode
 import com.android.purebilibili.feature.video.state.rememberVideoPlayerState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
+import com.android.purebilibili.feature.video.viewmodel.toEngagementSeed
+import com.android.purebilibili.feature.video.viewmodel.toSupplementSeed
 
 internal fun resolveAudioPlayModeLabel(mode: PlayMode): String = when (mode) {
     PlayMode.SEQUENTIAL -> "顺序播放"
@@ -164,6 +166,12 @@ private fun enterAudioModePip(activity: Activity?) {
 @Composable
 fun AudioModeScreen(
     viewModel: VideoPlaybackViewModel,
+    engagementViewModel: com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel =
+        androidx.lifecycle.viewmodel.compose.viewModel(),
+    composerViewModel: com.android.purebilibili.feature.video.viewmodel.VideoComposerViewModel =
+        androidx.lifecycle.viewmodel.compose.viewModel(),
+    supplementViewModel: com.android.purebilibili.feature.video.viewmodel.VideoSupplementViewModel =
+        androidx.lifecycle.viewmodel.compose.viewModel(),
     onBack: () -> Unit,
     onVideoModeClick: (String, Long) -> Unit,
     isInPipMode: Boolean = false,
@@ -173,6 +181,7 @@ fun AudioModeScreen(
     titleOverride: String? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val subjectSnapshot by viewModel.subjectSnapshot.collectAsStateWithLifecycle()
     val sleepTimerMinutes by viewModel.sleepTimerMinutes.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(
@@ -180,6 +189,20 @@ fun AudioModeScreen(
         context = kotlin.coroutines.EmptyCoroutineContext
     )
     var cachedSuccessState by remember { mutableStateOf<VideoPlaybackUiState.Success?>(null) }
+
+    LaunchedEffect(subjectSnapshot, uiState) {
+        val subject = subjectSnapshot ?: return@LaunchedEffect
+        val ready = uiState as? VideoPlaybackUiState.Success ?: return@LaunchedEffect
+        engagementViewModel.bindSubject(
+            subject,
+            ready.toEngagementSeed()
+        )
+        composerViewModel.bindSubject(subject)
+        supplementViewModel.bindSubject(
+            subject,
+            ready.toSupplementSeed()
+        )
+    }
 
     LaunchedEffect(uiState) {
         if (uiState is VideoPlaybackUiState.Success) cachedSuccessState = uiState as VideoPlaybackUiState.Success

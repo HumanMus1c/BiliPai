@@ -120,6 +120,11 @@ import com.android.purebilibili.feature.video.ui.components.PagesSelector
 // Imports for moved classes
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
+import com.android.purebilibili.feature.video.viewmodel.VideoComposerViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoSupplementViewModel
+import com.android.purebilibili.feature.video.viewmodel.toEngagementSeed
+import com.android.purebilibili.feature.video.viewmodel.toSupplementSeed
 import com.android.purebilibili.feature.video.viewmodel.QualitySwitchFailureDialogState
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
@@ -1206,6 +1211,9 @@ fun VideoDetailScreen(
     isInPipMode: Boolean = false,
     isVisible: Boolean = true,
     viewModel: VideoPlaybackViewModel = viewModel(),
+    engagementViewModel: VideoEngagementViewModel = viewModel(),
+    composerViewModel: VideoComposerViewModel = viewModel(),
+    supplementViewModel: VideoSupplementViewModel = viewModel(),
     commentViewModel: VideoCommentViewModel = viewModel(),
     onBgmClick: (BgmInfo) -> Unit = {}
 ) {
@@ -1251,7 +1259,18 @@ fun VideoDetailScreen(
         )
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val subjectSnapshot by viewModel.subjectSnapshot.collectAsStateWithLifecycle()
     val resumePlaybackSuggestion by viewModel.resumePlaybackSuggestion.collectAsStateWithLifecycle()
+    LaunchedEffect(subjectSnapshot, uiState) {
+        val subject = subjectSnapshot ?: return@LaunchedEffect
+        val ready = uiState as? VideoPlaybackUiState.Success ?: return@LaunchedEffect
+        engagementViewModel.bindSubject(subject, ready.toEngagementSeed())
+        composerViewModel.bindSubject(subject)
+        supplementViewModel.bindSubject(subject, ready.toSupplementSeed())
+    }
+    LaunchedEffect(isVisible) {
+        supplementViewModel.setVisible(isVisible)
+    }
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
     var isNavigatingToVideo by remember { mutableStateOf(false) }
     var isNavigatingToAudioMode by remember { mutableStateOf(false) }

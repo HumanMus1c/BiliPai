@@ -1095,6 +1095,10 @@ class VideoPlaybackViewModel : ViewModel() {
     // State
     private val _uiState = MutableStateFlow<VideoPlaybackUiState>(VideoPlaybackUiState.Loading.Initial)
     val uiState = _uiState.asStateFlow()
+
+    private val _subjectSnapshot = MutableStateFlow<VideoSubjectSnapshot?>(null)
+    val subjectSnapshot = _subjectSnapshot.asStateFlow()
+    private var subjectGeneration: Long = 0L
     
     private val _toastEvent = Channel<PlayerToastMessage>()
     val toastEvent = _toastEvent.receiveAsFlow()
@@ -2896,7 +2900,7 @@ class VideoPlaybackViewModel : ViewModel() {
                                 (cdnSelection.regionLabel?.let { ", 属地优选=$it" } ?: "")
                         )
                         
-                        _uiState.value = VideoPlaybackUiState.Success(
+                        val readyState = VideoPlaybackUiState.Success(
                             info = result.info,
                             playUrl = cdnSelection.playUrl,
                             audioUrl = cdnSelection.audioUrl,
@@ -2932,6 +2936,8 @@ class VideoPlaybackViewModel : ViewModel() {
                             currentAudioLang = result.curAudioLang,
                             videoDurationMs = result.duration
                         )
+                        _uiState.value = readyState
+                        publishSubjectSnapshot(readyState)
                         val requestedQualityForWarning = if (autoHighestQualityEnabledForLoad) {
                             defaultQuality
                         } else {
@@ -6452,7 +6458,7 @@ class VideoPlaybackViewModel : ViewModel() {
                             cdnFallbackState = cdnSelection.fallbackState
                         )
                         
-                        _uiState.value = subtitleClearedState.copy(
+                        val switchedState = subtitleClearedState.copy(
                             info = current.info.copy(cid = page.cid), playUrl = cdnSelection.playUrl, audioUrl = cdnSelection.audioUrl,
                             startPosition = restoredPosition, isQualitySwitching = false,
                             pendingPlaybackTransitionPositionMs = restoredPosition.coerceAtLeast(0L),
@@ -6468,6 +6474,8 @@ class VideoPlaybackViewModel : ViewModel() {
                             cdnCandidateSources = cdnSelection.candidateSources,
                             cdnLineDiagnostics = cdnSelection.lineDiagnostics
                         )
+                        _uiState.value = switchedState
+                        publishSubjectSnapshot(switchedState)
                         monitorPlaybackTransitionPosition(restoredPosition.coerceAtLeast(0L))
                         startHeartbeat()
                         interactiveCurrentEdgeId = 0L
@@ -7345,7 +7353,24 @@ class VideoPlaybackViewModel : ViewModel() {
     fun restoreFromCache(cachedState: VideoPlaybackUiState.Success, startPosition: Long = -1L) {
         currentBvid = cachedState.info.bvid
         currentCid = cachedState.info.cid
-        _uiState.value = if (startPosition >= 0) cachedState.copy(startPosition = startPosition) else cachedState
+        val restoredState = if (startPosition >= 0) {
+            cachedState.copy(startPosition = startPosition)
+        } else {
+            cachedState
+        }
+        _uiState.value = restoredState
+        publishSubjectSnapshot(restoredState)
+    }
+
+    private fun publishSubjectSnapshot(state: VideoPlaybackUiState.Success) {
+        val previous = _subjectSnapshot.value
+        if (shouldAdvanceVideoSubjectGeneration(previous, state)) {
+            subjectGeneration += 1L
+        }
+        val next = state.toSubjectSnapshot(subjectGeneration)
+        if (next != previous) {
+            _subjectSnapshot.value = next
+        }
     }
     
     // ========== Private ==========

@@ -140,6 +140,11 @@ import com.android.purebilibili.feature.video.viewmodel.PlaybackEndAction
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoComposerViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoSupplementViewModel
+import com.android.purebilibili.feature.video.viewmodel.toEngagementSeed
+import com.android.purebilibili.feature.video.viewmodel.toSupplementSeed
 import com.android.purebilibili.feature.video.viewmodel.resolvePlaybackCompletionRepeatMode
 import com.android.purebilibili.feature.video.viewmodel.resolvePlaybackEndAction
 import com.bytedance.danmaku.render.engine.DanmakuView
@@ -204,10 +209,26 @@ fun PortraitVideoPager(
     onRotateToLandscape: () -> Unit
 ) {
     val context = LocalContext.current
+    val engagementViewModel: VideoEngagementViewModel =
+        androidx.lifecycle.viewmodel.compose.viewModel(key = "portrait_engagement_$initialBvid")
+    val composerViewModel: VideoComposerViewModel =
+        androidx.lifecycle.viewmodel.compose.viewModel(key = "portrait_composer_$initialBvid")
+    val supplementViewModel: VideoSupplementViewModel =
+        androidx.lifecycle.viewmodel.compose.viewModel(key = "portrait_supplement_$initialBvid")
     val commentViewModel: VideoCommentViewModel =
         androidx.lifecycle.viewmodel.compose.viewModel(
             key = "portrait_comments_$initialBvid"
         )
+    val playbackDomainState by viewModel.uiState.collectAsStateWithLifecycle()
+    val subjectSnapshot by viewModel.subjectSnapshot.collectAsStateWithLifecycle()
+    LaunchedEffect(subjectSnapshot, playbackDomainState, isActive) {
+        val subject = subjectSnapshot ?: return@LaunchedEffect
+        val ready = playbackDomainState as? VideoPlaybackUiState.Success ?: return@LaunchedEffect
+        engagementViewModel.bindSubject(subject, ready.toEngagementSeed())
+        composerViewModel.bindSubject(subject)
+        supplementViewModel.bindSubject(subject, ready.toSupplementSeed())
+        supplementViewModel.setVisible(isActive)
+    }
     val useSharedPlayer = sharedPlayer != null
     val entryStartPositionMs = remember(initialBvid) { initialStartPositionMs.coerceAtLeast(0L) }
     val scope = rememberCoroutineScope()
