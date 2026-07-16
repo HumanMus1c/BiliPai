@@ -20,25 +20,20 @@ import com.android.purebilibili.navigation.isVideoCardReturnTargetRoute
 import kotlin.math.roundToInt
 
 // 景深标定（对齐 iOS App 开合观感）：
-// - 背景下沉约 7%（0.93），比旧 4.5% 更有“被压住”的层次
-// - 峰值 blur 28px：靠 scale+scrim 补深度，降低整页实时模糊 GPU 成本
+// - 背景下沉 5%（0.95），保留层次但避免整页被用力压缩的僵硬感
+// - 峰值 blur 24px：靠 scale+scrim 补深度，降低整页实时模糊 GPU 成本
 // - 压暗全程保留（含 HELD），避免打开完成后景深断裂
-private const val VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_PX = 28f
-private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = 2f
-private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.28f
-private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT = 0.14f
-private const val VIDEO_CARD_TRANSITION_RETURN_SCRIM_ALPHA_DARK = 0.16f
-private const val VIDEO_CARD_TRANSITION_RETURN_SCRIM_ALPHA_LIGHT = 0.08f
-private const val VIDEO_CARD_TRANSITION_LIGHT_REDUCED_OPENING_SCRIM_ALPHA = 0.08f
-private const val VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION = 0.07f
+private const val VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_PX = 24f
+private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = 1f
+private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.22f
+private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT = 0.11f
+private const val VIDEO_CARD_TRANSITION_LIGHT_REDUCED_OPENING_SCRIM_ALPHA = 0.07f
+private const val VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION = 0.05f
 private val VIDEO_CARD_TRANSITION_LIGHT_SCRIM_TINT = Color(0xFF8E8E93)
 
 // 开场与返回时长由共享元素速度设置提供；取消仍固定为短恢复动画。
-internal const val VIDEO_CARD_TRANSITION_BACKGROUND_RETURN_DURATION_MS = 460
+internal const val VIDEO_CARD_TRANSITION_BACKGROUND_RETURN_DURATION_MS = 400
 internal const val VIDEO_CARD_TRANSITION_BACKGROUND_CANCEL_DURATION_MS = 160
-/** 快速返回 / 打断 OPENING 时，在基准时长上的压缩系数（HIG：可取消、短而准）。 */
-internal const val VIDEO_CARD_TRANSITION_QUICK_RETURN_DURATION_FACTOR = 0.6f
-internal const val VIDEO_CARD_TRANSITION_QUICK_RETURN_MIN_DURATION_MS = 200
 
 internal enum class VideoCardTransitionBackgroundPhase {
     IDLE,
@@ -70,7 +65,7 @@ internal val LocalVideoCardTransitionBackgroundState = compositionLocalOf {
     VideoCardTransitionBackgroundState()
 }
 
-internal fun resolveVideoCardTransitionOpeningScrimAlpha(
+internal fun resolveVideoCardTransitionScrimAlpha(
     progress: Float,
     isLightBackground: Boolean,
     motionTier: MotionTier,
@@ -87,18 +82,6 @@ internal fun resolveVideoCardTransitionOpeningScrimAlpha(
     return maxAlpha * clamped
 }
 
-internal fun resolveVideoCardTransitionReturningScrimAlpha(
-    blurStrength: Float,
-    isLightBackground: Boolean,
-): Float {
-    val maxAlpha = if (isLightBackground) {
-        VIDEO_CARD_TRANSITION_RETURN_SCRIM_ALPHA_LIGHT
-    } else {
-        VIDEO_CARD_TRANSITION_RETURN_SCRIM_ALPHA_DARK
-    }
-    return maxAlpha * blurStrength
-}
-
 @Suppress("UNUSED_PARAMETER")
 internal fun resolveVideoCardTransitionContentScale(
     progress: Float,
@@ -109,7 +92,6 @@ internal fun resolveVideoCardTransitionContentScale(
     if (phase == VideoCardTransitionBackgroundPhase.IDLE || motionTier == MotionTier.Reduced) {
         return 1f
     }
-    // 下沉进度略前倾：卡片一开始放大时背景就明显“退进景深”，更像 iOS 主屏被压住。
     val depthProgress = resolveVideoCardTransitionDepthProgress(progress)
     return 1f - VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION * depthProgress
 }
@@ -139,16 +121,12 @@ internal fun resolveVideoCardTransitionBackgroundFrame(
         blurRadiusPx = quantizeVideoCardTransitionBlurRadius(rawBlurRadiusPx),
         scrimAlpha = when (phase) {
             VideoCardTransitionBackgroundPhase.OPENING,
-            VideoCardTransitionBackgroundPhase.HELD ->
-                resolveVideoCardTransitionOpeningScrimAlpha(
+            VideoCardTransitionBackgroundPhase.HELD,
+            VideoCardTransitionBackgroundPhase.RETURNING ->
+                resolveVideoCardTransitionScrimAlpha(
                     progress = clamped,
                     isLightBackground = isLightBackground,
                     motionTier = motionTier,
-                )
-            VideoCardTransitionBackgroundPhase.RETURNING ->
-                resolveVideoCardTransitionReturningScrimAlpha(
-                    blurStrength = blurStrength,
-                    isLightBackground = isLightBackground,
                 )
             VideoCardTransitionBackgroundPhase.IDLE -> 0f
         },
@@ -167,7 +145,7 @@ internal fun resolveVideoCardTransitionBackgroundFrame(
  *
  * - 手势起点(0)保持满虚化，与 [VideoCardTransitionBackgroundPhase.HELD] 无缝衔接；
  * - 拖到底(1)则背景基本清晰，从而让全屏 GPU 模糊随手势实时消退，
- *   与共享元素 morph 落位同步，避免"提交返回后才补一段 460ms 模糊 → 封面高斯模糊+闪烁"。
+ *   与共享元素 morph 落位同步，避免提交返回后再补一段独立模糊。
  */
 internal fun resolveVideoCardTransitionBackgroundGestureProgress(
     backProgress: Float
@@ -214,33 +192,13 @@ internal fun resolveVideoCardTransitionBackgroundGestureBlurProgress(
 }
 
 /**
- * 快速返回或打断 OPENING 时压缩基准时长，仍不低于 [VIDEO_CARD_TRANSITION_QUICK_RETURN_MIN_DURATION_MS]。
- */
-internal fun resolveVideoCardQuickReturnDurationMillis(
-    baseDurationMillis: Int,
-    factor: Float = VIDEO_CARD_TRANSITION_QUICK_RETURN_DURATION_FACTOR,
-    minDurationMillis: Int = VIDEO_CARD_TRANSITION_QUICK_RETURN_MIN_DURATION_MS,
-): Int {
-    if (baseDurationMillis <= 0) return 0
-    return (baseDurationMillis * factor.coerceIn(0.35f, 1f))
-        .roundToInt()
-        .coerceIn(minDurationMillis, baseDurationMillis)
-}
-
-/**
- * 景深返回用的「满进度时长」：快速返回或打断进场时缩短，再交给
- * [resolveVideoCardTransitionBackgroundReturnDurationMs] 按剩余进度比例缩放。
+ * 景深返回与共享元素使用同一个满进度时长；被打断时只按实际剩余进度缩短，
+ * 不再切换到另一套“快速返回”节奏。
  */
 internal fun resolveVideoCardTransitionReturnFullDurationMillis(
     baseDurationMillis: Int,
-    isQuickReturn: Boolean,
-    interruptedOpening: Boolean,
 ): Int {
-    return if (isQuickReturn || interruptedOpening) {
-        resolveVideoCardQuickReturnDurationMillis(baseDurationMillis)
-    } else {
-        baseDurationMillis
-    }
+    return baseDurationMillis.coerceAtLeast(0)
 }
 
 /**
@@ -292,7 +250,10 @@ internal fun shouldShowVideoCardTransitionNavBackdrop(
     isVideoDetailOnStack: Boolean,
     isReturningToVideoDetail: Boolean = false,
 ): Boolean {
-    if (!cardTransitionEnabled || !isVideoDetailOnStack || isReturningToVideoDetail) return false
+    if (!cardTransitionEnabled || isReturningToVideoDetail) return false
+    // pop 提交后栈顶已是来源页，但共享壳仍在 overlay 中回收；背景必须留到 RETURNING 结束。
+    if (phase == VideoCardTransitionBackgroundPhase.RETURNING) return true
+    if (!isVideoDetailOnStack) return false
     return phase == VideoCardTransitionBackgroundPhase.HELD ||
         phase == VideoCardTransitionBackgroundPhase.OPENING
 }
@@ -303,21 +264,15 @@ internal fun resolveVideoCardTransitionNavBackdropFrame(
     isLightBackground: Boolean,
 ): VideoCardTransitionNavBackdropFrame {
     val clamped = progress.coerceIn(0f, 1f)
-    val blurStrength = resolveVideoCardTransitionBlurStrength(clamped)
     val scrimAlpha = when (phase) {
-        VideoCardTransitionBackgroundPhase.OPENING ->
-            resolveVideoCardTransitionOpeningScrimAlpha(
+        VideoCardTransitionBackgroundPhase.OPENING,
+        VideoCardTransitionBackgroundPhase.HELD,
+        VideoCardTransitionBackgroundPhase.RETURNING ->
+            resolveVideoCardTransitionScrimAlpha(
                 progress = clamped,
                 isLightBackground = isLightBackground,
                 motionTier = MotionTier.Normal,
             )
-        VideoCardTransitionBackgroundPhase.HELD -> {
-            if (isLightBackground) {
-                VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT * blurStrength
-            } else {
-                VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK * blurStrength
-            }
-        }
         else -> 0f
     }
     return VideoCardTransitionNavBackdropFrame(
@@ -456,7 +411,6 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
                 snapshotState.freezeRecording = false
                 snapshotState.hasRecordedContent = false
                 withFrameNanos { }
-                withFrameNanos { }
                 if (!snapshotState.hasRecordedContent) {
                     withFrameNanos { }
                 }
@@ -545,11 +499,10 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
 }
 
 /**
- * 景深进度：ease-in（前倾），让 scale/模糊在开合前半段就建立层次。
+ * 景深直接使用导航共享进度。曲线由唯一的过渡 spec 提供，这里不再二次 easing。
  */
 internal fun resolveVideoCardTransitionDepthProgress(progress: Float): Float {
-    val clamped = progress.coerceIn(0f, 1f)
-    return 1f - (1f - clamped) * (1f - clamped)
+    return progress.coerceIn(0f, 1f)
 }
 
 private fun resolveVideoCardTransitionBlurStrength(progress: Float): Float {

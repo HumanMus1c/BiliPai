@@ -60,7 +60,6 @@ import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransit
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionReturnEasing
 import com.android.purebilibili.core.ui.transition.isVideoCardTransitionBackgroundGesturePhase
 import com.android.purebilibili.core.ui.transition.shouldApplyPredictiveBackGestureBlur
-import com.android.purebilibili.core.ui.transition.shouldInterruptVideoCardOpeningOnReturn
 import com.android.purebilibili.core.ui.transition.shouldShowVideoCardTransitionNavBackdrop
 import com.android.purebilibili.core.ui.transition.VideoCardTransitionNavBackdrop
 import com.android.purebilibili.navigation.isVideoCardReturnTargetRoute
@@ -77,7 +76,6 @@ internal fun BiliPaiNavDisplayHost(
     backStack: List<BiliPaiNavKey>,
     cardTransitionEnabled: Boolean = true,
     videoSharedTransitionDurationMillis: Int,
-    isQuickReturnFromDetail: Boolean = false,
     predictiveBackEnabled: Boolean = true,
     predictiveBackAnimationStyle: BiliPaiPredictiveBackAnimationStyle = BiliPaiPredictiveBackAnimationStyle.SCALE,
     predictiveBackExitDirectionOverride: String = "auto",
@@ -152,7 +150,6 @@ internal fun BiliPaiNavDisplayHost(
         safeBackStack,
         cardTransitionEnabled,
         videoSharedTransitionDurationMillis,
-        isQuickReturnFromDetail,
     ) {
         val previousStack = previousVideoCardTransitionBackStack
         val previousTop = previousStack.lastOrNull()
@@ -203,15 +200,10 @@ internal fun BiliPaiNavDisplayHost(
             returnedFromVideoDetail -> {
                 videoCardTransitionSourceRoute = returningSourceRoute
                 if (videoCardTransitionBackgroundPhase != VideoCardTransitionBackgroundPhase.RETURNING) {
-                    val interruptedOpening = shouldInterruptVideoCardOpeningOnReturn(
-                        videoCardTransitionBackgroundPhase
-                    )
                     val remainingBlur = videoCardTransitionBackgroundProgress.value
                     videoCardTransitionBackgroundPhase = VideoCardTransitionBackgroundPhase.RETURNING
                     val fullDurationMs = resolveVideoCardTransitionReturnFullDurationMillis(
                         baseDurationMillis = videoSharedTransitionDurationMillis,
-                        isQuickReturn = isQuickReturnFromDetail,
-                        interruptedOpening = interruptedOpening,
                     )
                     launchVideoCardDepthAnimation {
                         videoCardTransitionBackgroundProgress.animateTo(
@@ -356,9 +348,6 @@ internal fun BiliPaiNavDisplayHost(
                 currentPageKey = safeBackStack.lastOrNull(),
             )
             predictiveBlurFadeJob?.join()
-            val interruptedOpening = shouldInterruptVideoCardOpeningOnReturn(
-                videoCardTransitionBackgroundPhase
-            )
             val isVideoCardActiveReturn = cardTransitionEnabled &&
                 (
                     videoCardTransitionBackgroundPhase == VideoCardTransitionBackgroundPhase.HELD ||
@@ -377,8 +366,6 @@ internal fun BiliPaiNavDisplayHost(
                 videoCardTransitionBackgroundPhase = VideoCardTransitionBackgroundPhase.RETURNING
                 val fullDurationMs = resolveVideoCardTransitionReturnFullDurationMillis(
                     baseDurationMillis = videoSharedTransitionDurationMillis,
-                    isQuickReturn = isQuickReturnFromDetail,
-                    interruptedOpening = interruptedOpening,
                 )
                 // 用统一 Job：栈变化触发的 LaunchedEffect 返回路径见 phase==RETURNING 会跳过。
                 launchVideoCardDepthAnimation {

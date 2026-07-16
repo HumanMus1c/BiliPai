@@ -11,18 +11,14 @@ import kotlin.test.assertTrue
 class VideoSharedTransitionPolicyTest {
 
     @Test
-    fun videoSharedTransitionUsesIosLikeEnterAndReturnEasing() {
+    fun videoSharedTransitionUsesOneContinuousCurveForEnterAndReturn() {
         val enter = resolveVideoCardSharedTransitionEnterEasing()
         val returning = resolveVideoCardSharedTransitionReturnEasing()
 
-        // 进场：快起软落（约 35% 进度已接近落位）
-        assertTrue(enter.transform(0.1f) in 0.45f..0.55f)
-        assertTrue(enter.transform(0.35f) in 0.88f..0.95f)
-        assertTrue(enter.transform(0.75f) > 0.99f)
-        // 返回：中段更决断，末端软着陆
-        assertTrue(returning.transform(0.1f) in 0.07f..0.12f)
-        assertTrue(returning.transform(0.35f) in 0.64f..0.72f)
-        assertTrue(returning.transform(0.75f) in 0.95f..0.98f)
+        assertSame(enter, returning)
+        assertTrue(enter.transform(0.1f) in 0.14f..0.19f)
+        assertTrue(enter.transform(0.35f) in 0.60f..0.68f)
+        assertTrue(enter.transform(0.75f) in 0.95f..0.99f)
     }
 
     @Test
@@ -268,15 +264,14 @@ class VideoSharedTransitionPolicyTest {
         )
 
         assertTrue(motion.enabled)
-        assertEquals(460, motion.durationMillis)
-        assertEquals(540, motion.fullscreenDurationMillis)
+        assertEquals(400, motion.durationMillis)
+        assertEquals(480, motion.fullscreenDurationMillis)
         assertEquals(40, motion.contentDelayMillis)
-        assertEquals(276, motion.contentDurationMillis)
+        assertEquals(240, motion.contentDurationMillis)
         assertEquals(14, motion.contentSlideOffsetDp)
         assertEquals(0.985f, motion.contentInitialScale, 0.0001f)
-        assertTrue(motion.enterEasing.transform(0.35f) in 0.88f..0.95f)
-        assertTrue(motion.enterEasing.transform(0.75f) > 0.99f)
-        assertTrue(motion.returnEasing.transform(0.35f) in 0.64f..0.72f)
+        assertSame(motion.enterEasing, motion.returnEasing)
+        assertTrue(motion.enterEasing.transform(0.35f) in 0.60f..0.68f)
     }
 
     @Test
@@ -287,23 +282,23 @@ class VideoSharedTransitionPolicyTest {
             speedSettings = VideoSharedTransitionSpeedSettings(VideoSharedTransitionSpeed.FAST)
         )
 
-        assertEquals(360, motion.durationMillis)
-        assertEquals(440, motion.fullscreenDurationMillis)
+        assertEquals(320, motion.durationMillis)
+        assertEquals(400, motion.fullscreenDurationMillis)
         assertEquals(220, motion.contentDurationMillis)
     }
 
     @Test
-    fun videoCardSharedTransitionMotion_shortensTimelineForQuickReturn() {
+    fun videoCardSharedTransitionMotion_keepsMasterTimelineForQuickReturn() {
         val motion = resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = "home",
             transitionEnabled = true,
             isQuickReturn = true,
         )
 
-        assertEquals(276, motion.durationMillis)
+        assertEquals(400, motion.durationMillis)
         assertEquals(0, motion.contentDelayMillis)
-        assertTrue(motion.contentDurationMillis <= 276)
-        assertTrue(motion.fullscreenDurationMillis < 540)
+        assertEquals(240, motion.contentDurationMillis)
+        assertEquals(480, motion.fullscreenDurationMillis)
     }
 
     @Test
@@ -314,9 +309,9 @@ class VideoSharedTransitionPolicyTest {
             speedSettings = VideoSharedTransitionSpeedSettings(VideoSharedTransitionSpeed.SLOW)
         )
 
-        assertEquals(560, motion.durationMillis)
-        assertEquals(640, motion.fullscreenDurationMillis)
-        assertEquals(336, motion.contentDurationMillis)
+        assertEquals(520, motion.durationMillis)
+        assertEquals(600, motion.fullscreenDurationMillis)
+        assertEquals(312, motion.contentDurationMillis)
     }
 
     @Test
@@ -369,7 +364,7 @@ class VideoSharedTransitionPolicyTest {
         assertEquals(0, metadataMotion.contentDelayMillis)
         assertSame(coverMotion.enterEasing, metadataMotion.enterEasing)
         assertSame(coverMotion.returnEasing, metadataMotion.returnEasing)
-        assertEquals(331, resolveVideoMetadataSharedBoundsDurationMillis(metadataMotion))
+        assertEquals(288, resolveVideoMetadataSharedBoundsDurationMillis(metadataMotion))
         assertTrue(resolveVideoMetadataSharedBoundsDurationMillis(metadataMotion) < metadataMotion.durationMillis)
     }
 
@@ -429,7 +424,7 @@ class VideoSharedTransitionPolicyTest {
         )
 
         assertTrue(motion.enabled)
-        assertEquals(460, motion.durationMillis)
+        assertEquals(400, motion.durationMillis)
     }
 
     @Test

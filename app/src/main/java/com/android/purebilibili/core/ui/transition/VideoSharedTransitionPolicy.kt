@@ -54,9 +54,9 @@ internal enum class VideoSharedTransitionTargetMode {
 
 internal const val VIDEO_SHARED_COVER_ASPECT_RATIO = 16f / 10f
 private const val HOME_SOURCE_ROUTE = "home"
-internal const val VIDEO_SHARED_TRANSITION_FAST_DURATION_MILLIS = 360
-internal const val VIDEO_SHARED_TRANSITION_STANDARD_DURATION_MILLIS = 460
-internal const val VIDEO_SHARED_TRANSITION_SLOW_DURATION_MILLIS = 560
+internal const val VIDEO_SHARED_TRANSITION_FAST_DURATION_MILLIS = 320
+internal const val VIDEO_SHARED_TRANSITION_STANDARD_DURATION_MILLIS = 400
+internal const val VIDEO_SHARED_TRANSITION_SLOW_DURATION_MILLIS = 520
 internal const val VIDEO_SHARED_TRANSITION_CUSTOM_MIN_MILLIS = 280
 internal const val VIDEO_SHARED_TRANSITION_CUSTOM_MAX_MILLIS = 900
 internal const val VIDEO_SHARED_TRANSITION_CUSTOM_DEFAULT_MILLIS =
@@ -75,9 +75,8 @@ private const val DEFAULT_VIDEO_CARD_CORNER_DP = 12
 private const val DEFAULT_VIDEO_PLAYER_CORNER_DP = 12
 private const val DYNAMIC_VIDEO_CARD_CORNER_DP = 10
 private const val WATCH_LATER_VIDEO_CARD_CORNER_DP = 8
-// iOS App 开合近似曲线：进场快起软落；返回更决断、末端软着陆（仍保留时长可控的 tween）。
-private val VIDEO_CARD_ENTER_EASING = CubicBezierEasing(0.16f, 1.00f, 0.30f, 1.00f)
-private val VIDEO_CARD_RETURN_EASING = CubicBezierEasing(0.22f, 0.00f, 0.12f, 1.00f)
+// 开启、返回以及所有子轨道共用同一条曲线：起步有速度，落位软，避免轨道换挡。
+private val VIDEO_CARD_MOTION_EASING = CubicBezierEasing(0.30f, 0.45f, 0.35f, 1.00f)
 
 enum class VideoSharedTransitionSpeed(val value: Int, val label: String) {
     FAST(0, "快速"),
@@ -138,9 +137,9 @@ internal fun resolveVideoSharedTransitionProfile(): VideoSharedTransitionProfile
     return VideoSharedTransitionProfile.COVER_AND_METADATA
 }
 
-internal fun resolveVideoCardSharedTransitionEnterEasing(): Easing = VIDEO_CARD_ENTER_EASING
+internal fun resolveVideoCardSharedTransitionEnterEasing(): Easing = VIDEO_CARD_MOTION_EASING
 
-internal fun resolveVideoCardSharedTransitionReturnEasing(): Easing = VIDEO_CARD_RETURN_EASING
+internal fun resolveVideoCardSharedTransitionReturnEasing(): Easing = VIDEO_CARD_MOTION_EASING
 
 internal fun resolveVideoSharedTransitionDirection(
     initialBounds: Rect,
@@ -182,21 +181,6 @@ internal fun resolveVideoSharedTransitionDurationMillis(
         VideoSharedTransitionSpeed.SLOW -> VIDEO_SHARED_TRANSITION_SLOW_DURATION_MILLIS
         VideoSharedTransitionSpeed.CUSTOM ->
             normalizeVideoSharedTransitionCustomDurationMillis(speedSettings.customDurationMillis)
-    }
-}
-
-/**
- * 共享元素总时长：快速返回时与景深 [resolveVideoCardQuickReturnDurationMillis] 同源压缩。
- */
-internal fun resolveVideoSharedTransitionDurationMillis(
-    speedSettings: VideoSharedTransitionSpeedSettings,
-    isQuickReturn: Boolean,
-): Int {
-    val base = resolveVideoSharedTransitionDurationMillis(speedSettings)
-    return if (isQuickReturn) {
-        resolveVideoCardQuickReturnDurationMillis(base)
-    } else {
-        base
     }
 }
 
@@ -376,14 +360,11 @@ internal fun resolveVideoCardSharedTransitionMotionSpec(
             contentDurationMillis = 0,
             contentSlideOffsetDp = 0,
             contentInitialScale = 1f,
-            enterEasing = VIDEO_CARD_ENTER_EASING,
-            returnEasing = VIDEO_CARD_RETURN_EASING
+            enterEasing = VIDEO_CARD_MOTION_EASING,
+            returnEasing = VIDEO_CARD_MOTION_EASING
         )
     }
-    val durationMillis = resolveVideoSharedTransitionDurationMillis(
-        speedSettings = speedSettings,
-        isQuickReturn = isQuickReturn,
-    )
+    val durationMillis = resolveVideoSharedTransitionDurationMillis(speedSettings)
 
     return VideoSharedTransitionMotionSpec(
         enabled = true,
@@ -393,8 +374,8 @@ internal fun resolveVideoCardSharedTransitionMotionSpec(
         contentDurationMillis = resolveVideoSharedTransitionContentDurationMillis(durationMillis),
         contentSlideOffsetDp = HOME_DETAIL_REVEAL_SLIDE_OFFSET_DP,
         contentInitialScale = HOME_DETAIL_REVEAL_INITIAL_SCALE,
-        enterEasing = VIDEO_CARD_ENTER_EASING,
-        returnEasing = VIDEO_CARD_RETURN_EASING
+        enterEasing = VIDEO_CARD_MOTION_EASING,
+        returnEasing = VIDEO_CARD_MOTION_EASING
     )
 }
 
@@ -419,8 +400,8 @@ internal fun resolveVideoMetadataSharedTransitionMotionSpec(
         contentDurationMillis = durationMillis,
         contentSlideOffsetDp = 0,
         contentInitialScale = 1f,
-        enterEasing = VIDEO_CARD_ENTER_EASING,
-        returnEasing = VIDEO_CARD_RETURN_EASING
+        enterEasing = VIDEO_CARD_MOTION_EASING,
+        returnEasing = VIDEO_CARD_MOTION_EASING
     )
 }
 

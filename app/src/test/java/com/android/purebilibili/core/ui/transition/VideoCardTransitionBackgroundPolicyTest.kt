@@ -93,7 +93,7 @@ class VideoCardTransitionBackgroundPolicyTest {
     }
 
     @Test
-    fun api35OpeningFrameUsesOriginalBlurStrengthAndScrim() {
+    fun api35OpeningFrameUsesCalibratedBlurStrengthAndScrim() {
         val frame = resolveVideoCardTransitionBackgroundFrame(
             progress = 1f,
             phase = VideoCardTransitionBackgroundPhase.OPENING,
@@ -101,11 +101,11 @@ class VideoCardTransitionBackgroundPolicyTest {
             sdkInt = 35
         )
 
-        assertEquals(28f, frame.blurRadiusPx)
-        assertEquals(0f, frame.blurRadiusPx % 2f)
-        assertEquals(0.28f, frame.scrimAlpha)
+        assertEquals(24f, frame.blurRadiusPx)
+        assertEquals(0f, frame.blurRadiusPx % 1f)
+        assertEquals(0.22f, frame.scrimAlpha)
         assertFalse(frame.useLightScrimTint)
-        assertEquals(0.93f, frame.contentScale, 0.0001f)
+        assertEquals(0.95f, frame.contentScale, 0.0001f)
     }
 
     @Test
@@ -117,8 +117,8 @@ class VideoCardTransitionBackgroundPolicyTest {
             sdkInt = 35
         )
 
-        assertEquals(28f, frame.blurRadiusPx)
-        assertEquals(0.14f, frame.scrimAlpha)
+        assertEquals(24f, frame.blurRadiusPx)
+        assertEquals(0.11f, frame.scrimAlpha)
         assertTrue(frame.useLightScrimTint)
     }
 
@@ -133,24 +133,24 @@ class VideoCardTransitionBackgroundPolicyTest {
         )
 
         assertEquals(0f, frame.blurRadiusPx)
-        assertEquals(0.08f, frame.scrimAlpha)
+        assertEquals(0.07f, frame.scrimAlpha)
         assertTrue(frame.useLightScrimTint)
     }
 
     @Test
-    fun lightReturningScrimPolicyStillPrefersLighterTintForBackgroundHelpers() {
-        val light = resolveVideoCardTransitionReturningScrimAlpha(
-            blurStrength = 1f,
-            isLightBackground = true,
+    fun returningScrimMatchesHeldIntensityAtTheSameProgress() {
+        val held = resolveVideoCardTransitionBackgroundFrame(
+            progress = 1f,
+            phase = VideoCardTransitionBackgroundPhase.HELD,
+            sdkInt = 35,
         )
-        val dark = resolveVideoCardTransitionReturningScrimAlpha(
-            blurStrength = 1f,
-            isLightBackground = false,
+        val returning = resolveVideoCardTransitionBackgroundFrame(
+            progress = 1f,
+            phase = VideoCardTransitionBackgroundPhase.RETURNING,
+            sdkInt = 35,
         )
 
-        assertTrue(light < dark)
-        assertEquals(0.08f, light)
-        assertEquals(0.16f, dark)
+        assertEquals(held.scrimAlpha, returning.scrimAlpha)
     }
 
     @Test
@@ -171,15 +171,16 @@ class VideoCardTransitionBackgroundPolicyTest {
             sdkInt = 35
         )
 
-        assertEquals(28f, start.blurRadiusPx)
+        assertEquals(24f, start.blurRadiusPx)
+        assertEquals(12f, middle.blurRadiusPx)
         assertTrue(middle.blurRadiusPx in 1f..<start.blurRadiusPx)
         assertEquals(0f, end.blurRadiusPx)
         assertTrue(start.scrimAlpha > middle.scrimAlpha)
         assertTrue(middle.scrimAlpha > 0f)
         assertEquals(0f, end.scrimAlpha)
-        // depthProgress(1)=1 → 0.93; depthProgress(0.5)=0.75 → 0.9475
-        assertEquals(0.93f, start.contentScale, 0.0001f)
-        assertEquals(0.9475f, middle.contentScale, 0.0001f)
+        // 景深直接跟随唯一主进度，不再叠加第二条 easing。
+        assertEquals(0.95f, start.contentScale, 0.0001f)
+        assertEquals(0.975f, middle.contentScale, 0.0001f)
         assertEquals(1f, end.contentScale)
     }
 
@@ -203,10 +204,10 @@ class VideoCardTransitionBackgroundPolicyTest {
             sdkInt = 35
         )
 
-        assertEquals(28f, frame.blurRadiusPx)
+        assertEquals(24f, frame.blurRadiusPx)
         // HELD 保留与满进度开场一致的压暗，避免详情停留时景深断裂。
-        assertEquals(0.28f, frame.scrimAlpha)
-        assertEquals(0.93f, frame.contentScale, 0.0001f)
+        assertEquals(0.22f, frame.scrimAlpha)
+        assertEquals(0.95f, frame.contentScale, 0.0001f)
     }
 
     @Test
@@ -224,8 +225,8 @@ class VideoCardTransitionBackgroundPolicyTest {
             isGestureRestoreInProgress = true,
         )
 
-        assertEquals(0.93f, openingScale, 0.0001f)
-        assertEquals(0.9475f, restoreScale, 0.0001f)
+        assertEquals(0.95f, openingScale, 0.0001f)
+        assertEquals(0.975f, restoreScale, 0.0001f)
     }
 
     @Test
@@ -270,8 +271,7 @@ class VideoCardTransitionBackgroundPolicyTest {
 
         assertTrue(frame.blurRadiusPx > 0f)
         assertTrue(frame.scrimAlpha > 0f)
-        // depthProgress(0.25)=0.4375 → scale = 1 - 0.07*0.4375 = 0.969375
-        assertEquals(0.969375f, frame.contentScale, 0.0001f)
+        assertEquals(0.9875f, frame.contentScale, 0.0001f)
     }
 
     @Test
@@ -411,42 +411,14 @@ class VideoCardTransitionBackgroundPolicyTest {
     }
 
     @Test
-    fun quickReturnDurationCompressesBaseButKeepsReadableFloor() {
-        assertEquals(460, resolveVideoCardQuickReturnDurationMillis(460, factor = 1f))
-        assertEquals(276, resolveVideoCardQuickReturnDurationMillis(460))
-        assertEquals(
-            VIDEO_CARD_TRANSITION_QUICK_RETURN_MIN_DURATION_MS,
-            resolveVideoCardQuickReturnDurationMillis(280, factor = 0.5f),
-        )
-        assertEquals(0, resolveVideoCardQuickReturnDurationMillis(0))
-    }
-
-    @Test
-    fun returnFullDurationShortensForQuickReturnOrInterruptedOpening() {
+    fun returnFullDurationKeepsTheSharedMasterTimeline() {
         assertEquals(
             460,
             resolveVideoCardTransitionReturnFullDurationMillis(
                 baseDurationMillis = 460,
-                isQuickReturn = false,
-                interruptedOpening = false,
             ),
         )
-        assertEquals(
-            276,
-            resolveVideoCardTransitionReturnFullDurationMillis(
-                baseDurationMillis = 460,
-                isQuickReturn = true,
-                interruptedOpening = false,
-            ),
-        )
-        assertEquals(
-            276,
-            resolveVideoCardTransitionReturnFullDurationMillis(
-                baseDurationMillis = 460,
-                isQuickReturn = false,
-                interruptedOpening = true,
-            ),
-        )
+        assertEquals(0, resolveVideoCardTransitionReturnFullDurationMillis(-1))
     }
 
     @Test
@@ -463,7 +435,7 @@ class VideoCardTransitionBackgroundPolicyTest {
     }
 
     @Test
-    fun navBackdropVisibleOnlyDuringHeldOrOpeningOnVideoDetail() {
+    fun navBackdropStaysVisibleThroughTheWholeVideoCardTransition() {
         assertTrue(
             shouldShowVideoCardTransitionNavBackdrop(
                 cardTransitionEnabled = true,
@@ -478,11 +450,18 @@ class VideoCardTransitionBackgroundPolicyTest {
                 isVideoDetailOnStack = true,
             )
         )
-        assertFalse(
+        assertTrue(
             shouldShowVideoCardTransitionNavBackdrop(
                 cardTransitionEnabled = true,
                 phase = VideoCardTransitionBackgroundPhase.RETURNING,
                 isVideoDetailOnStack = true,
+            )
+        )
+        assertTrue(
+            shouldShowVideoCardTransitionNavBackdrop(
+                cardTransitionEnabled = true,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isVideoDetailOnStack = false,
             )
         )
         assertFalse(
@@ -519,9 +498,9 @@ class VideoCardTransitionBackgroundPolicyTest {
             isLightBackground = false,
         )
 
-        assertEquals(0.14f, heldFull.scrimAlpha)
+        assertEquals(0.11f, heldFull.scrimAlpha)
         assertTrue(heldHalf.scrimAlpha < heldFull.scrimAlpha)
-        assertEquals(0.28f, openingFull.scrimAlpha)
+        assertEquals(0.22f, openingFull.scrimAlpha)
         assertTrue(heldFull.useLightScrimTint)
         assertFalse(openingFull.useLightScrimTint)
     }

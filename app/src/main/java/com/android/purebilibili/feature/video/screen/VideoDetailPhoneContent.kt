@@ -3,6 +3,8 @@ package com.android.purebilibili.feature.video.screen
 import android.content.Context
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -78,6 +80,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     hazeState: HazeState,
     isTransitionFinished: Boolean,
     isLeaving: Boolean,
+    rootTransitionOwnsContentAlpha: Boolean,
     shouldShowExternalPlaylistQueueBar: Boolean,
     selectedVideoContentTabIndex: Int,
     useTabletLayout: Boolean,
@@ -138,9 +141,21 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                     )
                 )
                 AnimatedVisibility(
-                    visible = isTransitionFinished && !isLeaving,
-                    enter = detailContentRevealEnter,
-                    exit = detailContentExitFade
+                    visible = shouldShowVideoDetailContent(
+                        isTransitionFinished = isTransitionFinished,
+                        isLeaving = isLeaving,
+                        rootTransitionOwnsContentAlpha = rootTransitionOwnsContentAlpha,
+                    ),
+                    enter = if (rootTransitionOwnsContentAlpha) {
+                        EnterTransition.None
+                    } else {
+                        detailContentRevealEnter
+                    },
+                    exit = if (rootTransitionOwnsContentAlpha) {
+                        ExitTransition.None
+                    } else {
+                        detailContentExitFade
+                    }
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         val homeSettings by SettingsManager

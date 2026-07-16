@@ -11,7 +11,7 @@ class VideoDetailReturnCoverPolicyTest {
     @Test
     fun `immediate video back target keeps secondary content visible`() {
         assertFalse(
-            shouldAnimateVideoDetailSecondaryContent(
+            shouldUseVideoDetailRootTransitionProgress(
                 detailShellSharedBoundsEnabled = true,
                 hasAnimatedVisibilityScope = true,
                 keepLoadedContentForBackPreview = true,
@@ -22,7 +22,7 @@ class VideoDetailReturnCoverPolicyTest {
     @Test
     fun `normal card detail transition still animates secondary content`() {
         assertTrue(
-            shouldAnimateVideoDetailSecondaryContent(
+            shouldUseVideoDetailRootTransitionProgress(
                 detailShellSharedBoundsEnabled = true,
                 hasAnimatedVisibilityScope = true,
                 keepLoadedContentForBackPreview = false,
@@ -210,15 +210,33 @@ class VideoDetailReturnCoverPolicyTest {
     }
 
     @Test
-    fun `return cover snaps on while player fades briefly`() {
-        assertEquals(0, resolveDetailReturnCoverHandoffDurationMillis(isLeaving = true))
-        assertEquals(0, resolveDetailReturnCoverHandoffDurationMillis(isLeaving = false))
-        val playerFade = resolveDetailReturnPlayerFadeDurationMillis(
-            isLeaving = true,
-            returnDurationMillis = 460,
+    fun `return cover player and content read one shared transition progress`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+            .readText()
+
+        assertTrue(source.contains("val detailTransitionProgress ="))
+        assertTrue(source.contains("alpha = 1f - detailTransitionProgress.value"))
+        assertTrue(source.contains("alpha = detailTransitionProgress.value"))
+        assertFalse(source.contains("val coverCrossfadeAlpha ="))
+        assertFalse(source.contains("val playerFadeAlpha ="))
+    }
+
+    @Test
+    fun `shared shell keeps detail content mounted while root transition owns alpha`() {
+        assertTrue(
+            shouldShowVideoDetailContent(
+                isTransitionFinished = true,
+                isLeaving = true,
+                rootTransitionOwnsContentAlpha = true,
+            )
         )
-        assertTrue(playerFade in 80..180)
-        assertTrue(playerFade < 460)
+        assertFalse(
+            shouldShowVideoDetailContent(
+                isTransitionFinished = true,
+                isLeaving = true,
+                rootTransitionOwnsContentAlpha = false,
+            )
+        )
     }
 
     @Test
@@ -240,13 +258,12 @@ class VideoDetailReturnCoverPolicyTest {
             .substringBefore("val handleTopBarAction")
         assertTrue(call.contains("isCardReturnExitInProgress = isCardReturnExitInProgress"))
         assertTrue(call.contains("isSessionReturningToCard = isReturningFromDetail"))
-        assertTrue(source.contains("resolveDetailReturnCoverHandoffDurationMillis("))
-        assertTrue(source.contains("resolveDetailReturnPlayerFadeDurationMillis("))
+        assertTrue(source.contains("video-detail-shared-transition-progress"))
     }
 
     @Test
-    fun `cover takeover delay keeps a one-frame budget before back navigation`() {
-        assertEquals(16L, resolveCoverTakeoverDelayBeforeBackNavigationMillis())
+    fun `resident cover starts return without a pre-navigation dead frame`() {
+        assertEquals(0L, resolveCoverTakeoverDelayBeforeBackNavigationMillis())
     }
 
     @Test

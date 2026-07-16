@@ -791,11 +791,15 @@ fun HomeScreen(
         baseTier = deviceUiProfile.motionTier,
         animationEnabled = cardAnimationEnabled
     )
+    val sharedTransitionDurationMillis =
+        com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionDurationMillis(
+            com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings.current
+        )
     val returnAnimationSuppressionDurationMs = resolveReturnAnimationSuppressionDurationMs(
         isTabletLayout = windowSizeClass.isTablet,
         cardAnimationEnabled = cardAnimationEnabled,
         cardTransitionEnabled = cardTransitionEnabled,
-        isQuickReturnFromDetail = isQuickReturningFromVideoDetail
+        sharedTransitionDurationMillis = sharedTransitionDurationMillis,
     )
     // Navigation 返回不一定触发首页 Lifecycle.ON_START，顶栏恢复必须直接跟随返回态。
     LaunchedEffect(isReturningFromVideoDetail, cardTransitionEnabled, isQuickReturningFromVideoDetail) {
@@ -2364,11 +2368,11 @@ internal fun resolveReturnAnimationSuppressionDurationMs(
     isTabletLayout: Boolean,
     cardAnimationEnabled: Boolean,
     cardTransitionEnabled: Boolean,
-    isQuickReturnFromDetail: Boolean
+    sharedTransitionDurationMillis: Int =
+        com.android.purebilibili.core.ui.transition.VIDEO_SHARED_TRANSITION_STANDARD_DURATION_MILLIS,
 ): Long {
     if (cardTransitionEnabled) {
-        return com.android.purebilibili.core.ui.transition.VIDEO_SHARED_TRANSITION_STANDARD_DURATION_MILLIS
-            .toLong() +
+        return sharedTransitionDurationMillis.coerceAtLeast(0).toLong() +
             RETURN_ANIMATION_SUPPRESSION_BUFFER_MS +
             if (isTabletLayout) RETURN_ANIMATION_SUPPRESSION_TABLET_EXTRA_MS else 0L
     }

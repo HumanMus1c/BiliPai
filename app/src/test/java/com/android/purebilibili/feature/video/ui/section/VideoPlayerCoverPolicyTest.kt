@@ -261,7 +261,7 @@ class VideoPlayerCoverPolicyTest {
         assertTrue(playerContentBlock.contains("if (crossfadeCoverUrl.isNotBlank())"))
         assertFalse(playerContentBlock.contains("if (isLeaving"))
         assertTrue(returnCoverBlock.contains(".crossfade(false)"))
-        assertTrue(returnCoverBlock.contains(".graphicsLayer { alpha = coverCrossfadeAlpha.value }"))
-        assertFalse(returnCoverBlock.contains(".alpha(coverCrossfadeAlpha)"))
+        assertTrue(returnCoverBlock.contains("alpha = 1f - detailTransitionProgress.value"))
+        assertFalse(returnCoverBlock.contains("coverCrossfadeAlpha"))
     }
 }

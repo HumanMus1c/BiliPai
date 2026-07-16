@@ -8,17 +8,15 @@ import kotlin.test.assertTrue
 class VideoDetailRouteSheetPolicyTest {
 
     @Test
-    fun cardSecondaryContent_entersAfterGeometryStartsAndFadesEarlyOnReturn() {
+    fun cardSecondaryContent_usesTheSameFullTimelineAsGeometry() {
         val timing = resolveVideoDetailSecondaryContentTiming(
             fullDurationMillis = 460,
-            enterDelayMillis = 40,
-            enterDurationMillis = 276
         )
 
-        assertEquals(40, timing.enterDelayMillis)
-        assertEquals(276, timing.enterDurationMillis)
+        assertEquals(0, timing.enterDelayMillis)
+        assertEquals(460, timing.enterDurationMillis)
         assertEquals(0, timing.returnDelayMillis)
-        assertEquals(184, timing.returnDurationMillis)
+        assertEquals(460, timing.returnDurationMillis)
     }
 
     @Test
@@ -46,9 +44,9 @@ class VideoDetailRouteSheetPolicyTest {
             assertEquals(28f, motion.initialCornerDp)
             assertTrue(motion.settleScaleDelta in 0f..0.002f)
             assertTrue(motion.settleTranslationDp in 0f..2f)
-            assertTrue(motion.enterEasing.transform(0.35f) in 0.88f..0.95f)
-            assertTrue(motion.enterEasing.transform(0.75f) > 0.99f)
-            assertTrue(motion.returnEasing.transform(0.35f) in 0.64f..0.72f)
+            assertTrue(motion.enterEasing.transform(0.35f) in 0.60f..0.68f)
+            assertTrue(motion.enterEasing.transform(0.75f) in 0.95f..0.99f)
+            assertTrue(motion.enterEasing === motion.returnEasing)
         }
     }
 

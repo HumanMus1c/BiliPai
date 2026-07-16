@@ -77,9 +77,12 @@ internal fun shouldHideHomeCardCoverDuringShellMorph(
     if (!useCardContainerSharedBounds || !isSharedMorphSourceCard) {
         return false
     }
-    // 返回会话中：保持列表封面可见（承接落位 + morph 过程可见封面）。
-    if (isReturningFromDetail) {
-        return false
+    // 返回 morph 由详情壳内的常驻封面承载；源卡封面等落位后再接手，避免两层封面叠绘。
+    if (isReturningFromDetail &&
+        (isSharedTransitionActive ||
+            transitionBackgroundPhase == VideoCardTransitionBackgroundPhase.RETURNING)
+    ) {
+        return true
     }
     if (transitionBackgroundPhase == VideoCardTransitionBackgroundPhase.OPENING) {
         return true

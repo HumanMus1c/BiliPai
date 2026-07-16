@@ -142,18 +142,15 @@ class BiliPaiNavDisplayHostStructureTest {
     }
 
     @Test
-    fun navDisplayHostInterruptsOpeningAndShortensQuickReturnDepthAnimation() {
+    fun navDisplayHostInterruptsOpeningWithoutSwitchingTheReturnTimeline() {
         val source = navDisplayHostSource()
         val performBackBlock = source
             .substringAfter("val performBack: (() -> Unit) -> Unit = {")
             .substringBefore("val scopedContent:")
 
-        assertTrue(source.contains("isQuickReturnFromDetail: Boolean"))
         assertTrue(source.contains("launchVideoCardDepthAnimation"))
         assertTrue(source.contains("cancelVideoCardDepthAnimation"))
-        assertTrue(source.contains("shouldInterruptVideoCardOpeningOnReturn"))
         assertTrue(source.contains("resolveVideoCardTransitionReturnFullDurationMillis"))
-        assertTrue(performBackBlock.contains("interruptedOpening"))
         assertTrue(performBackBlock.contains("cancelVideoCardDepthAnimation()"))
         // 进场结束后仅在仍 OPENING 时写入 HELD，避免打断后补写。
         assertTrue(source.contains("未被返回打断"))

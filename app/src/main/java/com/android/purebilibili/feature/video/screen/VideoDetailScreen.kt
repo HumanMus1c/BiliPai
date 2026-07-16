@@ -178,8 +178,6 @@ import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionP
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
-import com.android.purebilibili.core.ui.transition.shouldFadePlayerSurfaceOnDetailReturn
-import com.android.purebilibili.core.ui.transition.shouldUseDetailReturnCoverCrossfade
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellContainerTransform
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
@@ -311,7 +309,7 @@ internal fun shouldClearStaleReturningStateOnVideoDetailEnter(
     return isReturningFromDetail
 }
 
-private const val COVER_TAKEOVER_PRE_BACK_DELAY_MILLIS = 16L
+private const val COVER_TAKEOVER_PRE_BACK_DELAY_MILLIS = 0L
 internal const val VIDEO_CONTENT_COMMENT_TAB_INDEX = 1
 
 internal fun resolveForceCoverOnlyForReturn(
@@ -342,22 +340,6 @@ internal fun shouldUseReturningVideoDetailVisualState(
         isSessionReturningToCard
 }
 
-/** 返回时封面应立刻盖住 surface（0ms），不能跟 player 同长慢淡入。 */
-internal fun resolveDetailReturnCoverHandoffDurationMillis(isLeaving: Boolean): Int {
-    return if (isLeaving) 0 else 0
-}
-
-/**
- * 播放器淡出略快于 shared 全长，让封面在收回过程中可读。
- */
-internal fun resolveDetailReturnPlayerFadeDurationMillis(
-    isLeaving: Boolean,
-    returnDurationMillis: Int,
-): Int {
-    if (!isLeaving || returnDurationMillis <= 0) return returnDurationMillis.coerceAtLeast(0)
-    return (returnDurationMillis * 0.35f).toInt().coerceIn(80, returnDurationMillis.coerceAtMost(180))
-}
-
 internal fun shouldTreatVideoDetailCardExitAsReturning(
     isExitTransitionInProgress: Boolean,
     sharedBoundsActive: Boolean,
@@ -375,7 +357,7 @@ internal fun shouldForceBackPreviewPlayerCover(
     return keepLoadedContentForBackPreview && !bindLivePlayerForBackPreview
 }
 
-internal fun shouldAnimateVideoDetailSecondaryContent(
+internal fun shouldUseVideoDetailRootTransitionProgress(
     detailShellSharedBoundsEnabled: Boolean,
     hasAnimatedVisibilityScope: Boolean,
     keepLoadedContentForBackPreview: Boolean,
@@ -385,7 +367,16 @@ internal fun shouldAnimateVideoDetailSecondaryContent(
         !keepLoadedContentForBackPreview
 }
 
+internal fun shouldShowVideoDetailContent(
+    isTransitionFinished: Boolean,
+    isLeaving: Boolean,
+    rootTransitionOwnsContentAlpha: Boolean,
+): Boolean {
+    return isTransitionFinished && (!isLeaving || rootTransitionOwnsContentAlpha)
+}
+
 internal fun resolveCoverTakeoverDelayBeforeBackNavigationMillis(): Long {
+    // 封面常驻并直接读取根过渡进度，不再需要先抢一帧切换封面再导航。
     return COVER_TAKEOVER_PRE_BACK_DELAY_MILLIS
 }
 
@@ -729,15 +720,13 @@ internal data class VideoDetailSecondaryContentTiming(
 
 internal fun resolveVideoDetailSecondaryContentTiming(
     fullDurationMillis: Int,
-    enterDelayMillis: Int,
-    enterDurationMillis: Int
 ): VideoDetailSecondaryContentTiming {
     val safeDuration = fullDurationMillis.coerceAtLeast(0)
     return VideoDetailSecondaryContentTiming(
-        enterDelayMillis = enterDelayMillis.coerceAtLeast(0),
-        enterDurationMillis = enterDurationMillis.coerceAtLeast(0),
+        enterDelayMillis = 0,
+        enterDurationMillis = safeDuration,
         returnDelayMillis = 0,
-        returnDurationMillis = (safeDuration * 0.4f).roundToInt()
+        returnDurationMillis = safeDuration
     )
 }
 
@@ -1961,11 +1950,9 @@ fun VideoDetailScreen(
     val secondaryContentTiming = remember(homeSharedTransitionMotionSpec) {
         resolveVideoDetailSecondaryContentTiming(
             fullDurationMillis = homeSharedTransitionMotionSpec.durationMillis,
-            enterDelayMillis = homeSharedTransitionMotionSpec.contentDelayMillis,
-            enterDurationMillis = homeSharedTransitionMotionSpec.contentDurationMillis
         )
     }
-    val detailSecondaryContentAlpha = if (shouldAnimateVideoDetailSecondaryContent(
+    val detailTransitionProgress = if (shouldUseVideoDetailRootTransitionProgress(
             detailShellSharedBoundsEnabled = detailShellSharedBoundsEnabled,
             hasAnimatedVisibilityScope = rootAnimatedVisibilityScope != null,
             keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
@@ -1987,9 +1974,9 @@ fun VideoDetailScreen(
                     )
                 }
             },
-            label = "video-detail-card-return-secondary-content"
+            label = "video-detail-shared-transition-progress"
         ) { state ->
-            if (state == EnterExitState.PostExit) 0f else 1f
+            if (state == EnterExitState.Visible) 1f else 0f
         }
     } else {
         remember { mutableFloatStateOf(1f) }
@@ -3784,61 +3771,6 @@ fun VideoDetailScreen(
                         }
 
                         val isLeaving = useReturningVideoDetailVisualState
-                        val returnAlphaDurationMillis = if (homeSharedTransitionMotionSpec.enabled) {
-                            homeSharedTransitionMotionSpec.durationMillis
-                        } else {
-                            0
-                        }
-                        val coverHandoffDurationMillis = resolveDetailReturnCoverHandoffDurationMillis(
-                            isLeaving = isLeaving,
-                        )
-                        val playerFadeDurationMillis = resolveDetailReturnPlayerFadeDurationMillis(
-                            isLeaving = isLeaving,
-                            returnDurationMillis = returnAlphaDurationMillis,
-                        )
-                        // 返回：封面立即盖上（0ms）；播放器短淡出。进场保持封面 alpha=0。
-                        val coverCrossfadeAlpha = animateFloatAsState(
-                            targetValue = if (
-                                shouldUseDetailReturnCoverCrossfade(
-                                    isLeaving = isLeaving,
-                                    playbackIntent = videoSharedPlaybackIntent
-                                )
-                            ) {
-                                1f
-                            } else {
-                                0f
-                            },
-                            animationSpec = tween(
-                                durationMillis = coverHandoffDurationMillis,
-                                easing = if (isLeaving) {
-                                    homeSharedTransitionMotionSpec.returnEasing
-                                } else {
-                                    homeSharedTransitionMotionSpec.enterEasing
-                                }
-                            ),
-                            label = "coverCrossfade"
-                        )
-                        val playerFadeAlpha = animateFloatAsState(
-                            targetValue = if (
-                                shouldFadePlayerSurfaceOnDetailReturn(
-                                    isLeaving = isLeaving,
-                                    playbackIntent = videoSharedPlaybackIntent
-                                )
-                            ) {
-                                0f
-                            } else {
-                                1f
-                            },
-                            animationSpec = tween(
-                                durationMillis = playerFadeDurationMillis,
-                                easing = if (isLeaving) {
-                                    homeSharedTransitionMotionSpec.returnEasing
-                                } else {
-                                    homeSharedTransitionMotionSpec.enterEasing
-                                }
-                            ),
-                            label = "playerFade"
-                        )
                         val crossfadeCoverUrl = remember(coverUrl) {
                             if (coverUrl.isNotBlank()) {
                                 val url = coverUrl.trim()
@@ -3895,7 +3827,9 @@ fun VideoDetailScreen(
                                     contentDescription = "cover",
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .graphicsLayer { alpha = coverCrossfadeAlpha.value },
+                                        .graphicsLayer {
+                                            alpha = 1f - detailTransitionProgress.value
+                                        },
                                     contentScale = ContentScale.Crop
                                 )
                             }
@@ -3903,7 +3837,7 @@ fun VideoDetailScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(top = playerTopInset)
-                                    .graphicsLayer { alpha = playerFadeAlpha.value }
+                                    .graphicsLayer { alpha = detailTransitionProgress.value }
                             ) {
                             PortraitInlineVideoPlayerHost(
                                 modifier = Modifier.align(Alignment.TopCenter),
@@ -3973,7 +3907,7 @@ fun VideoDetailScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(MaterialTheme.colorScheme.background)
-                                .graphicsLayer { alpha = detailSecondaryContentAlpha.value }
+                                .graphicsLayer { alpha = detailTransitionProgress.value }
                                 // .nestedScroll(nestedScrollConnection) // [Remove] 移除嵌套滚动，确保 Tabs 正常滑动
                         ) {
                             when (uiState) {
@@ -4023,6 +3957,7 @@ fun VideoDetailScreen(
                                         hazeState = hazeState,
                                         isTransitionFinished = isTransitionFinished,
                                         isLeaving = isLeaving,
+                                        rootTransitionOwnsContentAlpha = detailShellSharedBoundsEnabled,
                                         shouldShowExternalPlaylistQueueBar = shouldShowExternalPlaylistQueueBar,
                                         selectedVideoContentTabIndex = selectedVideoContentTabIndex,
                                         useTabletLayout = useTabletLayout,

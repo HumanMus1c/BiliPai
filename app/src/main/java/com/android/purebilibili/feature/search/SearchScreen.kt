@@ -725,7 +725,6 @@ fun SearchScreen(
         isTabletLayout = windowSizeClass.isTablet,
         cardAnimationEnabled = cardAnimationEnabled,
         cardTransitionEnabled = cardTransitionEnabled,
-        isQuickReturnFromDetail = isQuickReturningFromVideoDetail
     )
     LaunchedEffect(returnAnimationSuppressionDurationMs, isReturningFromVideoDetail) {
         if (!isReturningFromVideoDetail) return@LaunchedEffect
