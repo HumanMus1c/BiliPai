@@ -62,6 +62,7 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
 
 /**
  * 🖥️ 平板端视频详情页布局
@@ -77,6 +78,7 @@ fun TabletVideoLayout(
     uiState: VideoPlaybackUiState,
     commentState: CommentUiState,
     viewModel: VideoPlaybackViewModel,
+    engagementViewModel: VideoEngagementViewModel,
     commentViewModel: VideoCommentViewModel,
     configuration: Configuration,
     isVerticalVideo: Boolean,
@@ -112,6 +114,7 @@ fun TabletVideoLayout(
     forceCoverOnlyOnReturn: Boolean = false,
     predictiveBackCancelRecoveryGeneration: Int = 0
 ) {
+    val engagementState by engagementViewModel.uiState.collectAsStateWithLifecycle()
     val layoutPolicy = remember(configuration.screenWidthDp) {
         resolveTabletVideoLayoutPolicy(
             widthDp = configuration.screenWidthDp
@@ -204,7 +207,7 @@ fun TabletVideoLayout(
                             onHomeClick = onHomeClick,
                             bvid = bvid,
                             coverUrl = coverUrl,
-                            onDoubleTapLike = { viewModel.toggleLike() },
+                            onDoubleTapLike = { engagementViewModel.toggleLike() },
                             onReloadVideo = { viewModel.reloadVideo() },
                             cdnCount = (uiState as? VideoPlaybackUiState.Success)?.cdnCount ?: 1,
                             cdnLineDiagnostics = (uiState as? VideoPlaybackUiState.Success)?.cdnLineDiagnostics.orEmpty(),
@@ -253,13 +256,13 @@ fun TabletVideoLayout(
                     
                     ScrollableVideoInfoSection(
                         info = success.info,
-                        isFollowing = success.isFollowing,
-                        isFavorited = success.isFavorited,
-                        isLiked = success.isLiked,
-                        coinCount = success.coinCount,
+                        isFollowing = engagementState.isFollowing,
+                        isFavorited = engagementState.isFavorited,
+                        isLiked = engagementState.isLiked,
+                        coinCount = engagementState.coinCount,
                         currentPageIndex = currentPageIndex,
                         downloadProgress = downloadProgress,
-                        isInWatchLater = success.isInWatchLater,
+                        isInWatchLater = engagementState.isInWatchLater,
                         videoTags = success.videoTags,
                         ownerFollowerCount = success.ownerFollowerCount,
                         ownerVideoCount = success.ownerVideoCount,
@@ -267,15 +270,15 @@ fun TabletVideoLayout(
                         bgmInfoList = success.bgmInfoList,
                         onBgmClick = onBgmClick,
                         relatedVideos = success.related,
-                        onFollowClick = { viewModel.toggleFollow() },
-                        onFavoriteClick = { viewModel.toggleFavorite() },
-                        onLikeClick = { viewModel.toggleLike() },
+                        onFollowClick = { engagementViewModel.toggleFollow() },
+                        onFavoriteClick = { engagementViewModel.toggleFavorite() },
+                        onLikeClick = { engagementViewModel.toggleLike() },
                         onCoinClick = { viewModel.openCoinDialog() },
-                        onTripleClick = { viewModel.doTripleAction() },
+                        onTripleClick = { engagementViewModel.doTripleAction() },
                         onPageSelect = { viewModel.switchPage(it) },
                         onUpClick = onUpClick,
                         onDownloadClick = { viewModel.openDownloadDialog() },
-                        onWatchLaterClick = { viewModel.toggleWatchLater() },
+                        onWatchLaterClick = { engagementViewModel.toggleWatchLater() },
                         onRelatedVideoClick = onRelatedVideoClick,
                         onOpenBilibiliLink = onOpenBilibiliLink,
                         modifier = Modifier

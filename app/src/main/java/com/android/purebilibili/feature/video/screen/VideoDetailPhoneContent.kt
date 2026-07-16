@@ -45,6 +45,7 @@ import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
 import com.android.purebilibili.feature.video.player.PlaylistItem
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -62,6 +63,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     commentState: CommentUiState,
     commentMemberDecorationsEnabled: Boolean,
     viewModel: VideoPlaybackViewModel,
+    engagementViewModel: VideoEngagementViewModel,
     commentViewModel: VideoCommentViewModel,
     context: Context,
     sortPreferenceScope: CoroutineScope,
@@ -104,6 +106,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     playlistItems: List<PlaylistItem>,
     onShowExternalPlaylistQueueSheet: () -> Unit
 ) {
+    val engagementState by engagementViewModel.uiState.collectAsStateWithLifecycle()
     val relatedVideoTransitionEnabled = LocalSharedTransitionEnabled.current
     // Android 16 ART 曾拒绝校验 VideoDetailScreen 中捕获过多状态的匿名 Compose lambda。
     // 保持这个成功态为命名边界，避免 R8/Compose 再生成单个超大内容块。
@@ -192,13 +195,13 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 onDissolveStart = { rpid -> commentViewModel.startDissolve(rpid) },
                                 onCommentLike = commentViewModel::likeComment,
                                 likedComments = commentState.likedComments,
-                                isFollowing = success.isFollowing,
-                                isFavorited = success.isFavorited,
-                                isLiked = success.isLiked,
-                                coinCount = success.coinCount,
+                                isFollowing = engagementState.isFollowing,
+                                isFavorited = engagementState.isFavorited,
+                                isLiked = engagementState.isLiked,
+                                coinCount = engagementState.coinCount,
                                 currentPageIndex = currentPageIndex,
                                 downloadProgress = downloadProgress,
-                                isInWatchLater = success.isInWatchLater,
+                                isInWatchLater = engagementState.isInWatchLater,
                                 followingMids = success.followingMids,
                                 videoTags = success.videoTags,
                                 sortMode = commentState.sortMode,
@@ -211,13 +214,13 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                     }
                                 },
                                 onUpOnlyToggle = { commentViewModel.toggleUpOnly() },
-                                onFollowClick = { viewModel.toggleFollow() },
+                                onFollowClick = { engagementViewModel.toggleFollow() },
                                 onFavoriteClick = {
                                     openFavoriteFolders(VideoFavoriteEntryPoint.DetailActionRow)
                                 },
-                                onLikeClick = { viewModel.toggleLike() },
+                                onLikeClick = { engagementViewModel.toggleLike() },
                                 onCoinClick = { viewModel.openCoinDialog() },
-                                onTripleClick = { viewModel.doTripleAction() },
+                                onTripleClick = { engagementViewModel.doTripleAction() },
                                 onPageSelect = { viewModel.switchPage(it) },
                                 onUpClick = navigateToUserSpaceFromVideo,
                                 onRelatedVideoClick = navigateToRelatedVideo,
@@ -232,7 +235,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 onReportComment = commentViewModel::reportComment,
                                 onToggleTopComment = commentViewModel::toggleTopComment,
                                 onDownloadClick = { viewModel.openDownloadDialog() },
-                                onWatchLaterClick = { viewModel.toggleWatchLater() },
+                                onWatchLaterClick = { engagementViewModel.toggleWatchLater() },
                                 onShareClick = {
                                     onShareVideo(
                                         buildVideoSharePayload(
@@ -323,10 +326,10 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                         if (showFrozenCommentBar) {
                             BottomInputBar(
                                 modifier = Modifier.align(Alignment.BottomCenter),
-                                isLiked = success.isLiked,
-                                isFavorited = success.isFavorited,
-                                isCoined = success.coinCount > 0,
-                                onLikeClick = { viewModel.toggleLike() },
+                                isLiked = engagementState.isLiked,
+                                isFavorited = engagementState.isFavorited,
+                                isCoined = engagementState.coinCount > 0,
+                                onLikeClick = { engagementViewModel.toggleLike() },
                                 onFavoriteClick = {
                                     openFavoriteFolders(VideoFavoriteEntryPoint.BottomInputBar)
                                 },
