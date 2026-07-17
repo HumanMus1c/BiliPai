@@ -3,9 +3,8 @@ package com.android.purebilibili.core.ui.transition
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.ui.geometry.Rect
-import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.navigation.isVideoCardReturnTargetRoute
 import kotlin.math.roundToInt
 
@@ -34,6 +33,7 @@ internal fun shouldFadePlayerSurfaceOnDetailReturn(
     isLeaving: Boolean,
     playbackIntent: VideoSharedTransitionPlaybackIntent
 ): Boolean {
+    // CoverFirst 本身已是封面主导；Immediate 返回时要淡出 surface 露出 handoff 封面。
     return isLeaving && playbackIntent == VideoSharedTransitionPlaybackIntent.ImmediatePlayback
 }
 
@@ -41,7 +41,8 @@ internal fun shouldUseDetailReturnCoverCrossfade(
     isLeaving: Boolean,
     playbackIntent: VideoSharedTransitionPlaybackIntent
 ): Boolean {
-    return isLeaving && playbackIntent == VideoSharedTransitionPlaybackIntent.ImmediatePlayback
+    // 任意播放意图在返回时都叠封面，保证 morph 过程看得见封面而非黑底。
+    return isLeaving
 }
 
 internal enum class VideoSharedTransitionTargetMode {
@@ -53,9 +54,9 @@ internal enum class VideoSharedTransitionTargetMode {
 
 internal const val VIDEO_SHARED_COVER_ASPECT_RATIO = 16f / 10f
 private const val HOME_SOURCE_ROUTE = "home"
-internal const val VIDEO_SHARED_TRANSITION_FAST_DURATION_MILLIS = 360
-internal const val VIDEO_SHARED_TRANSITION_STANDARD_DURATION_MILLIS = 460
-internal const val VIDEO_SHARED_TRANSITION_SLOW_DURATION_MILLIS = 560
+internal const val VIDEO_SHARED_TRANSITION_FAST_DURATION_MILLIS = 320
+internal const val VIDEO_SHARED_TRANSITION_STANDARD_DURATION_MILLIS = 400
+internal const val VIDEO_SHARED_TRANSITION_SLOW_DURATION_MILLIS = 520
 internal const val VIDEO_SHARED_TRANSITION_CUSTOM_MIN_MILLIS = 280
 internal const val VIDEO_SHARED_TRANSITION_CUSTOM_MAX_MILLIS = 900
 internal const val VIDEO_SHARED_TRANSITION_CUSTOM_DEFAULT_MILLIS =
@@ -74,8 +75,16 @@ private const val DEFAULT_VIDEO_CARD_CORNER_DP = 12
 private const val DEFAULT_VIDEO_PLAYER_CORNER_DP = 12
 private const val DYNAMIC_VIDEO_CARD_CORNER_DP = 10
 private const val WATCH_LATER_VIDEO_CARD_CORNER_DP = 8
-private val VIDEO_CARD_ENTER_EASING = AppMotionEasing.EmphasizedEnter
-private val VIDEO_CARD_RETURN_EASING = CubicBezierEasing(0.32f, 0f, 0.20f, 1f)
+private const val VIDEO_CARD_HERO_ENTER_SPRING_DAMPING_RATIO = 0.79f
+// 收回保留 Hero 的速度感，但提高阻尼以减少落点越界和二次弹跳。
+private const val VIDEO_CARD_RETURN_SPRING_DAMPING_RATIO = 0.86f
+private const val VIDEO_CARD_HERO_SPRING_REFERENCE_STIFFNESS = 250f
+private const val VIDEO_CARD_HERO_SPRING_REFERENCE_DURATION_MILLIS = 400f
+private const val VIDEO_CARD_HERO_SPRING_MIN_STIFFNESS = 50f
+private const val VIDEO_CARD_HERO_SPRING_MAX_STIFFNESS = 500f
+// Hero 默认 timing function；仅用于透明度，避免 spring 的轻微越界污染 alpha。
+private val VIDEO_CARD_ALPHA_EASING = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
+private val VIDEO_CARD_ROUTE_SHEET_EASING = CubicBezierEasing(0.30f, 0.45f, 0.35f, 1.00f)
 
 enum class VideoSharedTransitionSpeed(val value: Int, val label: String) {
     FAST(0, "快速"),
@@ -108,8 +117,11 @@ internal data class VideoSharedTransitionMotionSpec(
     val contentDurationMillis: Int,
     val contentSlideOffsetDp: Int,
     val contentInitialScale: Float,
-    val enterEasing: Easing,
-    val returnEasing: Easing
+    val enterSpatialDampingRatio: Float,
+    val returnSpatialDampingRatio: Float,
+    val spatialStiffness: Float,
+    val enterAlphaEasing: Easing,
+    val returnAlphaEasing: Easing
 )
 
 internal enum class VideoSharedTransitionDirection {
@@ -136,9 +148,27 @@ internal fun resolveVideoSharedTransitionProfile(): VideoSharedTransitionProfile
     return VideoSharedTransitionProfile.COVER_AND_METADATA
 }
 
-internal fun resolveVideoCardSharedTransitionEnterEasing(): Easing = VIDEO_CARD_ENTER_EASING
+internal fun resolveVideoCardSharedTransitionEnterEasing(): Easing = VIDEO_CARD_ROUTE_SHEET_EASING
 
-internal fun resolveVideoCardSharedTransitionReturnEasing(): Easing = VIDEO_CARD_RETURN_EASING
+internal fun resolveVideoCardSharedTransitionReturnEasing(): Easing = VIDEO_CARD_ROUTE_SHEET_EASING
+
+internal fun resolveVideoSharedTransitionSpatialStiffness(durationMillis: Int): Float {
+    val safeDurationMillis = durationMillis.coerceAtLeast(1).toFloat()
+    val durationRatio = VIDEO_CARD_HERO_SPRING_REFERENCE_DURATION_MILLIS / safeDurationMillis
+    return (VIDEO_CARD_HERO_SPRING_REFERENCE_STIFFNESS * durationRatio * durationRatio)
+        .coerceIn(
+            VIDEO_CARD_HERO_SPRING_MIN_STIFFNESS,
+            VIDEO_CARD_HERO_SPRING_MAX_STIFFNESS
+        )
+}
+
+internal fun resolveVideoSharedCoverCacheKey(
+    videoIdentity: String,
+    useLowQualityCover: Boolean = false,
+): String {
+    val qualityTag = if (useLowQualityCover) "s" else "n"
+    return "cover_${videoIdentity.trim()}_${qualityTag}"
+}
 
 internal fun resolveVideoSharedTransitionDirection(
     initialBounds: Rect,
@@ -159,8 +189,8 @@ internal fun resolveVideoSharedTransitionEasing(
     targetBounds: Rect
 ): Easing {
     return when (resolveVideoSharedTransitionDirection(initialBounds, targetBounds)) {
-        VideoSharedTransitionDirection.ENTER -> motion.enterEasing
-        VideoSharedTransitionDirection.RETURN -> motion.returnEasing
+        VideoSharedTransitionDirection.ENTER -> motion.enterAlphaEasing
+        VideoSharedTransitionDirection.RETURN -> motion.returnAlphaEasing
     }
 }
 
@@ -345,7 +375,8 @@ internal fun resolveVideoSharedTransitionOwnership(
 internal fun resolveVideoCardSharedTransitionMotionSpec(
     sourceRoute: String?,
     transitionEnabled: Boolean,
-    speedSettings: VideoSharedTransitionSpeedSettings = VideoSharedTransitionSpeedSettings()
+    speedSettings: VideoSharedTransitionSpeedSettings = VideoSharedTransitionSpeedSettings(),
+    isQuickReturn: Boolean = false,
 ): VideoSharedTransitionMotionSpec {
     val enabled = transitionEnabled &&
         !sourceRoute?.substringBefore("?").isNullOrBlank()
@@ -358,8 +389,11 @@ internal fun resolveVideoCardSharedTransitionMotionSpec(
             contentDurationMillis = 0,
             contentSlideOffsetDp = 0,
             contentInitialScale = 1f,
-            enterEasing = VIDEO_CARD_ENTER_EASING,
-            returnEasing = VIDEO_CARD_RETURN_EASING
+            enterSpatialDampingRatio = VIDEO_CARD_HERO_ENTER_SPRING_DAMPING_RATIO,
+            returnSpatialDampingRatio = VIDEO_CARD_RETURN_SPRING_DAMPING_RATIO,
+            spatialStiffness = VIDEO_CARD_HERO_SPRING_REFERENCE_STIFFNESS,
+            enterAlphaEasing = VIDEO_CARD_ALPHA_EASING,
+            returnAlphaEasing = VIDEO_CARD_ALPHA_EASING
         )
     }
     val durationMillis = resolveVideoSharedTransitionDurationMillis(speedSettings)
@@ -368,12 +402,15 @@ internal fun resolveVideoCardSharedTransitionMotionSpec(
         enabled = true,
         durationMillis = durationMillis,
         fullscreenDurationMillis = resolveVideoSharedTransitionFullscreenDurationMillis(durationMillis),
-        contentDelayMillis = HOME_DETAIL_REVEAL_DELAY_MILLIS,
+        contentDelayMillis = if (isQuickReturn) 0 else HOME_DETAIL_REVEAL_DELAY_MILLIS,
         contentDurationMillis = resolveVideoSharedTransitionContentDurationMillis(durationMillis),
         contentSlideOffsetDp = HOME_DETAIL_REVEAL_SLIDE_OFFSET_DP,
         contentInitialScale = HOME_DETAIL_REVEAL_INITIAL_SCALE,
-        enterEasing = VIDEO_CARD_ENTER_EASING,
-        returnEasing = VIDEO_CARD_RETURN_EASING
+        enterSpatialDampingRatio = VIDEO_CARD_HERO_ENTER_SPRING_DAMPING_RATIO,
+        returnSpatialDampingRatio = VIDEO_CARD_RETURN_SPRING_DAMPING_RATIO,
+        spatialStiffness = resolveVideoSharedTransitionSpatialStiffness(durationMillis),
+        enterAlphaEasing = VIDEO_CARD_ALPHA_EASING,
+        returnAlphaEasing = VIDEO_CARD_ALPHA_EASING
     )
 }
 
@@ -398,8 +435,11 @@ internal fun resolveVideoMetadataSharedTransitionMotionSpec(
         contentDurationMillis = durationMillis,
         contentSlideOffsetDp = 0,
         contentInitialScale = 1f,
-        enterEasing = VIDEO_CARD_ENTER_EASING,
-        returnEasing = VIDEO_CARD_RETURN_EASING
+        enterSpatialDampingRatio = VIDEO_CARD_HERO_ENTER_SPRING_DAMPING_RATIO,
+        returnSpatialDampingRatio = VIDEO_CARD_RETURN_SPRING_DAMPING_RATIO,
+        spatialStiffness = resolveVideoSharedTransitionSpatialStiffness(durationMillis),
+        enterAlphaEasing = VIDEO_CARD_ALPHA_EASING,
+        returnAlphaEasing = VIDEO_CARD_ALPHA_EASING
     )
 }
 
@@ -409,9 +449,13 @@ internal fun videoSharedElementBoundsTransformSpec(
     targetBounds: Rect,
     durationMillis: Int = motion.durationMillis
 ): FiniteAnimationSpec<Rect> {
-    return tween(
-        durationMillis = durationMillis,
-        easing = resolveVideoSharedTransitionEasing(motion, initialBounds, targetBounds)
+    val dampingRatio = when (resolveVideoSharedTransitionDirection(initialBounds, targetBounds)) {
+        VideoSharedTransitionDirection.ENTER -> motion.enterSpatialDampingRatio
+        VideoSharedTransitionDirection.RETURN -> motion.returnSpatialDampingRatio
+    }
+    return spring(
+        dampingRatio = dampingRatio,
+        stiffness = resolveVideoSharedTransitionSpatialStiffness(durationMillis)
     )
 }
 
@@ -420,9 +464,13 @@ internal fun videoMetadataSharedElementBoundsTransformSpec(
     initialBounds: Rect,
     targetBounds: Rect
 ): FiniteAnimationSpec<Rect> {
-    return tween(
-        durationMillis = resolveVideoMetadataSharedBoundsDurationMillis(motion),
-        easing = resolveVideoSharedTransitionEasing(motion, initialBounds, targetBounds)
+    val dampingRatio = when (resolveVideoSharedTransitionDirection(initialBounds, targetBounds)) {
+        VideoSharedTransitionDirection.ENTER -> motion.enterSpatialDampingRatio
+        VideoSharedTransitionDirection.RETURN -> motion.returnSpatialDampingRatio
+    }
+    return spring(
+        dampingRatio = dampingRatio,
+        stiffness = motion.spatialStiffness
     )
 }
 

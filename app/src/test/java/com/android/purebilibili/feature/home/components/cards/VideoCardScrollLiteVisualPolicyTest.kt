@@ -114,20 +114,24 @@ class VideoCardScrollLiteVisualPolicyTest {
     }
 
     @Test
-    fun `cover stats participate in video metadata shared bounds`() {
+    fun `cover stats do not claim separate shared bounds when shell owns morph`() {
+        // CARD_SHELL 容器已接管共享元素；封面上的播放量/弹幕不再挂独立 sharedBounds，
+        // 避免与 shell morph / 冻结景深叠层抢 key。
         val source = File("src/main/java/com/android/purebilibili/feature/home/components/cards/VideoCard.kt")
             .readText()
         val coverStatsBlock = source
             .substringAfter("if (scrollLitePolicy.showCompactStatsOnCover) {")
             .substringBefore("//  时长标签")
 
-        assertTrue(coverStatsBlock.contains("videoViewsSharedElementKey"))
-        assertTrue(coverStatsBlock.contains("videoDanmakuSharedElementKey"))
-        assertTrue(coverStatsBlock.contains("sharedBounds("))
+        assertTrue(coverStatsBlock.contains("BoxWithConstraints("))
+        assertFalse(coverStatsBlock.contains("videoViewsSharedElementKey"))
+        assertFalse(coverStatsBlock.contains("sharedBounds("))
+        assertTrue(source.contains("videoCardShellSharedBoundsOrEmpty("))
     }
 
     @Test
-    fun `return target cover disables crossfade during shared transition`() {
+    fun `return target cover disables crossfade during and after shared return`() {
+        // 返回过程中
         assertFalse(
             shouldEnableVideoCardCoverCrossfade(
                 isScrollInProgress = false,
@@ -136,10 +140,39 @@ class VideoCardScrollLiteVisualPolicyTest {
                 isSharedReturnTarget = true
             )
         )
+        // clearReturning 之后仍是 lastClicked 目标：必须继续关 crossfade，否则会再闪一次
+        assertFalse(
+            shouldEnableVideoCardCoverCrossfade(
+                isScrollInProgress = false,
+                isReturningFromDetail = false,
+                useCoverSharedBounds = true,
+                isSharedReturnTarget = true
+            )
+        )
+        // 非返回目标可正常 crossfade
+        assertTrue(
+            shouldEnableVideoCardCoverCrossfade(
+                isScrollInProgress = false,
+                isReturningFromDetail = false,
+                useCoverSharedBounds = true,
+                isSharedReturnTarget = false
+            )
+        )
+    }
+
+    @Test
+    fun `video card cover request remembers crossfade to avoid rebuild flash`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/home/components/cards/VideoCard.kt")
+            .readText()
+        assertTrue(source.contains("val coverImageRequest = remember("))
+        assertTrue(source.contains("coverCrossfadeEnabled"))
+        assertTrue(source.contains(".placeholderMemoryCacheKey(coverCacheKey)"))
+        assertTrue(source.contains("model = coverImageRequest"))
     }
 
     @Test
     fun `non return target cover keeps crossfade`() {
+        // 同屏其它卡：返回会话中仍可 crossfade
         assertTrue(
             shouldEnableVideoCardCoverCrossfade(
                 isScrollInProgress = false,
@@ -148,7 +181,8 @@ class VideoCardScrollLiteVisualPolicyTest {
                 isSharedReturnTarget = false
             )
         )
-        assertTrue(
+        // lastClicked 返回目标：clear 后仍关 crossfade（防落位闪）
+        assertFalse(
             shouldEnableVideoCardCoverCrossfade(
                 isScrollInProgress = false,
                 isReturningFromDetail = false,
@@ -194,65 +228,75 @@ class VideoCardScrollLiteVisualPolicyTest {
     }
 
     @Test
-    fun homeCardCover_hiddenDuringShellEnterMorphOnly() {
+    fun homeCardCover_staysVisibleForEveryReturnPath() {
+        // OPENING：冻结 record 时藏封面
         assertTrue(
             shouldHideHomeCardCoverDuringShellMorph(
                 useCardContainerSharedBounds = true,
                 isSharedMorphSourceCard = true,
                 isReturningFromDetail = false,
-                isSharedTransitionActive = true,
                 transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
                 isVideoCardReturnGestureInProgress = false,
             )
         )
-        assertFalse(
-            shouldHideHomeCardCoverDuringShellMorph(
-                useCardContainerSharedBounds = true,
-                isSharedMorphSourceCard = true,
-                isReturningFromDetail = false,
-                isSharedTransitionActive = false,
-                transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
-                isVideoCardReturnGestureInProgress = false,
-            )
-        )
+        // 提交返回：目标卡片封面始终在落点下方待命，避免落位时露出占位色。
         assertFalse(
             shouldHideHomeCardCoverDuringShellMorph(
                 useCardContainerSharedBounds = true,
                 isSharedMorphSourceCard = true,
                 isReturningFromDetail = true,
-                isSharedTransitionActive = true,
-                transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
+                transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.RETURNING,
                 isVideoCardReturnGestureInProgress = false,
             )
         )
+        // 返回 session 可能比 Compose shared transition 早一帧清理；此时仍必须让目标封面接手。
         assertFalse(
             shouldHideHomeCardCoverDuringShellMorph(
                 useCardContainerSharedBounds = true,
                 isSharedMorphSourceCard = true,
                 isReturningFromDetail = false,
-                isSharedTransitionActive = true,
-                transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.HELD,
-                isVideoCardReturnGestureInProgress = false,
-            )
-        )
-        assertFalse(
-            shouldHideHomeCardCoverDuringShellMorph(
-                useCardContainerSharedBounds = true,
-                isSharedMorphSourceCard = true,
-                isReturningFromDetail = false,
-                isSharedTransitionActive = true,
                 transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.IDLE,
                 isVideoCardReturnGestureInProgress = false,
             )
         )
+        // 落位后：源卡封面立即接手。
+        assertFalse(
+            shouldHideHomeCardCoverDuringShellMorph(
+                useCardContainerSharedBounds = true,
+                isSharedMorphSourceCard = true,
+                isReturningFromDetail = true,
+                transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.IDLE,
+                isVideoCardReturnGestureInProgress = false,
+            )
+        )
+        // 预测跟手（未 mark 返回 session）：来源页封面承担返回预览，不能露出占位色。
         assertFalse(
             shouldHideHomeCardCoverDuringShellMorph(
                 useCardContainerSharedBounds = true,
                 isSharedMorphSourceCard = true,
                 isReturningFromDetail = false,
-                isSharedTransitionActive = true,
+                transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.HELD,
+                isVideoCardReturnGestureInProgress = true,
+            )
+        )
+        // OPENING 被预测返回打断时同样优先显示封面。
+        assertFalse(
+            shouldHideHomeCardCoverDuringShellMorph(
+                useCardContainerSharedBounds = true,
+                isSharedMorphSourceCard = true,
+                isReturningFromDetail = false,
                 transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
                 isVideoCardReturnGestureInProgress = true,
+            )
+        )
+        // 非源卡
+        assertFalse(
+            shouldHideHomeCardCoverDuringShellMorph(
+                useCardContainerSharedBounds = true,
+                isSharedMorphSourceCard = false,
+                isReturningFromDetail = false,
+                transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
+                isVideoCardReturnGestureInProgress = false,
             )
         )
     }

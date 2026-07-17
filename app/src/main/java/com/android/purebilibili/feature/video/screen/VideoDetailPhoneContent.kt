@@ -3,12 +3,16 @@ package com.android.purebilibili.feature.video.screen
 import android.content.Context
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,8 +47,10 @@ import com.android.purebilibili.feature.video.ui.components.resolveBottomInputBa
 import com.android.purebilibili.feature.video.ui.components.shouldUseFloatingLiquidBottomInputBar
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
-import com.android.purebilibili.feature.video.viewmodel.PlayerUiState
-import com.android.purebilibili.feature.video.viewmodel.PlayerViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
+import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
+import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
 import com.android.purebilibili.feature.video.player.PlaylistItem
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -58,10 +64,14 @@ import kotlinx.coroutines.launch
 
 @Composable
 internal fun VideoDetailPhoneSuccessContentLayer(
-    success: PlayerUiState.Success,
+    success: VideoPlaybackUiState.Success,
+    introListState: LazyListState,
+    commentListState: LazyListState,
+    videoContentPagerState: PagerState,
     commentState: CommentUiState,
     commentMemberDecorationsEnabled: Boolean,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
+    engagementViewModel: VideoEngagementViewModel,
     commentViewModel: VideoCommentViewModel,
     context: Context,
     sortPreferenceScope: CoroutineScope,
@@ -70,6 +80,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     hazeState: HazeState,
     isTransitionFinished: Boolean,
     isLeaving: Boolean,
+    rootTransitionOwnsContentAlpha: Boolean,
     shouldShowExternalPlaylistQueueBar: Boolean,
     selectedVideoContentTabIndex: Int,
     useTabletLayout: Boolean,
@@ -104,6 +115,8 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     playlistItems: List<PlaylistItem>,
     onShowExternalPlaylistQueueSheet: () -> Unit
 ) {
+    val engagementState by engagementViewModel.uiState.collectAsStateWithLifecycle()
+    val engagementSuccess = success.withEngagementUiState(engagementState)
     val relatedVideoTransitionEnabled = LocalSharedTransitionEnabled.current
     // Android 16 ART 曾拒绝校验 VideoDetailScreen 中捕获过多状态的匿名 Compose lambda。
     // 保持这个成功态为命名边界，避免 R8/Compose 再生成单个超大内容块。
@@ -128,9 +141,21 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                     )
                 )
                 AnimatedVisibility(
-                    visible = isTransitionFinished && !isLeaving,
-                    enter = detailContentRevealEnter,
-                    exit = detailContentExitFade
+                    visible = shouldShowVideoDetailContent(
+                        isTransitionFinished = isTransitionFinished,
+                        isLeaving = isLeaving,
+                        rootTransitionOwnsContentAlpha = rootTransitionOwnsContentAlpha,
+                    ),
+                    enter = if (rootTransitionOwnsContentAlpha) {
+                        EnterTransition.None
+                    } else {
+                        detailContentRevealEnter
+                    },
+                    exit = if (rootTransitionOwnsContentAlpha) {
+                        ExitTransition.None
+                    } else {
+                        detailContentExitFade
+                    }
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         val homeSettings by SettingsManager
@@ -176,7 +201,10 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                             }
                         ) {
                             VideoContentSection(
-                                info = success.info,
+                                info = engagementSuccess.info,
+                                introListState = introListState,
+                                commentListState = commentListState,
+                                pagerState = videoContentPagerState,
                                 relatedVideos = success.related,
                                 replies = commentState.replies,
                                 replyCount = commentState.replyCount,
@@ -192,14 +220,14 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 onDissolveStart = { rpid -> commentViewModel.startDissolve(rpid) },
                                 onCommentLike = commentViewModel::likeComment,
                                 likedComments = commentState.likedComments,
-                                isFollowing = success.isFollowing,
-                                isFavorited = success.isFavorited,
-                                isLiked = success.isLiked,
-                                coinCount = success.coinCount,
+                                isFollowing = engagementState.isFollowing,
+                                isFavorited = engagementState.isFavorited,
+                                isLiked = engagementState.isLiked,
+                                coinCount = engagementState.coinCount,
                                 currentPageIndex = currentPageIndex,
                                 downloadProgress = downloadProgress,
-                                isInWatchLater = success.isInWatchLater,
-                                followingMids = success.followingMids,
+                                isInWatchLater = engagementState.isInWatchLater,
+                                followingMids = engagementState.followingMids,
                                 videoTags = success.videoTags,
                                 sortMode = commentState.sortMode,
                                 upOnlyFilter = commentState.upOnlyFilter,
@@ -211,13 +239,13 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                     }
                                 },
                                 onUpOnlyToggle = { commentViewModel.toggleUpOnly() },
-                                onFollowClick = { viewModel.toggleFollow() },
+                                onFollowClick = { engagementViewModel.toggleFollow() },
                                 onFavoriteClick = {
                                     openFavoriteFolders(VideoFavoriteEntryPoint.DetailActionRow)
                                 },
-                                onLikeClick = { viewModel.toggleLike() },
-                                onCoinClick = { viewModel.openCoinDialog() },
-                                onTripleClick = { viewModel.doTripleAction() },
+                                onLikeClick = { engagementViewModel.toggleLike() },
+                                onCoinClick = { engagementViewModel.openCoinDialog() },
+                                onTripleClick = { engagementViewModel.doTripleAction() },
                                 onPageSelect = { viewModel.switchPage(it) },
                                 onUpClick = navigateToUserSpaceFromVideo,
                                 onRelatedVideoClick = navigateToRelatedVideo,
@@ -232,7 +260,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 onReportComment = commentViewModel::reportComment,
                                 onToggleTopComment = commentViewModel::toggleTopComment,
                                 onDownloadClick = { viewModel.openDownloadDialog() },
-                                onWatchLaterClick = { viewModel.toggleWatchLater() },
+                                onWatchLaterClick = { engagementViewModel.toggleWatchLater() },
                                 onShareClick = {
                                     onShareVideo(
                                         buildVideoSharePayload(
@@ -323,14 +351,14 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                         if (showFrozenCommentBar) {
                             BottomInputBar(
                                 modifier = Modifier.align(Alignment.BottomCenter),
-                                isLiked = success.isLiked,
-                                isFavorited = success.isFavorited,
-                                isCoined = success.coinCount > 0,
-                                onLikeClick = { viewModel.toggleLike() },
+                                isLiked = engagementState.isLiked,
+                                isFavorited = engagementState.isFavorited,
+                                isCoined = engagementState.coinCount > 0,
+                                onLikeClick = { engagementViewModel.toggleLike() },
                                 onFavoriteClick = {
                                     openFavoriteFolders(VideoFavoriteEntryPoint.BottomInputBar)
                                 },
-                                onCoinClick = { viewModel.openCoinDialog() },
+                                onCoinClick = { engagementViewModel.openCoinDialog() },
                                 onShareClick = {
                                     onShareVideo(
                                         buildVideoSharePayload(

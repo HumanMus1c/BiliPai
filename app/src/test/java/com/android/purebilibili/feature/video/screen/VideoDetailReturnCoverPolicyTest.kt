@@ -9,6 +9,28 @@ import java.io.File
 class VideoDetailReturnCoverPolicyTest {
 
     @Test
+    fun `immediate video back target keeps secondary content visible`() {
+        assertFalse(
+            shouldUseVideoDetailRootTransitionProgress(
+                detailShellSharedBoundsEnabled = true,
+                hasAnimatedVisibilityScope = true,
+                keepLoadedContentForBackPreview = true,
+            )
+        )
+    }
+
+    @Test
+    fun `normal card detail transition still animates secondary content`() {
+        assertTrue(
+            shouldUseVideoDetailRootTransitionProgress(
+                detailShellSharedBoundsEnabled = true,
+                hasAnimatedVisibilityScope = true,
+                keepLoadedContentForBackPreview = false,
+            )
+        )
+    }
+
+    @Test
     fun `predictive cancel keeps the cover until the detail exit transition has settled`() {
         assertTrue(
             shouldTreatVideoDetailCardExitAsReturning(
@@ -155,31 +177,129 @@ class VideoDetailReturnCoverPolicyTest {
     }
 
     @Test
-    fun `predictive exit alone does not switch detail into returning visual state`() {
+    fun `idle detail does not use returning visual without exit or force cover`() {
         assertFalse(
             shouldUseReturningVideoDetailVisualState(
-                forceCoverOnlyForReturn = false
+                forceCoverOnlyForReturn = false,
+                isCardReturnExitInProgress = false,
+                isSessionReturningToCard = false,
             )
         )
     }
 
     @Test
-    fun `explicit return state switches detail into returning visual state`() {
+    fun `committed card return exit enables cover handoff without forceCoverOnly`() {
         assertTrue(
             shouldUseReturningVideoDetailVisualState(
-                forceCoverOnlyForReturn = true
+                forceCoverOnlyForReturn = false,
+                isCardReturnExitInProgress = true,
+            )
+        )
+        assertTrue(
+            shouldUseReturningVideoDetailVisualState(
+                forceCoverOnlyForReturn = false,
+                isSessionReturningToCard = true,
             )
         )
         assertFalse(
-            shouldUseReturningVideoDetailVisualState(
-                forceCoverOnlyForReturn = false
+            resolveForceCoverOnlyForReturn(
+                forceCoverOnlyOnReturn = false,
+                isCardReturnExitInProgress = true,
             )
         )
     }
 
     @Test
-    fun `cover takeover delay keeps a one-frame budget before back navigation`() {
-        assertEquals(16L, resolveCoverTakeoverDelayBeforeBackNavigationMillis())
+    fun `committed return immediately hands visual ownership to resident cover`() {
+        assertEquals(1f, resolveVideoDetailReturnCoverAlpha(0.8f, true, true), 0.0001f)
+        assertEquals(0f, resolveVideoDetailReturnPlayerAlpha(0.8f, true, true), 0.0001f)
+        assertEquals(0f, resolveVideoDetailReturnContentAlpha(0.8f, true), 0.0001f)
+    }
+
+    @Test
+    fun `uncommitted predictive return keeps following transition progress`() {
+        assertEquals(0.2f, resolveVideoDetailReturnCoverAlpha(0.8f, false, true), 0.0001f)
+        assertEquals(0.8f, resolveVideoDetailReturnPlayerAlpha(0.8f, false, true), 0.0001f)
+        assertEquals(0.8f, resolveVideoDetailReturnContentAlpha(0.8f, false), 0.0001f)
+    }
+
+    @Test
+    fun `missing return cover keeps player visible instead of revealing black`() {
+        assertEquals(0f, resolveVideoDetailReturnCoverAlpha(0.2f, true, false), 0.0001f)
+        assertEquals(1f, resolveVideoDetailReturnPlayerAlpha(0.2f, true, false), 0.0001f)
+        assertEquals(0f, resolveVideoDetailReturnContentAlpha(0.2f, true), 0.0001f)
+    }
+
+    @Test
+    fun `return cover player and content read one shared transition progress`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+            .readText()
+
+        assertTrue(source.contains("val detailTransitionProgress ="))
+        assertTrue(source.contains("alpha = resolveVideoDetailReturnCoverAlpha("))
+        assertTrue(source.contains("alpha = resolveVideoDetailReturnPlayerAlpha("))
+        assertTrue(source.contains("alpha = resolveVideoDetailReturnContentAlpha("))
+        assertFalse(source.contains("val coverCrossfadeAlpha ="))
+        assertFalse(source.contains("val playerFadeAlpha ="))
+    }
+
+    @Test
+    fun `shared shell keeps detail content mounted while root transition owns alpha`() {
+        assertTrue(
+            shouldShowVideoDetailContent(
+                isTransitionFinished = true,
+                isLeaving = true,
+                rootTransitionOwnsContentAlpha = true,
+            )
+        )
+        assertFalse(
+            shouldShowVideoDetailContent(
+                isTransitionFinished = true,
+                isLeaving = true,
+                rootTransitionOwnsContentAlpha = false,
+            )
+        )
+    }
+
+    @Test
+    fun `explicit force cover still switches detail into returning visual state`() {
+        assertTrue(
+            shouldUseReturningVideoDetailVisualState(
+                forceCoverOnlyForReturn = true,
+                isCardReturnExitInProgress = false,
+            )
+        )
+    }
+
+    @Test
+    fun `returning visual is wired from exit progress and session for handoff`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+            .readText()
+        val call = source
+            .substringAfter("val useReturningVideoDetailVisualState = shouldUseReturningVideoDetailVisualState(")
+            .substringBefore("val handleTopBarAction")
+        assertTrue(call.contains("isCardReturnExitInProgress = isCardReturnExitInProgress"))
+        assertTrue(call.contains("isSessionReturningToCard = isReturningFromDetail"))
+        assertTrue(source.contains("video-detail-shared-transition-progress"))
+    }
+
+    @Test
+    fun `resident cover starts return without a pre-navigation dead frame`() {
+        assertEquals(0L, resolveCoverTakeoverDelayBeforeBackNavigationMillis())
+    }
+
+    @Test
+    fun `resident return cover reuses the home card image cache`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+            .readText()
+        val requestBlock = source
+            .substringAfter("val residentCoverImageRequest =")
+            .substringBefore("//  播放器容器按当前顶部避让高度计算")
+
+        assertTrue(requestBlock.contains(".crossfade(false)"))
+        assertTrue(requestBlock.contains(".placeholderMemoryCacheKey(sharedCoverCacheKey)"))
+        assertTrue(requestBlock.contains(".memoryCacheKey(sharedCoverCacheKey)"))
+        assertTrue(requestBlock.contains(".diskCacheKey(sharedCoverCacheKey)"))
     }
 
     @Test

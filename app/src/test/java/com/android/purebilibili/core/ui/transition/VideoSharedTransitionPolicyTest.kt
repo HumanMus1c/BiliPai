@@ -1,6 +1,6 @@
 package com.android.purebilibili.core.ui.transition
 
-import com.android.purebilibili.core.ui.motion.AppMotionEasing
+import androidx.compose.animation.core.SpringSpec
 import androidx.compose.ui.geometry.Rect
 import java.io.File
 import kotlin.test.Test
@@ -12,14 +12,53 @@ import kotlin.test.assertTrue
 class VideoSharedTransitionPolicyTest {
 
     @Test
-    fun videoSharedTransitionUsesResponsiveEnterAndBalancedReturnEasing() {
-        val enter = resolveVideoCardSharedTransitionEnterEasing()
-        val returning = resolveVideoCardSharedTransitionReturnEasing()
+    fun videoSharedTransitionUsesHeroFadeCurveForEnterAndReturn() {
+        val motion = resolveVideoCardSharedTransitionMotionSpec(
+            sourceRoute = "home",
+            transitionEnabled = true
+        )
+        val enter = motion.enterAlphaEasing
+        val returning = motion.returnAlphaEasing
 
-        assertSame(AppMotionEasing.EmphasizedEnter, enter)
-        assertTrue(returning.transform(0.1f) in 0.03f..0.06f)
-        assertTrue(returning.transform(0.35f) in 0.54f..0.58f)
-        assertTrue(returning.transform(0.75f) in 0.95f..0.97f)
+        assertSame(enter, returning)
+        assertTrue(enter.transform(0.1f) in 0.02f..0.04f)
+        assertTrue(enter.transform(0.35f) in 0.49f..0.51f)
+        assertTrue(enter.transform(0.75f) in 0.95f..0.97f)
+    }
+
+    @Test
+    fun videoSharedTransitionMapsDurationToBoundedHeroSpring() {
+        assertEquals(500f, resolveVideoSharedTransitionSpatialStiffness(280), 0.001f)
+        assertEquals(390.625f, resolveVideoSharedTransitionSpatialStiffness(320), 0.001f)
+        assertEquals(250f, resolveVideoSharedTransitionSpatialStiffness(400), 0.001f)
+        assertEquals(147.929f, resolveVideoSharedTransitionSpatialStiffness(520), 0.001f)
+        assertEquals(50f, resolveVideoSharedTransitionSpatialStiffness(900), 0.001f)
+    }
+
+    @Test
+    fun videoSharedBoundsUseHeroSpringWithAQuieterReturnLanding() {
+        val motion = resolveVideoCardSharedTransitionMotionSpec(
+            sourceRoute = "home",
+            transitionEnabled = true
+        )
+        val cardBounds = Rect(0f, 0f, 160f, 100f)
+        val detailBounds = Rect(0f, 0f, 360f, 800f)
+
+        val enter = videoSharedElementBoundsTransformSpec(motion, cardBounds, detailBounds)
+        val returning = videoSharedElementBoundsTransformSpec(motion, detailBounds, cardBounds)
+
+        assertTrue(enter is SpringSpec<*>)
+        assertTrue(returning is SpringSpec<*>)
+        assertEquals(0.79f, (enter as SpringSpec<*>).dampingRatio, 0.001f)
+        assertEquals(250f, enter.stiffness, 0.001f)
+        assertEquals(0.86f, (returning as SpringSpec<*>).dampingRatio, 0.001f)
+        assertEquals(enter.stiffness, returning.stiffness, 0.001f)
+    }
+
+    @Test
+    fun videoSharedCoverCacheKeyMatchesTheHomeCardIdentity() {
+        assertEquals("cover_BV1ab411_n", resolveVideoSharedCoverCacheKey(" BV1ab411 "))
+        assertEquals("cover_BV1ab411_s", resolveVideoSharedCoverCacheKey("BV1ab411", true))
     }
 
     @Test
@@ -265,16 +304,17 @@ class VideoSharedTransitionPolicyTest {
         )
 
         assertTrue(motion.enabled)
-        assertEquals(460, motion.durationMillis)
-        assertEquals(540, motion.fullscreenDurationMillis)
+        assertEquals(400, motion.durationMillis)
+        assertEquals(480, motion.fullscreenDurationMillis)
         assertEquals(40, motion.contentDelayMillis)
-        assertEquals(276, motion.contentDurationMillis)
+        assertEquals(240, motion.contentDurationMillis)
         assertEquals(14, motion.contentSlideOffsetDp)
         assertEquals(0.985f, motion.contentInitialScale, 0.0001f)
-        assertTrue(motion.enterEasing.transform(0.35f) > 0.7f)
-        assertTrue(motion.enterEasing.transform(0.35f) < 0.9f)
-        assertTrue(motion.enterEasing.transform(0.75f) > 0.96f)
-        assertTrue(motion.returnEasing.transform(0.35f) in 0.54f..0.58f)
+        assertEquals(0.79f, motion.enterSpatialDampingRatio, 0.001f)
+        assertEquals(0.86f, motion.returnSpatialDampingRatio, 0.001f)
+        assertEquals(250f, motion.spatialStiffness, 0.001f)
+        assertSame(motion.enterAlphaEasing, motion.returnAlphaEasing)
+        assertTrue(motion.enterAlphaEasing.transform(0.35f) in 0.49f..0.51f)
     }
 
     @Test
@@ -285,9 +325,23 @@ class VideoSharedTransitionPolicyTest {
             speedSettings = VideoSharedTransitionSpeedSettings(VideoSharedTransitionSpeed.FAST)
         )
 
-        assertEquals(360, motion.durationMillis)
-        assertEquals(440, motion.fullscreenDurationMillis)
+        assertEquals(320, motion.durationMillis)
+        assertEquals(400, motion.fullscreenDurationMillis)
         assertEquals(220, motion.contentDurationMillis)
+    }
+
+    @Test
+    fun videoCardSharedTransitionMotion_keepsMasterTimelineForQuickReturn() {
+        val motion = resolveVideoCardSharedTransitionMotionSpec(
+            sourceRoute = "home",
+            transitionEnabled = true,
+            isQuickReturn = true,
+        )
+
+        assertEquals(400, motion.durationMillis)
+        assertEquals(0, motion.contentDelayMillis)
+        assertEquals(240, motion.contentDurationMillis)
+        assertEquals(480, motion.fullscreenDurationMillis)
     }
 
     @Test
@@ -298,9 +352,9 @@ class VideoSharedTransitionPolicyTest {
             speedSettings = VideoSharedTransitionSpeedSettings(VideoSharedTransitionSpeed.SLOW)
         )
 
-        assertEquals(560, motion.durationMillis)
-        assertEquals(640, motion.fullscreenDurationMillis)
-        assertEquals(336, motion.contentDurationMillis)
+        assertEquals(520, motion.durationMillis)
+        assertEquals(600, motion.fullscreenDurationMillis)
+        assertEquals(312, motion.contentDurationMillis)
     }
 
     @Test
@@ -351,9 +405,9 @@ class VideoSharedTransitionPolicyTest {
         assertEquals(coverMotion.durationMillis, metadataMotion.durationMillis)
         assertEquals(coverMotion.fullscreenDurationMillis, metadataMotion.fullscreenDurationMillis)
         assertEquals(0, metadataMotion.contentDelayMillis)
-        assertSame(coverMotion.enterEasing, metadataMotion.enterEasing)
-        assertSame(coverMotion.returnEasing, metadataMotion.returnEasing)
-        assertEquals(331, resolveVideoMetadataSharedBoundsDurationMillis(metadataMotion))
+        assertSame(coverMotion.enterAlphaEasing, metadataMotion.enterAlphaEasing)
+        assertSame(coverMotion.returnAlphaEasing, metadataMotion.returnAlphaEasing)
+        assertEquals(288, resolveVideoMetadataSharedBoundsDurationMillis(metadataMotion))
         assertTrue(resolveVideoMetadataSharedBoundsDurationMillis(metadataMotion) < metadataMotion.durationMillis)
     }
 
@@ -413,7 +467,7 @@ class VideoSharedTransitionPolicyTest {
         )
 
         assertTrue(motion.enabled)
-        assertEquals(460, motion.durationMillis)
+        assertEquals(400, motion.durationMillis)
     }
 
     @Test
@@ -549,7 +603,7 @@ class VideoSharedTransitionPolicyTest {
     }
 
     @Test
-    fun detailReturnFade_onlyAppliesToImmediatePlaybackProfile() {
+    fun detailReturnFade_playerOnlyForImmediate_coverForAnyLeaving() {
         assertTrue(
             shouldFadePlayerSurfaceOnDetailReturn(
                 isLeaving = true,
@@ -568,16 +622,23 @@ class VideoSharedTransitionPolicyTest {
                 playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback
             )
         )
+        // 返回过程必须看得见封面（不限播放意图）
         assertTrue(
             shouldUseDetailReturnCoverCrossfade(
                 isLeaving = true,
                 playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback
             )
         )
-        assertFalse(
+        assertTrue(
             shouldUseDetailReturnCoverCrossfade(
                 isLeaving = true,
                 playbackIntent = VideoSharedTransitionPlaybackIntent.CoverFirst
+            )
+        )
+        assertFalse(
+            shouldUseDetailReturnCoverCrossfade(
+                isLeaving = false,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback
             )
         )
     }

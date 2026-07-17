@@ -45,11 +45,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -118,8 +121,14 @@ import com.android.purebilibili.feature.video.ui.components.CollectionRow
 import com.android.purebilibili.feature.video.ui.components.CollectionSheet
 import com.android.purebilibili.feature.video.ui.components.PagesSelector
 // Imports for moved classes
-import com.android.purebilibili.feature.video.viewmodel.PlayerViewModel
-import com.android.purebilibili.feature.video.viewmodel.PlayerUiState
+import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
+import com.android.purebilibili.feature.video.viewmodel.VideoComposerViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementEvent
+import com.android.purebilibili.feature.video.viewmodel.VideoSupplementViewModel
+import com.android.purebilibili.feature.video.viewmodel.toEngagementSeed
+import com.android.purebilibili.feature.video.viewmodel.toSupplementSeed
 import com.android.purebilibili.feature.video.viewmodel.QualitySwitchFailureDialogState
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
@@ -157,6 +166,7 @@ import kotlinx.coroutines.launch
 //  共享元素过渡
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.android.purebilibili.core.ui.LocalPredictiveBackGestureEnabled
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
@@ -164,12 +174,11 @@ import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlayback
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionEnterEasing
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionReturnEasing
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedCoverCacheKey
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
-import com.android.purebilibili.core.ui.transition.shouldFadePlayerSurfaceOnDetailReturn
-import com.android.purebilibili.core.ui.transition.shouldUseDetailReturnCoverCrossfade
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellContainerTransform
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
@@ -221,11 +230,14 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Stable
-private class InlinePortraitPlayerCollapseState {
-    var offsetPx by mutableFloatStateOf(0f)
+private class InlinePortraitPlayerCollapseState(
+    initialOffsetPx: Float = 0f,
+    initialRestoreRequested: Boolean = false
+) {
+    var offsetPx by mutableFloatStateOf(initialOffsetPx)
         private set
 
-    var restoreRequested by mutableStateOf(false)
+    var restoreRequested by mutableStateOf(initialRestoreRequested)
         private set
 
     fun updateOffset(value: Float) {
@@ -245,11 +257,25 @@ private class InlinePortraitPlayerCollapseState {
         offsetPx = 0f
         restoreRequested = true
     }
+
+    companion object {
+        val Saver = listSaver<InlinePortraitPlayerCollapseState, Any>(
+            save = { listOf(it.offsetPx, it.restoreRequested) },
+            restore = {
+                InlinePortraitPlayerCollapseState(
+                    initialOffsetPx = it[0] as Float,
+                    initialRestoreRequested = it[1] as Boolean
+                )
+            }
+        )
+    }
 }
 
 @Composable
-private fun rememberInlinePortraitPlayerCollapseState() =
-    remember { InlinePortraitPlayerCollapseState() }
+private fun rememberInlinePortraitPlayerCollapseState(videoBvid: String) =
+    rememberSaveable(videoBvid, saver = InlinePortraitPlayerCollapseState.Saver) {
+        InlinePortraitPlayerCollapseState()
+    }
 
 internal fun shouldHandleVideoDetailDisposeAsNavigationExit(
     isNavigatingToAudioMode: Boolean,
@@ -284,7 +310,7 @@ internal fun shouldClearStaleReturningStateOnVideoDetailEnter(
     return isReturningFromDetail
 }
 
-private const val COVER_TAKEOVER_PRE_BACK_DELAY_MILLIS = 16L
+private const val COVER_TAKEOVER_PRE_BACK_DELAY_MILLIS = 0L
 internal const val VIDEO_CONTENT_COMMENT_TAB_INDEX = 1
 
 internal fun resolveForceCoverOnlyForReturn(
@@ -296,10 +322,51 @@ internal fun resolveForceCoverOnlyForReturn(
     return forceCoverOnlyOnReturn
 }
 
+/**
+ * 返回视觉（封面叠层 + 播放器淡出）：
+ * - 显式 forceCoverOnly
+ * - 已提交的卡片回收退出（PostExit + sharedBounds）
+ * - 或 session 已标记返回卡片（顶栏 markReturning 后 / 栈返回中）——尽早叠封面，
+ *   避免「整段 return 只有播放器/黑底，落位才出封面」
+ *
+ * 预测拖动未提交时 isSessionReturningToCard 应为 false（尚未 markReturning）。
+ */
 internal fun shouldUseReturningVideoDetailVisualState(
-    forceCoverOnlyForReturn: Boolean
+    forceCoverOnlyForReturn: Boolean,
+    isCardReturnExitInProgress: Boolean = false,
+    isSessionReturningToCard: Boolean = false,
 ): Boolean {
-    return forceCoverOnlyForReturn
+    return forceCoverOnlyForReturn ||
+        isCardReturnExitInProgress ||
+        isSessionReturningToCard
+}
+
+internal fun resolveVideoDetailReturnCoverAlpha(
+    transitionProgress: Float,
+    isCommittedCardReturn: Boolean,
+    hasResidentCover: Boolean,
+): Float {
+    val progress = transitionProgress.coerceIn(0f, 1f)
+    return if (hasResidentCover && isCommittedCardReturn) 1f
+    else if (hasResidentCover) 1f - progress
+    else 0f
+}
+
+internal fun resolveVideoDetailReturnPlayerAlpha(
+    transitionProgress: Float,
+    isCommittedCardReturn: Boolean,
+    hasResidentCover: Boolean,
+): Float {
+    if (isCommittedCardReturn) return if (hasResidentCover) 0f else 1f
+    return transitionProgress.coerceIn(0f, 1f)
+}
+
+internal fun resolveVideoDetailReturnContentAlpha(
+    transitionProgress: Float,
+    isCommittedCardReturn: Boolean,
+): Float {
+    if (isCommittedCardReturn) return 0f
+    return transitionProgress.coerceIn(0f, 1f)
 }
 
 internal fun shouldTreatVideoDetailCardExitAsReturning(
@@ -319,7 +386,26 @@ internal fun shouldForceBackPreviewPlayerCover(
     return keepLoadedContentForBackPreview && !bindLivePlayerForBackPreview
 }
 
+internal fun shouldUseVideoDetailRootTransitionProgress(
+    detailShellSharedBoundsEnabled: Boolean,
+    hasAnimatedVisibilityScope: Boolean,
+    keepLoadedContentForBackPreview: Boolean,
+): Boolean {
+    return detailShellSharedBoundsEnabled &&
+        hasAnimatedVisibilityScope &&
+        !keepLoadedContentForBackPreview
+}
+
+internal fun shouldShowVideoDetailContent(
+    isTransitionFinished: Boolean,
+    isLeaving: Boolean,
+    rootTransitionOwnsContentAlpha: Boolean,
+): Boolean {
+    return isTransitionFinished && (!isLeaving || rootTransitionOwnsContentAlpha)
+}
+
 internal fun resolveCoverTakeoverDelayBeforeBackNavigationMillis(): Long {
+    // 封面常驻并直接读取根过渡进度，不再需要先抢一帧切换封面再导航。
     return COVER_TAKEOVER_PRE_BACK_DELAY_MILLIS
 }
 
@@ -663,15 +749,13 @@ internal data class VideoDetailSecondaryContentTiming(
 
 internal fun resolveVideoDetailSecondaryContentTiming(
     fullDurationMillis: Int,
-    enterDelayMillis: Int,
-    enterDurationMillis: Int
 ): VideoDetailSecondaryContentTiming {
     val safeDuration = fullDurationMillis.coerceAtLeast(0)
     return VideoDetailSecondaryContentTiming(
-        enterDelayMillis = enterDelayMillis.coerceAtLeast(0),
-        enterDurationMillis = enterDurationMillis.coerceAtLeast(0),
+        enterDelayMillis = 0,
+        enterDurationMillis = safeDuration,
         returnDelayMillis = 0,
-        returnDurationMillis = (safeDuration * 0.4f).roundToInt()
+        returnDurationMillis = safeDuration
     )
 }
 
@@ -971,6 +1055,18 @@ internal fun shouldSyncMainPlayerToInternalBvid(
     return resolvedLoadedCid != targetCid
 }
 
+internal fun resolveVideoDetailPlaybackTargetCid(
+    routeBvid: String,
+    routeCid: Long,
+    currentBvid: String,
+    currentBvidCid: Long
+): Long {
+    currentBvidCid.takeIf { it > 0L }?.let { return it }
+    return routeCid.takeIf {
+        it > 0L && currentBvid.trim() == routeBvid.trim()
+    } ?: 0L
+}
+
 internal fun resolveAutoPlayOverrideForInternalBvidSync(
     forceAutoPlay: Boolean
 ): Boolean? {
@@ -1026,11 +1122,12 @@ private fun PortraitInlineVideoPlayerHost(
     inlinePlayerScale: Float,
     context: Context,
     playerState: VideoPlayerState,
-    uiState: PlayerUiState,
+    uiState: VideoPlaybackUiState,
     isPipMode: Boolean,
     transitionEnabled: Boolean,
     onToggleFullscreen: () -> Unit,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
+    onDoubleTapLike: () -> Unit,
     onBack: () -> Unit,
     onHomeClick: () -> Unit,
     videoPlayerSectionTarget: VideoPlayerSectionTarget,
@@ -1058,7 +1155,7 @@ private fun PortraitInlineVideoPlayerHost(
     subtitleDisplayModePreferenceOverride: SubtitleDisplayMode?,
     onSubtitleDisplayModePreferenceOverrideChange: (SubtitleDisplayMode) -> Unit
 ) {
-    val successState = uiState as? PlayerUiState.Success
+    val successState = uiState as? VideoPlaybackUiState.Success
 
     Box(
         modifier = modifier
@@ -1084,7 +1181,7 @@ private fun PortraitInlineVideoPlayerHost(
             onDanmakuInputClick = { viewModel.showDanmakuSendDialog() },
             bvid = videoPlayerSectionTarget.bvid,
             coverUrl = videoPlayerSectionTarget.entryCoverUrl,
-            onDoubleTapLike = { viewModel.toggleLike() },
+            onDoubleTapLike = onDoubleTapLike,
             sponsorSegment = sponsorSegment,
             showSponsorSkipButton = showSponsorSkipButton,
             onSponsorSkip = { viewModel.skipCurrentSponsorSegment() },
@@ -1175,7 +1272,10 @@ fun VideoDetailScreen(
     miniPlayerManager: MiniPlayerManager? = null,
     isInPipMode: Boolean = false,
     isVisible: Boolean = true,
-    viewModel: PlayerViewModel = viewModel(),
+    viewModel: VideoPlaybackViewModel = viewModel(),
+    engagementViewModel: VideoEngagementViewModel = viewModel(),
+    composerViewModel: VideoComposerViewModel = viewModel(),
+    supplementViewModel: VideoSupplementViewModel = viewModel(),
     commentViewModel: VideoCommentViewModel = viewModel(),
     onBgmClick: (BgmInfo) -> Unit = {}
 ) {
@@ -1194,12 +1294,14 @@ fun VideoDetailScreen(
     val homeSharedTransitionMotionSpec = remember(
         sourceRouteForSharedElement,
         transitionEnabled,
-        sharedTransitionSpeedSettings
+        sharedTransitionSpeedSettings,
+        isQuickReturningFromDetail,
     ) {
         resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = sourceRouteForSharedElement,
             transitionEnabled = transitionEnabled,
-            speedSettings = sharedTransitionSpeedSettings
+            speedSettings = sharedTransitionSpeedSettings,
+            isQuickReturn = isQuickReturningFromDetail,
         )
     }
     val sharedTransitionSourceCornerDp = remember(sourceRouteForSharedElement) {
@@ -1219,7 +1321,48 @@ fun VideoDetailScreen(
         )
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val subjectSnapshot by viewModel.subjectSnapshot.collectAsStateWithLifecycle()
+    val engagementState by engagementViewModel.uiState.collectAsStateWithLifecycle()
+    val favoriteFolderSaveEvent by viewModel.favoriteFolderSaveEvent.collectAsStateWithLifecycle()
     val resumePlaybackSuggestion by viewModel.resumePlaybackSuggestion.collectAsStateWithLifecycle()
+    LaunchedEffect(context) {
+        engagementViewModel.initWithContext(context)
+    }
+    LaunchedEffect(engagementViewModel) {
+        engagementViewModel.events.collect { event ->
+            when (event) {
+                is VideoEngagementEvent.Message -> viewModel.toast(event.text)
+                is VideoEngagementEvent.OpenFollowGroups ->
+                    viewModel.showFollowGroupDialogForUser(event.mid)
+                is VideoEngagementEvent.LoadVideo -> viewModel.loadVideo(event.bvid, autoPlay = true)
+                VideoEngagementEvent.InvalidateFavoriteFolders ->
+                    viewModel.invalidateFavoriteFolderCache()
+            }
+        }
+    }
+    val engagementSeed = (uiState as? VideoPlaybackUiState.Success)?.toEngagementSeed()
+    val supplementSeed = (uiState as? VideoPlaybackUiState.Success)?.toSupplementSeed()
+    LaunchedEffect(subjectSnapshot, engagementSeed) {
+        val subject = subjectSnapshot ?: return@LaunchedEffect
+        val seed = engagementSeed ?: return@LaunchedEffect
+        engagementViewModel.bindSubject(subject, seed)
+        composerViewModel.bindSubject(subject)
+    }
+    LaunchedEffect(subjectSnapshot, supplementSeed) {
+        val subject = subjectSnapshot ?: return@LaunchedEffect
+        val seed = supplementSeed ?: return@LaunchedEffect
+        supplementViewModel.bindSubject(subject, seed)
+    }
+    LaunchedEffect(favoriteFolderSaveEvent?.version) {
+        favoriteFolderSaveEvent?.let { event ->
+            if (subjectSnapshot?.aid == event.aid) {
+                engagementViewModel.applyFavoriteFolderResult(event.isFavorited)
+            }
+        }
+    }
+    LaunchedEffect(isVisible) {
+        supplementViewModel.setVisible(isVisible)
+    }
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
     var isNavigatingToVideo by remember { mutableStateOf(false) }
     var isNavigatingToAudioMode by remember { mutableStateOf(false) }
@@ -1234,6 +1377,21 @@ fun VideoDetailScreen(
     // 🔄 [Seamless Playback] Internal BVID state to support seamless switching in portrait mode
     var currentBvid by rememberSaveable(bvid) { mutableStateOf(bvid) }
     var currentBvidCid by rememberSaveable { mutableLongStateOf(0L) }
+    val playbackTargetCid = resolveVideoDetailPlaybackTargetCid(
+        routeBvid = bvid,
+        routeCid = cid,
+        currentBvid = currentBvid,
+        currentBvidCid = currentBvidCid
+    )
+    val introListState = rememberSaveable(currentBvid, saver = LazyListState.Saver) {
+        LazyListState()
+    }
+    val commentListState = rememberSaveable(currentBvid, saver = LazyListState.Saver) {
+        LazyListState()
+    }
+    val videoContentPagerState: PagerState = key(currentBvid) {
+        rememberPagerState(pageCount = { 2 })
+    }
 
     val entryRootAnimatedVisibilityScope = LocalAnimatedVisibilityScope.current
     val entryRootSharedTransitionScope = LocalSharedTransitionScope.current
@@ -1243,7 +1401,7 @@ fun VideoDetailScreen(
         hasSharedTransitionScope = entryRootSharedTransitionScope != null,
         hasAnimatedVisibilityScope = entryRootAnimatedVisibilityScope != null
     )
-    val reuseFromMiniPlayerAtEntry = remember(currentBvid, cid, miniPlayerManager) {
+    val reuseFromMiniPlayerAtEntry = remember(currentBvid, playbackTargetCid, miniPlayerManager) {
         val manager = miniPlayerManager
         if (manager == null) {
             false
@@ -1254,7 +1412,7 @@ fun VideoDetailScreen(
                 miniPlayerCid = manager.currentCid,
                 hasMiniPlayerInstance = manager.player != null,
                 requestBvid = currentBvid,
-                requestCid = cid
+                requestCid = playbackTargetCid
             )
         }
     }
@@ -1295,7 +1453,7 @@ fun VideoDetailScreen(
         val normalizedBvid = targetBvid.trim()
         if (normalizedBvid.isBlank()) return
         val safeCid = targetCid.coerceAtLeast(0L)
-        val success = uiState as? PlayerUiState.Success
+        val success = uiState as? VideoPlaybackUiState.Success
         if (success?.info?.bvid == normalizedBvid && (safeCid <= 0L || success.info.cid == safeCid)) {
             return
         }
@@ -1310,7 +1468,7 @@ fun VideoDetailScreen(
 
     val navigateToRelatedVideo = remember(onVideoClick, miniPlayerManager, uiState, currentBvid) {
         { targetBvid: String, options: android.os.Bundle? ->
-            val success = uiState as? PlayerUiState.Success
+            val success = uiState as? VideoPlaybackUiState.Success
             val explicitCid = options?.getLong(VIDEO_NAV_TARGET_CID_KEY) ?: 0L
             val resolvedCid = resolveNavigationTargetCid(
                 targetBvid = targetBvid,
@@ -1488,7 +1646,7 @@ fun VideoDetailScreen(
         CommentSortMode.fromApiMode(commentDefaultSortMode)
     }
     LaunchedEffect(commentFraudDetectionEnabled, uiState) {
-        val success = uiState as? PlayerUiState.Success ?: return@LaunchedEffect
+        val success = uiState as? VideoPlaybackUiState.Success ?: return@LaunchedEffect
         viewModel.commentSentEvent.collect { reply ->
             commentViewModel.onExternalCommentSent(
                 aid = success.info.aid,
@@ -1663,7 +1821,7 @@ fun VideoDetailScreen(
     }
     val openFavoriteFolders: (VideoFavoriteEntryPoint) -> Unit = { entryPoint ->
         when (resolveVideoFavoriteAction(entryPoint)) {
-            VideoFavoriteAction.ToggleFavorite -> viewModel.toggleFavorite()
+            VideoFavoriteAction.ToggleFavorite -> engagementViewModel.toggleFavorite()
         }
     }
 
@@ -1719,7 +1877,7 @@ fun VideoDetailScreen(
         if (shouldAutoEnterAudioModeFromRoute(
                 startAudioFromRoute = startAudioFromRoute,
                 hasAutoEnteredAudioMode = hasAutoEnteredAudioMode,
-                isVideoLoadSuccess = uiState is PlayerUiState.Success
+                isVideoLoadSuccess = uiState is VideoPlaybackUiState.Success
             )
         ) {
             hasAutoEnteredAudioMode = true
@@ -1821,32 +1979,33 @@ fun VideoDetailScreen(
     val secondaryContentTiming = remember(homeSharedTransitionMotionSpec) {
         resolveVideoDetailSecondaryContentTiming(
             fullDurationMillis = homeSharedTransitionMotionSpec.durationMillis,
-            enterDelayMillis = homeSharedTransitionMotionSpec.contentDelayMillis,
-            enterDurationMillis = homeSharedTransitionMotionSpec.contentDurationMillis
         )
     }
-    val detailSecondaryContentAlpha = if (
-        detailShellSharedBoundsEnabled && rootAnimatedVisibilityScope != null
+    val detailTransitionProgress = if (shouldUseVideoDetailRootTransitionProgress(
+            detailShellSharedBoundsEnabled = detailShellSharedBoundsEnabled,
+            hasAnimatedVisibilityScope = rootAnimatedVisibilityScope != null,
+            keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
+        )
     ) {
-        rootAnimatedVisibilityScope.transition.animateFloat(
+        requireNotNull(rootAnimatedVisibilityScope).transition.animateFloat(
             transitionSpec = {
                 if (targetState == EnterExitState.PostExit) {
                     tween(
                         durationMillis = secondaryContentTiming.returnDurationMillis,
                         delayMillis = secondaryContentTiming.returnDelayMillis,
-                        easing = homeSharedTransitionMotionSpec.returnEasing
+                        easing = homeSharedTransitionMotionSpec.returnAlphaEasing
                     )
                 } else {
                     tween(
                         durationMillis = secondaryContentTiming.enterDurationMillis,
                         delayMillis = secondaryContentTiming.enterDelayMillis,
-                        easing = homeSharedTransitionMotionSpec.enterEasing
+                        easing = homeSharedTransitionMotionSpec.enterAlphaEasing
                     )
                 }
             },
-            label = "video-detail-card-return-secondary-content"
+            label = "video-detail-shared-transition-progress"
         ) { state ->
-            if (state == EnterExitState.PostExit) 0f else 1f
+            if (state == EnterExitState.Visible) 1f else 0f
         }
     } else {
         remember { mutableFloatStateOf(1f) }
@@ -1890,9 +2049,19 @@ fun VideoDetailScreen(
         transitionEnabled = transitionEnabled,
         isCardReturnExitInProgress = isCardReturnExitInProgress
     )
+    // 提交返回 / session 已 mark 返回：叠已缓存封面并淡出 surface，但不 forceCoverOnly
+    //（保留 shell/player 容器参与 sharedBounds，避免 key 被拆掉）。
     val useReturningVideoDetailVisualState = shouldUseReturningVideoDetailVisualState(
-        forceCoverOnlyForReturn = forceCoverOnlyForReturn
+        forceCoverOnlyForReturn = forceCoverOnlyForReturn,
+        isCardReturnExitInProgress = isCardReturnExitInProgress,
+        isSessionReturningToCard = isReturningFromDetail &&
+            transitionEnabled &&
+            sharedBoundsActive &&
+            !keepLoadedContentForBackPreview,
     )
+    val hasResidentReturnCover = coverUrl.isNotBlank()
+    val useResidentCoverForCommittedReturn =
+        useReturningVideoDetailVisualState && hasResidentReturnCover
 
     val handleTopBarAction = remember(
         miniPlayerManager,
@@ -2289,7 +2458,7 @@ fun VideoDetailScreen(
         context = context,
         viewModel = viewModel,
         bvid = currentBvid,
-        cid = cid,
+        cid = playbackTargetCid,
         fallbackResumePositionMs = resumePositionMsFromRoute,
         startPaused = isPortraitFullscreen && !useSharedPortraitPlayer,
         entryTransitionFinished = entryTransitionFinished,
@@ -2455,7 +2624,7 @@ fun VideoDetailScreen(
         systemMuted || playerState.player.volume <= 0f
     }
     val subtitlePreferenceSession = remember(uiState, currentBvid, subtitleAutoPreference, subtitleAutoModeMuted) {
-        val success = uiState as? PlayerUiState.Success
+        val success = uiState as? VideoPlaybackUiState.Success
         if (success == null) {
             resolveSubtitlePreferenceSession(
                 bvid = currentBvid,
@@ -2507,7 +2676,7 @@ fun VideoDetailScreen(
     var hasAppliedInitialPageSwitch by remember(currentBvid, cid) { mutableStateOf(false) }
     LaunchedEffect(uiState, currentBvid, cid, hasAppliedInitialPageSwitch) {
         if (hasAppliedInitialPageSwitch) return@LaunchedEffect
-        val success = uiState as? PlayerUiState.Success ?: return@LaunchedEffect
+        val success = uiState as? VideoPlaybackUiState.Success ?: return@LaunchedEffect
         if (success.info.bvid != currentBvid) return@LaunchedEffect
 
         val targetPageIndex = resolveInitialPageIndex(
@@ -2714,13 +2883,13 @@ fun VideoDetailScreen(
     val allowStandalonePortraitExperience = portraitExperienceEnabled &&
         !useOfficialInlinePortraitDetailExperience
     val isCurrentRouteVideoLoaded = remember(uiState, currentBvid) {
-        val success = uiState as? PlayerUiState.Success
+        val success = uiState as? VideoPlaybackUiState.Success
         success?.info?.bvid == currentBvid
     }
     val enterPortraitFullscreen = {
         if (shouldActivatePortraitFullscreenState(portraitExperienceEnabled)) {
-            portraitSyncSnapshotBvid = (uiState as? PlayerUiState.Success)?.info?.bvid
-            portraitSyncSnapshotCid = (uiState as? PlayerUiState.Success)?.info?.cid ?: 0L
+            portraitSyncSnapshotBvid = (uiState as? VideoPlaybackUiState.Success)?.info?.bvid
+            portraitSyncSnapshotCid = (uiState as? VideoPlaybackUiState.Success)?.info?.cid ?: 0L
             portraitSyncSnapshotPositionMs = playerState.player.currentPosition.coerceAtLeast(0L)
             hasPendingPortraitSync = false
             isPortraitFullscreen = true
@@ -2760,7 +2929,7 @@ fun VideoDetailScreen(
 
     val tryApplyPortraitProgressSync = remember(playerState, viewModel) {
         { snapshotBvid: String?, snapshotPositionMs: Long ->
-            val currentSuccess = viewModel.uiState.value as? PlayerUiState.Success
+            val currentSuccess = viewModel.uiState.value as? VideoPlaybackUiState.Success
             val currentBvid = currentSuccess?.info?.bvid
             val currentCid = currentSuccess?.info?.cid ?: 0L
             if (!com.android.purebilibili.feature.video.ui.pager.shouldApplyPortraitProgressSync(
@@ -2804,8 +2973,8 @@ fun VideoDetailScreen(
                 playerState.player.volume = 0f
                 playerState.player.playWhenReady = false
             }
-            portraitSyncSnapshotBvid = (uiState as? PlayerUiState.Success)?.info?.bvid
-            portraitSyncSnapshotCid = (uiState as? PlayerUiState.Success)?.info?.cid ?: 0L
+            portraitSyncSnapshotBvid = (uiState as? VideoPlaybackUiState.Success)?.info?.bvid
+            portraitSyncSnapshotCid = (uiState as? VideoPlaybackUiState.Success)?.info?.cid ?: 0L
             portraitSyncSnapshotPositionMs = playerState.player.currentPosition.coerceAtLeast(0L)
             hasPendingPortraitSync = shouldPauseMainPlayer
         } else {
@@ -2881,7 +3050,7 @@ fun VideoDetailScreen(
 
     LaunchedEffect(uiState, currentBvid, currentBvidCid, isPortraitFullscreen, bvid, isVisible) {
         if (!isVisible) return@LaunchedEffect
-        val success = uiState as? PlayerUiState.Success ?: return@LaunchedEffect
+        val success = uiState as? VideoPlaybackUiState.Success ?: return@LaunchedEffect
         if (!shouldSyncMainPlayerToInternalBvid(
                 isPortraitFullscreen = isPortraitFullscreen,
                 routeBvid = bvid,
@@ -2923,7 +3092,7 @@ fun VideoDetailScreen(
             )
 
             // 1. 将当前播放器信息传递给小窗管理器
-            val info = uiState as? PlayerUiState.Success
+            val info = uiState as? VideoPlaybackUiState.Success
             manager.setVideoInfo(
                 bvid = currentBvid,
                 title = info?.info?.title ?: "",
@@ -2952,9 +3121,9 @@ fun VideoDetailScreen(
 
     //  核心修改：初始化评论 & 媒体中心信息
     LaunchedEffect(uiState, isVisible) {
-        if (uiState is PlayerUiState.Success) {
-            val info = (uiState as PlayerUiState.Success).info
-            val success = uiState as PlayerUiState.Success
+        if (uiState is VideoPlaybackUiState.Success) {
+            val info = (uiState as VideoPlaybackUiState.Success).info
+            val success = uiState as VideoPlaybackUiState.Success
 
             // 初始化评论（传入 UP 主 mid 用于筛选）- 保持在主线程
             commentViewModel.init(
@@ -3006,7 +3175,7 @@ fun VideoDetailScreen(
             } else if (miniPlayerManager == null) {
                 android.util.Log.w("VideoDetailScreen", " miniPlayerManager 是 null!")
             }
-        } else if (uiState is PlayerUiState.Loading) {
+        } else if (uiState is VideoPlaybackUiState.Loading) {
             playerState.updateMediaMetadata(
                 title = "加载中...",
                 artist = "",
@@ -3041,9 +3210,11 @@ fun VideoDetailScreen(
         isPortraitFullscreen = isPortraitFullscreen,
     )
     val localBackEventState = rememberNavigationEventState(NavigationEventInfo.None)
+    val predictiveBackGestureEnabled = LocalPredictiveBackGestureEnabled.current
     NavigationBackHandler(
         state = localBackEventState,
         isBackEnabled = localBackTarget != VideoDetailLocalBackTarget.NAVIGATE_BACK,
+        reportPredictiveProgress = predictiveBackGestureEnabled,
         onBackCompleted = { commitTransition: () -> Unit ->
             when (localBackTarget) {
                 VideoDetailLocalBackTarget.EXIT_PORTRAIT_FULLSCREEN -> isPortraitFullscreen = false
@@ -3107,7 +3278,7 @@ fun VideoDetailScreen(
         )
     }
 
-    val uiSuccessState = uiState as? PlayerUiState.Success
+    val uiSuccessState = uiState as? VideoPlaybackUiState.Success
     val videoPlayerSectionTarget = remember(bvid, coverUrl, currentBvid) {
         resolveVideoPlayerSectionTarget(
             routeBvid = bvid,
@@ -3185,7 +3356,7 @@ fun VideoDetailScreen(
                     bvid = videoPlayerSectionTarget.bvid,
                     coverUrl = videoPlayerSectionTarget.entryCoverUrl,
                     //  实验性功能：双击点赞
-                    onDoubleTapLike = { viewModel.toggleLike() },
+                    onDoubleTapLike = { engagementViewModel.toggleLike() },
                     sponsorSegment = sponsorSegment,
                     showSponsorSkipButton = showSponsorSkipButton,
                     onSponsorSkip = { viewModel.skipCurrentSponsorSegment() },
@@ -3193,9 +3364,9 @@ fun VideoDetailScreen(
                     //  [新增] 重载视频
                     onReloadVideo = { viewModel.reloadVideo() },
                     //  [新增] CDN 线路切换
-                    cdnCount = (uiState as? PlayerUiState.Success)?.cdnCount ?: 1,
-                    cdnLineDiagnostics = (uiState as? PlayerUiState.Success)?.cdnLineDiagnostics.orEmpty(),
-                    isCdnProbing = (uiState as? PlayerUiState.Success)?.isCdnProbing ?: false,
+                    cdnCount = (uiState as? VideoPlaybackUiState.Success)?.cdnCount ?: 1,
+                    cdnLineDiagnostics = (uiState as? VideoPlaybackUiState.Success)?.cdnLineDiagnostics.orEmpty(),
+                    isCdnProbing = (uiState as? VideoPlaybackUiState.Success)?.isCdnProbing ?: false,
                     onSwitchCdn = { viewModel.switchCdn() },
                     onSwitchCdnTo = { viewModel.switchCdnTo(it) },
                     onProbeCdnCandidates = { viewModel.probeCurrentCdnCandidates() },
@@ -3224,7 +3395,7 @@ fun VideoDetailScreen(
                     onSleepTimerChange = { viewModel.setSleepTimer(it) },
 
                     // 🖼️ [新增] 视频预览图数据
-                        videoshotData = (uiState as? PlayerUiState.Success)?.videoshotData,
+                        videoshotData = (uiState as? VideoPlaybackUiState.Success)?.videoshotData,
 
                     // 📖 [新增] 视频章节数据
                         viewPoints = viewPoints,
@@ -3255,20 +3426,20 @@ fun VideoDetailScreen(
                     onDownloadAudio = { viewModel.downloadAudio(context) },
 
                     // [新增] 侧边栏抽屉数据与交互
-                    relatedVideos = (uiState as? PlayerUiState.Success)?.related ?: emptyList(),
-                    ugcSeason = (uiState as? PlayerUiState.Success)?.info?.ugc_season,
-                    isFollowed = (uiState as? PlayerUiState.Success)?.isFollowing ?: false,
-                    isLiked = (uiState as? PlayerUiState.Success)?.isLiked ?: false,
-                    isCoined = (uiState as? PlayerUiState.Success)?.coinCount?.let { it > 0 } ?: false,
-                    isFavorited = (uiState as? PlayerUiState.Success)?.isFavorited ?: false,
-                    onToggleFollow = { viewModel.toggleFollow() },
-                    onToggleLike = { viewModel.toggleLike() },
+                    relatedVideos = (uiState as? VideoPlaybackUiState.Success)?.related ?: emptyList(),
+                    ugcSeason = (uiState as? VideoPlaybackUiState.Success)?.info?.ugc_season,
+                    isFollowed = engagementState.isFollowing,
+                    isLiked = engagementState.isLiked,
+                    isCoined = engagementState.coinCount > 0,
+                    isFavorited = engagementState.isFavorited,
+                    onToggleFollow = { engagementViewModel.toggleFollow() },
+                    onToggleLike = { engagementViewModel.toggleLike() },
                     onDislike = { viewModel.markVideoNotInterested() },
-                    onCoin = { viewModel.showCoinDialog() },
+                    onCoin = { engagementViewModel.openCoinDialog() },
                     onToggleFavorite = {
                         openFavoriteFolders(VideoFavoriteEntryPoint.FullscreenOverlay)
                     },
-                    onTriple = { viewModel.doTripleAction() },
+                    onTriple = { engagementViewModel.doTripleAction() },
                     onRelatedVideoClick = navigateToRelatedVideo,
                     onPageSelect = { viewModel.switchPage(it) },
                     hasFavoritePlaylist = isExternalPlaylist &&
@@ -3277,7 +3448,7 @@ fun VideoDetailScreen(
                     onFavoritePlaylistClick = {
                         showExternalPlaylistQueueSheet = true
                     },
-                    forceCoverOnly = forceCoverOnlyForReturn,
+                    forceCoverOnly = forceCoverOnlyForReturn || useResidentCoverForCommittedReturn,
                     useTextureSurfaceForNavigation = transitionEnabled,
                     predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
                     allowLivePlayerSharedElement = true,
@@ -3299,6 +3470,7 @@ fun VideoDetailScreen(
                             uiState = uiState,
                             commentState = commentState,
                             viewModel = viewModel,
+                            engagementViewModel = engagementViewModel,
                             commentViewModel = commentViewModel,
                             configuration = configuration,
                             isVerticalVideo = isVerticalVideo,
@@ -3344,7 +3516,8 @@ fun VideoDetailScreen(
                             // 🔁 [新增] 播放模式
                             currentPlayMode = currentPlayMode,
                             onPlayModeClick = { com.android.purebilibili.feature.video.player.PlaylistManager.togglePlayMode() },
-                            forceCoverOnlyOnReturn = forceCoverOnlyForReturn,
+                            forceCoverOnlyOnReturn =
+                                forceCoverOnlyForReturn || useResidentCoverForCommittedReturn,
                             predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration
                         )
                     } else {
@@ -3384,8 +3557,15 @@ fun VideoDetailScreen(
                             isPlaybackPaused = isPlaybackPaused
                         )
                         // 父层只关心折叠阈值，避免列表每个像素的滚动都触发整页重组。
-                        var introScrollPastCollapseThreshold by remember { mutableStateOf(false) }
-                        val inlinePlayerCollapseState = rememberInlinePortraitPlayerCollapseState()
+                        var introScrollPastCollapseThreshold by rememberSaveable(currentBvid) {
+                            mutableStateOf(
+                                isVideoDetailIntroScrollPastCollapseThreshold(
+                                    firstVisibleItemIndex = introListState.firstVisibleItemIndex,
+                                    firstVisibleItemScrollOffset = introListState.firstVisibleItemScrollOffset
+                                )
+                            )
+                        }
+                        val inlinePlayerCollapseState = rememberInlinePortraitPlayerCollapseState(currentBvid)
                         val compactInlinePlayerForCommentTab =
                             shouldUseCompactInlinePortraitPlayerForCommentTab(
                                 useOfficialInlinePortraitDetailExperience = useOfficialInlinePortraitDetailExperience,
@@ -3624,53 +3804,6 @@ fun VideoDetailScreen(
                         }
 
                         val isLeaving = useReturningVideoDetailVisualState
-                        val returnAlphaDurationMillis = if (homeSharedTransitionMotionSpec.enabled) {
-                            homeSharedTransitionMotionSpec.durationMillis
-                        } else {
-                            0
-                        }
-                        val coverCrossfadeAlpha = animateFloatAsState(
-                            targetValue = if (
-                                shouldUseDetailReturnCoverCrossfade(
-                                    isLeaving = isLeaving,
-                                    playbackIntent = videoSharedPlaybackIntent
-                                )
-                            ) {
-                                1f
-                            } else {
-                                0f
-                            },
-                            animationSpec = tween(
-                                durationMillis = returnAlphaDurationMillis,
-                                easing = if (isLeaving) {
-                                    homeSharedTransitionMotionSpec.returnEasing
-                                } else {
-                                    homeSharedTransitionMotionSpec.enterEasing
-                                }
-                            ),
-                            label = "coverCrossfade"
-                        )
-                        val playerFadeAlpha = animateFloatAsState(
-                            targetValue = if (
-                                shouldFadePlayerSurfaceOnDetailReturn(
-                                    isLeaving = isLeaving,
-                                    playbackIntent = videoSharedPlaybackIntent
-                                )
-                            ) {
-                                0f
-                            } else {
-                                1f
-                            },
-                            animationSpec = tween(
-                                durationMillis = returnAlphaDurationMillis,
-                                easing = if (isLeaving) {
-                                    homeSharedTransitionMotionSpec.returnEasing
-                                } else {
-                                    homeSharedTransitionMotionSpec.enterEasing
-                                }
-                            ),
-                            label = "playerFade"
-                        )
                         val crossfadeCoverUrl = remember(coverUrl) {
                             if (coverUrl.isNotBlank()) {
                                 val url = coverUrl.trim()
@@ -3682,6 +3815,26 @@ fun VideoDetailScreen(
                                 }
                             } else {
                                 ""
+                            }
+                        }
+                        val sharedCoverCacheKey = remember(bvid) {
+                            resolveVideoSharedCoverCacheKey(bvid)
+                        }
+                        val residentCoverImageRequest = remember(
+                            context,
+                            crossfadeCoverUrl,
+                            sharedCoverCacheKey,
+                        ) {
+                            if (crossfadeCoverUrl.isBlank()) {
+                                null
+                            } else {
+                                coil.request.ImageRequest.Builder(context)
+                                    .data(crossfadeCoverUrl)
+                                    .placeholderMemoryCacheKey(sharedCoverCacheKey)
+                                    .crossfade(false)
+                                    .memoryCacheKey(sharedCoverCacheKey)
+                                    .diskCacheKey(sharedCoverCacheKey)
+                                    .build()
                             }
                         }
 
@@ -3718,16 +3871,19 @@ fun VideoDetailScreen(
                                 }
                         ) {
                             // 前台常驻封面叠层，返回时只改 alpha，避免临时解码/淡入打断共享元素动画。
-                            if (crossfadeCoverUrl.isNotBlank()) {
+                            if (residentCoverImageRequest != null) {
                                 AsyncImage(
-                                    model = coil.request.ImageRequest.Builder(LocalContext.current)
-                                        .data(crossfadeCoverUrl)
-                                        .crossfade(false)
-                                        .build(),
+                                    model = residentCoverImageRequest,
                                     contentDescription = "cover",
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .graphicsLayer { alpha = coverCrossfadeAlpha.value },
+                                        .graphicsLayer {
+                                            alpha = resolveVideoDetailReturnCoverAlpha(
+                                                transitionProgress = detailTransitionProgress.value,
+                                                isCommittedCardReturn = isLeaving,
+                                                hasResidentCover = hasResidentReturnCover,
+                                            )
+                                        },
                                     contentScale = ContentScale.Crop
                                 )
                             }
@@ -3735,7 +3891,13 @@ fun VideoDetailScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(top = playerTopInset)
-                                    .graphicsLayer { alpha = playerFadeAlpha.value }
+                                    .graphicsLayer {
+                                        alpha = resolveVideoDetailReturnPlayerAlpha(
+                                            transitionProgress = detailTransitionProgress.value,
+                                            isCommittedCardReturn = isLeaving,
+                                            hasResidentCover = hasResidentReturnCover,
+                                        )
+                                    }
                             ) {
                             PortraitInlineVideoPlayerHost(
                                 modifier = Modifier.align(Alignment.TopCenter),
@@ -3750,6 +3912,7 @@ fun VideoDetailScreen(
                                 transitionEnabled = detailChildTransitionEnabled,
                                 onToggleFullscreen = { toggleFullscreen() },
                                 viewModel = viewModel,
+                                onDoubleTapLike = engagementViewModel::toggleLike,
                                 onBack = handleBack,
                                 onHomeClick = {
                                     handleTopBarAction(resolveVideoDetailTopBarAction(isHomeButton = true))
@@ -3784,6 +3947,7 @@ fun VideoDetailScreen(
                                     onNavigateToAudioMode()
                                 },
                                 forceCoverOnly = forceCoverOnlyForReturn ||
+                                    useResidentCoverForCommittedReturn ||
                                     shouldForceBackPreviewPlayerCover(
                                         keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
                                         bindLivePlayerForBackPreview = bindLivePlayerForBackPreview
@@ -3804,12 +3968,17 @@ fun VideoDetailScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(MaterialTheme.colorScheme.background)
-                                .graphicsLayer { alpha = detailSecondaryContentAlpha.value }
+                                .graphicsLayer {
+                                    alpha = resolveVideoDetailReturnContentAlpha(
+                                        transitionProgress = detailTransitionProgress.value,
+                                        isCommittedCardReturn = isLeaving,
+                                    )
+                                }
                                 // .nestedScroll(nestedScrollConnection) // [Remove] 移除嵌套滚动，确保 Tabs 正常滑动
                         ) {
                             when (uiState) {
-                                is PlayerUiState.Loading -> {
-                                    val loadingState = uiState as PlayerUiState.Loading
+                                is VideoPlaybackUiState.Loading -> {
+                                    val loadingState = uiState as VideoPlaybackUiState.Loading
                                     Box(modifier = Modifier.fillMaxSize()) {
                                         //  显示重试进度
                                         if (loadingState.retryAttempt > 0) {
@@ -3834,14 +4003,18 @@ fun VideoDetailScreen(
                                     }
                                 }
 
-                                is PlayerUiState.Success -> {
-                                    val success = uiState as PlayerUiState.Success
+                                is VideoPlaybackUiState.Success -> {
+                                    val success = uiState as VideoPlaybackUiState.Success
                                     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
                                     VideoDetailPhoneSuccessContentLayer(
                                         success = success,
+                                        introListState = introListState,
+                                        commentListState = commentListState,
+                                        videoContentPagerState = videoContentPagerState,
                                         commentState = commentState,
                                         commentMemberDecorationsEnabled = commentMemberDecorationsEnabled,
                                         viewModel = viewModel,
+                                        engagementViewModel = engagementViewModel,
                                         commentViewModel = commentViewModel,
                                         context = context,
                                         sortPreferenceScope = sortPreferenceScope,
@@ -3850,6 +4023,7 @@ fun VideoDetailScreen(
                                         hazeState = hazeState,
                                         isTransitionFinished = isTransitionFinished,
                                         isLeaving = isLeaving,
+                                        rootTransitionOwnsContentAlpha = detailShellSharedBoundsEnabled,
                                         shouldShowExternalPlaylistQueueBar = shouldShowExternalPlaylistQueueBar,
                                         selectedVideoContentTabIndex = selectedVideoContentTabIndex,
                                         useTabletLayout = useTabletLayout,
@@ -3891,8 +4065,8 @@ fun VideoDetailScreen(
                                     )
                             } // End of Success block
 
-                                is PlayerUiState.Error -> {
-                                    val errorState = uiState as PlayerUiState.Error
+                                is VideoPlaybackUiState.Error -> {
+                                    val errorState = uiState as VideoPlaybackUiState.Error
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
@@ -3986,14 +4160,14 @@ fun VideoDetailScreen(
             portraitExperienceEnabled = portraitExperienceEnabled,
             isPortraitFullscreen = isPortraitFullscreen,
             useOfficialInlinePortraitDetailExperience = useOfficialInlinePortraitDetailExperience,
-            hasPlayableState = uiState is PlayerUiState.Success || uiState is PlayerUiState.Loading
+            hasPlayableState = uiState is VideoPlaybackUiState.Success || uiState is VideoPlaybackUiState.Loading
         )
 
         // 缓存上一个成功状态以在 Loading 时使用
-        var cachedSuccess by remember { mutableStateOf<PlayerUiState.Success?>(null) }
+        var cachedSuccess by remember { mutableStateOf<VideoPlaybackUiState.Success?>(null) }
         LaunchedEffect(uiState) {
-            if (uiState is PlayerUiState.Success) {
-                cachedSuccess = uiState as PlayerUiState.Success
+            if (uiState is VideoPlaybackUiState.Success) {
+                cachedSuccess = uiState as VideoPlaybackUiState.Success
             }
         }
 
@@ -4001,12 +4175,12 @@ fun VideoDetailScreen(
 
         // 获取当前或缓存的成功状态
         val success = when {
-            uiState is PlayerUiState.Success -> uiState as PlayerUiState.Success
-            uiState is PlayerUiState.Loading && cachedSuccess != null -> cachedSuccess!!
+            uiState is VideoPlaybackUiState.Success -> uiState as VideoPlaybackUiState.Success
+            uiState is VideoPlaybackUiState.Loading && cachedSuccess != null -> cachedSuccess!!
             else -> null
         }
 
-        val isLoadingNewVideo = uiState is PlayerUiState.Loading
+        val isLoadingNewVideo = uiState is VideoPlaybackUiState.Loading
 
         // Diagnostic Log
         LaunchedEffect(isPortraitFullscreen, showPortraitFullscreen, success) {
@@ -4068,6 +4242,7 @@ fun VideoDetailScreen(
                         portraitPendingSelectionBvid = newBvid
                     },
                     viewModel = viewModel,
+                    engagementViewModel = engagementViewModel,
                     sharedPlayer = if (useSharedPortraitPlayer) playerState.player else null,
                     // [新增] 进度同步
                     initialStartPositionMs = portraitSyncSnapshotPositionMs,
@@ -4116,7 +4291,7 @@ fun VideoDetailScreen(
                         val anchorBvid = portraitPendingSelectionBvid
                             ?: pendingMainReloadBvidAfterPortrait
                             ?: portraitSyncSnapshotBvid
-                            ?: (uiState as? PlayerUiState.Success)?.info?.bvid
+                            ?: (uiState as? VideoPlaybackUiState.Success)?.info?.bvid
                         if (!anchorBvid.isNullOrBlank()) {
                             currentBvid = anchorBvid
                             currentBvidCid = if (anchorBvid == portraitSyncSnapshotBvid) {
@@ -4167,15 +4342,14 @@ fun VideoDetailScreen(
         )
 
         //  [新增] 投币对话框
-        val coinDialogVisible by viewModel.coinDialogVisible.collectAsStateWithLifecycle()
-        val currentCoinCount = (uiState as? PlayerUiState.Success)?.coinCount ?: 0
-        val userBalance by viewModel.userCoinBalance.collectAsStateWithLifecycle()
+        val coinDialogVisible = engagementState.coinDialogVisible
+        val currentCoinCount = engagementState.coinCount
         CoinDialog(
             visible = coinDialogVisible,
             currentCoinCount = currentCoinCount,
-            userBalance = userBalance,
-            onDismiss = { viewModel.closeCoinDialog() },
-            onConfirm = { count, alsoLike -> viewModel.doCoin(count, alsoLike) }
+            userBalance = engagementState.userCoinBalance,
+            onDismiss = { engagementViewModel.setCoinDialogVisible(false) },
+            onConfirm = engagementViewModel::doCoin
         )
 
         VideoDetailFollowGroupDialog(viewModel = viewModel)
@@ -4330,7 +4504,7 @@ fun VideoDetailScreen(
 
         //  [新增] 下载选项菜单 & 画质选择
         val showDownloadDialog by viewModel.showDownloadDialog.collectAsStateWithLifecycle()
-        val successForDownload = uiState as? PlayerUiState.Success
+        val successForDownload = uiState as? VideoPlaybackUiState.Success
         val downloadTasks by com.android.purebilibili.feature.download.DownloadManager.tasks.collectAsStateWithLifecycle()
 
         // 本地状态控制画质选择弹窗
@@ -4592,7 +4766,7 @@ fun VideoDetailScreen(
             )
         }
 
-        val successState = uiState as? PlayerUiState.Success
+        val successState = uiState as? VideoPlaybackUiState.Success
         DetachedVideoCommentThreadHost(
             visible = shouldShowDetachedVideoCommentThreadHost(useTabletLayout = useTabletLayout),
             successState = successState,
@@ -4635,7 +4809,7 @@ fun VideoDetailScreen(
         }
 
         // 🎉 点赞成功爆裂动画
-        val likeBurstVisible by viewModel.likeBurstVisible.collectAsStateWithLifecycle()
+        val likeBurstVisible = engagementState.likeBurstVisible
         if (likeBurstVisible) {
             Box(
                 modifier = Modifier
@@ -4648,13 +4822,13 @@ fun VideoDetailScreen(
                 LikeBurstAnimation(
                     visible = true,
                     reducedMotion = isReducedActionMotion,
-                    onAnimationEnd = { viewModel.dismissLikeBurst() }
+                    onAnimationEnd = { engagementViewModel.dismissLikeBurst() }
                 )
             }
         }
 
         // 🎉 三连成功庆祝动画
-        val tripleCelebrationVisible by viewModel.tripleCelebrationVisible.collectAsStateWithLifecycle()
+        val tripleCelebrationVisible = engagementState.tripleCelebrationVisible
         val tripleCelebrationPlacement = resolveTripleCelebrationPlacement(
             isFullscreen = isFullscreenMode,
             isLandscape = isLandscape
@@ -4671,7 +4845,7 @@ fun VideoDetailScreen(
                     visible = true,
                     isCompact = false,
                     reducedMotion = isReducedActionMotion,
-                    onAnimationEnd = { viewModel.dismissTripleCelebration() }
+                    onAnimationEnd = { engagementViewModel.dismissTripleCelebration() }
                 )
             }
         }
@@ -4753,7 +4927,7 @@ fun VideoDetailScreen(
 
 @Composable
 private fun VideoDetailFollowGroupDialog(
-    viewModel: PlayerViewModel
+    viewModel: VideoPlaybackViewModel
 ) {
     val followGroupDialogVisible by viewModel.followGroupDialogVisible.collectAsStateWithLifecycle(
         context = kotlin.coroutines.EmptyCoroutineContext
@@ -4859,7 +5033,7 @@ private fun VideoDetailFollowGroupDialog(
 
 @Composable
 private fun VideoDetailPlaybackEndedDialog(
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
     player: Player
 ) {
     val showPlaybackEndedDialog by viewModel.showPlaybackEndedDialog.collectAsStateWithLifecycle(
@@ -4929,7 +5103,7 @@ private fun VideoDetailPlaybackEndedDialog(
 @Composable
 private fun VideoDetailQualitySwitchFailureDialog(
     context: Context,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
     qualitySwitchFailureDialog: QualitySwitchFailureDialogState?,
     qualitySwitchFailureDialogEnabled: Boolean,
     qualitySwitchFailureDialogOnceEnabled: Boolean,
@@ -5040,7 +5214,7 @@ private fun VideoDetailQualitySwitchFailureDialog(
 @Composable
 private fun VideoDetailDanmakuContextMenu(
     context: Context,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
     activeDanmakuBlockRulesRaw: String,
     activeDanmakuScope: com.android.purebilibili.core.store.DanmakuSettingsScope,
     sortPreferenceScope: CoroutineScope
@@ -5896,11 +6070,11 @@ private fun readSystemAutoRotateEnabled(context: Context): Boolean {
 @Composable
 private fun DetachedVideoCommentThreadHost(
     visible: Boolean,
-    successState: PlayerUiState.Success?,
+    successState: VideoPlaybackUiState.Success?,
     commentState: CommentUiState,
     commentViewModel: VideoCommentViewModel,
     forceInitialize: Boolean,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
     onUpClick: (Long) -> Unit,
     onNavigateToRelatedVideo: (String) -> Unit,
     onSearchKeywordClick: (String) -> Unit,

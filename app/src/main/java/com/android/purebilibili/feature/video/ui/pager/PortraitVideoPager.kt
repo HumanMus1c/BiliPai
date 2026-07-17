@@ -137,9 +137,17 @@ import com.android.purebilibili.feature.video.ui.section.resolveLongPressPlaybac
 import com.android.purebilibili.feature.video.ui.section.rebindPlayerSurfaceIfNeeded
 import com.android.purebilibili.feature.video.ui.section.shouldKickPlaybackAfterSurfaceRecovery
 import com.android.purebilibili.feature.video.viewmodel.PlaybackEndAction
-import com.android.purebilibili.feature.video.viewmodel.PlayerUiState
-import com.android.purebilibili.feature.video.viewmodel.PlayerViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
+import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoComposerViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementUiState
+import com.android.purebilibili.feature.video.viewmodel.VideoSupplementViewModel
+import com.android.purebilibili.feature.video.usecase.TripleActionResult
+import com.android.purebilibili.feature.video.viewmodel.toEngagementSeed
+import com.android.purebilibili.feature.video.viewmodel.toSupplementSeed
+import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.resolvePlaybackCompletionRepeatMode
 import com.android.purebilibili.feature.video.viewmodel.resolvePlaybackEndAction
 import com.bytedance.danmaku.render.engine.DanmakuView
@@ -194,7 +202,8 @@ fun PortraitVideoPager(
     onBack: () -> Unit,
     onHomeClick: () -> Unit = onBack,
     onVideoChange: (String) -> Unit,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
+    engagementViewModel: VideoEngagementViewModel,
     sharedPlayer: ExoPlayer? = null,
     initialStartPositionMs: Long = 0L,
     onProgressUpdate: (String, Long, Long) -> Unit = { _, _, _ -> },
@@ -204,10 +213,31 @@ fun PortraitVideoPager(
     onRotateToLandscape: () -> Unit
 ) {
     val context = LocalContext.current
+    val composerViewModel: VideoComposerViewModel =
+        androidx.lifecycle.viewmodel.compose.viewModel(key = "portrait_composer_$initialBvid")
+    val supplementViewModel: VideoSupplementViewModel =
+        androidx.lifecycle.viewmodel.compose.viewModel(key = "portrait_supplement_$initialBvid")
     val commentViewModel: VideoCommentViewModel =
         androidx.lifecycle.viewmodel.compose.viewModel(
             key = "portrait_comments_$initialBvid"
         )
+    val playbackDomainState by viewModel.uiState.collectAsStateWithLifecycle()
+    val engagementState by engagementViewModel.uiState.collectAsStateWithLifecycle()
+    val subjectSnapshot by viewModel.subjectSnapshot.collectAsStateWithLifecycle()
+    val engagementSeed = (playbackDomainState as? VideoPlaybackUiState.Success)?.toEngagementSeed()
+    val supplementSeed = (playbackDomainState as? VideoPlaybackUiState.Success)?.toSupplementSeed()
+    LaunchedEffect(subjectSnapshot, engagementSeed) {
+        val subject = subjectSnapshot ?: return@LaunchedEffect
+        val seed = engagementSeed ?: return@LaunchedEffect
+        engagementViewModel.bindSubject(subject, seed)
+        composerViewModel.bindSubject(subject)
+    }
+    LaunchedEffect(subjectSnapshot, supplementSeed, isActive) {
+        val subject = subjectSnapshot ?: return@LaunchedEffect
+        val seed = supplementSeed ?: return@LaunchedEffect
+        supplementViewModel.bindSubject(subject, seed)
+        supplementViewModel.setVisible(isActive)
+    }
     val useSharedPlayer = sharedPlayer != null
     val entryStartPositionMs = remember(initialBvid) { initialStartPositionMs.coerceAtLeast(0L) }
     val scope = rememberCoroutineScope()
@@ -1087,6 +1117,10 @@ fun PortraitVideoPager(
                 onHomeClick = onHomeClick,
                 viewModel = viewModel,
                 commentViewModel = commentViewModel,
+                engagementState = engagementState,
+                onToggleFollow = engagementViewModel::toggleFollow,
+                onToggleLike = engagementViewModel::toggleLike,
+                onTripleAction = engagementViewModel::doTripleAction,
                 exoPlayer = exoPlayer, // [核心] 传递共享播放器
                 currentPlayingBvid = currentPlayingBvid, // [修复] 传递当前播放的 BVID 用于校验
                 currentPlayingCid = currentPlayingCid,
@@ -1151,8 +1185,12 @@ private fun VideoPageItem(
     isCurrentPage: Boolean,
     onBack: () -> Unit,
     onHomeClick: () -> Unit,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
     commentViewModel: VideoCommentViewModel,
+    engagementState: VideoEngagementUiState,
+    onToggleFollow: (Long?, Boolean?) -> Unit,
+    onToggleLike: (Long?, String?, Boolean?, ((Boolean) -> Unit)?) -> Unit,
+    onTripleAction: (Long?, String?, Boolean?, Int?, Boolean?, ((TripleActionResult) -> Unit)?) -> Unit,
     exoPlayer: ExoPlayer,
     currentPlayingBvid: String?, // [新增]
     currentPlayingCid: Long,
@@ -2056,8 +2094,9 @@ private fun VideoPageItem(
 
         // Overlay & Interaction
     val currentUiState = viewModel.uiState.collectAsStateWithLifecycle().value
-    val isCurrentModelVideo = (currentUiState as? PlayerUiState.Success)?.info?.bvid == bvid
-    val currentSuccess = currentUiState as? PlayerUiState.Success
+    val isCurrentModelVideo = (currentUiState as? VideoPlaybackUiState.Success)?.info?.bvid == bvid
+    val currentSuccess = (currentUiState as? VideoPlaybackUiState.Success)
+        ?.withEngagementUiState(engagementState)
     var portraitInteractionOverride by remember(bvid) {
         mutableStateOf(PortraitVideoInteractionOverride())
     }
@@ -2070,7 +2109,7 @@ private fun VideoPageItem(
         sharedState = currentSuccess,
         localOverride = portraitInteractionOverride
     )
-    val isFollowing = (currentUiState as? PlayerUiState.Success)?.followingMids?.contains(authorMid) == true
+    val isFollowing = (currentUiState as? VideoPlaybackUiState.Success)?.followingMids?.contains(authorMid) == true
     val fallbackDetailInfo = when (item) {
         is ViewInfo -> item
         is RelatedVideo -> toViewInfoForPortraitDetail(item)
@@ -2176,7 +2215,7 @@ private fun VideoPageItem(
             
             isFollowing = isFollowing,
             onFollowClick = { 
-                viewModel.toggleFollow(authorMid, isFollowing)
+                onToggleFollow(authorMid, isFollowing)
             },
             
             onDetailClick = {
@@ -2201,10 +2240,10 @@ private fun VideoPageItem(
                 if (canHandlePortraitInteraction) {
                     val currentLikeState = resolvedInteractionState.isLiked
                     val currentLikeCount = resolvedInteractionState.likeCount
-                    viewModel.toggleLikeForVideo(
-                        aid = activeAid,
-                        bvid = bvid,
-                        currentlyLiked = currentLikeState
+                    onToggleLike(
+                        activeAid,
+                        bvid,
+                        currentLikeState
                     ) { liked ->
                         val nextLikeCount = (
                             currentLikeCount +
@@ -2224,12 +2263,12 @@ private fun VideoPageItem(
             onLikeLongClick = {
                 if (canHandlePortraitInteraction) {
                     val currentInteractionState = resolvedInteractionState
-                    viewModel.doTripleActionForVideo(
-                        aid = activeAid,
-                        bvid = bvid,
-                        currentLiked = currentInteractionState.isLiked,
-                        currentCoinCount = currentSuccess?.coinCount ?: 0,
-                        currentFavorited = currentInteractionState.isFavorited
+                    onTripleAction(
+                        activeAid,
+                        bvid,
+                        currentInteractionState.isLiked,
+                        currentSuccess?.coinCount ?: 0,
+                        currentInteractionState.isFavorited
                     ) { result ->
                         portraitInteractionOverride = resolvePortraitTripleActionOverride(
                             currentState = currentInteractionState,
@@ -2536,7 +2575,7 @@ internal fun resolvePortraitFavoriteAction(): PortraitFavoriteAction {
 internal fun resolvePortraitVideoInteractionUiState(
     targetBvid: String,
     fallbackStat: Stat,
-    sharedState: PlayerUiState.Success?,
+    sharedState: VideoPlaybackUiState.Success?,
     localOverride: PortraitVideoInteractionOverride? = null
 ): PortraitVideoInteractionUiState {
     val currentSharedState = sharedState?.takeIf { it.info.bvid == targetBvid }

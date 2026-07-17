@@ -15,9 +15,8 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
@@ -305,6 +304,9 @@ internal fun resolveVideoContentEffectiveSelectedTabIndex(
 @Composable
 fun VideoContentSection(
     info: ViewInfo,
+    introListState: LazyListState,
+    commentListState: LazyListState,
+    pagerState: PagerState,
     relatedVideos: List<RelatedVideo>,
     replies: List<ReplyItem>,
     replyCount: Int,
@@ -410,10 +412,7 @@ fun VideoContentSection(
 ) {
     val context = LocalContext.current
     val tabs = listOf("简介", "评论 $replyCount")
-    val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
-    val introListState = rememberLazyListState()
-    val commentListState = rememberLazyListState()
     TrackJankStateFlag(
         stateName = "video_detail:tab_swipe",
         isActive = pagerState.isScrollInProgress

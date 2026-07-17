@@ -43,8 +43,8 @@ import com.android.purebilibili.feature.video.ui.section.VideoPlayerSection
 import com.android.purebilibili.feature.video.ui.section.VideoTitleWithDesc
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
-import com.android.purebilibili.feature.video.viewmodel.PlayerUiState
-import com.android.purebilibili.feature.video.viewmodel.PlayerViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
+import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -62,6 +62,8 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
+import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 
 /**
  * 🖥️ 平板端视频详情页布局
@@ -74,9 +76,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun TabletVideoLayout(
     playerState: VideoPlayerState,
-    uiState: PlayerUiState,
+    uiState: VideoPlaybackUiState,
     commentState: CommentUiState,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
+    engagementViewModel: VideoEngagementViewModel,
     commentViewModel: VideoCommentViewModel,
     configuration: Configuration,
     isVerticalVideo: Boolean,
@@ -112,6 +115,7 @@ fun TabletVideoLayout(
     forceCoverOnlyOnReturn: Boolean = false,
     predictiveBackCancelRecoveryGeneration: Int = 0
 ) {
+    val engagementState by engagementViewModel.uiState.collectAsStateWithLifecycle()
     val layoutPolicy = remember(configuration.screenWidthDp) {
         resolveTabletVideoLayoutPolicy(
             widthDp = configuration.screenWidthDp
@@ -204,11 +208,11 @@ fun TabletVideoLayout(
                             onHomeClick = onHomeClick,
                             bvid = bvid,
                             coverUrl = coverUrl,
-                            onDoubleTapLike = { viewModel.toggleLike() },
+                            onDoubleTapLike = { engagementViewModel.toggleLike() },
                             onReloadVideo = { viewModel.reloadVideo() },
-                            cdnCount = (uiState as? PlayerUiState.Success)?.cdnCount ?: 1,
-                            cdnLineDiagnostics = (uiState as? PlayerUiState.Success)?.cdnLineDiagnostics.orEmpty(),
-                            isCdnProbing = (uiState as? PlayerUiState.Success)?.isCdnProbing ?: false,
+                            cdnCount = (uiState as? VideoPlaybackUiState.Success)?.cdnCount ?: 1,
+                            cdnLineDiagnostics = (uiState as? VideoPlaybackUiState.Success)?.cdnLineDiagnostics.orEmpty(),
+                            isCdnProbing = (uiState as? VideoPlaybackUiState.Success)?.isCdnProbing ?: false,
                             onSwitchCdn = { viewModel.switchCdn() },
                             onSwitchCdnTo = { viewModel.switchCdnTo(it) },
                             onProbeCdnCandidates = { viewModel.probeCurrentCdnCandidates() },
@@ -219,7 +223,7 @@ fun TabletVideoLayout(
                             },
                             sleepTimerMinutes = sleepTimerMinutes,
                             onSleepTimerChange = { viewModel.setSleepTimer(it) },
-                            videoshotData = (uiState as? PlayerUiState.Success)?.videoshotData,
+                            videoshotData = (uiState as? VideoPlaybackUiState.Success)?.videoshotData,
                             viewPoints = viewPoints,
                             isVerticalVideo = isVerticalVideo,
                             onPortraitFullscreen = { playerState.setPortraitFullscreen(true) },
@@ -246,20 +250,21 @@ fun TabletVideoLayout(
                 }
                 
                 // 📜 视频信息区域（可滚动）
-                if (uiState is PlayerUiState.Success) {
+                if (uiState is VideoPlaybackUiState.Success) {
                     val success = uiState
+                    val engagementSuccess = success.withEngagementUiState(engagementState)
                     val currentPageIndex = success.info.pages.indexOfFirst { it.cid == success.info.cid }.coerceAtLeast(0)
                     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
                     
                     ScrollableVideoInfoSection(
-                        info = success.info,
-                        isFollowing = success.isFollowing,
-                        isFavorited = success.isFavorited,
-                        isLiked = success.isLiked,
-                        coinCount = success.coinCount,
+                        info = engagementSuccess.info,
+                        isFollowing = engagementState.isFollowing,
+                        isFavorited = engagementState.isFavorited,
+                        isLiked = engagementState.isLiked,
+                        coinCount = engagementState.coinCount,
                         currentPageIndex = currentPageIndex,
                         downloadProgress = downloadProgress,
-                        isInWatchLater = success.isInWatchLater,
+                        isInWatchLater = engagementState.isInWatchLater,
                         videoTags = success.videoTags,
                         ownerFollowerCount = success.ownerFollowerCount,
                         ownerVideoCount = success.ownerVideoCount,
@@ -267,15 +272,15 @@ fun TabletVideoLayout(
                         bgmInfoList = success.bgmInfoList,
                         onBgmClick = onBgmClick,
                         relatedVideos = success.related,
-                        onFollowClick = { viewModel.toggleFollow() },
-                        onFavoriteClick = { viewModel.toggleFavorite() },
-                        onLikeClick = { viewModel.toggleLike() },
-                        onCoinClick = { viewModel.openCoinDialog() },
-                        onTripleClick = { viewModel.doTripleAction() },
+                        onFollowClick = { engagementViewModel.toggleFollow() },
+                        onFavoriteClick = { engagementViewModel.toggleFavorite() },
+                        onLikeClick = { engagementViewModel.toggleLike() },
+                        onCoinClick = { engagementViewModel.openCoinDialog() },
+                        onTripleClick = { engagementViewModel.doTripleAction() },
                         onPageSelect = { viewModel.switchPage(it) },
                         onUpClick = onUpClick,
                         onDownloadClick = { viewModel.openDownloadDialog() },
-                        onWatchLaterClick = { viewModel.toggleWatchLater() },
+                        onWatchLaterClick = { engagementViewModel.toggleWatchLater() },
                         onRelatedVideoClick = onRelatedVideoClick,
                         onOpenBilibiliLink = onOpenBilibiliLink,
                         modifier = Modifier
@@ -289,7 +294,7 @@ fun TabletVideoLayout(
         },
         secondaryContent = {
             // 📝 右侧：评论 / 相关推荐
-            if (uiState is PlayerUiState.Success) {
+            if (uiState is VideoPlaybackUiState.Success) {
                 val success = uiState
                 
                 TabletSecondaryContent(
@@ -321,10 +326,10 @@ fun TabletVideoLayout(
  */
 @Composable
 private fun TabletSecondaryContent(
-    success: PlayerUiState.Success,
+    success: VideoPlaybackUiState.Success,
     commentState: CommentUiState,
     commentViewModel: VideoCommentViewModel,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
     playerState: VideoPlayerState,
     onUpClick: (Long) -> Unit,
     paneMode: TabletSecondaryPaneMode,

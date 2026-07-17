@@ -126,6 +126,7 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import com.android.purebilibili.core.ui.LocalSetBottomBarVisible
 import com.android.purebilibili.core.ui.LocalBottomBarVisible
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
+import com.android.purebilibili.core.ui.LocalPredictiveBackGestureEnabled
 import com.android.purebilibili.core.ui.motion.emphasizedEnterTween
 import com.android.purebilibili.core.ui.motion.emphasizedExitTween
 import com.android.purebilibili.core.ui.motion.softLandingSpring
@@ -1194,6 +1195,7 @@ fun AppNavigation(
             LocalSetBottomBarVisible provides setBottomBarVisible,
             LocalBottomBarVisible provides finalBottomBarVisible,
             LocalGlobalWallpaperBackdropVisible provides globalHomeWallpaperAppearance.visible,
+            LocalPredictiveBackGestureEnabled provides predictiveBackEnabled,
             com.android.purebilibili.feature.home.LocalHomeScrollChannel provides homeScrollChannel,
             LocalDynamicScrollChannel provides dynamicScrollChannel,
             com.android.purebilibili.feature.home.LocalHomeScrollOffset provides scrollOffsetState,
@@ -2429,7 +2431,7 @@ fun AppNavigation(
                             }
                         BiliPaiNavEntryContentRole.AUDIO_MODE -> {
                                 val audioModeKey = key as BiliPaiNavKey.AudioMode
-                                val viewModel: com.android.purebilibili.feature.video.viewmodel.PlayerViewModel =
+                                val viewModel: com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel =
                                     viewModel()
                                 DisposableEffect(Unit) {
                                     onAudioModeEnter()

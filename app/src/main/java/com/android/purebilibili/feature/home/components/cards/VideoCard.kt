@@ -72,6 +72,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedCoverCacheKey
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionOwnership
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
@@ -136,8 +137,7 @@ internal fun resolveVideoCardCoverCacheKey(
             "fallback_${video.id.coerceAtLeast(0L)}_${video.cid.coerceAtLeast(0L)}_${video.title.hashCode()}"
         }
     }
-    val qualityTag = if (useLowQualityCover) "s" else "n"
-    return "cover_${normalizedIdentity}_${qualityTag}"
+    return resolveVideoSharedCoverCacheKey(normalizedIdentity, useLowQualityCover)
 }
 
 private data class VideoCardTexts(
@@ -620,7 +620,6 @@ fun ElegantVideoCard(
             useCardContainerSharedBounds = useCardShellSharedBounds,
             isSharedMorphSourceCard = isCoverSharedReturnTarget,
             isReturningFromDetail = isReturningFromVideoDetail,
-            isSharedTransitionActive = sharedTransitionScope?.isTransitionActive == true,
             transitionBackgroundPhase = videoCardTransitionBackgroundState.phaseProvider(),
             isVideoCardReturnGestureInProgress = videoCardTransitionBackgroundState.isReturnGestureInProgressProvider(),
         )
@@ -699,13 +698,23 @@ fun ElegantVideoCard(
                     )
                 }
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
+            // crossfade 必须进 remember key：若 clearReturning 后才打开 crossfade，
+            // 会新建 ImageRequest 导致 Coil 再跑一次淡入闪烁（快速返回尤其明显）。
+            val coverImageRequest = remember(
+                coverUrl,
+                coverCacheKey,
+                coverCrossfadeEnabled,
+            ) {
+                ImageRequest.Builder(context)
                     .data(coverUrl)
+                    .placeholderMemoryCacheKey(coverCacheKey)
                     .crossfade(coverCrossfadeEnabled)
                     .memoryCacheKey(coverCacheKey)
                     .diskCacheKey(coverCacheKey)
-                    .build(),
+                    .build()
+            }
+            AsyncImage(
+                model = coverImageRequest,
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()

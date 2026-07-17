@@ -129,8 +129,11 @@ import com.android.purebilibili.feature.video.ui.section.VideoNoteDeleteConfirmD
 import com.android.purebilibili.feature.video.ui.section.VideoNoteEditorSheet
 import com.android.purebilibili.feature.video.ui.section.shouldShowAiSummaryEntry
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
-import com.android.purebilibili.feature.video.viewmodel.PlayerUiState
-import com.android.purebilibili.feature.video.viewmodel.PlayerViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
+import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementUiState
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
+import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
@@ -140,9 +143,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun TabletCinemaLayout(
     playerState: VideoPlayerState,
-    uiState: PlayerUiState,
+    uiState: VideoPlaybackUiState,
     commentState: CommentUiState,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
+    engagementViewModel: VideoEngagementViewModel,
     commentViewModel: VideoCommentViewModel,
     configuration: Configuration,
     isVerticalVideo: Boolean,
@@ -177,6 +181,7 @@ fun TabletCinemaLayout(
     forceCoverOnlyOnReturn: Boolean = false,
     predictiveBackCancelRecoveryGeneration: Int = 0
 ) {
+    val engagementState by engagementViewModel.uiState.collectAsStateWithLifecycle()
     val appContext = LocalContext.current
     val tabletCommentPanelWidthPreset by SettingsManager
         .getTabletCommentPanelWidthPreset(appContext)
@@ -192,7 +197,7 @@ fun TabletCinemaLayout(
             commentWidthPreset = tabletCommentPanelWidthPreset
         )
     }
-    val success = uiState as? PlayerUiState.Success
+    val success = uiState as? VideoPlaybackUiState.Success
     val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val initialCurtainState = remember(configuration.screenWidthDp) {
         resolveInitialCurtainState(configuration.screenWidthDp).name
@@ -259,6 +264,8 @@ fun TabletCinemaLayout(
                     playerState = playerState,
                     uiState = uiState,
                     viewModel = viewModel,
+                    engagementViewModel = engagementViewModel,
+                    engagementState = engagementState,
                     onBack = onBack,
                     onHomeClick = onHomeClick,
                     bvid = bvid,
@@ -289,17 +296,18 @@ fun TabletCinemaLayout(
 
                 if (success != null) {
                     CinemaMetaPanel(
-                        success = success,
+                        success = success.withEngagementUiState(engagementState),
+                        engagement = engagementState,
                         downloadProgress = downloadProgress,
                         modifier = Modifier.weight(1f),
-                        onFollowClick = { viewModel.toggleFollow() },
+                        onFollowClick = { engagementViewModel.toggleFollow() },
                         onUpClick = onUpClick,
-                        onFavoriteClick = { viewModel.toggleFavorite() },
-                        onLikeClick = { viewModel.toggleLike() },
-                        onCoinClick = { viewModel.openCoinDialog() },
-                        onTripleClick = { viewModel.doTripleAction() },
+                        onFavoriteClick = { engagementViewModel.toggleFavorite() },
+                        onLikeClick = { engagementViewModel.toggleLike() },
+                        onCoinClick = { engagementViewModel.openCoinDialog() },
+                        onTripleClick = { engagementViewModel.doTripleAction() },
                         onDownloadClick = { viewModel.openDownloadDialog() },
-                        onWatchLaterClick = { viewModel.toggleWatchLater() },
+                        onWatchLaterClick = { engagementViewModel.toggleWatchLater() },
                         onOpenComments = {
                             selectedTab = 0
                             curtainStateName = TabletSideCurtainState.OPEN.name
@@ -374,8 +382,10 @@ fun TabletCinemaLayout(
 @Composable
 private fun CinemaStagePlayer(
     playerState: VideoPlayerState,
-    uiState: PlayerUiState,
-    viewModel: PlayerViewModel,
+    uiState: VideoPlaybackUiState,
+    viewModel: VideoPlaybackViewModel,
+    engagementViewModel: VideoEngagementViewModel,
+    engagementState: VideoEngagementUiState,
     onBack: () -> Unit,
     onHomeClick: () -> Unit,
     bvid: String,
@@ -404,7 +414,7 @@ private fun CinemaStagePlayer(
     predictiveBackCancelRecoveryGeneration: Int
 ) {
     val context = LocalContext.current
-    val success = uiState as? PlayerUiState.Success
+    val success = uiState as? VideoPlaybackUiState.Success
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
     val playerContainerModifier = if (
@@ -459,7 +469,7 @@ private fun CinemaStagePlayer(
                 onHomeClick = onHomeClick,
                 bvid = bvid,
                 coverUrl = coverUrl,
-                onDoubleTapLike = { viewModel.toggleLike() },
+                onDoubleTapLike = { engagementViewModel.toggleLike() },
                 onReloadVideo = { viewModel.reloadVideo() },
                 currentCdnIndex = success?.currentCdnIndex ?: 0,
                 cdnCount = success?.cdnCount ?: 1,
@@ -497,16 +507,16 @@ private fun CinemaStagePlayer(
                 relatedVideos = success?.related ?: emptyList(),
                 forceCoverOnly = forceCoverOnlyOnReturn,
                 ugcSeason = success?.info?.ugc_season,
-                isFollowed = success?.isFollowing ?: false,
-                isLiked = success?.isLiked ?: false,
-                isCoined = success?.coinCount?.let { it > 0 } ?: false,
-                isFavorited = success?.isFavorited ?: false,
-                onToggleFollow = { viewModel.toggleFollow() },
-                onToggleLike = { viewModel.toggleLike() },
+                isFollowed = engagementState.isFollowing,
+                isLiked = engagementState.isLiked,
+                isCoined = engagementState.coinCount > 0,
+                isFavorited = engagementState.isFavorited,
+                onToggleFollow = { engagementViewModel.toggleFollow() },
+                onToggleLike = { engagementViewModel.toggleLike() },
                 onDislike = { viewModel.markVideoNotInterested() },
-                onCoin = { viewModel.showCoinDialog() },
-                onToggleFavorite = { viewModel.toggleFavorite() },
-                onTriple = { viewModel.doTripleAction() },
+                onCoin = { engagementViewModel.openCoinDialog() },
+                onToggleFavorite = { engagementViewModel.toggleFavorite() },
+                onTriple = { engagementViewModel.doTripleAction() },
                 onSubtitleTrackSelected = viewModel::selectSubtitleTrack
             )
         }
@@ -515,7 +525,8 @@ private fun CinemaStagePlayer(
 
 @Composable
 private fun CinemaMetaPanel(
-    success: PlayerUiState.Success,
+    success: VideoPlaybackUiState.Success,
+    engagement: VideoEngagementUiState,
     downloadProgress: Float,
     modifier: Modifier = Modifier,
     onFollowClick: () -> Unit,
@@ -630,12 +641,14 @@ private fun CinemaMetaPanel(
                                         ) {
                                             CinemaMetaUpInfo(
                                                 success = success,
+                                                isFollowing = engagement.isFollowing,
                                                 onFollowClick = onFollowClick,
                                                 onUpClick = onUpClick,
                                                 modifier = Modifier.weight(1f)
                                             )
                                             CinemaMetaActions(
                                                 success = success,
+                                                engagement = engagement,
                                                 downloadProgress = downloadProgress,
                                                 context = context,
                                                 onFavoriteClick = onFavoriteClick,
@@ -653,6 +666,7 @@ private fun CinemaMetaPanel(
                                         Column(Modifier.fillMaxWidth()) {
                                             CinemaMetaActions(
                                                 success = success,
+                                                engagement = engagement,
                                                 downloadProgress = downloadProgress,
                                                 context = context,
                                                 onFavoriteClick = onFavoriteClick,
@@ -666,6 +680,7 @@ private fun CinemaMetaPanel(
                                             )
                                             CinemaMetaUpInfo(
                                                 success = success,
+                                                isFollowing = engagement.isFollowing,
                                                 onFollowClick = onFollowClick,
                                                 onUpClick = onUpClick,
                                                 modifier = Modifier.fillMaxWidth()
@@ -677,6 +692,7 @@ private fun CinemaMetaPanel(
                         } else {
                             CinemaMetaActions(
                                 success = success,
+                                engagement = engagement,
                                 downloadProgress = downloadProgress,
                                 context = context,
                                 onFavoriteClick = onFavoriteClick,
@@ -755,7 +771,8 @@ private fun CinemaMetaPanel(
 
 @Composable
 private fun CinemaMetaActions(
-    success: PlayerUiState.Success,
+    success: VideoPlaybackUiState.Success,
+    engagement: VideoEngagementUiState,
     downloadProgress: Float,
     context: android.content.Context,
     onFavoriteClick: () -> Unit,
@@ -769,11 +786,11 @@ private fun CinemaMetaActions(
 ) {
     ActionButtonsRow(
         info = success.info,
-        isFavorited = success.isFavorited,
-        isLiked = success.isLiked,
-        coinCount = success.coinCount,
+        isFavorited = engagement.isFavorited,
+        isLiked = engagement.isLiked,
+        coinCount = engagement.coinCount,
         downloadProgress = downloadProgress,
-        isInWatchLater = success.isInWatchLater,
+        isInWatchLater = engagement.isInWatchLater,
         onFavoriteClick = onFavoriteClick,
         onLikeClick = onLikeClick,
         onCoinClick = onCoinClick,
@@ -794,14 +811,15 @@ private fun CinemaMetaActions(
 
 @Composable
 private fun CinemaMetaUpInfo(
-    success: PlayerUiState.Success,
+    success: VideoPlaybackUiState.Success,
+    isFollowing: Boolean,
     onFollowClick: () -> Unit,
     onUpClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     UpInfoSection(
         info = success.info,
-        isFollowing = success.isFollowing,
+        isFollowing = isFollowing,
         onFollowClick = onFollowClick,
         onUpClick = onUpClick,
         followerCount = success.ownerFollowerCount,
@@ -812,7 +830,7 @@ private fun CinemaMetaUpInfo(
 
 @Composable
 private fun CinemaVideoIntroSection(
-    success: PlayerUiState.Success,
+    success: VideoPlaybackUiState.Success,
     onBgmClick: (BgmInfo) -> Unit = {},
     onOpenBilibiliLink: ((String) -> Unit)? = null,
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit = { _, _ -> },
@@ -898,10 +916,10 @@ private fun CinemaSideCurtain(
     pagerState: PagerState,
     onToggle: () -> Unit,
     onTabSelected: (Int) -> Unit,
-    success: PlayerUiState.Success?,
+    success: VideoPlaybackUiState.Success?,
     commentState: CommentUiState,
     commentViewModel: VideoCommentViewModel,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
     playerState: VideoPlayerState,
     onUpClick: (Long) -> Unit,
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
@@ -1069,11 +1087,11 @@ private fun CinemaSideCurtain(
 
 @Composable
 private fun CinemaCommentsPane(
-    success: PlayerUiState.Success,
+    success: VideoPlaybackUiState.Success,
     commentState: CommentUiState,
     subReplyState: SubReplyUiState,
     commentViewModel: VideoCommentViewModel,
-    viewModel: PlayerViewModel,
+    viewModel: VideoPlaybackViewModel,
     playerState: VideoPlayerState,
     onUpClick: (Long) -> Unit,
     context: android.content.Context,
@@ -1332,7 +1350,7 @@ private fun CinemaCommentsPane(
 
 @Composable
 private fun CinemaRelatedPane(
-    success: PlayerUiState.Success,
+    success: VideoPlaybackUiState.Success,
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
     context: android.content.Context,
     showUpBadge: Boolean

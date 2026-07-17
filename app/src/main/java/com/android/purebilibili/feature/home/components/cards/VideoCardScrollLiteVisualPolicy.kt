@@ -34,6 +34,13 @@ internal fun resolveVideoCardScrollLiteVisualPolicy(
     )
 }
 
+/**
+ * 列表封面是否允许 Coil crossfade。
+ *
+ * 关键：快速/普通返回结束后 [isReturningFromDetail] 会被 clear，若此时把 crossfade
+ * 从 false 拨回 true，ImageRequest 重建会触发一次假加载淡入 → **落位后再闪一下**。
+ * 因此只要仍是 shared 返回目标卡（lastClicked），就持续关闭 crossfade，直到用户点了别的卡。
+ */
 internal fun shouldEnableVideoCardCoverCrossfade(
     isScrollInProgress: Boolean,
     isReturningFromDetail: Boolean,
@@ -41,36 +48,43 @@ internal fun shouldEnableVideoCardCoverCrossfade(
     isSharedReturnTarget: Boolean
 ): Boolean {
     if (isScrollInProgress) return false
-    // 返回目标封面由 sharedBounds 承接播放器画面，Coil 淡入会在落位后再次改变亮度导致闪烁。
-    return !(isReturningFromDetail && useCoverSharedBounds && isSharedReturnTarget)
+    // 返回目标：全程禁用 Coil 淡入（含 clearReturning 之后）。
+    if (useCoverSharedBounds && isSharedReturnTarget) return false
+    // 返回会话中非 shell 路径的兜底
+    if (isReturningFromDetail && isSharedReturnTarget) return false
+    return true
 }
 
 /**
- * 首页卡片 → 详情页 CARD_SHELL morph 期间，源卡片封面应让位给 overlay，
- * 避免列表里仍显示一张静态封面而与详情页封面重影。
+ * 首页卡片 → 详情页 CARD_SHELL morph 期间，源卡片封面是否让位给 overlay。
  *
- * 仅 forward 进入详情(OPENING) 时隐藏；返回 morph（HELD/IDLE、预测式手势、已提交返回）
- * 必须保留真实封面，否则会露出 surfaceVariant 占位色。
+ * 隐藏时机（仅这些）：
+ * - OPENING：冻结 record 前藏封面，减「冻结清晰封面 + overlay」重影
+ *
+ * 所有返回路径都不藏列表封面：它始终在 shared overlay 下方作为落点画面，
+ * 避免 overlay 结束与 Coil 目标图接手之间露出 surfaceVariant 占位色。
  */
 internal fun shouldHideHomeCardCoverDuringShellMorph(
     useCardContainerSharedBounds: Boolean,
     isSharedMorphSourceCard: Boolean,
     isReturningFromDetail: Boolean,
-    isSharedTransitionActive: Boolean,
     transitionBackgroundPhase: VideoCardTransitionBackgroundPhase,
     isVideoCardReturnGestureInProgress: Boolean,
 ): Boolean {
-    if (!useCardContainerSharedBounds || !isSharedMorphSourceCard || !isSharedTransitionActive) {
+    if (!useCardContainerSharedBounds || !isSharedMorphSourceCard) {
         return false
     }
-    if (
+    // 返回预览、提交和落位都由同一张目标封面兜底；也覆盖 OPENING 被手势打断的情况。
+    if (isVideoCardReturnGestureInProgress ||
         isReturningFromDetail ||
-        isVideoCardReturnGestureInProgress ||
-        transitionBackgroundPhase != VideoCardTransitionBackgroundPhase.OPENING
+        transitionBackgroundPhase == VideoCardTransitionBackgroundPhase.RETURNING
     ) {
         return false
     }
-    return true
+    if (transitionBackgroundPhase == VideoCardTransitionBackgroundPhase.OPENING) {
+        return true
+    }
+    return false
 }
 
 internal data class StoryVideoCardScrollLiteVisualPolicy(

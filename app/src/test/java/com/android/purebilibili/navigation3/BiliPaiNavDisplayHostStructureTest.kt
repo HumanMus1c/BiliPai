@@ -55,6 +55,17 @@ class BiliPaiNavDisplayHostStructureTest {
     }
 
     @Test
+    fun navDisplayHostSuppressesPredictiveProgressWhenPreferenceDisabled() {
+        val source = navDisplayHostSource()
+        val backHandlerBlock = source
+            .substringAfter("NavigationBackHandler(")
+            .substringBefore("onBackCancelled")
+
+        assertTrue(backHandlerBlock.contains("reportPredictiveProgress = predictiveBackEnabled"))
+        assertTrue(source.contains("predictiveBackEnabled = predictiveBackEnabled"))
+    }
+
+    @Test
     fun navDisplayHostPreservesApplicationExtrasForEntryViewModels() {
         val source = navDisplayHostSource()
 
@@ -128,6 +139,22 @@ class BiliPaiNavDisplayHostStructureTest {
         assertTrue(performBackBlock.contains("predictiveBackHandler.onBackPressed("))
         assertTrue(performBackBlock.contains("commitTransitionCallBack()"))
         assertTrue(performBackBlock.contains("onBack()"))
+    }
+
+    @Test
+    fun navDisplayHostInterruptsOpeningWithoutSwitchingTheReturnTimeline() {
+        val source = navDisplayHostSource()
+        val performBackBlock = source
+            .substringAfter("val performBack: (() -> Unit) -> Unit = {")
+            .substringBefore("val scopedContent:")
+
+        assertTrue(source.contains("launchVideoCardDepthAnimation"))
+        assertTrue(source.contains("cancelVideoCardDepthAnimation"))
+        assertTrue(source.contains("resolveVideoCardTransitionReturnFullDurationMillis"))
+        assertTrue(performBackBlock.contains("cancelVideoCardDepthAnimation()"))
+        // 进场结束后仅在仍 OPENING 时写入 HELD，避免打断后补写。
+        assertTrue(source.contains("未被返回打断"))
+        assertTrue(source.contains("VideoCardTransitionBackgroundPhase.OPENING"))
     }
 
     @Test
