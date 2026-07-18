@@ -105,7 +105,7 @@ class VideoCardTransitionBackgroundPolicyTest {
         assertEquals(0f, frame.blurRadiusPx % 1f)
         assertEquals(0.22f, frame.scrimAlpha)
         assertFalse(frame.useLightScrimTint)
-        assertEquals(0.975f, frame.contentScale, 0.0001f)
+        assertEquals(0.96f, frame.contentScale, 0.0001f)
     }
 
     @Test
@@ -154,6 +154,20 @@ class VideoCardTransitionBackgroundPolicyTest {
     }
 
     @Test
+    fun softClearDepthKeepsMoreBlurThroughMidReturn() {
+        assertEquals(1f, softClearVideoCardTransitionDepth(1f), 0.0001f)
+        assertEquals(0.75f, softClearVideoCardTransitionDepth(0.5f), 0.0001f)
+        assertEquals(0f, softClearVideoCardTransitionDepth(0f), 0.0001f)
+        assertTrue(
+            softClearVideoCardTransitionDepth(0.5f) >
+                resolveVideoCardTransitionDepthProgress(
+                    progress = 0.5f,
+                    phase = VideoCardTransitionBackgroundPhase.OPENING,
+                ),
+        )
+    }
+
+    @Test
     fun returningFrameFadesBlurAndScrimWithSharedElementProgress() {
         val start = resolveVideoCardTransitionBackgroundFrame(
             progress = 1f,
@@ -172,15 +186,15 @@ class VideoCardTransitionBackgroundPolicyTest {
         )
 
         assertEquals(20f, start.blurRadiusPx)
-        assertEquals(10f, middle.blurRadiusPx)
+        // soft-clear：progress=0.5 时 depth≈0.75，blur 仍约 15px，中段不清空。
+        assertEquals(15f, middle.blurRadiusPx)
         assertTrue(middle.blurRadiusPx in 1f..<start.blurRadiusPx)
         assertEquals(0f, end.blurRadiusPx)
         assertTrue(start.scrimAlpha > middle.scrimAlpha)
         assertTrue(middle.scrimAlpha > 0f)
         assertEquals(0f, end.scrimAlpha)
-        // 景深与共享 progress 同源，不再二次 soft-clear remapping。
-        assertEquals(0.975f, start.contentScale, 0.0001f)
-        assertEquals(0.9875f, middle.contentScale, 0.0001f)
+        assertEquals(0.96f, start.contentScale, 0.0001f)
+        assertEquals(0.97f, middle.contentScale, 0.0001f)
         assertEquals(1f, end.contentScale)
     }
 
@@ -207,7 +221,7 @@ class VideoCardTransitionBackgroundPolicyTest {
         assertEquals(20f, frame.blurRadiusPx)
         // HELD 保留与满进度开场一致的压暗，避免详情停留时景深断裂。
         assertEquals(0.22f, frame.scrimAlpha)
-        assertEquals(0.975f, frame.contentScale, 0.0001f)
+        assertEquals(0.96f, frame.contentScale, 0.0001f)
     }
 
     @Test
@@ -225,8 +239,8 @@ class VideoCardTransitionBackgroundPolicyTest {
             isGestureRestoreInProgress = true,
         )
 
-        assertEquals(0.975f, openingScale, 0.0001f)
-        assertEquals(0.9875f, restoreScale, 0.0001f)
+        assertEquals(0.96f, openingScale, 0.0001f)
+        assertEquals(0.98f, restoreScale, 0.0001f)
     }
 
     @Test
@@ -271,7 +285,8 @@ class VideoCardTransitionBackgroundPolicyTest {
 
         assertTrue(frame.blurRadiusPx > 0f)
         assertTrue(frame.scrimAlpha > 0f)
-        assertEquals(0.99375f, frame.contentScale, 0.0001f)
+        // soft-clear：p=0.25 → depth=0.4375 → scale=1-0.04*0.4375
+        assertEquals(0.9825f, frame.contentScale, 0.0001f)
     }
 
     @Test

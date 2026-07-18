@@ -3,9 +3,12 @@ package com.android.purebilibili.feature.home
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode
+import com.android.purebilibili.core.store.HomeWallpaperEffectScope
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class HomeGlassVisualPolicyTest {
@@ -209,6 +212,76 @@ class HomeGlassVisualPolicyTest {
         assertTrue(strongBlur.blurRadiusDp >= 56f)
         assertTrue(strongBlur.detailAlpha < softBlur.detailAlpha)
         assertTrue(strongBlur.baseBackgroundAlpha > softBlur.baseBackgroundAlpha)
+    }
+
+    @Test
+    fun globalHomeWallpaperBackdropVisibility_followsScopeAndRoute() {
+        assertFalse(
+            shouldRenderGlobalHomeWallpaperBackdrop(
+                effectScope = HomeWallpaperEffectScope.HOME_ONLY,
+                currentRoute = "dynamic",
+            )
+        )
+        assertFalse(
+            shouldRenderGlobalHomeWallpaperBackdrop(
+                effectScope = HomeWallpaperEffectScope.GLOBAL,
+                currentRoute = "home",
+            )
+        )
+        assertTrue(
+            shouldRenderGlobalHomeWallpaperBackdrop(
+                effectScope = HomeWallpaperEffectScope.GLOBAL,
+                currentRoute = "dynamic",
+            )
+        )
+        assertTrue(
+            shouldExposeGlobalHomeWallpaperChrome(
+                effectScope = HomeWallpaperEffectScope.GLOBAL,
+                hasWallpaperUri = true,
+                currentRoute = "history",
+            )
+        )
+        assertFalse(
+            shouldExposeGlobalHomeWallpaperChrome(
+                effectScope = HomeWallpaperEffectScope.GLOBAL,
+                hasWallpaperUri = false,
+                currentRoute = "history",
+            )
+        )
+    }
+
+    @Test
+    fun globalHomeWallpaperFollowsVideoCardDepthOutsideIdle() {
+        assertFalse(
+            shouldApplyVideoCardDepthToGlobalHomeWallpaper(
+                wallpaperVisible = true,
+                phase = VideoCardTransitionBackgroundPhase.IDLE,
+            )
+        )
+        assertTrue(
+            shouldApplyVideoCardDepthToGlobalHomeWallpaper(
+                wallpaperVisible = true,
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+            )
+        )
+        assertTrue(
+            shouldApplyVideoCardDepthToGlobalHomeWallpaper(
+                wallpaperVisible = true,
+                phase = VideoCardTransitionBackgroundPhase.HELD,
+            )
+        )
+        assertTrue(
+            shouldApplyVideoCardDepthToGlobalHomeWallpaper(
+                wallpaperVisible = true,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+            )
+        )
+        assertFalse(
+            shouldApplyVideoCardDepthToGlobalHomeWallpaper(
+                wallpaperVisible = false,
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+            )
+        )
     }
 
     @Test

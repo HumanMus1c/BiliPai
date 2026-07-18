@@ -160,6 +160,13 @@ internal fun resolveVideoCardSharedTransitionEnterEasing(): Easing =
 internal fun resolveVideoCardSharedTransitionReturnEasing(): Easing =
     resolveVideoCardSharedTransitionSpatialEasing()
 
+/**
+ * 仅用于卡片景深背景的返回清晰动画（blur/scale/scrim → 0）。
+ * 与 Hero 共享元素的 Continuity / soft spring 分开，避免把空间位移动画也改成 ease-in。
+ */
+internal fun resolveVideoCardTransitionBackgroundReturnClearEasing(): Easing =
+    AppMotionEasing.SoftClear
+
 internal fun resolveVideoCardSharedTransitionSpatialEasing(): Easing = AppMotionEasing.Continuity
 
 internal fun resolveVideoSharedTransitionSpatialStiffness(durationMillis: Int): Float {

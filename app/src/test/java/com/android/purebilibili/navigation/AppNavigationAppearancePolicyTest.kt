@@ -111,11 +111,12 @@ class AppNavigationAppearancePolicyTest {
             .substringAfter(".layerBackdrop(bottomBarBackdrop)")
             .substringBefore("// ===== 全局底栏")
 
-        val wallpaperIndex = capturedLayerSource.indexOf("HomeWallpaperBackdrop(")
+        val wallpaperIndex = capturedLayerSource.indexOf("DepthSyncedGlobalHomeWallpaperBackdrop(")
         val navDisplayIndex = capturedLayerSource.indexOf("BiliPaiNavDisplayHost(")
 
         assertTrue(wallpaperIndex >= 0)
         assertTrue(navDisplayIndex > wallpaperIndex)
+        assertTrue(capturedLayerSource.contains("onVideoCardDepthFrame"))
         assertTrue(capturedLayerSource.contains(".then(if (mainHazeState != null) Modifier.hazeSourceCompat(mainHazeState) else Modifier)"))
     }
 

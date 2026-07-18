@@ -21,6 +21,8 @@ internal object AppMotionEasing {
     val EmphasizedExit: Easing = CubicBezierEasing(0.32f, 0f, 0.67f, 0f)
     val Continuity: Easing = CubicBezierEasing(0.20f, 0.90f, 0.22f, 1.00f)
     val GentleEnter: Easing = CubicBezierEasing(0.18f, 0.80f, 0.20f, 1.00f)
+    /** 景深返回清晰：ease-in 向 0，先留住模糊再柔化，避免 Continuity 在 1→0 时过早掐清。 */
+    val SoftClear: Easing = CubicBezierEasing(0.40f, 0.00f, 0.55f, 0.30f)
 }
 
 internal fun <T> emphasizedEnterTween(durationMillis: Int): TweenSpec<T> =

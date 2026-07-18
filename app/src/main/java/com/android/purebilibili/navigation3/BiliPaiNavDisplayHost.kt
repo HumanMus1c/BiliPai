@@ -15,7 +15,9 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -57,7 +59,7 @@ import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBac
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundReturnDurationMs
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionReturnFullDurationMillis
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionEnterEasing
-import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionReturnEasing
+import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundReturnClearEasing
 import com.android.purebilibili.core.ui.transition.isVideoCardTransitionBackgroundGesturePhase
 import com.android.purebilibili.core.ui.transition.shouldApplyPredictiveBackGestureBlur
 import com.android.purebilibili.core.ui.transition.shouldShowVideoCardTransitionNavBackdrop
@@ -83,6 +85,15 @@ internal fun BiliPaiNavDisplayHost(
     onBack: () -> Unit,
     onNativeVideoBackProgress: (currentKey: BiliPaiNavKey?, targetKey: BiliPaiNavKey?, progress: Float) -> Unit = { _, _, _ -> },
     onNativeVideoBackCancelled: (currentKey: BiliPaiNavKey?, targetKey: BiliPaiNavKey?) -> Unit = { _, _ -> },
+    /**
+     * 把卡片景深帧同步给 App 层全局壁纸等外部层（progress / phase / gestureRestore）。
+     * Animatable 在 draw 期驱动时不一定每帧重组，这里用 withFrameNanos 桥接。
+     */
+    onVideoCardDepthFrame: (
+        progress: Float,
+        phase: VideoCardTransitionBackgroundPhase,
+        gestureRestore: Boolean,
+    ) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope? = null,
     visibleBottomBarRoutes: Set<String> = emptySet(),
@@ -138,6 +149,27 @@ internal fun BiliPaiNavDisplayHost(
             } else {
                 videoCardTransitionBackgroundProgress.value
             }
+        }
+    }
+    val onVideoCardDepthFrameUpdated by rememberUpdatedState(onVideoCardDepthFrame)
+    LaunchedEffect(videoCardTransitionBackgroundPhase, cardTransitionEnabled) {
+        if (!cardTransitionEnabled ||
+            videoCardTransitionBackgroundPhase == VideoCardTransitionBackgroundPhase.IDLE
+        ) {
+            onVideoCardDepthFrameUpdated(
+                0f,
+                VideoCardTransitionBackgroundPhase.IDLE,
+                false,
+            )
+            return@LaunchedEffect
+        }
+        while (true) {
+            onVideoCardDepthFrameUpdated(
+                videoCardBackgroundProgressProvider(),
+                videoCardTransitionBackgroundPhase,
+                videoCardBackgroundGestureRestoreInProgress,
+            )
+            withFrameNanos { }
         }
     }
     // 系统减弱动画(省电/无障碍/开发者选项)时，过渡背景降级为仅 scrim，跳过全屏 GPU 实时模糊。
@@ -213,7 +245,7 @@ internal fun BiliPaiNavDisplayHost(
                                     startProgress = remainingBlur,
                                     fullDurationMs = fullDurationMs,
                                 ),
-                                easing = resolveVideoCardSharedTransitionReturnEasing(),
+                                easing = resolveVideoCardTransitionBackgroundReturnClearEasing(),
                             ),
                         )
                         val parentSourceRoute =
@@ -376,7 +408,7 @@ internal fun BiliPaiNavDisplayHost(
                                 startProgress = blurAtCommit,
                                 fullDurationMs = fullDurationMs,
                             ),
-                            easing = resolveVideoCardSharedTransitionReturnEasing(),
+                            easing = resolveVideoCardTransitionBackgroundReturnClearEasing(),
                         ),
                     )
                     val parentSourceRoute =
