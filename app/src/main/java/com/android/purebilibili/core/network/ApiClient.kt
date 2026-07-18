@@ -2211,9 +2211,25 @@ object NetworkModule {
                     origin = "https://space.bilibili.com"
                 }
 
+                val isAndroidSmsLoginEndpoint = url.encodedPath == "/x/passport-login/sms/send" ||
+                    url.encodedPath == "/x/passport-login/login/sms"
                 val builder = original.newBuilder()
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+                    .header(
+                        "User-Agent",
+                        if (isAndroidSmsLoginEndpoint) {
+                            "Mozilla/5.0 BiliDroid/2.0.1 (bbcallen@gmail.com) os/android model/android_hd mobi_app/android_hd build/2001100 channel/master innerVer/2001100 osVer/15 network/2"
+                        } else {
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                        }
+                    )
                     .header("Origin", origin) //  动态 Origin 头
+                if (isAndroidSmsLoginEndpoint) {
+                    builder
+                        .header("app-key", "android64")
+                        .header("bili-http-engine", "cronet")
+                        .header("env", "prod")
+                        .header("x-bili-trace-id", "11111111111111111111111111111111:1111111111111111:0:0")
+                }
                 
                 //  [关键修复] WBI 签名接口绝对不能设置 Referer 头，否则会失败
                 // 参考：https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/misc/sign/wbi.md

@@ -333,6 +333,10 @@ object RsaEncryption {
      * @return Base64 编码的加密密码
      */
     fun encryptPassword(password: String, publicKey: String, salt: String): String? {
+        return encrypt(salt + password, publicKey)
+    }
+
+    fun encrypt(value: String, publicKey: String): String? {
         return try {
             // 处理公钥字符串
             val keyStr = publicKey
@@ -349,7 +353,7 @@ object RsaEncryption {
             // 加密 (salt + password)
             val cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding")
             cipher.init(Cipher.ENCRYPT_MODE, pubKey)
-            val encryptedBytes = cipher.doFinal((salt + password).toByteArray())
+            val encryptedBytes = cipher.doFinal(value.toByteArray())
             
             // Base64 编码
             Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
