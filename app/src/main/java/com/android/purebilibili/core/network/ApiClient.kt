@@ -18,6 +18,7 @@ import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.http.Query
@@ -1693,6 +1694,11 @@ interface BangumiApi {
 }
 
 interface PassportApi {
+    @GET("https://api.bilibili.com/x/web-interface/nav")
+    suspend fun validateCookieSession(
+        @Header("Cookie") cookieHeader: String
+    ): NavResponse
+
     // 二维码登录
     @GET("x/passport-login/web/qrcode/generate")
     suspend fun generateQrCode(): QrCodeResponse
@@ -1720,6 +1726,12 @@ interface PassportApi {
         @retrofit2.http.Field("validate") validate: String,    // 极验验证结果
         @retrofit2.http.Field("seccode") seccode: String       // 极验安全码
     ): SmsCodeResponse
+
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("x/passport-login/sms/send")
+    suspend fun sendSmsCodeByApp(
+        @retrofit2.http.FieldMap params: Map<String, String>
+    ): SmsCodeResponse
     
     // 短信验证码登录
     @retrofit2.http.FormUrlEncoded
@@ -1733,6 +1745,12 @@ interface PassportApi {
         @retrofit2.http.Field("keep") keep: Int = 0,
         @retrofit2.http.Field("go_url") goUrl: String = "https://www.bilibili.com"
     ): Response<LoginResponse>  // 使用 Response 以获取 Set-Cookie
+
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("x/passport-login/login/sms")
+    suspend fun loginBySmsApp(
+        @retrofit2.http.FieldMap params: Map<String, String>
+    ): Response<LoginResponse>
     
     // 获取 RSA 公钥 (密码登录用)
     @GET("x/passport-login/web/key")

@@ -28,6 +28,10 @@ object TokenManager {
     private const val SP_KEY_MID = "mid_backup"        //  新增 MID 持久化
     private const val SP_KEY_ACCESS_TOKEN = "access_token_backup"  //  [新增] APP access_token
     private const val SP_KEY_REFRESH_TOKEN = "refresh_token_backup"  //  [新增] APP refresh_token
+    private const val SP_KEY_ACCESS_TOKEN_PLATFORM = "access_token_platform_backup"
+
+    const val ACCESS_TOKEN_PLATFORM_TV = "tv"
+    const val ACCESS_TOKEN_PLATFORM_ANDROID = "android"
 
     @Volatile
     var sessDataCache: String? = null
@@ -59,6 +63,10 @@ object TokenManager {
     var refreshTokenCache: String? = null
         private set
 
+    @Volatile
+    var accessTokenPlatformCache: String = ACCESS_TOKEN_PLATFORM_TV
+        private set
+
     fun init(context: Context) {
         // 1.  同步读取 SP 备份，确保主线程立即有数据
         val sp = context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE)
@@ -68,8 +76,15 @@ object TokenManager {
         midCache = sp.getLong(SP_KEY_MID, 0L).takeIf { it > 0 }  //  读取 MID
         accessTokenCache = sp.getString(SP_KEY_ACCESS_TOKEN, null)  //  读取 access_token
         refreshTokenCache = sp.getString(SP_KEY_REFRESH_TOKEN, null)  //  读取 refresh_token
+        accessTokenPlatformCache = sp.getString(
+            SP_KEY_ACCESS_TOKEN_PLATFORM,
+            ACCESS_TOKEN_PLATFORM_TV
+        ) ?: ACCESS_TOKEN_PLATFORM_TV
         
-        com.android.purebilibili.core.util.Logger.d("TokenManager", " init: sessData=${sessDataCache?.take(10)}..., accessToken=${accessTokenCache?.take(10)}..., mid=$midCache")
+        com.android.purebilibili.core.util.Logger.d(
+            "TokenManager",
+            "init: hasSession=${!sessDataCache.isNullOrBlank()}, hasAccessToken=${!accessTokenCache.isNullOrBlank()}, mid=$midCache"
+        )
 
         // 2. 启动 DataStore 监听 (主要数据源)
         CoroutineScope(Dispatchers.IO).launch {
@@ -105,7 +120,7 @@ object TokenManager {
         csrfCache = csrf
         context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE)
             .edit().putString(SP_KEY_CSRF, csrf).apply()
-        com.android.purebilibili.core.util.Logger.d("TokenManager", " saveCsrf: ${csrf.take(10)}...")
+        com.android.purebilibili.core.util.Logger.d("TokenManager", "saveCsrf")
     }
     
     //  [新增] 保存用户 MID
@@ -117,15 +132,34 @@ object TokenManager {
     }
     
     //  [新增] 保存 APP access_token 和 refresh_token - 高画质鉴权登录后调用
-    fun saveAccessToken(context: Context, accessToken: String, refreshToken: String) {
+    fun saveAccessToken(
+        context: Context,
+        accessToken: String,
+        refreshToken: String,
+        platform: String = ACCESS_TOKEN_PLATFORM_TV
+    ) {
         accessTokenCache = accessToken
         refreshTokenCache = refreshToken
+        accessTokenPlatformCache = platform
         context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(SP_KEY_ACCESS_TOKEN, accessToken)
             .putString(SP_KEY_REFRESH_TOKEN, refreshToken)
+            .putString(SP_KEY_ACCESS_TOKEN_PLATFORM, platform)
             .apply()
-        com.android.purebilibili.core.util.Logger.d("TokenManager", " saveAccessToken: ${accessToken.take(10)}..., refreshToken: ${refreshToken.take(10)}...")
+        com.android.purebilibili.core.util.Logger.d("TokenManager", "saveAccessToken")
+    }
+
+    fun clearAccessToken(context: Context) {
+        accessTokenCache = null
+        refreshTokenCache = null
+        accessTokenPlatformCache = ACCESS_TOKEN_PLATFORM_TV
+        context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .remove(SP_KEY_ACCESS_TOKEN)
+            .remove(SP_KEY_REFRESH_TOKEN)
+            .remove(SP_KEY_ACCESS_TOKEN_PLATFORM)
+            .apply()
     }
 
     fun saveVipStatus(isVip: Boolean) {
@@ -134,7 +168,7 @@ object TokenManager {
 
     suspend fun saveCookies(context: Context, sessData: String) {
         sessDataCache = sessData
-        com.android.purebilibili.core.util.Logger.d("TokenManager", " saveCookies: ${sessData.take(10)}..., cache updated to: ${sessDataCache?.take(10)}...")
+        com.android.purebilibili.core.util.Logger.d("TokenManager", "saveCookies")
         
         // 1. 存入 SP (同步/快速)
         context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE)
@@ -166,6 +200,7 @@ object TokenManager {
         mid: Long,
         accessToken: String,
         refreshToken: String,
+        accessTokenPlatform: String = ACCESS_TOKEN_PLATFORM_TV,
         buvid3: String,
         isVip: Boolean
     ) {
@@ -176,6 +211,7 @@ object TokenManager {
         midCache = mid.takeIf { it > 0L }
         accessTokenCache = accessToken.ifBlank { null }
         refreshTokenCache = refreshToken.ifBlank { null }
+        this.accessTokenPlatformCache = accessTokenPlatform
         isVipCache = isVip
 
         sp.edit()
@@ -183,6 +219,7 @@ object TokenManager {
             .putLong(SP_KEY_MID, midCache ?: 0L)
             .putString(SP_KEY_ACCESS_TOKEN, accessTokenCache)
             .putString(SP_KEY_REFRESH_TOKEN, refreshTokenCache)
+            .putString(SP_KEY_ACCESS_TOKEN_PLATFORM, accessTokenPlatformCache)
             .apply()
 
         if (buvid3.isNotBlank()) {
@@ -204,6 +241,7 @@ object TokenManager {
         isVipCache = false
         accessTokenCache = null  //  [新增] 清除 access_token
         refreshTokenCache = null
+        accessTokenPlatformCache = ACCESS_TOKEN_PLATFORM_TV
         
         // 清除 SP
         context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE)
