@@ -36,19 +36,54 @@ internal fun buildAndroidSmsLoginParams(
     timestampSeconds: Long
 ): Map<String, String> = buildMap {
     putAll(androidLoginBaseParams(timestampSeconds))
-    put("bili_local_id", deviceId)
-    put("buvid", buvid)
-    put("device", "phone")
-    put("device_id", deviceId)
-    put("device_name", "android_hd")
-    put("device_platform", "Android")
-    put("dt", encryptedDeviceToken)
-    put("local_id", buvid)
+    putAll(androidLoginDeviceParams(buvid, deviceId, encryptedDeviceToken))
     put("cid", countryCode.toString())
     put("tel", phone)
     put("code", code.toString())
     put("captcha_key", captchaKey)
+    put("from_pv", "main.my-information.my-login.0.click")
+    put("from_url", "bilibili%3A%2F%2Fuser_center%2Fmine")
 }
+
+internal fun buildAndroidPasswordLoginParams(
+    username: String,
+    encryptedPassword: String,
+    token: String,
+    challenge: String,
+    validate: String,
+    seccode: String,
+    buvid: String,
+    deviceId: String,
+    encryptedDeviceToken: String,
+    timestampSeconds: Long
+): Map<String, String> = buildMap {
+    putAll(androidLoginBaseParams(timestampSeconds))
+    putAll(androidLoginDeviceParams(buvid, deviceId, encryptedDeviceToken))
+    put("username", username)
+    put("password", encryptedPassword)
+    put("permission", "ALL")
+    put("recaptcha_token", token)
+    put("gee_challenge", challenge)
+    put("gee_validate", validate)
+    put("gee_seccode", seccode)
+    put("from_pv", "main.homepage.avatar-nologin.all.click")
+    put("from_url", "bilibili%3A%2F%2Fpegasus%2Fpromo")
+}
+
+private fun androidLoginDeviceParams(
+    buvid: String,
+    deviceId: String,
+    encryptedDeviceToken: String
+): Map<String, String> = mapOf(
+    "bili_local_id" to deviceId,
+    "buvid" to buvid,
+    "device" to "phone",
+    "device_id" to deviceId,
+    "device_name" to "android_hd",
+    "device_platform" to "Android",
+    "dt" to encryptedDeviceToken,
+    "local_id" to buvid
+)
 
 private fun androidLoginBaseParams(timestampSeconds: Long): Map<String, String> = mapOf(
     "appkey" to AppSignUtils.ANDROID_HD_APP_KEY,

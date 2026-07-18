@@ -56,15 +56,19 @@ class NetworkClientPolicyTest {
     }
 
     @Test
-    fun androidSmsEndpoints_useAndroidHdAppKeyHeader() {
+    fun androidHdLoginEndpoints_useAndroidHdAppKeyHeader() {
         assertEquals(
             "android_hd",
-            NetworkModule.resolveAndroidSmsAppKeyHeader("/x/passport-login/sms/send")
+            NetworkModule.resolveAndroidHdLoginAppKeyHeader("/x/passport-login/sms/send")
         )
         assertEquals(
             "android_hd",
-            NetworkModule.resolveAndroidSmsAppKeyHeader("/x/passport-login/login/sms")
+            NetworkModule.resolveAndroidHdLoginAppKeyHeader("/x/passport-login/login/sms")
         )
-        assertNull(NetworkModule.resolveAndroidSmsAppKeyHeader("/x/web-interface/nav"))
+        assertEquals(
+            "android_hd",
+            NetworkModule.resolveAndroidHdLoginAppKeyHeader("/x/passport-login/oauth2/login")
+        )
+        assertNull(NetworkModule.resolveAndroidHdLoginAppKeyHeader("/x/web-interface/nav"))
     }
 }

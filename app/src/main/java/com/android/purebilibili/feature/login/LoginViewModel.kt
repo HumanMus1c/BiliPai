@@ -376,6 +376,13 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     _state.value = LoginState.Error("密码加密失败")
                     return@launch
                 }
+                val encryptedDeviceToken = RsaEncryption.encrypt(
+                    value = UUID.randomUUID().toString().replace("-", "").take(16),
+                    publicKey = key
+                ) ?: run {
+                    _state.value = LoginState.Error("生成登录设备凭据失败")
+                    return@launch
+                }
                 
                 // 3. 需要验证码
                 val captchaData = currentCaptchaData ?: run {
@@ -384,18 +391,29 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 
                 // 4. 登录
-                val response = NetworkModule.passportApi.loginByPassword(
+                val params = buildAndroidPasswordLoginParams(
                     username = phone,
-                    password = encryptedPassword,
+                    encryptedPassword = encryptedPassword,
                     token = captchaData.token,
                     challenge = currentChallenge,
                     validate = currentValidate,
-                    seccode = currentSeccode
+                    seccode = currentSeccode,
+                    buvid = appLoginBuvid,
+                    deviceId = appLoginDeviceId,
+                    encryptedDeviceToken = encryptedDeviceToken,
+                    timestampSeconds = com.android.purebilibili.core.network.AppSignUtils.getTimestamp()
+                )
+                val response = NetworkModule.passportApi.loginByPasswordApp(
+                    com.android.purebilibili.core.network.AppSignUtils.signForAndroidHdLogin(params)
                 )
                 
                 val body = response.body()
                 if (body?.code == 0) {
-                    handleLoginResponse(response = response, source = "password")
+                    handleLoginResponse(
+                        response = response,
+                        source = "password",
+                        accessTokenPlatform = TokenManager.ACCESS_TOKEN_PLATFORM_ANDROID
+                    )
                 } else {
                     _state.value = LoginState.Error("登录失败: ${body?.message ?: "未知错误"}")
                 }
