@@ -73,6 +73,36 @@ class VideoDetailScreenMethodSizeStructureTest {
         assertTrue(playerHost.contains("internal fun PortraitInlineVideoPlayerHost("))
     }
 
+    @Test
+    fun platformAndPlaybackEffectsHaveDedicatedBoundedHosts() {
+        val platformEffects = loadSource("VideoDetailPlatformEffectsHost.kt")
+        val playbackEffects = loadSource("VideoDetailPlaybackSessionEffects.kt")
+        val holder = loadSource("VideoDetailScreenStateHolder.kt")
+
+        assertTrue(platformEffects.lineSequence().count() <= 700)
+        assertTrue(playbackEffects.lineSequence().count() <= 700)
+        assertTrue(platformEffects.contains("VideoDetailPipParamsEffect("))
+        assertTrue(platformEffects.contains("VideoDetailKeepScreenOnEffect("))
+        assertTrue(platformEffects.contains("VideoDetailSystemBarsEffect("))
+        assertTrue(playbackEffects.contains("LaunchedEffect(viewModel, state)"))
+        assertFalse(holder.contains("LaunchedEffect(videoPlayerBounds, pipModeEnabled)"))
+        assertFalse(holder.contains("DisposableEffect(window, shouldKeepVideoScreenAwake)"))
+    }
+
+    @Test
+    fun inlinePlayerAnimationUsesDeferredGraphicsLayerReads() {
+        val holder = loadSource("VideoDetailScreenStateHolder.kt")
+        val playerHost = loadSource("VideoDetailPlayerTransitionHost.kt")
+
+        assertTrue(holder.contains("val inlinePlayerAlpha = animateFloatAsState("))
+        assertTrue(holder.contains("val inlinePlayerScale = animateFloatAsState("))
+        assertTrue(playerHost.contains("inlinePlayerAlpha: State<Float>"))
+        assertTrue(playerHost.contains("inlinePlayerScale: State<Float>"))
+        assertTrue(playerHost.contains("alpha = inlinePlayerAlpha.value"))
+        assertTrue(playerHost.contains("scaleX = inlinePlayerScale.value"))
+        assertFalse(playerHost.contains(".alpha(inlinePlayerAlpha)"))
+    }
+
     private fun loadSource(name: String): String {
         val candidates = listOf(
             File("src/main/java/com/android/purebilibili/feature/video/screen/$name"),
