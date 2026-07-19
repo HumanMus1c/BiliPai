@@ -12,6 +12,23 @@ import kotlin.test.assertTrue
 class SpaceProfileEnhancementPolicyTest {
 
     @Test
+    fun `discovered opus content adds the missing article contribution tab`() {
+        val tabs = ensureSpaceContributionTabsForAvailableContent(
+            tabs = listOf(
+                SpaceContributionTab(
+                    id = "video",
+                    title = "视频",
+                    subTab = SpaceSubTab.VIDEO,
+                    param = "video"
+                )
+            ),
+            hasArticles = true
+        )
+
+        assertEquals(listOf(SpaceSubTab.VIDEO, SpaceSubTab.ARTICLE), tabs.map { it.subTab })
+    }
+
+    @Test
     fun `shouldEnableSpaceTopPhotoPreview only when url is not blank`() {
         assertTrue(shouldEnableSpaceTopPhotoPreview("https://i0.hdslb.com/bfs/space/demo.jpg"))
         assertFalse(shouldEnableSpaceTopPhotoPreview(""))

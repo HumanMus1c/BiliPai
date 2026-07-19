@@ -154,6 +154,7 @@ class SpaceViewModel(
     private var activeSpaceLoadGeneration: Long = 0
     private var activeSpaceLoadJob: Job? = null
     private var activeSpaceSupplementalJob: Job? = null
+    private var activeSpaceArticleJob: Job? = null
     private var activeSpaceSearchJob: Job? = null
     private var activeVideoListJob: Job? = null
     private var activeVideoListGeneration: Long = 0
@@ -180,6 +181,7 @@ class SpaceViewModel(
         val requestGeneration = activeSpaceLoadGeneration
         activeSpaceLoadJob?.cancel()
         activeSpaceSupplementalJob?.cancel()
+        activeSpaceArticleJob?.cancel()
 
         activeSpaceLoadJob = viewModelScope.launch {
             _uiState.value = SpaceUiState.Loading
@@ -231,6 +233,7 @@ class SpaceViewModel(
                         )
                         hydrateInitialContributionVideos(mid = mid, requestGeneration = requestGeneration)
                         ensureSelectedContributionContentLoaded()
+                        probeSpaceArticles(mid = mid, requestGeneration = requestGeneration)
                     }
                     return@launch
                 }
@@ -252,6 +255,8 @@ class SpaceViewModel(
                     if (shouldApplySpaceLoadResult(mid, currentMid, requestGeneration, activeSpaceLoadGeneration)) {
                         _uiState.value = SpaceUiState.Error("获取用户信息失败")
                     }
+                } else {
+                    probeSpaceArticles(mid = mid, requestGeneration = requestGeneration)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -1497,7 +1502,8 @@ class SpaceViewModel(
         if (current.isLoadingArticles) return
         if (!refresh && !current.hasMoreArticles) return
         
-        viewModelScope.launch {
+        activeSpaceArticleJob?.cancel()
+        activeSpaceArticleJob = viewModelScope.launch {
             _uiState.value = current.copy(isLoadingArticles = true).markTabLoading(SpaceMainTab.CONTRIBUTION)
             val page = if (refresh) 1 else current.articlePage + 1
             
@@ -1514,6 +1520,10 @@ class SpaceViewModel(
                          ?: (allItems.size < totalCount.coerceAtLeast(allItems.size))
                      
                      _uiState.value = currentState.copy(
+                         contributionTabs = ensureSpaceContributionTabsForAvailableContent(
+                             tabs = currentState.contributionTabs,
+                             hasArticles = newItems.isNotEmpty()
+                         ),
                          articles = allItems,
                          totalArticles = totalCount,
                          articlePage = page,
@@ -1529,6 +1539,8 @@ class SpaceViewModel(
                          error = "专栏加载失败"
                      )
                  }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 val currentState = _uiState.value as? SpaceUiState.Success ?: return@launch
                 _uiState.value = currentState.copy(
@@ -1537,6 +1549,39 @@ class SpaceViewModel(
                     tab = SpaceMainTab.CONTRIBUTION,
                     error = e.message ?: "专栏加载失败"
                 )
+            }
+        }
+    }
+
+    private fun probeSpaceArticles(mid: Long, requestGeneration: Long) {
+        activeSpaceArticleJob?.cancel()
+        activeSpaceArticleJob = viewModelScope.launch {
+            try {
+                val result = fetchSpaceArticleList(mid = mid, page = 1, offset = "")
+                if (!shouldApplySpaceLoadResult(mid, currentMid, requestGeneration, activeSpaceLoadGeneration)) {
+                    return@launch
+                }
+                val currentState = _uiState.value as? SpaceUiState.Success ?: return@launch
+                val items = result?.takeIf { it.code == 0 }?.data?.lists.orEmpty()
+                if (items.isEmpty()) return@launch
+
+                val totalCount = result?.data?.total?.takeIf { it > 0 } ?: items.size
+                _uiState.value = currentState.copy(
+                    contributionTabs = ensureSpaceContributionTabsForAvailableContent(
+                        tabs = currentState.contributionTabs,
+                        hasArticles = true
+                    ),
+                    articles = items,
+                    totalArticles = totalCount,
+                    articlePage = 1,
+                    articleOffset = result?.data?.offset.orEmpty(),
+                    hasMoreArticles = result?.data?.has_more
+                        ?: (items.size < totalCount.coerceAtLeast(items.size))
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e("SpaceVM", "probeArticle error: ${e.message}")
             }
         }
     }
@@ -1565,6 +1610,8 @@ class SpaceViewModel(
                 cachedSubKey
             )
             spaceApi.getSpaceArticleList(params)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("SpaceVM", "fetchArticle error: ${e.message}")
             null

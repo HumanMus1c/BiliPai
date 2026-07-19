@@ -192,6 +192,23 @@ internal data class AudioModePlaylist(
     val startIndex: Int
 )
 
+internal fun resolveUgcSeasonEpisodeIndex(
+    episodes: List<UgcEpisode>,
+    currentBvid: String,
+    currentCid: Long
+): Int {
+    if (currentBvid.isBlank()) return -1
+
+    if (currentCid > 0L) {
+        val exactIndex = episodes.indexOfFirst { episode ->
+            episode.bvid == currentBvid && episode.cid == currentCid
+        }
+        if (exactIndex >= 0) return exactIndex
+    }
+
+    return episodes.indexOfFirst { it.bvid == currentBvid }
+}
+
 internal fun buildAudioModeCollectionPlaylist(
     episodes: List<UgcEpisode>,
     currentBvid: String,
@@ -2186,7 +2203,11 @@ class VideoPlaybackViewModel : ViewModel() {
 
         val hasNextSeasonEpisode = current?.info?.ugc_season?.let { season ->
             val allEpisodes = season.sections.flatMap { it.episodes }
-            val nextEpIndex = allEpisodes.indexOfFirst { it.bvid == current.info.bvid } + 1
+            val nextEpIndex = resolveUgcSeasonEpisodeIndex(
+                episodes = allEpisodes,
+                currentBvid = current.info.bvid,
+                currentCid = current.info.cid
+            ) + 1
             nextEpIndex < allEpisodes.size
         } ?: false
 
@@ -2207,7 +2228,11 @@ class VideoPlaybackViewModel : ViewModel() {
 
         val hasPreviousSeasonEpisode = current?.info?.ugc_season?.let { season ->
             val allEpisodes = season.sections.flatMap { it.episodes }
-            val previousEpIndex = allEpisodes.indexOfFirst { it.bvid == current.info.bvid } - 1
+            val previousEpIndex = resolveUgcSeasonEpisodeIndex(
+                episodes = allEpisodes,
+                currentBvid = current.info.bvid,
+                currentCid = current.info.cid
+            ) - 1
             previousEpIndex >= 0
         } ?: false
 
@@ -2258,7 +2283,11 @@ class VideoPlaybackViewModel : ViewModel() {
         // 2. 检查合集 (UGC Season)
         current.info.ugc_season?.let { season ->
             val allEpisodes = season.sections.flatMap { it.episodes }
-            val currentEpIndex = allEpisodes.indexOfFirst { it.bvid == current.info.bvid }
+            val currentEpIndex = resolveUgcSeasonEpisodeIndex(
+                episodes = allEpisodes,
+                currentBvid = current.info.bvid,
+                currentCid = current.info.cid
+            )
             val nextEpIndex = currentEpIndex + 1
 
             if (nextEpIndex < allEpisodes.size) {
@@ -2318,7 +2347,11 @@ class VideoPlaybackViewModel : ViewModel() {
 
         current.info.ugc_season?.let { season ->
             val allEpisodes = season.sections.flatMap { it.episodes }
-            val currentEpIndex = allEpisodes.indexOfFirst { it.bvid == current.info.bvid }
+            val currentEpIndex = resolveUgcSeasonEpisodeIndex(
+                episodes = allEpisodes,
+                currentBvid = current.info.bvid,
+                currentCid = current.info.cid
+            )
             val previousEpIndex = currentEpIndex - 1
 
             if (previousEpIndex >= 0) {

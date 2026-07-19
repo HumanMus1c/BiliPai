@@ -11,6 +11,21 @@ import kotlin.test.assertTrue
 class AudioModeCollectionPlaylistPolicyTest {
 
     @Test
+    fun `ugc season lookup prefers the matching cid when bvid is duplicated`() {
+        val index = resolveUgcSeasonEpisodeIndex(
+            episodes = listOf(
+                UgcEpisode(bvid = "BV1", cid = 11L),
+                UgcEpisode(bvid = "BV1", cid = 22L),
+                UgcEpisode(bvid = "BV2", cid = 33L)
+            ),
+            currentBvid = "BV1",
+            currentCid = 22L
+        )
+
+        assertEquals(1, index)
+    }
+
+    @Test
     fun `audio mode collection playlist uses collection episodes only`() {
         val result = buildAudioModeCollectionPlaylist(
             episodes = listOf(

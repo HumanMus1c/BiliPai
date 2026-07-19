@@ -644,7 +644,7 @@ fun VideoPlayerOverlay(
     var showPageSelectorSheet by remember { mutableStateOf(false) }
     var currentSpeed by remember(player) { mutableFloatStateOf(player.playbackParameters.speed) }
     //  使用传入的比例状态
-    var isPlaying by remember {
+    var isPlaying by remember(player) {
         mutableStateOf(
             resolveOverlayPlaybackButtonPlayingState(
                 isPlaying = player.isPlaying,

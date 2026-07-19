@@ -1239,7 +1239,7 @@ fun VideoPlayerSection(
     Box(
         modifier = rootModifier
             //  [新增] 处理双指缩放/平移，并在全屏时支持双指调倍速
-            .pointerInput(isFullscreen, isInPipMode, isScreenLocked, twoFingerSpeedMode) {
+            .pointerInput(playerState.player, isFullscreen, isInPipMode, isScreenLocked, twoFingerSpeedMode) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     var totalPanX = 0f
@@ -1351,6 +1351,7 @@ fun VideoPlayerSection(
             }
             //  先处理拖拽手势 (音量/亮度/进度)
             .pointerInput(
+                playerState.player,
                 isInPipMode,
                 isScreenLocked,
                 showControls,
@@ -1717,6 +1718,7 @@ fun VideoPlayerSection(
             }
             //  长按倍速和拖动锁定必须在同一个手势探测器内处理。
             .pointerInput(
+                playerState.player,
                 longPressSpeed,
                 isScreenLocked,
                 currentAudioQuality,
@@ -1805,6 +1807,7 @@ fun VideoPlayerSection(
             }
             //  点击/双击手势在拖拽之后处理
             .pointerInput(
+                playerState.player,
                 seekForwardSeconds,
                 seekBackwardSeconds,
                 doubleTapSeekEnabled,
