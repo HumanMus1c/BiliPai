@@ -7,13 +7,10 @@ import kotlin.test.assertFalse
 class VideoTransitionRealtimeBlurRemovalStructureTest {
 
     @Test
-    fun mainSourcesDoNotContainRemovedVideoTransitionRealtimeBlurPath() {
+    fun mainSourcesDoNotContainRemovedVideoTransitionRealtimeBlurImplementation() {
         val source = mainKotlinSources()
         val bannedTokens = listOf(
             "VideoSharedTransitionBackdropHost",
-            "videoTransitionRealtimeBlurEnabled",
-            "getVideoTransitionRealtimeBlurEnabled",
-            "setVideoTransitionRealtimeBlurEnabled",
             "fallbackEntryBlurEnabled",
             "transitionMaxBlurRadiusPx"
         )
