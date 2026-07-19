@@ -1,6 +1,7 @@
 // 文件路径: core/network/AppSignUtils.kt
 package com.android.purebilibili.core.network
 
+import android.net.Uri
 import java.security.MessageDigest
 
 /**
@@ -19,6 +20,10 @@ object AppSignUtils {
     //  Android 客户端 appkey 和 appsec (用于获取高画质视频)
     const val ANDROID_APP_KEY = "1d8b6e7d45233436"
     private const val ANDROID_APP_SEC = "560c52ccd288fed045859ed18bffd973"
+
+    // Bilibili HD client credentials used by the current SMS login endpoints.
+    const val ANDROID_HD_APP_KEY = "dfca71928277209b"
+    private const val ANDROID_HD_APP_SEC = "b5475a8825547a4fc26c7d518eaaa02e"
     
     /**
      * 计算 APP 签名
@@ -54,6 +59,18 @@ object AppSignUtils {
      */
     fun signForAndroidApi(params: Map<String, String>): Map<String, String> {
         return sign(params, ANDROID_APP_SEC)
+    }
+
+    fun signForAndroidHdLogin(params: Map<String, String>): Map<String, String> {
+        val sortedParams = params.toSortedMap()
+        val queryString = sortedParams.entries.joinToString("&") { (key, value) ->
+            "${Uri.encode(key)}=${Uri.encode(value)}"
+        }
+        return sortedParams + ("sign" to md5(queryString + ANDROID_HD_APP_SEC))
+    }
+
+    fun createLoginSessionId(buvid: String, timestampMillis: Long): String {
+        return md5(buvid + timestampMillis)
     }
     
     /**

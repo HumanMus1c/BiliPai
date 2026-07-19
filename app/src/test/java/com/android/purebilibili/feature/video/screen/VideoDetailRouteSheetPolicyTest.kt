@@ -8,15 +8,30 @@ import kotlin.test.assertTrue
 class VideoDetailRouteSheetPolicyTest {
 
     @Test
-    fun cardSecondaryContent_usesTheSameFullTimelineAsGeometry() {
+    fun cardSecondaryContent_usesLayeredTimingWithinGeometryTimeline() {
         val timing = resolveVideoDetailSecondaryContentTiming(
-            fullDurationMillis = 460,
+            fullDurationMillis = 320,
+            contentDelayMillis = 40,
+            contentDurationMillis = 220,
         )
 
-        assertEquals(0, timing.enterDelayMillis)
-        assertEquals(460, timing.enterDurationMillis)
+        assertEquals(40, timing.enterDelayMillis)
+        assertEquals(220, timing.enterDurationMillis)
         assertEquals(0, timing.returnDelayMillis)
-        assertEquals(460, timing.returnDurationMillis)
+        assertEquals(220, timing.returnDurationMillis)
+    }
+
+    @Test
+    fun cardSecondaryContent_clampsToShortCustomTimeline() {
+        val timing = resolveVideoDetailSecondaryContentTiming(
+            fullDurationMillis = 240,
+            contentDelayMillis = 40,
+            contentDurationMillis = 220,
+        )
+
+        assertEquals(40, timing.enterDelayMillis)
+        assertEquals(200, timing.enterDurationMillis)
+        assertEquals(220, timing.returnDurationMillis)
     }
 
     @Test

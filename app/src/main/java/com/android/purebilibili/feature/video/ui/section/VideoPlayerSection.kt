@@ -130,6 +130,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpe
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedCoverCacheKey
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
@@ -1238,7 +1239,7 @@ fun VideoPlayerSection(
     Box(
         modifier = rootModifier
             //  [新增] 处理双指缩放/平移，并在全屏时支持双指调倍速
-            .pointerInput(isFullscreen, isInPipMode, isScreenLocked, twoFingerSpeedMode) {
+            .pointerInput(playerState.player, isFullscreen, isInPipMode, isScreenLocked, twoFingerSpeedMode) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     var totalPanX = 0f
@@ -1350,6 +1351,7 @@ fun VideoPlayerSection(
             }
             //  先处理拖拽手势 (音量/亮度/进度)
             .pointerInput(
+                playerState.player,
                 isInPipMode,
                 isScreenLocked,
                 showControls,
@@ -1716,6 +1718,7 @@ fun VideoPlayerSection(
             }
             //  长按倍速和拖动锁定必须在同一个手势探测器内处理。
             .pointerInput(
+                playerState.player,
                 longPressSpeed,
                 isScreenLocked,
                 currentAudioQuality,
@@ -1804,6 +1807,7 @@ fun VideoPlayerSection(
             }
             //  点击/双击手势在拖拽之后处理
             .pointerInput(
+                playerState.player,
                 seekForwardSeconds,
                 seekBackwardSeconds,
                 doubleTapSeekEnabled,
@@ -2711,6 +2715,12 @@ fun VideoPlayerSection(
             hasStartedSmoothReveal = true
         }
     }
+    val holdEntryCoverUnderlay = shouldHoldEntryCoverUnderlay(
+        isFirstFrameRendered = isFirstFrameRendered,
+        forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation,
+        shouldKeepCoverForManualStart = keepCoverForManualStart,
+        hasStartedSmoothReveal = hasStartedSmoothReveal,
+    )
     val showCover = shouldShowCoverImage(
         isFirstFrameRendered = isFirstFrameRendered,
         forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation,
@@ -2789,11 +2799,17 @@ fun VideoPlayerSection(
         )
     }
     val fillPlayerViewportForManualStartCover = entryPresentationSpec.fillCoverViewport
-    val suppressCoverFade = forceCoverDuringReturnAnimation || videoSharedTransitionVisualSpec.suppressCoverFade
-    val coverMotionSpec = remember(suppressCoverFade) {
-        resolveVideoPlayerCoverMotionSpec(suppressCoverFade)
+    val suppressCoverFade = forceCoverDuringReturnAnimation ||
+        videoSharedTransitionVisualSpec.suppressCoverFade ||
+        holdEntryCoverUnderlay
+    val coverMotionSpec = remember(suppressCoverFade, holdEntryCoverUnderlay) {
+        resolveVideoPlayerCoverMotionSpec(
+            forceCoverDuringReturnAnimation = suppressCoverFade,
+            holdEntryCoverUnderlay = holdEntryCoverUnderlay,
+        )
     }
-    val disableCoverFadeAnimation = !coverMotionSpec.shouldAnimateFade
+    // 即播垫底硬切进出；CoverFirst 手动起播前也不和 Hero 抢淡入淡出。
+    val disableCoverFadeAnimation = !coverMotionSpec.shouldAnimateFade || !keepCoverForManualStart
     val coverOverlaySharedBoundsEnabled = shouldEnableCoverOverlaySharedBounds(
         useCoverOverlaySharedBounds = entryPresentationSpec.coverUsesSharedBounds,
         transitionEnabled = transitionEnabled,
@@ -2876,12 +2892,20 @@ fun VideoPlayerSection(
                     }
             ) {
                 if (currentCoverUrl.isNotEmpty()) {
+                    val sharedCoverCacheKey = resolveVideoSharedCoverCacheKey(bvid)
                     AsyncImage(
                         model = coil.request.ImageRequest.Builder(LocalContext.current)
                             .data(currentCoverUrl)
-                            // 入口封面优先复用首页卡片缓存，避免手动起播时短暂露出播放器底层。
-                            .placeholderMemoryCacheKey("cover_${bvid}_n")
-                            .crossfade(shouldEnableCoverImageCrossfade(forceCoverDuringReturnAnimation))
+                            // 与首页卡片同一 memory/disk key，返回卸层时直接命中缓存，避免重解码闪一下。
+                            .placeholderMemoryCacheKey(sharedCoverCacheKey)
+                            .memoryCacheKey(sharedCoverCacheKey)
+                            .diskCacheKey(sharedCoverCacheKey)
+                            .crossfade(
+                                shouldEnableCoverImageCrossfade(
+                                    forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation,
+                                    holdEntryCoverUnderlay = holdEntryCoverUnderlay,
+                                )
+                            )
                             .build(),
                         contentDescription = null,
                         contentScale = when (entryPresentationSpec.coverContentScaleMode) {

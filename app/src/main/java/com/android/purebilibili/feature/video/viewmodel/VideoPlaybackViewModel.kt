@@ -187,21 +187,39 @@ internal fun buildSponsorBlockVideoSnapshot(currentState: VideoPlaybackUiState):
     )
 }
 
-internal data class AudioModeCollectionPlaylist(
+internal data class AudioModePlaylist(
     val items: List<PlaylistItem>,
     val startIndex: Int
 )
+
+internal fun resolveUgcSeasonEpisodeIndex(
+    episodes: List<UgcEpisode>,
+    currentBvid: String,
+    currentCid: Long
+): Int {
+    if (currentBvid.isBlank()) return -1
+
+    if (currentCid > 0L) {
+        val exactIndex = episodes.indexOfFirst { episode ->
+            episode.bvid == currentBvid && episode.cid == currentCid
+        }
+        if (exactIndex >= 0) return exactIndex
+    }
+
+    return episodes.indexOfFirst { it.bvid == currentBvid }
+}
 
 internal fun buildAudioModeCollectionPlaylist(
     episodes: List<UgcEpisode>,
     currentBvid: String,
     currentCid: Long
-): AudioModeCollectionPlaylist? {
+): AudioModePlaylist? {
     val playableEpisodes = episodes.filter { it.bvid.isNotBlank() }
     val items = playableEpisodes
         .map { episode ->
             PlaylistItem(
                 bvid = episode.bvid,
+                cid = episode.cid,
                 title = episode.title.ifBlank {
                     episode.arc?.title?.takeIf { title -> title.isNotBlank() } ?: episode.bvid
                 },
@@ -224,10 +242,36 @@ internal fun buildAudioModeCollectionPlaylist(
         else -> 0
     }.coerceIn(0, items.lastIndex)
 
-    return AudioModeCollectionPlaylist(
+    return AudioModePlaylist(
         items = items,
         startIndex = startIndex
     )
+}
+
+internal fun buildAudioModePagePlaylist(
+    pages: List<com.android.purebilibili.data.model.response.Page>,
+    currentBvid: String,
+    currentCid: Long,
+    videoTitle: String,
+    cover: String,
+    owner: String
+): AudioModePlaylist? {
+    if (pages.size <= 1 || currentBvid.isBlank()) return null
+
+    val items = pages.mapIndexed { index, page ->
+        PlaylistItem(
+            bvid = currentBvid,
+            cid = page.cid,
+            title = page.part.ifBlank { if (index == 0) videoTitle else "P${index + 1}" },
+            cover = cover,
+            owner = owner,
+            duration = page.duration
+        )
+    }
+    val startIndex = pages.indexOfFirst { it.cid == currentCid }
+        .takeIf { it >= 0 }
+        ?: 0
+    return AudioModePlaylist(items = items, startIndex = startIndex)
 }
 
 /** 听视频模式下，收藏夹/稍后再看等外部队列优先于视频自带合集队列。 */
@@ -1485,6 +1529,10 @@ class VideoPlaybackViewModel : ViewModel() {
     
     fun setAudioMode(enabled: Boolean) {
         _isInAudioMode.value = enabled
+        if (enabled) {
+            val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
+            updatePlaylist(current.info, current.related)
+        }
     }
 
     fun setPortraitPlaybackSessionActive(active: Boolean) {
@@ -2051,6 +2099,7 @@ class VideoPlaybackViewModel : ViewModel() {
             // 加载新视频 (Auto-play next always forces true)
             loadVideo(
                 nextItem.bvid,
+                cid = nextItem.cid,
                 autoPlay = true,
                 ignoreSavedProgress = ignoreSavedProgress
             )
@@ -2107,6 +2156,7 @@ class VideoPlaybackViewModel : ViewModel() {
         val target = PlaylistManager.playAt(nextIndex) ?: return false
         loadVideo(
             target.bvid,
+            cid = target.cid,
             autoPlay = true,
             ignoreSavedProgress = ignoreSavedProgress
         )
@@ -2132,6 +2182,7 @@ class VideoPlaybackViewModel : ViewModel() {
         val target = PlaylistManager.playAt(previousIndex) ?: return false
         loadVideo(
             target.bvid,
+            cid = target.cid,
             autoPlay = true,
             ignoreSavedProgress = ignoreSavedProgress
         )
@@ -2152,7 +2203,11 @@ class VideoPlaybackViewModel : ViewModel() {
 
         val hasNextSeasonEpisode = current?.info?.ugc_season?.let { season ->
             val allEpisodes = season.sections.flatMap { it.episodes }
-            val nextEpIndex = allEpisodes.indexOfFirst { it.bvid == current.info.bvid } + 1
+            val nextEpIndex = resolveUgcSeasonEpisodeIndex(
+                episodes = allEpisodes,
+                currentBvid = current.info.bvid,
+                currentCid = current.info.cid
+            ) + 1
             nextEpIndex < allEpisodes.size
         } ?: false
 
@@ -2173,7 +2228,11 @@ class VideoPlaybackViewModel : ViewModel() {
 
         val hasPreviousSeasonEpisode = current?.info?.ugc_season?.let { season ->
             val allEpisodes = season.sections.flatMap { it.episodes }
-            val previousEpIndex = allEpisodes.indexOfFirst { it.bvid == current.info.bvid } - 1
+            val previousEpIndex = resolveUgcSeasonEpisodeIndex(
+                episodes = allEpisodes,
+                currentBvid = current.info.bvid,
+                currentCid = current.info.cid
+            ) - 1
             previousEpIndex >= 0
         } ?: false
 
@@ -2224,7 +2283,11 @@ class VideoPlaybackViewModel : ViewModel() {
         // 2. 检查合集 (UGC Season)
         current.info.ugc_season?.let { season ->
             val allEpisodes = season.sections.flatMap { it.episodes }
-            val currentEpIndex = allEpisodes.indexOfFirst { it.bvid == current.info.bvid }
+            val currentEpIndex = resolveUgcSeasonEpisodeIndex(
+                episodes = allEpisodes,
+                currentBvid = current.info.bvid,
+                currentCid = current.info.cid
+            )
             val nextEpIndex = currentEpIndex + 1
 
             if (nextEpIndex < allEpisodes.size) {
@@ -2284,7 +2347,11 @@ class VideoPlaybackViewModel : ViewModel() {
 
         current.info.ugc_season?.let { season ->
             val allEpisodes = season.sections.flatMap { it.episodes }
-            val currentEpIndex = allEpisodes.indexOfFirst { it.bvid == current.info.bvid }
+            val currentEpIndex = resolveUgcSeasonEpisodeIndex(
+                episodes = allEpisodes,
+                currentBvid = current.info.bvid,
+                currentCid = current.info.cid
+            )
             val previousEpIndex = currentEpIndex - 1
 
             if (previousEpIndex >= 0) {
@@ -2447,6 +2514,7 @@ class VideoPlaybackViewModel : ViewModel() {
         }
         loadVideo(
             bvid = item.bvid,
+            cid = item.cid,
             autoPlay = true,
             ignoreSavedProgress = ignoreSavedProgress
         )
@@ -2462,6 +2530,7 @@ class VideoPlaybackViewModel : ViewModel() {
             }
             loadVideo(
                 prevItem.bvid,
+                cid = prevItem.cid,
                 autoPlay = true,
                 ignoreSavedProgress = ignoreSavedProgress
             )
@@ -3133,22 +3202,42 @@ class VideoPlaybackViewModel : ViewModel() {
                 keepExternalPlaylist = false
             )
         ) {
-            val collectionPlaylist = currentInfo.ugc_season?.let { season ->
-                buildAudioModeCollectionPlaylist(
-                    episodes = season.sections.flatMap { it.episodes },
+            val audioPlaylist = if (currentInfo.pages.size > 1) {
+                buildAudioModePagePlaylist(
+                    pages = currentInfo.pages,
                     currentBvid = currentInfo.bvid,
-                    currentCid = currentInfo.cid
+                    currentCid = currentInfo.cid,
+                    videoTitle = currentInfo.title,
+                    cover = currentInfo.pic,
+                    owner = currentInfo.owner.name
                 )
+            } else {
+                currentInfo.ugc_season?.let { season ->
+                    buildAudioModeCollectionPlaylist(
+                        episodes = season.sections.flatMap { it.episodes },
+                        currentBvid = currentInfo.bvid,
+                        currentCid = currentInfo.cid
+                    )
+                }
             }
-            if (collectionPlaylist != null) {
+            if (audioPlaylist != null) {
                 PlaylistManager.setPlaylist(
-                    items = collectionPlaylist.items,
-                    startIndex = collectionPlaylist.startIndex
+                    items = audioPlaylist.items,
+                    startIndex = audioPlaylist.startIndex
                 )
                 Logger.d(
                     "PlayerVM",
-                    "🎵 听视频合集队列: ${collectionPlaylist.items.size} 项, 当前=${collectionPlaylist.startIndex}"
+                    "🎵 听视频分集队列: ${audioPlaylist.items.size} 项, 当前=${audioPlaylist.startIndex}"
                 )
+                return
+            }
+
+            val currentQueuedItem = currentPlaylist.getOrNull(PlaylistManager.currentIndex.value)
+            if (
+                currentQueuedItem != null &&
+                currentQueuedItem.bvid == currentInfo.bvid &&
+                (currentQueuedItem.cid <= 0L || currentQueuedItem.cid == currentInfo.cid)
+            ) {
                 return
             }
         }
@@ -3164,6 +3253,7 @@ class VideoPlaybackViewModel : ViewModel() {
         val relatedItems = related.map { video ->
             PlaylistItem(
                 bvid = video.bvid,
+                cid = video.cid,
                 title = video.title,
                 cover = video.pic,
                 owner = video.owner.name,
@@ -3174,6 +3264,7 @@ class VideoPlaybackViewModel : ViewModel() {
         // 创建当前视频的播放项 (updated with full info)
         val currentFullItem = PlaylistItem(
             bvid = currentInfo.bvid,
+            cid = currentInfo.cid,
             title = currentInfo.title,
             cover = currentInfo.pic,
             owner = currentInfo.owner.name,

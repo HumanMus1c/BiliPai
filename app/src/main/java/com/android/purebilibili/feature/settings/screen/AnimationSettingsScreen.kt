@@ -244,7 +244,7 @@ fun AnimationSettingsContent(
                         IOSDivider()
                         IOSSlidingSegmentedSetting(
                             title = "共享元素速度：${state.videoSharedTransitionSpeed.label}",
-                            subtitle = "Material 强调曲线；自定义只调整时长",
+                            subtitle = "连续性缓出 + 柔和回弹；自定义只调整时长",
                             options = sharedTransitionSpeedOptions,
                             selectedValue = state.videoSharedTransitionSpeed,
                             onSelectionChange = viewModel::setVideoSharedTransitionSpeed
@@ -284,7 +284,10 @@ fun AnimationSettingsContent(
                                     },
                                     valueRange = VIDEO_SHARED_TRANSITION_CUSTOM_MIN_MILLIS.toFloat()..
                                         VIDEO_SHARED_TRANSITION_CUSTOM_MAX_MILLIS.toFloat(),
-                                    steps = 30
+                                    steps = (
+                                        (VIDEO_SHARED_TRANSITION_CUSTOM_MAX_MILLIS -
+                                            VIDEO_SHARED_TRANSITION_CUSTOM_MIN_MILLIS) / 20
+                                        ) - 1
                                 )
                             }
                         }

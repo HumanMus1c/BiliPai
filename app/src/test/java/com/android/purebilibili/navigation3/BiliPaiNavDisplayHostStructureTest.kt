@@ -1,5 +1,6 @@
 package com.android.purebilibili.navigation3
 
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -103,6 +104,7 @@ class BiliPaiNavDisplayHostStructureTest {
         assertTrue(returnBranch.contains("VideoCardTransitionBackgroundPhase.RETURNING"))
         assertTrue(returnBranch.contains("videoCardTransitionBackgroundProgress.snapTo(1f)"))
         assertTrue(returnBranch.contains("resolveVideoCardTransitionBackgroundReturnDurationMs"))
+        assertTrue(returnBranch.contains("resolveVideoCardTransitionBackgroundReturnClearEasing()"))
         assertTrue(returnBranch.contains("remainingBlur"))
         assertTrue(returnBranch.contains("videoCardTransitionBackgroundProgress.animateTo("))
         assertTrue(returnBranch.contains("parentSourceRoute"))
@@ -158,6 +160,54 @@ class BiliPaiNavDisplayHostStructureTest {
     }
 
     @Test
+    fun navDisplayHostPublishesVideoCardDepthFramesForExternalLayers() {
+        val source = navDisplayHostSource()
+        assertTrue(source.contains("onVideoCardDepthFrame"))
+        assertTrue(source.contains("withFrameNanos"))
+        assertTrue(source.contains("onVideoCardDepthFrameUpdated"))
+        assertTrue(source.contains("shouldContinuouslyPublishVideoCardDepthFrames("))
+    }
+
+    @Test
+    fun videoCardDepthFramesRunContinuouslyOnlyWhileVisualStateChanges() {
+        assertTrue(
+            shouldContinuouslyPublishVideoCardDepthFrames(
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+                isReturnGestureInProgress = false,
+                isGestureRestoreInProgress = false,
+            )
+        )
+        assertTrue(
+            shouldContinuouslyPublishVideoCardDepthFrames(
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+                isGestureRestoreInProgress = false,
+            )
+        )
+        assertTrue(
+            shouldContinuouslyPublishVideoCardDepthFrames(
+                phase = VideoCardTransitionBackgroundPhase.HELD,
+                isReturnGestureInProgress = true,
+                isGestureRestoreInProgress = false,
+            )
+        )
+        assertTrue(
+            shouldContinuouslyPublishVideoCardDepthFrames(
+                phase = VideoCardTransitionBackgroundPhase.HELD,
+                isReturnGestureInProgress = false,
+                isGestureRestoreInProgress = true,
+            )
+        )
+        assertFalse(
+            shouldContinuouslyPublishVideoCardDepthFrames(
+                phase = VideoCardTransitionBackgroundPhase.HELD,
+                isReturnGestureInProgress = false,
+                isGestureRestoreInProgress = false,
+            )
+        )
+    }
+
+    @Test
     fun navDisplayHostFadesVideoCardBackgroundBlurAlongsidePop() {
         val source = navDisplayHostSource()
         val performBackBlock = source
@@ -169,7 +219,7 @@ class BiliPaiNavDisplayHostStructureTest {
         assertTrue(preOnBack.contains("VideoCardTransitionBackgroundPhase.HELD"))
         assertTrue(preOnBack.contains("VideoCardTransitionBackgroundPhase.OPENING"))
         assertTrue(preOnBack.contains("VideoCardTransitionBackgroundPhase.RETURNING"))
-        assertTrue(preOnBack.contains("resolveVideoCardSharedTransitionReturnEasing()"))
+        assertTrue(preOnBack.contains("resolveVideoCardTransitionBackgroundReturnClearEasing()"))
         assertFalse(preOnBack.contains("videoCardTransitionBackgroundProgress.snapTo(0f)"))
     }
 

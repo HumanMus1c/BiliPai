@@ -4,9 +4,54 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode
+import com.android.purebilibili.core.store.HomeWallpaperEffectScope
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import kotlin.math.max
 import kotlin.math.min
+
+private const val HOME_WALLPAPER_HOME_ROUTE_BASE = "home"
+
+/**
+ * App 根层全局壁纸：GLOBAL 且当前不在首页路由时绘制。
+ * 首页由 [HomeScreen] 自绘，避免叠两层。
+ */
+internal fun shouldRenderGlobalHomeWallpaperBackdrop(
+    effectScope: HomeWallpaperEffectScope,
+    currentRoute: String?,
+): Boolean {
+    if (effectScope != HomeWallpaperEffectScope.GLOBAL) return false
+    if (currentRoute.isNullOrBlank()) return false
+    return normalizeHomeWallpaperRoute(currentRoute) != HOME_WALLPAPER_HOME_ROUTE_BASE
+}
+
+/**
+ * 全局壁纸是否跟随卡片景深（缩/糊/压暗）。
+ * 与来源页同一套 phase/progress，避免壁纸钉死全屏、内容单独后退。
+ */
+internal fun shouldApplyVideoCardDepthToGlobalHomeWallpaper(
+    wallpaperVisible: Boolean,
+    phase: VideoCardTransitionBackgroundPhase,
+): Boolean {
+    if (!wallpaperVisible) return false
+    return phase != VideoCardTransitionBackgroundPhase.IDLE
+}
+
+/**
+ * 全局壁纸 Chrome 透传：与 LocalGlobalWallpaperBackdropVisible 语义对齐。
+ */
+internal fun shouldExposeGlobalHomeWallpaperChrome(
+    effectScope: HomeWallpaperEffectScope,
+    hasWallpaperUri: Boolean,
+    currentRoute: String?,
+): Boolean = shouldRenderGlobalHomeWallpaperBackdrop(
+    effectScope = effectScope,
+    currentRoute = currentRoute,
+) && hasWallpaperUri
+
+private fun normalizeHomeWallpaperRoute(route: String?): String? {
+    return route?.trim()?.takeIf { it.isNotBlank() }?.substringBefore("?")
+}
 
 data class HomeGlassChromeStyle(
     val containerAlpha: Float,

@@ -764,13 +764,20 @@ internal data class VideoDetailSecondaryContentTiming(
 
 internal fun resolveVideoDetailSecondaryContentTiming(
     fullDurationMillis: Int,
+    contentDelayMillis: Int,
+    contentDurationMillis: Int,
 ): VideoDetailSecondaryContentTiming {
     val safeDuration = fullDurationMillis.coerceAtLeast(0)
+    val safeEnterDelay = contentDelayMillis.coerceIn(0, safeDuration)
+    val safeEnterDuration = contentDurationMillis
+        .coerceAtLeast(0)
+        .coerceAtMost(safeDuration - safeEnterDelay)
+    val safeReturnDuration = contentDurationMillis.coerceIn(0, safeDuration)
     return VideoDetailSecondaryContentTiming(
-        enterDelayMillis = 0,
-        enterDurationMillis = safeDuration,
+        enterDelayMillis = safeEnterDelay,
+        enterDurationMillis = safeEnterDuration,
         returnDelayMillis = 0,
-        returnDurationMillis = safeDuration
+        returnDurationMillis = safeReturnDuration
     )
 }
 
@@ -2003,6 +2010,8 @@ fun VideoDetailScreen(
     val secondaryContentTiming = remember(homeSharedTransitionMotionSpec) {
         resolveVideoDetailSecondaryContentTiming(
             fullDurationMillis = homeSharedTransitionMotionSpec.durationMillis,
+            contentDelayMillis = homeSharedTransitionMotionSpec.contentDelayMillis,
+            contentDurationMillis = homeSharedTransitionMotionSpec.contentDurationMillis,
         )
     }
     // 相关推荐返回：父页曾作为 back-preview 保活过，内容不再跑进场淡入/卸载。

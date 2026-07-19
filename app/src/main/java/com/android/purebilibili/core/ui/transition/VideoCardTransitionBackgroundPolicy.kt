@@ -20,15 +20,16 @@ import com.android.purebilibili.navigation.isVideoCardReturnTargetRoute
 import kotlin.math.roundToInt
 
 // 景深标定（Hero 氛围，非完整 App 开合）：
-// - 背景下沉 2.5%（0.975），层次轻、落位不弹
+// - 背景下沉 4%（0.96），跟放大可读、又不抢 Hero
 // - 峰值 blur 20px：冻结层上进度驱动 BlurEffect（动态模糊观感，避免 live 重录掉帧）
 // - 压暗全程保留（含 HELD），避免打开完成后景深断裂
+// - 返回：SoftClear 时间曲线 + soft-clear remapping，模糊→清晰不硬切
 private const val VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_PX = 20f
 private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = 1f
 private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.22f
 private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT = 0.11f
 private const val VIDEO_CARD_TRANSITION_LIGHT_REDUCED_OPENING_SCRIM_ALPHA = 0.07f
-private const val VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION = 0.025f
+private const val VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION = 0.04f
 private val VIDEO_CARD_TRANSITION_LIGHT_SCRIM_TINT = Color(0xFF8E8E93)
 
 // 开场与返回时长由共享元素速度设置提供；取消仍固定为短恢复动画。
@@ -391,7 +392,6 @@ private class VideoCardTransitionSnapshotLayerState {
  */
 internal fun shouldLiveRecordVideoCardTransitionSnapshot(
     phase: VideoCardTransitionBackgroundPhase,
-    @Suppress("UNUSED_PARAMETER") progress: Float,
 ): Boolean {
     return false
 }
@@ -454,7 +454,6 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
     val liveRecordingActive = useSnapshotBlur &&
         shouldLiveRecordVideoCardTransitionSnapshot(
             phase = phase,
-            progress = progressProvider(),
         )
     VideoCardTransitionLiveBlurHitchLogger(
         phaseProvider = phaseProvider,
@@ -530,19 +529,31 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
 }
 
 /**
- * 景深进度与导航共享 progress 同源；曲线只由 Animatable 的 Continuity 提供，
- * 这里不再二次 remapping，避免「先快后慢再提前掐断」的叠曲线。
+ * 进场/持有：景深与导航 progress 同源。
+ * 返回：soft-clear remapping，中段多留一点模糊与下沉，避免线性/ Continuity 过早掐清。
  */
 internal fun resolveVideoCardTransitionDepthProgress(
     progress: Float,
-    @Suppress("UNUSED_PARAMETER") phase: VideoCardTransitionBackgroundPhase =
-        VideoCardTransitionBackgroundPhase.OPENING,
+    phase: VideoCardTransitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
 ): Float {
-    return progress.coerceIn(0f, 1f)
+    val clamped = progress.coerceIn(0f, 1f)
+    return when (phase) {
+        VideoCardTransitionBackgroundPhase.RETURNING -> softClearVideoCardTransitionDepth(clamped)
+        else -> clamped
+    }
+}
+
+/**
+ * progress 仍为「剩余景深」1→0；映射成先留住再柔化：
+ * depth = 1 - (1 - p)²，p=0.5 时仍约 0.75。
+ */
+internal fun softClearVideoCardTransitionDepth(progress: Float): Float {
+    val remaining = (1f - progress.coerceIn(0f, 1f))
+    return (1f - remaining * remaining).coerceIn(0f, 1f)
 }
 
 private fun resolveVideoCardTransitionBlurStrength(progress: Float): Float {
-    // 与景深进度同源：模糊与背景下沉同步建立，避免“先糊后沉”的分层错位。
+    // 与景深进度同源：模糊与背景下沉同步建立/消退，避免“先糊后沉”的分层错位。
     return progress.coerceIn(0f, 1f)
 }
 

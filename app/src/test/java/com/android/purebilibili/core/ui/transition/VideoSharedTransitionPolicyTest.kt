@@ -1,5 +1,6 @@
 package com.android.purebilibili.core.ui.transition
 
+import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.ui.geometry.Rect
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
@@ -43,7 +44,7 @@ class VideoSharedTransitionPolicyTest {
     }
 
     @Test
-    fun videoSharedBoundsUseContinuityOnEnterAndLinearOnReturn() {
+    fun videoSharedBoundsUseContinuityEnterAndSoftSpringReturn() {
         val motion = resolveVideoCardSharedTransitionMotionSpec(
             sourceRoute = "home",
             transitionEnabled = true
@@ -55,22 +56,23 @@ class VideoSharedTransitionPolicyTest {
         val returning = videoSharedElementBoundsTransformSpec(motion, detailBounds, cardBounds)
 
         assertTrue(enter is TweenSpec<*>)
-        assertTrue(returning is TweenSpec<*>)
+        assertTrue(returning is SpringSpec<*>)
         assertEquals(motion.durationMillis, (enter as TweenSpec<*>).durationMillis)
-        assertEquals(motion.durationMillis, (returning as TweenSpec<*>).durationMillis)
-        // 进场：Continuity 先快后慢
+        // 进场：Continuity 先快后慢、无过冲
         assertEquals(
             AppMotionEasing.Continuity.transform(0.4f),
             enter.easing.transform(0.4f),
             0.001f,
         )
-        // 返回：Linear，预测 seek / 快速打断与手指 1:1
-        assertEquals(0.4f, returning.easing.transform(0.4f), 0.001f)
-        assertEquals(
-            0.4f,
-            resolveVideoSharedElementSpatialEasing(detailBounds, cardBounds).transform(0.4f),
-            0.001f,
-        )
+        // 返回：soft spring，一次轻回弹；可打断续传
+        val returnSpring = returning as SpringSpec<*>
+        assertEquals(motion.returnSpatialDampingRatio, returnSpring.dampingRatio, 0.001f)
+        assertEquals(motion.spatialStiffness, returnSpring.stiffness, 0.001f)
+        assertTrue(returnSpring.dampingRatio in 0.85f..0.9f)
+        assertTrue(returnSpring.dampingRatio < 1f)
+        assertEquals(0.86f, motion.returnSpatialDampingRatio, 0.001f)
+        assertEquals(300f, motion.spatialStiffness, 0.001f)
+        assertEquals(140L, resolveVideoCardReturnSpringSettleBufferMs())
     }
 
     @Test
@@ -322,10 +324,10 @@ class VideoSharedTransitionPolicyTest {
         )
 
         assertTrue(motion.enabled)
-        assertEquals(400, motion.durationMillis)
-        assertEquals(480, motion.fullscreenDurationMillis)
+        assertEquals(320, motion.durationMillis)
+        assertEquals(320, motion.fullscreenDurationMillis)
         assertEquals(40, motion.contentDelayMillis)
-        assertEquals(240, motion.contentDurationMillis)
+        assertEquals(220, motion.contentDurationMillis)
         assertEquals(14, motion.contentSlideOffsetDp)
         assertEquals(0.985f, motion.contentInitialScale, 0.0001f)
         assertSame(motion.enterAlphaEasing, motion.returnAlphaEasing)
@@ -344,6 +346,11 @@ class VideoSharedTransitionPolicyTest {
             resolveVideoCardSharedTransitionReturnEasing().transform(0.5f),
             0.001f,
         )
+        // 景深返回清晰单独用 SoftClear：中段 fraction 明显低于 Continuity，模糊不会过早掐清。
+        assertTrue(
+            resolveVideoCardTransitionBackgroundReturnClearEasing().transform(0.5f) <
+                AppMotionEasing.Continuity.transform(0.5f) - 0.2f,
+        )
     }
 
     @Test
@@ -354,8 +361,8 @@ class VideoSharedTransitionPolicyTest {
             speedSettings = VideoSharedTransitionSpeedSettings(VideoSharedTransitionSpeed.FAST)
         )
 
-        assertEquals(320, motion.durationMillis)
-        assertEquals(400, motion.fullscreenDurationMillis)
+        assertEquals(260, motion.durationMillis)
+        assertEquals(260, motion.fullscreenDurationMillis)
         assertEquals(220, motion.contentDurationMillis)
     }
 
@@ -367,10 +374,10 @@ class VideoSharedTransitionPolicyTest {
             isQuickReturn = true,
         )
 
-        assertEquals(400, motion.durationMillis)
+        assertEquals(320, motion.durationMillis)
         assertEquals(0, motion.contentDelayMillis)
-        assertEquals(240, motion.contentDurationMillis)
-        assertEquals(480, motion.fullscreenDurationMillis)
+        assertEquals(220, motion.contentDurationMillis)
+        assertEquals(320, motion.fullscreenDurationMillis)
     }
 
     @Test
@@ -381,9 +388,9 @@ class VideoSharedTransitionPolicyTest {
             speedSettings = VideoSharedTransitionSpeedSettings(VideoSharedTransitionSpeed.SLOW)
         )
 
-        assertEquals(520, motion.durationMillis)
-        assertEquals(600, motion.fullscreenDurationMillis)
-        assertEquals(312, motion.contentDurationMillis)
+        assertEquals(440, motion.durationMillis)
+        assertEquals(440, motion.fullscreenDurationMillis)
+        assertEquals(264, motion.contentDurationMillis)
     }
 
     @Test
@@ -413,9 +420,9 @@ class VideoSharedTransitionPolicyTest {
             )
         )
 
-        assertEquals(280, low.durationMillis)
+        assertEquals(240, low.durationMillis)
         assertEquals(620, custom.durationMillis)
-        assertEquals(700, custom.fullscreenDurationMillis)
+        assertEquals(620, custom.fullscreenDurationMillis)
         assertEquals(360, custom.contentDurationMillis)
         assertEquals(900, high.durationMillis)
     }
@@ -498,7 +505,7 @@ class VideoSharedTransitionPolicyTest {
         )
 
         assertTrue(motion.enabled)
-        assertEquals(400, motion.durationMillis)
+        assertEquals(320, motion.durationMillis)
     }
 
     @Test

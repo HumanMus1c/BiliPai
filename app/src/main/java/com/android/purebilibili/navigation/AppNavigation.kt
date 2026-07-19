@@ -43,9 +43,11 @@ import com.android.purebilibili.feature.home.HomeVideoClickRequest
 import com.android.purebilibili.feature.home.HomeVideoClickSource
 import com.android.purebilibili.feature.home.HomeScreen
 import com.android.purebilibili.feature.home.HomeViewModel
-import com.android.purebilibili.feature.home.HomeWallpaperBackdrop
+import com.android.purebilibili.feature.home.DepthSyncedGlobalHomeWallpaperBackdrop
 import com.android.purebilibili.feature.home.resolveHomeWallpaperBackdropAppearance
 import com.android.purebilibili.feature.home.resolveHomeWallpaperUri
+import com.android.purebilibili.feature.home.shouldExposeGlobalHomeWallpaperChrome
+import com.android.purebilibili.feature.home.shouldRenderGlobalHomeWallpaperBackdrop
 import com.android.purebilibili.feature.login.LoginScreen
 import com.android.purebilibili.feature.profile.ProfileScreen
 import com.android.purebilibili.feature.search.ArticleNavigationTarget
@@ -99,6 +101,7 @@ import com.android.purebilibili.core.ui.transition.LocalPredictiveBackBackground
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionDurationMillis
 import com.android.purebilibili.core.ui.transition.predictiveBackBackgroundEffect
@@ -106,6 +109,7 @@ import com.android.purebilibili.core.ui.transition.pinSourcePageDuringSharedTran
 import com.android.purebilibili.core.ui.transition.shouldApplyPredictiveBackBlurToRoute
 import com.android.purebilibili.core.ui.transition.shouldApplyVideoCardTransitionBackgroundToRoute
 import com.android.purebilibili.core.ui.transition.videoCardTransitionBackgroundEffect
+import androidx.compose.runtime.mutableFloatStateOf
 import com.android.purebilibili.data.model.response.BgmInfo
 
 import androidx.compose.ui.zIndex
@@ -446,18 +450,30 @@ fun AppNavigation(
         val isDataSaverActiveForGlobalWallpaper = remember(context) {
             SettingsManager.isDataSaverActive(context)
         }
-        val shouldRenderGlobalHomeWallpaper = currentRoute != null &&
-            effectiveHomeSettings.homeWallpaperEffectScope == HomeWallpaperEffectScope.GLOBAL &&
-            currentRoute != ScreenRoutes.Home.route
+        val renderGlobalHomeWallpaperBackdrop = shouldRenderGlobalHomeWallpaperBackdrop(
+            effectScope = effectiveHomeSettings.homeWallpaperEffectScope,
+            currentRoute = currentRoute,
+        )
+        val exposeGlobalHomeWallpaperChrome = shouldExposeGlobalHomeWallpaperChrome(
+            effectScope = effectiveHomeSettings.homeWallpaperEffectScope,
+            hasWallpaperUri = globalHomeWallpaperUri.isNotBlank(),
+            currentRoute = currentRoute,
+        )
+        val globalWallpaperDepthProgress = remember { mutableFloatStateOf(0f) }
+        val globalWallpaperDepthPhase = remember {
+            mutableStateOf(VideoCardTransitionBackgroundPhase.IDLE)
+        }
+        val globalWallpaperDepthGestureRestore = remember { mutableStateOf(false) }
         val globalHomeWallpaperAppearance = remember(
             globalHomeWallpaperUri,
             effectiveHomeSettings.homeWallpaperEffectMode,
-            shouldRenderGlobalHomeWallpaper,
+            renderGlobalHomeWallpaperBackdrop,
             isLightBackground,
             isDataSaverActiveForGlobalWallpaper
         ) {
             resolveHomeWallpaperBackdropAppearance(
-                hasWallpaper = shouldRenderGlobalHomeWallpaper && globalHomeWallpaperUri.isNotBlank(),
+                hasWallpaper = renderGlobalHomeWallpaperBackdrop &&
+                    globalHomeWallpaperUri.isNotBlank(),
                 effectMode = effectiveHomeSettings.homeWallpaperEffectMode,
                 isDarkTheme = !isLightBackground,
                 isDataSaverActive = isDataSaverActiveForGlobalWallpaper,
@@ -528,7 +544,6 @@ fun AppNavigation(
                 visibleItems = visibleBottomBarItems
             )
         }
-
         val bottomBarItemColors = appNavigationSettings.bottomBarItemColors
         // 平板侧边栏模式 (替代 WindowSizeClass)
         val windowSizeClass = LocalWindowSizeClass.current
@@ -1195,7 +1210,7 @@ fun AppNavigation(
         CompositionLocalProvider(
             LocalSetBottomBarVisible provides setBottomBarVisible,
             LocalBottomBarVisible provides finalBottomBarVisible,
-            LocalGlobalWallpaperBackdropVisible provides globalHomeWallpaperAppearance.visible,
+            LocalGlobalWallpaperBackdropVisible provides exposeGlobalHomeWallpaperChrome,
             LocalPredictiveBackGestureEnabled provides predictiveBackEnabled,
             com.android.purebilibili.feature.home.LocalHomeScrollChannel provides homeScrollChannel,
             LocalDynamicScrollChannel provides dynamicScrollChannel,
@@ -1303,11 +1318,15 @@ fun AppNavigation(
                         // 必须添加 hazeSource，否则底栏的 hazeEffect 无法获取背景内容，导致模糊失效
                         .then(if (mainHazeState != null) Modifier.hazeSourceCompat(mainHazeState) else Modifier)
                 ) {
-                    HomeWallpaperBackdrop(
+                    DepthSyncedGlobalHomeWallpaperBackdrop(
                         wallpaperUri = globalHomeWallpaperUri,
                         appearance = globalHomeWallpaperAppearance,
                         baseColor = backgroundColor,
-                        isDataSaverActive = isDataSaverActiveForGlobalWallpaper
+                        depthProgress = globalWallpaperDepthProgress,
+                        depthPhase = globalWallpaperDepthPhase,
+                        depthGestureRestore = globalWallpaperDepthGestureRestore,
+                        isDataSaverActive = isDataSaverActiveForGlobalWallpaper,
+                        isLightBackground = isLightBackground,
                     )
                 fun bottomPagerNavKeyForItem(item: BottomNavItem): BiliPaiNavKey {
                     return when (item) {
@@ -2814,6 +2833,15 @@ fun AppNavigation(
                     onNativeVideoBackCancelled = { currentKey, targetKey ->
                         if (shouldRecoverVideoPlayerAfterBackCancellation(currentKey, targetKey)) {
                             predictiveBackCancelRecoveryGeneration += 1
+                        }
+                    },
+                    onVideoCardDepthFrame = { progress, phase, gestureRestore ->
+                        globalWallpaperDepthProgress.floatValue = progress
+                        if (globalWallpaperDepthPhase.value != phase) {
+                            globalWallpaperDepthPhase.value = phase
+                        }
+                        if (globalWallpaperDepthGestureRestore.value != gestureRestore) {
+                            globalWallpaperDepthGestureRestore.value = gestureRestore
                         }
                     },
                     modifier = Modifier.fillMaxSize(),

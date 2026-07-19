@@ -5,6 +5,7 @@ import okhttp3.OkHttpClient
 import java.net.Proxy
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NetworkClientPolicyTest {
@@ -52,5 +53,22 @@ class NetworkClientPolicyTest {
             listOf(Protocol.HTTP_2, Protocol.HTTP_1_1),
             NetworkModule.resolveSharedNetworkProtocols()
         )
+    }
+
+    @Test
+    fun androidHdLoginEndpoints_useAndroidHdAppKeyHeader() {
+        assertEquals(
+            "android_hd",
+            NetworkModule.resolveAndroidHdLoginAppKeyHeader("/x/passport-login/sms/send")
+        )
+        assertEquals(
+            "android_hd",
+            NetworkModule.resolveAndroidHdLoginAppKeyHeader("/x/passport-login/login/sms")
+        )
+        assertEquals(
+            "android_hd",
+            NetworkModule.resolveAndroidHdLoginAppKeyHeader("/x/passport-login/oauth2/login")
+        )
+        assertNull(NetworkModule.resolveAndroidHdLoginAppKeyHeader("/x/web-interface/nav"))
     }
 }
