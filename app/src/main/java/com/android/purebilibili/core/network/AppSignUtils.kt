@@ -1,7 +1,8 @@
 // 文件路径: core/network/AppSignUtils.kt
 package com.android.purebilibili.core.network
 
-import android.net.Uri
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 /**
@@ -25,6 +26,15 @@ object AppSignUtils {
     const val ANDROID_HD_APP_KEY = "dfca71928277209b"
     private const val ANDROID_HD_APP_SEC = "b5475a8825547a4fc26c7d518eaaa02e"
     
+    /**
+     * Percent-encode like Dart/PiliPlus Uri.encodeComponent / encodeURIComponent.
+     * Uses URLEncoder then maps '+' to '%20' so spaces match form-urlencoded clients
+     * that do not use application/x-www-form-urlencoded's plus convention.
+     */
+    fun percentEncode(value: String): String {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20")
+    }
+
     /**
      * 计算 APP 签名
      * 签名规则：将参数按 key 排序后拼接成 query string，末尾加上 appsec，然后 MD5
@@ -61,10 +71,19 @@ object AppSignUtils {
         return sign(params, ANDROID_APP_SEC)
     }
 
+    /**
+     * HD 登录签名：与 bilibili-API-collect Java demo / PiliPlus AppSign 一致，
+     * 对 key/value 做 percent-encode 后再 MD5(query + appsec)。
+     */
     fun signForAndroidHdLogin(params: Map<String, String>): Map<String, String> {
-        val sortedParams = params.toSortedMap()
+        val withAppKey = if (params.containsKey("appkey")) {
+            params
+        } else {
+            params + ("appkey" to ANDROID_HD_APP_KEY)
+        }
+        val sortedParams = withAppKey.toSortedMap()
         val queryString = sortedParams.entries.joinToString("&") { (key, value) ->
-            "${Uri.encode(key)}=${Uri.encode(value)}"
+            "${percentEncode(key)}=${percentEncode(value)}"
         }
         return sortedParams + ("sign" to md5(queryString + ANDROID_HD_APP_SEC))
     }
@@ -83,7 +102,7 @@ object AppSignUtils {
      */
     private fun md5(input: String): String {
         val md = MessageDigest.getInstance("MD5")
-        val digest = md.digest(input.toByteArray())
+        val digest = md.digest(input.toByteArray(StandardCharsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
     }
 }

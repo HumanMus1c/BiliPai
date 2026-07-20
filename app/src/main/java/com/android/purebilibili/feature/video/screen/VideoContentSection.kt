@@ -367,16 +367,6 @@ fun VideoContentSection(
     sourceRouteForSharedElement: String? = null,
     // [新增] 收藏夹相关参数
     onFavoriteLongClick: () -> Unit = {},
-    favoriteFolderDialogVisible: Boolean = false,
-    favoriteFolders: List<com.android.purebilibili.data.model.response.FavFolder> = emptyList(),
-    isFavoriteFoldersLoading: Boolean = false,
-    selectedFavoriteFolderIds: Set<Long> = emptySet(),
-    isSavingFavoriteFolders: Boolean = false,
-    onFavoriteFolderToggle: (com.android.purebilibili.data.model.response.FavFolder) -> Unit = {},
-    onSaveFavoriteFolders: () -> Unit = {},
-    onDismissFavoriteFolderDialog: () -> Unit = {},
-
-    onCreateFavoriteFolder: (String, String, Boolean) -> Unit = { _, _, _ -> },
     // [新增] 恢复播放器 (音频模式 -> 视频模式)
     isPlayerCollapsed: Boolean = false,
     onRestorePlayer: () -> Unit = {},

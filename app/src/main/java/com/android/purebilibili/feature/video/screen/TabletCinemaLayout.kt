@@ -64,7 +64,6 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -130,24 +129,29 @@ import com.android.purebilibili.feature.video.ui.section.VideoNoteEditorSheet
 import com.android.purebilibili.feature.video.ui.section.shouldShowAiSummaryEntry
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
-import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
 import com.android.purebilibili.feature.video.viewmodel.VideoEngagementUiState
-import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
 import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
-import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun TabletCinemaLayout(
+internal fun TabletCinemaLayout(
     playerState: VideoPlayerState,
     uiState: VideoPlaybackUiState,
     commentState: CommentUiState,
-    viewModel: VideoPlaybackViewModel,
-    engagementViewModel: VideoEngagementViewModel,
-    commentViewModel: VideoCommentViewModel,
+    engagementState: VideoEngagementUiState,
+    subReplyState: SubReplyUiState,
+    downloadProgress: Float,
+    tabletCommentPanelWidthPreset: TabletCommentPanelWidthPreset,
+    commentMemberDecorationsEnabled: Boolean,
+    videoAiSummaryEntryEnabled: Boolean,
+    videoNoteEnabled: Boolean,
+    videoNoteDefaultCollapsed: Boolean,
+    playbackActions: VideoDetailPlaybackActions,
+    engagementActions: VideoDetailEngagementActions,
+    commentActions: VideoDetailCommentActions,
     configuration: Configuration,
     isVerticalVideo: Boolean,
     sleepTimerMinutes: Int?,
@@ -181,16 +185,7 @@ fun TabletCinemaLayout(
     forceCoverOnlyOnReturn: Boolean = false,
     predictiveBackCancelRecoveryGeneration: Int = 0
 ) {
-    val engagementState by engagementViewModel.uiState.collectAsStateWithLifecycle()
     val appContext = LocalContext.current
-    val tabletCommentPanelWidthPreset by SettingsManager
-        .getTabletCommentPanelWidthPreset(appContext)
-        .collectAsStateWithLifecycle(initialValue = TabletCommentPanelWidthPreset.STANDARD
-        )
-    val commentMemberDecorationsEnabled by SettingsManager
-        .getCommentMemberDecorationsEnabled(appContext)
-        .collectAsStateWithLifecycle(initialValue = false
-        )
     val policy = remember(configuration.screenWidthDp, tabletCommentPanelWidthPreset) {
         resolveTabletCinemaLayoutPolicy(
             widthDp = configuration.screenWidthDp,
@@ -198,7 +193,6 @@ fun TabletCinemaLayout(
         )
     }
     val success = uiState as? VideoPlaybackUiState.Success
-    val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
     val initialCurtainState = remember(configuration.screenWidthDp) {
         resolveInitialCurtainState(configuration.screenWidthDp).name
     }
@@ -263,8 +257,8 @@ fun TabletCinemaLayout(
                 CinemaStagePlayer(
                     playerState = playerState,
                     uiState = uiState,
-                    viewModel = viewModel,
-                    engagementViewModel = engagementViewModel,
+                    playbackActions = playbackActions,
+                    engagementActions = engagementActions,
                     engagementState = engagementState,
                     onBack = onBack,
                     onHomeClick = onHomeClick,
@@ -299,34 +293,37 @@ fun TabletCinemaLayout(
                         success = success.withEngagementUiState(engagementState),
                         engagement = engagementState,
                         downloadProgress = downloadProgress,
+                        videoAiSummaryEntryEnabled = videoAiSummaryEntryEnabled,
+                        videoNoteEnabled = videoNoteEnabled,
+                        videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
                         modifier = Modifier.weight(1f),
-                        onFollowClick = { engagementViewModel.toggleFollow() },
+                        onFollowClick = engagementActions.toggleFollow,
                         onUpClick = onUpClick,
-                        onFavoriteClick = { engagementViewModel.toggleFavorite() },
-                        onLikeClick = { engagementViewModel.toggleLike() },
-                        onCoinClick = { engagementViewModel.openCoinDialog() },
-                        onTripleClick = { engagementViewModel.doTripleAction() },
-                        onDownloadClick = { viewModel.openDownloadDialog() },
-                        onWatchLaterClick = { engagementViewModel.toggleWatchLater() },
+                        onFavoriteClick = engagementActions.toggleFavorite,
+                        onLikeClick = engagementActions.toggleLike,
+                        onCoinClick = engagementActions.openCoinDialog,
+                        onTripleClick = engagementActions.doTripleAction,
+                        onDownloadClick = playbackActions.openDownloadDialog,
+                        onWatchLaterClick = engagementActions.toggleWatchLater,
                         onOpenComments = {
                             selectedTab = 0
                             curtainStateName = TabletSideCurtainState.OPEN.name
                         },
                         onCollectionEpisodeClick = onRelatedVideoClick,
-                        onPageSelect = { pageIndex -> viewModel.switchPage(pageIndex) },
+                        onPageSelect = playbackActions.switchPage,
                         onOpenBilibiliLink = onOpenBilibiliLink,
                         onBgmClick = onBgmClick,
                         onRelatedVideoClick = onRelatedVideoClick,
-                        onRetryAiSummary = viewModel::retryAiSummary,
-                        onCreateNoteDraftFromAiSummary = viewModel::createVideoNoteDraftFromAiSummary,
-                        onOpenVideoNoteEditor = viewModel::openVideoNoteEditor,
-                        onCloseVideoNoteEditor = viewModel::closeVideoNoteEditor,
-                        onVideoNoteDocumentChange = viewModel::updateVideoNoteEditorDocument,
-                        onInsertVideoNoteTimestamp = viewModel::insertCurrentPlaybackTimestampIntoNote,
-                        onVideoNoteTimestampClick = viewModel::seekTo,
-                        onSaveVideoNote = viewModel::saveVideoNote,
-                        onDeleteVideoNote = viewModel::deleteVideoNote,
-                        onRetryVideoNote = viewModel::retryVideoNote
+                        onRetryAiSummary = playbackActions.retryAiSummary,
+                        onCreateNoteDraftFromAiSummary = playbackActions.createVideoNoteDraftFromAiSummary,
+                        onOpenVideoNoteEditor = playbackActions.openVideoNoteEditor,
+                        onCloseVideoNoteEditor = playbackActions.closeVideoNoteEditor,
+                        onVideoNoteDocumentChange = playbackActions.updateVideoNoteEditorDocument,
+                        onInsertVideoNoteTimestamp = playbackActions.insertCurrentPlaybackTimestampIntoNote,
+                        onVideoNoteTimestampClick = playbackActions.seekTo,
+                        onSaveVideoNote = playbackActions.saveVideoNote,
+                        onDeleteVideoNote = playbackActions.deleteVideoNote,
+                        onRetryVideoNote = playbackActions.retryVideoNote
                     )
                 } else {
                     Surface(
@@ -364,8 +361,9 @@ fun TabletCinemaLayout(
                 },
                 success = success,
                 commentState = commentState,
-                commentViewModel = commentViewModel,
-                viewModel = viewModel,
+                subReplyState = subReplyState,
+                playbackActions = playbackActions,
+                commentActions = commentActions,
                 playerState = playerState,
                 onUpClick = onUpClick,
                 onRelatedVideoClick = onRelatedVideoClick,
@@ -383,8 +381,8 @@ fun TabletCinemaLayout(
 private fun CinemaStagePlayer(
     playerState: VideoPlayerState,
     uiState: VideoPlaybackUiState,
-    viewModel: VideoPlaybackViewModel,
-    engagementViewModel: VideoEngagementViewModel,
+    playbackActions: VideoDetailPlaybackActions,
+    engagementActions: VideoDetailEngagementActions,
     engagementState: VideoEngagementUiState,
     onBack: () -> Unit,
     onHomeClick: () -> Unit,
@@ -413,7 +411,6 @@ private fun CinemaStagePlayer(
     forceCoverOnlyOnReturn: Boolean,
     predictiveBackCancelRecoveryGeneration: Int
 ) {
-    val context = LocalContext.current
     val success = uiState as? VideoPlaybackUiState.Success
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
@@ -464,27 +461,27 @@ private fun CinemaStagePlayer(
                 useTextureSurfaceForNavigation = transitionEnabled,
                 predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
                 onToggleFullscreen = onToggleFullscreen,
-                onQualityChange = { qid -> viewModel.changeQuality(qid) },
+                onQualityChange = playbackActions.changeQuality,
                 onBack = onBack,
                 onHomeClick = onHomeClick,
                 bvid = bvid,
                 coverUrl = coverUrl,
-                onDoubleTapLike = { engagementViewModel.toggleLike() },
-                onReloadVideo = { viewModel.reloadVideo() },
+                onDoubleTapLike = engagementActions.toggleLike,
+                onReloadVideo = playbackActions.reloadVideo,
                 currentCdnIndex = success?.currentCdnIndex ?: 0,
                 cdnCount = success?.cdnCount ?: 1,
                 cdnLineDiagnostics = success?.cdnLineDiagnostics.orEmpty(),
                 isCdnProbing = success?.isCdnProbing ?: false,
-                onSwitchCdn = { viewModel.switchCdn() },
-                onSwitchCdnTo = { viewModel.switchCdnTo(it) },
-                onProbeCdnCandidates = { viewModel.probeCurrentCdnCandidates() },
+                onSwitchCdn = playbackActions.switchCdn,
+                onSwitchCdnTo = playbackActions.switchCdnTo,
+                onProbeCdnCandidates = playbackActions.probeCdnCandidates,
                 isAudioOnly = false,
                 onAudioOnlyToggle = {
-                    viewModel.setAudioMode(true)
+                    playbackActions.setAudioMode(true)
                     onNavigateToAudioMode()
                 },
                 sleepTimerMinutes = sleepTimerMinutes,
-                onSleepTimerChange = { viewModel.setSleepTimer(it) },
+                onSleepTimerChange = playbackActions.setSleepTimer,
                 videoshotData = success?.videoshotData,
                 viewPoints = viewPoints,
                 pbpProgressData = pbpProgressData,
@@ -498,9 +495,9 @@ private fun CinemaStagePlayer(
                 onSecondCodecChange = onSecondCodecChange,
                 currentAudioQuality = currentAudioQuality,
                 onAudioQualityChange = onAudioQualityChange,
-                onPlaybackSpeedChange = { viewModel.applyPlaybackSpeedFromUi(it) },
-                onSaveCover = { viewModel.saveCover(context) },
-                onDownloadAudio = { viewModel.downloadAudio(context) },
+                onPlaybackSpeedChange = playbackActions.applyPlaybackSpeed,
+                onSaveCover = playbackActions.saveCover,
+                onDownloadAudio = playbackActions.downloadAudio,
                 currentPlayMode = currentPlayMode,
                 onPlayModeClick = onPlayModeClick,
                 onRelatedVideoClick = onRelatedVideoClick,
@@ -511,13 +508,13 @@ private fun CinemaStagePlayer(
                 isLiked = engagementState.isLiked,
                 isCoined = engagementState.coinCount > 0,
                 isFavorited = engagementState.isFavorited,
-                onToggleFollow = { engagementViewModel.toggleFollow() },
-                onToggleLike = { engagementViewModel.toggleLike() },
-                onDislike = { viewModel.markVideoNotInterested() },
-                onCoin = { engagementViewModel.openCoinDialog() },
-                onToggleFavorite = { engagementViewModel.toggleFavorite() },
-                onTriple = { engagementViewModel.doTripleAction() },
-                onSubtitleTrackSelected = viewModel::selectSubtitleTrack
+                onToggleFollow = engagementActions.toggleFollow,
+                onToggleLike = engagementActions.toggleLike,
+                onDislike = playbackActions.markVideoNotInterested,
+                onCoin = engagementActions.openCoinDialog,
+                onToggleFavorite = engagementActions.toggleFavorite,
+                onTriple = engagementActions.doTripleAction,
+                onSubtitleTrackSelected = playbackActions.selectSubtitleTrack
             )
         }
     }
@@ -528,6 +525,9 @@ private fun CinemaMetaPanel(
     success: VideoPlaybackUiState.Success,
     engagement: VideoEngagementUiState,
     downloadProgress: Float,
+    videoAiSummaryEntryEnabled: Boolean,
+    videoNoteEnabled: Boolean,
+    videoNoteDefaultCollapsed: Boolean,
     modifier: Modifier = Modifier,
     onFollowClick: () -> Unit,
     onUpClick: (Long) -> Unit,
@@ -709,6 +709,9 @@ private fun CinemaMetaPanel(
                     CinemaMetaPanelBlock.INTRO -> {
                         CinemaVideoIntroSection(
                             success = success,
+                            videoAiSummaryEntryEnabled = videoAiSummaryEntryEnabled,
+                            videoNoteEnabled = videoNoteEnabled,
+                            videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
                             onOpenBilibiliLink = onOpenBilibiliLink,
                             onBgmClick = onBgmClick,
                             onRelatedVideoClick = onRelatedVideoClick,
@@ -832,6 +835,9 @@ private fun CinemaMetaUpInfo(
 @Composable
 private fun CinemaVideoIntroSection(
     success: VideoPlaybackUiState.Success,
+    videoAiSummaryEntryEnabled: Boolean,
+    videoNoteEnabled: Boolean,
+    videoNoteDefaultCollapsed: Boolean,
     onBgmClick: (BgmInfo) -> Unit = {},
     onOpenBilibiliLink: ((String) -> Unit)? = null,
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit = { _, _ -> },
@@ -843,12 +849,7 @@ private fun CinemaVideoIntroSection(
     onShareVideoNote: (VideoNoteEditorDocument) -> Unit = {},
     onPublicVideoNoteClick: (Long, String) -> Unit = { _, _ -> }
 ) {
-    val context = LocalContext.current
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val videoAiSummaryEntryEnabled by com.android.purebilibili.core.store.SettingsManager
-        .getVideoAiSummaryEntryEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true
-        )
 
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -890,10 +891,6 @@ private fun CinemaVideoIntroSection(
                 onActionClick = onRetryAiSummary
             )
         }
-        val videoNoteEnabled by SettingsManager.getVideoNoteEnabled(context)
-            .collectAsStateWithLifecycle(initialValue = true)
-        val videoNoteDefaultCollapsed by SettingsManager.getVideoNoteDefaultCollapsed(context)
-            .collectAsStateWithLifecycle(initialValue = false)
         if (shouldShowVideoNoteCard(videoNoteEnabled)) {
             VideoNoteCard(
                 noteState = success.videoNoteState,
@@ -919,8 +916,9 @@ private fun CinemaSideCurtain(
     onTabSelected: (Int) -> Unit,
     success: VideoPlaybackUiState.Success?,
     commentState: CommentUiState,
-    commentViewModel: VideoCommentViewModel,
-    viewModel: VideoPlaybackViewModel,
+    subReplyState: SubReplyUiState,
+    playbackActions: VideoDetailPlaybackActions,
+    commentActions: VideoDetailCommentActions,
     playerState: VideoPlayerState,
     onUpClick: (Long) -> Unit,
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
@@ -930,7 +928,6 @@ private fun CinemaSideCurtain(
     onSearchKeywordClick: (String) -> Unit,
     onOpenBilibiliLink: ((String) -> Unit)?
 ) {
-    val subReplyState by commentViewModel.subReplyState.collectAsStateWithLifecycle()
     val transition = updateTransition(targetState = state, label = "SideCurtainAnimation")
     LaunchedEffect(subReplyState.visible) {
         if (subReplyState.visible) {
@@ -1056,8 +1053,8 @@ private fun CinemaSideCurtain(
                                             success = success,
                                             commentState = commentState,
                                             subReplyState = subReplyState,
-                                            commentViewModel = commentViewModel,
-                                            viewModel = viewModel,
+                                            playbackActions = playbackActions,
+                                            commentActions = commentActions,
                                             playerState = playerState,
                                             onUpClick = onUpClick,
                                             context = context,
@@ -1091,8 +1088,8 @@ private fun CinemaCommentsPane(
     success: VideoPlaybackUiState.Success,
     commentState: CommentUiState,
     subReplyState: SubReplyUiState,
-    commentViewModel: VideoCommentViewModel,
-    viewModel: VideoPlaybackViewModel,
+    playbackActions: VideoDetailPlaybackActions,
+    commentActions: VideoDetailCommentActions,
     playerState: VideoPlayerState,
     onUpClick: (Long) -> Unit,
     context: android.content.Context,
@@ -1147,7 +1144,7 @@ private fun CinemaCommentsPane(
 
     LaunchedEffect(shouldLoadMore) {
         if (shouldLoadMore) {
-            commentViewModel.loadComments()
+            commentActions.loadComments()
         }
     }
 
@@ -1170,9 +1167,9 @@ private fun CinemaCommentsPane(
             commentState = commentState,
             emoteMap = success.emoteMap,
             maxTimestampMs = success.videoDurationMs.takeIf { it > 0L },
-            onLoadMore = { commentViewModel.loadMoreSubReplies() },
-            onDismiss = { commentViewModel.closeSubReply() },
-            onRootCommentClick = { viewModel.openRootCommentComposer() },
+            onLoadMore = commentActions.loadMoreSubReplies,
+            onDismiss = commentActions.closeSubReply,
+            onRootCommentClick = playbackActions.openRootCommentComposer,
             onTimestampClick = { positionMs ->
                 seekPlayerFromUserAction(playerState.player, positionMs)
             },
@@ -1183,16 +1180,13 @@ private fun CinemaCommentsPane(
                 previewTextContent = textContent
                 showImagePreview = true
             },
-            onReplyClick = { reply ->
-                viewModel.setReplyingTo(reply)
-                viewModel.showCommentInputDialog()
-            },
-            onConversationClick = commentViewModel::openSubReplyConversation,
-            onConversationBack = commentViewModel::closeSubReplyConversation,
-            onDissolveStart = { rpid -> commentViewModel.startSubDissolve(rpid) },
-            onDeleteComment = { rpid -> commentViewModel.deleteSubComment(rpid) },
-            onCommentLike = commentViewModel::likeComment,
-            onReportComment = commentViewModel::reportComment,
+            onReplyClick = playbackActions.replyTo,
+            onConversationClick = commentActions.openSubReplyConversation,
+            onConversationBack = commentActions.closeSubReplyConversation,
+            onDissolveStart = commentActions.startSubDissolve,
+            onDeleteComment = commentActions.deleteSubComment,
+            onCommentLike = commentActions.likeComment,
+            onReportComment = commentActions.reportComment,
             onUrlClick = openCommentUrl,
             showIdentityDecorations = showIdentityDecorations,
             onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUpClick) ?: Unit }
@@ -1204,13 +1198,13 @@ private fun CinemaCommentsPane(
                 count = commentState.replyCount,
                 sortMode = commentState.sortMode,
                 onSortModeChange = { mode ->
-                    commentViewModel.setSortMode(mode)
+                    commentActions.setSortMode(mode)
                     scope.launch {
                         SettingsManager.setCommentDefaultSortMode(context, mode.apiMode)
                     }
                 },
                 upOnly = commentState.upOnlyFilter,
-                onUpOnlyToggle = { commentViewModel.toggleUpOnly() },
+                onUpOnlyToggle = commentActions.toggleUpOnly,
                 backdrop = commentChromeBackdrop
             )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -1229,7 +1223,7 @@ private fun CinemaCommentsPane(
                     color = commentAppearance.composerHintBackgroundColor,
                     shape = RoundedCornerShape(14.dp),
                     onClick = {
-                        viewModel.openRootCommentComposer()
+                        playbackActions.openRootCommentComposer()
                     }
                 ) {
                     Text(
@@ -1253,7 +1247,7 @@ private fun CinemaCommentsPane(
                     isPinned = reply.rpid in commentState.pinnedReplyIds,
                     emoteMap = success.emoteMap,
                     onClick = {},
-                    onSubClick = commentViewModel::openSubReply,
+                    onSubClick = { reply, _ -> commentActions.openSubReply(reply) },
                     onTimestampClick = { positionMs ->
                         seekPlayerFromUserAction(playerState.player, positionMs)
                     },
@@ -1265,23 +1259,20 @@ private fun CinemaCommentsPane(
                         previewTextContent = textContent
                         showImagePreview = true
                     },
-                    onLikeClick = { commentViewModel.likeComment(reply.rpid) },
+                    onLikeClick = { commentActions.likeComment(reply.rpid) },
                     isLiked = reply.action == 1 || reply.rpid in commentState.likedComments,
-                    onReplyClick = {
-                        viewModel.setReplyingTo(reply)
-                        viewModel.showCommentInputDialog()
-                    },
-                    onReportClick = { reason -> commentViewModel.reportComment(reply.rpid, reason) },
+                    onReplyClick = { playbackActions.replyTo(reply) },
+                    onReportClick = { reason -> commentActions.reportComment(reply.rpid, reason) },
                     canToggleTop = shouldShowReplyTopAction(
                         currentMid = commentState.currentMid,
                         upMid = success.info.owner.mid,
                         item = reply
                     ),
-                    onToggleTopClick = { commentViewModel.toggleTopComment(reply) },
+                    onToggleTopClick = { commentActions.toggleTopComment(reply) },
                     onDeleteClick = if (
                         commentState.currentMid > 0 && reply.mid == commentState.currentMid
                     ) {
-                        { commentViewModel.startDissolve(reply.rpid) }
+                        { commentActions.startDissolve(reply.rpid) }
                     } else {
                         null
                     },
@@ -1322,7 +1313,7 @@ private fun CinemaCommentsPane(
             }
 
         FloatingActionButton(
-            onClick = { commentViewModel.toggleUpOnly() },
+            onClick = commentActions.toggleUpOnly,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(14.dp),

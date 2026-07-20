@@ -82,6 +82,7 @@ import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Switch as MiuixSwitch
 import top.yukonga.miuix.kmp.preference.ArrowPreference as MiuixArrowPreference
+import top.yukonga.miuix.kmp.preference.SliderPreference as MiuixSliderPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference as MiuixSwitchPreference
 import top.yukonga.miuix.kmp.basic.InputField
 import kotlinx.coroutines.delay
@@ -869,6 +870,42 @@ fun IOSSliderPreference(
         visualSpec.iconCornerRadiusDp.dp
     } else {
         iOSCornerRadius.Small * cornerRadiusScale
+    }
+    if (shouldRouteIosSliderPreferenceToMiuixSliderPreference(uiPreset, androidNativeVariant)) {
+        MiuixSliderPreference(
+            value = value,
+            onValueChange = onValueChange,
+            title = title,
+            titleColor = BasicComponentDefaults.titleColor(color = textColor),
+            summary = subtitle,
+            summaryColor = BasicComponentDefaults.summaryColor(color = subtitleColor),
+            valueText = valueLabel,
+            valueRange = valueRange,
+            steps = steps,
+            insideMargin = PaddingValues(
+                horizontal = rowSpec.insideHorizontalPaddingDp.dp,
+                vertical = rowSpec.insideVerticalPaddingDp.dp
+            ),
+            startAction = {
+                if (icon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(visualSpec.iconContainerSizeDp.dp)
+                            .clip(RoundedCornerShape(visualSpec.iconCornerRadiusDp.dp))
+                            .background(effectiveIconTint.copy(alpha = visualSpec.iconBackgroundAlpha)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = effectiveIconTint,
+                            modifier = Modifier.size(visualSpec.iconGlyphSizeDp.dp)
+                        )
+                    }
+                }
+            }
+        )
+        return
     }
     Column(
         modifier = Modifier

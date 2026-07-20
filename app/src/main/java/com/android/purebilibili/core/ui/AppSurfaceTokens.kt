@@ -114,6 +114,13 @@ object AppSurfaceTokens {
 
     @Composable
     @ReadOnlyComposable
+    fun background(): Color = resolveMiuixSemanticColorComposable(
+        miuixColor = MiuixTheme.colorScheme.background,
+        materialFallback = MaterialTheme.colorScheme.background
+    )
+
+    @Composable
+    @ReadOnlyComposable
     fun surface(): Color = resolveMiuixSemanticColorComposable(
         miuixColor = MiuixTheme.colorScheme.surface,
         materialFallback = MaterialTheme.colorScheme.surface

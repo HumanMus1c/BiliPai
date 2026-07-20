@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.R
+import com.android.purebilibili.core.store.DEFAULT_DASH_SEGMENT_REQUESTS_ENABLED
 import com.android.purebilibili.core.store.DEFAULT_PLAYER_DIAGNOSTIC_LOGGING_ENABLED
 import com.android.purebilibili.core.store.DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ENABLED
 import com.android.purebilibili.core.store.DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ONCE_ENABLED
@@ -147,7 +148,7 @@ fun PlaybackSettingsContent(
         .collectAsStateWithLifecycle(initialValue = DEFAULT_PLAYER_DIAGNOSTIC_LOGGING_ENABLED)
     val dashSegmentRequestsEnabled by com.android.purebilibili.core.store.SettingsManager
         .getDashSegmentRequestsEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+        .collectAsStateWithLifecycle(initialValue = DEFAULT_DASH_SEGMENT_REQUESTS_ENABLED)
     val qualitySwitchFailureDialogEnabled by SettingsManager
         .getQualitySwitchFailureDialogEnabled(context)
         .collectAsStateWithLifecycle(initialValue = DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ENABLED)
@@ -640,11 +641,11 @@ fun PlaybackSettingsContent(
                         IOSDivider()
 	                        IOSSwitchItem(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYER_DIAGNOSTICS),
-                            title = "DASH 分段请求",
+                            title = "DASH 分段请求（实验性）",
                             subtitle = if (dashSegmentRequestsEnabled) {
-                                "使用官方 DASH 播放路径请求初始化段和索引段；异常时可关闭回退旧路径"
+                                "使用本地 MPD 请求初始化段和索引段；兼容性异常时可关闭回退旧路径"
                             } else {
-                                "已关闭：使用旧的分离音视频合并播放路径"
+                                "默认关闭：使用已验证的分离音视频合并播放路径"
                             },
                             checked = dashSegmentRequestsEnabled,
                             onCheckedChange = {

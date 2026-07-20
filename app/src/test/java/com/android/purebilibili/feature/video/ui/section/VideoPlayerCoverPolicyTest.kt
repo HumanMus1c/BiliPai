@@ -309,7 +309,7 @@ class VideoPlayerCoverPolicyTest {
 
     @Test
     fun detailReturnCoverUsesSingleAlphaTimelineWithoutCoilCrossfade() {
-        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
             .readText()
         val residentCoverBlock = source
             .substringAfter("val residentCoverImageRequest =")

@@ -26,7 +26,11 @@ internal data class ImagePreviewVisualFrame(
 
 internal data class ImagePreviewDismissMotion(
     val overshootTarget: Float,
-    val settleTarget: Float
+    val settleTarget: Float,
+    /** 主收缩时长：用 Continuity 先快后慢贴近缩略图，避免 EmphasizedExit 末段冲刺。 */
+    val collapseDurationMillis: Int,
+    /** 预测返回取消后的回弹时长。 */
+    val cancelRecoverDurationMillis: Int
 )
 
 internal data class ImagePreviewDismissTransform(
@@ -111,11 +115,12 @@ internal fun resolveImagePreviewTransitionFrame(
 ): ImagePreviewTransitionFrame {
     val layoutProgress = rawProgress.coerceIn(LAYOUT_PROGRESS_MIN, LAYOUT_PROGRESS_MAX)
     val visualProgress = rawProgress.coerceIn(0f, 1f)
-    val cornerRadiusDp = if (hasSourceRect) {
-        sourceCornerRadiusDp.coerceAtLeast(0f)
-    } else {
-        0f
-    }
+    val cornerRadiusDp = resolveImagePreviewPresentedCornerRadiusDp(
+        visualProgress = visualProgress,
+        verticalDragProgress = 0f,
+        hasSourceRect = hasSourceRect,
+        sourceCornerRadiusDp = sourceCornerRadiusDp
+    )
     val fallbackScale = lerpFloat(FALLBACK_START_SCALE, 1f, visualProgress)
     return ImagePreviewTransitionFrame(
         layoutProgress = layoutProgress,
@@ -123,6 +128,24 @@ internal fun resolveImagePreviewTransitionFrame(
         cornerRadiusDp = cornerRadiusDp,
         fallbackScale = fallbackScale
     )
+}
+
+/**
+ * 全屏打开时圆角为 0；返回/竖滑退出时插值到缩略图圆角，贴回格子更自然。
+ */
+internal fun resolveImagePreviewPresentedCornerRadiusDp(
+    visualProgress: Float,
+    verticalDragProgress: Float,
+    hasSourceRect: Boolean,
+    sourceCornerRadiusDp: Float,
+    openCornerRadiusDp: Float = 0f
+): Float {
+    if (!hasSourceRect) return openCornerRadiusDp.coerceAtLeast(0f)
+    val source = sourceCornerRadiusDp.coerceAtLeast(0f)
+    val open = openCornerRadiusDp.coerceAtLeast(0f)
+    val morphCorner = lerpFloat(source, open, visualProgress.coerceIn(0f, 1f))
+    val dragCorner = lerpFloat(open, source, verticalDragProgress.coerceIn(0f, 1f))
+    return maxOf(morphCorner, dragCorner)
 }
 
 internal fun resolveImagePreviewVisualFrame(
@@ -148,8 +171,11 @@ internal fun resolveImagePreviewVisualFrame(
 
 internal fun imagePreviewDismissMotion(): ImagePreviewDismissMotion {
     return ImagePreviewDismissMotion(
-        overshootTarget = 0f,
-        settleTarget = 0f
+        // 轻微越过缩略图边界后再 spring 贴回，落位更有「放回格子」的触感。
+        overshootTarget = -0.06f,
+        settleTarget = 0f,
+        collapseDurationMillis = 300,
+        cancelRecoverDurationMillis = 180
     )
 }
 
@@ -200,12 +226,14 @@ internal fun resolveImagePreviewDismissRectFrame(
     if (sourceRect == null || displayedImageRect == null) return null
 
     val dismissFraction = resolveImagePreviewDismissFraction(transitionProgress)
+    // 尺寸只插值到缩略图大小，过冲只作用在位移上，避免落位比预览图更小。
+    val sizeFraction = dismissFraction.coerceIn(0f, 1f)
     val displayedCenterX = (displayedImageRect.left + displayedImageRect.right) / 2f
     val displayedCenterY = (displayedImageRect.top + displayedImageRect.bottom) / 2f
     val sourceCenterX = (sourceRect.left + sourceRect.right) / 2f
     val sourceCenterY = (sourceRect.top + sourceRect.bottom) / 2f
-    val width = lerpFloat(displayedImageRect.width, sourceRect.width, dismissFraction)
-    val height = lerpFloat(displayedImageRect.height, sourceRect.height, dismissFraction)
+    val width = lerpFloat(displayedImageRect.width, sourceRect.width, sizeFraction)
+    val height = lerpFloat(displayedImageRect.height, sourceRect.height, sizeFraction)
     val centerX = lerpFloat(displayedCenterX, sourceCenterX, dismissFraction)
     val centerY = lerpFloat(displayedCenterY, sourceCenterY, dismissFraction)
 
@@ -301,7 +329,8 @@ internal fun resolveImagePreviewVerticalDismissDecision(
 internal fun resolveImagePreviewDismissBackdropAlpha(
     visualProgress: Float
 ): Float {
-    return visualProgress.coerceIn(0f, 1f).pow(0.45f)
+    // 接近线性淡出：返回落位时遮罩跟手消散，避免底层长时间被黑罩压暗。
+    return visualProgress.coerceIn(0f, 1f).pow(0.9f)
 }
 
 internal fun resolveImagePreviewText(

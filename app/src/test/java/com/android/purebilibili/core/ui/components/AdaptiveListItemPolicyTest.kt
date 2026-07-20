@@ -98,4 +98,26 @@ class AdaptiveListItemPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `miuix slider preference routes to official slider preference`() {
+        assertTrue(
+            shouldRouteIosSliderPreferenceToMiuixSliderPreference(
+                uiPreset = UiPreset.MD3,
+                androidNativeVariant = AndroidNativeVariant.MIUIX
+            )
+        )
+        assertFalse(
+            shouldRouteIosSliderPreferenceToMiuixSliderPreference(
+                uiPreset = UiPreset.MD3,
+                androidNativeVariant = AndroidNativeVariant.MATERIAL3
+            )
+        )
+        assertFalse(
+            shouldRouteIosSliderPreferenceToMiuixSliderPreference(
+                uiPreset = UiPreset.IOS,
+                androidNativeVariant = AndroidNativeVariant.MIUIX
+            )
+        )
+    }
 }

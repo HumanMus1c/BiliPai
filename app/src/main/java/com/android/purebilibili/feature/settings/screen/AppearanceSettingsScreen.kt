@@ -18,6 +18,7 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.animation.*
+import com.android.purebilibili.core.ui.AdaptivePlainTooltipBox
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -281,57 +282,94 @@ fun AppearanceSettingsContent(
     val themeModeFollowSystemLabel = stringResource(R.string.theme_mode_follow_system)
     val themeModeLightLabel = stringResource(R.string.theme_mode_light)
     val themeModeDarkLabel = stringResource(R.string.theme_mode_dark)
+    val themeModeFollowSystemShortLabel = stringResource(R.string.theme_mode_follow_system_short)
+    val themeModeLightShortLabel = stringResource(R.string.theme_mode_light_short)
+    val themeModeDarkShortLabel = stringResource(R.string.theme_mode_dark_short)
     val themeModeOptions = remember(
+        themeModeFollowSystemShortLabel,
+        themeModeLightShortLabel,
+        themeModeDarkShortLabel
+    ) {
+        resolveThemeModeSegmentOptions(
+            followSystemLabel = themeModeFollowSystemShortLabel,
+            lightLabel = themeModeLightShortLabel,
+            darkLabel = themeModeDarkShortLabel
+        )
+    }
+    val selectedThemeModeLabel = remember(
+        state.themeMode,
         themeModeFollowSystemLabel,
         themeModeLightLabel,
         themeModeDarkLabel
     ) {
-        resolveThemeModeSegmentOptions(
-            followSystemLabel = themeModeFollowSystemLabel,
-            lightLabel = themeModeLightLabel,
-            darkLabel = themeModeDarkLabel
-        )
+        when (state.themeMode) {
+            AppThemeMode.FOLLOW_SYSTEM -> themeModeFollowSystemLabel
+            AppThemeMode.LIGHT -> themeModeLightLabel
+            AppThemeMode.DARK -> themeModeDarkLabel
+        }
     }
-    val selectedThemeModeLabel =
-        themeModeOptions.firstOrNull { it.value == state.themeMode }?.label ?: state.themeMode.label
     val darkThemeStyleTitle = stringResource(R.string.appearance_dark_theme_style_title)
     val darkThemeStyleSubtitle = stringResource(R.string.appearance_dark_theme_style_subtitle)
     val darkThemeStyleDefaultLabel = stringResource(R.string.dark_theme_style_default)
     val darkThemeStyleAmoledLabel = stringResource(R.string.dark_theme_style_amoled)
+    val darkThemeStyleDefaultShortLabel = stringResource(R.string.dark_theme_style_default_short)
+    val darkThemeStyleAmoledShortLabel = stringResource(R.string.dark_theme_style_amoled_short)
     val darkThemeStyleOptions = remember(
+        darkThemeStyleDefaultShortLabel,
+        darkThemeStyleAmoledShortLabel
+    ) {
+        resolveDarkThemeStyleSegmentOptions(
+            defaultLabel = darkThemeStyleDefaultShortLabel,
+            amoledLabel = darkThemeStyleAmoledShortLabel
+        )
+    }
+    val selectedDarkThemeStyleLabel = remember(
+        state.darkThemeStyle,
         darkThemeStyleDefaultLabel,
         darkThemeStyleAmoledLabel
     ) {
-        resolveDarkThemeStyleSegmentOptions(
-            defaultLabel = darkThemeStyleDefaultLabel,
-            amoledLabel = darkThemeStyleAmoledLabel
-        )
+        when (state.darkThemeStyle) {
+            DarkThemeStyle.DEFAULT -> darkThemeStyleDefaultLabel
+            DarkThemeStyle.AMOLED -> darkThemeStyleAmoledLabel
+        }
     }
-    val selectedDarkThemeStyleLabel = darkThemeStyleOptions
-        .firstOrNull { it.value == state.darkThemeStyle }
-        ?.label ?: state.darkThemeStyle.label
     val appLanguageTitle = stringResource(R.string.appearance_app_language_title)
     val appLanguageSubtitle = stringResource(R.string.appearance_app_language_subtitle)
     val appLanguageFollowSystemLabel = stringResource(R.string.app_language_follow_system)
     val appLanguageSimplifiedLabel = stringResource(R.string.app_language_simplified_chinese)
     val appLanguageTraditionalLabel = stringResource(R.string.app_language_traditional_chinese)
     val appLanguageEnglishLabel = stringResource(R.string.app_language_english)
+    val appLanguageFollowSystemShortLabel = stringResource(R.string.app_language_follow_system_short)
+    val appLanguageSimplifiedShortLabel = stringResource(R.string.app_language_simplified_chinese_short)
+    val appLanguageTraditionalShortLabel = stringResource(R.string.app_language_traditional_chinese_short)
+    val appLanguageEnglishShortLabel = stringResource(R.string.app_language_english_short)
     val appLanguageOptions = remember(
+        appLanguageFollowSystemShortLabel,
+        appLanguageSimplifiedShortLabel,
+        appLanguageTraditionalShortLabel,
+        appLanguageEnglishShortLabel
+    ) {
+        resolveAppLanguageSegmentOptions(
+            followSystemLabel = appLanguageFollowSystemShortLabel,
+            simplifiedChineseLabel = appLanguageSimplifiedShortLabel,
+            traditionalChineseLabel = appLanguageTraditionalShortLabel,
+            englishLabel = appLanguageEnglishShortLabel
+        )
+    }
+    val selectedAppLanguageLabel = remember(
+        state.appLanguage,
         appLanguageFollowSystemLabel,
         appLanguageSimplifiedLabel,
         appLanguageTraditionalLabel,
         appLanguageEnglishLabel
     ) {
-        resolveAppLanguageSegmentOptions(
-            followSystemLabel = appLanguageFollowSystemLabel,
-            simplifiedChineseLabel = appLanguageSimplifiedLabel,
-            traditionalChineseLabel = appLanguageTraditionalLabel,
-            englishLabel = appLanguageEnglishLabel
-        )
+        when (state.appLanguage) {
+            AppLanguage.FOLLOW_SYSTEM -> appLanguageFollowSystemLabel
+            AppLanguage.SIMPLIFIED_CHINESE -> appLanguageSimplifiedLabel
+            AppLanguage.TRADITIONAL_CHINESE_TAIWAN -> appLanguageTraditionalLabel
+            AppLanguage.ENGLISH -> appLanguageEnglishLabel
+        }
     }
-    val selectedAppLanguageLabel = appLanguageOptions
-        .firstOrNull { it.value == state.appLanguage }
-        ?.label ?: state.appLanguage.name
     val navigationBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val contentBottomPadding = resolveAppearanceBottomPadding(
         navigationBarsBottom = navigationBarBottomPadding,
@@ -2143,49 +2181,51 @@ private fun AppearanceUiPresetDescriptionCard(
     val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
     val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
 
-    Surface(
-        shape = AppShapes.borderedContainer(ContainerLevel.Dialog),
-        color = containerColor,
-        contentColor = contentColor,
-        tonalElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top
+    AdaptivePlainTooltipBox(text = summary) {
+        Surface(
+            shape = AppShapes.borderedContainer(ContainerLevel.Dialog),
+            color = containerColor,
+            contentColor = contentColor,
+            tonalElevation = 0.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
         ) {
-            Surface(
-                modifier = Modifier.size(34.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                contentColor = MaterialTheme.colorScheme.primary
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                Surface(
+                    modifier = Modifier.size(34.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    contentColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = summary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = contentColor.copy(alpha = 0.82f)
                     )
                 }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = summary,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = contentColor.copy(alpha = 0.82f)
-                )
             }
         }
     }

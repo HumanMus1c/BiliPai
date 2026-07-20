@@ -25,10 +25,10 @@ class WatchLaterQueueSheetPresentationPolicyTest {
 
     @Test
     fun queueSheetConsumesBackToDismissBeforePageNavigation() {
-        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailOverlayHost.kt")
         val sheetSource = source
-            .substringAfter("private fun ExternalPlaylistQueueSheet(")
-            .substringBefore("@Composable\nprivate fun ExternalPlaylistQueueSheetContent(")
+            .substringAfter("internal fun ExternalPlaylistQueueSheet(")
+            .substringBefore("@Composable\ninternal fun ExternalPlaylistQueueSheetContent(")
 
         assertTrue(sheetSource.contains("BackHandler(enabled = visible)"))
         assertTrue(sheetSource.contains("onDismiss()"))

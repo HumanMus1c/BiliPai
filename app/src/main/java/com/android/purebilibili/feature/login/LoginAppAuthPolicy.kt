@@ -42,7 +42,8 @@ internal fun buildAndroidSmsLoginParams(
     put("code", code.toString())
     put("captcha_key", captchaKey)
     put("from_pv", "main.my-information.my-login.0.click")
-    put("from_url", "bilibili%3A%2F%2Fuser_center%2Fmine")
+    // Pre-encode like PiliPlus; AppSign percent-encodes again when hashing.
+    put("from_url", AppSignUtils.percentEncode("bilibili://user_center/mine"))
 }
 
 internal fun buildAndroidPasswordLoginParams(
@@ -67,7 +68,7 @@ internal fun buildAndroidPasswordLoginParams(
     put("gee_validate", validate)
     put("gee_seccode", seccode)
     put("from_pv", "main.homepage.avatar-nologin.all.click")
-    put("from_url", "bilibili%3A%2F%2Fpegasus%2Fpromo")
+    put("from_url", AppSignUtils.percentEncode("bilibili://pegasus/promo"))
 }
 
 private fun androidLoginDeviceParams(
@@ -81,7 +82,8 @@ private fun androidLoginDeviceParams(
     "device_id" to deviceId,
     "device_name" to "android_hd",
     "device_platform" to "Android",
-    "dt" to encryptedDeviceToken,
+    // PiliPlus pre-encodes dt before AppSign / form body.
+    "dt" to AppSignUtils.percentEncode(encryptedDeviceToken),
     "local_id" to buvid
 )
 

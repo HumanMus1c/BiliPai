@@ -73,6 +73,7 @@ internal const val DEFAULT_CRASH_TRACKING_ENABLED = true
 internal const val DEFAULT_ANALYTICS_ENABLED = true
 internal const val DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ENABLED = true
 internal const val DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ONCE_ENABLED = false
+internal const val DEFAULT_DASH_SEGMENT_REQUESTS_ENABLED = false
 
 internal fun resolveDefaultPlayerDiagnosticLoggingEnabled(isDebugBuild: Boolean): Boolean {
     return !isDebugBuild
@@ -1169,6 +1170,8 @@ object SettingsManager {
     private val KEY_CARD_ANIMATION_ENABLED = booleanPreferencesKey("card_animation_enabled")
     //  [新增] 卡片过渡动画开关
     private val KEY_CARD_TRANSITION_ENABLED = booleanPreferencesKey("card_transition_enabled")
+    private val KEY_VIDEO_TRANSITION_REALTIME_BLUR_ENABLED =
+        booleanPreferencesKey("video_transition_realtime_blur_enabled")
     private val KEY_VIDEO_SHARED_TRANSITION_SPEED =
         intPreferencesKey("video_shared_transition_speed")
     private val KEY_VIDEO_SHARED_TRANSITION_CUSTOM_DURATION_MILLIS =
@@ -2362,6 +2365,16 @@ object SettingsManager {
 
     suspend fun setCardTransitionEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences -> preferences[KEY_CARD_TRANSITION_ENABLED] = value }
+    }
+
+    fun getVideoTransitionRealtimeBlurEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data
+            .map { preferences -> preferences[KEY_VIDEO_TRANSITION_REALTIME_BLUR_ENABLED] ?: true }
+
+    suspend fun setVideoTransitionRealtimeBlurEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_VIDEO_TRANSITION_REALTIME_BLUR_ENABLED] = value
+        }
     }
 
     fun getVideoSharedTransitionSpeed(context: Context): Flow<VideoSharedTransitionSpeed> =
@@ -5643,7 +5656,8 @@ object SettingsManager {
 
     fun getDashSegmentRequestsEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data.map { preferences ->
-            preferences[KEY_DASH_SEGMENT_REQUESTS_ENABLED] ?: true
+            preferences[KEY_DASH_SEGMENT_REQUESTS_ENABLED]
+                ?: DEFAULT_DASH_SEGMENT_REQUESTS_ENABLED
         }
 
     suspend fun setDashSegmentRequestsEnabled(context: Context, enabled: Boolean) {
@@ -6042,6 +6056,10 @@ object SettingsManager {
             BooleanShareablePreferenceDefinition(KEY_CARD_ANIMATION_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_UI_ENTRANCE_ANIMATION_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_CARD_TRANSITION_ENABLED, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(
+                KEY_VIDEO_TRANSITION_REALTIME_BLUR_ENABLED,
+                SettingsShareSection.APPEARANCE
+            ),
             IntShareablePreferenceDefinition(KEY_VIDEO_SHARED_TRANSITION_SPEED, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(
                 KEY_VIDEO_SHARED_TRANSITION_CUSTOM_DURATION_MILLIS,

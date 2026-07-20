@@ -171,8 +171,10 @@ import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import kotlin.math.sign
 import kotlin.math.sqrt
+import top.yukonga.miuix.kmp.basic.Badge as MiuixBadge
 import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode as MiuixNavigationBarDisplayMode
+import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import top.yukonga.miuix.kmp.blur.LayerBackdrop as MiuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.blur as miuixBlur
@@ -184,7 +186,6 @@ import top.yukonga.miuix.kmp.blur.highlight.LightSource
 import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.sensor.rememberDeviceTilt
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val iosIndicatorSpecular: MiuixHighlight = MiuixHighlight(
     width = 1.dp,
@@ -1185,7 +1186,7 @@ internal fun Modifier.kernelSuMiuixFloatingDockSurface(
     materialMotionProgress: Float = 0f,
     materialPressProgress: Float = 0f
 ): Modifier = composed {
-    val isDarkTheme = resolveBottomBarDarkTheme(MiuixTheme.colorScheme.background)
+    val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background())
     val useHazeBlur = shouldUseAndroidNativeFloatingHazeBlur(
         glassEnabled = glassEnabled,
         blurEnabled = blurEnabled,
@@ -1370,13 +1371,23 @@ internal fun resolveAndroidNativePanelOffsetFraction(
     return (velocity / 2200f).coerceIn(-0.18f, 0.18f)
 }
 
-private fun Md3BottomBarDisplayMode.toMiuixNavigationDisplayMode(): MiuixNavigationBarDisplayMode {
+/**
+ * Miuix 0.9.3 removed [MiuixNavigationBarDisplayMode.TextOnly] (badges anchor to icons).
+ * Keep the MD3-side TextOnly setting, but map it onto the closest upstream mode.
+ */
+internal fun Md3BottomBarDisplayMode.toMiuixNavigationDisplayMode(): MiuixNavigationBarDisplayMode {
     return when (this) {
         Md3BottomBarDisplayMode.IconAndText -> MiuixNavigationBarDisplayMode.IconAndText
         Md3BottomBarDisplayMode.IconOnly -> MiuixNavigationBarDisplayMode.IconOnly
-        Md3BottomBarDisplayMode.TextOnly -> MiuixNavigationBarDisplayMode.TextOnly
+        Md3BottomBarDisplayMode.TextOnly -> MiuixNavigationBarDisplayMode.IconWithSelectedLabel
     }
 }
+
+/** Official [MiuixNavigationBarItem] cannot host skin bitmaps or label scrims. */
+internal fun shouldUseMiuixOfficialNavigationBarItem(
+    skinIconPath: String?,
+    labelScrimAlpha: Float
+): Boolean = skinIconPath == null && labelScrimAlpha <= 0f
 
 internal fun resolveMiuixDockedBottomBarItemColor(
     selected: Boolean,
@@ -2691,14 +2702,14 @@ private fun MiuixBottomBar(
     )
     val tuning = resolveAndroidNativeBottomBarTuning(
         blurEnabled = glassEnabled || blurEnabled,
-        darkTheme = resolveBottomBarDarkTheme(MiuixTheme.colorScheme.background),
+        darkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background()),
         androidNativeVariant = AndroidNativeVariant.MIUIX
     )
     val blurIntensity = currentUnifiedBlurIntensity()
     val baseSurfaceColor = if (isFloating) {
-        MiuixTheme.colorScheme.surfaceContainer
+        AppSurfaceTokens.surfaceContainer()
     } else {
-        MiuixTheme.colorScheme.surface
+        AppSurfaceTokens.surface()
     }
     val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
     val containerColor = if (isFloating) {
@@ -2801,31 +2812,55 @@ private fun MiuixBottomBar(
 
             bottomBarVisibleItems.forEach { item ->
                 val itemLabel = resolveBottomNavItemLabel(item)
-                MiuixDockedBottomBarItem(
-                    selected = currentItem == item,
-                    onClick = {
-                        performMaterialBottomBarTap(
-                            haptic = haptic,
-                            onClick = { onItemClick(item) }
-                        )
-                    },
-                    icon = resolveMaterialBottomBarIcon(item, currentItem == item),
-                    label = itemLabel,
-                    showIcon = showIcon,
-                    showText = showText,
-                    selectedColor = skinItemColors.selectedColor,
-                    unselectedColor = skinItemColors.unselectedColor,
-                    labelScrimColor = skinItemColors.labelScrimColor,
-                    labelScrimAlpha = skinItemColors.labelScrimAlpha,
-                    skinIconPath = uiSkinDecoration?.iconPathFor(item, selected = currentItem == item),
-                    reminderBadgeText = formatBottomBarDynamicReminderBadge(
-                        if (shouldShowBottomBarDynamicReminderBadge(item, dynamicUnreadCount)) {
-                            dynamicUnreadCount
-                        } else {
-                            0
+                val skinIconPath = uiSkinDecoration?.iconPathFor(item, selected = currentItem == item)
+                val reminderBadgeText = formatBottomBarDynamicReminderBadge(
+                    if (shouldShowBottomBarDynamicReminderBadge(item, dynamicUnreadCount)) {
+                        dynamicUnreadCount
+                    } else {
+                        0
+                    }
+                )
+                val onItemTap = {
+                    performMaterialBottomBarTap(
+                        haptic = haptic,
+                        onClick = { onItemClick(item) }
+                    )
+                }
+                if (
+                    shouldUseMiuixOfficialNavigationBarItem(
+                        skinIconPath = skinIconPath,
+                        labelScrimAlpha = skinItemColors.labelScrimAlpha
+                    )
+                ) {
+                    MiuixNavigationBarItem(
+                        selected = currentItem == item,
+                        onClick = onItemTap,
+                        icon = resolveMaterialBottomBarIcon(item, currentItem == item),
+                        label = itemLabel,
+                        badge = reminderBadgeText?.let { badgeText ->
+                            {
+                                MiuixBadge {
+                                    Text(text = badgeText)
+                                }
+                            }
                         }
                     )
-                )
+                } else {
+                    MiuixDockedBottomBarItem(
+                        selected = currentItem == item,
+                        onClick = onItemTap,
+                        icon = resolveMaterialBottomBarIcon(item, currentItem == item),
+                        label = itemLabel,
+                        showIcon = showIcon,
+                        showText = showText,
+                        selectedColor = skinItemColors.selectedColor,
+                        unselectedColor = skinItemColors.unselectedColor,
+                        labelScrimColor = skinItemColors.labelScrimColor,
+                        labelScrimAlpha = skinItemColors.labelScrimAlpha,
+                        skinIconPath = skinIconPath,
+                        reminderBadgeText = reminderBadgeText
+                    )
+                }
             }
 
             if (isTablet && onToggleSidebar != null) {
@@ -3004,7 +3039,7 @@ private fun KernelSuAlignedBottomBar(
 ) {
     val shellShape = resolveSharedBottomBarCapsuleShape()
     val tabsBackdrop = rememberMiuixLayerBackdrop()
-    val isDarkTheme = resolveBottomBarDarkTheme(MiuixTheme.colorScheme.background)
+    val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background())
     val ksuContainerColor = resolveKernelSuBottomBarShellColor(
         containerColor = containerColor,
         liquidGlassEnabled = glassEnabled,
@@ -4762,7 +4797,7 @@ private fun RowScope.AndroidNativeBottomBarItem(
     }
 }
 
-private fun resolveMaterialBottomBarIcon(
+internal fun resolveMaterialBottomBarIcon(
     item: BottomNavItem,
     selected: Boolean
 ): ImageVector = when (item) {

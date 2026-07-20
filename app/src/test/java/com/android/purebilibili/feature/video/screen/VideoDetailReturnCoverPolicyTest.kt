@@ -109,10 +109,9 @@ class VideoDetailReturnCoverPolicyTest {
 
     @Test
     fun `immediate back target mounts the live inline player`() {
-        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
             .readText()
         val inlinePlayerCall = source
-            .substringAfter("PortraitInlineVideoPlayerHost(", "")
             .substringAfter("PortraitInlineVideoPlayerHost(", "")
             .substringBefore("allowLivePlayerSharedElement = true")
 
@@ -121,7 +120,7 @@ class VideoDetailReturnCoverPolicyTest {
 
     @Test
     fun `detail route does not manually fade its background during return`() {
-        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
             .readText()
 
         assertFalse(source.contains("resolveVideoDetailShellBackgroundAlphaTarget"))
@@ -153,7 +152,7 @@ class VideoDetailReturnCoverPolicyTest {
                 forceCoverOnlyOnReturn = true
             )
         )
-        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailTransitionPolicy.kt")
             .readText()
         val policyBlock = source
             .substringAfter("internal fun resolveForceCoverOnlyForReturn(")
@@ -266,7 +265,7 @@ class VideoDetailReturnCoverPolicyTest {
 
     @Test
     fun `return cover player and content read one shared transition progress`() {
-        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
             .readText()
 
         assertTrue(source.contains("val detailTransitionProgress ="))
@@ -327,14 +326,17 @@ class VideoDetailReturnCoverPolicyTest {
 
     @Test
     fun `returning visual is wired from exit progress and session for handoff`() {
-        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
             .readText()
+        val transitionHostSource = File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailTransitionHost.kt"
+        ).readText()
         val call = source
             .substringAfter("val useReturningVideoDetailVisualState = shouldUseReturningVideoDetailVisualState(")
             .substringBefore("val handleTopBarAction")
         assertTrue(call.contains("isCardReturnExitInProgress = isCardReturnExitInProgress"))
         assertTrue(call.contains("isSessionReturningToCard = isReturningFromDetail"))
-        assertTrue(source.contains("video-detail-shared-transition-progress"))
+        assertTrue(transitionHostSource.contains("video-detail-shared-transition-progress"))
     }
 
     @Test
@@ -344,7 +346,7 @@ class VideoDetailReturnCoverPolicyTest {
 
     @Test
     fun `resident return cover reuses the home card image cache`() {
-        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
             .readText()
         val requestBlock = source
             .substringAfter("val residentCoverImageRequest =")
@@ -358,7 +360,7 @@ class VideoDetailReturnCoverPolicyTest {
 
     @Test
     fun `navigation actions do not switch the loaded player to a cover`() {
-        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
             .readText()
         val actionBlock = source
             .substringAfter("action@{ action: VideoDetailTopBarAction ->")
@@ -370,7 +372,7 @@ class VideoDetailReturnCoverPolicyTest {
 
     @Test
     fun `player container shared bounds are disabled during return to avoid cover key conflict`() {
-        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
             .readText()
         val playerContainerBlock = source
             .substringAfter("val playerContainerModifier = if (")

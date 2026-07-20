@@ -43,9 +43,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.media3.ui.PlayerView
+import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
+import com.android.purebilibili.core.theme.LocalUiPreset
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.rememberAppClearIcon
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
-//  已改用 MaterialTheme.colorScheme.primary
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -91,10 +93,24 @@ fun MiniPlayerOverlay(
     
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
+    val uiPreset = LocalUiPreset.current
+    val androidNativeVariant = LocalAndroidNativeVariant.current
     val layoutPolicy = remember(configuration.screenWidthDp) {
         resolveMiniPlayerOverlayLayoutPolicy(
             widthDp = configuration.screenWidthDp
         )
+    }
+    val shellVisual = remember(layoutPolicy, uiPreset, androidNativeVariant) {
+        resolveMiniPlayerOverlayShellVisual(
+            layout = layoutPolicy,
+            uiPreset = uiPreset,
+            androidNativeVariant = androidNativeVariant
+        )
+    }
+    val accentColor = if (shellVisual.useThemePrimaryAccent) {
+        AppSurfaceTokens.primary()
+    } else {
+        MaterialTheme.colorScheme.primary
     }
 
     val padding = layoutPolicy.outerPaddingDp.dp
@@ -360,6 +376,8 @@ fun MiniPlayerOverlay(
                     .offset { IntOffset(animatedOffsetX.roundToInt(), animatedOffsetY.roundToInt()) }
                     .zIndex(101f),
                 layoutPolicy = layoutPolicy,
+                shellVisual = shellVisual,
+                accentColor = accentColor,
                 side = stashSide,
                 onUnstash = {
                     isStashed = false
@@ -388,12 +406,12 @@ fun MiniPlayerOverlay(
                     .width(miniPlayerWidth)
                     .height(miniPlayerHeight)
                     .shadow(
-                        layoutPolicy.cardShadowDp.dp,
-                        RoundedCornerShape(layoutPolicy.cardCornerRadiusDp.dp)
+                        shellVisual.cardShadowDp.dp,
+                        RoundedCornerShape(shellVisual.cardCornerRadiusDp.dp)
                     ),
-                shape = RoundedCornerShape(layoutPolicy.cardCornerRadiusDp.dp),
+                shape = RoundedCornerShape(shellVisual.cardCornerRadiusDp.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.Black),
-                elevation = CardDefaults.cardElevation(defaultElevation = layoutPolicy.cardElevationDp.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = shellVisual.cardElevationDp.dp)
             ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 // 视频画面
@@ -409,7 +427,7 @@ fun MiniPlayerOverlay(
                         update = { view -> view.player = exoPlayer },
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(layoutPolicy.cardCornerRadiusDp.dp))
+                            .clip(RoundedCornerShape(shellVisual.cardCornerRadiusDp.dp))
                             //  视频区域：左右滑动调节进度（直播模式禁用）
                             .pointerInput(miniPlayerManager.isLiveMode, miniPlayerWidthPx, duration, touchSlopPx) {
                                 detectDragGestures(
@@ -686,7 +704,7 @@ fun MiniPlayerOverlay(
                         },
                         modifier = Modifier.align(Alignment.Center),
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                        color = accentColor.copy(alpha = 0.9f)
                     ) {
                         Icon(
                             imageVector = if (isPlaying) CupertinoIcons.Default.Pause else CupertinoIcons.Default.Play,
@@ -704,7 +722,7 @@ fun MiniPlayerOverlay(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .padding(bottom = layoutPolicy.seekHintBottomPaddingDp.dp),
-                            shape = RoundedCornerShape(layoutPolicy.seekHintCornerRadiusDp.dp),
+                            shape = RoundedCornerShape(shellVisual.seekHintCornerRadiusDp.dp),
                             color = Color.Black.copy(alpha = 0.7f)
                         ) {
                             val timeText = "${formatMiniTime(seekPreviewPosition)} / ${formatMiniTime(duration)}"
@@ -770,11 +788,11 @@ fun MiniPlayerOverlay(
                         .alpha(chrome.progressBarAlpha)
                         .clip(
                             RoundedCornerShape(
-                                bottomStart = layoutPolicy.cardCornerRadiusDp.dp,
-                                bottomEnd = layoutPolicy.cardCornerRadiusDp.dp
+                                bottomStart = shellVisual.cardCornerRadiusDp.dp,
+                                bottomEnd = shellVisual.cardCornerRadiusDp.dp
                             )
                         ),
-                    color = if (isDraggingProgress) Color.Yellow else MaterialTheme.colorScheme.primary,
+                    color = if (isDraggingProgress) Color.Yellow else accentColor,
                     trackColor = Color.White.copy(alpha = 0.3f)
                 )
                 }
@@ -818,7 +836,7 @@ fun MiniPlayerOverlay(
                             },
                         shape = RoundedCornerShape(
                             topStart = 16.dp,
-                            bottomEnd = layoutPolicy.cardCornerRadiusDp.dp
+                            bottomEnd = shellVisual.cardCornerRadiusDp.dp
                         ),
                         color = Color.Black.copy(alpha = 0.35f)
                     ) {
@@ -843,21 +861,25 @@ fun MiniPlayerOverlay(
 private fun StashedMiniPlayerView(
     modifier: Modifier,
     layoutPolicy: MiniPlayerOverlayLayoutPolicy,
+    shellVisual: MiniPlayerOverlayShellVisual,
+    accentColor: Color,
     side: com.android.purebilibili.core.util.CardPositionManager.CardHorizontalPosition,
     onUnstash: () -> Unit,
     onDrag: (Float) -> Unit
 ) {
     val isLeft = side == com.android.purebilibili.core.util.CardPositionManager.CardHorizontalPosition.LEFT
     // 形状：贴边的一侧是平的，另一侧是圆的
+    val stashedCorner =
+        shellVisual.cardCornerRadiusDp.dp + layoutPolicy.stashedSideCornerExtraDp.dp
     val shape = if (isLeft) {
         RoundedCornerShape(
-            topEnd = layoutPolicy.cardCornerRadiusDp.dp + layoutPolicy.stashedSideCornerExtraDp.dp,
-            bottomEnd = layoutPolicy.cardCornerRadiusDp.dp + layoutPolicy.stashedSideCornerExtraDp.dp
+            topEnd = stashedCorner,
+            bottomEnd = stashedCorner
         )
     } else {
         RoundedCornerShape(
-            topStart = layoutPolicy.cardCornerRadiusDp.dp + layoutPolicy.stashedSideCornerExtraDp.dp,
-            bottomStart = layoutPolicy.cardCornerRadiusDp.dp + layoutPolicy.stashedSideCornerExtraDp.dp
+            topStart = stashedCorner,
+            bottomStart = stashedCorner
         )
     }
 
@@ -874,8 +896,12 @@ private fun StashedMiniPlayerView(
                 )
         },
         shape = shape,
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-        shadowElevation = layoutPolicy.stashedShadowDp.dp,
+        color = accentColor.copy(alpha = 0.9f),
+        shadowElevation = if (shellVisual.useThemePrimaryAccent) {
+            (layoutPolicy.stashedShadowDp * 0.55f).dp
+        } else {
+            layoutPolicy.stashedShadowDp.dp
+        },
         onClick = onUnstash
     ) {
         Box(contentAlignment = Alignment.Center) {

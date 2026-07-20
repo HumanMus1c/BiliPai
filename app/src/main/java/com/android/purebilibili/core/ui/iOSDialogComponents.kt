@@ -20,11 +20,13 @@ import com.android.purebilibili.core.theme.UiPreset
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.android.purebilibili.core.theme.iOSBlue
+import top.yukonga.miuix.kmp.overlay.OverlayDialog
 
 enum class IOSAlertDialogRenderer {
     IOS_LOCAL,
     MATERIAL_ALERT,
-    LOCAL_DIALOG
+    LOCAL_DIALOG,
+    MIUIX_OVERLAY
 }
 
 fun resolveIosAlertDialogRenderer(
@@ -32,7 +34,7 @@ fun resolveIosAlertDialogRenderer(
     androidNativeVariant: AndroidNativeVariant
 ): IOSAlertDialogRenderer = when {
     uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX ->
-        IOSAlertDialogRenderer.LOCAL_DIALOG
+        IOSAlertDialogRenderer.MIUIX_OVERLAY
     uiPreset == UiPreset.MD3 -> IOSAlertDialogRenderer.MATERIAL_ALERT
     else -> IOSAlertDialogRenderer.IOS_LOCAL
 }
@@ -66,6 +68,20 @@ fun IOSAlertDialog(
     val uiPreset = LocalUiPreset.current
     val androidNativeVariant = LocalAndroidNativeVariant.current
     when (resolveIosAlertDialogRenderer(uiPreset, androidNativeVariant)) {
+        IOSAlertDialogRenderer.MIUIX_OVERLAY -> {
+            OverlayDialog(
+                show = true,
+                onDismissRequest = onDismissRequest,
+            ) {
+                MiuixAlertDialogBody(
+                    title = title,
+                    text = text,
+                    confirmButton = confirmButton,
+                    dismissButton = dismissButton,
+                )
+            }
+            return
+        }
         IOSAlertDialogRenderer.LOCAL_DIALOG -> {
             Dialog(
                 onDismissRequest = onDismissRequest,
@@ -78,61 +94,12 @@ fun IOSAlertDialog(
                     color = AppSurfaceTokens.cardContainer(),
                     tonalElevation = 6.dp
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        if (title != null) {
-                            Box(
-                                modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                ProvideTextStyle(
-                                    value = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                ) {
-                                    title()
-                                }
-                            }
-                        }
-                        if (text != null) {
-                            Box(
-                                modifier = Modifier.padding(
-                                    top = if (title != null) 8.dp else 12.dp,
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                    bottom = 12.dp
-                                ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                ProvideTextStyle(
-                                    value = MaterialTheme.typography.bodyMedium.copy(
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                ) {
-                                    text()
-                                }
-                            }
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            if (dismissButton != null) {
-                                Box(modifier = Modifier.padding(horizontal = 4.dp)) {
-                                    dismissButton()
-                                }
-                            }
-                            if (confirmButton != null) {
-                                Box(modifier = Modifier.padding(horizontal = 4.dp)) {
-                                    confirmButton()
-                                }
-                            }
-                        }
-                    }
+                    MiuixAlertDialogBody(
+                        title = title,
+                        text = text,
+                        confirmButton = confirmButton,
+                        dismissButton = dismissButton,
+                    )
                 }
             }
             return
@@ -266,6 +233,70 @@ fun IOSAlertDialog(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiuixAlertDialogBody(
+    title: @Composable (() -> Unit)?,
+    text: @Composable (() -> Unit)?,
+    confirmButton: @Composable (() -> Unit)?,
+    dismissButton: @Composable (() -> Unit)?,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (title != null) {
+            Box(
+                modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                ProvideTextStyle(
+                    value = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    )
+                ) {
+                    title()
+                }
+            }
+        }
+        if (text != null) {
+            Box(
+                modifier = Modifier.padding(
+                    top = if (title != null) 8.dp else 12.dp,
+                    start = 16.dp,
+                    end = 16.dp,
+                    bottom = 12.dp
+                ),
+                contentAlignment = Alignment.Center
+            ) {
+                ProvideTextStyle(
+                    value = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    text()
+                }
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.End
+        ) {
+            if (dismissButton != null) {
+                Box(modifier = Modifier.padding(horizontal = 4.dp)) {
+                    dismissButton()
+                }
+            }
+            if (confirmButton != null) {
+                Box(modifier = Modifier.padding(horizontal = 4.dp)) {
+                    confirmButton()
                 }
             }
         }

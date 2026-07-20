@@ -72,9 +72,9 @@ import com.android.purebilibili.core.ui.LocalPredictiveBackGestureEnabled
 import com.android.purebilibili.core.ui.rememberAppShareIcon
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
+import com.android.purebilibili.core.ui.motion.continuityTween
 import com.android.purebilibili.core.ui.motion.emphasizedEnterTween
 import com.android.purebilibili.core.ui.motion.emphasizedExitTween
-import com.android.purebilibili.core.ui.motion.expressiveSnapSpring
 import com.android.purebilibili.core.ui.motion.indicatorSpring
 import com.android.purebilibili.core.ui.motion.interactiveSnapSpring
 import com.android.purebilibili.core.ui.motion.softLandingSpring
@@ -131,7 +131,7 @@ fun ImagePreviewDialog(
     images: List<String>,
     initialIndex: Int,
     sourceRect: androidx.compose.ui.geometry.Rect? = null,
-    sourceCornerRadiusDp: Float = 12f,
+    sourceCornerRadiusDp: Float = resolveDrawGridCornerRadiusDp().toFloat(),
     textContent: ImagePreviewTextContent? = null,
     defaultTextVisible: Boolean = true,
     onImageLongPress: ((String) -> Unit)? = null,
@@ -204,7 +204,7 @@ private fun ImagePreviewOverlayContent(
     images: List<String>,
     initialIndex: Int,
     sourceRect: androidx.compose.ui.geometry.Rect? = null,
-    sourceCornerRadiusDp: Float = 12f,
+    sourceCornerRadiusDp: Float = resolveDrawGridCornerRadiusDp().toFloat(),
     textContent: ImagePreviewTextContent? = null,
     defaultTextVisible: Boolean = true,
     onImageLongPress: ((String) -> Unit)? = null,
@@ -269,7 +269,9 @@ private fun ImagePreviewOverlayContent(
             )
         )
     }
-    val verticalDismissOffsetYPx = remember { androidx.compose.animation.core.Animatable(0f) }
+    // 竖滑跟手用状态值，避免每帧 launch snapTo 竞态导致滑不动。
+    var verticalDismissOffsetYPx by remember { mutableFloatStateOf(0f) }
+    val verticalDismissSnapAnim = remember { androidx.compose.animation.core.Animatable(0f) }
 
     fun handleImageSaveResult(success: Boolean) {
         haptic(resolveImagePreviewSaveFeedback(success))
@@ -300,7 +302,8 @@ private fun ImagePreviewOverlayContent(
         activeZoomScale = 1f
         if (!isDismissing) {
             isVerticalDismissDragging = false
-            verticalDismissOffsetYPx.snapTo(0f)
+            verticalDismissOffsetYPx = 0f
+            verticalDismissSnapAnim.snapTo(0f)
         }
     }
     
@@ -371,16 +374,22 @@ private fun ImagePreviewOverlayContent(
             
             val rawProgress = animateTrigger.value
             val verticalDragFrame = resolveImagePreviewVerticalDragFrame(
-                dragOffsetYPx = verticalDismissOffsetYPx.value,
+                dragOffsetYPx = verticalDismissOffsetYPx,
                 containerHeightPx = fullHeightPx
             )
             
             //  计算容器位置和大小
             // 如果切走了或者没有源矩形，则全屏显示（仅淡入淡出）
-            val isInitialPage = pagerState.currentPage == initialIndex
-            val shouldUseRectAnim = sourceRect != null && isInitialPage
+            // 有缩略图源矩形时始终做尺寸落位，保证返回大小匹配预览格。
+            val shouldUseRectAnim = sourceRect != null
             val transitionFrame = resolveImagePreviewTransitionFrame(
                 rawProgress = rawProgress,
+                hasSourceRect = shouldUseRectAnim,
+                sourceCornerRadiusDp = sourceCornerRadiusDp
+            )
+            val presentedCornerRadiusDp = resolveImagePreviewPresentedCornerRadiusDp(
+                visualProgress = transitionFrame.visualProgress,
+                verticalDragProgress = if (isDismissing) 0f else verticalDragFrame.progress,
                 hasSourceRect = shouldUseRectAnim,
                 sourceCornerRadiusDp = sourceCornerRadiusDp
             )
@@ -425,7 +434,8 @@ private fun ImagePreviewOverlayContent(
                 startRect: androidx.compose.ui.geometry.Rect? = resolveImagePreviewDismissStartRect(
                     previewSurfaceRect = previewSurfaceRect,
                     displayedImageRect = currentImageDisplayRect,
-                    preferPreviewSurface = false
+                    // 默认从全屏容器缩回缩略图尺寸，与进场对称、落位大小一致。
+                    preferPreviewSurface = true
                 )
             ) {
                 if (isDismissing) return
@@ -433,21 +443,20 @@ private fun ImagePreviewOverlayContent(
                 isVerticalDismissDragging = false
                 isDismissing = true
                 scope.launch {
-                    verticalDismissOffsetYPx.snapTo(0f)
+                    verticalDismissOffsetYPx = 0f
+                    verticalDismissSnapAnim.snapTo(0f)
                     val dismissMotion = imagePreviewDismissMotion()
+                    // Continuity：先快后慢贴近缩略图；再 soft spring 贴回，避免末段冲刺。
+                    animateTrigger.animateTo(
+                        targetValue = dismissMotion.overshootTarget,
+                        animationSpec = continuityTween(
+                            durationMillis = dismissMotion.collapseDurationMillis
+                        )
+                    )
                     if (dismissMotion.overshootTarget != dismissMotion.settleTarget) {
                         animateTrigger.animateTo(
-                            targetValue = dismissMotion.overshootTarget,
-                            animationSpec = emphasizedExitTween(durationMillis = 240)
-                        )
-                        animateTrigger.animateTo(
                             targetValue = dismissMotion.settleTarget,
-                            animationSpec = expressiveSnapSpring()
-                        )
-                    } else {
-                        animateTrigger.animateTo(
-                            targetValue = dismissMotion.settleTarget,
-                            animationSpec = emphasizedExitTween(durationMillis = 220)
+                            animationSpec = softLandingSpring()
                         )
                     }
                     onDismiss()
@@ -476,9 +485,12 @@ private fun ImagePreviewOverlayContent(
                 reportPredictiveProgress = predictiveBackGestureEnabled,
                 onBackCancelled = { commitTransition: () -> Unit ->
                     scope.launch {
+                        val dismissMotion = imagePreviewDismissMotion()
                         animateTrigger.animateTo(
                             targetValue = 1f,
-                            animationSpec = emphasizedEnterTween(durationMillis = 160),
+                            animationSpec = emphasizedEnterTween(
+                                durationMillis = dismissMotion.cancelRecoverDurationMillis
+                            ),
                         )
                         commitTransition()
                     }
@@ -530,7 +542,7 @@ private fun ImagePreviewOverlayContent(
                         width = with(density) { dismissRectFrame.rect.width.toDp() },
                         height = with(density) { dismissRectFrame.rect.height.toDp() }
                     )
-                    .clip(RoundedCornerShape(transitionFrame.cornerRadiusDp.dp))
+                    .clip(RoundedCornerShape(presentedCornerRadiusDp.dp))
                     .graphicsLayer {
                         alpha = visualFrame.contentAlpha
                         renderEffect = null
@@ -539,7 +551,7 @@ private fun ImagePreviewOverlayContent(
                 Modifier
                     .offset(x = currentLeft, y = currentTop)
                     .size(width = currentWidth, height = currentHeight)
-                    .clip(RoundedCornerShape(transitionFrame.cornerRadiusDp.dp))
+                    .clip(RoundedCornerShape(presentedCornerRadiusDp.dp))
                     .graphicsLayer {
                         alpha = visualFrame.contentAlpha
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
@@ -558,7 +570,7 @@ private fun ImagePreviewOverlayContent(
                             scaleY = transitionFrame.fallbackScale
                         }
                         if (!isDismissing) {
-                            translationY = verticalDismissOffsetYPx.value
+                            translationY = verticalDismissOffsetYPx
                             val dragScale = verticalDragFrame.scale
                             scaleX *= dragScale
                             scaleY *= dragScale
@@ -575,6 +587,9 @@ private fun ImagePreviewOverlayContent(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
                     beyondViewportPageCount = 1,  // 预加载相邻页面
+                    userScrollEnabled = !isVerticalDismissDragging &&
+                        !isDismissing &&
+                        activeZoomScale <= 1.01f,
                     key = { images.getOrElse(it) { "" } }
                 ) { page ->
                     // 计算当前页面的偏移量（0 = 居中，-1 = 左边，1 = 右边）
@@ -665,21 +680,14 @@ private fun ImagePreviewOverlayContent(
                                 }
                             },
                             onVerticalDismissDragStart = {
-                                if (page == pagerState.currentPage &&
-                                    !isDismissing &&
-                                    shouldEnableImagePreviewVerticalDismiss(activeZoomScale)
-                                ) {
+                                if (page == pagerState.currentPage && !isDismissing) {
                                     isVerticalDismissDragging = true
-                                    scope.launch {
-                                        verticalDismissOffsetYPx.stop()
-                                    }
+                                    scope.launch { verticalDismissSnapAnim.stop() }
                                 }
                             },
                             onVerticalDismissDrag = { dragDelta ->
                                 if (page == pagerState.currentPage && !isDismissing && isVerticalDismissDragging) {
-                                    scope.launch {
-                                        verticalDismissOffsetYPx.snapTo(verticalDismissOffsetYPx.value + dragDelta)
-                                    }
+                                    verticalDismissOffsetYPx += dragDelta
                                 }
                             },
                             onVerticalDismissDragEnd = {
@@ -687,22 +695,25 @@ private fun ImagePreviewOverlayContent(
                                     isVerticalDismissDragging = false
                                     val draggedRect = resolveImagePreviewDraggedDisplayRect(
                                         displayedImageRect = currentImageDisplayRect,
-                                        translationYPx = verticalDismissOffsetYPx.value,
+                                        translationYPx = verticalDismissOffsetYPx,
                                         scale = verticalDragFrame.scale
                                     )
                                     when (
                                         resolveImagePreviewVerticalDismissDecision(
-                                            dragOffsetYPx = verticalDismissOffsetYPx.value,
+                                            dragOffsetYPx = verticalDismissOffsetYPx,
                                             containerHeightPx = fullHeightPx
                                         )
                                     ) {
                                         ImagePreviewVerticalDismissDecision.DISMISS -> triggerDismiss(draggedRect)
                                         ImagePreviewVerticalDismissDecision.SNAP_BACK -> {
                                             scope.launch {
-                                                verticalDismissOffsetYPx.animateTo(
+                                                verticalDismissSnapAnim.snapTo(verticalDismissOffsetYPx)
+                                                verticalDismissSnapAnim.animateTo(
                                                     targetValue = 0f,
                                                     animationSpec = interactiveSnapSpring()
-                                                )
+                                                ) {
+                                                    verticalDismissOffsetYPx = value
+                                                }
                                             }
                                         }
                                     }
@@ -712,10 +723,13 @@ private fun ImagePreviewOverlayContent(
                                 if (page == pagerState.currentPage && !isDismissing) {
                                     isVerticalDismissDragging = false
                                     scope.launch {
-                                        verticalDismissOffsetYPx.animateTo(
+                                        verticalDismissSnapAnim.snapTo(verticalDismissOffsetYPx)
+                                        verticalDismissSnapAnim.animateTo(
                                             targetValue = 0f,
                                             animationSpec = interactiveSnapSpring()
-                                        )
+                                        ) {
+                                            verticalDismissOffsetYPx = value
+                                        }
                                     }
                                 }
                             },

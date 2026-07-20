@@ -47,3 +47,8 @@ fun shouldRouteIosSwitchItemToMiuixSwitchPreference(
     uiPreset: UiPreset,
     androidNativeVariant: AndroidNativeVariant
 ): Boolean = uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX
+
+fun shouldRouteIosSliderPreferenceToMiuixSliderPreference(
+    uiPreset: UiPreset,
+    androidNativeVariant: AndroidNativeVariant
+): Boolean = uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX

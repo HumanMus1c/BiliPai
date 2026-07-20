@@ -42,6 +42,44 @@ class BottomBarMiuixPolicyTest {
     }
 
     @Test
+    fun `miuix display mode maps text-only onto icon-with-selected-label`() {
+        assertEquals(
+            top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode.IconAndText,
+            Md3BottomBarDisplayMode.IconAndText.toMiuixNavigationDisplayMode()
+        )
+        assertEquals(
+            top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode.IconOnly,
+            Md3BottomBarDisplayMode.IconOnly.toMiuixNavigationDisplayMode()
+        )
+        assertEquals(
+            top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode.IconWithSelectedLabel,
+            Md3BottomBarDisplayMode.TextOnly.toMiuixNavigationDisplayMode()
+        )
+    }
+
+    @Test
+    fun `official miuix navigation item is used without skin chrome`() {
+        assertTrue(
+            shouldUseMiuixOfficialNavigationBarItem(
+                skinIconPath = null,
+                labelScrimAlpha = 0f
+            )
+        )
+        assertFalse(
+            shouldUseMiuixOfficialNavigationBarItem(
+                skinIconPath = "/skin/home.png",
+                labelScrimAlpha = 0f
+            )
+        )
+        assertFalse(
+            shouldUseMiuixOfficialNavigationBarItem(
+                skinIconPath = null,
+                labelScrimAlpha = 0.4f
+            )
+        )
+    }
+
+    @Test
     fun `docked miuix bottom item uses theme color when selected`() {
         val themeColor = Color(0xFFE85A91)
         val neutralColor = Color(0xFF9A9AA0)

@@ -79,8 +79,8 @@ android {
         targetSdk = 35  // 保持35以避免Android 16的新运行时行为
         // 🔥🔥 [版本号] 发布新版前记得更新！格式：versionCode +1, versionName 递增
         // 更新日志：CHANGELOG.md
-        versionCode = 258
-        versionName = "9.9.8.3"
+        versionCode = 259
+        versionName = "9.9.8.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -259,7 +259,7 @@ tasks.matching { task ->
 // }
 
 dependencies {
-    val miuixVersion = "0.9.2"
+    val miuixVersion = "0.9.3"
     val material3Version = "1.5.0-alpha18"
     val media3Version = "1.10.0"
     val lifecycleVersion = "2.10.0"
@@ -284,6 +284,7 @@ dependencies {
     implementation("top.yukonga.miuix.kmp:miuix-ui-android:$miuixVersion")
     implementation("top.yukonga.miuix.kmp:miuix-preference-android:$miuixVersion")
     implementation("top.yukonga.miuix.kmp:miuix-blur-android:$miuixVersion")
+    implementation("top.yukonga.miuix.kmp:miuix-shader-android:$miuixVersion")
     implementation("top.yukonga.miuix.kmp:miuix-squircle-android:$miuixVersion")
     implementation("top.yukonga.miuix.kmp:miuix-icons-android:$miuixVersion")
     // 图标扩展库 (全屏、设置图标等)

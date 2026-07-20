@@ -50,4 +50,14 @@ class VideoSettingsPanelActionPolicyTest {
         assertTrue(source.contains("setLongPressSpeedLockEnabled"))
     }
 
+    @Test
+    fun videoSettingsPanel_routesMiuixRowsToOfficialPreferences() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/VideoSettingsPanel.kt")
+            .readText()
+
+        assertTrue(source.contains("VideoSettingsSwitchRow("))
+        assertTrue(source.contains("MiuixSwitchPreference("))
+        assertTrue(source.contains("MiuixArrowPreference("))
+    }
+
 }

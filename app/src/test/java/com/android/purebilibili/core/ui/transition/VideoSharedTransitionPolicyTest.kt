@@ -68,11 +68,11 @@ class VideoSharedTransitionPolicyTest {
         val returnSpring = returning as SpringSpec<*>
         assertEquals(motion.returnSpatialDampingRatio, returnSpring.dampingRatio, 0.001f)
         assertEquals(motion.spatialStiffness, returnSpring.stiffness, 0.001f)
-        assertTrue(returnSpring.dampingRatio in 0.85f..0.9f)
+        assertTrue(returnSpring.dampingRatio in 0.9f..0.95f)
         assertTrue(returnSpring.dampingRatio < 1f)
-        assertEquals(0.86f, motion.returnSpatialDampingRatio, 0.001f)
-        assertEquals(300f, motion.spatialStiffness, 0.001f)
-        assertEquals(140L, resolveVideoCardReturnSpringSettleBufferMs())
+        assertEquals(0.92f, motion.returnSpatialDampingRatio, 0.001f)
+        assertEquals(240f, motion.spatialStiffness, 0.001f)
+        assertEquals(180L, resolveVideoCardReturnSpringSettleBufferMs())
     }
 
     @Test
@@ -307,9 +307,12 @@ class VideoSharedTransitionPolicyTest {
 
     @Test
     fun videoDetailRootProvidesGlobalCardShellSharedBoundsTarget() {
-        val detailSource = File(
-            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt"
-        ).readText()
+        val detailSource = listOf(
+            "VideoDetailTransitionHost.kt",
+            "VideoDetailScreenStateHolder.kt"
+        ).joinToString("\n") { name ->
+            File("src/main/java/com/android/purebilibili/feature/video/screen/$name").readText()
+        }
 
         assertTrue(detailSource.contains("shouldUseVideoCardShellContainerTransform("))
         assertTrue(detailSource.contains("detailShellSharedBoundsEnabled"))
@@ -324,8 +327,8 @@ class VideoSharedTransitionPolicyTest {
         )
 
         assertTrue(motion.enabled)
-        assertEquals(320, motion.durationMillis)
-        assertEquals(320, motion.fullscreenDurationMillis)
+        assertEquals(360, motion.durationMillis)
+        assertEquals(360, motion.fullscreenDurationMillis)
         assertEquals(40, motion.contentDelayMillis)
         assertEquals(220, motion.contentDurationMillis)
         assertEquals(14, motion.contentSlideOffsetDp)
@@ -361,8 +364,8 @@ class VideoSharedTransitionPolicyTest {
             speedSettings = VideoSharedTransitionSpeedSettings(VideoSharedTransitionSpeed.FAST)
         )
 
-        assertEquals(260, motion.durationMillis)
-        assertEquals(260, motion.fullscreenDurationMillis)
+        assertEquals(280, motion.durationMillis)
+        assertEquals(280, motion.fullscreenDurationMillis)
         assertEquals(220, motion.contentDurationMillis)
     }
 
@@ -374,10 +377,10 @@ class VideoSharedTransitionPolicyTest {
             isQuickReturn = true,
         )
 
-        assertEquals(320, motion.durationMillis)
+        assertEquals(360, motion.durationMillis)
         assertEquals(0, motion.contentDelayMillis)
         assertEquals(220, motion.contentDurationMillis)
-        assertEquals(320, motion.fullscreenDurationMillis)
+        assertEquals(360, motion.fullscreenDurationMillis)
     }
 
     @Test
@@ -388,9 +391,9 @@ class VideoSharedTransitionPolicyTest {
             speedSettings = VideoSharedTransitionSpeedSettings(VideoSharedTransitionSpeed.SLOW)
         )
 
-        assertEquals(440, motion.durationMillis)
-        assertEquals(440, motion.fullscreenDurationMillis)
-        assertEquals(264, motion.contentDurationMillis)
+        assertEquals(480, motion.durationMillis)
+        assertEquals(480, motion.fullscreenDurationMillis)
+        assertEquals(288, motion.contentDurationMillis)
     }
 
     @Test
@@ -505,7 +508,7 @@ class VideoSharedTransitionPolicyTest {
         )
 
         assertTrue(motion.enabled)
-        assertEquals(320, motion.durationMillis)
+        assertEquals(360, motion.durationMillis)
     }
 
     @Test

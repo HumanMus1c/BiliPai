@@ -288,7 +288,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     Logger.d("LoginDebug", "短信验证码已发送")
                     _state.value = LoginState.SmsSent(currentCaptchaKey)
                 } else {
-                    _state.value = LoginState.Error("短信发送失败: ${response.message}")
+                    _state.value = LoginState.Error(
+                        "短信发送失败(${response.code}): ${response.message} " +
+                            "[${com.android.purebilibili.BuildConfig.BUILD_TYPE}/" +
+                            "${com.android.purebilibili.core.network.AppSignUtils.ANDROID_HD_APP_KEY.take(8)}]"
+                    )
                 }
             } catch (e: Exception) {
                 com.android.purebilibili.core.util.Logger.e("LoginDebug", "发送短信异常", e)
@@ -342,7 +346,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         accessTokenPlatform = TokenManager.ACCESS_TOKEN_PLATFORM_ANDROID
                     )
                 } else {
-                    _state.value = LoginState.Error("登录失败: ${body?.message ?: "未知错误"}")
+                    _state.value = LoginState.Error(
+                        "登录失败(${body?.code}): ${body?.message ?: "未知错误"} " +
+                            "[${com.android.purebilibili.BuildConfig.BUILD_TYPE}]"
+                    )
                 }
             } catch (e: Exception) {
                 com.android.purebilibili.core.util.Logger.e("LoginDebug", "短信登录异常", e)
@@ -415,7 +422,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         accessTokenPlatform = TokenManager.ACCESS_TOKEN_PLATFORM_ANDROID
                     )
                 } else {
-                    _state.value = LoginState.Error("登录失败: ${body?.message ?: "未知错误"}")
+                    _state.value = LoginState.Error(
+                        "登录失败(${body?.code}): ${body?.message ?: "未知错误"} " +
+                            "[${com.android.purebilibili.BuildConfig.BUILD_TYPE}]"
+                    )
                 }
             } catch (e: Exception) {
                 com.android.purebilibili.core.util.Logger.e("LoginDebug", "密码登录异常", e)

@@ -53,7 +53,6 @@ import com.android.purebilibili.data.model.response.DynamicType
 import com.android.purebilibili.data.model.response.OpusContentBlock
 import com.android.purebilibili.feature.dynamic.DynamicDeleteAction
 import com.android.purebilibili.feature.dynamic.resolveDynamicDeleteAction
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
@@ -368,7 +367,7 @@ fun DynamicCardV2(
             DrawGridV2(
                 items = draw.items,
                 gifImageLoader = gifImageLoader,
-                maxDisplayImages = if (isDetail) null else 9,
+                maxDisplayImages = resolveDynamicOpusPreviewImageLimit(isDetail),
                 onImageClick = { index, rect ->
                     val action = resolveDynamicCardMediaAction(item, index)
                     if (action is DynamicCardMediaAction.PreviewImages) {
@@ -575,7 +574,7 @@ fun DynamicCardV2(
                 DrawGridV2(
                     items = drawItems,
                     gifImageLoader = gifImageLoader,
-                    maxDisplayImages = if (isDetail) null else 9,
+                    maxDisplayImages = resolveDynamicOpusPreviewImageLimit(isDetail),
                     onImageClick = { index, rect ->
                         when (val action = resolveDynamicCardMediaAction(item, index, isDetail = isDetail)) {
                             is DynamicCardMediaAction.PreviewImages -> {
@@ -789,10 +788,24 @@ fun RichTextContent(
                 onTap = { offset ->
                     val layoutResult = textLayoutResult ?: return@detectTapGestures
                     val position = layoutResult.getOffsetForPosition(offset)
+                    val searchStart = maxOf(0, position - 1)
+                    val searchEnd = minOf(annotatedText.length, position + 1)
+
+                    annotatedText.getStringAnnotations(
+                        tag = DYNAMIC_RICH_TEXT_USER_TAG,
+                        start = searchStart,
+                        end = searchEnd
+                    ).firstOrNull()?.let { annotation ->
+                        annotation.item.toLongOrNull()
+                            ?.takeIf { it > 0L }
+                            ?.let(onUserClick)
+                        return@detectTapGestures
+                    }
+
                     val annotation = annotatedText.getStringAnnotations(
                         tag = DYNAMIC_RICH_TEXT_URL_TAG,
-                        start = maxOf(0, position - 1),
-                        end = minOf(annotatedText.length, position + 1)
+                        start = searchStart,
+                        end = searchEnd
                     ).firstOrNull() ?: return@detectTapGestures
 
                     scope.launch {

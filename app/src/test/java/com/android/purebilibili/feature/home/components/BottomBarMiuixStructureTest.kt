@@ -596,8 +596,9 @@ class BottomBarMiuixStructureTest {
             .substringBefore("@Composable\nprivate fun RowScope.MiuixDockedBottomBarItem(")
 
         assertTrue(miuixRendererSource.contains("MiuixNavigationBar("))
+        assertTrue(miuixRendererSource.contains("MiuixNavigationBarItem("))
+        assertTrue(miuixRendererSource.contains("shouldUseMiuixOfficialNavigationBarItem("))
         assertTrue(miuixRendererSource.contains("MiuixDockedBottomBarItem("))
-        assertFalse(miuixRendererSource.contains("MiuixNavigationBarItem("))
         assertFalse(miuixRendererSource.contains("MiuixFloatingNavigationBar("))
         assertFalse(miuixRendererSource.contains("MiuixFloatingNavigationBarItem("))
     }

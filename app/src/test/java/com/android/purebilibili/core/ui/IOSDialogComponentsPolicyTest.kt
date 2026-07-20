@@ -24,9 +24,9 @@ class IosDialogComponentsPolicyTest {
     }
 
     @Test
-    fun miuixAlertDialogUsesLocalDialogRendererWithoutPopupHostDependency() {
+    fun miuixAlertDialogUsesOverlayDialogRenderer() {
         assertEquals(
-            IOSAlertDialogRenderer.LOCAL_DIALOG,
+            IOSAlertDialogRenderer.MIUIX_OVERLAY,
             resolveIosAlertDialogRenderer(
                 uiPreset = UiPreset.MD3,
                 androidNativeVariant = AndroidNativeVariant.MIUIX

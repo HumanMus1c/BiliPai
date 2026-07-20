@@ -45,9 +45,9 @@ class LoginAppAuthPolicyTest {
         assertEquals("captcha-key", params["captcha_key"])
         assertEquals("123456", params["code"])
         assertEquals("device-id", params["device_id"])
-        assertEquals("encrypted-token", params["dt"])
+        assertEquals(AppSignUtils.percentEncode("encrypted-token"), params["dt"])
         assertEquals("main.my-information.my-login.0.click", params["from_pv"])
-        assertEquals("bilibili%3A%2F%2Fuser_center%2Fmine", params["from_url"])
+        assertEquals(AppSignUtils.percentEncode("bilibili://user_center/mine"), params["from_url"])
     }
 
     @Test

@@ -1730,7 +1730,8 @@ interface PassportApi {
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("x/passport-login/sms/send")
     suspend fun sendSmsCodeByApp(
-        @retrofit2.http.FieldMap params: Map<String, String>
+        // Kotlin Map is Map<String, out String> without this; R8 can break FieldMap bodies in release.
+        @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
     ): SmsCodeResponse
     
     // 短信验证码登录
@@ -1749,7 +1750,7 @@ interface PassportApi {
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("x/passport-login/login/sms")
     suspend fun loginBySmsApp(
-        @retrofit2.http.FieldMap params: Map<String, String>
+        @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
     ): Response<LoginResponse>
     
     // 获取 RSA 公钥 (密码登录用)
@@ -1774,7 +1775,7 @@ interface PassportApi {
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("x/passport-login/oauth2/login")
     suspend fun loginByPasswordApp(
-        @retrofit2.http.FieldMap params: Map<String, String>
+        @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
     ): Response<LoginResponse>
     
     // ==========  TV 端登录 (获取 access_token 用于高画质视频) ==========
@@ -1783,21 +1784,21 @@ interface PassportApi {
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("https://passport.bilibili.com/x/passport-tv-login/qrcode/auth_code")
     suspend fun generateTvQrCode(
-        @retrofit2.http.FieldMap params: Map<String, String>
+        @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
     ): TvQrCodeResponse
     
     // TV 端轮询登录状态
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("https://passport.bilibili.com/x/passport-tv-login/qrcode/poll")
     suspend fun pollTvQrCode(
-        @retrofit2.http.FieldMap params: Map<String, String>
+        @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
     ): TvPollResponse
 
     //  [新增] TV 端刷新 Token
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("https://passport.bilibili.com/x/passport-tv-login/h5/refresh")
     suspend fun refreshToken(
-        @retrofit2.http.FieldMap params: Map<String, String>
+        @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
     ): com.android.purebilibili.data.model.response.TvTokenRefreshResponse
 }
 

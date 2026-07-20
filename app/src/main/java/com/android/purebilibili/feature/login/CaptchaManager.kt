@@ -78,36 +78,17 @@ class CaptchaManager(private val activity: Activity) {
                 
                 webChromeClient = WebChromeClient()
                 
-                // 添加 JavaScript 接口
-                addJavascriptInterface(object {
-                    @JavascriptInterface
-                    fun onCaptchaSuccess(validate: String, seccode: String, newChallenge: String) {
-                        Logger.d(TAG, "Captcha success via JS")
-                        activity.runOnUiThread {
-                            dialog?.dismiss()
-                            //  使用验证后返回的新 challenge
-                            onSuccess(validate, seccode, newChallenge)
-                        }
-                    }
-                    
-                    @JavascriptInterface
-                    fun onCaptchaFailed(error: String) {
-                        com.android.purebilibili.core.util.Logger.e(TAG, "Captcha failed via JS: $error")
-                        activity.runOnUiThread {
-                            dialog?.dismiss()
-                            onFailed(error)
-                        }
-                    }
-                    
-                    @JavascriptInterface
-                    fun onCaptchaCancel() {
-                        Logger.d(TAG, "Captcha cancelled")
-                        activity.runOnUiThread {
-                            dialog?.dismiss()
-                            onCancel()
-                        }
-                    }
-                }, "Android")
+                // Named bridge class keeps @JavascriptInterface method names stable under R8.
+                addJavascriptInterface(
+                    GeetestJsBridge(
+                        activity = activity,
+                        dismiss = { dialog?.dismiss() },
+                        onSuccess = onSuccess,
+                        onFailed = onFailed,
+                        onCancel = onCancel
+                    ),
+                    "Android"
+                )
             }
             
             // 加载极验验证 HTML
@@ -315,6 +296,45 @@ class CaptchaManager(private val activity: Activity) {
         webView?.destroy()
         webView = null
         dialog = null
+    }
+}
+
+/**
+ * Geetest WebView → Android bridge. Must stay a concrete class so release R8
+ * does not rename the methods invoked from JavaScript.
+ */
+internal class GeetestJsBridge(
+    private val activity: Activity,
+    private val dismiss: () -> Unit,
+    private val onSuccess: (validate: String, seccode: String, challenge: String) -> Unit,
+    private val onFailed: (error: String) -> Unit,
+    private val onCancel: () -> Unit
+) {
+    @JavascriptInterface
+    fun onCaptchaSuccess(validate: String, seccode: String, newChallenge: String) {
+        Logger.d("CaptchaManager", "Captcha success via JS")
+        activity.runOnUiThread {
+            dismiss()
+            onSuccess(validate, seccode, newChallenge)
+        }
+    }
+
+    @JavascriptInterface
+    fun onCaptchaFailed(error: String) {
+        Logger.e("CaptchaManager", "Captcha failed via JS: $error")
+        activity.runOnUiThread {
+            dismiss()
+            onFailed(error)
+        }
+    }
+
+    @JavascriptInterface
+    fun onCaptchaCancel() {
+        Logger.d("CaptchaManager", "Captcha cancelled")
+        activity.runOnUiThread {
+            dismiss()
+            onCancel()
+        }
     }
 }
 

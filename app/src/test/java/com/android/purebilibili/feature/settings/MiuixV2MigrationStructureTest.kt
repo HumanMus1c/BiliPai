@@ -45,9 +45,15 @@ class MiuixV2MigrationStructureTest {
     }
 
     @Test
-    fun buildGradle_pinsMiuixVersionTo092() {
+    fun buildGradle_pinsMiuixVersionTo093() {
         val source = loadSource("app/build.gradle.kts")
-        assertTrue(source.contains("val miuixVersion = \"0.9.2\""))
+        assertTrue(source.contains("val miuixVersion = \"0.9.3\""))
+    }
+
+    @Test
+    fun buildGradle_includesMiuixShaderArtifact() {
+        val source = loadSource("app/build.gradle.kts")
+        assertTrue(source.contains("miuix-shader-android"))
     }
 
     @Test
@@ -55,8 +61,7 @@ class MiuixV2MigrationStructureTest {
         val allowed = setOf(
             "app/src/main/java/com/android/purebilibili/core/theme/Theme.kt",
             "app/src/main/java/com/android/purebilibili/core/ui/AppSurfaceTokens.kt",
-            "app/src/main/java/com/android/purebilibili/core/ui/components/iOSListComponents.kt",
-            "app/src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCard.kt"
+            "app/src/main/java/com/android/purebilibili/core/ui/components/iOSListComponents.kt"
         )
         val offenders = listOf(
             "app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt",
@@ -125,6 +130,8 @@ class MiuixV2MigrationStructureTest {
         assertTrue(source.contains("IosClickableItemRenderer.MIUIX_ARROW"))
         assertTrue(source.contains("IosClickableItemRenderer.MIUIX_BASIC"))
         assertTrue(source.contains("shouldRouteIosSwitchItemToMiuixSwitchPreference("))
+        assertTrue(source.contains("shouldRouteIosSliderPreferenceToMiuixSliderPreference("))
+        assertTrue(source.contains("MiuixSliderPreference("))
     }
 
     @Test
@@ -207,6 +214,8 @@ class MiuixV2MigrationStructureTest {
     fun appSurfaceTokens_exposesFullMiuixSemanticPalette() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/core/ui/AppSurfaceTokens.kt")
         listOf(
+            "fun background()",
+            "fun surface()",
             "fun surfaceContainer()",
             "fun surfaceContainerHigh()",
             "fun onSecondaryContainer()",

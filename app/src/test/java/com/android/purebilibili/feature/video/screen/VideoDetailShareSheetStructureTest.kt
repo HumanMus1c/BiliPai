@@ -22,7 +22,7 @@ class VideoDetailVideoShareSheetStructureTest {
         )
 
         val detailActionShare = phoneContentSource
-            .substringAfter("onDownloadClick = { viewModel.openDownloadDialog() }")
+            .substringAfter("onDownloadClick = playbackActions.openDownloadDialog")
             .substringBefore("//  [新增] 时间戳点击跳转")
         val bottomInputShare = phoneContentSource
             .substringAfter("BottomInputBar(")
@@ -58,8 +58,8 @@ class VideoDetailVideoShareSheetStructureTest {
 
     private fun loadVideoDetailSource(): String {
         val candidates = listOf(
-            File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt"),
-            File("app/src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+            File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt"),
+            File("app/src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
         )
         val sourceFile = candidates.firstOrNull { it.exists() }
             ?: error("Cannot locate VideoDetailScreen.kt from ${File(".").absolutePath}")

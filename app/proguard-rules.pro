@@ -19,7 +19,8 @@
 # Keep generic signature for Retrofit API interfaces
 -if interface * { @retrofit2.http.* <methods>; }
 -keep,allowobfuscation interface <1>
--keepclassmembers,allowshrinking,allowobfuscation interface * {
+# Do not allowshrinking here: FieldMap/QueryMap generic signatures must survive R8.
+-keepclassmembers,allowobfuscation interface * {
     @retrofit2.http.* <methods>;
 }
 # Keep Call/Response generic types
@@ -172,3 +173,11 @@
 -dontwarn javax.enterprise.context.**
 -dontwarn javax.inject.**
 -dontwarn org.seamless.**
+
+# === Login / Geetest WebView bridge ===
+# Release-only SMS login failures can stem from R8 renaming @JavascriptInterface
+# methods or shrinking login FieldMap helpers.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keep class com.android.purebilibili.feature.login.** { *; }

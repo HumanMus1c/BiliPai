@@ -57,6 +57,9 @@ import com.android.purebilibili.data.model.response.AiAudioInfo
 import com.android.purebilibili.feature.plugin.CdnLineDiagnostic
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
+import top.yukonga.miuix.kmp.preference.ArrowPreference as MiuixArrowPreference
+import top.yukonga.miuix.kmp.preference.SwitchPreference as MiuixSwitchPreference
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private data class VideoSettingsPanelVisualSpec(
@@ -878,50 +881,23 @@ fun VideoSettingsPanel(
             }
 
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = settingsIcon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "默认播放速度",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (rememberLastPlaybackSpeed) {
-                                    "已开启记忆上次速度（当前优先）"
-                                } else {
-                                    "当前默认 ${formatDefaultPlaybackSpeed(defaultPlaybackSpeed)}"
-                                },
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    VideoSettingsSwitchRow(
+                        icon = settingsIcon,
+                        title = "默认播放速度",
+                        subtitle = if (rememberLastPlaybackSpeed) {
+                            "已开启记忆上次速度（当前优先）"
+                        } else {
+                            "当前默认 ${formatDefaultPlaybackSpeed(defaultPlaybackSpeed)}"
+                        },
+                        checked = rememberLastPlaybackSpeed,
+                        onCheckedChange = { checked ->
+                            scope.launch {
+                                com.android.purebilibili.core.store.SettingsManager
+                                    .setRememberLastPlaybackSpeed(context, checked)
+                            }
                         }
-                        Switch(
-                            checked = rememberLastPlaybackSpeed,
-                            onCheckedChange = { checked ->
-                                scope.launch {
-                                    com.android.purebilibili.core.store.SettingsManager
-                                        .setRememberLastPlaybackSpeed(context, checked)
-                                }
-                            },
-                            modifier = Modifier.scale(0.8f)
-                        )
-                    }
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -935,7 +911,9 @@ fun VideoSettingsPanel(
                         },
                         title = null,
                         subtitle = null,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                     )
                 }
                 SettingsDivider()
@@ -943,59 +921,35 @@ fun VideoSettingsPanel(
 
             //  [新增] 双击跳转秒数设置 (带开关)
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp) // 优化：减少垂直间距
-                ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     val doubleTapSeekEnabled by com.android.purebilibili.core.store.SettingsManager
                         .getDoubleTapSeekEnabled(context)
-                        .collectAsStateWithLifecycle(initialValue = false
-        )
+                        .collectAsStateWithLifecycle(initialValue = false)
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = speedIcon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "双击跳转",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (doubleTapSeekEnabled) "快进 ${seekForwardSeconds}s / 后退 ${seekBackwardSeconds}s" else "已关闭",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    VideoSettingsSwitchRow(
+                        icon = speedIcon,
+                        title = "双击跳转",
+                        subtitle = if (doubleTapSeekEnabled) {
+                            "快进 ${seekForwardSeconds}s / 后退 ${seekBackwardSeconds}s"
+                        } else {
+                            "已关闭"
+                        },
+                        checked = doubleTapSeekEnabled,
+                        onCheckedChange = { checked ->
+                            scope.launch {
+                                com.android.purebilibili.core.store.SettingsManager
+                                    .setDoubleTapSeekEnabled(context, checked)
+                            }
                         }
-                        // 开关
-                        Switch(
-                            checked = doubleTapSeekEnabled,
-                            onCheckedChange = { checked ->
-                                scope.launch {
-                                    com.android.purebilibili.core.store.SettingsManager.setDoubleTapSeekEnabled(context, checked)
-                                }
-                            },
-                            modifier = Modifier.scale(0.8f) // 优化：开关稍微缩小
-                        )
-                    }
-                    
+                    )
+
                     // 仅当开启时显示秒数选项
                     AnimatedVisibility(
                         visible = doubleTapSeekEnabled,
                         enter = expandVertically() + fadeIn(),
                         exit = shrinkVertically() + fadeOut()
                     ) {
-                        Column {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                             Spacer(modifier = Modifier.height(12.dp))
                             
                             // 快进秒数选择
@@ -1084,129 +1038,52 @@ fun VideoSettingsPanel(
             }
 
             item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = gestureTapIcon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "长按倍速锁定",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "长按后拖至上下区域保持倍速",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = longPressSpeedLockEnabled,
-                        onCheckedChange = { checked ->
-                            scope.launch {
+                VideoSettingsSwitchRow(
+                    icon = gestureTapIcon,
+                    title = "长按倍速锁定",
+                    subtitle = "长按后拖至上下区域保持倍速",
+                    checked = longPressSpeedLockEnabled,
+                    onCheckedChange = { checked ->
+                        scope.launch {
+                            com.android.purebilibili.core.store.SettingsManager
+                                .setLongPressSpeedLockEnabled(context, checked)
+                            if (checked) {
                                 com.android.purebilibili.core.store.SettingsManager
-                                    .setLongPressSpeedLockEnabled(context, checked)
-                                if (checked) {
-                                    com.android.purebilibili.core.store.SettingsManager
-                                        .setLongPressSpeedLockHintShown(context, true)
-                                }
+                                    .setLongPressSpeedLockHintShown(context, true)
                             }
-                        },
-                        modifier = Modifier.scale(0.8f)
-                    )
-                }
+                        }
+                    }
+                )
                 SettingsDivider()
             }
 
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = flipVerticalIcon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "双指上下滑动调倍速",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "仅全屏生效，开启一项时会关闭另一项",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    VideoSettingsSwitchRow(
+                        icon = flipVerticalIcon,
+                        title = "双指上下滑动调倍速",
+                        subtitle = "仅全屏生效，开启一项时会关闭另一项",
+                        checked = twoFingerVerticalSpeedEnabled,
+                        onCheckedChange = { checked ->
+                            scope.launch {
+                                com.android.purebilibili.core.store.SettingsManager
+                                    .setTwoFingerVerticalSpeedEnabled(context, checked)
+                            }
                         }
-                        Switch(
-                            checked = twoFingerVerticalSpeedEnabled,
-                            onCheckedChange = { checked ->
-                                scope.launch {
-                                    com.android.purebilibili.core.store.SettingsManager
-                                        .setTwoFingerVerticalSpeedEnabled(context, checked)
-                                }
-                            },
-                            modifier = Modifier.scale(0.8f)
-                        )
-                    }
+                    )
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = flipHorizontalIcon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "双指左右滑动调倍速",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "仅全屏生效，开启一项时会关闭另一项",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    VideoSettingsSwitchRow(
+                        icon = flipHorizontalIcon,
+                        title = "双指左右滑动调倍速",
+                        subtitle = "仅全屏生效，开启一项时会关闭另一项",
+                        checked = twoFingerHorizontalSpeedEnabled,
+                        onCheckedChange = { checked ->
+                            scope.launch {
+                                com.android.purebilibili.core.store.SettingsManager
+                                    .setTwoFingerHorizontalSpeedEnabled(context, checked)
+                            }
                         }
-                        Switch(
-                            checked = twoFingerHorizontalSpeedEnabled,
-                            onCheckedChange = { checked ->
-                                scope.launch {
-                                    com.android.purebilibili.core.store.SettingsManager
-                                        .setTwoFingerHorizontalSpeedEnabled(context, checked)
-                                }
-                            },
-                            modifier = Modifier.scale(0.8f)
-                        )
-                    }
+                    )
                 }
             }
         }
@@ -1216,6 +1093,74 @@ fun VideoSettingsPanel(
 /**
  * 设置项组件
  */
+@Composable
+private fun VideoSettingsSwitchRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String?,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val uiPreset = LocalUiPreset.current
+    val androidNativeVariant = LocalAndroidNativeVariant.current
+    val spec = rememberVideoSettingsPanelVisualSpec()
+    if (uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX) {
+        MiuixSwitchPreference(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            title = title,
+            summary = subtitle,
+            insideMargin = PaddingValues(
+                horizontal = spec.rowHorizontalPadding,
+                vertical = spec.rowVerticalPadding
+            ),
+            startAction = {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = AppSurfaceTokens.onSurfaceVariantActions(),
+                    modifier = Modifier.size(spec.iconSize)
+                )
+            }
+        )
+        return
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.scale(0.8f)
+        )
+    }
+}
+
 @Composable
 private fun SettingsItem(
     icon: ImageVector,
@@ -1229,35 +1174,38 @@ private fun SettingsItem(
     val androidNativeVariant = LocalAndroidNativeVariant.current
     val spec = rememberVideoSettingsPanelVisualSpec()
     if (uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX) {
-        BasicComponent(
-            title = title,
-            summary = subtitle,
-            onClick = onClick,
-            insideMargin = PaddingValues(
-                horizontal = spec.rowHorizontalPadding,
-                vertical = spec.rowVerticalPadding
-            ),
-            startAction = {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = AppSurfaceTokens.onSurfaceVariantActions(),
-                    modifier = Modifier.size(spec.iconSize)
-                )
-            },
-            endActions = {
-                if (trailing != null) {
-                    trailing()
-                } else {
-                    Icon(
-                        imageVector = chevronIcon,
-                        contentDescription = null,
-                        tint = AppSurfaceTokens.onSurfaceVariantActions(),
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-            }
+        val startAction: @Composable () -> Unit = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = AppSurfaceTokens.onSurfaceVariantActions(),
+                modifier = Modifier.size(spec.iconSize)
+            )
+        }
+        val insideMargin = PaddingValues(
+            horizontal = spec.rowHorizontalPadding,
+            vertical = spec.rowVerticalPadding
         )
+        if (trailing == null) {
+            MiuixArrowPreference(
+                title = title,
+                titleColor = BasicComponentDefaults.titleColor(),
+                summary = subtitle,
+                summaryColor = BasicComponentDefaults.summaryColor(),
+                onClick = onClick,
+                insideMargin = insideMargin,
+                startAction = startAction
+            )
+        } else {
+            BasicComponent(
+                title = title,
+                summary = subtitle,
+                onClick = onClick,
+                insideMargin = insideMargin,
+                startAction = startAction,
+                endActions = { trailing() }
+            )
+        }
         return
     }
     Row(

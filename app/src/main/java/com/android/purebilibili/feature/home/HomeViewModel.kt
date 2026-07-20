@@ -1190,8 +1190,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             _uiState.value.categoryStates[currentCategory] ?: CategoryContent()
         }
-        // 获取当前页码 (如果是刷新则为0/1，加载更多则+1)
-        val pageToFetch = if (isLoadMore) currentCategoryState.pageIndex + 1 else 1 // Assuming 1-based pagination for simplicity in general, adjust per API
+        val advanceOnManualRefresh = shouldAdvancePagedFeedOnManualRefresh(
+            category = currentCategory,
+            popularSubCategory = popularSubCategory
+        )
+        // 分区/热门综合：手动刷新翻下一页换一批；其它分类仍回第 1 页
+        val pageToFetch = resolvePagedFeedPageToFetch(
+            isLoadMore = isLoadMore,
+            isManualRefresh = isManualRefresh,
+            currentPageIndex = currentCategoryState.pageIndex,
+            advanceOnManualRefresh = advanceOnManualRefresh
+        )
         val recommendRequestIndex = resolveRecommendFeedRequestIndex(
             isLoadMore = isLoadMore,
             isManualRefresh = isManualRefresh,
@@ -1288,7 +1297,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         liveRooms = emptyList<LiveRoom>().toImmutableList(),
                         isLoading = false,
                         error = null,
-                        pageIndex = if (isLoadMore) oldState.pageIndex + 1 else if (useIncrementalRecommendRefresh) oldState.pageIndex else 1,
+                        pageIndex = if (useIncrementalRecommendRefresh) {
+                            oldState.pageIndex
+                        } else {
+                            resolvePagedFeedPageIndexAfterFetch(
+                                isLoadMore = isLoadMore,
+                                isManualRefresh = isManualRefresh,
+                                advanceOnManualRefresh = advanceOnManualRefresh,
+                                pageToFetch = pageToFetch,
+                                incomingCount = incomingVideos.size,
+                                previousPageIndex = oldState.pageIndex
+                            )
+                        },
                         hasMore = if (currentCategory == HomeCategory.POPULAR) {
                             supportsPopularLoadMore(popularSubCategory)
                         } else {
@@ -1311,7 +1331,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     oldState.copy(
                         isLoading = false,
                         error = if (!isLoadMore && oldState.videos.isEmpty()) "没有更多内容了" else null,
-                        hasMore = false
+                        hasMore = false,
+                        pageIndex = resolvePagedFeedPageIndexAfterFetch(
+                            isLoadMore = isLoadMore,
+                            isManualRefresh = isManualRefresh,
+                            advanceOnManualRefresh = advanceOnManualRefresh,
+                            pageToFetch = pageToFetch,
+                            incomingCount = 0,
+                            previousPageIndex = oldState.pageIndex
+                        )
                     )
                  }
                  if (currentCategory == HomeCategory.POPULAR) {
@@ -1435,65 +1463,95 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (!isLoadMore) {
             fetchUserInfo()
         }
-        
+
+        if (isLoadMore) delay(100)
+
+        val followScope = com.android.purebilibili.data.repository.DynamicFeedScope.HOME_FOLLOW
+        val followType = "video"
+        val establishedBaseline = com.android.purebilibili.data.repository.DynamicRepository
+            .currentUpdateBaseline(scope = followScope, type = followType)
+        // 手动下拉且已有基线：按 API 文档带 update_baseline 探测新动态（update_num）。
+        val probeWithBaseline = isManualRefresh &&
+            !isLoadMore &&
+            establishedBaseline.isNotBlank()
+
         val result = com.android.purebilibili.data.repository.DynamicRepository.getDynamicFeed(
             refresh = !isLoadMore,
-            scope = com.android.purebilibili.data.repository.DynamicFeedScope.HOME_FOLLOW,
-            type = "video",
-            incrementalRefresh = incrementalTimelineRefreshEnabled
-        )
-        
-        if (isLoadMore) delay(100)
-        var addedCount = 0
-        result.onSuccess { items ->
-            //  将 DynamicItem 转换为首页卡片：
-            // - 仅保留可直接跳转的视频动态，避免与“动态”页图文流重复
-            val videos = items.mapNotNull { item ->
-                // Check if author is blocked
-                if ((item.modules.module_author?.mid ?: 0) in blockedMids) return@mapNotNull null
-
-                val archive = item.modules.module_dynamic?.major?.archive ?: return@mapNotNull null
-                if (!shouldIncludeHomeFollowDynamicInVideoFeed(archive.bvid)) {
-                    return@mapNotNull null
-                }
-
-                val resolvedAid = resolveDynamicArchiveAid(
-                    archiveAid = archive.aid,
-                    fallbackId = 0L
-                )
-                com.android.purebilibili.data.model.response.VideoItem(
-                    id = resolvedAid,
-                    bvid = archive.bvid,
-                    dynamicId = item.id_str.trim(),
-                    aid = resolvedAid,
-                    title = archive.title,
-                    pic = archive.cover,
-                    duration = parseDurationText(archive.duration_text),
-                    owner = com.android.purebilibili.data.model.response.Owner(
-                        mid = item.modules.module_author?.mid ?: 0,
-                        name = item.modules.module_author?.name ?: "",
-                        face = item.modules.module_author?.face ?: ""
-                    ),
-                    stat = com.android.purebilibili.data.model.response.Stat(
-                        view = parseStatText(archive.stat.play),
-                        danmaku = parseStatText(archive.stat.danmaku)
-                    )
-                )
+            scope = followScope,
+            type = followType,
+            incrementalRefresh = if (probeWithBaseline) {
+                true
+            } else {
+                !isLoadMore && incrementalTimelineRefreshEnabled
             }
-            
+        )
+
+        var tipCount: Int? = null
+        result.onSuccess { feedResult ->
+            val videos = mapHomeFollowDynamicItemsToVideos(feedResult.items)
+            val apiUpdateNum = feedResult.updateNum
+            val usedBaseline = feedResult.usedUpdateBaseline
+
+            if (
+                probeWithBaseline &&
+                shouldFullReplaceFollowFeedAfterBaselineProbe(
+                    incrementalRefreshEnabled = incrementalTimelineRefreshEnabled,
+                    apiUpdateNum = apiUpdateNum
+                )
+            ) {
+                // 关闭「增量刷新」但探测到新动态：再拉一整页替换列表。
+                val fullResult = com.android.purebilibili.data.repository.DynamicRepository.getDynamicFeed(
+                    refresh = true,
+                    scope = followScope,
+                    type = followType,
+                    incrementalRefresh = false
+                )
+                fullResult.onSuccess { fullFeed ->
+                    val fullVideos = mapHomeFollowDynamicItemsToVideos(fullFeed.items)
+                    tipCount = resolveHomeFollowRefreshNewItemsCount(
+                        usedUpdateBaseline = true,
+                        apiUpdateNum = apiUpdateNum,
+                        insertedVideoCount = apiUpdateNum
+                    )
+                    updateCategoryState(HomeCategory.FOLLOW) { oldState ->
+                        oldState.copy(
+                            videos = fullVideos.toImmutableList(),
+                            liveRooms = emptyList<LiveRoom>().toImmutableList(),
+                            isLoading = false,
+                            error = if (fullVideos.isEmpty()) "暂无关注动态，请先关注一些UP主" else null,
+                            hasMore = com.android.purebilibili.data.repository.DynamicRepository.hasMoreData(
+                                scope = followScope,
+                                type = followType
+                            )
+                        )
+                    }
+                }.onFailure { error ->
+                    updateCategoryState(HomeCategory.FOLLOW) { oldState ->
+                        oldState.copy(
+                            isLoading = false,
+                            error = if (oldState.videos.isEmpty()) error.message ?: "请先登录" else null
+                        )
+                    }
+                }
+                return tipCount
+            }
+
             updateCategoryState(HomeCategory.FOLLOW) { oldState ->
                 val oldSize = oldState.videos.size
                 val mergedVideos = when {
                     isLoadMore -> appendDistinctByKey(oldState.videos, videos, ::videoItemKey).toImmutableList()
-                    incrementalTimelineRefreshEnabled -> prependDistinctByKey(oldState.videos, videos, ::videoItemKey).toImmutableList()
+                    usedBaseline || (!isLoadMore && incrementalTimelineRefreshEnabled) -> {
+                        prependDistinctByKey(oldState.videos, videos, ::videoItemKey).toImmutableList()
+                    }
                     else -> videos.toImmutableList()
                 }
+                val insertedCount = (mergedVideos.size - oldSize).coerceAtLeast(0)
                 if (isManualRefresh && !isLoadMore) {
-                    addedCount = if (incrementalTimelineRefreshEnabled) {
-                        (mergedVideos.size - oldSize).coerceAtLeast(0)
-                    } else {
-                        videos.size
-                    }
+                    tipCount = resolveHomeFollowRefreshNewItemsCount(
+                        usedUpdateBaseline = usedBaseline,
+                        apiUpdateNum = apiUpdateNum,
+                        insertedVideoCount = insertedCount
+                    )
                 }
                 oldState.copy(
                     videos = mergedVideos,
@@ -1501,8 +1559,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     isLoading = false,
                     error = if (!isLoadMore && mergedVideos.isEmpty()) "暂无关注动态，请先关注一些UP主" else null,
                     hasMore = com.android.purebilibili.data.repository.DynamicRepository.hasMoreData(
-                        scope = com.android.purebilibili.data.repository.DynamicFeedScope.HOME_FOLLOW,
-                        type = "video"
+                        scope = followScope,
+                        type = followType
                     )
                 )
             }
@@ -1514,7 +1572,43 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         }
-        return addedCount
+        return tipCount
+    }
+
+    private fun mapHomeFollowDynamicItemsToVideos(
+        items: List<com.android.purebilibili.data.model.response.DynamicItem>
+    ): List<com.android.purebilibili.data.model.response.VideoItem> {
+        return items.mapNotNull { item ->
+            if ((item.modules.module_author?.mid ?: 0) in blockedMids) return@mapNotNull null
+
+            val archive = item.modules.module_dynamic?.major?.archive ?: return@mapNotNull null
+            if (!shouldIncludeHomeFollowDynamicInVideoFeed(archive.bvid)) {
+                return@mapNotNull null
+            }
+
+            val resolvedAid = resolveDynamicArchiveAid(
+                archiveAid = archive.aid,
+                fallbackId = 0L
+            )
+            com.android.purebilibili.data.model.response.VideoItem(
+                id = resolvedAid,
+                bvid = archive.bvid,
+                dynamicId = item.id_str.trim(),
+                aid = resolvedAid,
+                title = archive.title,
+                pic = archive.cover,
+                duration = parseDurationText(archive.duration_text),
+                owner = com.android.purebilibili.data.model.response.Owner(
+                    mid = item.modules.module_author?.mid ?: 0,
+                    name = item.modules.module_author?.name ?: "",
+                    face = item.modules.module_author?.face ?: ""
+                ),
+                stat = com.android.purebilibili.data.model.response.Stat(
+                    view = parseStatText(archive.stat.play),
+                    danmaku = parseStatText(archive.stat.danmaku)
+                )
+            )
+        }
     }
 
     private fun videoItemKey(item: com.android.purebilibili.data.model.response.VideoItem): String {

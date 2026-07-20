@@ -78,7 +78,9 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AdaptiveScaffold
+import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.resolveContentCardSurfaceSpec
 import com.android.purebilibili.core.database.entity.SearchHistory
 import com.android.purebilibili.core.ui.LoadingAnimation
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
@@ -2623,24 +2625,27 @@ private fun SearchResultCardSurface(
 ) {
     val uiPreset = LocalUiPreset.current
     val androidNativeVariant = LocalAndroidNativeVariant.current
-    val isMiuix = uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX
-    val shape = RoundedCornerShape(if (isMiuix) 18.dp else 12.dp)
-    val color = if (isMiuix) {
+    val surfaceSpec = resolveContentCardSurfaceSpec(uiPreset, androidNativeVariant)
+    val shape = AppShapes.borderedContainer(surfaceSpec.cornerLevel)
+    val color = if (surfaceSpec.useMiuixTokens) {
         AppSurfaceTokens.surfaceContainer()
     } else {
         MaterialTheme.colorScheme.surface.copy(alpha = appearance.containerAlpha)
     }
-    val border = if (appearance.borderAlpha > 0f) {
-        androidx.compose.foundation.BorderStroke(
-            0.8.dp,
-            if (isMiuix) {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
-            } else {
+    val border = when {
+        surfaceSpec.useMiuixTokens -> {
+            androidx.compose.foundation.BorderStroke(
+                surfaceSpec.borderWidthDp.dp,
+                AppSurfaceTokens.divider().copy(alpha = surfaceSpec.borderAlpha)
+            )
+        }
+        appearance.borderAlpha > 0f -> {
+            androidx.compose.foundation.BorderStroke(
+                0.8.dp,
                 Color.White.copy(alpha = appearance.borderAlpha)
-            }
-        )
-    } else {
-        null
+            )
+        }
+        else -> null
     }
     if (onClick != null) {
         Surface(
@@ -2648,23 +2653,39 @@ private fun SearchResultCardSurface(
             onClick = onClick,
             color = color,
             shape = shape,
-            tonalElevation = if (isMiuix) 0.dp else appearance.tonalElevationDp.dp,
-            shadowElevation = if (isMiuix) 0.dp else appearance.shadowElevationDp.dp,
+            tonalElevation = if (surfaceSpec.useMiuixTokens) {
+                surfaceSpec.tonalElevationDp.dp
+            } else {
+                appearance.tonalElevationDp.dp
+            },
+            shadowElevation = if (surfaceSpec.useMiuixTokens) {
+                surfaceSpec.shadowElevationDp.dp
+            } else {
+                appearance.shadowElevationDp.dp
+            },
             border = border
         ) {
             content()
         }
     } else {
         Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = color,
-        shape = shape,
-        tonalElevation = if (isMiuix) 0.dp else appearance.tonalElevationDp.dp,
-        shadowElevation = if (isMiuix) 0.dp else appearance.shadowElevationDp.dp,
-        border = border
-    ) {
-        content()
-    }
+            modifier = modifier.fillMaxWidth(),
+            color = color,
+            shape = shape,
+            tonalElevation = if (surfaceSpec.useMiuixTokens) {
+                surfaceSpec.tonalElevationDp.dp
+            } else {
+                appearance.tonalElevationDp.dp
+            },
+            shadowElevation = if (surfaceSpec.useMiuixTokens) {
+                surfaceSpec.shadowElevationDp.dp
+            } else {
+                appearance.shadowElevationDp.dp
+            },
+            border = border
+        ) {
+            content()
+        }
     }
 }
 

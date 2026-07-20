@@ -47,7 +47,7 @@ class TabletVideoHomeNavigationContractTest {
     @Test
     fun videoDetailTabletBranchPassesHomeActionToTabletCinemaLayout() {
         val source = loadSource(
-            "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt"
+            "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt"
         )
         val tabletCinemaCall = firstCallBlock(source, "TabletCinemaLayout")
 

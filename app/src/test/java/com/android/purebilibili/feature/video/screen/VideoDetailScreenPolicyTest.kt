@@ -85,7 +85,7 @@ class VideoDetailScreenPolicyTest {
 
     @Test
     fun secondaryNavigationCallbacks_deferPlaybackExitToNavigationLayer() {
-        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
             .readText()
         val userSpaceSource = source.substringAfter("val navigateToUserSpaceFromVideo")
             .substringBefore("val navigateToSearchFromVideo")
@@ -96,7 +96,7 @@ class VideoDetailScreenPolicyTest {
 
     @Test
     fun videoNavigationInsideDetailSwitchesCurrentPageWithoutPushingRoute() {
-        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreen.kt")
+        val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
             .readText()
         val relatedVideoSource = source.substringAfter("val navigateToRelatedVideo")
             .substringBefore("LaunchedEffect(bvid, cid)")
@@ -223,6 +223,6 @@ class VideoDetailScreenPolicyTest {
         assertFalse(commentTabSource.contains("说点什么，直接评论 UP 主和大家"))
         assertFalse(commentTabSource.contains("onRootCommentClick"))
         assertTrue(bottomInputBarSource.contains("onCommentClick = {"))
-        assertTrue(bottomInputBarSource.contains("viewModel.openRootCommentComposer()"))
+        assertTrue(bottomInputBarSource.contains("playbackActions.openRootCommentComposer()"))
     }
 }

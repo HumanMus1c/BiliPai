@@ -15,6 +15,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
+import com.android.purebilibili.core.theme.LocalUiPreset
 import com.android.purebilibili.core.ui.blur.shouldAllowRuntimeShaderBackedHazeEffect
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.WindowWidthSizeClass
@@ -22,6 +24,12 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
+import top.yukonga.miuix.kmp.basic.Badge as MiuixBadge
+import top.yukonga.miuix.kmp.basic.NavigationRail as MiuixNavigationRail
+import top.yukonga.miuix.kmp.basic.NavigationRailDefaults as MiuixNavigationRailDefaults
+import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
+import top.yukonga.miuix.kmp.basic.NavigationRailValue as MiuixNavigationRailValue
+import top.yukonga.miuix.kmp.basic.rememberNavigationRailState as rememberMiuixNavigationRailState
 
 /**
  * 📍 导航项数据
@@ -120,57 +128,114 @@ fun AdaptiveSideNavigationRail(
     val isExpanded = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
     val activeHazeState = hazeState
         ?.takeIf { shouldAllowRuntimeShaderBackedHazeEffect(Build.VERSION.SDK_INT) }
-    
-    // Expanded 模式使用带标签的 NavigationDrawer，Medium 模式使用纯图标的 Rail
-    NavigationRail(
-        modifier = Modifier
-            .fillMaxHeight()
-            .width(if (isExpanded) 80.dp else 72.dp)
-            .then(
-                if (activeHazeState != null) {
-                    Modifier.hazeEffect(
-                        state = activeHazeState,
-                        style = HazeMaterials.ultraThin()
-                    )
-                } else Modifier
-            ),
-        containerColor = if (activeHazeState != null) {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
-        contentColor = MaterialTheme.colorScheme.onSurface
+
+    when (
+        resolveAdaptiveSideNavigationRailRenderer(
+            uiPreset = LocalUiPreset.current,
+            androidNativeVariant = LocalAndroidNativeVariant.current
+        )
     ) {
-        Spacer(Modifier.height(12.dp))
-        
-        items.forEach { item ->
-            val selected = item.id == selectedItemId
-            
-            NavigationRailItem(
-                selected = selected,
-                onClick = { onItemSelected(item.id) },
-                icon = {
-                    BadgedBox(
-                        badge = {
-                            if (item.badgeCount > 0) {
-                                Badge { Text(item.badgeCount.toString()) }
+        AdaptiveSideNavigationRailRenderer.MIUIX -> {
+            val expandable = shouldUseExpandableMiuixNavigationRail(isExpanded)
+            val railState = if (expandable) {
+                rememberMiuixNavigationRailState(MiuixNavigationRailValue.Expanded)
+            } else {
+                null
+            }
+            val railColor = if (activeHazeState != null) {
+                AppSurfaceTokens.surface().copy(alpha = 0.85f)
+            } else {
+                AppSurfaceTokens.surface()
+            }
+            MiuixNavigationRail(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .then(
+                        if (activeHazeState != null) {
+                            Modifier.hazeEffect(
+                                state = activeHazeState,
+                                style = HazeMaterials.ultraThin()
+                            )
+                        } else Modifier
+                    ),
+                state = railState,
+                color = railColor,
+                showDivider = true,
+                minWidth = MiuixNavigationRailDefaults.MinWidth,
+                expandedWidth = MiuixNavigationRailDefaults.ExpandedWidth
+            ) {
+                items.forEach { item ->
+                    val selected = item.id == selectedItemId
+                    MiuixNavigationRailItem(
+                        selected = selected,
+                        onClick = { onItemSelected(item.id) },
+                        icon = if (selected) item.selectedIcon else item.icon,
+                        label = item.label,
+                        badge = if (item.badgeCount > 0) {
+                            {
+                                MiuixBadge {
+                                    Text(item.badgeCount.toString())
+                                }
                             }
+                        } else {
+                            null
                         }
-                    ) {
-                        Icon(
-                            imageVector = if (selected) item.selectedIcon else item.icon,
-                            contentDescription = item.label
-                        )
-                    }
+                    )
+                }
+            }
+        }
+        AdaptiveSideNavigationRailRenderer.MATERIAL3 -> {
+            NavigationRail(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(if (isExpanded) 80.dp else 72.dp)
+                    .then(
+                        if (activeHazeState != null) {
+                            Modifier.hazeEffect(
+                                state = activeHazeState,
+                                style = HazeMaterials.ultraThin()
+                            )
+                        } else Modifier
+                    ),
+                containerColor = if (activeHazeState != null) {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                } else {
+                    MaterialTheme.colorScheme.surface
                 },
-                label = if (isExpanded) {{ Text(item.label) }} else null,
-                alwaysShowLabel = isExpanded,
-                colors = NavigationRailItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            )
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                items.forEach { item ->
+                    val selected = item.id == selectedItemId
+
+                    NavigationRailItem(
+                        selected = selected,
+                        onClick = { onItemSelected(item.id) },
+                        icon = {
+                            BadgedBox(
+                                badge = {
+                                    if (item.badgeCount > 0) {
+                                        Badge { Text(item.badgeCount.toString()) }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (selected) item.selectedIcon else item.icon,
+                                    contentDescription = item.label
+                                )
+                            }
+                        },
+                        label = if (isExpanded) {{ Text(item.label) }} else null,
+                        alwaysShowLabel = isExpanded,
+                        colors = NavigationRailItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+            }
         }
     }
 }

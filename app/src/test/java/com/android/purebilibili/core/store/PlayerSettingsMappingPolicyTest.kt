@@ -1,10 +1,16 @@
 package com.android.purebilibili.core.store
 
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
 class PlayerSettingsMappingPolicyTest {
+
+    @Test
+    fun `dash segment requests are disabled by default until local MPD compatibility is verified`() {
+        assertFalse(DEFAULT_DASH_SEGMENT_REQUESTS_ENABLED)
+    }
 
     @Test
     fun `setHwDecode keeps PlayerSettingsCache in sync`() {

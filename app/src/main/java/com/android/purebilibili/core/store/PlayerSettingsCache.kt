@@ -45,7 +45,10 @@ object PlayerSettingsCache {
             KEY_PLAYER_DIAGNOSTIC_LOGGING,
             DEFAULT_PLAYER_DIAGNOSTIC_LOGGING_ENABLED
         )
-        dashSegmentRequestsEnabled = prefs.getBoolean(KEY_DASH_SEGMENT_REQUESTS_ENABLED, true)
+        dashSegmentRequestsEnabled = prefs.getBoolean(
+            KEY_DASH_SEGMENT_REQUESTS_ENABLED,
+            DEFAULT_DASH_SEGMENT_REQUESTS_ENABLED
+        )
         Logger.d(
             TAG,
             "✅ 初始化完成: hwDecode=$hwDecodeEnabled, seekFast=$seekFastEnabled, " +
@@ -142,7 +145,10 @@ object PlayerSettingsCache {
     fun isDashSegmentRequestsEnabled(context: Context): Boolean {
         return dashSegmentRequestsEnabled ?: run {
             val value = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .getBoolean(KEY_DASH_SEGMENT_REQUESTS_ENABLED, true)
+                .getBoolean(
+                    KEY_DASH_SEGMENT_REQUESTS_ENABLED,
+                    DEFAULT_DASH_SEGMENT_REQUESTS_ENABLED
+                )
             dashSegmentRequestsEnabled = value
             value
         }
@@ -171,7 +177,10 @@ object PlayerSettingsCache {
             KEY_PLAYER_DIAGNOSTIC_LOGGING,
             DEFAULT_PLAYER_DIAGNOSTIC_LOGGING_ENABLED
         )
-        dashSegmentRequestsEnabled = prefs.getBoolean(KEY_DASH_SEGMENT_REQUESTS_ENABLED, true)
+        dashSegmentRequestsEnabled = prefs.getBoolean(
+            KEY_DASH_SEGMENT_REQUESTS_ENABLED,
+            DEFAULT_DASH_SEGMENT_REQUESTS_ENABLED
+        )
         Logger.d(
             TAG,
             "🔄 缓存已刷新: hwDecode=$hwDecodeEnabled, seekFast=$seekFastEnabled, " +

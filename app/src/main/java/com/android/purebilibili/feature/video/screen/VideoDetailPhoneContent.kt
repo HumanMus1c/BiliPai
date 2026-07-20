@@ -27,9 +27,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.purebilibili.core.store.HomeSettings
-import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -38,7 +35,6 @@ import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.shouldAllowRuntimeShaderBackedHazeEffect
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.data.model.response.BgmInfo
-import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.feature.video.share.VideoSharePayload
 import com.android.purebilibili.feature.video.share.buildVideoSharePayload
 import com.android.purebilibili.feature.video.state.VideoPlayerState
@@ -47,11 +43,9 @@ import com.android.purebilibili.feature.video.ui.components.resolveBottomInputBa
 import com.android.purebilibili.feature.video.ui.components.shouldUseFloatingLiquidBottomInputBar
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
+import com.android.purebilibili.feature.video.viewmodel.VideoEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
-import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
-import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
 import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
-import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
 import com.android.purebilibili.feature.video.player.PlaylistItem
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -69,10 +63,12 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     commentListState: LazyListState,
     videoContentPagerState: PagerState,
     commentState: CommentUiState,
+    engagementState: VideoEngagementUiState,
+    androidNativeLiquidGlassEnabled: Boolean,
     commentMemberDecorationsEnabled: Boolean,
-    viewModel: VideoPlaybackViewModel,
-    engagementViewModel: VideoEngagementViewModel,
-    commentViewModel: VideoCommentViewModel,
+    playbackActions: VideoDetailPlaybackActions,
+    engagementActions: VideoDetailEngagementActions,
+    commentActions: VideoDetailCommentActions,
     context: Context,
     sortPreferenceScope: CoroutineScope,
     playerState: VideoPlayerState,
@@ -95,10 +91,6 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     isQuickReturnLimitedForSharedElements: Boolean,
     transitionEnabled: Boolean,
     sourceRouteForSharedElement: String?,
-    favoriteFolders: List<FavFolder>,
-    isFavoriteFoldersLoading: Boolean,
-    selectedFavoriteFolderIds: Set<Long>,
-    isSavingFavoriteFolders: Boolean,
     isPlayerCollapsed: Boolean,
     onRestorePlayer: () -> Unit,
     onBgmClick: (BgmInfo) -> Unit,
@@ -116,7 +108,6 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     playlistItems: List<PlaylistItem>,
     onShowExternalPlaylistQueueSheet: () -> Unit
 ) {
-    val engagementState by engagementViewModel.uiState.collectAsStateWithLifecycle()
     val engagementSuccess = success.withEngagementUiState(engagementState)
     val relatedVideoTransitionEnabled = LocalSharedTransitionEnabled.current
     // Android 16 ART 曾拒绝校验 VideoDetailScreen 中捕获过多状态的匿名 Compose lambda。
@@ -160,11 +151,8 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                     }
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        val homeSettings by SettingsManager
-                            .getHomeSettings(context)
-                            .collectAsStateWithLifecycle(initialValue = HomeSettings())
                         val floatingLiquidBottomInputBar = shouldUseFloatingLiquidBottomInputBar(
-                            androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
+                            androidNativeLiquidGlassEnabled = androidNativeLiquidGlassEnabled
                         )
                         // Capture scrolling detail content only; BottomInputBar stays outside
                         // so drawBackdrop does not self-sample (same contract as tab chrome).
@@ -218,9 +206,9 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 showUpFlag = commentState.showUpFlag,
                                 showIdentityDecorations = commentMemberDecorationsEnabled,
                                 dissolvingIds = commentState.dissolvingIds,
-                                onDeleteComment = { rpid -> commentViewModel.deleteComment(rpid) },
-                                onDissolveStart = { rpid -> commentViewModel.startDissolve(rpid) },
-                                onCommentLike = commentViewModel::likeComment,
+                                onDeleteComment = commentActions.deleteComment,
+                                onDissolveStart = commentActions.startDissolve,
+                                onCommentLike = commentActions.likeComment,
                                 likedComments = commentState.likedComments,
                                 isFollowing = engagementState.isFollowing,
                                 isFavorited = engagementState.isFavorited,
@@ -234,35 +222,32 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 sortMode = commentState.sortMode,
                                 upOnlyFilter = commentState.upOnlyFilter,
                                 onSortModeChange = { mode ->
-                                    commentViewModel.setSortMode(mode)
+                                    commentActions.setSortMode(mode)
                                     sortPreferenceScope.launch {
                                         com.android.purebilibili.core.store.SettingsManager
                                             .setCommentDefaultSortMode(context, mode.apiMode)
                                     }
                                 },
-                                onUpOnlyToggle = { commentViewModel.toggleUpOnly() },
-                                onFollowClick = { engagementViewModel.toggleFollow() },
+                                onUpOnlyToggle = commentActions.toggleUpOnly,
+                                onFollowClick = engagementActions.toggleFollow,
                                 onFavoriteClick = {
                                     openFavoriteFolders(VideoFavoriteEntryPoint.DetailActionRow)
                                 },
-                                onLikeClick = { engagementViewModel.toggleLike() },
-                                onCoinClick = { engagementViewModel.openCoinDialog() },
-                                onTripleClick = { engagementViewModel.doTripleAction() },
-                                onPageSelect = { viewModel.switchPage(it) },
+                                onLikeClick = engagementActions.toggleLike,
+                                onCoinClick = engagementActions.openCoinDialog,
+                                onTripleClick = engagementActions.doTripleAction,
+                                onPageSelect = playbackActions.switchPage,
                                 onUpClick = navigateToUserSpaceFromVideo,
                                 onRelatedVideoClick = navigateToRelatedVideo,
-                                onSubReplyClick = commentViewModel::openSubReply,
-                                onCommentReplyClick = { replyItem ->
-                                    viewModel.setReplyingTo(replyItem)
-                                    viewModel.showCommentInputDialog()
-                                },
-                                onLoadMoreReplies = { commentViewModel.loadComments() },
+                                onSubReplyClick = { reply, _ -> commentActions.openSubReply(reply) },
+                                onCommentReplyClick = playbackActions.replyTo,
+                                onLoadMoreReplies = commentActions.loadComments,
                                 onCommentUrlClick = openCommentUrl,
                                 onDescriptionUrlClick = onOpenBilibiliLink,
-                                onReportComment = commentViewModel::reportComment,
-                                onToggleTopComment = commentViewModel::toggleTopComment,
-                                onDownloadClick = { viewModel.openDownloadDialog() },
-                                onWatchLaterClick = { engagementViewModel.toggleWatchLater() },
+                                onReportComment = commentActions.reportComment,
+                                onToggleTopComment = commentActions.toggleTopComment,
+                                onDownloadClick = playbackActions.openDownloadDialog,
+                                onWatchLaterClick = engagementActions.toggleWatchLater,
                                 onShareClick = {
                                     onShareVideo(
                                         buildVideoSharePayload(
@@ -277,7 +262,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 },
                                 onDanmakuSendClick = {
                                     android.util.Log.d("VideoDetailScreen", "Danmaku send clicked")
-                                    viewModel.showDanmakuSendDialog()
+                                    playbackActions.showDanmakuSendDialog()
                                 },
                                 danmakuEnabled = danmakuEnabledForDetail,
                                 onDanmakuToggle = {
@@ -295,43 +280,28 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 relatedVideoTransitionEnabled = relatedVideoTransitionEnabled,
                                 isQuickReturnLimitedForSharedElements = isQuickReturnLimitedForSharedElements,
                                 sourceRouteForSharedElement = sourceRouteForSharedElement,
-                                favoriteFolderDialogVisible = showFavoriteFolderDialog,
-                                favoriteFolders = favoriteFolders,
-                                isFavoriteFoldersLoading = isFavoriteFoldersLoading,
-                                onFavoriteLongClick = { viewModel.showFavoriteFolderDialog() },
-                                selectedFavoriteFolderIds = selectedFavoriteFolderIds,
-                                isSavingFavoriteFolders = isSavingFavoriteFolders,
-                                onFavoriteFolderToggle = { folder ->
-                                    viewModel.toggleFavoriteFolderSelection(folder)
-                                },
-                                onSaveFavoriteFolders = { viewModel.saveFavoriteFolderSelection() },
-                                onDismissFavoriteFolderDialog = {
-                                    viewModel.dismissFavoriteFolderDialog()
-                                },
-                                onCreateFavoriteFolder = { title, intro, isPrivate ->
-                                    viewModel.createFavoriteFolder(title, intro, isPrivate)
-                                },
+                                onFavoriteLongClick = playbackActions.showFavoriteFolderDialog,
                                 isPlayerCollapsed = isPlayerCollapsed,
                                 onRestorePlayer = onRestorePlayer,
                                 aiSummary = success.aiSummary,
                                 aiSummaryPrompt = success.aiSummaryPrompt,
-                                onRetryAiSummary = { viewModel.retryAiSummary() },
+                                onRetryAiSummary = playbackActions.retryAiSummary,
                                 onCreateNoteDraftFromAiSummary = {
-                                    viewModel.createVideoNoteDraftFromAiSummary()
+                                    playbackActions.createVideoNoteDraftFromAiSummary()
                                 },
                                 videoNoteState = success.videoNoteState,
-                                onOpenVideoNoteEditor = { viewModel.openVideoNoteEditor() },
-                                onCloseVideoNoteEditor = { viewModel.closeVideoNoteEditor() },
+                                onOpenVideoNoteEditor = playbackActions.openVideoNoteEditor,
+                                onCloseVideoNoteEditor = playbackActions.closeVideoNoteEditor,
                                 onVideoNoteDocumentChange = {
-                                    viewModel.updateVideoNoteEditorDocument(it)
+                                    playbackActions.updateVideoNoteEditorDocument(it)
                                 },
                                 onInsertVideoNoteTimestamp = {
-                                    viewModel.insertCurrentPlaybackTimestampIntoNote()
+                                    playbackActions.insertCurrentPlaybackTimestampIntoNote()
                                 },
-                                onVideoNoteTimestampClick = { positionMs -> viewModel.seekTo(positionMs) },
-                                onSaveVideoNote = { viewModel.saveVideoNote(it) },
-                                onDeleteVideoNote = { viewModel.deleteVideoNote() },
-                                onRetryVideoNote = { viewModel.retryVideoNote() },
+                                onVideoNoteTimestampClick = playbackActions.seekTo,
+                                onSaveVideoNote = playbackActions.saveVideoNote,
+                                onDeleteVideoNote = playbackActions.deleteVideoNote,
+                                onRetryVideoNote = playbackActions.retryVideoNote,
                                 onPublicVideoNoteClick = { _, url ->
                                     if (url.isNotBlank()) onOpenBilibiliLink?.invoke(url)
                                 },
@@ -356,11 +326,11 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 isLiked = engagementState.isLiked,
                                 isFavorited = engagementState.isFavorited,
                                 isCoined = engagementState.coinCount > 0,
-                                onLikeClick = { engagementViewModel.toggleLike() },
+                                onLikeClick = engagementActions.toggleLike,
                                 onFavoriteClick = {
                                     openFavoriteFolders(VideoFavoriteEntryPoint.BottomInputBar)
                                 },
-                                onCoinClick = { engagementViewModel.openCoinDialog() },
+                                onCoinClick = engagementActions.openCoinDialog,
                                 onShareClick = {
                                     onShareVideo(
                                         buildVideoSharePayload(
@@ -372,7 +342,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 },
                                 onCommentClick = {
                                     android.util.Log.d("VideoDetailScreen", "Comment input clicked")
-                                    viewModel.openRootCommentComposer()
+                                    playbackActions.openRootCommentComposer()
                                 },
                                 backdrop = if (floatingLiquidBottomInputBar) {
                                     bottomInputBarBackdrop

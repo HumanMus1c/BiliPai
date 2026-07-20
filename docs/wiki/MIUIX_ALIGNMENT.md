@@ -1,67 +1,60 @@
 # Miuix 对齐记录
 
-最后更新：2026-04-11
+最后更新：2026-07-19
 
 ## 背景
 
-本仓库已经引入 `top.yukonga.miuix.kmp`，并在 `external/miuix/` vendored 了一份本地源码。
+本仓库通过 Maven Central 引入 `top.yukonga.miuix.kmp`（当前钉扎 **0.9.3**），并在
+`AndroidNativeVariant.MIUIX` 下经由 `PresetPrimitiveRenderer.MIUIX_BRIDGED` 分发到官方组件。
 
-本页只记录基于本地源码核对后的结论，不依赖外部资料。
+完整深度适配设计见：
 
-## 本地源码结论
+- [`docs/superpowers/specs/2026-07-19-miuix-deep-adaptation-design.md`](../superpowers/specs/2026-07-19-miuix-deep-adaptation-design.md)
+- [`docs/superpowers/plans/2026-07-19-miuix-deep-adaptation.md`](../superpowers/plans/2026-07-19-miuix-deep-adaptation.md)
 
-- `Miuix` 不是“只换颜色”的封装，它有自己的主题对象、颜色槽位、文字样式和 smooth rounding 开关。
-- `Miuix` 有独立的壳层和基础组件，包括 `TopAppBar`、`FloatingNavigationBar`、`TabRow`、`BasicComponent` / `Preference`。
-- `MiuixTheme` 默认支持 G2 连续曲率平滑圆角；这一点是它和普通 `RoundedCornerShape` 的关键视觉差异。
-- `Miuix` 默认文字体系不是 Material 3 token 的直接镜像，正文更接近 `17 / 16 / 14 / 13 / 11sp` 的分层。
+上游发布说明：<https://github.com/compose-miuix-ui/miuix/releases/tag/v0.9.3>
 
-主要源码参考：
+## 本地结论（相对上游能力）
 
-- `external/miuix/miuix-ui/src/commonMain/kotlin/top/yukonga/miuix/kmp/theme/MiuixTheme.kt`
-- `external/miuix/miuix-ui/src/commonMain/kotlin/top/yukonga/miuix/kmp/theme/Colors.kt`
-- `external/miuix/miuix-ui/src/commonMain/kotlin/top/yukonga/miuix/kmp/theme/TextStyles.kt`
-- `external/miuix/miuix-ui/src/commonMain/kotlin/top/yukonga/miuix/kmp/theme/SmoothRounding.kt`
-- `external/miuix/miuix-ui/src/commonMain/kotlin/top/yukonga/miuix/kmp/basic/TopAppBar.kt`
-- `external/miuix/miuix-ui/src/commonMain/kotlin/top/yukonga/miuix/kmp/basic/NavigationBar.kt`
-- `external/miuix/miuix-ui/src/commonMain/kotlin/top/yukonga/miuix/kmp/basic/TabRow.kt`
-- `external/miuix/miuix-ui/src/commonMain/kotlin/top/yukonga/miuix/kmp/basic/Component.kt`
+- `Miuix` 不是“只换颜色”的封装：有独立主题、颜色槽位、文字样式与 squircle / smooth rounding。
+- 壳层组件包括 `TopAppBar`、`NavigationBar` / `FloatingNavigationBar`、`NavigationRail`、`TabRow`、
+  `BasicComponent` / Preference、以及 0.9.3 新增的 `Badge` / `Tooltip`。
+- 正文文字分层更接近 `17 / 16 / 14 / 13 / 11sp`，不是 Material 3 token 的直接镜像。
 
 ## 对 BiliPai 当前实现的判断
 
-当前 `Miuix` 变体的主要问题不是“颜色不够像”，而是“主题接管范围太窄”：
+P0–P5 深度适配主路径已落地；后续属于可选加深，而非阻塞性缺口：
 
-- 现状以 `Material ColorScheme -> Miuix Colors` 桥接为主。
-- 大量页面仍然继续消费统一的 `MaterialTheme` token。
-- `androidNativeVariant` 过去没有真正参与 typography / shapes / smooth rounding 这一层的全局决策。
+- 颜色通过 `Material ColorScheme -> Miuix Colors` 桥接 + `AppSurfaceTokens` 消费。
+- 壳层 / Preference / 内容卡 / 播放器设置与迷你播放器壳 / Tooltip 均已挂 `MIUIX_BRIDGED`。
+- 可选：首页视频卡更深 squircle、更多长按 Tooltip 面。
 
-结果就是：
+## 已落地
 
-- `Material 3` 和 `Miuix` 的颜色可切换。
-- 但界面的骨相仍然接近同一套设计系统。
+- Miuix 变体独立 typography / shapes / corner scale / smooth rounding。
+- `AppSurfaceTokens` 语义色；feature 层禁止直读 `MiuixTheme.colorScheme`（结构测试守门）。
+- 设置 Scaffold、分段 `TabRow`、搜索 `InputField`、列表 `BasicComponent` / `SwitchPreference` / `SliderPreference` / `ArrowPreference`。
+- 首页 `AdaptivePullToRefreshBox` → 官方 `PullToRefresh`。
+- 底栏官方 `NavigationBar` + `Badge`；0.9.3 起 `TextOnly` 映射为 `IconWithSelectedLabel`。
+- 平板 `FrostedSideBar` / `AdaptiveSideNavigationRail` → 官方 `NavigationRail`（Expanded 可展开）。
+- 播放器 `VideoSettingsPanel`：可点击项走 `ArrowPreference`，开关行走 `SwitchPreference`。
+- 迷你播放器壳：`MiniPlayerOverlayShellPolicy`（更圆角、更扁 elevation、`AppSurfaceTokens.primary` 强调色）。
+- 设置外观说明卡：`AdaptivePlainTooltipBox` → 官方 `TooltipBox`（长按/悬停）。
+- 工具链：Kotlin `2.4.0` + KSP `2.3.10` + miuix `0.9.3`（含 `miuix-shader`）。
+- `TextOnly`：MD3 设置保留；Miuix 路径映射为 `IconWithSelectedLabel`（非死分支，属 0.9.3 兼容）。
 
-## 已落地的第一轮对齐
+## 后续对齐顺序（深度适配）
 
-本轮先做低风险、全局收益高的 token 对齐：
+1. ~~P1 壳层~~（底栏 Badge、平板 Rail）
+2. ~~P2 Preference 主路径~~（Switch / Slider / Arrow）
+3. ~~P3 内容面~~（`ContentCardSurfacePolicy` → 消息 / 搜索 / 动态 GlassCard）
+4. ~~P4 播放器~~（设置 Preference + 迷你播放器壳）
+5. ~~P5 Tooltip / 文档收尾~~
 
-- 为 `AndroidNativeVariant.MIUIX` 单独提供 Material typography 映射。
-- 为 `AndroidNativeVariant.MIUIX` 单独提供更圆的 Material shapes。
-- 让 `LocalCornerRadiusScale` 在 `Miuix` 变体下变大，而不是继续沿用更紧的 MD3 缩放。
-- 让 `MiuixTheme.smoothRounding` 只在 `Miuix` 变体下开启。
-- 修正 `ThemeController` 的 `remember` 依赖，避免 Miuix 颜色桥接对象切换后仍持有旧引用。
-
-## 后续对齐顺序
-
-优先级从高到低：
-
-1. 首页顶栏和顶部分段控件优先切到更原生的 `Miuix` 组件语义。
-2. 底栏继续减少项目内手搓外观，优先复用 `FloatingNavigationBar` 的节奏和层级。
-3. 设置页列表项逐步收敛到 `BasicComponent` / `Preference` 语义，减少“iOS 列表壳 + Miuix 配色”的混合状态。
-4. 只在必须时保留 Material 组件外观覆盖；优先让 `Miuix` 变体自身的 token 和组件说话。
+可选加深：首页视频卡 squircle、更多长按 Tooltip 接入点。
 
 ## 非目标
 
-本轮不追求：
-
-- 一次性把所有页面完全替换成原生 `Miuix` 组件。
-- 让 `iOS` / `MD3` / `Miuix` 三套视觉同时做大规模重构。
-- 通过新增依赖解决风格问题。
+- 一次性去掉 MaterialTheme 单主题树
+- 大规模重做 iOS / MD3
+- 通过新增无关依赖解决风格问题

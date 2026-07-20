@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -32,13 +34,6 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
-
-private enum class ZoomableImageGestureMode {
-    UNDECIDED,
-    HORIZONTAL_PAGER,
-    IMAGE_INTERACTION,
-    VERTICAL_DISMISS
-}
 
 internal const val ZOOMABLE_IMAGE_TAG = "zoomable_image"
 
@@ -72,6 +67,8 @@ fun ZoomableImage(
     var imageSize by remember { mutableStateOf(IntSize.Zero) }
     // 容器尺寸
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    // 容器在窗口中的原点，便于与缩略图 sourceRect（boundsInWindow）对齐
+    var containerWindowOrigin by remember { mutableStateOf(Offset.Zero) }
     
     // 是否正在加载
     var isLoading by remember { mutableStateOf(true) }
@@ -88,8 +85,8 @@ fun ZoomableImage(
         )
         val displayWidth = imageSize.width * fitScale * scale
         val displayHeight = imageSize.height * fitScale * scale
-        val centerX = containerSize.width / 2f + offsetX
-        val centerY = containerSize.height / 2f + offsetY
+        val centerX = containerWindowOrigin.x + containerSize.width / 2f + offsetX
+        val centerY = containerWindowOrigin.y + containerSize.height / 2f + offsetY
         return Rect(
             left = centerX - displayWidth / 2f,
             top = centerY - displayHeight / 2f,
@@ -98,7 +95,7 @@ fun ZoomableImage(
         )
     }
 
-    LaunchedEffect(containerSize, imageSize, scale, offsetX, offsetY) {
+    LaunchedEffect(containerSize, containerWindowOrigin, imageSize, scale, offsetX, offsetY) {
         onDisplayRectChange(resolveDisplayedRectOrNull())
     }
     
@@ -144,6 +141,10 @@ fun ZoomableImage(
         modifier = modifier
             .fillMaxSize()
             .onSizeChanged { containerSize = it }
+            .onGloballyPositioned { coordinates ->
+                val bounds = coordinates.boundsInWindow()
+                containerWindowOrigin = Offset(bounds.left, bounds.top)
+            }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { onDoubleTap(it) },
@@ -188,19 +189,14 @@ fun ZoomableImage(
                             val zoomMotion = abs(1 - zoom) * centroidSize
                             val panMotion = pan.getDistance()
 
-                            if (zoomMotion > touchSlop ||
-                                panMotion > touchSlop
-                            ) {
+                            if (zoomMotion > touchSlop || panMotion > touchSlop) {
                                 pastTouchSlop = true
-                                gestureMode = when {
-                                    isMultiTouch || !shouldEnableImagePreviewVerticalDismiss(scale) || zoomMotion > panMotion -> {
-                                        ZoomableImageGestureMode.IMAGE_INTERACTION
-                                    }
-                                    abs(pan.y) > abs(pan.x) * 1.12f -> {
-                                        ZoomableImageGestureMode.VERTICAL_DISMISS
-                                    }
-                                    else -> ZoomableImageGestureMode.HORIZONTAL_PAGER
-                                }
+                                gestureMode = resolveZoomableImageGestureMode(
+                                    isMultiTouch = isMultiTouch,
+                                    scale = scale,
+                                    panX = pan.x,
+                                    panY = pan.y
+                                )
 
                                 if (gestureMode == ZoomableImageGestureMode.VERTICAL_DISMISS) {
                                     verticalDismissStarted = true

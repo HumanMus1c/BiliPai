@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -24,11 +23,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.android.purebilibili.core.theme.AndroidNativeVariant
 import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
 import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.resolveContentCardSurfaceSpec
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -160,15 +159,19 @@ internal fun MessageFeedCard(
 ) {
     val uiPreset = LocalUiPreset.current
     val androidNativeVariant = LocalAndroidNativeVariant.current
-    val isMiuix = uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX
+    val surfaceSpec = resolveContentCardSurfaceSpec(uiPreset, androidNativeVariant)
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(if (isMiuix) 18.dp else 20.dp),
-        color = if (isMiuix) AppSurfaceTokens.surfaceContainer() else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
-        border = if (isMiuix) {
+        shape = AppShapes.borderedContainer(surfaceSpec.cornerLevel),
+        color = if (surfaceSpec.useMiuixTokens) {
+            AppSurfaceTokens.surfaceContainer()
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
+        },
+        border = if (surfaceSpec.useMiuixTokens) {
             androidx.compose.foundation.BorderStroke(
-                0.8.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
+                surfaceSpec.borderWidthDp.dp,
+                AppSurfaceTokens.divider().copy(alpha = surfaceSpec.borderAlpha)
             )
         } else {
             null
