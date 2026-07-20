@@ -2,8 +2,10 @@ package com.android.purebilibili.core.ui.common
 
 import android.os.Build
 import android.widget.Toast
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -12,6 +14,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun rememberClipboardCopyHandler(): (String, String?) -> Unit {
@@ -35,10 +38,7 @@ fun rememberClipboardCopyHandler(): (String, String?) -> Unit {
 }
 
 /**
- *  长按复制文本修饰符
- * 
- * @param text 要复制的文本内容
- * @param label 复制成功提示中显示的文本描述（可选，例如 "视频链接"）
+ * 长按复制。避免 [detectTapGestures] 吞掉父级 Surface/clickable 的单击。
  */
 fun Modifier.copyOnLongPress(
     text: String,
@@ -46,13 +46,18 @@ fun Modifier.copyOnLongPress(
 ): Modifier = composed {
     val copyToClipboard = rememberClipboardCopyHandler()
     if (text.isBlank()) return@composed this
-    
-    pointerInput(text) {
-        detectTapGestures(
-            onLongPress = {
-                copyToClipboard(text, label)
+
+    pointerInput(text, label) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false)
+            val upOrCancel = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                waitForUpOrCancellation()
             }
-        )
+            if (upOrCancel == null) {
+                copyToClipboard(text, label)
+                waitForUpOrCancellation()
+            }
+        }
     }
 }
 

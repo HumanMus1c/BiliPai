@@ -33,8 +33,10 @@ fun resolveIosAlertDialogRenderer(
     uiPreset: UiPreset,
     androidNativeVariant: AndroidNativeVariant
 ): IOSAlertDialogRenderer = when {
+    // 设置等页对话框常在 AdaptiveScaffold 外层组合；OverlayDialog 依赖 Miuix Scaffold
+    // 的 DialogStates host，否则点击后状态变了但弹窗不可见。改用窗口 Dialog 承载。
     uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX ->
-        IOSAlertDialogRenderer.MIUIX_OVERLAY
+        IOSAlertDialogRenderer.LOCAL_DIALOG
     uiPreset == UiPreset.MD3 -> IOSAlertDialogRenderer.MATERIAL_ALERT
     else -> IOSAlertDialogRenderer.IOS_LOCAL
 }
