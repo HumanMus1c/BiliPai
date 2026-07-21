@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.video.ui.components
 
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.graphics.luminance
 import com.android.purebilibili.core.store.DanmakuPanelWidthMode
 import com.android.purebilibili.feature.video.danmaku.DanmakuCloudSyncStatus
 import com.android.purebilibili.feature.video.danmaku.DanmakuCloudSyncUiState
@@ -72,10 +73,10 @@ class DanmakuSettingsPanelPolicyTest {
             fullscreenWidthMode = DanmakuPanelWidthMode.THIRD
         )
 
-        // 统一窄侧栏，避免挡横屏画面
+        // 统一侧栏宽度：够中文横排，又不占半屏
         assertEquals(fullWidth.maxWidthDp, halfWidth.maxWidthDp)
         assertEquals(fullWidth.maxWidthDp, thirdWidth.maxWidthDp)
-        assertTrue(fullWidth.maxWidthDp in 176..220)
+        assertTrue(fullWidth.maxWidthDp in 280..340)
         assertEquals(fullWidth.minWidthDp, fullWidth.maxWidthDp)
         assertEquals(DanmakuSettingsPanelAnchor.End, fullWidth.anchor)
     }
@@ -110,25 +111,28 @@ class DanmakuSettingsPanelPolicyTest {
 
     @Test
     fun fullscreenPanelSurfaceColors_followDarkThemeTokens() {
+        val darkScheme = darkColorScheme()
         val colors = resolveDanmakuSettingsPanelSurfaceColors(
-            colorScheme = darkColorScheme()
+            colorScheme = darkScheme
         )
 
-        assertTrue(colors.panelColor.alpha > 0.9f)
-        assertTrue(colors.itemColor.alpha < colors.panelColor.alpha)
+        assertTrue(colors.panelColor.luminance() < 0.5f)
+        assertTrue(colors.titleColor.luminance() > colors.panelColor.luminance())
         assertTrue(colors.titleColor.alpha > colors.supportingColor.alpha)
+        assertEquals(darkScheme.primary, colors.sliderActiveTrackColor)
     }
 
     @Test
     fun fullscreenPanelSurfaceColors_followLightThemeTokens() {
+        val lightScheme = lightColorScheme()
         val colors = resolveDanmakuSettingsPanelSurfaceColors(
-            colorScheme = lightColorScheme()
+            colorScheme = lightScheme
         )
 
-        assertTrue(colors.panelColor.alpha > 0.9f)
-        assertTrue(colors.panelColor.red > 0.85f)
+        assertTrue(colors.panelColor.luminance() > 0.5f)
+        assertTrue(colors.titleColor.luminance() < colors.panelColor.luminance())
         assertTrue(colors.titleColor.alpha > colors.supportingColor.alpha)
-        assertTrue(colors.sliderInactiveTickColor.alpha < colors.sliderActiveTickColor.alpha)
+        assertEquals(lightScheme.primary, colors.sliderThumbColor)
     }
 
     @Test
