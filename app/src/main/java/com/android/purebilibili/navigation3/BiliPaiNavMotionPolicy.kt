@@ -1,6 +1,6 @@
 package com.android.purebilibili.navigation3
 
-import com.android.purebilibili.feature.settings.isSettingsNavPopTransition
+import com.android.purebilibili.feature.settings.resolveSettingsNavPopTransition
 import com.android.purebilibili.navigation.AppSystemBackAction
 import com.android.purebilibili.navigation.shouldInterceptSystemBackForAppAction
 
@@ -86,14 +86,16 @@ internal fun resolveBiliPaiBackGestureDecision(
     systemBackAction: AppSystemBackAction,
     currentKey: BiliPaiNavKey?,
     previousKey: BiliPaiNavKey?,
-    sourceMetadata: BiliPaiNavSourceMetadata
+    sourceMetadata: BiliPaiNavSourceMetadata,
+    activeMainHostRoute: String? = null,
 ): BiliPaiBackGestureDecision {
     val motionMode = resolveBiliPaiNavMotionMode(cardTransitionEnabled = cardTransitionEnabled)
     val routeTransition = resolveBiliPaiNavDisplayPopRouteTransition(
         cardTransitionEnabled = cardTransitionEnabled,
         sourceMetadata = sourceMetadata,
         fromKey = currentKey,
-        toKey = previousKey
+        toKey = previousKey,
+        activeMainHostRoute = activeMainHostRoute,
     )
     val isAppAction = systemBackAction == AppSystemBackAction.RETURN_TO_HOME_TAB
     return BiliPaiBackGestureDecision(
@@ -145,11 +147,14 @@ internal fun resolveBiliPaiNavDisplayPopRouteTransition(
     cardTransitionEnabled: Boolean = true,
     sourceMetadata: BiliPaiNavSourceMetadata,
     fromKey: BiliPaiNavKey?,
-    toKey: BiliPaiNavKey?
+    toKey: BiliPaiNavKey?,
+    activeMainHostRoute: String? = null,
 ): BiliPaiNavRouteTransition {
-    if (isSettingsNavPopTransition(fromKey = fromKey, toKey = toKey)) {
-        return BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP
-    }
+    resolveSettingsNavPopTransition(
+        fromKey = fromKey,
+        toKey = toKey,
+        activeMainHostRoute = activeMainHostRoute,
+    )?.let { return it }
     val fromVideoKey = fromKey as? BiliPaiNavKey.VideoDetail
     val toIsCardReturnTarget = toKey != null && isCardReturnTargetNavKey(toKey)
     if (cardTransitionEnabled) {
@@ -161,19 +166,28 @@ internal fun resolveBiliPaiNavDisplayPopRouteTransition(
                 fromKey.sharedElementTransition &&
                 (toKey == BiliPaiNavKey.MainHost || toKey == BiliPaiNavKey.Favorite)
         if (sharedReadyFavoriteCollectionReturn) {
-            return BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
+            // 合集详情↔收藏列表：预测返回时 sharedBounds 常对不齐，NO_OP 会让两页全屏叠在一起。
+            // 用轻量 sibling pop，进场仍可由顶栏 sharedBounds 增强。
+            return BiliPaiNavRouteTransition.LIGHT_SIBLING_POP
         }
 
+        // Story 直达返回：没有 sharedBounds 对端，必须走普通过渡，否则黑底悬浮卡。
+        if (fromKey is BiliPaiNavKey.Story) {
+            return BiliPaiNavRouteTransition.FALLBACK
+        }
+
+        val morphSourceRoute = resolveCardMorphDestinationSourceRoute(fromKey)
         val normalizedSourceRoute = sourceMetadata.sourceRoute?.substringBefore("?")
-        val normalizedVideoRoute = fromVideoKey?.sourceRoute?.substringBefore("?")
-        val sourceMatchesCurrentVideo = fromVideoKey != null &&
+        val normalizedMorphRoute = morphSourceRoute?.substringBefore("?")
+        val morphBvid = (fromKey as? BiliPaiNavKey.VideoDetail)?.bvid
+        val sourceMatchesCurrentMorph = morphBvid != null &&
             normalizedSourceRoute != null &&
-            normalizedVideoRoute == normalizedSourceRoute &&
-            sourceMetadata.sourceKey == "$normalizedSourceRoute:${fromVideoKey.bvid}"
-        val sharedReadyVideoToSourceCard = sourceMetadata.sharedTransitionEntryReady &&
-            sourceMatchesCurrentVideo &&
+            normalizedMorphRoute == normalizedSourceRoute &&
+            sourceMetadata.sourceKey == "$normalizedSourceRoute:$morphBvid"
+        val sharedReadyMorphToSourceCard = sourceMetadata.sharedTransitionEntryReady &&
+            sourceMatchesCurrentMorph &&
             toIsCardReturnTarget
-        if (sharedReadyVideoToSourceCard) {
+        if (sharedReadyMorphToSourceCard) {
             return BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         }
         return BiliPaiNavRouteTransition.CLASSIC_CARD

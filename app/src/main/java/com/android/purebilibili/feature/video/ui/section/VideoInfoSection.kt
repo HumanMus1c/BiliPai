@@ -285,6 +285,7 @@ fun VideoTitleWithDesc(
     animateLayout: Boolean = true,
     onDescriptionUrlClick: ((String) -> Unit)? = null,
     onBgmClick: (BgmInfo) -> Unit = {},
+    onTagClick: (String) -> Unit = {},
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
@@ -647,6 +648,7 @@ fun VideoTitleWithDesc(
                 ) {
                     videoTags.take(10).forEach { tag ->
                         Surface(
+                            onClick = { onTagClick(tag.tag_name) },
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
                             shape = RoundedCornerShape(14.dp)
                         ) {

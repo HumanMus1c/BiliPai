@@ -6,6 +6,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.android.purebilibili.feature.settings.SETTINGS_SUBTREE_ROUTE_BASES
 import com.android.purebilibili.feature.settings.isSettingsNavHierarchyTransition
+import com.android.purebilibili.feature.settings.resolveSettingsNavPopTransition
 
 private const val BILI_PAI_NAV_ROUTE_BASE_METADATA_KEY = "biliPaiNavRouteBase"
 private const val VIDEO_ROUTE_BASE = "video"
@@ -64,7 +65,7 @@ internal fun biliPaiNavEntryProvider(
             sourceMetadata = sourceMetadata,
             cardTransitionEnabled = cardTransitionEnabled,
             visibleBottomBarRoutes = visibleBottomBarRoutes,
-            activeMainHostRoute = activeMainHostRoute
+            activeMainHostRoute = activeMainHostRoute,
         )
     }
     return entryProvider(
@@ -158,7 +159,7 @@ internal fun biliPaiNavEntryMetadata(
     sourceMetadata: BiliPaiNavSourceMetadata,
     cardTransitionEnabled: Boolean = true,
     visibleBottomBarRoutes: Set<String> = emptySet(),
-    activeMainHostRoute: String? = null
+    activeMainHostRoute: String? = null,
 ): Map<String, Any> {
     val transitions = resolveBiliPaiNavEntryRouteTransitions(
         key = key,
@@ -182,8 +183,7 @@ internal fun biliPaiNavEntryMetadata(
             fromRoute = initialState.biliPaiRouteBase(),
             toRoute = targetState.biliPaiRouteBase(),
             cardTransitionEnabled = cardTransitionEnabled,
-            sharedElementPopReady = (key is BiliPaiNavKey.SeasonSeriesDetail &&
-                key.sharedElementTransition) || isRelatedVideoDetailReturn(
+            sharedElementPopReady = isRelatedVideoDetailReturn(
                 fromKey = key as? BiliPaiNavKey.VideoDetail,
                 toKey = targetState.biliPaiTopKey(),
             ),
@@ -275,6 +275,12 @@ internal fun resolveBiliPaiNavEntryPopRouteTransition(
         return resolveCardDisabledReturnTransition(sourceMetadata.cardSourceDirection)
     }
 
+    resolveSettingsNavPopTransition(
+        fromRoute = normalizedFromRoute,
+        toRoute = normalizedToRoute,
+        activeMainHostRoute = normalizedActiveMainHostRoute,
+    )?.let { return it }
+
     if (
         defaultTransition == BiliPaiNavRouteTransition.FALLBACK &&
         isLightSiblingPopRoute(
@@ -283,17 +289,7 @@ internal fun resolveBiliPaiNavEntryPopRouteTransition(
             activeMainHostRoute = normalizedActiveMainHostRoute
         )
     ) {
-        return if (
-            isSettingsNavHierarchyRoute(
-                parentRoute = normalizedToRoute,
-                childRoute = normalizedFromRoute,
-                activeMainHostRoute = normalizedActiveMainHostRoute
-            )
-        ) {
-            BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP
-        } else {
-            BiliPaiNavRouteTransition.LIGHT_SIBLING_POP
-        }
+        return BiliPaiNavRouteTransition.LIGHT_SIBLING_POP
     }
 
     return if (defaultTransition == BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT) {
@@ -325,11 +321,7 @@ internal fun resolveBiliPaiNavEntryRouteTransitions(
     cardTransitionEnabled: Boolean = true,
     sourceMetadata: BiliPaiNavSourceMetadata
 ): BiliPaiNavEntryRouteTransitions {
-    val recordedMatchingVideoSource = key is BiliPaiNavKey.VideoDetail &&
-        sourceMetadata.clickedBoundsRecorded &&
-        sourceMetadata.sourceRoute != null &&
-        sourceMetadata.sourceRoute == key.sourceRoute &&
-        sourceMetadata.sourceKey == "${sourceMetadata.sourceRoute}:${key.bvid}"
+    val recordedMatchingVideoSource = isSharedReadyCardMorphPush(key, sourceMetadata)
     val sharedReadyVideoPush = recordedMatchingVideoSource &&
         sourceMetadata.sharedTransitionEntryReady
     val directionalVideoPushReady = recordedMatchingVideoSource &&
@@ -341,16 +333,22 @@ internal fun resolveBiliPaiNavEntryRouteTransitions(
     val forward = when {
         cardTransitionEnabled && sharedReadyFavoriteCollection ->
             BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
-        cardTransitionEnabled && sharedReadyVideoPush -> BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
+        // 相关推荐详情→详情：路由层必须 NO_OP，避免 FALLBACK fade 盖掉 shell morph。
+        // 即便 CardPositionManager 尚未对齐，sharedBounds key 仍可独立完成转场。
+        cardTransitionEnabled && (sharedReadyVideoPush || relatedVideoDetail) ->
+            BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         !cardTransitionEnabled && directionalVideoPushReady ->
             resolveCardDisabledVideoForwardTransition(sourceMetadata.cardSourceDirection)
                 ?: BiliPaiNavRouteTransition.FALLBACK
         else -> BiliPaiNavRouteTransition.FALLBACK
     }
-    val pop = if (cardTransitionEnabled && (sharedReadyFavoriteCollection || relatedVideoDetail)) {
-        BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
-    } else {
-        BiliPaiNavRouteTransition.FALLBACK
+    val pop = when {
+        cardTransitionEnabled && relatedVideoDetail ->
+            BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
+        cardTransitionEnabled && sharedReadyFavoriteCollection ->
+            BiliPaiNavRouteTransition.LIGHT_SIBLING_POP
+        // Story 返回不用 NO_OP shared：没有 sharedBounds 对端，NO_OP 会黑底卡死。
+        else -> BiliPaiNavRouteTransition.FALLBACK
     }
     return BiliPaiNavEntryRouteTransitions(
         forward = forward,

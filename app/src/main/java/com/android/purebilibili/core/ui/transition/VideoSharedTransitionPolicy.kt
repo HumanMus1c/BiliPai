@@ -2,6 +2,7 @@ package com.android.purebilibili.core.ui.transition
 
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -31,20 +32,22 @@ internal fun resolveVideoSharedTransitionPlaybackIntent(
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal fun shouldFadePlayerSurfaceOnDetailReturn(
     isLeaving: Boolean,
     playbackIntent: VideoSharedTransitionPlaybackIntent
 ): Boolean {
-    // CoverFirst 本身已是封面主导；Immediate 返回时要淡出 surface 露出 handoff 封面。
-    return isLeaving && playbackIntent == VideoSharedTransitionPlaybackIntent.ImmediatePlayback
+    // ImmediatePlayback 一镜到底：返回全程保留直播 surface，不为 handoff 封面淡出。
+    // CoverFirst 本身无直播 surface 主导，也不走淡出。签名保留供测试/未来接线。
+    return false
 }
 
 internal fun shouldUseDetailReturnCoverCrossfade(
     isLeaving: Boolean,
     playbackIntent: VideoSharedTransitionPlaybackIntent
 ): Boolean {
-    // 任意播放意图在返回时都叠封面，保证 morph 过程看得见封面而非黑底。
-    return isLeaving
+    // CoverFirst 返回仍叠封面防黑底；ImmediatePlayback 由直播画面填满 morph，不抢封面。
+    return isLeaving && playbackIntent == VideoSharedTransitionPlaybackIntent.CoverFirst
 }
 
 internal enum class VideoSharedTransitionTargetMode {
@@ -77,17 +80,18 @@ private const val DEFAULT_VIDEO_CARD_CORNER_DP = 12
 private const val DEFAULT_VIDEO_PLAYER_CORNER_DP = 12
 private const val DYNAMIC_VIDEO_CARD_CORNER_DP = 10
 private const val WATCH_LATER_VIDEO_CARD_CORNER_DP = 8
-// 进场仍用 Continuity tween；返回用 soft spring，保留一次轻回弹并天然支持打断续传。
+// 兼容字段：bounds 进场/返回均走固定时长 tween（见 boundsTransform），不再驱动 spring  morph。
+// spring 常量仅保留给遗留 settle buffer / 测试兼容读取。
 private const val VIDEO_CARD_HERO_ENTER_SPRING_DAMPING_RATIO = 0.86f
-// 更接近临界阻尼：过冲更轻、落位更稳，避免标准时长下「弹回卡片」偏急。
-private const val VIDEO_CARD_RETURN_SPRING_DAMPING_RATIO = 0.92f
+private const val VIDEO_CARD_RETURN_SPRING_DAMPING_RATIO = 0.95f
 private const val VIDEO_CARD_HERO_SPRING_REFERENCE_STIFFNESS = 240f
 private const val VIDEO_CARD_HERO_SPRING_REFERENCE_DURATION_MILLIS = 360f
 private const val VIDEO_CARD_HERO_SPRING_MIN_STIFFNESS = 50f
 private const val VIDEO_CARD_HERO_SPRING_MAX_STIFFNESS = 500f
-// spring 过冲收束余量：suppression / 景深 IDLE 需盖过参考 duration，避免卸层后状态抢跑。
-internal const val VIDEO_CARD_RETURN_SPRING_SETTLE_BUFFER_MS = 180
-// 约 1px：快速/连续打断后尽快收敛，避免微抖拖尾拖到 overlay 卸层之后。
+// 返回落位后的 suppression / 景深 IDLE 余量：盖过主时长，避免 overlay 卸层后状态抢跑。
+// 返回已改回固定时长 tween，无需 spring 过冲额外时间，保留短 buffer 即可。
+internal const val VIDEO_CARD_RETURN_SPRING_SETTLE_BUFFER_MS = 48
+// 约 1px：遗留 spring API 收敛阈值。
 private val VIDEO_CARD_HERO_BOUNDS_VISIBILITY_THRESHOLD = Rect(1f, 1f, 1f, 1f)
 // 透明度与进场空间统一 Continuity，避免淡入淡出和位移抢拍。
 private val VIDEO_CARD_ALPHA_EASING = AppMotionEasing.Continuity
@@ -291,7 +295,8 @@ internal fun resolveVideoSharedTransitionVisualSpec(
         targetCornerDp = targetCornerDp,
         fillTargetViewport = targetMode == VideoSharedTransitionTargetMode.LandscapeFullscreen ||
             targetMode == VideoSharedTransitionTargetMode.PortraitFullscreen,
-        useCoverSharedBounds = normalizedSourceRoute != null,
+        useCoverSharedBounds = normalizedSourceRoute != null &&
+            !shouldSkipVideoCardSharedBoundsMorph(normalizedSourceRoute),
         suppressCoverFade = isReturning
     )
 }
@@ -314,11 +319,31 @@ internal fun shouldEnableVideoCoverSharedTransition(
         hasAnimatedVisibilityScope
 }
 
+/**
+ * 详情套详情曾因横条卡飞卡漂浮而跳过 morph；相关推荐已改为首页同款竖卡，恢复 shell。
+ */
+internal fun shouldSkipVideoCardSharedBoundsMorph(sourceRoute: String?): Boolean {
+    @Suppress("UNUSED_PARAMETER")
+    val ignored = sourceRoute
+    return false
+}
+
+/**
+ * 封面位进退（cover relay）在详情套详情下易出现飞位错乱，暂不启用。
+ */
+internal fun shouldUseVideoCoverRelayTransition(sourceRoute: String?): Boolean {
+    @Suppress("UNUSED_PARAMETER")
+    val ignored = sourceRoute
+    return false
+}
+
 internal fun shouldUseVideoCardShellSharedBounds(
     sourceRoute: String?,
     transitionEnabled: Boolean
 ): Boolean {
     if (!transitionEnabled) return false
+    if (shouldSkipVideoCardSharedBoundsMorph(sourceRoute)) return false
+    if (shouldUseVideoCoverRelayTransition(sourceRoute)) return false
     return !sourceRoute?.substringBefore("?").isNullOrBlank()
 }
 
@@ -343,6 +368,8 @@ internal fun shouldUseVideoCardShellContainerTransform(
     hasAnimatedVisibilityScope: Boolean
 ): Boolean {
     if (!transitionEnabled || !hasSharedTransitionScope || !hasAnimatedVisibilityScope) return false
+    if (shouldSkipVideoCardSharedBoundsMorph(sourceRoute)) return false
+    if (shouldUseVideoCoverRelayTransition(sourceRoute)) return false
     val normalizedSourceRoute = sourceRoute?.substringBefore("?")
     return isVideoCardReturnTargetRoute(normalizedSourceRoute)
 }
@@ -375,19 +402,28 @@ internal fun resolveVideoSharedTransitionOwnership(
             useCardContainerSharedBounds = false
         )
     }
+    if (shouldSkipVideoCardSharedBoundsMorph(sourceRoute)) {
+        return VideoSharedTransitionOwnership(
+            useCoverSharedBounds = false,
+            useMetadataSharedBounds = false,
+            useCardContainerSharedBounds = false
+        )
+    }
 
     val useCardContainerSharedBounds = shouldUseVideoCardShellSharedBounds(
         sourceRoute = sourceRoute,
         transitionEnabled = transitionEnabled
     )
+    val coverRelay = shouldUseVideoCoverRelayTransition(sourceRoute)
     return VideoSharedTransitionOwnership(
         useCoverSharedBounds = true,
-        useMetadataSharedBounds = shouldEnableVideoMetadataSharedTransition(
-            coverSharedEnabled = true,
-            isQuickReturnLimited = isQuickReturnLimited,
-            useCardContainerSharedBounds = useCardContainerSharedBounds,
-            profile = resolveVideoSharedTransitionProfile(sourceRoute)
-        ),
+        useMetadataSharedBounds = !coverRelay &&
+            shouldEnableVideoMetadataSharedTransition(
+                coverSharedEnabled = true,
+                isQuickReturnLimited = isQuickReturnLimited,
+                useCardContainerSharedBounds = useCardContainerSharedBounds,
+                profile = resolveVideoSharedTransitionProfile(sourceRoute)
+            ),
         useCardContainerSharedBounds = useCardContainerSharedBounds
     )
 }
@@ -464,24 +500,28 @@ internal fun resolveVideoMetadataSharedTransitionMotionSpec(
 }
 
 /**
- * Hero 进场空间曲线：Continuity（先快后慢、无过冲）。
- * 返回落位见 [videoSharedElementReturnSpringSpec]，用 soft spring 做一次轻回弹。
+ * Hero 空间曲线：
+ * - 进场（卡片→详情）：Continuity，先快后慢
+ * - 返回（详情→卡片）：Linear，保证预测返回 seek 与手指进度 1:1，
+ *   松手后 remainingDuration 可按固定时长推算，避免 soft spring 导致
+ *   「划一半有特效、松手一闪落位」以及完整加载后返回动画被瞬时掐掉
+ *
+ * 景深 / alpha 仍用 Continuity，落位柔和感由它们承担。
  */
 internal fun resolveVideoSharedElementSpatialEasing(
     initialBounds: Rect,
     targetBounds: Rect,
 ): Easing {
     return when (resolveVideoSharedTransitionDirection(initialBounds, targetBounds)) {
-        VideoSharedTransitionDirection.ENTER,
-        VideoSharedTransitionDirection.RETURN -> resolveVideoCardSharedTransitionSpatialEasing()
+        VideoSharedTransitionDirection.ENTER -> resolveVideoCardSharedTransitionSpatialEasing()
+        VideoSharedTransitionDirection.RETURN -> LinearEasing
     }
 }
 
 /**
- * 返回落位 soft spring：
- * - 阻尼略低于临界：一次优雅过冲后贴回，不连弹
- * - 刚度随速度设置缩放，快/标准/慢节奏一致
- * - spring 可打断续传，适合快速返回与连续改手势目标
+ * 遗留 API：返回 soft spring。
+ * 主路径 [videoSharedElementBoundsTransformSpec] 已改回固定时长 tween，
+ * 以保证 Navigation3 预测返回 seek/complete 的 remainingDuration 可计算。
  */
 internal fun videoSharedElementReturnSpringSpec(
     motion: VideoSharedTransitionMotionSpec,
@@ -491,6 +531,21 @@ internal fun videoSharedElementReturnSpringSpec(
         dampingRatio = motion.returnSpatialDampingRatio,
         stiffness = resolveVideoSharedTransitionSpatialStiffness(durationMillis),
         visibilityThreshold = VIDEO_CARD_HERO_BOUNDS_VISIBILITY_THRESHOLD,
+    )
+}
+
+/**
+ * 返回 morph 固定时长 tween（Linear）：
+ * - 可 seek：预测拖动 progress 与 bounds 进度一致
+ * - 可打断：OPENING 中途返回可从当前 fraction 反转
+ * - 松手后 remainingDuration = (1 - fraction) * duration，不再因 spring 无固定时长而 snap
+ */
+internal fun videoSharedElementReturnTweenSpec(
+    durationMillis: Int,
+): FiniteAnimationSpec<Rect> {
+    return tween(
+        durationMillis = durationMillis.coerceAtLeast(0),
+        easing = LinearEasing,
     )
 }
 
@@ -505,8 +560,7 @@ internal fun videoSharedElementBoundsTransformSpec(
             durationMillis = durationMillis.coerceAtLeast(0),
             easing = resolveVideoCardSharedTransitionSpatialEasing(),
         )
-        VideoSharedTransitionDirection.RETURN -> videoSharedElementReturnSpringSpec(
-            motion = motion,
+        VideoSharedTransitionDirection.RETURN -> videoSharedElementReturnTweenSpec(
             durationMillis = durationMillis,
         )
     }
@@ -523,8 +577,7 @@ internal fun videoMetadataSharedElementBoundsTransformSpec(
             durationMillis = durationMillis,
             easing = resolveVideoCardSharedTransitionSpatialEasing(),
         )
-        VideoSharedTransitionDirection.RETURN -> videoSharedElementReturnSpringSpec(
-            motion = motion,
+        VideoSharedTransitionDirection.RETURN -> videoSharedElementReturnTweenSpec(
             durationMillis = durationMillis,
         )
     }

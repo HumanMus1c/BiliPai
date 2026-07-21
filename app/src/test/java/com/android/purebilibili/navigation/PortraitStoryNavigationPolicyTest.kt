@@ -2,7 +2,9 @@ package com.android.purebilibili.navigation
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class PortraitStoryNavigationPolicyTest {
 
@@ -14,7 +16,8 @@ class PortraitStoryNavigationPolicyTest {
             startAudio = false,
             bvid = "BV1portrait",
             cid = 66L,
-            coverUrl = "https://img.test.com/portrait.jpg"
+            coverUrl = "https://img.test.com/portrait.jpg",
+            cardTransitionEnabled = false,
         )
 
         assertEquals(
@@ -25,6 +28,19 @@ class PortraitStoryNavigationPolicyTest {
             ),
             seed
         )
+    }
+
+    @Test
+    fun resolveSeed_returnsNullWhenCardTransitionEnabled_useDetailMorphInstead() {
+        val seed = resolvePortraitStoryNavigationSeed(
+            directPortraitStoryEntry = true,
+            isVerticalVideo = true,
+            startAudio = false,
+            bvid = "BV1portrait",
+            cardTransitionEnabled = true,
+        )
+
+        assertNull(seed)
     }
 
     @Test
@@ -61,5 +77,38 @@ class PortraitStoryNavigationPolicyTest {
         )
 
         assertNull(seed)
+    }
+
+    @Test
+    fun detailMorphEntry_enabledOnlyWhenSettingAndCardTransitionAndVertical() {
+        assertTrue(
+            resolveDirectPortraitDetailMorphEntry(
+                directPortraitStoryEntry = true,
+                cardTransitionEnabled = true,
+                isVerticalVideo = true,
+            )
+        )
+        assertFalse(
+            resolveDirectPortraitDetailMorphEntry(
+                directPortraitStoryEntry = true,
+                cardTransitionEnabled = false,
+                isVerticalVideo = true,
+            )
+        )
+        assertFalse(
+            resolveDirectPortraitDetailMorphEntry(
+                directPortraitStoryEntry = false,
+                cardTransitionEnabled = true,
+                isVerticalVideo = true,
+            )
+        )
+        assertTrue(
+            resolveDirectPortraitDetailMorphEntry(
+                directPortraitStoryEntry = true,
+                cardTransitionEnabled = true,
+                isVerticalVideo = false,
+                coverUrl = "https://img.test.com/pic@720w_1280h.jpg",
+            )
+        )
     }
 }

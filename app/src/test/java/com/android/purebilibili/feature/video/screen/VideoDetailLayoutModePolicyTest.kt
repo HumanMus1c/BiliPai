@@ -759,6 +759,50 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
+    fun videoDetailDispose_neverRestoresVideoDrivenLandscapeLock() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
+            resolveVideoDetailExitRequestedOrientation(
+                originalRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            )
+        )
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
+            resolveVideoDetailExitRequestedOrientation(
+                originalRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE
+            )
+        )
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
+            resolveVideoDetailExitRequestedOrientation(
+                originalRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            )
+        )
+    }
+
+    @Test
+    fun videoDetailEntrySnapshot_ignoresAlreadyLockedLandscape() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
+            resolveVideoDetailEntryOrientationSnapshot(
+                currentRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            )
+        )
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            resolveVideoDetailEntryOrientationSnapshot(
+                currentRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            )
+        )
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
+            resolveVideoDetailEntryOrientationSnapshot(
+                currentRequestedOrientation = null
+            )
+        )
+    }
+
+    @Test
     fun phoneEnterOrientationPolicy_autoMode_usesVideoDirection() {
         assertEquals(
             ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
@@ -899,6 +943,60 @@ class VideoDetailLayoutModePolicyTest {
                 isVerticalVideo = true,
                 isPortraitFullscreen = false,
                 hasAutoEnteredPortraitFromRoute = false
+            )
+        )
+    }
+
+    @Test
+    fun autoPortraitRoutePolicy_entersStandalone_whenRouteRequestsInitialVerticalDespiteInline() {
+        assertTrue(
+            shouldAutoEnterPortraitFullscreenFromRoute(
+                autoEnterPortraitFromRoute = true,
+                startAudioFromRoute = false,
+                portraitExperienceEnabled = true,
+                useOfficialInlinePortraitDetailExperience = true,
+                isCurrentRouteVideoLoaded = true,
+                isVerticalVideo = true,
+                isPortraitFullscreen = false,
+                hasAutoEnteredPortraitFromRoute = false,
+                initialVerticalFromRoute = true,
+            )
+        )
+    }
+
+    @Test
+    fun autoPortraitRoutePolicy_entersStandalone_whenDirectPortraitEntryDespiteInline() {
+        assertTrue(
+            shouldAutoEnterPortraitFullscreenFromRoute(
+                autoEnterPortraitFromRoute = false,
+                startAudioFromRoute = false,
+                portraitExperienceEnabled = true,
+                useOfficialInlinePortraitDetailExperience = true,
+                isCurrentRouteVideoLoaded = true,
+                isVerticalVideo = true,
+                isPortraitFullscreen = false,
+                hasAutoEnteredPortraitFromRoute = false,
+                directPortraitEntryFromRoute = true,
+            )
+        )
+    }
+
+    @Test
+    fun startPortraitHint_directPortraitEntryIgnoresAutoPortraitPairing() {
+        assertTrue(
+            shouldStartInPortraitFullscreenFromRouteHint(
+                autoEnterPortraitFromRoute = false,
+                startAudioFromRoute = false,
+                initialVerticalFromRoute = false,
+                directPortraitEntryFromRoute = true,
+            )
+        )
+        assertFalse(
+            shouldStartInPortraitFullscreenFromRouteHint(
+                autoEnterPortraitFromRoute = true,
+                startAudioFromRoute = false,
+                initialVerticalFromRoute = false,
+                directPortraitEntryFromRoute = false,
             )
         )
     }

@@ -1017,6 +1017,7 @@ fun SearchScreen(
                                             } else {
                                                 null
                                             },
+                                            onUpClick = onUpClick,
                                             onClick = { _, _ ->
                                                 when (
                                                     val target = resolveVideoSearchNavigationTarget(

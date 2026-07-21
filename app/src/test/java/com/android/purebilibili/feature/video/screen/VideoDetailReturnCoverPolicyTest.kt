@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.screen
 
+import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -243,17 +244,227 @@ class VideoDetailReturnCoverPolicyTest {
     }
 
     @Test
-    fun `committed return immediately hands visual ownership to resident cover`() {
-        assertEquals(1f, resolveVideoDetailReturnCoverAlpha(0.8f, true, true), 0.0001f)
-        assertEquals(0f, resolveVideoDetailReturnPlayerAlpha(0.8f, true, true), 0.0001f)
-        assertEquals(0f, resolveVideoDetailReturnContentAlpha(0.8f, true), 0.0001f)
+    fun `live return morph keeps player visible instead of handing to resident cover`() {
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnCoverAlpha(0.8f, true, true, liveReturnMorph = true),
+            0.0001f,
+        )
+        assertEquals(
+            1f,
+            resolveVideoDetailReturnPlayerAlpha(0.8f, true, true, liveReturnMorph = true),
+            0.0001f,
+        )
+        // 中段（settle=0.2 < yield）：正文仍可见随壳收缩
+        assertEquals(
+            1f,
+            resolveVideoDetailReturnContentAlpha(0.8f, true, liveReturnMorph = true),
+            0.0001f,
+        )
+        // 末段（settle=0.7 > yield）：正文让位给源卡标题，alpha 下降
+        val lateContent = resolveVideoDetailReturnContentAlpha(0.3f, true, liveReturnMorph = true)
+        assertTrue(lateContent < 1f && lateContent > 0f)
     }
 
     @Test
-    fun `uncommitted predictive return keeps following transition progress`() {
-        assertEquals(0.2f, resolveVideoDetailReturnCoverAlpha(0.8f, false, true), 0.0001f)
-        assertEquals(0.8f, resolveVideoDetailReturnPlayerAlpha(0.8f, false, true), 0.0001f)
-        assertEquals(0.8f, resolveVideoDetailReturnContentAlpha(0.8f, false), 0.0001f)
+    fun `cover-first committed return still hands visual ownership to resident cover`() {
+        assertEquals(
+            1f,
+            resolveVideoDetailReturnCoverAlpha(0.8f, true, true, liveReturnMorph = false),
+            0.0001f,
+        )
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnPlayerAlpha(0.8f, true, true, liveReturnMorph = false),
+            0.0001f,
+        )
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnContentAlpha(0.8f, true, liveReturnMorph = false),
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun `uncommitted predictive live morph keeps player and detail content fully visible`() {
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnCoverAlpha(0.8f, false, true, liveReturnMorph = true),
+            0.0001f,
+        )
+        assertEquals(
+            1f,
+            resolveVideoDetailReturnPlayerAlpha(0.8f, false, true, liveReturnMorph = true),
+            0.0001f,
+        )
+        assertEquals(
+            1f,
+            resolveVideoDetailReturnContentAlpha(0.8f, false, liveReturnMorph = true),
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun `uncommitted predictive cover-first return keeps following transition progress`() {
+        assertEquals(
+            0.2f,
+            resolveVideoDetailReturnCoverAlpha(0.8f, false, true, liveReturnMorph = false),
+            0.0001f,
+        )
+        assertEquals(
+            0.8f,
+            resolveVideoDetailReturnPlayerAlpha(0.8f, false, true, liveReturnMorph = false),
+            0.0001f,
+        )
+        assertEquals(
+            0.8f,
+            resolveVideoDetailReturnContentAlpha(0.8f, false, liveReturnMorph = false),
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun `live return morph gate requires immediate playback and active shared bounds`() {
+        assertTrue(
+            shouldUseLiveReturnMorph(
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+                detailContentReady = true,
+            )
+        )
+        assertFalse(
+            shouldUseLiveReturnMorph(
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.CoverFirst,
+                detailContentReady = true,
+            )
+        )
+        assertFalse(
+            shouldUseLiveReturnMorph(
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = true,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+                detailContentReady = true,
+            )
+        )
+        assertFalse(
+            shouldUseLiveReturnMorph(
+                transitionEnabled = true,
+                sharedBoundsActive = false,
+                keepLoadedContentForBackPreview = false,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+                detailContentReady = true,
+            )
+        )
+    }
+
+    @Test
+    fun `live return morph disabled while detail content still loading to avoid skeleton in card`() {
+        assertFalse(
+            shouldTreatVideoDetailContentReadyForLiveReturnMorph(
+                hasSuccessfulDetailContent = false,
+            )
+        )
+        assertTrue(
+            shouldTreatVideoDetailContentReadyForLiveReturnMorph(
+                hasSuccessfulDetailContent = true,
+            )
+        )
+        assertFalse(
+            shouldUseLiveReturnMorph(
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+                detailContentReady = false,
+            )
+        )
+    }
+
+    @Test
+    fun `resident cover ownership is suppressed during live return morph`() {
+        assertFalse(
+            shouldHandVisualOwnershipToResidentCover(
+                useReturningVisualState = true,
+                hasResidentCover = true,
+                liveReturnMorph = true,
+            )
+        )
+        assertTrue(
+            shouldHandVisualOwnershipToResidentCover(
+                useReturningVisualState = true,
+                hasResidentCover = true,
+                liveReturnMorph = false,
+            )
+        )
+        assertFalse(
+            shouldHandVisualOwnershipToResidentCover(
+                useReturningVisualState = true,
+                hasResidentCover = false,
+                liveReturnMorph = false,
+            )
+        )
+    }
+
+    @Test
+    fun `detail return cover ownership table matches timeline contract`() {
+        val live = resolveVideoDetailReturnCoverOwnership(
+            transitionEnabled = true,
+            sharedBoundsActive = true,
+            keepLoadedContentForBackPreview = false,
+            playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+            detailContentReady = true,
+            hasResidentCover = true,
+            hasRenderableLiveFrame = true,
+        )
+        assertTrue(isLiveReturnMorphFromOwnership(live))
+        assertFalse(
+            shouldHandResidentCoverFromOwnership(
+                ownership = live,
+                useReturningVisualState = true,
+                hasResidentCover = true,
+            )
+        )
+
+        val coverFirst = resolveVideoDetailReturnCoverOwnership(
+            transitionEnabled = true,
+            sharedBoundsActive = true,
+            keepLoadedContentForBackPreview = false,
+            playbackIntent = VideoSharedTransitionPlaybackIntent.CoverFirst,
+            detailContentReady = true,
+            hasResidentCover = true,
+        )
+        assertFalse(isLiveReturnMorphFromOwnership(coverFirst))
+        assertTrue(
+            shouldHandResidentCoverFromOwnership(
+                ownership = coverFirst,
+                useReturningVisualState = true,
+                hasResidentCover = true,
+            )
+        )
+
+        val noFrame = resolveVideoDetailReturnCoverOwnership(
+            transitionEnabled = true,
+            sharedBoundsActive = true,
+            keepLoadedContentForBackPreview = false,
+            playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+            detailContentReady = true,
+            hasResidentCover = true,
+            hasRenderableLiveFrame = false,
+        )
+        assertFalse(isLiveReturnMorphFromOwnership(noFrame))
+        assertTrue(
+            shouldHandResidentCoverFromOwnership(
+                ownership = noFrame,
+                useReturningVisualState = true,
+                hasResidentCover = true,
+            )
+        )
     }
 
     @Test
@@ -380,6 +591,38 @@ class VideoDetailReturnCoverPolicyTest {
         assertTrue(
             "Player container must not claim the cover shared bounds during return; the forced return cover overlay owns that key.",
             playerContainerBlock.contains("!forceCoverOnlyForReturn")
+        )
+    }
+
+    @Test
+    fun `related child transition suppresses parent detail shell shared bounds`() {
+        assertTrue(
+            shouldSuppressDetailShellSharedBoundsForRelatedChildTransition(
+                detailBvid = "BV_A",
+                lastClickedVideoSourceKey = "video/BV_A:BV_B",
+                isSharedTransitionActive = true,
+            )
+        )
+        assertFalse(
+            shouldSuppressDetailShellSharedBoundsForRelatedChildTransition(
+                detailBvid = "BV_A",
+                lastClickedVideoSourceKey = "video/BV_A:BV_B",
+                isSharedTransitionActive = false,
+            )
+        )
+        assertFalse(
+            shouldSuppressDetailShellSharedBoundsForRelatedChildTransition(
+                detailBvid = "BV_A",
+                lastClickedVideoSourceKey = "home:BV_A",
+                isSharedTransitionActive = true,
+            )
+        )
+        assertFalse(
+            shouldSuppressDetailShellSharedBoundsForRelatedChildTransition(
+                detailBvid = "BV_A",
+                lastClickedVideoSourceKey = "video/BV_OTHER:BV_B",
+                isSharedTransitionActive = true,
+            )
         )
     }
 }

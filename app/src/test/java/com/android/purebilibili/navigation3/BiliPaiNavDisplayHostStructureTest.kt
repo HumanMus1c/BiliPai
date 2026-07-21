@@ -63,7 +63,17 @@ class BiliPaiNavDisplayHostStructureTest {
             .substringBefore("onBackCancelled")
 
         assertTrue(backHandlerBlock.contains("reportPredictiveProgress = predictiveBackEnabled"))
+        assertFalse(backHandlerBlock.contains("usesPredictivePreview"))
         assertTrue(source.contains("predictiveBackEnabled = predictiveBackEnabled"))
+    }
+
+    @Test
+    fun navDisplayHostAlignsDepthReturnDurationWithSharedMorphRemaining() {
+        val source = navDisplayHostSource()
+        assertTrue(source.contains("resolveVideoCardSharedMorphRemainingDurationMs("))
+        assertTrue(source.contains("gestureFractionAtCommit"))
+        assertTrue(source.contains("morphRemainingMs"))
+        assertTrue(source.contains("morphAlignedFullMs"))
     }
 
     @Test
@@ -94,7 +104,7 @@ class BiliPaiNavDisplayHostStructureTest {
             .substringBefore("returnedFromVideoDetail -> {")
         val returnBranch = source
             .substringAfter("returnedFromVideoDetail -> {")
-            .substringBefore("currentTop !is BiliPaiNavKey.VideoDetail")
+            .substringBefore("!isCardMorphDestinationNavKey(currentTop)")
 
         assertTrue(openingBranch.contains("videoCardTransitionBackgroundProgress.snapTo(0f)"))
         assertTrue(openingBranch.contains("targetValue = 1f"))
@@ -110,6 +120,7 @@ class BiliPaiNavDisplayHostStructureTest {
         assertTrue(returnBranch.contains("parentSourceRoute"))
         assertTrue(source.contains("safeBackStack.size > previousStack.size"))
         assertTrue(source.contains("safeBackStack.size < previousStack.size"))
+        assertTrue(source.contains("isCardMorphDestinationNavKey("))
         assertFalse(source.contains("mutableStateOf(sourceMetadata.sourceRoute)"))
     }
 
@@ -220,7 +231,8 @@ class BiliPaiNavDisplayHostStructureTest {
         assertTrue(preOnBack.contains("VideoCardTransitionBackgroundPhase.OPENING"))
         assertTrue(preOnBack.contains("VideoCardTransitionBackgroundPhase.RETURNING"))
         assertTrue(preOnBack.contains("resolveVideoCardTransitionBackgroundReturnClearEasing()"))
-        assertFalse(preOnBack.contains("videoCardTransitionBackgroundProgress.snapTo(0f)"))
+        assertTrue(preOnBack.contains("shouldSnapClearVideoCardDepthBlurOnQuickReturn("))
+        assertTrue(preOnBack.contains("videoCardTransitionBackgroundProgress.snapTo(0f)"))
     }
 
     @Test

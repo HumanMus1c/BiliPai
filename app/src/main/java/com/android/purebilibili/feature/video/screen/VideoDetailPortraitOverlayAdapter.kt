@@ -8,6 +8,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,8 +18,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.layout.ContentScale
 import androidx.media3.exoplayer.ExoPlayer
+import coil.compose.AsyncImage
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.feature.video.ui.pager.PortraitVideoPager
 import com.android.purebilibili.feature.video.viewmodel.VideoEngagementViewModel
@@ -36,6 +41,7 @@ internal fun VideoDetailPortraitOverlayAdapter(
     motionSpec: StandalonePortraitPagerMotionSpec,
     initialBvidOverride: String?,
     initialStartPositionMs: Long,
+    entryCoverUrl: String = "",
     playbackViewModel: VideoPlaybackViewModel,
     engagementViewModel: VideoEngagementViewModel,
     sharedPlayer: ExoPlayer?,
@@ -63,12 +69,31 @@ internal fun VideoDetailPortraitOverlayAdapter(
         uiState is VideoPlaybackUiState.Loading -> cachedSuccess
         else -> null
     }
+    val showEntryCoverPlaceholder = shouldShowPortraitEntryCoverPlaceholder(
+        showPortraitFullscreen = showPortraitFullscreen,
+        hasPlayableSuccess = success != null,
+        entryCoverUrl = entryCoverUrl,
+    )
     LaunchedEffect(isPortraitFullscreen, showPortraitFullscreen, success, isLandscape) {
         com.android.purebilibili.core.util.Logger.d(
             "VideoDetailScreen",
             "Portrait Mode Check: requested=$isPortraitFullscreen, shown=$showPortraitFullscreen, " +
                 "success=${success != null}, isLandscape=$isLandscape",
         )
+    }
+    if (showEntryCoverPlaceholder) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            AsyncImage(
+                model = entryCoverUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
     }
     AnimatedVisibility(
         visible = showPortraitFullscreen && success != null,
@@ -118,4 +143,12 @@ internal fun VideoDetailPortraitOverlayAdapter(
             )
         }
     }
+}
+
+internal fun shouldShowPortraitEntryCoverPlaceholder(
+    showPortraitFullscreen: Boolean,
+    hasPlayableSuccess: Boolean,
+    entryCoverUrl: String,
+): Boolean {
+    return showPortraitFullscreen && !hasPlayableSuccess && entryCoverUrl.isNotBlank()
 }

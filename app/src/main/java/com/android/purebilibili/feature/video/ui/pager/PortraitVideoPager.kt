@@ -1401,9 +1401,9 @@ private fun VideoPageItem(
 
     val title = if (item is ViewInfo) item.title else (item as RelatedVideo).title
     val cover = if (item is ViewInfo) item.pic else (item as RelatedVideo).pic
-    val authorName = if (item is ViewInfo) item.owner.name else (item as RelatedVideo).owner.name
-    val authorFace = if (item is ViewInfo) item.owner.face else (item as RelatedVideo).owner.face
-    val authorMid = if (item is ViewInfo) item.owner.mid else (item as RelatedVideo).owner.mid
+    val seedAuthorName = if (item is ViewInfo) item.owner.name else (item as RelatedVideo).owner.name
+    val seedAuthorFace = if (item is ViewInfo) item.owner.face else (item as RelatedVideo).owner.face
+    val seedAuthorMid = if (item is ViewInfo) item.owner.mid else (item as RelatedVideo).owner.mid
 
     // 提取时长
     val initialDuration = if (item is RelatedVideo) {
@@ -2110,7 +2110,6 @@ private fun VideoPageItem(
         sharedState = currentSuccess,
         localOverride = portraitInteractionOverride
     )
-    val isFollowing = (currentUiState as? VideoPlaybackUiState.Success)?.followingMids?.contains(authorMid) == true
     val fallbackDetailInfo = when (item) {
         is ViewInfo -> item
         is RelatedVideo -> toViewInfoForPortraitDetail(item)
@@ -2121,6 +2120,11 @@ private fun VideoPageItem(
     } else {
         fallbackDetailInfo
     }
+    // seed 进场可能没有 owner；加载成功后用 Success.info 补齐 UP 名/头像。
+    val authorName = portraitDetailInfo?.owner?.name?.takeIf { it.isNotBlank() } ?: seedAuthorName
+    val authorFace = portraitDetailInfo?.owner?.face?.takeIf { it.isNotBlank() } ?: seedAuthorFace
+    val authorMid = portraitDetailInfo?.owner?.mid?.takeIf { it > 0L } ?: seedAuthorMid
+    val isFollowing = (currentUiState as? VideoPlaybackUiState.Success)?.followingMids?.contains(authorMid) == true
     val detailVideoList = remember(bvid, watchLaterVideos, recommendationVideos) {
         buildPortraitDetailVideoList(
             currentBvid = bvid,

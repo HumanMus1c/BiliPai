@@ -2,7 +2,6 @@
 package com.android.purebilibili.feature.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -483,4 +482,4 @@ fun AnimationSettingsContent(
             item { Spacer(modifier = Modifier.height(32.dp)) }
         }
     }
-    }
+}

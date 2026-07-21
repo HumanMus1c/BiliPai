@@ -60,6 +60,7 @@ import androidx.compose.foundation.shape.CircleShape
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
+import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 
@@ -306,9 +307,9 @@ internal fun TabletVideoLayout(
                         secondaryPaneModeName = nextTabletSecondaryPaneMode(secondaryPaneMode).name
                     },
                     onRelatedVideoClick = onRelatedVideoClick,
+                    onSearchKeywordClick = onSearchKeywordClick,
                     showUpBadge = showUpBadge,
                     showIdentityDecorations = commentMemberDecorationsEnabled,
-                    onSearchKeywordClick = onSearchKeywordClick,
                     onOpenBilibiliLink = onOpenBilibiliLink
                 )
             }
@@ -723,35 +724,42 @@ private fun TabletSecondaryContent(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(8.dp)
                     ) {
+                        val relatedRows = chunkRelatedVideosForHomeStyleGrid(success.related)
                         itemsIndexed(
-                            items = success.related,
-                            key = { index, item ->
+                            items = relatedRows,
+                            key = { rowIndex, row ->
+                                val first = row.firstOrNull()
                                 resolveIndexedVideoLazyKey(
-                                    namespace = "tablet_related",
-                                    index = index,
-                                    bvid = item.bvid,
-                                    aid = item.aid,
-                                    cid = item.cid
+                                    namespace = "tablet_related_row",
+                                    index = rowIndex,
+                                    bvid = first?.bvid.orEmpty(),
+                                    aid = first?.aid ?: 0L,
+                                    cid = first?.cid ?: 0L
                                 )
                             }
-                        ) { _, video ->
-                            RelatedVideoItem(
-                                video = video,
-                                isFollowed = video.owner.mid in success.followingMids,
-                                transitionEnabled = LocalSharedTransitionEnabled.current,
-                                showUpBadge = showUpBadge,
-                                onClick = {
-                                    val activity = (context as? android.app.Activity) ?: (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity
-                                    val options = activity?.let {
-                                        android.app.ActivityOptions.makeSceneTransitionAnimation(it).toBundle()
+                        ) { _, row ->
+                            CompositionLocalProvider(
+                                LocalVideoCardSharedElementSourceRoute provides "video/${success.info.bvid}"
+                            ) {
+                                RelatedVideoGridRow(
+                                    videos = row,
+                                    followingMids = success.followingMids,
+                                    transitionEnabled = LocalSharedTransitionEnabled.current,
+                                    showUpBadge = showUpBadge,
+                                    onVideoClick = { video ->
+                                        val activity = (context as? android.app.Activity)
+                                            ?: (context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity
+                                        val options = activity?.let {
+                                            android.app.ActivityOptions.makeSceneTransitionAnimation(it).toBundle()
+                                        }
+                                        val navOptions = android.os.Bundle(options ?: android.os.Bundle.EMPTY)
+                                        if (video.cid > 0L) {
+                                            navOptions.putLong(VIDEO_NAV_TARGET_CID_KEY, video.cid)
+                                        }
+                                        onRelatedVideoClick(video.bvid, navOptions)
                                     }
-                                    val navOptions = android.os.Bundle(options ?: android.os.Bundle.EMPTY)
-                                    if (video.cid > 0L) {
-                                        navOptions.putLong(VIDEO_NAV_TARGET_CID_KEY, video.cid)
-                                    }
-                                    onRelatedVideoClick(video.bvid, navOptions)
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
@@ -791,6 +799,7 @@ private fun ScrollableVideoInfoSection(
     onDownloadClick: () -> Unit,
     onWatchLaterClick: () -> Unit,
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
+    onSearchKeywordClick: (String) -> Unit = {},
     onOpenBilibiliLink: ((String) -> Unit)?,
     relatedVideos: List<com.android.purebilibili.data.model.response.RelatedVideo> = emptyList(),
     modifier: Modifier = Modifier
@@ -838,7 +847,8 @@ private fun ScrollableVideoInfoSection(
                 ),
                 onBgmClick = onBgmClick,
                 onRelatedVideoClick = onRelatedVideoClick,
-                onDescriptionUrlClick = onOpenBilibiliLink
+                onDescriptionUrlClick = onOpenBilibiliLink,
+                onTagClick = onSearchKeywordClick
             )
             Spacer(modifier = Modifier.height(12.dp))
         }

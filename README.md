@@ -15,7 +15,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Version-9.9.8.4-007AFF?style=flat-square&labelColor=ffffff" alt="Version 9.9.8.4" />
+  <img src="https://img.shields.io/badge/Version-9.9.8.5-007AFF?style=flat-square&labelColor=ffffff" alt="Version 9.9.8.5" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -23,8 +23,8 @@
   <a href="https://github.com/jay3-yy/BiliPai/releases">
     <img src="https://img.shields.io/github/downloads/jay3-yy/BiliPai/total?style=flat-square&color=34C759&label=%E6%80%BB%E4%B8%8B%E8%BD%BD%E9%87%8F&labelColor=ffffff" alt="总下载量" />
   </a>
-  <a href="https://github.com/jay3-yy/BiliPai/releases/tag/v9.9.8.4">
-    <img src="https://img.shields.io/github/downloads/jay3-yy/BiliPai/v9.9.8.4/total?style=flat-square&color=5AC8FA&label=%E6%9C%80%E6%96%B0%E7%89%88%E4%B8%8B%E8%BD%BD%E9%87%8F&labelColor=ffffff" alt="最新版本下载量" />
+  <a href="https://github.com/jay3-yy/BiliPai/releases/tag/v9.9.8.5">
+    <img src="https://img.shields.io/github/downloads/jay3-yy/BiliPai/v9.9.8.5/total?style=flat-square&color=5AC8FA&label=%E6%9C%80%E6%96%B0%E7%89%88%E4%B8%8B%E8%BD%BD%E9%87%8F&labelColor=ffffff" alt="最新版本下载量" />
   </a>
 </p>
 
@@ -188,11 +188,11 @@ cd BiliPai
 
 ## 最近更新
 
-当前仓库版本号已更新到 `9.9.8.4 / versionCode 259`。公开发布说明请以 [CHANGELOG.md](CHANGELOG.md) 为准；最新完整记录为 `v9.9.8.4`：
+当前仓库版本号已更新到 `9.9.8.5 / versionCode 260`。公开发布说明请以 [CHANGELOG.md](CHANGELOG.md) 为准；最新完整记录为 `v9.9.8.5`：
 
-- 关注下拉刷新后强制回顶并校正“新增”计数；分区 / 分类页补齐下拉刷新与换一批。
-- 动态蓝色 `@` 可跳转对应 UP 主页；冷启动提前恢复 WBI，减少首屏网络抢跑。
-- 默认稳定 DASH、视频详情拆分与过渡性能优化；外观分段短文案与自适应 UI 细化。
+- 修复 miuix 主题下“隐私与存储”里的下载位置、图片保存位置、清除缓存点击无响应。
+- 视频详情标签可直接跳转搜索，搜索结果 UP 主名字可进入对应空间。
+- 点头像打开侧栏时模糊立即生效，动画中仅降低模糊预算。
 
 ## 路线图
 

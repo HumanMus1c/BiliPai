@@ -7,7 +7,17 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 internal fun resolveNavigation3SaveableStateKey(key: BiliPaiNavKey): String {
-    return "${key.routeBase}:${key}"
+    // Story 带 seed 时按 openId 隔离会话，避免同视频再进复用坏掉的播放器状态。
+    return when (key) {
+        is BiliPaiNavKey.Story -> {
+            if (key.seedBvid.isBlank()) {
+                "story:tab"
+            } else {
+                "story:seed:${key.seedBvid}:${key.seedCid}:${key.openId}"
+            }
+        }
+        else -> "${key.routeBase}:$key"
+    }
 }
 
 internal fun BiliPaiNavKey.toLegacyRoute(): String {
@@ -85,7 +95,8 @@ internal fun BiliPaiNavKey.toLegacyRoute(): String {
             resumePositionMs = resumePositionMs,
             commentRootRpid = commentRootRpid,
             commentTargetRpid = commentTargetRpid,
-            initialVertical = initialVertical
+            initialVertical = initialVertical,
+            directPortraitEntry = directPortraitEntry,
         )
         is BiliPaiNavKey.ArticleDetail -> ScreenRoutes.ArticleDetail.createRoute(articleId, title)
         is BiliPaiNavKey.DynamicDetail -> ScreenRoutes.DynamicDetail.createRoute(
@@ -230,6 +241,7 @@ internal fun legacyRouteToBiliPaiNavKey(route: String?): BiliPaiNavKey {
                 commentRootRpid = query["commentRootRpid"]?.toLongOrNull() ?: 0L,
                 commentTargetRpid = query["commentTargetRpid"]?.toLongOrNull() ?: 0L,
                 initialVertical = query["initialVertical"]?.toBooleanStrictOrNull() ?: false,
+                directPortraitEntry = query["directPortraitEntry"]?.toBooleanStrictOrNull() ?: false,
                 sourceRoute = null
             )
         }

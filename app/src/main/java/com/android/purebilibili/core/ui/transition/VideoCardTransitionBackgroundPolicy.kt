@@ -63,6 +63,7 @@ internal data class VideoCardTransitionBackgroundState(
     },
     val isReturnGestureInProgressProvider: () -> Boolean = { false },
     val isGestureRestoreInProgressProvider: () -> Boolean = { false },
+    val isQuickReturnFromDetailProvider: () -> Boolean = { false },
     val motionTierProvider: () -> MotionTier = { MotionTier.Normal },
     val isLightBackgroundProvider: () -> Boolean = { false },
 )
@@ -217,6 +218,9 @@ internal fun resolveVideoCardTransitionReturnFullDurationMillis(
 /**
  * 返回动画提交时，若手势已消解部分虚化(startProgress < 1)，剩余 [RETURNING] 动画按比例缩短，
  * 保持与共享元素落位一致的视觉速度，避免手势拖到底后仍补一段完整时长的收尾。
+ *
+ * 与 [resolveVideoCardReturnDepthBlurRemainingDurationMs] 同一公式；
+ * morph 后半段时长见 [resolveVideoCardSharedMorphRemainingDurationMs]。
  */
 internal fun resolveVideoCardTransitionBackgroundReturnDurationMs(
     startProgress: Float,
@@ -235,6 +239,22 @@ internal fun shouldInterruptVideoCardOpeningOnReturn(
     phase: VideoCardTransitionBackgroundPhase,
 ): Boolean = phase == VideoCardTransitionBackgroundPhase.OPENING
 
+/**
+ * 是否立刻掐掉景深模糊，避免封面落位后仍带 BlurEffect 闪一下。
+ *
+ * - 打断 [OPENING]：shared 常先落位，景深按比例消糊会拖尾 → 必 snap
+ * - [HELD]/[RETURNING] + 快速返回会话：同样可能落位快于消糊
+ */
+internal fun shouldSnapClearVideoCardDepthBlurOnQuickReturn(
+    isQuickReturnFromDetail: Boolean,
+    phase: VideoCardTransitionBackgroundPhase,
+): Boolean {
+    if (phase == VideoCardTransitionBackgroundPhase.OPENING) return true
+    if (!isQuickReturnFromDetail) return false
+    return phase == VideoCardTransitionBackgroundPhase.HELD ||
+        phase == VideoCardTransitionBackgroundPhase.RETURNING
+}
+
 internal fun shouldApplyVideoCardTransitionBackgroundToRoute(
     entryRoute: String?,
     sourceRoute: String?,
@@ -244,8 +264,21 @@ internal fun shouldApplyVideoCardTransitionBackgroundToRoute(
     val normalizedSourceRoute = normalizeVideoCardTransitionRoute(sourceRoute) ?: return false
     if (!isVideoCardReturnTargetRoute(normalizedSourceRoute)) return false
     if (normalizedEntryRoute == normalizedSourceRoute) return true
-    return normalizedEntryRoute == "main_host" &&
-        normalizeVideoCardTransitionRoute(activeMainHostRoute) == normalizedSourceRoute
+    val normalizedActiveMainHostRoute = normalizeVideoCardTransitionRoute(activeMainHostRoute)
+    if (
+        normalizedEntryRoute == "main_host" &&
+        normalizedActiveMainHostRoute == normalizedSourceRoute
+    ) {
+        return true
+    }
+    // 首页顶栏内嵌分区：共享元素 source 是 partition，视觉宿主仍是 home / main_host(home)。
+    if (normalizedSourceRoute == "partition") {
+        if (normalizedEntryRoute == "home") return true
+        if (normalizedEntryRoute == "main_host" && normalizedActiveMainHostRoute == "home") {
+            return true
+        }
+    }
+    return false
 }
 
 /**

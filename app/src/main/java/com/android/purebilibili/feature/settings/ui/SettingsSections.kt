@@ -1311,6 +1311,8 @@ fun DataStorageSection(
     val downloadPathVisual = rememberSettingsEntryVisual(SettingsSearchTarget.DOWNLOAD_PATH, uiPreset)
     val imageSavePathVisual = rememberSettingsEntryVisual(SettingsSearchTarget.IMAGE_SAVE_PATH, uiPreset)
     val clearCacheVisual = rememberSettingsEntryVisual(SettingsSearchTarget.CLEAR_CACHE, uiPreset)
+    val useMiuixBasicActionRows =
+        uiPreset == UiPreset.MD3 && LocalAndroidNativeVariant.current == AndroidNativeVariant.MIUIX
 
     SettingsCardGroup {
         SettingClickableItem(
@@ -1338,7 +1340,8 @@ fun DataStorageSection(
             title = "下载位置",
             value = if (customDownloadPath != null) "自定义" else "默认",
             onClick = onDownloadPathClick,
-            iconTint = downloadPathVisual.iconTint
+            iconTint = downloadPathVisual.iconTint,
+            showChevron = !useMiuixBasicActionRows
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1347,7 +1350,8 @@ fun DataStorageSection(
             title = "图片保存位置",
             value = if (customImageSavePath != null) "已选择目录" else "默认",
             onClick = onImageSavePathClick,
-            iconTint = imageSavePathVisual.iconTint
+            iconTint = imageSavePathVisual.iconTint,
+            showChevron = !useMiuixBasicActionRows
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1356,7 +1360,8 @@ fun DataStorageSection(
             title = "清除缓存",
             value = cacheSize,
             onClick = onClearCacheClick,
-            iconTint = clearCacheVisual.iconTint
+            iconTint = clearCacheVisual.iconTint,
+            showChevron = !useMiuixBasicActionRows
         )
     }
 }

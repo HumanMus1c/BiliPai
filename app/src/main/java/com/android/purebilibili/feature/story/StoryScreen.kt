@@ -34,6 +34,8 @@ fun StoryScreen(
     seedCid: Long = 0L,
     seedCover: String = "",
     seedTitle: String = "",
+    sourceRoute: String? = null,
+    transitionEnabled: Boolean = true,
     viewModel: StoryViewModel = viewModel(),
     playerViewModel: VideoPlaybackViewModel = viewModel(),
     engagementViewModel: VideoEngagementViewModel = viewModel(),
@@ -44,6 +46,11 @@ fun StoryScreen(
     onSearchClick: () -> Unit = {},
     onRotateToLandscape: () -> Unit = {}
 ) {
+    @Suppress("UNUSED_PARAMETER")
+    val unusedSourceRoute = sourceRoute
+    @Suppress("UNUSED_PARAMETER")
+    val unusedTransitionEnabled = transitionEnabled
+
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(context) {

@@ -1,8 +1,14 @@
 package com.android.purebilibili.feature.video.screen
 
 import androidx.compose.animation.core.Easing
+import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
+import com.android.purebilibili.core.ui.transition.isVideoCardLiveReturnMorphOwnership
+import com.android.purebilibili.core.ui.transition.resolveVideoCardLiveMorphSecondaryContentAlpha
+import com.android.purebilibili.core.ui.transition.resolveVideoCardReturnCoverOwnership
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionEnterEasing
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionReturnEasing
+import com.android.purebilibili.core.ui.transition.shouldHandVisualOwnershipToResidentCoverForOwnership
+import com.android.purebilibili.core.ui.transition.shouldUseVideoCardLiveReturnMorph
 
 private const val COVER_TAKEOVER_PRE_BACK_DELAY_MILLIS = 0L
 internal const val VIDEO_CONTENT_COMMENT_TAB_INDEX = 1
@@ -17,11 +23,8 @@ internal fun resolveForceCoverOnlyForReturn(
 }
 
 /**
- * 返回视觉（封面叠层 + 播放器淡出）：
- * - 显式 forceCoverOnly
- * - 已提交的卡片回收退出（PostExit + sharedBounds）
- * - 或 session 已标记返回卡片（顶栏 markReturning 后 / 栈返回中）——尽早叠封面，
- *   避免「整段 return 只有播放器/黑底，落位才出封面」
+ * 返回「离开态」（次要内容淡出、标记离开等）。
+ * 不等于封面接管：ImmediatePlayback 的 live morph 路径下播放器应保持可见。
  *
  * 预测拖动未提交时 isSessionReturningToCard 应为 false（尚未 markReturning）。
  */
@@ -35,22 +38,103 @@ internal fun shouldUseReturningVideoDetailVisualState(
         isSessionReturningToCard
 }
 
+/**
+ * 详情 → 来源卡片 sharedBounds：实时画面跟手缩小（一镜到底）。
+ * 实现收口到 [shouldUseVideoCardLiveReturnMorph]（[VideoCardReturnTimeline]）。
+ */
+internal fun shouldUseLiveReturnMorph(
+    transitionEnabled: Boolean,
+    sharedBoundsActive: Boolean,
+    keepLoadedContentForBackPreview: Boolean,
+    playbackIntent: VideoSharedTransitionPlaybackIntent,
+    detailContentReady: Boolean = true,
+    hasRenderableLiveFrame: Boolean = true,
+): Boolean = shouldUseVideoCardLiveReturnMorph(
+    transitionEnabled = transitionEnabled,
+    sharedBoundsActive = sharedBoundsActive,
+    keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
+    playbackIntent = playbackIntent,
+    detailContentReady = detailContentReady,
+    hasRenderableLiveFrame = hasRenderableLiveFrame,
+)
+
+/**
+ * 详情页下方推荐/简介等是否已可安全参与 live morph。
+ * Loading / 错误态仍可能画骨架或空壳，快速返回时不能当「实时组件」。
+ */
+internal fun shouldTreatVideoDetailContentReadyForLiveReturnMorph(
+    hasSuccessfulDetailContent: Boolean,
+): Boolean = hasSuccessfulDetailContent
+
+/**
+ * 是否把视觉主导权交给常驻封面（forceCover / 藏 surface）。
+ * live morph 时必须为 false，否则会出现「先切封面再缩小」。
+ * ownership 真相见 [resolveVideoCardReturnCoverOwnership]。
+ */
+internal fun shouldHandVisualOwnershipToResidentCover(
+    useReturningVisualState: Boolean,
+    hasResidentCover: Boolean,
+    liveReturnMorph: Boolean,
+): Boolean {
+    // 保持与 timeline 一致：live 时永不把视觉交给封面
+    if (liveReturnMorph) return false
+    return useReturningVisualState && hasResidentCover
+}
+
+/**
+ * 详情返回 ownership 表入口（供 StateHolder / 测试直接断言三条路径）。
+ */
+internal fun resolveVideoDetailReturnCoverOwnership(
+    transitionEnabled: Boolean,
+    sharedBoundsActive: Boolean,
+    keepLoadedContentForBackPreview: Boolean,
+    playbackIntent: VideoSharedTransitionPlaybackIntent,
+    detailContentReady: Boolean,
+    hasResidentCover: Boolean,
+    hasRenderableLiveFrame: Boolean = true,
+) = resolveVideoCardReturnCoverOwnership(
+    transitionEnabled = transitionEnabled,
+    sharedBoundsActive = sharedBoundsActive,
+    keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
+    playbackIntent = playbackIntent,
+    detailContentReady = detailContentReady,
+    hasResidentCover = hasResidentCover,
+    hasRenderableLiveFrame = hasRenderableLiveFrame,
+)
+
+internal fun isLiveReturnMorphFromOwnership(
+    ownership: com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership,
+): Boolean = isVideoCardLiveReturnMorphOwnership(ownership)
+
+internal fun shouldHandResidentCoverFromOwnership(
+    ownership: com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership,
+    useReturningVisualState: Boolean,
+    hasResidentCover: Boolean,
+): Boolean = shouldHandVisualOwnershipToResidentCoverForOwnership(
+    ownership = ownership,
+    useReturningVisualState = useReturningVisualState,
+    hasResidentCover = hasResidentCover,
+)
+
 internal fun resolveVideoDetailReturnCoverAlpha(
     transitionProgress: Float,
     isCommittedCardReturn: Boolean,
     hasResidentCover: Boolean,
+    liveReturnMorph: Boolean = false,
 ): Float {
+    // live morph：全程不抢封面，实时画面跟 shell 缩小；落位后由首页卡自身封面承接。
+    if (liveReturnMorph || !hasResidentCover) return 0f
     val progress = transitionProgress.coerceIn(0f, 1f)
-    return if (hasResidentCover && isCommittedCardReturn) 1f
-    else if (hasResidentCover) 1f - progress
-    else 0f
+    return if (isCommittedCardReturn) 1f else 1f - progress
 }
 
 internal fun resolveVideoDetailReturnPlayerAlpha(
     transitionProgress: Float,
     isCommittedCardReturn: Boolean,
     hasResidentCover: Boolean,
+    liveReturnMorph: Boolean = false,
 ): Float {
+    if (liveReturnMorph) return 1f
     if (isCommittedCardReturn) return if (hasResidentCover) 0f else 1f
     return transitionProgress.coerceIn(0f, 1f)
 }
@@ -59,7 +143,17 @@ internal fun resolveVideoDetailReturnContentAlpha(
     transitionProgress: Float,
     isCommittedCardReturn: Boolean,
     holdFullyOpaqueAfterBackPreview: Boolean = false,
+    liveReturnMorph: Boolean = false,
+    depthBlurProgress: Float? = null,
 ): Float {
+    // live morph：中段正文仍参与壳收缩；末段 settle 过 yield 点后淡出，给源卡标题/UP 让位。
+    // settle 与源卡 chrome 同源（transition + 景深取较晚），避免叠字。
+    if (liveReturnMorph) {
+        return resolveVideoCardLiveMorphSecondaryContentAlpha(
+            transitionProgress = transitionProgress,
+            depthBlurProgress = depthBlurProgress,
+        )
+    }
     if (isCommittedCardReturn) return 0f
     if (holdFullyOpaqueAfterBackPreview) return 1f
     return transitionProgress.coerceIn(0f, 1f)
@@ -203,6 +297,27 @@ internal fun resolveVideoDetailMotionSpec(
         contentRevealFadeDurationMillis = transitionEnterDurationMillis
             .coerceAtLeast(VIDEO_DETAIL_CONTENT_PHASE_MIN_DURATION_MILLIS)
     )
+}
+
+/**
+ * 相关推荐卡片的 shell sharedBounds 嵌在父详情壳内。
+ * 父壳若在子转场期间仍注册 sharedBounds，会嵌套劫持导致「点相关推荐没过渡」。
+ * 仅在「本页是相关来源宿主 + 共享过渡进行中」时临时摘掉父壳。
+ */
+internal fun shouldSuppressDetailShellSharedBoundsForRelatedChildTransition(
+    detailBvid: String,
+    lastClickedVideoSourceKey: String?,
+    isSharedTransitionActive: Boolean,
+): Boolean {
+    if (!isSharedTransitionActive) return false
+    val normalizedBvid = detailBvid.trim()
+    if (normalizedBvid.isEmpty()) return false
+    val hostRoute = lastClickedVideoSourceKey
+        ?.substringBefore(":")
+        ?.substringBefore("?")
+        ?.takeIf { it.isNotBlank() }
+        ?: return false
+    return hostRoute == "video/$normalizedBvid"
 }
 
 internal fun resolveVideoDetailRouteSheetMotion(

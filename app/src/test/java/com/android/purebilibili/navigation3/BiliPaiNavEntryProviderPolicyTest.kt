@@ -24,8 +24,8 @@ class BiliPaiNavEntryProviderPolicyTest {
         )
 
         assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.forward)
-        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.pop)
-        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.predictivePop)
+        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transitions.pop)
+        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transitions.predictivePop)
     }
 
     @Test
@@ -46,17 +46,17 @@ class BiliPaiNavEntryProviderPolicyTest {
     }
 
     @Test
-    fun subscribedFavoriteCollectionPopKeepsSharedElementRouteLayer() {
+    fun subscribedFavoriteCollectionPopUsesLightSiblingInsteadOfNoOp() {
         val transition = resolveBiliPaiNavEntryPopRouteTransition(
-            defaultTransition = BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT,
+            defaultTransition = BiliPaiNavRouteTransition.LIGHT_SIBLING_POP,
             fromRoute = "season_series_detail",
             toRoute = "main_host",
             cardTransitionEnabled = true,
-            sharedElementPopReady = true,
+            sharedElementPopReady = false,
             sourceMetadata = BiliPaiNavSourceMetadata()
         )
 
-        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transition)
+        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transition)
     }
 
     @Test
@@ -112,14 +112,15 @@ class BiliPaiNavEntryProviderPolicyTest {
     }
 
     @Test
-    fun relatedVideoDetailWithoutRecordedSourceFallsBackOnForward() {
+    fun relatedVideoDetailWithoutRecordedSourceStillUsesSharedElementRouteLayer() {
         val transitions = resolveBiliPaiNavEntryRouteTransitions(
             key = BiliPaiNavKey.VideoDetail(bvid = "BV_B", sourceRoute = "video/BV_A"),
             cardTransitionEnabled = true,
             sourceMetadata = BiliPaiNavSourceMetadata()
         )
 
-        assertEquals(BiliPaiNavRouteTransition.FALLBACK, transitions.forward)
+        // 相关推荐进场不再因 CardPositionManager 未对齐退化成 FALLBACK fade。
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.forward)
         assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.pop)
         assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.predictivePop)
     }

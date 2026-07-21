@@ -212,27 +212,44 @@ internal fun shouldAutoEnterPortraitFullscreenFromRoute(
     isCurrentRouteVideoLoaded: Boolean,
     isVerticalVideo: Boolean,
     isPortraitFullscreen: Boolean,
-    hasAutoEnteredPortraitFromRoute: Boolean
+    hasAutoEnteredPortraitFromRoute: Boolean,
+    initialVerticalFromRoute: Boolean = false,
+    directPortraitEntryFromRoute: Boolean = false,
 ): Boolean {
-    return autoEnterPortraitFromRoute &&
-        !startAudioFromRoute &&
-        portraitExperienceEnabled &&
-        !useOfficialInlinePortraitDetailExperience &&
-        allowStandalonePortraitAutoEnter &&
-        isCurrentRouteVideoLoaded &&
-        isVerticalVideo &&
-        !isPortraitFullscreen &&
-        !hasAutoEnteredPortraitFromRoute
+    if (
+        startAudioFromRoute ||
+        !portraitExperienceEnabled ||
+        !allowStandalonePortraitAutoEnter ||
+        !isCurrentRouteVideoLoaded ||
+        isPortraitFullscreen ||
+        hasAutoEnteredPortraitFromRoute
+    ) {
+        return false
+    }
+    // 「竖屏直达」详情壳放大路径：加载确认为竖屏后强制 standalone，不受内联详情拦截。
+    if (directPortraitEntryFromRoute) {
+        return isVerticalVideo || initialVerticalFromRoute
+    }
+    if (!autoEnterPortraitFromRoute) {
+        return false
+    }
+    val routeRequestsStandalonePortrait = initialVerticalFromRoute
+    // 手机竖视频默认走详情内联；但路由明确要求直达竖屏全屏时，仍进 standalone pager。
+    if (useOfficialInlinePortraitDetailExperience && !routeRequestsStandalonePortrait) {
+        return false
+    }
+    return isVerticalVideo || routeRequestsStandalonePortrait
 }
 
 internal fun shouldStartInPortraitFullscreenFromRouteHint(
     autoEnterPortraitFromRoute: Boolean,
     startAudioFromRoute: Boolean,
-    initialVerticalFromRoute: Boolean
+    initialVerticalFromRoute: Boolean,
+    directPortraitEntryFromRoute: Boolean = false,
 ): Boolean {
-    return autoEnterPortraitFromRoute &&
-        !startAudioFromRoute &&
-        initialVerticalFromRoute
+    if (startAudioFromRoute) return false
+    if (directPortraitEntryFromRoute) return true
+    return autoEnterPortraitFromRoute && initialVerticalFromRoute
 }
 
 internal fun shouldSyncMainPlayerToInternalBvid(

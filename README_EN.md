@@ -436,11 +436,11 @@ A lightweight plugin format requiring **no coding**, just a simple JSON file to 
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Latest (v9.9.8.4 · 2026-07-20)
+### Latest (v9.9.8.5 · 2026-07-20)
 
-- Follow-feed pull-to-refresh scrolls to top and reports truly new items; partition/category feeds gain refresh + page advance.
-- Dynamic blue `@` mentions open the UP space; cold start restores WBI keys earlier for faster home feed.
-- Stable DASH by default, video-detail layering/perf work, and adaptive UI / appearance segment polish.
+- Fixes miuix privacy/storage action rows, video tag search navigation, and UP-name navigation from search results.
+- Drawer blur now starts immediately while opening, using a reduced blur budget during motion.
+- Version metadata is updated to `9.9.8.5 / versionCode 260`.
 
 ---
 

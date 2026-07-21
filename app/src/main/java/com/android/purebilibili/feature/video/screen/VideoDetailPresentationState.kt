@@ -56,6 +56,10 @@ internal class VideoDetailPresentationState private constructor(
         navigatingToVideoState.value = true
     }
 
+    fun clearNavigatingToVideo() {
+        navigatingToVideoState.value = false
+    }
+
     fun markNavigatingToAudioMode() {
         navigatingToAudioModeState.value = true
     }
@@ -112,6 +116,8 @@ internal fun rememberVideoDetailPresentationState(
     initialPipMode: Boolean,
 ): VideoDetailPresentationState = rememberSaveable(
     routeBvid,
+    // 与路由直达竖屏意图一起作为 key，避免上次详情态把 isPortraitFullscreen=false 复写回来。
+    initialPortraitFullscreen,
     saver = VideoDetailPresentationState.Saver,
 ) {
     VideoDetailPresentationState.create(

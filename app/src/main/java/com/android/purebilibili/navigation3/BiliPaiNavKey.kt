@@ -260,7 +260,10 @@ internal sealed interface BiliPaiNavKey : NavKey {
         val seedBvid: String = "",
         val seedCid: Long = 0L,
         val seedCover: String = "",
-        val seedTitle: String = ""
+        val seedTitle: String = "",
+        val sourceRoute: String? = null,
+        /** 每次从卡片直达时刷新，避免 SaveableState 复用坏掉的播放器会话。 */
+        val openId: Long = 0L
     ) : BiliPaiNavKey {
         override val routeBase: String = "story"
     }
@@ -330,6 +333,8 @@ internal sealed interface BiliPaiNavKey : NavKey {
         val commentRootRpid: Long = 0L,
         val commentTargetRpid: Long = 0L,
         val initialVertical: Boolean = false,
+        /** 「竖屏直达」+ 卡片过渡：放大进详情壳后立刻进 standalone 竖屏全屏，不进内联详情。 */
+        val directPortraitEntry: Boolean = false,
         val sourceRoute: String? = null
     ) : BiliPaiNavKey {
         override val routeBase: String = "video"

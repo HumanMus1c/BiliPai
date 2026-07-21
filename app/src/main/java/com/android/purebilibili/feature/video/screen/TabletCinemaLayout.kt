@@ -63,6 +63,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -89,6 +90,7 @@ import coil.compose.AsyncImage
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
+import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.store.SettingsManager
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -111,6 +113,8 @@ import com.android.purebilibili.feature.video.ui.components.CollectionRow
 import com.android.purebilibili.feature.video.ui.components.CollectionSheet
 import com.android.purebilibili.feature.video.ui.components.PagesSelector
 import com.android.purebilibili.feature.video.ui.components.RelatedVideoItem
+import com.android.purebilibili.feature.video.ui.components.RelatedVideoGridRow
+import com.android.purebilibili.feature.video.ui.components.chunkRelatedVideosForHomeStyleGrid
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
 import com.android.purebilibili.feature.video.ui.components.VideoInlineSubReplyDetailContent
 import com.android.purebilibili.feature.video.ui.components.rememberVideoCommentAppearance
@@ -314,6 +318,7 @@ internal fun TabletCinemaLayout(
                         onOpenBilibiliLink = onOpenBilibiliLink,
                         onBgmClick = onBgmClick,
                         onRelatedVideoClick = onRelatedVideoClick,
+                        onSearchKeywordClick = onSearchKeywordClick,
                         onRetryAiSummary = playbackActions.retryAiSummary,
                         onCreateNoteDraftFromAiSummary = playbackActions.createVideoNoteDraftFromAiSummary,
                         onOpenVideoNoteEditor = playbackActions.openVideoNoteEditor,
@@ -543,6 +548,7 @@ private fun CinemaMetaPanel(
     onOpenBilibiliLink: ((String) -> Unit)?,
     onBgmClick: (BgmInfo) -> Unit = {},
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit = { _, _ -> },
+    onSearchKeywordClick: (String) -> Unit = {},
     onRetryAiSummary: () -> Unit,
     onCreateNoteDraftFromAiSummary: () -> Unit,
     onOpenVideoNoteEditor: () -> Unit,
@@ -715,6 +721,7 @@ private fun CinemaMetaPanel(
                             onOpenBilibiliLink = onOpenBilibiliLink,
                             onBgmClick = onBgmClick,
                             onRelatedVideoClick = onRelatedVideoClick,
+                            onSearchKeywordClick = onSearchKeywordClick,
                             onRetryAiSummary = onRetryAiSummary,
                             onCreateNoteDraftFromAiSummary = onCreateNoteDraftFromAiSummary,
                             onOpenVideoNoteEditor = onOpenVideoNoteEditor,
@@ -841,6 +848,7 @@ private fun CinemaVideoIntroSection(
     onBgmClick: (BgmInfo) -> Unit = {},
     onOpenBilibiliLink: ((String) -> Unit)? = null,
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit = { _, _ -> },
+    onSearchKeywordClick: (String) -> Unit = {},
     onRetryAiSummary: () -> Unit = {},
     onCreateNoteDraftFromAiSummary: () -> Unit = {},
     onOpenVideoNoteEditor: () -> Unit = {},
@@ -873,7 +881,8 @@ private fun CinemaVideoIntroSection(
                     bgmInfoList = success.bgmInfoList
                 ),
                 onBgmClick = onBgmClick,
-                onRelatedVideoClick = onRelatedVideoClick
+                onRelatedVideoClick = onRelatedVideoClick,
+                onTagClick = onSearchKeywordClick
             )
         }
         if (shouldShowAiSummaryEntry(
@@ -1351,36 +1360,42 @@ private fun CinemaRelatedPane(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
+        val relatedRows = chunkRelatedVideosForHomeStyleGrid(success.related)
         itemsIndexed(
-            items = success.related,
-            key = { index, item ->
+            items = relatedRows,
+            key = { rowIndex, row ->
+                val first = row.firstOrNull()
                 resolveIndexedVideoLazyKey(
-                    namespace = "cinema_related",
-                    index = index,
-                    bvid = item.bvid,
-                    aid = item.aid,
-                    cid = item.cid
+                    namespace = "cinema_related_row",
+                    index = rowIndex,
+                    bvid = first?.bvid.orEmpty(),
+                    aid = first?.aid ?: 0L,
+                    cid = first?.cid ?: 0L
                 )
             }
-        ) { _, video ->
-            RelatedVideoItem(
-                video = video,
-                isFollowed = video.owner.mid in success.followingMids,
-                transitionEnabled = LocalSharedTransitionEnabled.current,
-                showUpBadge = showUpBadge,
-                onClick = {
-                    val activity = (context as? Activity)
-                        ?: (context as? ContextWrapper)?.baseContext as? Activity
-                    val options = activity?.let {
-                        android.app.ActivityOptions.makeSceneTransitionAnimation(it).toBundle()
+        ) { _, row ->
+            CompositionLocalProvider(
+                LocalVideoCardSharedElementSourceRoute provides "video/${success.info.bvid}"
+            ) {
+                RelatedVideoGridRow(
+                    videos = row,
+                    followingMids = success.followingMids,
+                    transitionEnabled = LocalSharedTransitionEnabled.current,
+                    showUpBadge = showUpBadge,
+                    onVideoClick = { video ->
+                        val activity = (context as? Activity)
+                            ?: (context as? ContextWrapper)?.baseContext as? Activity
+                        val options = activity?.let {
+                            android.app.ActivityOptions.makeSceneTransitionAnimation(it).toBundle()
+                        }
+                        val navOptions = android.os.Bundle(options ?: android.os.Bundle.EMPTY)
+                        if (video.cid > 0L) {
+                            navOptions.putLong(VIDEO_NAV_TARGET_CID_KEY, video.cid)
+                        }
+                        onRelatedVideoClick(video.bvid, navOptions)
                     }
-                    val navOptions = android.os.Bundle(options ?: android.os.Bundle.EMPTY)
-                    if (video.cid > 0L) {
-                        navOptions.putLong(VIDEO_NAV_TARGET_CID_KEY, video.cid)
-                    }
-                    onRelatedVideoClick(video.bvid, navOptions)
-                }
-            )
+                )
+            }
         }
         if (success.related.isEmpty()) {
             item {

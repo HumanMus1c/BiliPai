@@ -169,6 +169,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.LocalPredictiveBackGestureEnabled
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
+import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
@@ -179,7 +180,9 @@ import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionP
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
+import com.android.purebilibili.core.ui.transition.shouldTreatLiveSurfaceRenderableForReturnMorph
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellContainerTransform
+import com.android.purebilibili.core.ui.transition.VideoCardShellSharedBoundsRole
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.ui.rememberAppCollectionIcon
@@ -242,6 +245,7 @@ internal fun VideoDetailScreenStateHolder(
     startAudioFromRoute: Boolean = false,
     autoEnterPortraitFromRoute: Boolean = false,
     initialVerticalFromRoute: Boolean = false,
+    directPortraitEntryFromRoute: Boolean = false,
     resumePositionMsFromRoute: Long = 0L,
     openCommentRootRpidFromRoute: Long = 0L,
     openCommentTargetRpidFromRoute: Long = 0L,
@@ -413,6 +417,7 @@ internal fun VideoDetailScreenStateHolder(
             autoEnterPortraitFromRoute = autoEnterPortraitFromRoute,
             startAudioFromRoute = startAudioFromRoute,
             initialVerticalFromRoute = initialVerticalFromRoute,
+            directPortraitEntryFromRoute = directPortraitEntryFromRoute,
         ),
         initialPipMode = isInPipMode,
     )
@@ -421,6 +426,26 @@ internal fun VideoDetailScreenStateHolder(
     var isNavigatingToMiniMode by presentationState.navigatingToMiniModeState
     var hasAutoEnteredAudioMode by rememberSaveable { mutableStateOf(false) }
     var hasAutoEnteredPortraitFromRoute by rememberSaveable(bvid) { mutableStateOf(false) }
+    // 路由要求直达竖屏全屏时，立刻盖过可能被 saveable 复写的详情态。
+    LaunchedEffect(
+        bvid,
+        autoEnterPortraitFromRoute,
+        initialVerticalFromRoute,
+        directPortraitEntryFromRoute,
+        startAudioFromRoute,
+    ) {
+        if (
+            shouldStartInPortraitFullscreenFromRouteHint(
+                autoEnterPortraitFromRoute = autoEnterPortraitFromRoute,
+                startAudioFromRoute = startAudioFromRoute,
+                initialVerticalFromRoute = initialVerticalFromRoute,
+                directPortraitEntryFromRoute = directPortraitEntryFromRoute,
+            )
+        ) {
+            presentationState.setPortraitFullscreen(true)
+            hasAutoEnteredPortraitFromRoute = true
+        }
+    }
     var hasHandledCommentRootFromRoute by rememberSaveable(
         bvid,
         openCommentRootRpidFromRoute,
@@ -520,7 +545,14 @@ internal fun VideoDetailScreenStateHolder(
         )
     }
 
-    val navigateToRelatedVideo = remember(onVideoClick, miniPlayerManager, uiState, currentBvid) {
+    val relatedNavigationScope = rememberCoroutineScope()
+    val navigateToRelatedVideo = remember(
+        onVideoClick,
+        miniPlayerManager,
+        uiState,
+        currentBvid,
+        relatedNavigationScope,
+    ) {
         { targetBvid: String, options: android.os.Bundle? ->
             val success = uiState as? VideoPlaybackUiState.Success
             val explicitCid = options?.getLong(VIDEO_NAV_TARGET_CID_KEY) ?: 0L
@@ -548,6 +580,7 @@ internal fun VideoDetailScreenStateHolder(
                     autoPlay = true
                 )
             } else {
+                // 先摘掉父详情壳 sharedBounds，再 push，避免相关卡嵌套在父壳内吃不到 morph。
                 presentationState.markNavigatingToVideo()
                 miniPlayerManager?.isNavigatingToVideo = true
                 markSecondaryNavigationLeave(expectedBvid = success?.info?.bvid ?: currentBvid)
@@ -555,7 +588,11 @@ internal fun VideoDetailScreenStateHolder(
                 if (resolvedCid > 0L) {
                     navOptions.putLong(VIDEO_NAV_TARGET_CID_KEY, resolvedCid)
                 }
-                onVideoClick(targetBvid, navOptions)
+                relatedNavigationScope.launch {
+                    androidx.compose.runtime.withFrameNanos { }
+                    onVideoClick(targetBvid, navOptions)
+                }
+                Unit
             }
         }
     }
@@ -930,7 +967,9 @@ internal fun VideoDetailScreenStateHolder(
     val window = remember { activity?.window }
     var entryRequestedOrientation by rememberSaveable {
         mutableIntStateOf(
-            activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            resolveVideoDetailEntryOrientationSnapshot(
+                currentRequestedOrientation = activity?.requestedOrientation
+            )
         )
     }
     val insetsController = remember {
@@ -975,6 +1014,7 @@ internal fun VideoDetailScreenStateHolder(
     var pendingTopBarActionRunnable by remember { mutableStateOf<Runnable?>(null) }
     var isActuallyLeaving by rememberSaveable(currentBvid) { mutableStateOf(false) }
     var forceCoverOnlyOnReturn by remember { mutableStateOf(false) }
+    var systemBarsReapplyGeneration by remember(currentBvid) { mutableIntStateOf(0) }
     val transitionState = rememberVideoDetailTransitionState(
         bvid = bvid,
         sourceRoute = sourceRouteForSharedElement,
@@ -996,19 +1036,44 @@ internal fun VideoDetailScreenStateHolder(
     val detailShellShape = remember(sharedTransitionSourceCornerDp) {
         RoundedCornerShape(sharedTransitionSourceCornerDp.dp)
     }
+    val isSharedTransitionActive = rootSharedTransitionScope?.isTransitionActive == true
+    val suppressDetailShellForRelatedChild = shouldSuppressDetailShellSharedBoundsForRelatedChildTransition(
+        detailBvid = bvid,
+        lastClickedVideoSourceKey = CardPositionManager.lastClickedVideoSourceKey,
+        isSharedTransitionActive = isSharedTransitionActive,
+    )
+    LaunchedEffect(isNavigatingToVideo, homeSharedTransitionMotionSpec.durationMillis) {
+        if (!isNavigatingToVideo) return@LaunchedEffect
+        // 进场 morph 结束后恢复父壳，避免长期禁用导致再回列表时丢 shell。
+        kotlinx.coroutines.delay(homeSharedTransitionMotionSpec.durationMillis.toLong() + 48L)
+        if (isNavigatingToVideo) {
+            presentationState.clearNavigatingToVideo()
+        }
+    }
     val detailShellModifier = Modifier.videoCardShellSharedBoundsOrEmpty(
-        enabled = detailShellSharedBoundsEnabled,
+        enabled = detailShellSharedBoundsEnabled &&
+            !isNavigatingToVideo &&
+            !suppressDetailShellForRelatedChild,
         sharedTransitionScope = rootSharedTransitionScope,
         animatedVisibilityScope = rootAnimatedVisibilityScope,
         bvid = bvid,
         sourceRoute = sourceRouteForSharedElement,
         motionSpec = homeSharedTransitionMotionSpec,
-        clipShape = detailShellShape
+        clipShape = detailShellShape,
+        role = VideoCardShellSharedBoundsRole.DetailShell,
+        // 竖屏全屏（点赞/关注/发弹幕那套）：整卡展开到全屏，不要按顶部横屏播放器 TopCenter 落点。
+        fillFullscreenShell = isPortraitFullscreen ||
+            shouldStartInPortraitFullscreenFromRouteHint(
+                autoEnterPortraitFromRoute = autoEnterPortraitFromRoute,
+                startAudioFromRoute = startAudioFromRoute,
+                initialVerticalFromRoute = initialVerticalFromRoute,
+                directPortraitEntryFromRoute = directPortraitEntryFromRoute,
+            ),
     )
     val coverTakeoverBeforeBackDelayMillis = remember {
         resolveCoverTakeoverDelayBeforeBackNavigationMillis()
     }
-    // 仅当详情页自身正在回收到来源卡片时让封面接管。详情页作为上层页面的
+    // 仅当详情页自身正在回收到来源卡片时进入离开态。详情页作为上层页面的
     // 直接返回目标时必须保留已加载的播放器与内容，避免预测返回预览变成封面占位。
     val isCardReturnExitInProgress = shouldTreatVideoDetailCardExitAsReturning(
         isExitTransitionInProgress = isExitTransitionInProgress,
@@ -1020,8 +1085,7 @@ internal fun VideoDetailScreenStateHolder(
         transitionEnabled = transitionEnabled,
         isCardReturnExitInProgress = isCardReturnExitInProgress
     )
-    // 提交返回 / session 已 mark 返回：叠已缓存封面并淡出 surface，但不 forceCoverOnly
-    //（保留 shell/player 容器参与 sharedBounds，避免 key 被拆掉）。
+    // 离开态：次要内容淡出等。ImmediatePlayback live morph 时不把视觉交给常驻封面。
     val useReturningVideoDetailVisualState = shouldUseReturningVideoDetailVisualState(
         forceCoverOnlyForReturn = forceCoverOnlyForReturn,
         isCardReturnExitInProgress = isCardReturnExitInProgress,
@@ -1031,8 +1095,10 @@ internal fun VideoDetailScreenStateHolder(
             !keepLoadedContentForBackPreview,
     )
     val hasResidentReturnCover = coverUrl.isNotBlank()
-    val useResidentCoverForCommittedReturn =
-        useReturningVideoDetailVisualState && hasResidentReturnCover
+    val detailContentReadyForLiveReturnMorph = shouldTreatVideoDetailContentReadyForLiveReturnMorph(
+        hasSuccessfulDetailContent = uiState is VideoPlaybackUiState.Success,
+    )
+    // liveReturnMorph / ownership 依赖 player 首帧，见 playerState 定义之后。
 
     val handleTopBarAction = remember(
         miniPlayerManager,
@@ -1072,16 +1138,48 @@ internal fun VideoDetailScreenStateHolder(
     }
 
     LaunchedEffect(isExitTransitionInProgress, isActuallyLeaving) {
-        if (!shouldRestoreSystemBarsDuringVideoDetailExitTransition(
+        if (shouldRestoreSystemBarsDuringVideoDetailExitTransition(
                 isExitTransitionInProgress = isExitTransitionInProgress,
                 isActuallyLeaving = isActuallyLeaving
             )
         ) {
+            isScreenActive = false
+            restoreStatusBar()
             return@LaunchedEffect
         }
+        if (
+            shouldReactivateVideoDetailSystemBarsAfterCancelledExit(
+                isExitTransitionInProgress = isExitTransitionInProgress,
+                isActuallyLeaving = isActuallyLeaving,
+                isScreenActive = isScreenActive,
+            )
+        ) {
+            isScreenActive = true
+            systemBarsReapplyGeneration += 1
+        }
+    }
 
-        isScreenActive = false
-        restoreStatusBar()
+    var wasKeepLoadedContentForBackPreview by remember(currentBvid) {
+        mutableStateOf(keepLoadedContentForBackPreview)
+    }
+    LaunchedEffect(keepLoadedContentForBackPreview, isActuallyLeaving) {
+        if (
+            shouldReapplyVideoDetailSystemBarsAfterBecomingTop(
+                wasKeepLoadedContentForBackPreview = wasKeepLoadedContentForBackPreview,
+                keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
+                isActuallyLeaving = isActuallyLeaving,
+            )
+        ) {
+            isScreenActive = true
+            systemBarsReapplyGeneration += 1
+        }
+        wasKeepLoadedContentForBackPreview = keepLoadedContentForBackPreview
+    }
+
+    LaunchedEffect(predictiveBackCancelRecoveryGeneration) {
+        if (predictiveBackCancelRecoveryGeneration <= 0) return@LaunchedEffect
+        isScreenActive = true
+        systemBarsReapplyGeneration += 1
     }
 
     LaunchedEffect(currentBvid) {
@@ -1314,6 +1412,31 @@ internal fun VideoDetailScreenStateHolder(
             player.removeListener(listener)
         }
     }
+    val playerDebugInfo by playerState.debugInfo.collectAsStateWithLifecycle()
+    val hasRenderedFirstFrameForReturn = remember(playerDebugInfo.firstFrame) {
+        playerDebugInfo.firstFrame.equals("rendered", ignoreCase = true)
+    }
+    // 全量 Success 但无首帧 / 强制封面 UI 时禁止 LIVE，避免黑壳缩回。
+    val hasRenderableLiveFrameForReturn = shouldTreatLiveSurfaceRenderableForReturnMorph(
+        hasRenderedFirstFrame = hasRenderedFirstFrameForReturn,
+        forceCoverUi = forceCoverOnlyForReturn,
+    )
+    val returnCoverOwnership = resolveVideoDetailReturnCoverOwnership(
+        transitionEnabled = transitionEnabled,
+        sharedBoundsActive = sharedBoundsActive,
+        keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
+        playbackIntent = videoSharedPlaybackIntent,
+        detailContentReady = detailContentReadyForLiveReturnMorph,
+        hasResidentCover = hasResidentReturnCover,
+        hasRenderableLiveFrame = hasRenderableLiveFrameForReturn,
+    )
+    val liveReturnMorph = isLiveReturnMorphFromOwnership(returnCoverOwnership)
+    val useResidentCoverForCommittedReturn = shouldHandResidentCoverFromOwnership(
+        ownership = returnCoverOwnership,
+        useReturningVisualState = useReturningVideoDetailVisualState,
+        hasResidentCover = hasResidentReturnCover,
+    )
+    val videoCardDepthBackgroundState = LocalVideoCardTransitionBackgroundState.current
     val routedCommentInteractionActive =
         openCommentRootRpidFromRoute > 0L &&
             (subReplyState.visible || subReplyState.isLoading)
@@ -1683,7 +1806,9 @@ internal fun VideoDetailScreenStateHolder(
         isCurrentRouteVideoLoaded,
         isVerticalVideo,
         isPortraitFullscreen,
-        hasAutoEnteredPortraitFromRoute
+        hasAutoEnteredPortraitFromRoute,
+        initialVerticalFromRoute,
+        directPortraitEntryFromRoute,
     ) {
         if (
             shouldAutoEnterPortraitFullscreenFromRoute(
@@ -1696,7 +1821,9 @@ internal fun VideoDetailScreenStateHolder(
                 isCurrentRouteVideoLoaded = isCurrentRouteVideoLoaded,
                 isVerticalVideo = isVerticalVideo,
                 isPortraitFullscreen = isPortraitFullscreen,
-                hasAutoEnteredPortraitFromRoute = hasAutoEnteredPortraitFromRoute
+                hasAutoEnteredPortraitFromRoute = hasAutoEnteredPortraitFromRoute,
+                initialVerticalFromRoute = initialVerticalFromRoute,
+                directPortraitEntryFromRoute = directPortraitEntryFromRoute,
             )
         ) {
             enterPortraitFullscreen()
@@ -2049,6 +2176,7 @@ internal fun VideoDetailScreenStateHolder(
         insetsController = insetsController,
         isScreenActive = isScreenActive,
         spec = systemBarsApplySpec,
+        reapplyGeneration = systemBarsReapplyGeneration,
     )
 
     val uiSuccessState = uiState as? VideoPlaybackUiState.Success
@@ -2649,7 +2777,8 @@ internal fun VideoDetailScreenStateHolder(
                                     videoPlayerBounds = nextBounds
                                 }
                         ) {
-                            // 前台常驻封面叠层，返回时只改 alpha，避免临时解码/淡入打断共享元素动画。
+                            // 常驻封面叠层：CoverFirst / 非 live morph 时改 alpha；
+                            // ImmediatePlayback live morph 保持 cover=0、player=1 一镜到底。
                             if (residentCoverImageRequest != null) {
                                 AsyncImage(
                                     model = residentCoverImageRequest,
@@ -2661,6 +2790,7 @@ internal fun VideoDetailScreenStateHolder(
                                                 transitionProgress = detailTransitionProgress.value,
                                                 isCommittedCardReturn = isLeaving,
                                                 hasResidentCover = hasResidentReturnCover,
+                                                liveReturnMorph = liveReturnMorph,
                                             )
                                         },
                                     contentScale = ContentScale.Crop
@@ -2675,6 +2805,7 @@ internal fun VideoDetailScreenStateHolder(
                                             transitionProgress = detailTransitionProgress.value,
                                             isCommittedCardReturn = isLeaving,
                                             hasResidentCover = hasResidentReturnCover,
+                                            liveReturnMorph = liveReturnMorph,
                                         )
                                     }
                             ) {
@@ -2752,6 +2883,9 @@ internal fun VideoDetailScreenStateHolder(
                                         isCommittedCardReturn = isLeaving,
                                         holdFullyOpaqueAfterBackPreview =
                                             suppressEnterFadeAfterBackPreview && !isLeaving,
+                                        liveReturnMorph = liveReturnMorph,
+                                        depthBlurProgress =
+                                            videoCardDepthBackgroundState.progressProvider(),
                                     )
                                 }
                                 // .nestedScroll(nestedScrollConnection) // [Remove] 移除嵌套滚动，确保 Tabs 正常滑动
@@ -2838,6 +2972,7 @@ internal fun VideoDetailScreenStateHolder(
                                         navigateToUserSpaceFromVideo = navigateToUserSpaceFromVideo,
                                         navigateToRelatedVideo = navigateToRelatedVideo,
                                         openCommentUrl = openCommentUrl,
+                                        onSearchKeywordClick = navigateToSearchKeywordFromVideo,
                                         onOpenBilibiliLink = onOpenBilibiliLink,
                                         onShareVideo = { payload -> pendingVideoShare = payload },
                                         externalPlaylistQueueTitle = externalPlaylistQueueTitle,
@@ -2946,6 +3081,7 @@ internal fun VideoDetailScreenStateHolder(
             motionSpec = portraitPagerMotionSpec,
             initialBvidOverride = pendingMainReloadBvidAfterPortrait,
             initialStartPositionMs = portraitSyncSnapshotPositionMs,
+            entryCoverUrl = coverUrl,
             playbackViewModel = viewModel,
             engagementViewModel = engagementViewModel,
             sharedPlayer = if (useSharedPortraitPlayer) playerState.player else null,

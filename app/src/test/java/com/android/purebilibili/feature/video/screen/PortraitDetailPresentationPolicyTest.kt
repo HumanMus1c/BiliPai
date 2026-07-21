@@ -430,4 +430,29 @@ class PortraitDetailPresentationPolicyTest {
         assertTrue(shouldAnimateStandalonePortraitPager(useSharedPlayer = true))
         assertTrue(shouldAnimateStandalonePortraitPager(useSharedPlayer = false))
     }
+
+    @Test
+    fun portraitEntryCoverPlaceholder_showsWhilePagerWaitingForSuccess() {
+        assertTrue(
+            shouldShowPortraitEntryCoverPlaceholder(
+                showPortraitFullscreen = true,
+                hasPlayableSuccess = false,
+                entryCoverUrl = "https://example.com/cover.jpg",
+            )
+        )
+        assertFalse(
+            shouldShowPortraitEntryCoverPlaceholder(
+                showPortraitFullscreen = true,
+                hasPlayableSuccess = true,
+                entryCoverUrl = "https://example.com/cover.jpg",
+            )
+        )
+        assertFalse(
+            shouldShowPortraitEntryCoverPlaceholder(
+                showPortraitFullscreen = true,
+                hasPlayableSuccess = false,
+                entryCoverUrl = "",
+            )
+        )
+    }
 }
