@@ -134,6 +134,59 @@ internal fun resolvePortraitPagePlaybackIdentity(item: Any): PortraitPagePlaybac
     }
 }
 
+/**
+ * Story / 竖屏直达 seeds often only carry bvid+cover (no owner). After playurl bootstrap
+ * succeeds, merge owner/title/pic from [loaded] so the chrome can render `@UP名`.
+ */
+internal fun enrichPortraitPageItemWithLoadedInfo(
+    existing: Any,
+    loaded: ViewInfo
+): Any {
+    return when (existing) {
+        is ViewInfo -> existing.copy(
+            aid = loaded.aid.takeIf { it > 0L } ?: existing.aid,
+            cid = loaded.cid.takeIf { it > 0L } ?: existing.cid,
+            title = loaded.title.ifBlank { existing.title },
+            pic = loaded.pic.ifBlank { existing.pic },
+            owner = if (loaded.owner.name.isNotBlank() || loaded.owner.mid > 0L) {
+                loaded.owner
+            } else {
+                existing.owner
+            },
+            stat = if (loaded.stat.view > 0 || loaded.stat.like > 0) loaded.stat else existing.stat,
+            pages = loaded.pages.ifEmpty { existing.pages },
+            dimension = loaded.dimension ?: existing.dimension,
+            ugc_season = loaded.ugc_season ?: existing.ugc_season
+        )
+        is RelatedVideo -> existing.copy(
+            aid = loaded.aid.takeIf { it > 0L } ?: existing.aid,
+            cid = loaded.cid.takeIf { it > 0L } ?: existing.cid,
+            title = loaded.title.ifBlank { existing.title },
+            pic = loaded.pic.ifBlank { existing.pic },
+            owner = if (loaded.owner.name.isNotBlank() || loaded.owner.mid > 0L) {
+                loaded.owner
+            } else {
+                existing.owner
+            },
+            stat = if (loaded.stat.view > 0 || loaded.stat.like > 0) loaded.stat else existing.stat,
+            duration = loaded.pages.firstOrNull()?.duration?.toInt()?.takeIf { it > 0 }
+                ?: existing.duration
+        )
+        else -> existing
+    }
+}
+
+/** Overlay label: never show a bare `@` when seed/owner is still empty. */
+internal fun resolvePortraitAuthorDisplayName(authorName: String): String {
+    val trimmed = authorName.trim()
+    return if (trimmed.isEmpty()) "UP主" else trimmed
+}
+
+internal fun resolvePortraitAuthorLabel(authorName: String): String {
+    val display = resolvePortraitAuthorDisplayName(authorName)
+    return if (display == "UP主") display else "@$display"
+}
+
 internal fun resolvePortraitPlaybackStreamUrls(
     playData: PlayUrlData,
     targetQuality: Int = PORTRAIT_PLAYBACK_TARGET_QUALITY,

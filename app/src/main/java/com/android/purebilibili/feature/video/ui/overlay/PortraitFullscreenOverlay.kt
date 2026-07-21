@@ -647,9 +647,9 @@ private fun PortraitVideoInfo(
                 Spacer(modifier = Modifier.width(layoutPolicy.avatarNameSpacingDp.dp))
             }
             
-            // 名字
+            // 名字（seed 未带 owner 时勿只渲染裸 `@`）
             Text(
-                text = "@$authorName",
+                text = com.android.purebilibili.feature.video.ui.pager.resolvePortraitAuthorLabel(authorName),
                 color = Color.White,
                 fontSize = layoutPolicy.authorNameFontSp.sp,
                 fontWeight = FontWeight.SemiBold,

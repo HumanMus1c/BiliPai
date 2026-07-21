@@ -56,6 +56,32 @@ class VideoLoadPolicyTest {
     }
 
     @Test
+    fun `resolveInitialStartQuality prefers faster mobile start for auto highest`() {
+        assertEquals(
+            112,
+            resolveInitialStartQuality(
+                targetQuality = 127,
+                isAutoHighestQuality = true,
+                isLogin = true,
+                isVip = true,
+                auto1080pEnabled = true,
+                preferFastStartOnMobile = true
+            )
+        )
+        assertEquals(
+            64,
+            resolveInitialStartQuality(
+                targetQuality = 127,
+                isAutoHighestQuality = true,
+                isLogin = true,
+                isVip = false,
+                auto1080pEnabled = true,
+                preferFastStartOnMobile = true
+            )
+        )
+    }
+
+    @Test
     fun `resolveInitialStartQuality respects explicit low preference`() {
         val quality = resolveInitialStartQuality(
             targetQuality = 32,
@@ -82,11 +108,11 @@ class VideoLoadPolicyTest {
     }
 
     @Test
-    fun `shouldSkipPlayUrlCache only skips auto highest when vip`() {
+    fun `shouldSkipPlayUrlCache only skips non default audio language`() {
         assertFalse(
             shouldSkipPlayUrlCache(
                 isAutoHighestQuality = true,
-                isVip = false,
+                isVip = true,
                 audioLang = null
             )
         )
@@ -94,7 +120,32 @@ class VideoLoadPolicyTest {
             shouldSkipPlayUrlCache(
                 isAutoHighestQuality = true,
                 isVip = true,
-                audioLang = null
+                audioLang = "ai-zh"
+            )
+        )
+    }
+
+    @Test
+    fun `shouldAcceptCachedPlayUrlForAutoHighest requires premium dash for vip`() {
+        assertTrue(
+            shouldAcceptCachedPlayUrlForAutoHighest(
+                isAutoHighestQuality = true,
+                isVip = true,
+                cachedDashVideoIds = listOf(120, 80)
+            )
+        )
+        assertFalse(
+            shouldAcceptCachedPlayUrlForAutoHighest(
+                isAutoHighestQuality = true,
+                isVip = true,
+                cachedDashVideoIds = listOf(80, 64)
+            )
+        )
+        assertTrue(
+            shouldAcceptCachedPlayUrlForAutoHighest(
+                isAutoHighestQuality = true,
+                isVip = false,
+                cachedDashVideoIds = listOf(64)
             )
         )
     }

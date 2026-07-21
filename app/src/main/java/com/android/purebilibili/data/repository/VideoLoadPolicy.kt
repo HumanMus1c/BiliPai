@@ -63,12 +63,20 @@ internal fun resolveInitialStartQuality(
     isAutoHighestQuality: Boolean,
     isLogin: Boolean,
     isVip: Boolean,
-    auto1080pEnabled: Boolean
+    auto1080pEnabled: Boolean,
+    /**
+     * Cellular / constrained network: prefer a slightly lower first hop so the first
+     * frame arrives sooner; Wi‑Fi keeps the premium first request.
+     */
+    preferFastStartOnMobile: Boolean = false
 ): Int {
     return when {
-        // VIP auto-highest must request HDR-capable qn first; bilibili often omits
-        // 125 tracks when the first playurl call only asks for 4K (120).
+        // VIP auto-highest must request HDR-capable qn first on Wi‑Fi; bilibili often
+        // omits 125 tracks when the first playurl call only asks for 4K (120).
+        // On mobile, start at 1080P+ for faster TTFF; UI can still switch up later.
+        isAutoHighestQuality && isVip && preferFastStartOnMobile -> 112
         isAutoHighestQuality && isVip -> 125
+        isAutoHighestQuality && isLogin && preferFastStartOnMobile -> 64
         isAutoHighestQuality && isLogin -> 80
         isAutoHighestQuality -> 64
         targetQuality != null -> targetQuality
@@ -91,7 +99,24 @@ internal fun shouldSkipPlayUrlCache(
     isVip: Boolean,
     audioLang: String?
 ): Boolean {
-    return audioLang != null || (isAutoHighestQuality && isVip)
+    // Language-specific streams must not reuse the default-language cache entry.
+    // VIP auto-highest used to always skip cache and hurt re-open TTFF; accept cache
+    // when [shouldAcceptCachedPlayUrlForAutoHighest] says the payload is good enough.
+    return audioLang != null
+}
+
+/**
+ * VIP auto-highest can reuse a cached playurl when it already contains a premium track.
+ * Thin/low-quality cache entries are ignored so we still re-negotiate high quality.
+ */
+internal fun shouldAcceptCachedPlayUrlForAutoHighest(
+    isAutoHighestQuality: Boolean,
+    isVip: Boolean,
+    cachedDashVideoIds: List<Int>,
+    minPremiumQuality: Int = 112
+): Boolean {
+    if (!isAutoHighestQuality || !isVip) return true
+    return cachedDashVideoIds.any { it >= minPremiumQuality }
 }
 
 /**

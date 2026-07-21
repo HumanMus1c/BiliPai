@@ -954,6 +954,13 @@ fun PortraitVideoPager(
                             identity?.bvid == bvid &&
                                 (requestedCid <= 0L || identity.cid == requestedCid || identity.cid <= 0L)
                         }.takeIf { it >= 0 } ?: pagerState.currentPage
+                        // Story / 竖屏直达 seed 常无 owner；用详情回填，避免只显示 `@`
+                        pageItems.getOrNull(currentPageIndex)?.let { existing ->
+                            pageItems[currentPageIndex] = enrichPortraitPageItemWithLoadedInfo(
+                                existing = existing,
+                                loaded = info
+                            )
+                        }
                         val followUps = resolvePortraitCollectionFollowUps(
                             info = info,
                             currentCid = resolvedCid

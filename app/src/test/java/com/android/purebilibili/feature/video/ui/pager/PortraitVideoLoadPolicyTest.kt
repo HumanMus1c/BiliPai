@@ -4,16 +4,47 @@ import com.android.purebilibili.data.model.response.Dash
 import com.android.purebilibili.data.model.response.DashAudio
 import com.android.purebilibili.data.model.response.DashVideo
 import com.android.purebilibili.data.model.response.Durl
+import com.android.purebilibili.data.model.response.Owner
 import com.android.purebilibili.data.model.response.PlayUrlData
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.model.response.ViewInfo
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PortraitVideoLoadPolicyTest {
+
+    @Test
+    fun enrichPortraitPageItemWithLoadedInfo_fillsOwnerFromDetail() {
+        val seed = ViewInfo(bvid = "BV1", title = "seed", pic = "cover")
+        val loaded = ViewInfo(
+            bvid = "BV1",
+            aid = 99L,
+            cid = 12L,
+            title = "正式标题",
+            pic = "https://i0.hdslb.com/bfs/cover.jpg",
+            owner = Owner(mid = 42L, name = "熊猫大G", face = "https://face")
+        )
+
+        val enriched = assertIs<ViewInfo>(
+            enrichPortraitPageItemWithLoadedInfo(existing = seed, loaded = loaded)
+        )
+        assertEquals("熊猫大G", enriched.owner.name)
+        assertEquals(42L, enriched.owner.mid)
+        assertEquals("正式标题", enriched.title)
+        assertEquals(99L, enriched.aid)
+        assertEquals(12L, enriched.cid)
+    }
+
+    @Test
+    fun resolvePortraitAuthorLabel_avoidsBareAtWhenNameMissing() {
+        assertEquals("UP主", resolvePortraitAuthorLabel(""))
+        assertEquals("UP主", resolvePortraitAuthorLabel("   "))
+        assertEquals("@熊猫大G", resolvePortraitAuthorLabel("熊猫大G"))
+    }
 
     @Test
     fun playbackTargetQuality_prefersUserSettingOverFallback() {
