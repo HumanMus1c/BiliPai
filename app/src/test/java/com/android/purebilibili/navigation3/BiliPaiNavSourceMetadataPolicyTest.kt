@@ -95,4 +95,44 @@ class BiliPaiNavSourceMetadataPolicyTest {
             )
         )
     }
+
+    @Test
+    fun effectiveDirection_prefersLiveThenSession() {
+        assertEquals(
+            BiliPaiNavCardSourceDirection.SOURCE_LEFT,
+            resolveEffectiveCardSourceDirection(
+                liveDirection = BiliPaiNavCardSourceDirection.SOURCE_LEFT,
+                sessionDirection = BiliPaiNavCardSourceDirection.SOURCE_RIGHT
+            )
+        )
+        assertEquals(
+            BiliPaiNavCardSourceDirection.SOURCE_RIGHT,
+            resolveEffectiveCardSourceDirection(
+                liveDirection = BiliPaiNavCardSourceDirection.NONE,
+                sessionDirection = BiliPaiNavCardSourceDirection.SOURCE_RIGHT
+            )
+        )
+    }
+
+    @Test
+    fun videoSourceKeysCompatible_matchesBvidSuffixAcrossCategoryKeys() {
+        assertTrue(
+            areVideoSourceKeysCompatible(
+                cardKey = "home?category=POPULAR:BV1xx",
+                sessionKey = "home:BV1xx"
+            )
+        )
+        assertTrue(
+            areVideoSourceKeysCompatible(
+                cardKey = "home:BV1xx",
+                sessionKey = "home:BV1xx"
+            )
+        )
+        assertFalse(
+            areVideoSourceKeysCompatible(
+                cardKey = "home:BV1",
+                sessionKey = "home:BV2"
+            )
+        )
+    }
 }

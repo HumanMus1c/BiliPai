@@ -17,10 +17,11 @@ import com.android.purebilibili.core.ui.motion.resolveSettingsIosPushPopContentT
 import com.android.purebilibili.navigation.resolveBottomPagerNavigationDurationMillis
 
 private const val NAV3_FALLBACK_FADE_MILLIS = 180
-private const val NAV3_DISABLED_VIDEO_DIRECTION_MILLIS = 220
-private const val NAV3_DISABLED_VIDEO_RETURN_MILLIS = 220
+// Slightly longer so card-disabled enter/exit never reads as a hard cut.
+private const val NAV3_DISABLED_VIDEO_DIRECTION_MILLIS = 280
+private const val NAV3_DISABLED_VIDEO_RETURN_MILLIS = 260
 private const val NAV3_SPACE_FORWARD_MILLIS = 220
-private const val NAV3_LIGHT_SIBLING_MILLIS = 220
+private const val NAV3_LIGHT_SIBLING_MILLIS = 240
 private val NAV3_BOTTOM_BAR_SIBLING_MILLIS =
     resolveBottomPagerNavigationDurationMillis(pageDistance = 1)
 internal fun resolveBiliPaiNavContentTransform(
@@ -81,8 +82,8 @@ private fun disabledVideoDirectionForwardTransform(directionSign: Int): ContentT
                 NAV3_DISABLED_VIDEO_DIRECTION_MILLIS,
                 easing = AppMotionEasing.EmphasizedEnter
             ),
-            // Full-width entrance so left/right origin is obvious when morph is off.
-            initialOffsetX = { width -> directionSign * width }
+            // ~85% width keeps origin readable without a jarring full wipe.
+            initialOffsetX = { width -> (directionSign * width * 0.85f).toInt() }
         ) + fadeIn(
             animationSpec = tween(
                 NAV3_DISABLED_VIDEO_DIRECTION_MILLIS,
@@ -96,7 +97,7 @@ private fun disabledVideoDirectionForwardTransform(directionSign: Int): ContentT
                 easing = AppMotionEasing.EmphasizedExit
             ),
             // Opposite nudge for the list page under the detail.
-            targetOffsetX = { width -> -directionSign * width / 6 }
+            targetOffsetX = { width -> (-directionSign * width * 0.18f).toInt() }
         ) + fadeOut(animationSpec = tween(NAV3_DISABLED_VIDEO_DIRECTION_MILLIS))
     )
 }
@@ -159,7 +160,7 @@ private fun disabledVideoDirectionReturnTransform(directionSign: Int): ContentTr
                 durationMillis = NAV3_DISABLED_VIDEO_RETURN_MILLIS,
                 easing = AppMotionEasing.EmphasizedEnter
             ),
-            initialOffsetX = { width -> -directionSign * width / 6 }
+            initialOffsetX = { width -> (-directionSign * width * 0.18f).toInt() }
         ) + fadeIn(
             animationSpec = tween(
                 durationMillis = NAV3_DISABLED_VIDEO_RETURN_MILLIS,
@@ -172,7 +173,8 @@ private fun disabledVideoDirectionReturnTransform(directionSign: Int): ContentTr
                 durationMillis = NAV3_DISABLED_VIDEO_RETURN_MILLIS,
                 easing = AppMotionEasing.EmphasizedExit
             ),
-            targetOffsetX = { width -> directionSign * width }
+            // Exit fully toward the card column (left card → left, right card → right).
+            targetOffsetX = { width -> (directionSign * width * 0.9f).toInt() }
         ) + fadeOut(
             animationSpec = tween(
                 durationMillis = NAV3_DISABLED_VIDEO_RETURN_MILLIS,

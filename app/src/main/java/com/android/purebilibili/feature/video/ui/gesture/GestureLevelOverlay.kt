@@ -31,8 +31,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,7 +49,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
 import com.android.purebilibili.core.theme.LocalUiPreset
+import com.android.purebilibili.core.util.HapticType
+import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.feature.video.ui.components.AnimatedGesturePercentText
+import com.android.purebilibili.feature.video.ui.components.shouldTriggerGesturePercentHaptic
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import com.android.purebilibili.feature.video.ui.section.resolveVideoGestureMotionSpec
 import kotlin.math.roundToInt
@@ -81,6 +87,11 @@ fun BoxScope.GestureLevelOverlayHost(
     )
     val icon = resolveGestureLevelIcon(style = style, kind = kind, percent = percent)
     val percentInt = (percent.coerceIn(0f, 1f) * 100f).roundToInt().coerceIn(0, 100)
+    GestureLevelStepHaptics(
+        style = style,
+        percent = percentInt,
+        active = visible
+    )
 
     AnimatedVisibility(
         visible = visible,
@@ -236,7 +247,9 @@ private fun IosGestureLevelCapsule(
                 color = spec.textColor,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                label = "ios-gesture-level-percent"
+                label = "ios-gesture-level-percent",
+                // Host-level GestureLevelStepHaptics already ticks for all themes.
+                enableHaptic = false
             )
             Box(
                 modifier = Modifier
@@ -359,6 +372,47 @@ private fun GestureLevelIconSlot(
     }
 }
 
+/**
+ * Stepped haptics for all three skins while dragging volume / brightness.
+ * MD3 & iOS: every 5%. MIUIX: every ~7% (closer to system stream steps).
+ */
+@Composable
+private fun GestureLevelStepHaptics(
+    style: GestureLevelOverlayStyle,
+    percent: Int,
+    active: Boolean
+) {
+    val haptic = rememberHapticFeedback()
+    var previousPercent by remember { mutableIntStateOf(percent) }
+    val stepPercent = when (style) {
+        GestureLevelOverlayStyle.Miuix -> 7
+        GestureLevelOverlayStyle.Md3 -> 5
+        GestureLevelOverlayStyle.Ios -> 5
+    }
+    LaunchedEffect(active, percent, style) {
+        if (!active) {
+            previousPercent = percent
+            return@LaunchedEffect
+        }
+        if (
+            shouldTriggerGesturePercentHaptic(
+                previousPercent = previousPercent,
+                currentPercent = percent,
+                stepPercent = stepPercent
+            )
+        ) {
+            haptic(
+                when (style) {
+                    GestureLevelOverlayStyle.Miuix -> HapticType.LIGHT
+                    GestureLevelOverlayStyle.Md3 -> HapticType.SELECTION
+                    GestureLevelOverlayStyle.Ios -> HapticType.SELECTION
+                }
+            )
+        }
+        previousPercent = percent
+    }
+}
+
 /** Convenience for non-BoxScope hosts (fullscreen / bangumi / offline). */
 @Composable
 fun GestureLevelOverlayContent(
@@ -379,6 +433,11 @@ fun GestureLevelOverlayContent(
     )
     val icon = resolveGestureLevelIcon(style = style, kind = kind, percent = percent)
     val percentInt = (percent.coerceIn(0f, 1f) * 100f).roundToInt().coerceIn(0, 100)
+    GestureLevelStepHaptics(
+        style = style,
+        percent = percentInt,
+        active = true
+    )
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         when (style) {

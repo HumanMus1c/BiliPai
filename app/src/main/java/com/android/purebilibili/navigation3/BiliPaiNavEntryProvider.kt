@@ -324,10 +324,10 @@ internal fun resolveBiliPaiNavEntryRouteTransitions(
     val recordedMatchingVideoSource = isSharedReadyCardMorphPush(key, sourceMetadata)
     val sharedReadyVideoPush = recordedMatchingVideoSource &&
         sourceMetadata.sharedTransitionEntryReady
-    // Card-disabled directional enter only needs recorded bounds + left/right origin.
-    // Do not require full visibility under top chrome, otherwise left/right slides never fire.
-    val directionalVideoPushReady = recordedMatchingVideoSource &&
-        sourceMetadata.sharedTransitionEntryReady &&
+    // Card-disabled directional motion: any VideoDetail with a known left/right origin.
+    // Do NOT require strict shared-element key matching — that caused hard-cut enter and
+    // always-right exit when home?category keys diverged from session keys.
+    val directionalVideoPushReady = key is BiliPaiNavKey.VideoDetail &&
         sourceMetadata.cardSourceDirection != BiliPaiNavCardSourceDirection.NONE
     val sharedReadyFavoriteCollection =
         key is BiliPaiNavKey.SeasonSeriesDetail && key.sharedElementTransition
@@ -342,7 +342,10 @@ internal fun resolveBiliPaiNavEntryRouteTransitions(
             BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         !cardTransitionEnabled && directionalVideoPushReady ->
             resolveCardDisabledVideoForwardTransition(sourceMetadata.cardSourceDirection)
-                ?: BiliPaiNavRouteTransition.FALLBACK
+                ?: BiliPaiNavRouteTransition.LIGHT_SIBLING_FORWARD
+        !cardTransitionEnabled && key is BiliPaiNavKey.VideoDetail ->
+            // No left/right origin: soft sibling push, never 180ms hard-cut fade.
+            BiliPaiNavRouteTransition.LIGHT_SIBLING_FORWARD
         else -> BiliPaiNavRouteTransition.FALLBACK
     }
     val pop = when {
@@ -354,6 +357,8 @@ internal fun resolveBiliPaiNavEntryRouteTransitions(
         // 关闭整卡过渡时，把方向化 pop 写进 entry metadata 默认值，避免仅依赖 pop 路径解析。
         !cardTransitionEnabled && directionalVideoPushReady ->
             resolveCardDisabledReturnTransition(sourceMetadata.cardSourceDirection)
+        !cardTransitionEnabled && key is BiliPaiNavKey.VideoDetail ->
+            BiliPaiNavRouteTransition.LIGHT_SIBLING_POP
         else -> BiliPaiNavRouteTransition.FALLBACK
     }
     return BiliPaiNavEntryRouteTransitions(

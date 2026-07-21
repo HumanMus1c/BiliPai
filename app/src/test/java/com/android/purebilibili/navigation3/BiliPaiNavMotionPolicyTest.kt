@@ -289,7 +289,7 @@ class BiliPaiNavMotionPolicyTest {
     }
 
     @Test
-    fun navDisplayPop_disabledSharedTransition_noDirectionFallsBackToRight() {
+    fun navDisplayPop_disabledSharedTransition_noDirectionUsesSoftSiblingPop() {
         val transition = resolveBiliPaiNavDisplayPopRouteTransition(
             cardTransitionEnabled = false,
             sourceMetadata = BiliPaiNavSourceMetadata(
@@ -303,13 +303,14 @@ class BiliPaiNavMotionPolicyTest {
             toKey = BiliPaiNavKey.Home
         )
 
-        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT, transition)
+        // Unknown origin should not force right-half exit.
+        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transition)
     }
 
     @Test
-    fun navDisplayPop_disabledSharedTransition_scrolledOutCardStillSlidesHorizontally() {
+    fun navDisplayPop_disabledSharedTransition_scrolledOutCardUsesSoftSiblingPop() {
         // 详情中分 P 切换导致卡片滚出视口 → cardFullyVisible=false，没有源方向。
-        // 期望仍走方向化退出（兜底右侧），而不是退化为 fade。
+        // 用 soft sibling pop，而不是强制右半屏滑出或硬切 fade。
         val transition = resolveBiliPaiNavDisplayPopRouteTransition(
             cardTransitionEnabled = false,
             sourceMetadata = BiliPaiNavSourceMetadata(
@@ -323,11 +324,11 @@ class BiliPaiNavMotionPolicyTest {
             toKey = BiliPaiNavKey.Home
         )
 
-        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT, transition)
+        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transition)
     }
 
     @Test
-    fun navDisplayPop_disabledSharedTransition_deepLinkEntryStillSlidesHorizontally() {
+    fun navDisplayPop_disabledSharedTransition_deepLinkEntryUsesSoftSiblingPop() {
         // 深链 / 通知 / 桌面快捷方式进入详情 → clickedBoundsRecorded=false。
         val transition = resolveBiliPaiNavDisplayPopRouteTransition(
             cardTransitionEnabled = false,
@@ -342,7 +343,7 @@ class BiliPaiNavMotionPolicyTest {
             toKey = BiliPaiNavKey.Home
         )
 
-        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT, transition)
+        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transition)
     }
 
     @Test

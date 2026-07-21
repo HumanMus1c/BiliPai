@@ -8,6 +8,12 @@ internal data class BiliPaiReturnSessionState(
     val lastVideoSourceRoute: String? = null,
     val lastVideoSourceKey: String? = null,
     /**
+     * Dual-column left/right origin captured at detail enter. Used when live
+     * CardPositionManager state is gone or key-matching fails on pop.
+     */
+    val lastCardSourceDirection: BiliPaiNavCardSourceDirection =
+        BiliPaiNavCardSourceDirection.NONE,
+    /**
      * 进入相关推荐详情前的列表来源（如 home:BV_A）。
      * related 会把 last* 写成 video/BV_A:BV_B，pop 回父详情后需恢复，否则再回列表会丢共享元素。
      */
@@ -33,6 +39,12 @@ internal data class BiliPaiReturnSessionState(
             lastVideoSourceRoute = source.route,
             lastVideoSourceKey = source.key
         )
+    }
+
+    fun recordCardSourceDirection(
+        direction: BiliPaiNavCardSourceDirection
+    ): BiliPaiReturnSessionState {
+        return copy(lastCardSourceDirection = direction)
     }
 
     fun restoreListVideoSourceAfterRelatedReturn(): BiliPaiReturnSessionState {

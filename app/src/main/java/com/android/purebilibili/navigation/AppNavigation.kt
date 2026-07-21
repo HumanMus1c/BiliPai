@@ -164,8 +164,10 @@ import com.android.purebilibili.navigation3.popBiliPaiNavKeyToRoot
 import com.android.purebilibili.navigation3.pushBiliPaiNavKey
 import com.android.purebilibili.navigation3.pushOrReplaceSettingsCategoryNavKey
 import com.android.purebilibili.navigation3.resolveBiliPaiBackGestureDecision
+import com.android.purebilibili.navigation3.areVideoSourceKeysCompatible
 import com.android.purebilibili.navigation3.resolveBiliPaiNavCardSourceDirection
 import com.android.purebilibili.navigation3.resolveBiliPaiNavEntryContentRole
+import com.android.purebilibili.navigation3.resolveEffectiveCardSourceDirection
 import com.android.purebilibili.navigation3.resolveNavigation3SaveableStateKey
 import com.android.purebilibili.navigation3.resolveBiliPaiNavSourceMetadata
 import com.android.purebilibili.navigation3.shouldBindVideoDetailBackPreviewPlayer
@@ -594,17 +596,32 @@ fun AppNavigation(
         fun currentNavigation3SourceMetadata() = resolveBiliPaiNavSourceMetadata(
             sourceKey = navigation3ReturnSession.lastVideoSourceKey,
             sourceRoute = navigation3ReturnSession.lastVideoSourceRoute,
+            // Shared-element still wants key compatibility; geometry alone is enough for L/R direction.
             clickedBoundsRecorded = CardPositionManager.lastClickedCardBounds != null &&
-                CardPositionManager.lastClickedVideoSourceKey == navigation3ReturnSession.lastVideoSourceKey,
+                areVideoSourceKeysCompatible(
+                    cardKey = CardPositionManager.lastClickedVideoSourceKey,
+                    sessionKey = navigation3ReturnSession.lastVideoSourceKey
+                ),
             cardFullyVisible = CardPositionManager.isCardFullyVisible,
-            cardSourceDirection = resolveBiliPaiNavCardSourceDirection(
-                clickedBoundsRecorded = CardPositionManager.lastClickedCardBounds != null &&
-                    CardPositionManager.lastClickedVideoSourceKey == navigation3ReturnSession.lastVideoSourceKey,
+            cardSourceDirection = resolveEffectiveCardSourceDirection(
+                liveDirection = resolveBiliPaiNavCardSourceDirection(
+                    // Direction only needs click geometry, not strict key equality.
+                    clickedBoundsRecorded = CardPositionManager.lastClickedCardBounds != null,
+                    cardFullyVisible = CardPositionManager.isCardFullyVisible,
+                    isSingleColumnCard = CardPositionManager.isSingleColumnCard,
+                    normalizedCenterX = CardPositionManager.lastClickedCardCenter?.x
+                ),
+                sessionDirection = navigation3ReturnSession.lastCardSourceDirection
+            )
+        )
+        fun captureCardSourceDirectionForSession(): BiliPaiNavCardSourceDirection {
+            return resolveBiliPaiNavCardSourceDirection(
+                clickedBoundsRecorded = CardPositionManager.lastClickedCardBounds != null,
                 cardFullyVisible = CardPositionManager.isCardFullyVisible,
                 isSingleColumnCard = CardPositionManager.isSingleColumnCard,
                 normalizedCenterX = CardPositionManager.lastClickedCardCenter?.x
             )
-        )
+        }
         fun pushNavigation3KeyDirect(key: BiliPaiNavKey) {
             navigation3BackStack = when (key) {
                 is BiliPaiNavKey.SettingsCategory -> pushOrReplaceSettingsCategoryNavKey(
@@ -723,6 +740,7 @@ fun AppNavigation(
             if (source.route != null) {
                 navigation3ReturnSession = navigation3ReturnSession
                     .recordVideoSource(source)
+                    .recordCardSourceDirection(captureCardSourceDirectionForSession())
                     .markDetailEntered(SystemClock.uptimeMillis())
             }
             pushNavigation3Key(
@@ -818,6 +836,7 @@ fun AppNavigation(
             )
             navigation3ReturnSession = navigation3ReturnSession
                 .recordVideoSource(source)
+                .recordCardSourceDirection(captureCardSourceDirectionForSession())
                 .markDetailEntered(SystemClock.uptimeMillis())
             miniPlayerManager?.isNavigatingToVideo = true
             miniPlayerManager?.exitMiniMode(animate = false)

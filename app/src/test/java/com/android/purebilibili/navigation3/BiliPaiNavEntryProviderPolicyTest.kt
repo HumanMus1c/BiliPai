@@ -413,7 +413,7 @@ class BiliPaiNavEntryProviderPolicyTest {
     }
 
     @Test
-    fun homeVideoPushWithoutRecordedBoundsKeepsForwardFallback() {
+    fun homeVideoPushWithoutRecordedBoundsStillUsesDirectionWhenKnown() {
         val transitions = resolveBiliPaiNavEntryRouteTransitions(
             key = BiliPaiNavKey.VideoDetail(bvid = "BV1", sourceRoute = "home"),
             cardTransitionEnabled = false,
@@ -426,13 +426,14 @@ class BiliPaiNavEntryProviderPolicyTest {
             )
         )
 
-        assertEquals(BiliPaiNavRouteTransition.FALLBACK, transitions.forward)
-        assertEquals(BiliPaiNavRouteTransition.FALLBACK, transitions.pop)
-        assertEquals(BiliPaiNavRouteTransition.FALLBACK, transitions.predictivePop)
+        // Direction alone is enough for card-disabled motion (no strict key match required).
+        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_FORWARD_FROM_LEFT, transitions.forward)
+        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT, transitions.pop)
+        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT, transitions.predictivePop)
     }
 
     @Test
-    fun videoPushWithStaleSharedSourceKeepsForwardFallback() {
+    fun videoPushWithStaleSharedSourceStillUsesLiveDirectionWhenKnown() {
         val transitions = resolveBiliPaiNavEntryRouteTransitions(
             key = BiliPaiNavKey.VideoDetail(bvid = "BV2", sourceRoute = "home"),
             cardTransitionEnabled = false,
@@ -445,9 +446,9 @@ class BiliPaiNavEntryProviderPolicyTest {
             )
         )
 
-        assertEquals(BiliPaiNavRouteTransition.FALLBACK, transitions.forward)
-        assertEquals(BiliPaiNavRouteTransition.FALLBACK, transitions.pop)
-        assertEquals(BiliPaiNavRouteTransition.FALLBACK, transitions.predictivePop)
+        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_FORWARD_FROM_LEFT, transitions.forward)
+        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT, transitions.pop)
+        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT, transitions.predictivePop)
     }
 
     @Test
@@ -571,7 +572,7 @@ class BiliPaiNavEntryProviderPolicyTest {
     }
 
     @Test
-    fun entryPopWithDisabledSharedTransition_popToMainHostWithoutDirectionFallsBackToRight() {
+    fun entryPopWithDisabledSharedTransition_popToMainHostWithoutDirectionUsesSoftSibling() {
         val transition = resolveBiliPaiNavEntryPopRouteTransition(
             defaultTransition = BiliPaiNavRouteTransition.FALLBACK,
             fromRoute = "video",
@@ -586,11 +587,11 @@ class BiliPaiNavEntryProviderPolicyTest {
             )
         )
 
-        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT, transition)
+        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transition)
     }
 
     @Test
-    fun entryPopWithDisabledSharedTransition_noDirectionFallsBackToRight() {
+    fun entryPopWithDisabledSharedTransition_noDirectionUsesSoftSibling() {
         val transition = resolveBiliPaiNavEntryPopRouteTransition(
             defaultTransition = BiliPaiNavRouteTransition.FALLBACK,
             fromRoute = "video",
@@ -605,11 +606,11 @@ class BiliPaiNavEntryProviderPolicyTest {
             )
         )
 
-        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT, transition)
+        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transition)
     }
 
     @Test
-    fun entryPopWithDisabledSharedTransition_scrolledOutCardStillSlidesHorizontally() {
+    fun entryPopWithDisabledSharedTransition_scrolledOutCardUsesSoftSibling() {
         // 详情中卡片已滚出视口 → cardFullyVisible=false。
         val transition = resolveBiliPaiNavEntryPopRouteTransition(
             defaultTransition = BiliPaiNavRouteTransition.FALLBACK,
@@ -625,12 +626,12 @@ class BiliPaiNavEntryProviderPolicyTest {
             )
         )
 
-        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT, transition)
+        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transition)
     }
 
     @Test
-    fun entryPopWithDisabledSharedTransition_deepLinkEntryStillSlidesHorizontally() {
-        // 深链进入详情 → 没有任何源信息，期望兜底向右滑出。
+    fun entryPopWithDisabledSharedTransition_deepLinkEntryUsesSoftSibling() {
+        // 深链进入详情 → 没有任何源信息，用 soft sibling 而非强制右半屏。
         val transition = resolveBiliPaiNavEntryPopRouteTransition(
             defaultTransition = BiliPaiNavRouteTransition.FALLBACK,
             fromRoute = "video",
@@ -645,7 +646,7 @@ class BiliPaiNavEntryProviderPolicyTest {
             )
         )
 
-        assertEquals(BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT, transition)
+        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transition)
     }
 
     @Test

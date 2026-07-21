@@ -232,8 +232,10 @@ internal fun resolveCardDisabledReturnTransition(
     return when (sourceDirection) {
         BiliPaiNavCardSourceDirection.SOURCE_LEFT ->
             BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT
-        BiliPaiNavCardSourceDirection.SOURCE_RIGHT,
-        BiliPaiNavCardSourceDirection.NONE ->
+        BiliPaiNavCardSourceDirection.SOURCE_RIGHT ->
             BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT
+        // Unknown origin: soft sibling pop instead of always forcing right-half exit.
+        BiliPaiNavCardSourceDirection.NONE ->
+            BiliPaiNavRouteTransition.LIGHT_SIBLING_POP
     }
 }

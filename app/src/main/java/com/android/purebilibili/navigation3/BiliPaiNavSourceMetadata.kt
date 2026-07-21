@@ -29,6 +29,9 @@ internal data class BiliPaiNavSourceMetadata(
  *
  * [cardFullyVisible] remains in the signature for call-site compatibility with shared-element
  * gates; direction itself only needs a recorded dual-column center X.
+ *
+ * [clickedBoundsRecorded] here means "we have geometry for this click" — not full source-key
+ * equality. Prefer bounds + center X over strict key matching so card-disabled motion works.
  */
 @Suppress("UNUSED_PARAMETER")
 internal fun resolveBiliPaiNavCardSourceDirection(
@@ -41,13 +44,41 @@ internal fun resolveBiliPaiNavCardSourceDirection(
         return BiliPaiNavCardSourceDirection.NONE
     }
     val centerX = normalizedCenterX ?: return BiliPaiNavCardSourceDirection.NONE
-    // Dual-column feed: left column ~0.25, right ~0.75. Use mid-screen split so both sides
-    // always get a directed enter/exit when morph animations are off.
+    // Dual-column feed: left column ~0.25, right ~0.75. Mid-screen split keeps both sides directed.
     return if (centerX < 0.5f) {
         BiliPaiNavCardSourceDirection.SOURCE_LEFT
     } else {
         BiliPaiNavCardSourceDirection.SOURCE_RIGHT
     }
+}
+
+/**
+ * Prefer live geometry direction; fall back to the direction frozen at detail enter.
+ */
+internal fun resolveEffectiveCardSourceDirection(
+    liveDirection: BiliPaiNavCardSourceDirection,
+    sessionDirection: BiliPaiNavCardSourceDirection
+): BiliPaiNavCardSourceDirection {
+    return when {
+        liveDirection != BiliPaiNavCardSourceDirection.NONE -> liveDirection
+        sessionDirection != BiliPaiNavCardSourceDirection.NONE -> sessionDirection
+        else -> BiliPaiNavCardSourceDirection.NONE
+    }
+}
+
+/**
+ * Loose video source key match: exact equality or same bvid suffix after the last colon.
+ * Avoids home?category=… vs home:BV mismatches that drop directional motion.
+ */
+internal fun areVideoSourceKeysCompatible(
+    cardKey: String?,
+    sessionKey: String?
+): Boolean {
+    if (cardKey.isNullOrBlank() || sessionKey.isNullOrBlank()) return false
+    if (cardKey == sessionKey) return true
+    val cardBvid = cardKey.substringAfterLast(':', missingDelimiterValue = "")
+    val sessionBvid = sessionKey.substringAfterLast(':', missingDelimiterValue = "")
+    return cardBvid.isNotBlank() && cardBvid == sessionBvid
 }
 
 internal fun resolveBiliPaiNavSourceMetadata(
