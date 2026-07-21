@@ -10,9 +10,10 @@ import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackg
 import com.android.purebilibili.core.util.CardPositionManager
 
 /**
- * 源卡信息区（标题/UP 等）在 shell 返回 morph 时的 chrome alpha。
- * 封面保持可见；返回末段按景深进度淡入字，避免叠实时画面又落后封面；
- * 快速返回不藏字；绘制阶段读 progress，避免整卡重组。
+ * 源卡信息区（标题/UP 等）在 shell morph 时的 chrome alpha。
+ * - 进场：随 OPENING 进度柔和淡出（封面先动，字不瞬间消失）
+ * - 返回：末段按景深 settle 淡入，避免叠 live 画面
+ * - 快速返回不藏字；绘制阶段读 progress，避免整卡重组
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
