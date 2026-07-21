@@ -103,8 +103,10 @@ class VideoPlayerSurfacePolicyTest {
     }
 
     @Test
-    fun `inline player view is invisible during manual start cover`() {
-        assertFalse(
+    fun `inline player view stays visible during manual start cover so first frame can render`() {
+        // CoverFirst 只靠封面叠层 + surface alpha 挡画面，不得 INVISIBLE PlayerView，
+        // 否则重进/点播后永远等不到 RENDERED_FIRST_FRAME。
+        assertTrue(
             shouldShowInlinePlayerView(
                 isPortraitFullscreen = false,
                 forceCoverDuringReturnAnimation = false,
@@ -115,6 +117,13 @@ class VideoPlayerSurfacePolicyTest {
             shouldShowInlinePlayerView(
                 isPortraitFullscreen = false,
                 forceCoverDuringReturnAnimation = false,
+                shouldKeepCoverForManualStart = false
+            )
+        )
+        assertFalse(
+            shouldShowInlinePlayerView(
+                isPortraitFullscreen = false,
+                forceCoverDuringReturnAnimation = true,
                 shouldKeepCoverForManualStart = false
             )
         )
