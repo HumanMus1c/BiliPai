@@ -286,6 +286,66 @@ class BiliSubtitlePolicyTest {
     }
 
     @Test
+    fun subtitlePositionPollingIdentity_isStableOnBvidCidOnly() {
+        assertEquals(
+            "BV1_12",
+            resolveSubtitlePositionPollingIdentity(bvid = "BV1", cid = 12L),
+        )
+        assertEquals(
+            resolveSubtitlePositionPollingIdentity("BV1", 12L),
+            resolveSubtitlePositionPollingIdentity(" BV1 ", 12L),
+        )
+        assertEquals("no-video", resolveSubtitlePositionPollingIdentity(null, 0L))
+    }
+
+    @Test
+    fun subtitleOverlay_staysMountedWhenEnabledEvenIfCueBlank() {
+        assertTrue(
+            shouldKeepSubtitleOverlayMounted(
+                overlayEnabled = true,
+                isInPipMode = false,
+                isAudioOnly = false,
+                suppressOverlay = false,
+            )
+        )
+        assertFalse(
+            shouldKeepSubtitleOverlayMounted(
+                overlayEnabled = true,
+                isInPipMode = true,
+                isAudioOnly = false,
+                suppressOverlay = false,
+            )
+        )
+    }
+
+    @Test
+    fun stickySubtitle_holdsPreviousTextAcrossShortBlankGaps() {
+        assertEquals(
+            "你好",
+            resolveStickySubtitleText(
+                currentText = null,
+                previousText = "你好",
+                blankGapMs = 120L,
+            ),
+        )
+        assertNull(
+            resolveStickySubtitleText(
+                currentText = null,
+                previousText = "你好",
+                blankGapMs = 500L,
+            ),
+        )
+        assertEquals(
+            "新句",
+            resolveStickySubtitleText(
+                currentText = "新句",
+                previousText = "你好",
+                blankGapMs = 0L,
+            ),
+        )
+    }
+
+    @Test
     fun subtitleVerticalOffsetFraction_clampsToReadableFullscreenRange() {
         assertEquals(0.30f, normalizeSubtitleVerticalOffsetFraction(0.8f))
         assertEquals(-0.30f, normalizeSubtitleVerticalOffsetFraction(-0.8f))

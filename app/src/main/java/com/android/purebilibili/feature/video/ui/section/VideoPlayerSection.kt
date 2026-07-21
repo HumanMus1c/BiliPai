@@ -3318,13 +3318,31 @@ fun VideoPlayerSection(
             )
         }
 
-        val subtitlePositionMs by produceState(initialValue = 0L, key1 = playerState.player, key2 = uiState) {
+        val subtitlePollingIdentity = remember(uiState) {
+            val success = uiState as? VideoPlaybackUiState.Success
+            com.android.purebilibili.feature.video.subtitle.resolveSubtitlePositionPollingIdentity(
+                bvid = success?.info?.bvid,
+                cid = success?.info?.cid ?: 0L,
+            )
+        }
+        // 禁止 key=uiState：Success 频繁替换会把 progress 重置为 0 → 字幕疯狂闪。
+        val subtitlePositionMs by produceState(
+            initialValue = playerState.player.currentPosition.coerceAtLeast(0L),
+            key1 = playerState.player,
+            key2 = subtitlePollingIdentity,
+        ) {
+            value = playerState.player.currentPosition.coerceAtLeast(0L)
             while (isActive) {
                 value = playerState.player.currentPosition.coerceAtLeast(0L)
                 delay(if (playerState.player.isPlaying) 120L else 260L)
             }
         }
-        val subtitlePrimaryText = remember(uiState, subtitleFeatureEnabled, subtitlePositionMs, subtitleDisplayMode) {
+        val subtitlePrimaryRawText = remember(
+            uiState,
+            subtitleFeatureEnabled,
+            subtitlePositionMs,
+            subtitleDisplayMode,
+        ) {
             if (!subtitleFeatureEnabled) return@remember null
             val success = uiState as? VideoPlaybackUiState.Success ?: return@remember null
             if (success.subtitleOwnerBvid != success.info.bvid || success.subtitleOwnerCid != success.info.cid) {
@@ -3333,7 +3351,12 @@ fun VideoPlayerSection(
             if (!shouldRenderPrimarySubtitle(subtitleDisplayMode)) return@remember null
             resolveSubtitleTextAt(success.subtitlePrimaryCues, subtitlePositionMs)
         }
-        val subtitleSecondaryText = remember(uiState, subtitleFeatureEnabled, subtitlePositionMs, subtitleDisplayMode) {
+        val subtitleSecondaryRawText = remember(
+            uiState,
+            subtitleFeatureEnabled,
+            subtitlePositionMs,
+            subtitleDisplayMode,
+        ) {
             if (!subtitleFeatureEnabled) return@remember null
             val success = uiState as? VideoPlaybackUiState.Success ?: return@remember null
             if (success.subtitleOwnerBvid != success.info.bvid || success.subtitleOwnerCid != success.info.cid) {
@@ -3342,17 +3365,63 @@ fun VideoPlayerSection(
             if (!shouldRenderSecondarySubtitle(subtitleDisplayMode)) return@remember null
             resolveSubtitleTextAt(success.subtitleSecondaryCues, subtitlePositionMs)
         }
-        if (!isInPipMode &&
-            !isAudioOnly &&
+        // 句间短空窗 sticky，避免 120ms 轮询在边界 null↔有字 来回切。
+        var stickyPrimaryText by remember(subtitlePollingIdentity) { mutableStateOf<String?>(null) }
+        var stickySecondaryText by remember(subtitlePollingIdentity) { mutableStateOf<String?>(null) }
+        var primaryBlankSinceMs by remember(subtitlePollingIdentity) { mutableLongStateOf(-1L) }
+        var secondaryBlankSinceMs by remember(subtitlePollingIdentity) { mutableLongStateOf(-1L) }
+        val nowForSticky = subtitlePositionMs
+        val subtitlePrimaryText = remember(subtitlePrimaryRawText, stickyPrimaryText, primaryBlankSinceMs, nowForSticky) {
+            val blankGap = if (subtitlePrimaryRawText.isNullOrBlank() && primaryBlankSinceMs >= 0L) {
+                (nowForSticky - primaryBlankSinceMs).coerceAtLeast(0L)
+            } else {
+                0L
+            }
+            com.android.purebilibili.feature.video.subtitle.resolveStickySubtitleText(
+                currentText = subtitlePrimaryRawText,
+                previousText = stickyPrimaryText,
+                blankGapMs = blankGap,
+            )
+        }
+        val subtitleSecondaryText = remember(subtitleSecondaryRawText, stickySecondaryText, secondaryBlankSinceMs, nowForSticky) {
+            val blankGap = if (subtitleSecondaryRawText.isNullOrBlank() && secondaryBlankSinceMs >= 0L) {
+                (nowForSticky - secondaryBlankSinceMs).coerceAtLeast(0L)
+            } else {
+                0L
+            }
+            com.android.purebilibili.feature.video.subtitle.resolveStickySubtitleText(
+                currentText = subtitleSecondaryRawText,
+                previousText = stickySecondaryText,
+                blankGapMs = blankGap,
+            )
+        }
+        SideEffect {
+            if (!subtitlePrimaryRawText.isNullOrBlank()) {
+                stickyPrimaryText = subtitlePrimaryRawText
+                primaryBlankSinceMs = -1L
+            } else if (primaryBlankSinceMs < 0L) {
+                primaryBlankSinceMs = nowForSticky
+            }
+            if (!subtitleSecondaryRawText.isNullOrBlank()) {
+                stickySecondaryText = subtitleSecondaryRawText
+                secondaryBlankSinceMs = -1L
+            } else if (secondaryBlankSinceMs < 0L) {
+                secondaryBlankSinceMs = nowForSticky
+            }
+        }
+        val keepSubtitleOverlayMounted =
             uiState is VideoPlaybackUiState.Success &&
-            !suppressSubtitleOverlay &&
-            subtitleOverlayEnabled &&
-            (subtitlePrimaryText != null || subtitleSecondaryText != null)
-        ) {
+                com.android.purebilibili.feature.video.subtitle.shouldKeepSubtitleOverlayMounted(
+                    overlayEnabled = subtitleOverlayEnabled,
+                    isInPipMode = isInPipMode,
+                    isAudioOnly = isAudioOnly,
+                    suppressOverlay = suppressSubtitleOverlay,
+                )
+        if (keepSubtitleOverlayMounted) {
+            // 控件显隐只微调底边距，用固定基准减少整段字幕上下跳动造成的「闪」。
             val subtitleBottomPadding = when {
-                showControls && isFullscreen -> 132.dp
-                showControls -> 108.dp
-                else -> 42.dp
+                isFullscreen -> 72.dp
+                else -> 48.dp
             }
             Column(
                 modifier = Modifier
@@ -3415,32 +3484,35 @@ fun VideoPlayerSection(
                 val showPrimaryLine = !subtitlePrimaryText.isNullOrBlank()
                 val showSecondaryLine = !subtitleSecondaryText.isNullOrBlank()
                 val secondaryAsPrimaryLine = showSecondaryLine && !showPrimaryLine
-                if (!subtitleSecondaryText.isNullOrBlank()) {
-                    Text(
-                        text = subtitleSecondaryText,
-                        color = Color.White.copy(alpha = 0.88f),
-                        fontSize = if (secondaryAsPrimaryLine) {
-                            subtitleTextSizeSpec.primarySp.sp
-                        } else {
-                            subtitleTextSizeSpec.secondarySp.sp
-                        },
-                        fontWeight = if (secondaryAsPrimaryLine) FontWeight.SemiBold else FontWeight.Normal,
-                        maxLines = 2,
-                        textAlign = TextAlign.Center,
-                        style = LocalTextStyle.current.copy(shadow = subtitleShadow)
+                // 行容器常驻：用空串占位而不是 if 拆装 Text，减少 quantize 边界闪一下。
+                Text(
+                    text = subtitleSecondaryText.orEmpty(),
+                    color = Color.White.copy(alpha = if (showSecondaryLine) 0.88f else 0f),
+                    fontSize = if (secondaryAsPrimaryLine) {
+                        subtitleTextSizeSpec.primarySp.sp
+                    } else {
+                        subtitleTextSizeSpec.secondarySp.sp
+                    },
+                    fontWeight = if (secondaryAsPrimaryLine) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 2,
+                    textAlign = TextAlign.Center,
+                    style = LocalTextStyle.current.copy(shadow = subtitleShadow),
+                    modifier = Modifier.then(
+                        if (showSecondaryLine) Modifier else Modifier.height(0.dp)
                     )
-                }
-                if (!subtitlePrimaryText.isNullOrBlank()) {
-                    Text(
-                        text = subtitlePrimaryText,
-                        color = Color.White,
-                        fontSize = subtitleTextSizeSpec.primarySp.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        textAlign = TextAlign.Center,
-                        style = LocalTextStyle.current.copy(shadow = subtitleShadow)
+                )
+                Text(
+                    text = subtitlePrimaryText.orEmpty(),
+                    color = Color.White.copy(alpha = if (showPrimaryLine) 1f else 0f),
+                    fontSize = subtitleTextSizeSpec.primarySp.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    textAlign = TextAlign.Center,
+                    style = LocalTextStyle.current.copy(shadow = subtitleShadow),
+                    modifier = Modifier.then(
+                        if (showPrimaryLine) Modifier else Modifier.height(0.dp)
                     )
-                }
+                )
             }
         }
 

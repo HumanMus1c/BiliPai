@@ -499,6 +499,53 @@ fun resolveSubtitleTextAt(cues: List<SubtitleCue>, positionMs: Long): String? {
     return null
 }
 
+/**
+ * 字幕进度轮询 identity：只绑定 bvid/cid，禁止把整份 [uiState] 当 key。
+ * Success 对象频繁替换会让 produceState 以 initialValue=0 重启 → 字幕整页乱跳闪烁。
+ */
+fun resolveSubtitlePositionPollingIdentity(
+    bvid: String?,
+    cid: Long,
+): String {
+    val safeBvid = bvid?.trim().orEmpty()
+    val safeCid = cid.coerceAtLeast(0L)
+    return if (safeBvid.isEmpty() && safeCid <= 0L) {
+        "no-video"
+    } else {
+        "${safeBvid}_$safeCid"
+    }
+}
+
+/**
+ * 字幕叠层是否保持挂载（容器常驻，只换文案）。
+ * 不要用「当前有无 cue 文本」控制整层 if，否则句间空窗会反复进出 composition → 闪。
+ */
+fun shouldKeepSubtitleOverlayMounted(
+    overlayEnabled: Boolean,
+    isInPipMode: Boolean,
+    isAudioOnly: Boolean,
+    suppressOverlay: Boolean,
+): Boolean {
+    return overlayEnabled && !isInPipMode && !isAudioOnly && !suppressOverlay
+}
+
+/**
+ * 句间短空窗是否沿用上一句，避免 120ms 轮询在边界 null/有字来回切。
+ * [blankGapMs] 内仍显示 [previousText]。
+ */
+fun resolveStickySubtitleText(
+    currentText: String?,
+    previousText: String?,
+    blankGapMs: Long,
+    maxHoldMs: Long = 280L,
+): String? {
+    val current = currentText?.takeIf { it.isNotBlank() }
+    if (current != null) return current
+    val previous = previousText?.takeIf { it.isNotBlank() } ?: return null
+    if (blankGapMs < 0L || blankGapMs > maxHoldMs) return null
+    return previous
+}
+
 private fun JsonElement?.asJsonObjectOrNull(): JsonObject? {
     return (this as? JsonObject) ?: runCatching { this?.jsonObject }.getOrNull()
 }
