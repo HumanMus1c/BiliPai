@@ -145,8 +145,11 @@ import com.android.purebilibili.feature.video.ui.components.QualitySelectionMenu
 import com.android.purebilibili.feature.video.ui.components.SpeedSelectionMenuDialog
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.resolveSafeVideoAspectRatio
+import com.android.purebilibili.feature.video.ui.overlay.FullscreenDoubleTapAction
 import com.android.purebilibili.feature.video.ui.overlay.PortraitFullscreenOverlay
 import com.android.purebilibili.feature.video.ui.overlay.PortraitSubtitleHost
+import com.android.purebilibili.feature.video.ui.overlay.nextFullscreenSeekFeedbackEvent
+import com.android.purebilibili.feature.video.ui.overlay.resolveFullscreenDoubleTapAction
 import com.android.purebilibili.feature.video.ui.overlay.shouldShowPortraitSubtitleChip
 import com.android.purebilibili.feature.video.subtitle.SubtitleAutoPreference
 import com.android.purebilibili.feature.video.subtitle.isSubtitleFeatureEnabledForUser
@@ -154,6 +157,7 @@ import com.android.purebilibili.feature.video.player.resolveHandleAudioFocusByPo
 import com.android.purebilibili.feature.video.ui.section.FOREGROUND_SURFACE_RECOVERY_DELAY_MS
 import com.android.purebilibili.feature.video.ui.section.resolveLongPressPlaybackParameters
 import com.android.purebilibili.feature.video.ui.section.rebindPlayerSurfaceIfNeeded
+import com.android.purebilibili.feature.video.ui.section.resolveRelativeSeekTargetPosition
 import com.android.purebilibili.feature.video.ui.section.shouldKickPlaybackAfterSurfaceRecovery
 import com.android.purebilibili.feature.video.viewmodel.PlaybackEndAction
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
@@ -1498,6 +1502,15 @@ private fun VideoPageItem(
         .getLongPressSpeed(context)
         .collectAsStateWithLifecycle(initialValue = 2.0f
         )
+    val doubleTapSeekEnabled by SettingsManager
+        .getDoubleTapSeekEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val seekForwardSeconds by SettingsManager
+        .getSeekForwardSeconds(context)
+        .collectAsStateWithLifecycle(initialValue = 10)
+    val seekBackwardSeconds by SettingsManager
+        .getSeekBackwardSeconds(context)
+        .collectAsStateWithLifecycle(initialValue = 10)
     val currentAudioQuality by viewModel.audioQualityPreference.collectAsStateWithLifecycle(initialValue = -1
         )
     val bvid = if (item is ViewInfo) item.bvid else (item as RelatedVideo).bvid
@@ -1861,6 +1874,9 @@ private fun VideoPageItem(
     var longPressOriginPlaybackParameters by remember { mutableStateOf(PlaybackParameters.DEFAULT) }
     var effectiveLongPressSpeed by remember { mutableFloatStateOf(longPressSpeed) }
     var showLongPressSpeedFeedback by remember { mutableStateOf(false) }
+    var seekFeedbackText by remember { mutableStateOf<String?>(null) }
+    var seekFeedbackVisible by remember { mutableStateOf(false) }
+    var seekFeedbackGeneration by remember { mutableLongStateOf(0L) }
     var scale by remember(bvid) { mutableFloatStateOf(1f) }
     var panX by remember(bvid) { mutableFloatStateOf(0f) }
     var panY by remember(bvid) { mutableFloatStateOf(0f) }
@@ -1970,7 +1986,10 @@ private fun VideoPageItem(
                 currentAudioQuality,
                 isCurrentPage,
                 commentExpansionTransform.playerGesturesEnabled,
-                portraitOverlayVisible
+                portraitOverlayVisible,
+                doubleTapSeekEnabled,
+                seekForwardSeconds,
+                seekBackwardSeconds
             ) {
                 detectTapGestures(
                     onTap = {
@@ -1984,15 +2003,68 @@ private fun VideoPageItem(
                             resolvePortraitOverlayVisibilityAfterTap(portraitOverlayVisible)
                         )
                     },
-                    onDoubleTap = {
+                    onDoubleTap = { offset ->
                         if (
                             !commentExpansionTransform.playerGesturesEnabled ||
-                            !shouldHandlePortraitTapGesture(scale = scale)
+                            !shouldHandlePortraitTapGesture(scale = scale) ||
+                            !isCurrentPage
                         ) {
                             return@detectTapGestures
                         }
-                        if (isCurrentPage) {
-                            togglePlayerPlaybackFromUserAction(exoPlayer)
+                        val screenWidth = size.width.toFloat()
+                        val relativeX = if (screenWidth > 0f) {
+                            offset.x / screenWidth
+                        } else {
+                            0.5f
+                        }
+                        when (
+                            resolveFullscreenDoubleTapAction(
+                                relativeX = relativeX,
+                                doubleTapSeekEnabled = doubleTapSeekEnabled,
+                                playWhenReady = exoPlayer.playWhenReady,
+                                isPlaying = exoPlayer.isPlaying,
+                                playbackState = exoPlayer.playbackState
+                            )
+                        ) {
+                            FullscreenDoubleTapAction.SeekBackward -> {
+                                val seekMs = seekBackwardSeconds * 1000L
+                                val newPos = resolveRelativeSeekTargetPosition(
+                                    currentPositionMs = exoPlayer.currentPosition,
+                                    deltaMs = -seekMs,
+                                    durationMs = exoPlayer.duration
+                                )
+                                seekPlayerFromUserAction(exoPlayer, newPos)
+                                danmakuManager.seekTo(newPos)
+                                progressState = progressState.copy(current = newPos)
+                                val feedback = nextFullscreenSeekFeedbackEvent(
+                                    previousGeneration = seekFeedbackGeneration,
+                                    deltaSeconds = -seekBackwardSeconds
+                                )
+                                seekFeedbackGeneration = feedback.generation
+                                seekFeedbackText = feedback.text
+                                seekFeedbackVisible = true
+                            }
+                            FullscreenDoubleTapAction.SeekForward -> {
+                                val seekMs = seekForwardSeconds * 1000L
+                                val newPos = resolveRelativeSeekTargetPosition(
+                                    currentPositionMs = exoPlayer.currentPosition,
+                                    deltaMs = seekMs,
+                                    durationMs = exoPlayer.duration
+                                )
+                                seekPlayerFromUserAction(exoPlayer, newPos)
+                                danmakuManager.seekTo(newPos)
+                                progressState = progressState.copy(current = newPos)
+                                val feedback = nextFullscreenSeekFeedbackEvent(
+                                    previousGeneration = seekFeedbackGeneration,
+                                    deltaSeconds = seekForwardSeconds
+                                )
+                                seekFeedbackGeneration = feedback.generation
+                                seekFeedbackText = feedback.text
+                                seekFeedbackVisible = true
+                            }
+                            FullscreenDoubleTapAction.TogglePlayPause -> {
+                                togglePlayerPlaybackFromUserAction(exoPlayer)
+                            }
                         }
                     },
                     onLongPress = {
@@ -2262,6 +2334,38 @@ private fun VideoPageItem(
                     text = deltaText,
                     color = if (deltaMs >= 0) Color(0xFF66FF66) else Color(0xFFFF6666),
                     fontSize = 14.sp
+                )
+            }
+        }
+
+        // 双击左右区快进/后退视觉反馈
+        LaunchedEffect(seekFeedbackGeneration) {
+            if (seekFeedbackGeneration > 0L) {
+                delay(800)
+                seekFeedbackVisible = false
+            }
+        }
+        AnimatedVisibility(
+            visible = seekFeedbackVisible && isCurrentPage && !isSeekGesture,
+            modifier = Modifier.align(Alignment.Center),
+            enter = fadeIn(animationSpec = tween(120)),
+            exit = fadeOut(animationSpec = tween(180))
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = seekFeedbackText.orEmpty(),
+                    color = if (seekFeedbackText?.startsWith("+") == true) {
+                        Color(0xFF66FF66)
+                    } else {
+                        Color(0xFFFF6666)
+                    },
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
