@@ -73,12 +73,12 @@ class HomeSettingsStoreParityTest {
     }
 
     @Test
-    fun `home settings migrate light blur badge mode to info realtime blur`() {
+    fun `home settings keep info glass off when unset even if badge light blur`() {
         val prefs = mutablePreferencesOf(
             intPreferencesKey("home_card_badge_effect_mode") to HomeCardBadgeEffectMode.LIGHT_BLUR.value
         )
         val result = mapHomeSettingsFromPreferences(prefs)
-        assertEquals(HomeCardInfoGlassMode.REALTIME_BLUR, result.homeCardInfoGlassMode)
+        assertEquals(HomeCardInfoGlassMode.OFF, result.homeCardInfoGlassMode)
     }
 
     @Test

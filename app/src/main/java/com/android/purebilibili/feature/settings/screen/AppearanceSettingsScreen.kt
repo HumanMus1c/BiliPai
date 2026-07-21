@@ -1555,6 +1555,13 @@ fun AppearanceSettingsContent(
                         }
 
                         IOSDivider(modifier = Modifier.padding(start = 16.dp))
+                        // Wallpaper section: realtime card glass is WIP — keep default OFF.
+                        Text(
+                            text = "壁纸与卡片实时模糊 / 实时液态玻璃仍在开发中，请勿使用相关选项（默认关闭）。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                        )
                         var showHomeWallpaperPicker by remember { mutableStateOf(false) }
                         Row(
                             modifier = Modifier

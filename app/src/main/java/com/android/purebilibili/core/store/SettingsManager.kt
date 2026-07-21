@@ -400,7 +400,7 @@ enum class HomeCardBadgeEffectMode(
 ) {
     OFF(0, "关闭", "纯文字标签，性能最好"),
     SOFT_GLASS(1, "软玻璃", "半透明描边拟态，无实时采样"),
-    LIGHT_BLUR(2, "实时模糊", "与底栏同款 Haze 采样壁纸/背景；滚动保持模糊不关效果");
+    LIGHT_BLUR(2, "实时模糊", "开发中，请勿使用：Haze 采样壁纸/背景");
 
     companion object {
         fun fromValue(value: Int): HomeCardBadgeEffectMode =
@@ -417,10 +417,10 @@ enum class HomeCardInfoGlassMode(
     val label: String,
     val subtitle: String
 ) {
-    OFF(0, "关闭", "实色/轻 tint，性能最好"),
-    REALTIME_BLUR(1, "实时模糊", "Haze 采样壁纸，滚动保持磨砂"),
-    REALTIME_LIQUID_GLASS(2, "实时液态玻璃", "底栏同款折射液态玻璃"),
-    BLUR_AND_LIQUID(3, "模糊+液态", "Haze 磨砂叠加液态折射");
+    OFF(0, "关闭", "实色/轻 tint，性能最好（推荐）"),
+    REALTIME_BLUR(1, "实时模糊", "开发中，请勿使用：Haze 采样壁纸磨砂"),
+    REALTIME_LIQUID_GLASS(2, "实时液态玻璃", "开发中，请勿使用：折射液态玻璃"),
+    BLUR_AND_LIQUID(3, "模糊+液态", "开发中，请勿使用：Haze + 液态叠加");
 
     val usesRealtimeBlur: Boolean
         get() = this == REALTIME_BLUR || this == BLUR_AND_LIQUID
@@ -2601,12 +2601,8 @@ object SettingsManager {
         preferences[KEY_HOME_CARD_INFO_GLASS_MODE]?.let { raw ->
             return HomeCardInfoGlassMode.fromValue(raw)
         }
-        // Migrate: old LIGHT_BLUR badge mode implied users wanted frosted chrome.
-        return if (resolveHomeCardBadgeEffectMode(preferences) == HomeCardBadgeEffectMode.LIGHT_BLUR) {
-            HomeCardInfoGlassMode.REALTIME_BLUR
-        } else {
-            HomeCardInfoGlassMode.OFF
-        }
+        // WIP realtime glass defaults off — do not auto-enable from badge mode.
+        return HomeCardInfoGlassMode.OFF
     }
 
     fun getHomeWallpaperUri(context: Context): Flow<String> = context.settingsDataStore.data
