@@ -250,4 +250,19 @@ class DynamicRichTextPolicyTest {
         assertNull(resolveDynamicRichTextUserMid(RichTextNode(type = "AT", text = "@UP", rid = "0")))
         assertNull(resolveDynamicRichTextUserMid(RichTextNode(type = "AT", text = "@UP")))
     }
+
+    @Test
+    fun resolveDynamicRichTextUserMid_fallsBackToSpaceJumpUrl() {
+        assertEquals(
+            267776898L,
+            resolveDynamicRichTextUserMid(
+                RichTextNode(
+                    type = "AT",
+                    text = "@奇妙的摸鱼禁止",
+                    rid = "",
+                    jump_url = "//space.bilibili.com/267776898"
+                )
+            )
+        )
+    }
 }

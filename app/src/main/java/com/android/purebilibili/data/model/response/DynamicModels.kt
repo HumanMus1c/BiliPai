@@ -598,7 +598,8 @@ data class RichTextNode(
     val text: String = "",
     val emoji: EmojiInfo? = null,
     val jump_url: String? = null,
-    /** AT 节点对应用户 mid；其它节点可能为空 */
+    /** AT 节点对应用户 mid；API 可能给 number，用 flexible string 避免解析失败 */
+    @Serializable(with = FlexibleStringSerializer::class)
     val rid: String? = null
 )
 

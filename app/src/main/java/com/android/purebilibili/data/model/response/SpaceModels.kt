@@ -568,6 +568,7 @@ data class SpaceDynamicModules(
 
 @kotlinx.serialization.Serializable
 data class SpaceDynamicAuthor(
+    @Serializable(with = FlexibleLongSerializer::class)
     val mid: Long = 0,
     val name: String = "",
     val face: String = "",

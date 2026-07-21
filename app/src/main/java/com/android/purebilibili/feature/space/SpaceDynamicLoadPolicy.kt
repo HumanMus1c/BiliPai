@@ -315,7 +315,8 @@ internal fun resolveSpaceDynamicCardItems(items: List<SpaceDynamicItem>): List<D
 private fun SpaceDynamicRichText.toDynamicRichTextNode(): RichTextNode {
     return RichTextNode(
         type = type,
-        text = text,
+        // AT / text nodes sometimes only fill orig_text in space feeds.
+        text = text.ifBlank { orig_text },
         emoji = emoji?.let { emoji ->
             EmojiInfo(
                 icon_url = emoji.icon_url,

@@ -658,6 +658,7 @@ fun DynamicCardV2(
                 onVideoClick = onVideoClick,
                 onBangumiClick = onBangumiClick,
                 onUserClick = onUserClick,
+                onDynamicDetailClick = onDynamicDetailClick,
                 gifImageLoader = gifImageLoader,
                 defaultPreviewTextVisible = dynamicPreviewTextVisible
             )

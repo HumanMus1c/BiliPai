@@ -281,6 +281,34 @@ class SpaceDynamicLoadPolicyTest {
     }
 
     @Test
+    fun toDynamicRichTextNode_prefersOrigTextAndKeepsJumpUrlForAt() {
+        // Access via mapping a forward body that only has orig_text + jump_url on AT nodes.
+        val item = SpaceDynamicItem(
+            id_str = "at-map",
+            modules = SpaceDynamicModules(
+                module_dynamic = SpaceDynamicContent(
+                    desc = SpaceDynamicDesc(
+                        rich_text_nodes = listOf(
+                            com.android.purebilibili.data.model.response.SpaceDynamicRichText(
+                                type = "RICH_TEXT_NODE_TYPE_AT",
+                                text = "",
+                                orig_text = "@奇妙的摸鱼禁止",
+                                jump_url = "//space.bilibili.com/99",
+                                rid = "99"
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        val node = resolveSpaceDynamicCardItem(item)
+            .modules.module_dynamic?.desc?.rich_text_nodes?.single()
+        assertEquals("@奇妙的摸鱼禁止", node?.text)
+        assertEquals("99", node?.rid)
+        assertEquals("//space.bilibili.com/99", node?.jump_url)
+    }
+
+    @Test
     fun resolveSpaceDynamicCardItem_mapsForwardOrigForNestedDisplay() {
         val item = SpaceDynamicItem(
             id_str = "forward",
