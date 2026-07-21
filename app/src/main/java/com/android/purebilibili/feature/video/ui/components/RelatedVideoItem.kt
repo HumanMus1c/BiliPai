@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.video.ui.components
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +24,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,11 +44,15 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.store.TodayWatchDislikedVideoSnapshot
+import com.android.purebilibili.core.store.TodayWatchFeedbackStore
+import com.android.purebilibili.core.store.withDislikedVideoFeedback
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.components.UpBadgeName
@@ -55,7 +63,12 @@ import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellShared
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.core.util.HapticType
+import com.android.purebilibili.core.util.rememberHapticFeedback
+import com.android.purebilibili.data.model.response.RecommendationFeedbackLocalAction
+import com.android.purebilibili.data.model.response.RecommendationFeedbackReason
 import com.android.purebilibili.data.model.response.RelatedVideo
+import com.android.purebilibili.data.repository.ActionRepository
 import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.video.ui.FollowBadgeTone
@@ -64,6 +77,10 @@ import com.android.purebilibili.navigation.VideoRoute
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.BubbleLeft
 import io.github.alexzhirkevich.cupertino.icons.filled.Play
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import android.widget.Toast
 
 /**
  * 相关推荐默认封面框（未读到首页样式时的回退，对齐粉版 4:3）。
@@ -147,7 +164,8 @@ fun RelatedVideoItem(
     showUpBadge: Boolean = true,
     coverAspectRatio: Float = RELATED_VIDEO_CARD_COVER_ASPECT_RATIO,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onMoreClick: (() -> Unit)? = null
 ) {
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
@@ -251,6 +269,33 @@ fun RelatedVideoItem(
                     .align(Alignment.BottomEnd)
                     .padding(6.dp)
             )
+            if (onMoreClick != null) {
+                val moreHaptic = rememberHapticFeedback()
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.38f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            moreHaptic(HapticType.LIGHT)
+                            onMoreClick()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "⋮",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
+            }
         }
 
         Column(
@@ -337,8 +382,10 @@ fun RelatedVideoGridRow(
     showUpBadge: Boolean = true,
     columns: Int = RELATED_VIDEO_GRID_COLUMNS,
     onVideoClick: (RelatedVideo) -> Unit,
+    onVideoHidden: ((RelatedVideo) -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val homeFeedCardStyle by SettingsManager
         .getHomeFeedCardStyle(context)
         .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.OFFICIAL)
@@ -346,6 +393,7 @@ fun RelatedVideoGridRow(
         resolveHomeFeedCardLayout(homeFeedCardStyle)
     }
     val safeColumns = columns.coerceAtLeast(1)
+    var actionVideo by remember { mutableStateOf<RelatedVideo?>(null) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -360,12 +408,78 @@ fun RelatedVideoGridRow(
                 showUpBadge = showUpBadge,
                 coverAspectRatio = cardLayout.coverAspectRatio,
                 modifier = Modifier.weight(1f),
-                onClick = { onVideoClick(video) }
+                onClick = { onVideoClick(video) },
+                onMoreClick = { actionVideo = video }
             )
         }
         repeat((safeColumns - videos.size).coerceAtLeast(0)) {
             Spacer(modifier = Modifier.weight(1f))
         }
+    }
+
+    val pendingVideo = actionVideo
+    if (pendingVideo != null) {
+        RelatedVideoActionSheet(
+            video = pendingVideo,
+            onWatchLater = {
+                scope.launch {
+                    val result = withContext(Dispatchers.IO) {
+                        ActionRepository.toggleWatchLater(pendingVideo.aid, true)
+                    }
+                    val message = result.fold(
+                        onSuccess = { "已添加到稍后再看" },
+                        onFailure = { error -> error.message ?: "添加失败" }
+                    )
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onReasonSelected = { reason ->
+                scope.launch {
+                    recordRelatedVideoFeedback(
+                        context = context,
+                        video = pendingVideo,
+                        reason = reason
+                    )
+                    if (shouldRemoveRelatedVideoAfterFeedback(reason)) {
+                        onVideoHidden?.invoke(pendingVideo)
+                    }
+                    Toast.makeText(
+                        context,
+                        resolveRelatedFeedbackToast(reason),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            },
+            onDismissRequest = { actionVideo = null }
+        )
+    }
+}
+
+private suspend fun recordRelatedVideoFeedback(
+    context: android.content.Context,
+    video: RelatedVideo,
+    reason: RecommendationFeedbackReason
+) {
+    withContext(Dispatchers.IO) {
+        val includeCreator = reason.localAction == RecommendationFeedbackLocalAction.CREATOR &&
+            video.owner.mid > 0L
+        val keywords = when (reason.localAction) {
+            RecommendationFeedbackLocalAction.SIMILAR_CONTENT ->
+                extractRelatedFeedbackKeywords(video.title)
+            else -> emptySet()
+        }
+        val snapshot = TodayWatchFeedbackStore.getSnapshot(context).withDislikedVideoFeedback(
+            video = TodayWatchDislikedVideoSnapshot(
+                bvid = video.bvid,
+                title = video.title,
+                creatorName = video.owner.name,
+                creatorMid = video.owner.mid,
+                dislikedAtMillis = System.currentTimeMillis()
+            ),
+            keywords = keywords,
+            includeCreatorSignal = includeCreator
+        )
+        TodayWatchFeedbackStore.saveSnapshot(context, snapshot)
     }
 }
 

@@ -80,6 +80,7 @@ import com.android.purebilibili.feature.video.ui.section.shouldAnimateVideoDetai
 import com.android.purebilibili.feature.video.ui.components.DanmakuSettingsPanel
 import com.android.purebilibili.feature.video.ui.components.RelatedVideoGridRow
 import com.android.purebilibili.feature.video.ui.components.chunkRelatedVideosForHomeStyleGrid
+import com.android.purebilibili.feature.video.ui.components.filterRelatedVideosByHiddenBvids
 import com.android.purebilibili.feature.video.ui.components.CollectionRow
 import com.android.purebilibili.feature.video.ui.components.CollectionSheet
 import com.android.purebilibili.feature.video.ui.components.PagesSelector
@@ -775,6 +776,10 @@ private fun VideoIntroTab(
     chromeBackdrop: LayerBackdrop? = null
 ) {
     val hasPages = info.pages.size > 1
+    var hiddenRelatedBvids by remember(info.bvid) { mutableStateOf(emptySet<String>()) }
+    val visibleRelatedVideos = remember(relatedVideos, hiddenRelatedBvids) {
+        filterRelatedVideosByHiddenBvids(relatedVideos, hiddenRelatedBvids)
+    }
     LazyColumn(
         state = listState,
         modifier = modifier
@@ -857,7 +862,7 @@ private fun VideoIntroTab(
             VideoRecommendationHeader()
         }
 
-        val relatedRows = chunkRelatedVideosForHomeStyleGrid(relatedVideos)
+        val relatedRows = chunkRelatedVideosForHomeStyleGrid(visibleRelatedVideos)
         itemsIndexed(
             items = relatedRows,
             key = { rowIndex, row ->
@@ -888,6 +893,9 @@ private fun VideoIntroTab(
                             null
                         }
                         onRelatedVideoClick(video.bvid, navOptions)
+                    },
+                    onVideoHidden = { video ->
+                        hiddenRelatedBvids = hiddenRelatedBvids + video.bvid
                     }
                 )
             }

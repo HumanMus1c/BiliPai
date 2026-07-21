@@ -115,6 +115,7 @@ import com.android.purebilibili.feature.video.ui.components.PagesSelector
 import com.android.purebilibili.feature.video.ui.components.RelatedVideoItem
 import com.android.purebilibili.feature.video.ui.components.RelatedVideoGridRow
 import com.android.purebilibili.feature.video.ui.components.chunkRelatedVideosForHomeStyleGrid
+import com.android.purebilibili.feature.video.ui.components.filterRelatedVideosByHiddenBvids
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
 import com.android.purebilibili.feature.video.ui.components.VideoInlineSubReplyDetailContent
 import com.android.purebilibili.feature.video.ui.components.rememberVideoCommentAppearance
@@ -1356,11 +1357,15 @@ private fun CinemaRelatedPane(
     context: android.content.Context,
     showUpBadge: Boolean
 ) {
+    var hiddenRelatedBvids by remember(success.info.bvid) { mutableStateOf(emptySet<String>()) }
+    val visibleRelatedVideos = remember(success.related, hiddenRelatedBvids) {
+        filterRelatedVideosByHiddenBvids(success.related, hiddenRelatedBvids)
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
-        val relatedRows = chunkRelatedVideosForHomeStyleGrid(success.related)
+        val relatedRows = chunkRelatedVideosForHomeStyleGrid(visibleRelatedVideos)
         itemsIndexed(
             items = relatedRows,
             key = { rowIndex, row ->
@@ -1393,11 +1398,14 @@ private fun CinemaRelatedPane(
                             navOptions.putLong(VIDEO_NAV_TARGET_CID_KEY, video.cid)
                         }
                         onRelatedVideoClick(video.bvid, navOptions)
+                    },
+                    onVideoHidden = { video ->
+                        hiddenRelatedBvids = hiddenRelatedBvids + video.bvid
                     }
                 )
             }
         }
-        if (success.related.isEmpty()) {
+        if (visibleRelatedVideos.isEmpty()) {
             item {
                 Box(
                     modifier = Modifier

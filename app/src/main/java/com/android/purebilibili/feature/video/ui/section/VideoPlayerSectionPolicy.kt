@@ -532,6 +532,20 @@ internal fun shouldCommitGestureSeek(
     return abs(targetPositionMs - currentPositionMs) >= minDeltaMs
 }
 
+/**
+ * Stepped haptics while scrubbing by horizontal seek:
+ * fire once every [stepMs] of target position change (default 1s ticks).
+ */
+internal fun shouldTriggerSeekStepHaptic(
+    previousTargetMs: Long,
+    currentTargetMs: Long,
+    stepMs: Long = 1_000L
+): Boolean {
+    if (stepMs <= 0L) return false
+    if (previousTargetMs == currentTargetMs) return false
+    return previousTargetMs / stepMs != currentTargetMs / stepMs
+}
+
 internal fun resolveOrientationSwitchHintText(isFullscreen: Boolean): String {
     return if (isFullscreen) "已切换到横屏" else "已切换到竖屏"
 }

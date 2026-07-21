@@ -9,6 +9,7 @@ import com.android.purebilibili.feature.video.ui.section.resolveHorizontalSeekDe
 import com.android.purebilibili.feature.video.ui.section.rebindPlayerSurfaceIfNeeded
 import com.android.purebilibili.feature.video.ui.section.shouldCommitGestureSeek
 import com.android.purebilibili.feature.video.ui.section.shouldKeepVideoPlaybackAwake
+import com.android.purebilibili.feature.video.ui.section.shouldTriggerSeekStepHaptic
 import com.android.purebilibili.feature.video.usecase.applyPlaybackButtonUserAction
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.usecase.togglePlayerPlaybackFromUserAction
@@ -273,7 +274,10 @@ fun FullscreenPlayerOverlay(
     var dragDelta by remember { mutableFloatStateOf(0f) }
     var seekPreviewPosition by remember { mutableLongStateOf(0L) }
     var gestureSeekStartPosition by remember { mutableLongStateOf(0L) }
-    val fullscreenSwipeSeekSeconds by produceState<Int?>(initialValue = null, context) {
+    var lastSeekHapticTargetMs by remember { mutableLongStateOf(0L) }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    // Default to 15s so seek UI/haptics work immediately before prefs load (null blocked delta).
+    val fullscreenSwipeSeekSeconds by produceState(initialValue = 15, context) {
         SettingsManager.getFullscreenSwipeSeekSeconds(context)
             .collectLatest { value = it }
     }
@@ -629,6 +633,10 @@ fun FullscreenPlayerOverlay(
                             else -> {
                                 seekPreviewPosition = currentPosition
                                 gestureSeekStartPosition = currentPosition
+                                lastSeekHapticTargetMs = currentPosition
+                                haptic.performHapticFeedback(
+                                    androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                                )
                                 FullscreenGestureMode.Seek
                             }
                         }
@@ -689,7 +697,22 @@ fun FullscreenPlayerOverlay(
                                 )
                                 if (seekDelta != null) {
                                     seekPreviewPosition = (gestureSeekStartPosition + seekDelta).coerceIn(0L, duration)
-                                    currentProgress = (seekPreviewPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                                    currentProgress = if (duration > 0L) {
+                                        (seekPreviewPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                                    } else {
+                                        0f
+                                    }
+                                    if (
+                                        shouldTriggerSeekStepHaptic(
+                                            previousTargetMs = lastSeekHapticTargetMs,
+                                            currentTargetMs = seekPreviewPosition
+                                        )
+                                    ) {
+                                        haptic.performHapticFeedback(
+                                            androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                                        )
+                                        lastSeekHapticTargetMs = seekPreviewPosition
+                                    }
                                 }
                             }
                             else -> {}

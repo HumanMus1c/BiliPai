@@ -901,6 +901,7 @@ fun VideoPlayerSection(
 
     // 进度手势相关状态
     var seekTargetTime by remember { mutableLongStateOf(0L) }
+    var lastSeekHapticTargetMs by remember { mutableLongStateOf(0L) }
     var startPosition by remember { mutableLongStateOf(0L) }
     val currentSeekSessionCid = (uiState as? VideoPlaybackUiState.Success)?.info?.cid ?: 0L
     var sharedSeekSession by remember(bvid, currentSeekSessionCid) {
@@ -1409,9 +1410,13 @@ fun VideoPlayerSection(
                 playerState.player,
                 isInPipMode,
                 isScreenLocked,
+                isFullscreen,
                 showControls,
                 portraitSwipeToFullscreenEnabled,
                 centerSwipeToFullscreenEnabled,
+                slideVolumeBrightnessEnabled,
+                fullscreenSwipeSeekEnabled,
+                gestureSensitivity,
                 inlineSwipeSeekSeconds,
                 fullscreenSwipeSeekSeconds,
                 bottomGestureExclusionHeightDp,
@@ -1635,6 +1640,11 @@ fun VideoPlayerSection(
                                 // [修复] 使用累积距离判断方向，而非单帧增量
                                 if (abs(totalDragDistanceX) > abs(totalDragDistanceY)) {
                                     gestureMode = VideoGestureMode.Seek
+                                    // Lock-in haptic so landscape seek always feels responsive.
+                                    haptic.performHapticFeedback(
+                                        androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                                    )
+                                    lastSeekHapticTargetMs = startPosition
                                     com.android.purebilibili.core.util.Logger.d("VideoPlayerSection") {
                                         "🎯 Gesture: Seek (cumDx=$totalDragDistanceX, cumDy=$totalDragDistanceY)"
                                     }
@@ -1730,6 +1740,17 @@ fun VideoPlayerSection(
                                     )
                                     if (seekDelta != null) {
                                         seekTargetTime = (startPosition + seekDelta).coerceIn(0L, duration)
+                                        if (
+                                            shouldTriggerSeekStepHaptic(
+                                                previousTargetMs = lastSeekHapticTargetMs,
+                                                currentTargetMs = seekTargetTime
+                                            )
+                                        ) {
+                                            haptic.performHapticFeedback(
+                                                androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                                            )
+                                            lastSeekHapticTargetMs = seekTargetTime
+                                        }
                                         sharedSeekSession = updatePlaybackSeekInteraction(
                                             state = sharedSeekSession,
                                             positionMs = seekTargetTime
@@ -3598,10 +3619,11 @@ fun VideoPlayerSection(
 
         if (shouldShowSeekIndicator) {
             // 🖼️ Seek 模式：显示带缩略图的预览气泡
+            // zIndex must sit above forced return cover (100f) so landscape seek feedback is never buried.
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .zIndex(40f),
+                    .zIndex(120f),
                 contentAlignment = Alignment.Center
             ) {
                 if (videoshotData != null && videoshotData.isValid) {
