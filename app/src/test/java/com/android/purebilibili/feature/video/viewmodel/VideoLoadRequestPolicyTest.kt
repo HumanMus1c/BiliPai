@@ -301,6 +301,42 @@ class VideoLoadRequestPolicyTest {
     }
 
     @Test
+    fun `explicit premium selection only blocks the matching playback`() {
+        val firstPlayback = buildPremiumAutoUpgradePlaybackKey("BV1FIRST", 1L, null)
+        val secondPlayback = buildPremiumAutoUpgradePlaybackKey("BV1SECOND", 2L, null)
+        val explicitSelectionKeys = setOf(firstPlayback)
+
+        assertTrue(
+            hasExplicitQualitySelectionForPlayback(firstPlayback, explicitSelectionKeys)
+        )
+        assertFalse(
+            hasExplicitQualitySelectionForPlayback(secondPlayback, explicitSelectionKeys)
+        )
+    }
+
+    @Test
+    fun `automatic premium upgrade always replaces the playback source`() {
+        assertTrue(
+            shouldReplacePlaybackSourceForQualityChange(
+                reason = QualityChangeReason.INITIAL_AUTO_UPGRADE,
+                cdnSelectionChangedUrl = false
+            )
+        )
+        assertFalse(
+            shouldReplacePlaybackSourceForQualityChange(
+                reason = QualityChangeReason.USER_EXPLICIT,
+                cdnSelectionChangedUrl = false
+            )
+        )
+        assertTrue(
+            shouldReplacePlaybackSourceForQualityChange(
+                reason = QualityChangeReason.USER_EXPLICIT,
+                cdnSelectionChangedUrl = true
+            )
+        )
+    }
+
+    @Test
     fun `quality switch failure message explains permission denial`() {
         val message = resolveQualitySwitchFailureMessage(
             requestedQualityLabel = "1080P60",

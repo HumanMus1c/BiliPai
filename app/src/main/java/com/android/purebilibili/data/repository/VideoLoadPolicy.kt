@@ -1,5 +1,6 @@
 package com.android.purebilibili.data.repository
 
+import com.android.purebilibili.data.model.response.DashVideo
 import com.android.purebilibili.data.model.response.Page
 
 internal enum class PlayUrlSource {
@@ -13,6 +14,13 @@ internal enum class PlayUrlSource {
 internal enum class PlayUrlRequestKind {
     INITIAL,
     EXPLICIT
+}
+
+internal fun isStrictPremiumQualityRequest(
+    requestKind: PlayUrlRequestKind,
+    targetQn: Int
+): Boolean {
+    return requestKind == PlayUrlRequestKind.EXPLICIT && targetQn in 125..127
 }
 
 internal data class VideoInfoLookupInput(
@@ -291,6 +299,10 @@ internal fun shouldAcceptAppApiResultForTargetQuality(
         return returnedQuality > 0 || dashVideoIds.isNotEmpty()
     }
 
+    if (isStrictPremiumQualityRequest(requestKind, targetQn)) {
+        return targetQn in dashVideoIds
+    }
+
     // Explicit quality selection must respect the requested target for both VIP
     // and non-VIP users; otherwise the UI reports a successful switch while the
     // backend silently returns a lower tier.
@@ -331,6 +343,60 @@ internal fun isRequestedQualitySatisfied(
     if (requestedQuality < 80) return true
     if (requestedQuality in dashVideoIds) return true
     return returnedQuality >= requestedQuality && returnedQuality > 0
+}
+
+/**
+ * Returns true when the DASH manifest contains a playable exact track the user requested.
+ *
+ * Premium qualities (125 HDR, 126 Dolby Vision, 127 8K) must not be considered
+ * satisfied by a lower-tier response or by an exact-ID track without a URL.
+ */
+internal fun hasExactPlayableRequestedTrack(
+    requestedTargetQn: Int,
+    dashVideos: List<DashVideo>
+): Boolean {
+    return dashVideos.any { video ->
+        video.id == requestedTargetQn && video.getValidUrl().isNotEmpty()
+    }
+}
+
+internal fun isExactRequestedQualitySelected(
+    requestedTargetQn: Int,
+    actualQuality: Int
+): Boolean = actualQuality == requestedTargetQn
+
+/**
+ * Determines whether a non-blocking HDR auto-upgrade should be scheduled after
+ * an INITIAL SDR fast-start playback.
+ *
+ * All conditions must be met:
+ * 1. This is an INITIAL (first-load) request
+ * 2. User has auto-highest quality enabled
+ * 3. User is VIP (premium account)
+ * 4. Not on mobile data (Wi-Fi only)
+ * 5. Valid access_token available
+ * 6. Current DASH does not already include HDR track 125
+ * 7. User hasn't made an explicit quality selection
+ * 8. Upgrade hasn't already been attempted for this playback session
+ */
+internal fun shouldScheduleHdrAutoUpgrade(
+    isInitialRequest: Boolean,
+    isAutoHighestQuality: Boolean,
+    isVip: Boolean,
+    isMobileData: Boolean,
+    hasAccessToken: Boolean,
+    currentPlayableDashVideoIds: List<Int>,
+    userHasExplicitQualitySelection: Boolean,
+    upgradeAlreadyAttempted: Boolean
+): Boolean {
+    return isInitialRequest &&
+        isAutoHighestQuality &&
+        isVip &&
+        !isMobileData &&
+        hasAccessToken &&
+        125 !in currentPlayableDashVideoIds &&
+        !userHasExplicitQualitySelection &&
+        !upgradeAlreadyAttempted
 }
 
 internal fun shouldFetchCommentEmoteMapOnVideoLoad(): Boolean {

@@ -33,6 +33,8 @@ import com.android.purebilibili.data.repository.VideoNoteRepository
 import com.android.purebilibili.data.repository.VideoNoteSavePayload
 import com.android.purebilibili.data.repository.ViewGrpcRepository
 import com.android.purebilibili.data.repository.resolveVideoPlaybackAuthState
+import com.android.purebilibili.data.repository.isExactRequestedQualitySelected
+import com.android.purebilibili.data.repository.shouldScheduleHdrAutoUpgrade
 import com.android.purebilibili.feature.plugin.CdnHealthEvent
 import com.android.purebilibili.feature.plugin.CdnLineDiagnostic
 import com.android.purebilibili.feature.plugin.PlaybackCdnPlugin
@@ -1121,6 +1123,29 @@ internal fun resolveSubtitleTrackLoadDecision(
     }
 }
 
+internal enum class QualityChangeReason {
+    USER_EXPLICIT,
+    INITIAL_AUTO_UPGRADE
+}
+
+internal fun buildPremiumAutoUpgradePlaybackKey(
+    bvid: String,
+    cid: Long,
+    audioLang: String?
+): String = "$bvid:$cid:${audioLang.orEmpty()}"
+
+internal fun hasExplicitQualitySelectionForPlayback(
+    playbackKey: String,
+    explicitSelectionKeys: Set<String>
+): Boolean = playbackKey in explicitSelectionKeys
+
+internal fun shouldReplacePlaybackSourceForQualityChange(
+    reason: QualityChangeReason,
+    cdnSelectionChangedUrl: Boolean
+): Boolean {
+    return reason == QualityChangeReason.INITIAL_AUTO_UPGRADE || cdnSelectionChangedUrl
+}
+
 // ========== ViewModel ==========
 class VideoPlaybackViewModel : ViewModel() {
     // UseCases
@@ -1130,7 +1155,13 @@ class VideoPlaybackViewModel : ViewModel() {
     private val playbackCoordinator = PlaybackCoordinator(playbackSessionStore)
     private val interactionUseCase = VideoInteractionUseCase()
     private val qualityManager = QualityManager()
-    
+
+    // HDR auto-upgrade state
+    private val attemptedUpgradeKeys = mutableSetOf<String>()
+    private val explicitQualitySelectionKeys = mutableSetOf<String>()
+    private var explicitQualitySelectionGeneration: Long = 0L
+    private var hdrAutoUpgradeJob: Job? = null
+
     //  插件系统（替代旧的SponsorBlockUseCase）
     private var pluginCheckJob: Job? = null
     private var playbackCdnFallbackJob: Job? = null
@@ -3016,6 +3047,25 @@ class VideoPlaybackViewModel : ViewModel() {
                         )
                         _uiState.value = readyState
                         publishSubjectSnapshot(readyState)
+
+                        // Schedule non-blocking HDR auto-upgrade after SDR fast-start
+                        val initialDashVideoIds = result.cachedDashVideos
+                            .filter { it.getValidUrl().isNotEmpty() }
+                            .map { it.id }
+                            .distinct()
+                        val hasToken = !com.android.purebilibili.core.store.TokenManager.accessTokenCache.isNullOrEmpty()
+                        scheduleHdrAutoUpgradeIfNeeded(
+                            bvid = result.info.bvid,
+                            cid = result.info.cid,
+                            audioLang = result.curAudioLang,
+                            playableDashVideoIds = initialDashVideoIds,
+                            isAutoHighestQuality = autoHighestQualityEnabledForLoad,
+                            isVip = result.isVip,
+                            isMobileData = isOnMobileNetwork,
+                            hasAccessToken = hasToken,
+                            initialQuality = result.quality
+                        )
+
                         val requestedQualityForWarning = if (autoHighestQualityEnabledForLoad) {
                             defaultQuality
                         } else {
@@ -3134,6 +3184,233 @@ class VideoPlaybackViewModel : ViewModel() {
                 }
             }
         }
+    }
+    /**
+     * Schedule a non-blocking HDR auto-upgrade after SDR fast-start playback.
+     *
+     * Only invoked for INITIAL requests. The APP access_token API is called in a
+     * viewModelScope coroutine — it never blocks the first-frame or the UI thread.
+     *
+     * Per the plan: same video & same page & same audio language → at most once.
+     */
+    private fun scheduleHdrAutoUpgradeIfNeeded(
+        bvid: String,
+        cid: Long,
+        audioLang: String?,
+        playableDashVideoIds: List<Int>,
+        isAutoHighestQuality: Boolean,
+        isVip: Boolean,
+        isMobileData: Boolean,
+        hasAccessToken: Boolean,
+        initialQuality: Int
+    ) {
+        val playbackKey = buildPremiumAutoUpgradePlaybackKey(bvid, cid, audioLang)
+        hdrAutoUpgradeJob?.cancel()
+        hdrAutoUpgradeJob = null
+
+        if (!shouldScheduleHdrAutoUpgrade(
+                isInitialRequest = true,
+                isAutoHighestQuality = isAutoHighestQuality,
+                isVip = isVip,
+                isMobileData = isMobileData,
+                hasAccessToken = hasAccessToken,
+                currentPlayableDashVideoIds = playableDashVideoIds,
+                userHasExplicitQualitySelection = hasExplicitQualitySelectionForPlayback(
+                    playbackKey = playbackKey,
+                    explicitSelectionKeys = explicitQualitySelectionKeys
+                ),
+                upgradeAlreadyAttempted = attemptedUpgradeKeys.contains(playbackKey)
+            )
+        ) {
+            return
+        }
+
+        attemptedUpgradeKeys.add(playbackKey)
+
+        Logger.d(
+            "PlayerVM",
+            "PLAY_DIAG premium_upgrade_schedule playbackKey=$playbackKey " +
+                "target=125 currentActual=$initialQuality " +
+                "hasAccessToken=$hasAccessToken reason=INITIAL_SDR_FAST_START"
+        )
+
+        hdrAutoUpgradeJob = viewModelScope.launch {
+            val selectionGenerationAtStart = explicitQualitySelectionGeneration
+
+            val hdrData = VideoRepository.getExactPremiumPlayUrl(
+                bvid = bvid,
+                cid = cid,
+                targetQn = 125,
+                audioLang = audioLang
+            )
+
+            if (!isUpgradeResultStillApplicable(playbackKey, selectionGenerationAtStart)) {
+                Logger.d(
+                    "PlayerVM",
+                    "PLAY_DIAG premium_upgrade_cancel playbackKey=$playbackKey reason=STALE_RESULT"
+                )
+                return@launch
+            }
+
+            if (hdrData == null) {
+                return@launch
+            }
+
+            val hdrDashIds = hdrData.dash?.video?.map { it.id }?.distinct().orEmpty()
+            Logger.d(
+                "PlayerVM",
+                "PLAY_DIAG premium_upgrade_response playbackKey=$playbackKey target=125 " +
+                    "source=APP returnedQuality=${hdrData.quality} dashIds=$hdrDashIds " +
+                    "exactTargetFound=${125 in hdrDashIds}"
+            )
+
+            if (125 !in hdrDashIds) {
+                return@launch
+            }
+
+            applyHdrUpgrade(playbackKey, hdrData)
+        }
+    }
+
+    /**
+     * Validate that the async HDR result is still applicable to the current playback.
+     *
+     * Guards against:
+     * - User navigating to a different video/page
+     * - User making an explicit quality selection
+     */
+    private fun isUpgradeResultStillApplicable(
+        playbackKey: String,
+        selectionGenerationAtStart: Long
+    ): Boolean {
+        val currentAudioLang = (_uiState.value as? VideoPlaybackUiState.Success)?.currentAudioLang
+        val currentKey = buildPremiumAutoUpgradePlaybackKey(
+            currentBvid,
+            currentCid,
+            currentAudioLang
+        )
+
+        if (currentKey != playbackKey) {
+            Logger.d(
+                "PlayerVM",
+                "PLAY_DIAG premium_upgrade_cancel playbackKey=$playbackKey " +
+                    "reason=PLAYBACK_KEY_CHANGED current=$currentKey"
+            )
+            return false
+        }
+
+        if (selectionGenerationAtStart != explicitQualitySelectionGeneration) {
+            Logger.d(
+                "PlayerVM",
+                "PLAY_DIAG premium_upgrade_cancel playbackKey=$playbackKey " +
+                    "reason=USER_EXPLICIT_QUALITY_CHANGE " +
+                    "genAtStart=$selectionGenerationAtStart current=$explicitQualitySelectionGeneration"
+            )
+            return false
+        }
+
+        return true
+    }
+
+    /**
+     * Apply the HDR upgrade result to the player without restarting playback.
+     *
+     * Preserves current position and play/pause state.
+     * Reuses the existing [playResolvedPlayback] infrastructure.
+     */
+    private fun applyHdrUpgrade(playbackKey: String, hdrData: PlayUrlData) {
+        val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
+        val currentPos = exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L
+        val wasPlaying = exoPlayer?.isPlaying ?: false
+
+        val dash = hdrData.dash
+        if (dash == null || dash.video.isEmpty()) {
+            Logger.d(
+                "PlayerVM",
+                "PLAY_DIAG premium_upgrade_failed playbackKey=$playbackKey " +
+                    "reason=NO_DASH_VIDEO_DATA"
+            )
+            return
+        }
+
+        val videoCodecPreference = _videoCodecPreference.value
+        val videoSecondCodecPreference = _videoSecondCodecPreference.value
+        val isHevcSupported = com.android.purebilibili.core.util.MediaUtils.isHevcSupported()
+        val isAv1Supported = com.android.purebilibili.core.util.MediaUtils.isAv1Supported()
+        val audioQualityPreference = appContext?.let {
+            com.android.purebilibili.core.store.SettingsManager.getAudioQualitySync(it)
+        } ?: -1
+        val hdrPlaybackQualityMode = PlaybackQualityMode.LOCKED(125)
+
+        val selection = playbackUseCase.resolvePlaybackSelection(
+            playUrlData = hdrData,
+            targetQuality = 125,
+            audioQualityPreference = audioQualityPreference,
+            playbackSpeed = exoPlayer?.playbackParameters?.speed ?: 1.0f,
+            videoCodecPreference = videoCodecPreference,
+            videoSecondCodecPreference = videoSecondCodecPreference,
+            playbackQualityMode = hdrPlaybackQualityMode,
+            isHevcSupported = isHevcSupported,
+            isAv1Supported = isAv1Supported
+        ) ?: run {
+            Logger.d(
+                "PlayerVM",
+                "PLAY_DIAG premium_upgrade_failed playbackKey=$playbackKey " +
+                    "reason=RESOLVE_SELECTION_NULL"
+            )
+            return
+        }
+
+        if (!isExactRequestedQualitySelected(125, selection.actualQuality)) {
+            Logger.d(
+                "PlayerVM",
+                "PLAY_DIAG premium_upgrade_failed playbackKey=$playbackKey " +
+                    "reason=ACTUAL_QUALITY_MISMATCH actual=${selection.actualQuality}"
+            )
+            return
+        }
+
+        val cdnSelection = resolvePlaybackCdnCandidateSelection(
+            videoUrl = selection.videoUrl,
+            audioUrl = selection.audioUrl,
+            quality = selection.actualQuality,
+            cachedDashVideos = selection.cachedDashVideos,
+            cachedDashAudios = selection.cachedDashAudios,
+            adaptiveDashSource = selection.adaptiveDashSource
+        )
+
+        val playWhenReady = exoPlayer?.let { player ->
+            resolvePlaybackIntentForSourceReplacement(
+                playWhenReady = player.playWhenReady,
+                isPlaying = player.isPlaying
+            )
+        } ?: true
+
+        applyQualityChangeResult(
+            payload = QualityChangePayload(
+                playUrl = selection.videoUrl,
+                audioUrl = selection.audioUrl,
+                actualQuality = selection.actualQuality,
+                adaptiveDashSource = selection.adaptiveDashSource,
+                cachedDashVideos = selection.cachedDashVideos,
+                cachedDashAudios = selection.cachedDashAudios,
+                qualityIds = selection.qualityIds,
+                qualityLabels = selection.qualityLabels,
+                switchableQualityIds = selection.switchableQualityIds,
+                wasFallback = false,
+                currentPos = currentPos,
+                playWhenReady = playWhenReady,
+                playbackQualityMode = hdrPlaybackQualityMode
+            ),
+            reason = QualityChangeReason.INITIAL_AUTO_UPGRADE,
+            cdnSelection = cdnSelection
+        )
+
+        Logger.d(
+            "PlayerVM",
+            "PLAY_DIAG premium_upgrade_applied playbackKey=$playbackKey " +
+                "quality=125 position=$currentPos wasPlaying=$wasPlaying"
+        )
     }
     
     /**
@@ -6248,6 +6525,15 @@ class VideoPlaybackViewModel : ViewModel() {
             return
         }
 
+        // Cancel only the current playback's pending auto-upgrade. Other videos remain eligible.
+        explicitQualitySelectionKeys += buildPremiumAutoUpgradePlaybackKey(
+            currentBvid,
+            currentCid,
+            current.currentAudioLang
+        )
+        explicitQualitySelectionGeneration++
+        hdrAutoUpgradeJob?.cancel()
+
         val isHdrSupported = appContext?.let {
             com.android.purebilibili.core.util.MediaUtils.isHdrSupported(it)
         } ?: com.android.purebilibili.core.util.MediaUtils.isHdrSupported()
@@ -6407,51 +6693,25 @@ class VideoPlaybackViewModel : ViewModel() {
                         cachedDashAudios = nextCachedDashAudios,
                         adaptiveDashSource = result.adaptiveDashSource
                     )
-                    if (cdnSelection.playUrl != result.videoUrl || cdnSelection.audioUrl != result.audioUrl) {
-                        playResolvedPlayback(
-                            videoUrl = cdnSelection.playUrl,
-                            audioUrl = cdnSelection.audioUrl,
-                            adaptiveDashSource = cdnSelection.adaptiveDashSource,
-                            startPositionMs = currentPos,
+                    applyQualityChangeResult(
+                        payload = QualityChangePayload(
+                            playUrl = result.videoUrl,
+                            audioUrl = result.audioUrl,
+                            actualQuality = result.actualQuality,
+                            adaptiveDashSource = result.adaptiveDashSource,
+                            cachedDashVideos = nextCachedDashVideos,
+                            cachedDashAudios = nextCachedDashAudios,
+                            qualityIds = result.qualityIds,
+                            qualityLabels = result.qualityLabels,
+                            switchableQualityIds = result.switchableQualityIds,
+                            wasFallback = result.wasFallback,
+                            currentPos = currentPos,
                             playWhenReady = playWhenReadyAfterSwitch,
-                            cdnFallbackState = cdnSelection.fallbackState
-                        )
-                    } else {
-                        armPlaybackCdnFallback(cdnSelection.fallbackState, playWhenReadyAfterSwitch)
-                    }
-                    _qualitySwitchFailureDialog.value = null
-                    _uiState.value = current.copy(
-                        playUrl = cdnSelection.playUrl, audioUrl = cdnSelection.audioUrl,
-                        currentQuality = result.actualQuality, isQualitySwitching = false, requestedQuality = null,
-                        playbackQualityMode = playbackQualityMode,
-                        adaptiveDashSource = cdnSelection.adaptiveDashSource,
-                        pendingPlaybackTransitionPositionMs = transitionPositionMs,
-                        qualityIds = result.qualityIds.ifEmpty { current.qualityIds },
-                        qualityLabels = result.qualityLabels.ifEmpty { current.qualityLabels },
-                        switchableQualityIds = result.switchableQualityIds.ifEmpty { current.switchableQualityIds },
-                        //  [修复] 更新缓存的DASH流，否则后续画质切换可能失败
-                        cachedDashVideos = nextCachedDashVideos,
-                        cachedDashAudios = nextCachedDashAudios,
-                        currentCdnIndex = 0,
-                        allVideoUrls = cdnSelection.allVideoUrls,
-                        allAudioUrls = cdnSelection.allAudioUrls,
-                        cdnCandidateSources = cdnSelection.candidateSources,
-                        cdnLineDiagnostics = cdnSelection.lineDiagnostics
+                            playbackQualityMode = playbackQualityMode
+                        ),
+                        reason = QualityChangeReason.USER_EXPLICIT,
+                        cdnSelection = cdnSelection
                     )
-                    monitorPlaybackTransitionPosition(transitionPositionMs)
-                    val label = current.qualityLabels.getOrNull(
-                        current.qualityIds.indexOf(result.actualQuality)
-                    ) ?: qualityManager.getQualityLabel(result.actualQuality)
-                    toast(
-                        if (result.wasFallback) {
-                            "目标清晰度不可用，已切换至 $label"
-                        } else {
-                            "✓ 已切换至 $label"
-                        },
-                        PlayerToastPresentation.CenteredHighlight
-                    )
-                    //  记录画质切换事件
-                    AnalyticsHelper.logQualityChange(currentBvid, current.currentQuality, result.actualQuality)
                 } else {
                     _uiState.value = current.copy(
                         isQualitySwitching = false,
@@ -7164,6 +7424,26 @@ class VideoPlaybackViewModel : ViewModel() {
         val fallbackState: PlaybackCdnFallbackState
     )
 
+    /**
+     * Payload for [applyQualityChangeResult] — the minimal set of fields needed to
+     * apply a quality change (manual switch or auto-upgrade) to the player and UI state.
+     */
+    private data class QualityChangePayload(
+        val playUrl: String,
+        val audioUrl: String?,
+        val actualQuality: Int,
+        val adaptiveDashSource: AdaptiveDashPlaybackSource?,
+        val cachedDashVideos: List<DashVideo>,
+        val cachedDashAudios: List<DashAudio>,
+        val qualityIds: List<Int>,
+        val qualityLabels: List<String>,
+        val switchableQualityIds: List<Int>,
+        val wasFallback: Boolean = false,
+        val currentPos: Long,
+        val playWhenReady: Boolean,
+        val playbackQualityMode: PlaybackQualityMode
+    )
+
     private fun resolvePlaybackCdnCandidateSelection(
         videoUrl: String,
         audioUrl: String?,
@@ -7591,5 +7871,95 @@ class VideoPlaybackViewModel : ViewModel() {
         }
         
         exoPlayer = null
+    }
+
+    /**
+     * Apply a quality change result to the player and UI state.
+     *
+     * Shared path for both:
+     * - [QualityChangeReason.USER_EXPLICIT] (manual quality switch from [changeQuality])
+     * - [QualityChangeReason.INITIAL_AUTO_UPGRADE] (HDR auto-upgrade)
+     *
+     * Preserves playback position and state. CDN selection, fallback arming,
+     * UI state update, and transition position monitoring are all handled here.
+     * Callers are responsible for pre-validation and for their own post-apply
+     * UI feedback (toast, analytics, logging).
+     */
+    private fun applyQualityChangeResult(
+        payload: QualityChangePayload,
+        reason: QualityChangeReason,
+        cdnSelection: PlaybackCdnCandidateSelection
+    ) {
+        val current = _uiState.value as? VideoPlaybackUiState.Success ?: return
+
+        val cdnSelectionChangedUrl =
+            cdnSelection.playUrl != payload.playUrl || cdnSelection.audioUrl != payload.audioUrl
+        if (shouldReplacePlaybackSourceForQualityChange(reason, cdnSelectionChangedUrl)) {
+            playResolvedPlayback(
+                videoUrl = cdnSelection.playUrl,
+                audioUrl = cdnSelection.audioUrl,
+                adaptiveDashSource = cdnSelection.adaptiveDashSource,
+                startPositionMs = payload.currentPos,
+                playWhenReady = payload.playWhenReady,
+                cdnFallbackState = cdnSelection.fallbackState
+            )
+        } else {
+            armPlaybackCdnFallback(cdnSelection.fallbackState, payload.playWhenReady)
+        }
+
+        _qualitySwitchFailureDialog.value = null
+
+        _uiState.value = current.copy(
+            playUrl = cdnSelection.playUrl,
+            audioUrl = cdnSelection.audioUrl,
+            currentQuality = payload.actualQuality,
+            isQualitySwitching = false,
+            requestedQuality = null,
+            playbackQualityMode = payload.playbackQualityMode,
+            adaptiveDashSource = cdnSelection.adaptiveDashSource,
+            pendingPlaybackTransitionPositionMs = payload.currentPos,
+            qualityIds = payload.qualityIds.ifEmpty { current.qualityIds },
+            qualityLabels = payload.qualityLabels.ifEmpty { current.qualityLabels },
+            switchableQualityIds = payload.switchableQualityIds
+                .ifEmpty { current.switchableQualityIds },
+            cachedDashVideos = payload.cachedDashVideos,
+            cachedDashAudios = payload.cachedDashAudios,
+            currentCdnIndex = 0,
+            allVideoUrls = cdnSelection.allVideoUrls,
+            allAudioUrls = cdnSelection.allAudioUrls,
+            cdnCandidateSources = cdnSelection.candidateSources,
+            cdnLineDiagnostics = cdnSelection.lineDiagnostics
+        )
+
+        monitorPlaybackTransitionPosition(payload.currentPos)
+
+        when (reason) {
+            QualityChangeReason.USER_EXPLICIT -> {
+                val label = payload.qualityLabels.getOrNull(
+                    payload.qualityIds.indexOf(payload.actualQuality)
+                ) ?: qualityManager.getQualityLabel(payload.actualQuality)
+                toast(
+                    if (payload.wasFallback) {
+                        "目标清晰度不可用，已切换至 $label"
+                    } else {
+                        "✓ 已切换至 $label"
+                    },
+                    PlayerToastPresentation.CenteredHighlight
+                )
+                AnalyticsHelper.logQualityChange(
+                    currentBvid, current.currentQuality, payload.actualQuality
+                )
+            }
+
+            QualityChangeReason.INITIAL_AUTO_UPGRADE -> {
+                Logger.d(
+                    "PlayerVM",
+                    "PLAY_DIAG premium_upgrade_applied " +
+                        "quality=${payload.actualQuality} position=${payload.currentPos} " +
+                        "wasFallback=${payload.wasFallback}"
+                )
+                // Silent upgrade — no toast, no user-visible analytics event
+            }
+        }
     }
 }
