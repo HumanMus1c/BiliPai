@@ -1222,6 +1222,16 @@ fun rememberVideoPlayerState(
             return@LaunchedEffect
         }
 
+        // 冷启动进场：共享元素 morph 期间先不 attach，避免解码器/Surface 初始化与景深模糊抢主线程。
+        // 小窗复用则立即 attach，保证 live morph 能带上已在播的 surface。
+        if (!entryTransitionFinished && !reuseFromMiniPlayerAtEntry) {
+            Logger.d(
+                "VideoPlayerState",
+                "SUB_DBG defer attach/load until entry transition finished: request=$bvid/$cid"
+            )
+            return@LaunchedEffect
+        }
+
         // 1️⃣ 首先绑定 player
         viewModel.attachPlayer(player)
         Logger.d(

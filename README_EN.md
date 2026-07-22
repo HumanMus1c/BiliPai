@@ -436,11 +436,13 @@ A lightweight plugin format requiring **no coding**, just a simple JSON file to 
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Latest (v9.9.8.5 · 2026-07-20)
+### Latest (v9.9.8.6 · 2026-07-21)
 
-- Fixes miuix privacy/storage action rows, video tag search navigation, and UP-name navigation from search results.
-- Drawer blur now starts immediately while opening, using a reduced blur budget during motion.
-- Version metadata is updated to `9.9.8.5 / versionCode 260`.
+- Player volume/brightness theme feedback and landscape seek preview/haptics.
+- Portrait direct-entry, multi-P/season, subtitles, and HDR/Dolby/8K playurl chain fixes.
+- Related-video ⋮ menu (watch later / feedback / not interested).
+- Card realtime blur / liquid glass is still WIP — leave off; do not use.
+- Version metadata is updated to `9.9.8.6 / versionCode 261`.
 
 ---
 

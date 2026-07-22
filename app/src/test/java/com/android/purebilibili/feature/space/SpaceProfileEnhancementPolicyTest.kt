@@ -167,7 +167,13 @@ class SpaceProfileEnhancementPolicyTest {
         val contributionTabs = resolveSpaceContributionTabs(tab2)
 
         assertEquals(
-            listOf(SpaceMainTab.HOME, SpaceMainTab.DYNAMIC, SpaceMainTab.CONTRIBUTION, SpaceMainTab.FAVORITE),
+            listOf(
+                SpaceMainTab.HOME,
+                SpaceMainTab.DYNAMIC,
+                SpaceMainTab.CONTRIBUTION,
+                SpaceMainTab.COLLECTIONS,
+                SpaceMainTab.FAVORITE
+            ),
             mainTabs.map { it.tab }
         )
         assertEquals(listOf("视频", "图文", "赛季", "系列"), contributionTabs.map { it.title })
@@ -178,16 +184,22 @@ class SpaceProfileEnhancementPolicyTest {
     }
 
     @Test
-    fun `resolveSpaceDisplayedMainTabs prefers home dynamic and contribution`() {
+    fun `resolveSpaceDisplayedMainTabs always keeps primary destinations visible`() {
         val tabs = listOf(
             SpaceMainTabItem(SpaceMainTab.HOME, "主页"),
             SpaceMainTabItem(SpaceMainTab.DYNAMIC, "动态"),
             SpaceMainTabItem(SpaceMainTab.CONTRIBUTION, "投稿"),
-            SpaceMainTabItem(SpaceMainTab.COLLECTIONS, "合集和系列")
+            SpaceMainTabItem(SpaceMainTab.COLLECTIONS, "合集"),
+            SpaceMainTabItem(SpaceMainTab.FAVORITE, "收藏")
         )
 
         assertEquals(
-            listOf(SpaceMainTab.HOME, SpaceMainTab.DYNAMIC, SpaceMainTab.CONTRIBUTION),
+            listOf(
+                SpaceMainTab.HOME,
+                SpaceMainTab.DYNAMIC,
+                SpaceMainTab.CONTRIBUTION,
+                SpaceMainTab.COLLECTIONS
+            ),
             resolveSpaceDisplayedMainTabs(tabs, selectedTab = SpaceMainTab.HOME).map { it.tab }
         )
         assertEquals(
@@ -198,6 +210,16 @@ class SpaceProfileEnhancementPolicyTest {
                 SpaceMainTab.COLLECTIONS
             ),
             resolveSpaceDisplayedMainTabs(tabs, selectedTab = SpaceMainTab.COLLECTIONS).map { it.tab }
+        )
+        assertEquals(
+            listOf(
+                SpaceMainTab.HOME,
+                SpaceMainTab.DYNAMIC,
+                SpaceMainTab.CONTRIBUTION,
+                SpaceMainTab.COLLECTIONS,
+                SpaceMainTab.FAVORITE
+            ),
+            resolveSpaceDisplayedMainTabs(tabs, selectedTab = SpaceMainTab.FAVORITE).map { it.tab }
         )
     }
 

@@ -1475,9 +1475,9 @@ private fun PlaybackFullscreenGestureSettingsSection(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.PORTRAIT_SWIPE_FULLSCREEN),
             title = "竖屏视频直达刷视频模式",
             subtitle = if (directPortraitStoryEntry) {
-                "任意入口点击竖屏视频将直接进入竖屏刷视频，跳过详情页"
+                "开启：任意入口点竖屏视频直接进竖滑全屏（可经卡片放大动画）；默认关闭时先进详情内联竖屏"
             } else {
-                "关闭后竖屏视频仍从详情页进入"
+                "关闭（默认）：竖屏视频先进详情页内联播放，可再点「竖屏」进刷视频"
             },
             checked = directPortraitStoryEntry,
             onCheckedChange = {
@@ -1494,7 +1494,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.PORTRAIT_SWIPE_FULLSCREEN),
             title = "启动时进入竖屏视频流",
             subtitle = if (launchToPortraitFeedOnStartup) {
-                "打开应用后直接进入竖屏刷视频，类似短视频 App"
+                "打开应用后直接进入竖屏刷视频流（独立于「直达」开关）"
             } else {
                 "关闭后仍从首页进入应用"
             },
@@ -1868,19 +1868,58 @@ private fun PlaybackFullscreenGestureSettingsSection(
             iconTint = com.android.purebilibili.core.theme.iOSGreen
         )
         IOSDivider()
+        val autoExitFullscreenMode by com.android.purebilibili.core.store.SettingsManager
+            .getAutoExitFullscreenMode(context)
+            .collectAsStateWithLifecycle(
+                initialValue = com.android.purebilibili.core.store.AutoExitFullscreenMode.ALL_PARTS
+            )
 	        IOSSwitchItem(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.AUTO_EXIT_FULLSCREEN),
             title = "自动退出全屏",
-            subtitle = "视频结束播放后自动退出全屏",
-            checked = autoExitFullscreen,
-            onCheckedChange = {
+            subtitle = autoExitFullscreenMode.subtitle,
+            checked = autoExitFullscreenMode !=
+                com.android.purebilibili.core.store.AutoExitFullscreenMode.OFF,
+            onCheckedChange = { enabled ->
                 scope.launch {
-                    com.android.purebilibili.core.store.SettingsManager
-                        .setAutoExitFullscreen(context, it)
+                    com.android.purebilibili.core.store.SettingsManager.setAutoExitFullscreenMode(
+                        context,
+                        if (enabled) {
+                            com.android.purebilibili.core.store.AutoExitFullscreenMode.ALL_PARTS
+                        } else {
+                            com.android.purebilibili.core.store.AutoExitFullscreenMode.OFF
+                        },
+                    )
                 }
             },
             iconTint = iOSOrange
         )
+        if (
+            autoExitFullscreenMode !=
+            com.android.purebilibili.core.store.AutoExitFullscreenMode.OFF
+        ) {
+            IOSDivider()
+            IOSSlidingSegmentedSetting(
+                title = "退出时机：${autoExitFullscreenMode.label}",
+                subtitle = autoExitFullscreenMode.subtitle,
+                options = listOf(
+                    PlaybackSegmentOption(
+                        com.android.purebilibili.core.store.AutoExitFullscreenMode.CURRENT_PART,
+                        "当前P",
+                    ),
+                    PlaybackSegmentOption(
+                        com.android.purebilibili.core.store.AutoExitFullscreenMode.ALL_PARTS,
+                        "全部完",
+                    ),
+                ),
+                selectedValue = autoExitFullscreenMode,
+                onSelectionChange = { mode ->
+                    scope.launch {
+                        com.android.purebilibili.core.store.SettingsManager
+                            .setAutoExitFullscreenMode(context, mode)
+                    }
+                },
+            )
+        }
         IOSDivider()
 	        IOSSwitchItem(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_LOCK),

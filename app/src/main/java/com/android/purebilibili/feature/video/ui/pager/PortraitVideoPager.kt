@@ -48,6 +48,18 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import com.android.purebilibili.feature.video.screen.VideoDetailHiddenSystemBars
+import com.android.purebilibili.feature.video.screen.VideoDetailSystemBarsApplySpec
+import com.android.purebilibili.feature.video.screen.applyVideoDetailSystemBarsSpec
+import com.android.purebilibili.feature.video.screen.findActivity
+import com.android.purebilibili.feature.video.screen.resolveVideoDetailSystemBarsApplySpec
+import com.android.purebilibili.feature.video.screen.resolveVideoDetailSystemBarsVisibilityPolicy
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -128,13 +140,24 @@ import com.android.purebilibili.feature.video.playback.session.startPlaybackSeek
 import com.android.purebilibili.feature.video.playback.session.syncPlaybackSeekSession
 import com.android.purebilibili.feature.video.playback.session.updatePlaybackSeekInteraction
 import com.android.purebilibili.feature.video.ui.overlay.PlayerProgress
+import com.android.purebilibili.feature.video.ui.components.AspectRatioMenu
+import com.android.purebilibili.feature.video.ui.components.QualitySelectionMenu
 import com.android.purebilibili.feature.video.ui.components.SpeedSelectionMenuDialog
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
+import com.android.purebilibili.feature.video.ui.components.resolveSafeVideoAspectRatio
+import com.android.purebilibili.feature.video.ui.overlay.FullscreenDoubleTapAction
 import com.android.purebilibili.feature.video.ui.overlay.PortraitFullscreenOverlay
+import com.android.purebilibili.feature.video.ui.overlay.PortraitSubtitleHost
+import com.android.purebilibili.feature.video.ui.overlay.nextFullscreenSeekFeedbackEvent
+import com.android.purebilibili.feature.video.ui.overlay.resolveFullscreenDoubleTapAction
+import com.android.purebilibili.feature.video.ui.overlay.shouldShowPortraitSubtitleChip
+import com.android.purebilibili.feature.video.subtitle.SubtitleAutoPreference
+import com.android.purebilibili.feature.video.subtitle.isSubtitleFeatureEnabledForUser
 import com.android.purebilibili.feature.video.player.resolveHandleAudioFocusByPolicy
 import com.android.purebilibili.feature.video.ui.section.FOREGROUND_SURFACE_RECOVERY_DELAY_MS
 import com.android.purebilibili.feature.video.ui.section.resolveLongPressPlaybackParameters
 import com.android.purebilibili.feature.video.ui.section.rebindPlayerSurfaceIfNeeded
+import com.android.purebilibili.feature.video.ui.section.resolveRelativeSeekTargetPosition
 import com.android.purebilibili.feature.video.ui.section.shouldKickPlaybackAfterSurfaceRecovery
 import com.android.purebilibili.feature.video.viewmodel.PlaybackEndAction
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
@@ -213,6 +236,49 @@ fun PortraitVideoPager(
     onRotateToLandscape: () -> Unit
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
+    val activity = remember(context) { context.findActivity() }
+    val window = activity?.window
+    val insetsController = remember(window, view) {
+        if (window != null) WindowInsetsControllerCompat(window, view) else null
+    }
+    // Immersive: hide status + nav bars while portrait pager is active (Story + detail overlay).
+    LaunchedEffect(isActive, window, insetsController) {
+        if (!isActive || window == null || insetsController == null) return@LaunchedEffect
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val immersiveSpec = resolveVideoDetailSystemBarsApplySpec(
+            visibilityPolicy = resolveVideoDetailSystemBarsVisibilityPolicy(
+                isFullscreenMode = false,
+                hideVideoPageStatusBar = false,
+                isInPipMode = false,
+                isScreenActive = true,
+                isPortraitFullscreen = true
+            ),
+            useTabletLayout = false,
+            isLightBackground = false,
+            backgroundColor = ComposeColor.Black.toArgb(),
+            transparentColor = ComposeColor.Transparent.toArgb(),
+            blackColor = ComposeColor.Black.toArgb(),
+            transientBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        )
+        applyVideoDetailSystemBarsSpec(window, insetsController, immersiveSpec)
+    }
+    DisposableEffect(isActive, window, insetsController) {
+        onDispose {
+            if (window == null || insetsController == null) return@onDispose
+            // Restore bars when leaving portrait immersive (detail returns to inline / Story pops).
+            val restoreSpec = VideoDetailSystemBarsApplySpec(
+                hiddenBars = VideoDetailHiddenSystemBars.NONE,
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT,
+                statusBarColor = ComposeColor.Transparent.toArgb(),
+                navigationBarColor = ComposeColor.Transparent.toArgb(),
+                lightStatusBars = false,
+                lightNavigationBars = false
+            )
+            applyVideoDetailSystemBarsSpec(window, insetsController, restoreSpec)
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
     val composerViewModel: VideoComposerViewModel =
         androidx.lifecycle.viewmodel.compose.viewModel(key = "portrait_composer_$initialBvid")
     val supplementViewModel: VideoSupplementViewModel =
@@ -286,6 +352,31 @@ fun PortraitVideoPager(
     val isExternalPlaylist by PlaylistManager.isExternalPlaylist.collectAsStateWithLifecycle()
     val prefetchVideoEnabled by SettingsManager.getPrefetchVideo(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    // Align portrait pager playurl qn with detail-page playable default (Wi‑Fi / VIP / auto-highest).
+    val portraitDefaultQuality = remember(context) {
+        NetworkUtils.getPlayableDefaultQualityId(
+            context = context,
+            isLoggedIn = !TokenManager.sessDataCache.isNullOrEmpty(),
+            isVip = TokenManager.isVipCache
+        )
+    }
+    var portraitSelectedQuality by remember {
+        mutableIntStateOf(resolvePortraitPlaybackTargetQuality(portraitDefaultQuality))
+    }
+    var portraitDisplayedQuality by remember {
+        mutableIntStateOf(resolvePortraitPlaybackTargetQuality(portraitDefaultQuality))
+    }
+    var portraitAvailableQualityIds by remember {
+        mutableStateOf(
+            listOf(resolvePortraitPlaybackTargetQuality(portraitDefaultQuality))
+        )
+    }
+    val portraitQualityLabel = remember(portraitDisplayedQuality) {
+        resolvePortraitQualityLabel(portraitDisplayedQuality)
+    }
+    var portraitAspectRatio by remember { mutableStateOf(VideoAspectRatio.FIT) }
+    val isPortraitLoggedIn = !TokenManager.sessDataCache.isNullOrEmpty()
+    val isPortraitVip = TokenManager.isVipCache
     val portraitMediaSourceFactory = remember(context) {
         buildPortraitCachedMediaSourceFactory(context)
     }
@@ -300,30 +391,22 @@ fun PortraitVideoPager(
         )
     }
 
-    val baseRecommendations = remember(recommendations, recommendationShuffleSeed) {
-        shufflePortraitRecommendations(
-            seed = recommendationShuffleSeed,
-            recommendations = recommendations
-        )
-    }
-    val initialPageIndex = remember(initialBvid, initialInfo.bvid, baseRecommendations) {
+    val initialPageIndex = remember(initialBvid, initialInfo.bvid, recommendations) {
         resolvePortraitInitialPageIndex(
             initialBvid = initialBvid,
             initialInfoBvid = initialInfo.bvid,
-            recommendations = baseRecommendations
+            recommendations = recommendations
         )
     }
-    val recommendationItems = remember(initialInfo.bvid, baseRecommendations) {
-        mutableStateListOf<RelatedVideo>().apply {
-            addAll(baseRecommendations)
-        }
+    // Stable lists: seed once, then only append (Story load-more / discovery / watch-later).
+    // Do not recreate on every parent recommendations update — that resets page order mid-swipe.
+    val recommendationItems = remember(initialInfo.bvid) {
+        mutableStateListOf<RelatedVideo>()
     }
-    val pageItems = remember(initialInfo.bvid, baseRecommendations) {
-        mutableStateListOf<Any>().apply {
-            add(initialInfo)
-            addAll(baseRecommendations)
-        }
+    val pageItems = remember(initialInfo.bvid) {
+        mutableStateListOf<Any>(initialInfo)
     }
+    var seededInitialRecommendations by remember(initialInfo.bvid) { mutableStateOf(false) }
     val knownVideoAspectRatios = remember(initialInfo.bvid) {
         mutableStateMapOf<String, Float>().apply {
             resolveAspectRatioFromDimension(initialInfo.dimension)?.let { aspectRatio ->
@@ -335,6 +418,44 @@ fun PortraitVideoPager(
     var isLoadingMoreRecommendations by remember { mutableStateOf(false) }
     val appendedRecommendationSeeds = remember { mutableStateListOf<String>() }
     var recommendationFeedCursor by rememberSaveable(initialInfo.bvid) { mutableIntStateOf(0) }
+    var lastLoadedCollectionInfo by remember(initialInfo.bvid) {
+        mutableStateOf<ViewInfo?>(null)
+    }
+    var lastLoadedCollectionInfoBvid by remember(initialInfo.bvid) {
+        mutableStateOf(initialInfo.bvid)
+    }
+
+    LaunchedEffect(initialInfo.bvid, recommendations) {
+        if (!seededInitialRecommendations) {
+            val seeded = shufflePortraitRecommendations(
+                seed = recommendationShuffleSeed,
+                recommendations = recommendations
+            )
+            recommendationItems.clear()
+            recommendationItems.addAll(seeded)
+            pageItems.clear()
+            pageItems.add(initialInfo)
+            pageItems.addAll(seeded)
+            seededInitialRecommendations = true
+            return@LaunchedEffect
+        }
+        val existingBvids = snapshotPortraitPageBvids(pageItems)
+        val appendItems = resolvePortraitExternalRecommendationAppendItems(
+            currentInitialBvid = initialInfo.bvid,
+            existingBvids = existingBvids,
+            externalRecommendations = recommendations
+        )
+        if (appendItems.isEmpty()) return@LaunchedEffect
+        val shuffledAppend = shufflePortraitRecommendations(
+            seed = resolvePortraitRecommendationAppendSeed(
+                baseSeed = recommendationShuffleSeed,
+                currentBvid = initialInfo.bvid
+            ),
+            recommendations = appendItems
+        )
+        recommendationItems.addAll(shuffledAppend)
+        pageItems.addAll(shuffledAppend)
+    }
 
     LaunchedEffect(Unit) {
         if (TokenManager.sessDataCache.isNullOrEmpty()) {
@@ -631,12 +752,22 @@ fun PortraitVideoPager(
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (!isPortraitPlaybackAllowed) return
                 if (playbackState != Player.STATE_ENDED) return
+                val currentPage = pagerState.currentPage
+                val nextItem = pageItems.getOrNull(currentPage + 1)
+                val currentItem = pageItems.getOrNull(currentPage)
+                val collectionInfo = lastLoadedCollectionInfo
+                    ?.takeIf { it.bvid == lastLoadedCollectionInfoBvid }
+                val hasCollectionFollowUp = shouldPortraitAutoContinueToNextItem(
+                    currentItem = currentItem,
+                    nextItem = nextItem,
+                    currentLoadedInfo = collectionInfo
+                )
                 val playbackEndAction = resolvePlaybackEndAction(
                     behavior = playbackCompletionBehavior,
                     autoPlayEnabled = autoPlayEnabled,
                     isExternalPlaylist = isExternalPlaylist,
                     externalPlaylistAutoContinueEnabled = externalPlaylistAutoContinueEnabled,
-                    hasNextPageOrSeasonTarget = false
+                    hasNextPageOrSeasonTarget = hasCollectionFollowUp
                 )
                 when (playbackEndAction) {
                     PlaybackEndAction.STOP -> return
@@ -648,12 +779,13 @@ fun PortraitVideoPager(
                     PlaybackEndAction.PLAY_NEXT_IN_PLAYLIST,
                     PlaybackEndAction.AUTO_CONTINUE -> {
                         val playingBvid = currentPlayingBvid ?: return
-                        if (lastAutoAdvancedBvid == playingBvid) return
-                        lastAutoAdvancedBvid = playingBvid
+                        val advanceKey = "$playingBvid#$currentPlayingCid"
+                        if (lastAutoAdvancedBvid == advanceKey) return
+                        lastAutoAdvancedBvid = advanceKey
 
                         val nextPage = resolveNextPortraitPageAfterPlaybackEnd(
                             action = playbackEndAction,
-                            currentPage = pagerState.currentPage,
+                            currentPage = currentPage,
                             lastPage = pageItems.lastIndex
                         ) ?: return
 
@@ -663,8 +795,9 @@ fun PortraitVideoPager(
                     }
                     PlaybackEndAction.PLAY_NEXT_IN_PLAYLIST_LOOP -> {
                         val playingBvid = currentPlayingBvid ?: return
-                        if (lastAutoAdvancedBvid == playingBvid) return
-                        lastAutoAdvancedBvid = playingBvid
+                        val advanceKey = "$playingBvid#$currentPlayingCid"
+                        if (lastAutoAdvancedBvid == advanceKey) return
+                        lastAutoAdvancedBvid = advanceKey
 
                         val nextPage = resolveNextPortraitPageAfterPlaybackEnd(
                             action = PlaybackEndAction.PLAY_NEXT_IN_PLAYLIST_LOOP,
@@ -687,12 +820,15 @@ fun PortraitVideoPager(
     fun requestPortraitPlaybackForPage(
         targetPage: Int,
         applyInitialSeekOnFirstPage: Boolean,
+        forceReload: Boolean = false,
+        resumePositionMs: Long? = null,
     ): Boolean {
         val item = pageItems.getOrNull(targetPage) ?: return false
         val playbackIdentity = resolvePortraitPagePlaybackIdentity(item) ?: return false
         val bvid = playbackIdentity.bvid
         val aid = playbackIdentity.aid
         val requestedCid = playbackIdentity.cid
+        val targetQuality = resolvePortraitPlaybackTargetQuality(portraitSelectedQuality)
 
         if (!isPortraitPlaybackAllowed) {
             pendingAutoPlayGeneration = -1
@@ -701,15 +837,22 @@ fun PortraitVideoPager(
         }
 
         if (
+            !forceReload &&
             shouldSkipPortraitReloadForCurrentMedia(
                 currentPlayingBvid = currentPlayingBvid,
                 targetBvid = bvid,
-                currentPlayerMediaId = exoPlayer.currentMediaItem?.mediaId
+                currentPlayerMediaId = exoPlayer.currentMediaItem?.mediaId,
+                targetCid = requestedCid,
+                currentPlayingCid = currentPlayingCid
             )
         ) {
             isLoading = false
             return false
         }
+
+        val seekResumeMs = resumePositionMs
+            ?.coerceAtLeast(0L)
+            ?: if (forceReload) exoPlayer.currentPosition.coerceAtLeast(0L) else null
 
         activeLoadGeneration += 1
         val requestGeneration = activeLoadGeneration
@@ -730,13 +873,15 @@ fun PortraitVideoPager(
                     bvid = bvid,
                     aid = aid,
                     requestedCid = requestedCid,
-                    targetQuality = resolvePortraitPlaybackTargetQuality()
+                    targetQuality = targetQuality
                 )
 
                 result.fold(
                     onSuccess = { (info, playData) ->
-                        val streamUrls = resolvePortraitPlaybackStreamUrls(playData)
-                            ?: run {
+                        val streamUrls = resolvePortraitPlaybackStreamUrls(
+                            playData = playData,
+                            targetQuality = targetQuality
+                        ) ?: run {
                                 pendingAutoPlayGeneration = -1
                                 if (shouldApplyLoadResult(
                                         requestGeneration = requestGeneration,
@@ -753,18 +898,34 @@ fun PortraitVideoPager(
                             streamUrls = streamUrls,
                             cachedDashVideos = playData.dash?.video.orEmpty(),
                             cachedDashAudios = playData.dash?.audio.orEmpty(),
+                            targetQuality = targetQuality,
                             cdnPlugin = portraitPlaybackCdnPlugin
                         )
+                        val dashVideoIds = playData.dash?.video?.map { it.id }?.distinct().orEmpty()
+                        val availableQualityIds = resolvePortraitAvailableQualityIds(
+                            acceptQualities = playData.accept_quality,
+                            dashVideoIds = dashVideoIds
+                        )
+                        if (availableQualityIds.isNotEmpty()) {
+                            portraitAvailableQualityIds = availableQualityIds
+                        }
+                        portraitDisplayedQuality = resolvePortraitDisplayedQualityId(
+                            requestedQuality = targetQuality,
+                            returnedQuality = playData.quality,
+                            dashVideoIds = dashVideoIds
+                        )
 
+                        val resolvedCid = info.cid.takeIf { it > 0L } ?: requestedCid
+                        val mediaId = resolvePortraitMediaId(bvid, resolvedCid)
                         val videoItem = MediaItem.Builder()
                             .setUri(resolvedUrls.videoUrl)
-                            .setMediaId(bvid)
+                            .setMediaId(mediaId)
                             .build()
                         val videoSource = portraitMediaSourceFactory.createMediaSource(videoItem)
                         val finalSource = resolvedUrls.audioUrl?.takeIf { it.isNotEmpty() }?.let { audioUrl ->
                             val audioItem = MediaItem.Builder()
                                 .setUri(audioUrl)
-                                .setMediaId("audio_$bvid")
+                                .setMediaId("audio_$mediaId")
                                 .build()
                             val audioSource = portraitMediaSourceFactory.createMediaSource(audioItem)
                             MergingMediaSource(videoSource, audioSource)
@@ -787,15 +948,59 @@ fun PortraitVideoPager(
                         resolveAspectRatioFromDimension(info.dimension)?.let { aspectRatio ->
                             knownVideoAspectRatios[bvid] = aspectRatio
                         }
-                        currentPlayingCid = info.cid
+                        currentPlayingCid = resolvedCid
                         currentPlayingAid = info.aid
+
+                        // Inject multi-P / season follow-ups right after this page so immersive
+                        // swipe (and auto-continue) stays in-collection before related feed.
+                        val currentPageIndex = pageItems.indexOfFirst { candidate ->
+                            val identity = resolvePortraitPagePlaybackIdentity(candidate)
+                            identity?.bvid == bvid &&
+                                (requestedCid <= 0L || identity.cid == requestedCid || identity.cid <= 0L)
+                        }.takeIf { it >= 0 } ?: pagerState.currentPage
+                        // Story / 竖屏直达 seed 常无 owner；用详情回填，避免只显示 `@`
+                        pageItems.getOrNull(currentPageIndex)?.let { existing ->
+                            pageItems[currentPageIndex] = enrichPortraitPageItemWithLoadedInfo(
+                                existing = existing,
+                                loaded = info
+                            )
+                        }
+                        val followUps = resolvePortraitCollectionFollowUps(
+                            info = info,
+                            currentCid = resolvedCid
+                        )
+                        val injectItems = resolvePortraitCollectionInjectionPlan(
+                            pageItems = pageItems.toList(),
+                            currentPage = currentPageIndex,
+                            followUps = followUps
+                        )
+                        if (injectItems.isNotEmpty()) {
+                            val insertAt = (currentPageIndex + 1).coerceIn(0, pageItems.size)
+                            pageItems.addAll(insertAt, injectItems)
+                            recommendationItems.addAll(
+                                0,
+                                injectItems.filter { item ->
+                                    recommendationItems.none { existing ->
+                                        existing.bvid == item.bvid && existing.cid == item.cid
+                                    }
+                                }
+                            )
+                        }
+                        lastLoadedCollectionInfoBvid = info.bvid
+                        lastLoadedCollectionInfo = info
+
                         exoPlayer.playWhenReady = isPortraitPlaybackAllowed
                         exoPlayer.setMediaSource(finalSource)
                         exoPlayer.prepare()
 
-                        if (applyInitialSeekOnFirstPage && entryStartPositionMs > 0 && !hasConsumedInitialSeek) {
-                            exoPlayer.seekTo(entryStartPositionMs)
-                            hasConsumedInitialSeek = true
+                        when {
+                            seekResumeMs != null && seekResumeMs > 0L -> {
+                                exoPlayer.seekTo(seekResumeMs)
+                            }
+                            applyInitialSeekOnFirstPage && entryStartPositionMs > 0 && !hasConsumedInitialSeek -> {
+                                exoPlayer.seekTo(entryStartPositionMs)
+                                hasConsumedInitialSeek = true
+                            }
                         }
 
                         if (isPortraitPlaybackAllowed) {
@@ -865,14 +1070,14 @@ fun PortraitVideoPager(
                     VideoRepository.preloadPortraitPlayUrl(
                         bvid = identity.bvid,
                         cid = identity.cid,
-                        targetQuality = resolvePortraitPlaybackTargetQuality()
+                        targetQuality = resolvePortraitPlaybackTargetQuality(portraitSelectedQuality)
                     )
                 }
             }
         }
     }
 
-    LaunchedEffect(pagerState, pageItems, isPortraitPlaybackAllowed) {
+    LaunchedEffect(pagerState, pageItems, isPortraitPlaybackAllowed, portraitSelectedQuality) {
         snapshotFlow {
             Triple(
                 pagerState.isScrollInProgress,
@@ -1010,7 +1215,7 @@ fun PortraitVideoPager(
                             VideoRepository.preloadPortraitPlayUrl(
                                 bvid = target.bvid,
                                 cid = target.cid,
-                                targetQuality = resolvePortraitPlaybackTargetQuality()
+                                targetQuality = resolvePortraitPlaybackTargetQuality(portraitSelectedQuality)
                             )
                         }
                     }
@@ -1121,6 +1326,7 @@ fun PortraitVideoPager(
                 onToggleFollow = engagementViewModel::toggleFollow,
                 onToggleLike = engagementViewModel::toggleLike,
                 onTripleAction = engagementViewModel::doTripleAction,
+                onOpenCoinDialog = engagementViewModel::openCoinDialog,
                 exoPlayer = exoPlayer, // [核心] 传递共享播放器
                 currentPlayingBvid = currentPlayingBvid, // [修复] 传递当前播放的 BVID 用于校验
                 currentPlayingCid = currentPlayingCid,
@@ -1140,6 +1346,26 @@ fun PortraitVideoPager(
                 recommendationVideos = recommendationItems,
                 knownVideoAspectRatio = knownVideoAspectRatios[itemBvid]
                     ?: (item as? ViewInfo)?.dimension?.let(::resolveAspectRatioFromDimension),
+                qualityLabel = portraitQualityLabel,
+                selectedQualityId = portraitSelectedQuality,
+                availableQualityIds = portraitAvailableQualityIds,
+                aspectRatio = portraitAspectRatio,
+                isLoggedIn = isPortraitLoggedIn,
+                isVip = isPortraitVip,
+                onQualitySelected = { qualityId ->
+                    if (qualityId <= 0 || qualityId == portraitSelectedQuality) return@VideoPageItem
+                    portraitSelectedQuality = qualityId
+                    portraitDisplayedQuality = qualityId
+                    requestPortraitPlaybackForPage(
+                        targetPage = pagerState.currentPage,
+                        applyInitialSeekOnFirstPage = false,
+                        forceReload = true
+                    )
+                },
+                onAspectRatioChange = { ratio ->
+                    // Runtime safety is applied per-page from actual video aspect.
+                    portraitAspectRatio = ratio
+                },
                 hasRenderedFirstFrame = (renderedFirstFrameGeneration == activeLoadGeneration),
                 initialProgressPositionMs = resolvePortraitInitialProgressPosition(
                     isFirstPage = page == 0,
@@ -1172,10 +1398,51 @@ fun PortraitVideoPager(
                             pagerState.animateScrollToPage(targetIndex)
                         }
                     }
+                },
+                onRequestCollectionItem = { targetBvid, targetCid ->
+                    val targetIndex = resolvePortraitCollectionPageIndex(
+                        pageItems = pageItems,
+                        targetBvid = targetBvid,
+                        targetCid = targetCid
+                    )
+                    if (targetIndex >= 0) {
+                        scope.launch {
+                            pagerState.animateScrollToPage(targetIndex)
+                        }
+                        return@VideoPageItem
+                    }
+                    // Not yet in the pager list: insert as a dedicated page after current, then jump.
+                    val insertAt = (pagerState.currentPage + 1).coerceIn(0, pageItems.size)
+                    val item = RelatedVideo(
+                        bvid = targetBvid.trim(),
+                        cid = targetCid.coerceAtLeast(0L),
+                        title = targetBvid
+                    )
+                    val key = portraitCollectionIdentityKey(item.bvid, item.cid)
+                    val exists = pageItems.any { candidate ->
+                        val identity = resolvePortraitPagePlaybackIdentity(candidate) ?: return@any false
+                        portraitCollectionIdentityKey(identity.bvid, identity.cid) == key
+                    }
+                    if (!exists && item.bvid.isNotBlank()) {
+                        pageItems.add(insertAt, item)
+                        scope.launch {
+                            pagerState.animateScrollToPage(insertAt)
+                        }
+                    }
                 }
             )
         }
     }
+
+    com.android.purebilibili.feature.video.ui.components.CoinDialog(
+        visible = engagementState.coinDialogVisible,
+        currentCoinCount = engagementState.coinCount,
+        userBalance = engagementState.userCoinBalance,
+        onDismiss = { engagementViewModel.setCoinDialogVisible(false) },
+        onConfirm = { count, alsoLike ->
+            engagementViewModel.doCoin(count = count, alsoLike = alsoLike)
+        }
+    )
 }
 
 @UnstableApi
@@ -1191,6 +1458,7 @@ private fun VideoPageItem(
     onToggleFollow: (Long?, Boolean?) -> Unit,
     onToggleLike: (Long?, String?, Boolean?, ((Boolean) -> Unit)?) -> Unit,
     onTripleAction: (Long?, String?, Boolean?, Int?, Boolean?, ((TripleActionResult) -> Unit)?) -> Unit,
+    onOpenCoinDialog: () -> Unit,
     exoPlayer: ExoPlayer,
     currentPlayingBvid: String?, // [新增]
     currentPlayingCid: Long,
@@ -1209,13 +1477,22 @@ private fun VideoPageItem(
     watchLaterVideos: List<RelatedVideo>,
     recommendationVideos: List<RelatedVideo>,
     knownVideoAspectRatio: Float?,
+    qualityLabel: String,
+    selectedQualityId: Int,
+    availableQualityIds: List<Int>,
+    aspectRatio: VideoAspectRatio,
+    isLoggedIn: Boolean,
+    isVip: Boolean,
+    onQualitySelected: (Int) -> Unit,
+    onAspectRatioChange: (VideoAspectRatio) -> Unit,
     hasRenderedFirstFrame: Boolean,
     initialProgressPositionMs: Long,
     onCurrentPageScaleChange: (Float) -> Unit,
     onCommentOverlayActiveChange: (Boolean) -> Unit = {},
     portraitOverlayVisible: Boolean,
     onPortraitOverlayVisibleChange: (Boolean) -> Unit,
-    onRequestVideoChange: (String) -> Unit
+    onRequestVideoChange: (String) -> Unit,
+    onRequestCollectionItem: (bvid: String, cid: Long) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -1225,6 +1502,15 @@ private fun VideoPageItem(
         .getLongPressSpeed(context)
         .collectAsStateWithLifecycle(initialValue = 2.0f
         )
+    val doubleTapSeekEnabled by SettingsManager
+        .getDoubleTapSeekEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val seekForwardSeconds by SettingsManager
+        .getSeekForwardSeconds(context)
+        .collectAsStateWithLifecycle(initialValue = 10)
+    val seekBackwardSeconds by SettingsManager
+        .getSeekBackwardSeconds(context)
+        .collectAsStateWithLifecycle(initialValue = 10)
     val currentAudioQuality by viewModel.audioQualityPreference.collectAsStateWithLifecycle(initialValue = -1
         )
     val bvid = if (item is ViewInfo) item.bvid else (item as RelatedVideo).bvid
@@ -1236,6 +1522,14 @@ private fun VideoPageItem(
         mutableFloatStateOf(exoPlayer.playbackParameters.speed)
     }
     var showSpeedMenu by rememberSaveable(bvid) { mutableStateOf(false) }
+    var showQualityMenu by rememberSaveable(bvid) { mutableStateOf(false) }
+    var showRatioMenu by rememberSaveable(bvid) { mutableStateOf(false) }
+    var showSubtitlePanel by rememberSaveable(bvid) { mutableStateOf(false) }
+    var subtitleTrackAvailable by remember(bvid) { mutableStateOf(false) }
+    var subtitleOverlayEnabled by remember(bvid) { mutableStateOf(false) }
+    val subtitleAutoPreference by SettingsManager
+        .getSubtitleAutoPreference(context)
+        .collectAsStateWithLifecycle(initialValue = SubtitleAutoPreference.OFF)
     var keepPortraitPagerAwake by remember(exoPlayer) {
         mutableStateOf(
             shouldKeepVideoPlaybackAwake(
@@ -1423,10 +1717,23 @@ private fun VideoPageItem(
     var portraitPageWidthPx by remember { mutableIntStateOf(0) }
     var portraitPageHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    val portraitPagerFillContainer = resolvePortraitPagerFillContainer()
+    val isVerticalContent = currentVideoAspect < 1f
+    val portraitPagerFillContainer = resolvePortraitPagerFillContainer(
+        aspectRatio = aspectRatio,
+        isVerticalContent = isVerticalContent
+    )
+    val portraitPagerViewportAspect = resolvePortraitPagerViewportAspect(
+        aspectRatio = aspectRatio,
+        currentVideoAspect = currentVideoAspect,
+        isVerticalContent = isVerticalContent
+    )
+    val portraitPagerResizeMode = resolvePortraitPagerResizeMode(
+        aspectRatio = aspectRatio,
+        isVerticalContent = isVerticalContent
+    )
     val portraitViewportVerticalOffsetPx = with(density) {
         resolvePortraitVideoViewportVerticalOffsetDp(
-            currentVideoAspect = currentVideoAspect,
+            currentVideoAspect = portraitPagerViewportAspect,
             fillContainer = portraitPagerFillContainer,
             isLandscape = portraitPageWidthPx > portraitPageHeightPx
         ).dp.toPx()
@@ -1435,7 +1742,7 @@ private fun VideoPageItem(
         commentVisibilityProgress = commentSheetVisibilityProgress,
         containerWidthPx = portraitPageWidthPx,
         containerHeightPx = portraitPageHeightPx,
-        currentVideoAspect = currentVideoAspect,
+        currentVideoAspect = portraitPagerViewportAspect,
         viewportVerticalOffsetPx = portraitViewportVerticalOffsetPx,
         fillContainer = portraitPagerFillContainer
     )
@@ -1444,6 +1751,10 @@ private fun VideoPageItem(
         if (!isCurrentPage) {
             showCommentSheet = false
             showDetailSheet = false
+            showSubtitlePanel = false
+            showQualityMenu = false
+            showRatioMenu = false
+            showSpeedMenu = false
             commentSheetVisibilityProgress = 0f
             onCommentOverlayActiveChange(false)
         }
@@ -1563,6 +1874,9 @@ private fun VideoPageItem(
     var longPressOriginPlaybackParameters by remember { mutableStateOf(PlaybackParameters.DEFAULT) }
     var effectiveLongPressSpeed by remember { mutableFloatStateOf(longPressSpeed) }
     var showLongPressSpeedFeedback by remember { mutableStateOf(false) }
+    var seekFeedbackText by remember { mutableStateOf<String?>(null) }
+    var seekFeedbackVisible by remember { mutableStateOf(false) }
+    var seekFeedbackGeneration by remember { mutableLongStateOf(0L) }
     var scale by remember(bvid) { mutableFloatStateOf(1f) }
     var panX by remember(bvid) { mutableFloatStateOf(0f) }
     var panY by remember(bvid) { mutableFloatStateOf(0f) }
@@ -1672,7 +1986,10 @@ private fun VideoPageItem(
                 currentAudioQuality,
                 isCurrentPage,
                 commentExpansionTransform.playerGesturesEnabled,
-                portraitOverlayVisible
+                portraitOverlayVisible,
+                doubleTapSeekEnabled,
+                seekForwardSeconds,
+                seekBackwardSeconds
             ) {
                 detectTapGestures(
                     onTap = {
@@ -1686,15 +2003,68 @@ private fun VideoPageItem(
                             resolvePortraitOverlayVisibilityAfterTap(portraitOverlayVisible)
                         )
                     },
-                    onDoubleTap = {
+                    onDoubleTap = { offset ->
                         if (
                             !commentExpansionTransform.playerGesturesEnabled ||
-                            !shouldHandlePortraitTapGesture(scale = scale)
+                            !shouldHandlePortraitTapGesture(scale = scale) ||
+                            !isCurrentPage
                         ) {
                             return@detectTapGestures
                         }
-                        if (isCurrentPage) {
-                            togglePlayerPlaybackFromUserAction(exoPlayer)
+                        val screenWidth = size.width.toFloat()
+                        val relativeX = if (screenWidth > 0f) {
+                            offset.x / screenWidth
+                        } else {
+                            0.5f
+                        }
+                        when (
+                            resolveFullscreenDoubleTapAction(
+                                relativeX = relativeX,
+                                doubleTapSeekEnabled = doubleTapSeekEnabled,
+                                playWhenReady = exoPlayer.playWhenReady,
+                                isPlaying = exoPlayer.isPlaying,
+                                playbackState = exoPlayer.playbackState
+                            )
+                        ) {
+                            FullscreenDoubleTapAction.SeekBackward -> {
+                                val seekMs = seekBackwardSeconds * 1000L
+                                val newPos = resolveRelativeSeekTargetPosition(
+                                    currentPositionMs = exoPlayer.currentPosition,
+                                    deltaMs = -seekMs,
+                                    durationMs = exoPlayer.duration
+                                )
+                                seekPlayerFromUserAction(exoPlayer, newPos)
+                                danmakuManager.seekTo(newPos)
+                                progressState = progressState.copy(current = newPos)
+                                val feedback = nextFullscreenSeekFeedbackEvent(
+                                    previousGeneration = seekFeedbackGeneration,
+                                    deltaSeconds = -seekBackwardSeconds
+                                )
+                                seekFeedbackGeneration = feedback.generation
+                                seekFeedbackText = feedback.text
+                                seekFeedbackVisible = true
+                            }
+                            FullscreenDoubleTapAction.SeekForward -> {
+                                val seekMs = seekForwardSeconds * 1000L
+                                val newPos = resolveRelativeSeekTargetPosition(
+                                    currentPositionMs = exoPlayer.currentPosition,
+                                    deltaMs = seekMs,
+                                    durationMs = exoPlayer.duration
+                                )
+                                seekPlayerFromUserAction(exoPlayer, newPos)
+                                danmakuManager.seekTo(newPos)
+                                progressState = progressState.copy(current = newPos)
+                                val feedback = nextFullscreenSeekFeedbackEvent(
+                                    previousGeneration = seekFeedbackGeneration,
+                                    deltaSeconds = seekForwardSeconds
+                                )
+                                seekFeedbackGeneration = feedback.generation
+                                seekFeedbackText = feedback.text
+                                seekFeedbackVisible = true
+                            }
+                            FullscreenDoubleTapAction.TogglePlayPause -> {
+                                togglePlayerPlaybackFromUserAction(exoPlayer)
+                            }
                         }
                     },
                     onLongPress = {
@@ -1800,7 +2170,7 @@ private fun VideoPageItem(
         
         if (isCurrentPage && isPlayerReadyForThisVideo) {
             PortraitVideoViewportContainer(
-                currentVideoAspect = currentVideoAspect,
+                currentVideoAspect = portraitPagerViewportAspect,
                 modifier = mediaLayerModifier,
                 fillContainer = portraitPagerFillContainer
             ) {
@@ -1815,7 +2185,7 @@ private fun VideoPageItem(
                                     player = exoPlayer
                                     useController = false
                                     keepScreenOn = shouldKeepPortraitPagerItemAwake
-                                    resizeMode = resolvePortraitPagerResizeMode()
+                                    resizeMode = portraitPagerResizeMode
                                     setKeepContentOnPlayerReset(true)
                                     setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                                     setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
@@ -1827,8 +2197,8 @@ private fun VideoPageItem(
                                     view.player = exoPlayer
                                 }
                                 view.keepScreenOn = shouldKeepPortraitPagerItemAwake
-                                if (view.resizeMode != resolvePortraitPagerResizeMode()) {
-                                    view.resizeMode = resolvePortraitPagerResizeMode()
+                                if (view.resizeMode != portraitPagerResizeMode) {
+                                    view.resizeMode = portraitPagerResizeMode
                                 }
                             },
                             modifier = Modifier.fillMaxSize()
@@ -1839,7 +2209,7 @@ private fun VideoPageItem(
                                 danmakuManager = danmakuManager,
                                 videoWidth = exoPlayer.videoSize.width,
                                 videoHeight = exoPlayer.videoSize.height,
-                                resizeMode = playerViewRef?.resizeMode ?: resolvePortraitPagerResizeMode(),
+                                resizeMode = playerViewRef?.resizeMode ?: portraitPagerResizeMode,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -1858,7 +2228,7 @@ private fun VideoPageItem(
                 danmakuManager = danmakuManager,
                 videoWidth = exoPlayer.videoSize.width,
                 videoHeight = exoPlayer.videoSize.height,
-                resizeMode = playerViewRef?.resizeMode ?: resolvePortraitPagerResizeMode(),
+                resizeMode = playerViewRef?.resizeMode ?: portraitPagerResizeMode,
                 modifier = pageDanmakuModifier.then(
                     if (shouldInsetPortraitDanmakuFromStatusBar(danmakuSurfaceMode)) {
                         Modifier.padding(top = pageDanmakuTopInset)
@@ -1964,6 +2334,38 @@ private fun VideoPageItem(
                     text = deltaText,
                     color = if (deltaMs >= 0) Color(0xFF66FF66) else Color(0xFFFF6666),
                     fontSize = 14.sp
+                )
+            }
+        }
+
+        // 双击左右区快进/后退视觉反馈
+        LaunchedEffect(seekFeedbackGeneration) {
+            if (seekFeedbackGeneration > 0L) {
+                delay(800)
+                seekFeedbackVisible = false
+            }
+        }
+        AnimatedVisibility(
+            visible = seekFeedbackVisible && isCurrentPage && !isSeekGesture,
+            modifier = Modifier.align(Alignment.Center),
+            enter = fadeIn(animationSpec = tween(120)),
+            exit = fadeOut(animationSpec = tween(180))
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = seekFeedbackText.orEmpty(),
+                    color = if (seekFeedbackText?.startsWith("+") == true) {
+                        Color(0xFF66FF66)
+                    } else {
+                        Color(0xFFFF6666)
+                    },
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -2209,13 +2611,20 @@ private fun VideoPageItem(
             
             statView = if(isCurrentModelVideo && currentSuccess != null) currentSuccess.info.stat.view else stat.view,
             statLike = resolvedInteractionState.likeCount,
+            statCoin = if (isCurrentModelVideo) {
+                engagementState.coinCount.takeIf { it > 0 }
+                    ?: currentSuccess?.info?.stat?.coin
+                    ?: stat.coin
+            } else {
+                stat.coin
+            },
             statDanmaku = if(isCurrentModelVideo && currentSuccess != null) currentSuccess.info.stat.danmaku else stat.danmaku,
             statReply = if(isCurrentModelVideo && currentSuccess != null) currentSuccess.info.stat.reply else stat.reply,
             statFavorite = resolvedInteractionState.favoriteCount,
             statShare = if(isCurrentModelVideo && currentSuccess != null) currentSuccess.info.stat.share else stat.share,
             
             isLiked = resolvedInteractionState.isLiked,
-            isCoined = false,
+            isCoined = isCurrentModelVideo && engagementState.coinCount > 0,
             isFavorited = resolvedInteractionState.isFavorited,
             
             isFollowing = isFollowing,
@@ -2283,7 +2692,11 @@ private fun VideoPageItem(
                     }
                 }
             },
-            onCoinClick = { },
+            onCoinClick = {
+                if (canHandlePortraitInteraction) {
+                    onOpenCoinDialog()
+                }
+            },
             onFavoriteClick = {
                 if (canHandlePortraitInteraction) {
                     when (resolvePortraitFavoriteAction()) {
@@ -2305,8 +2718,8 @@ private fun VideoPageItem(
             },
             
             currentSpeed = currentPlaybackSpeed,
-            currentQualityLabel = "高清",
-            currentRatio = VideoAspectRatio.FIT,
+            currentQualityLabel = qualityLabel,
+            currentRatio = aspectRatio,
             danmakuEnabled = danmakuEnabled,
             isStatusBarHidden = true,
             videoshotData = currentSuccess?.videoshotData,
@@ -2378,11 +2791,38 @@ private fun VideoPageItem(
             onSpeedClick = {
                 if (isCurrentPage) {
                     showSpeedMenu = true
+                    showSubtitlePanel = false
                     onPortraitOverlayVisibleChange(true)
                 }
             },
-            onQualityClick = { },
-            onRatioClick = { },
+            onQualityClick = {
+                if (isCurrentPage) {
+                    showQualityMenu = true
+                    showSubtitlePanel = false
+                    onPortraitOverlayVisibleChange(true)
+                }
+            },
+            onRatioClick = {
+                if (isCurrentPage) {
+                    showRatioMenu = true
+                    showSubtitlePanel = false
+                    onPortraitOverlayVisibleChange(true)
+                }
+            },
+            showSubtitleChip = shouldShowPortraitSubtitleChip(
+                featureEnabled = isSubtitleFeatureEnabledForUser(),
+                trackAvailable = subtitleTrackAvailable
+            ),
+            subtitleEnabled = subtitleOverlayEnabled,
+            onSubtitleClick = {
+                if (isCurrentPage) {
+                    showSubtitlePanel = !showSubtitlePanel
+                    showQualityMenu = false
+                    showRatioMenu = false
+                    showSpeedMenu = false
+                    onPortraitOverlayVisibleChange(true)
+                }
+            },
             onDanmakuToggle = toggleDanmaku,
             onDanmakuInputClick = {
                 if (isCurrentPage) {
@@ -2408,6 +2848,74 @@ private fun VideoPageItem(
             ),
             commentExpansionProgress = commentSheetVisibilityProgress
         )
+
+        val pageCidForSubtitle = snapshotCid.takeIf { it > 0L }
+            ?: portraitDetailInfo?.cid
+            ?: 0L
+        PortraitSubtitleHost(
+            success = currentSuccess,
+            player = exoPlayer,
+            pageBvid = bvid,
+            pageCid = pageCidForSubtitle,
+            isCurrentPage = isCurrentPage,
+            controlsVisible = resolvePortraitOverlayControlsVisible(
+                portraitOverlayVisible = portraitOverlayVisible,
+                showDetailSheet = showDetailSheet
+            ),
+            commentExpansionProgress = commentSheetVisibilityProgress,
+            subtitleAutoPreference = subtitleAutoPreference,
+            isMuted = exoPlayer.volume <= 0f,
+            onSubtitleTrackSelected = { trackKey ->
+                viewModel.selectSubtitleTrack(trackKey)
+            },
+            showSubtitlePanel = showSubtitlePanel && isCurrentPage,
+            onShowSubtitlePanelChange = { show ->
+                showSubtitlePanel = show
+            },
+            onSubtitleEnabledChange = { enabled ->
+                subtitleOverlayEnabled = enabled
+            },
+            onTrackAvailableChange = { available ->
+                subtitleTrackAvailable = available
+            }
+        )
+
+        if (showQualityMenu && isCurrentPage) {
+            val qualityIds = availableQualityIds.ifEmpty { listOf(selectedQualityId) }
+            QualitySelectionMenu(
+                qualities = resolvePortraitQualityMenuLabels(qualityIds),
+                qualityIds = qualityIds,
+                switchableQualityIds = qualityIds,
+                currentQuality = qualityLabel,
+                isLoggedIn = isLoggedIn,
+                isVip = isVip,
+                onQualitySelected = { index ->
+                    qualityIds.getOrNull(index)?.let(onQualitySelected)
+                    showQualityMenu = false
+                },
+                onDismiss = { showQualityMenu = false },
+                useDialog = true
+            )
+        }
+
+        if (showRatioMenu && isCurrentPage) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable { showRatioMenu = false },
+                contentAlignment = Alignment.Center
+            ) {
+                AspectRatioMenu(
+                    currentRatio = aspectRatio,
+                    onRatioSelected = { ratio ->
+                        onAspectRatioChange(ratio)
+                        showRatioMenu = false
+                    },
+                    onDismiss = { showRatioMenu = false }
+                )
+            }
+        }
 
         if (showSpeedMenu && isCurrentPage) {
             SpeedSelectionMenuDialog(
@@ -2516,12 +3024,18 @@ private fun VideoPageItem(
                 detailSheetUpOnlyMode = false
             },
             info = portraitDetailInfo,
+            currentCid = currentPlayingCid.takeIf { isCurrentPage } ?: portraitDetailInfo?.cid ?: 0L,
             recommendationTitle = detailSheetTitle,
             recommendations = detailSheetVideos,
             onRecommendationClick = { targetBvid ->
                 showDetailSheet = false
                 detailSheetUpOnlyMode = false
                 onRequestVideoChange(targetBvid)
+            },
+            onCollectionItemClick = { targetBvid, targetCid ->
+                showDetailSheet = false
+                detailSheetUpOnlyMode = false
+                onRequestCollectionItem(targetBvid, targetCid)
             },
             onAuthorClick = { mid ->
                 showDetailSheet = false
@@ -2705,9 +3219,45 @@ internal fun resolvePortraitVideoViewportSize(
     }
 }
 
-internal fun resolvePortraitPagerFillContainer(): Boolean = false
+internal fun resolvePortraitPagerFillContainer(
+    aspectRatio: VideoAspectRatio = VideoAspectRatio.FIT,
+    isVerticalContent: Boolean = true
+): Boolean {
+    val safe = resolveSafeVideoAspectRatio(
+        preferred = aspectRatio,
+        isVerticalVideo = isVerticalContent
+    )
+    return safe == VideoAspectRatio.FILL || safe == VideoAspectRatio.STRETCH
+}
 
-internal fun resolvePortraitPagerResizeMode(): Int = AspectRatioFrameLayout.RESIZE_MODE_FIT
+/**
+ * Viewport aspect used when not filling the whole page.
+ * Fixed 16:9 / 4:3 modes force that frame (parity with landscape fullscreen).
+ * FIT uses the source video aspect so letterboxing stays natural.
+ */
+internal fun resolvePortraitPagerViewportAspect(
+    aspectRatio: VideoAspectRatio = VideoAspectRatio.FIT,
+    currentVideoAspect: Float,
+    isVerticalContent: Boolean = true
+): Float {
+    val safe = resolveSafeVideoAspectRatio(
+        preferred = aspectRatio,
+        isVerticalVideo = isVerticalContent
+    )
+    val fixed = safe.targetAspectRatio?.takeIf { it.isFinite() && it > 0f }
+    if (fixed != null) return fixed
+    return currentVideoAspect.coerceAtLeast(0.1f)
+}
+
+internal fun resolvePortraitPagerResizeMode(
+    aspectRatio: VideoAspectRatio = VideoAspectRatio.FIT,
+    isVerticalContent: Boolean = true
+): Int {
+    return resolveSafeVideoAspectRatio(
+        preferred = aspectRatio,
+        isVerticalVideo = isVerticalContent
+    ).playerResizeMode
+}
 
 internal fun shouldAllowPortraitPlayback(
     isCurrentStoryTab: Boolean,

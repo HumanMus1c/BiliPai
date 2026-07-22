@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.video.ui.components
 
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.graphics.luminance
 import com.android.purebilibili.core.store.DanmakuPanelWidthMode
 import com.android.purebilibili.feature.video.danmaku.DanmakuCloudSyncStatus
 import com.android.purebilibili.feature.video.danmaku.DanmakuCloudSyncUiState
@@ -44,7 +45,7 @@ class DanmakuSettingsPanelPolicyTest {
             policy.presentation
         )
         assertEquals(0, policy.bottomPaddingDp)
-        assertEquals(480, policy.maxHeightDp)
+        assertTrue(policy.maxHeightDp in 280..420)
         assertEquals(
             DanmakuSettingsPanelAnchor.End,
             policy.anchor
@@ -52,7 +53,7 @@ class DanmakuSettingsPanelPolicyTest {
     }
 
     @Test
-    fun fullscreenPanelWidthMode_isFixedToQuarterWidth() {
+    fun fullscreenPanelWidth_isNarrowSideRail() {
         val fullWidth = resolveDanmakuSettingsPanelLayoutPolicy(
             isFullscreen = true,
             screenWidthDp = 915,
@@ -72,9 +73,12 @@ class DanmakuSettingsPanelPolicyTest {
             fullscreenWidthMode = DanmakuPanelWidthMode.THIRD
         )
 
-        assertEquals(221, fullWidth.maxWidthDp)
-        assertEquals(221, halfWidth.maxWidthDp)
-        assertEquals(221, thirdWidth.maxWidthDp)
+        // 统一侧栏宽度：够中文横排，又不占半屏
+        assertEquals(fullWidth.maxWidthDp, halfWidth.maxWidthDp)
+        assertEquals(fullWidth.maxWidthDp, thirdWidth.maxWidthDp)
+        assertTrue(fullWidth.maxWidthDp in 280..340)
+        assertEquals(fullWidth.minWidthDp, fullWidth.maxWidthDp)
+        assertEquals(DanmakuSettingsPanelAnchor.End, fullWidth.anchor)
     }
 
     @Test
@@ -107,25 +111,28 @@ class DanmakuSettingsPanelPolicyTest {
 
     @Test
     fun fullscreenPanelSurfaceColors_followDarkThemeTokens() {
+        val darkScheme = darkColorScheme()
         val colors = resolveDanmakuSettingsPanelSurfaceColors(
-            colorScheme = darkColorScheme()
+            colorScheme = darkScheme
         )
 
-        assertTrue(colors.panelColor.alpha > 0.9f)
-        assertTrue(colors.itemColor.alpha < colors.panelColor.alpha)
+        assertTrue(colors.panelColor.luminance() < 0.5f)
+        assertTrue(colors.titleColor.luminance() > colors.panelColor.luminance())
         assertTrue(colors.titleColor.alpha > colors.supportingColor.alpha)
+        assertEquals(darkScheme.primary, colors.sliderActiveTrackColor)
     }
 
     @Test
     fun fullscreenPanelSurfaceColors_followLightThemeTokens() {
+        val lightScheme = lightColorScheme()
         val colors = resolveDanmakuSettingsPanelSurfaceColors(
-            colorScheme = lightColorScheme()
+            colorScheme = lightScheme
         )
 
-        assertTrue(colors.panelColor.alpha > 0.9f)
-        assertTrue(colors.panelColor.red > 0.85f)
+        assertTrue(colors.panelColor.luminance() > 0.5f)
+        assertTrue(colors.titleColor.luminance() < colors.panelColor.luminance())
         assertTrue(colors.titleColor.alpha > colors.supportingColor.alpha)
-        assertTrue(colors.sliderInactiveTickColor.alpha < colors.sliderActiveTickColor.alpha)
+        assertEquals(lightScheme.primary, colors.sliderThumbColor)
     }
 
     @Test

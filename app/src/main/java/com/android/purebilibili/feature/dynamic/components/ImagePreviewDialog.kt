@@ -423,10 +423,12 @@ private fun ImagePreviewOverlayContent(
             }
 
             LaunchedEffect(Unit) {
+                val openMotion = imagePreviewDismissMotion()
                 animateTrigger.snapTo(0f)
+                // 进场与退场同系 Continuity，一镜对称。
                 animateTrigger.animateTo(
                     targetValue = 1f,
-                    animationSpec = emphasizedEnterTween(durationMillis = 340)
+                    animationSpec = continuityTween(durationMillis = openMotion.openDurationMillis)
                 )
             }
 
@@ -434,8 +436,8 @@ private fun ImagePreviewOverlayContent(
                 startRect: androidx.compose.ui.geometry.Rect? = resolveImagePreviewDismissStartRect(
                     previewSurfaceRect = previewSurfaceRect,
                     displayedImageRect = currentImageDisplayRect,
-                    // 默认从全屏容器缩回缩略图尺寸，与进场对称、落位大小一致。
-                    preferPreviewSurface = true
+                    // 从真实显示图区域飞回缩略图，黑边不参与 morph，观感更干净。
+                    preferPreviewSurface = false
                 )
             ) {
                 if (isDismissing) return
@@ -446,19 +448,13 @@ private fun ImagePreviewOverlayContent(
                     verticalDismissOffsetYPx = 0f
                     verticalDismissSnapAnim.snapTo(0f)
                     val dismissMotion = imagePreviewDismissMotion()
-                    // Continuity：先快后慢贴近缩略图；再 soft spring 贴回，避免末段冲刺。
+                    // 单段 morph：几何线性 + Continuity 速度曲线，无 overshoot / spring 二次落点。
                     animateTrigger.animateTo(
-                        targetValue = dismissMotion.overshootTarget,
+                        targetValue = dismissMotion.settleTarget,
                         animationSpec = continuityTween(
                             durationMillis = dismissMotion.collapseDurationMillis
                         )
                     )
-                    if (dismissMotion.overshootTarget != dismissMotion.settleTarget) {
-                        animateTrigger.animateTo(
-                            targetValue = dismissMotion.settleTarget,
-                            animationSpec = softLandingSpring()
-                        )
-                    }
                     onDismiss()
                 }
             }
@@ -666,7 +662,8 @@ private fun ImagePreviewOverlayContent(
                                 // 预览必须采样解码，避免超大原图超过 Canvas 单位图绘制上限。
                                 .size(decodeSize.widthPx, decodeSize.heightPx)
                                 .addHeader("Referer", "https://www.bilibili.com/")
-                                .crossfade(300)
+                                // 退出 morph 时关闭 crossfade，避免尺寸变化触发二次淡入发黏。
+                                .crossfade(!isDismissing)
                                 .build(),
                             contentDescription = null,
                             imageLoader = gifImageLoader,  //  使用 GIF 加载器
@@ -757,13 +754,15 @@ private fun ImagePreviewOverlayContent(
                 }
             }
             
-            // 3. UI 覆盖层 (淡入淡出) - 包含页码、下载按钮、关闭按钮
-            // 只有当动画接近完成时才显示 UI，避免缩放时 UI 挤压
-            // 或者始终显示但淡入淡出
+            // 3. UI 覆盖层 - 退出时先于图片清掉 chrome，只剩干净一镜 morph
+            val chromeAlpha = resolveImagePreviewChromeAlpha(
+                visualProgress = transitionFrame.visualProgress,
+                isDismissing = isDismissing
+            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { alpha = transitionFrame.visualProgress }
+                    .graphicsLayer { alpha = chromeAlpha }
             ) {
                 val safeDrawingPadding = WindowInsets.safeDrawing.asPaddingValues()
                 val overlayPadding = resolveImagePreviewOverlayPadding(

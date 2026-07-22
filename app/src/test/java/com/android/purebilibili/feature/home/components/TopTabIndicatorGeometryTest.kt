@@ -198,7 +198,7 @@ class TopTabIndicatorGeometryTest {
         )
 
         assertEquals(92f, width, 0.01f)
-        // Near-full dock fill at rest; drag scale still overflows the chrome.
+        // Near-full dock fill at rest when width is unbounded; drag scale still overflows chrome.
         assertEquals(54f, height, 0.01f)
     }
 

@@ -52,10 +52,30 @@ internal fun resolveSpaceSearchBarGridItemIndex(
     hasContributionToolbar: Boolean
 ): Int? {
     return when (scope) {
+        // Header(0) + MainTabs(1) + optional SearchEntry(2) + optional ContributionToolbar
         SpaceSearchScope.DYNAMIC -> 2
         SpaceSearchScope.VIDEO -> if (hasContributionToolbar) 3 else 2
         SpaceSearchScope.NONE -> null
     }
+}
+
+/**
+ * Always-visible search entry under main tabs (not only top-right icon).
+ * Returns a short CTA label for the current searchable scope.
+ */
+internal fun resolveSpaceSearchEntryLabel(scope: SpaceSearchScope): String {
+    return when (scope) {
+        SpaceSearchScope.DYNAMIC -> "搜索 TA 的动态"
+        SpaceSearchScope.VIDEO -> "搜索 TA 的视频"
+        SpaceSearchScope.NONE -> ""
+    }
+}
+
+internal fun shouldShowSpaceSearchEntry(
+    scope: SpaceSearchScope,
+    isSearchMode: Boolean
+): Boolean {
+    return scope != SpaceSearchScope.NONE && !isSearchMode
 }
 
 internal fun resolveSpaceSearchBarRevealScrollOffsetPx(

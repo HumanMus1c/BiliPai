@@ -33,6 +33,7 @@ import com.android.purebilibili.core.store.SettingsManager
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 
 /**
  * 🖼️ 开屏壁纸选择器 (用于设置页)
@@ -146,7 +147,7 @@ fun SplashWallpaperPickerSheet(
                             Text("从相册选择")
                         }
                         Spacer(modifier = Modifier.height(16.dp))
-                        CircularProgressIndicator()
+                        AdaptiveLoadingIndicator()
                     }
                 }
                 error != null && officialWallpapers.isEmpty() -> {

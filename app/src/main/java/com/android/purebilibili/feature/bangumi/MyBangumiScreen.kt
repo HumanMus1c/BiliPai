@@ -461,7 +461,7 @@ private fun MyFollowGrid(
                         contentAlignment = Alignment.Center
                     ) {
                         com.android.purebilibili.core.ui.CutePersonLoadingIndicator(
-                            modifier = Modifier.size(24.dp),
+                            size = 24.dp,
                             strokeWidth = 2.dp
                         )
                     }

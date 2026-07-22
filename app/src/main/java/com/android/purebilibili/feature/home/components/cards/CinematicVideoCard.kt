@@ -108,6 +108,7 @@ fun CinematicVideoCard(
     sharedElementSourceRoute: String? = null,
     isReturningFromVideoDetail: Boolean = false,
     isQuickReturningFromVideoDetail: Boolean = false,
+    scrollLiteModeEnabled: Boolean = false,
     isDataSaverActive: Boolean = false,
     preferLowQualityCover: Boolean = false,
     showUpBadge: Boolean = true,
@@ -209,8 +210,12 @@ fun CinematicVideoCard(
         resolveHomeCardEnterAnimationEnabledAtMount(
             baseAnimationEnabled = animationEnabled,
             isReturningFromDetail = isReturningFromVideoDetail,
-            isSwitchingCategory = CardPositionManager.isSwitchingCategory
+            isSwitchingCategory = CardPositionManager.isSwitchingCategory,
+            isScrollInProgress = scrollLiteModeEnabled
         )
+    }
+    val coordinateEnterWithTransition = remember(animationEnabled, transitionEnabled) {
+        animationEnabled && transitionEnabled
     }
 
     Box(
@@ -221,7 +226,8 @@ fun CinematicVideoCard(
                 index = index,
                 key = Unit,
                 animationEnabled = enterAnimationEnabledAtMount,
-                motionTier = motionTier
+                motionTier = motionTier,
+                coordinateWithSharedTransition = coordinateEnterWithTransition
             )
             .onGloballyPositioned { coordinates ->
                 cardBoundsRef.value = coordinates.boundsInRoot()

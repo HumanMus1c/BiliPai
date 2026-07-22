@@ -79,6 +79,7 @@ fun PortraitFullscreenOverlay(
     // 互动数据
     statView: Int = 0,
     statLike: Int = 0,
+    statCoin: Int = 0,
     statDanmaku: Int = 0,
     statReply: Int = 0,
     statFavorite: Int = 0,
@@ -131,6 +132,9 @@ fun PortraitFullscreenOverlay(
     onSpeedClick: () -> Unit,
     onQualityClick: () -> Unit,
     onRatioClick: () -> Unit,
+    showSubtitleChip: Boolean = false,
+    subtitleEnabled: Boolean = false,
+    onSubtitleClick: () -> Unit = {},
     onDanmakuToggle: () -> Unit,
     onDanmakuInputClick: () -> Unit,
     onToggleStatusBar: () -> Unit,
@@ -207,12 +211,15 @@ fun PortraitFullscreenOverlay(
                 PortraitInteractionBar(
                     isLiked = isLiked,
                     likeCount = statLike,
+                    isCoined = isCoined,
+                    coinCount = statCoin,
                     isFavorited = isFavorited,
                     favoriteCount = statFavorite,
                     commentCount = statReply.takeIf { it > 0 } ?: statDanmaku, // 优先用评论数，没有则用弹幕数代替展示
                     shareCount = statShare,
                     onLikeClick = onLikeClick,
                     onLikeLongClick = onLikeLongClick,
+                    onCoinClick = onCoinClick,
                     onFavoriteClick = onFavoriteClick,
                     onCommentClick = onCommentClick,
                     onShareClick = onShareClick,
@@ -253,7 +260,14 @@ fun PortraitFullscreenOverlay(
                     PortraitProgressControlStrip(
                         timeLabel = progressTimeLabel,
                         currentSpeed = currentSpeed,
+                        currentQualityLabel = currentQualityLabel,
+                        currentRatioLabel = currentRatio.displayName,
+                        showSubtitleChip = showSubtitleChip,
+                        subtitleEnabled = subtitleEnabled,
                         onSpeedClick = onSpeedClick,
+                        onQualityClick = onQualityClick,
+                        onRatioClick = onRatioClick,
+                        onSubtitleClick = onSubtitleClick,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = progressLayoutPolicy.horizontalPaddingDp.dp)
@@ -395,7 +409,14 @@ private fun PortraitReadableTextScrims(
 private fun PortraitProgressControlStrip(
     timeLabel: String,
     currentSpeed: Float,
+    currentQualityLabel: String,
+    currentRatioLabel: String,
+    showSubtitleChip: Boolean = false,
+    subtitleEnabled: Boolean = false,
     onSpeedClick: () -> Unit,
+    onQualityClick: () -> Unit,
+    onRatioClick: () -> Unit,
+    onSubtitleClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -409,23 +430,60 @@ private fun PortraitProgressControlStrip(
             fontWeight = FontWeight.Medium
         )
         Spacer(modifier = Modifier.weight(1f))
-        Surface(
-            onClick = onSpeedClick,
-            shape = RoundedCornerShape(999.dp),
-            color = Color.White.copy(alpha = 0.14f),
-            contentColor = if (currentSpeed == 1.0f) {
-                Color.White
-            } else {
-                MaterialTheme.colorScheme.primary
-            }
-        ) {
-            Text(
-                text = PlaybackSpeed.formatSpeed(currentSpeed),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+        if (showSubtitleChip) {
+            PortraitChromeChip(
+                label = "字幕",
+                highlighted = subtitleEnabled,
+                onClick = onSubtitleClick
             )
+            Spacer(modifier = Modifier.width(8.dp))
         }
+        PortraitChromeChip(
+            label = currentQualityLabel,
+            highlighted = false,
+            onClick = onQualityClick
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        PortraitChromeChip(
+            label = currentRatioLabel,
+            highlighted = false,
+            onClick = onRatioClick
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        PortraitChromeChip(
+            label = PlaybackSpeed.formatSpeed(currentSpeed),
+            highlighted = currentSpeed != 1.0f,
+            onClick = onSpeedClick
+        )
+    }
+}
+
+@Composable
+private fun PortraitChromeChip(
+    label: String,
+    highlighted: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(999.dp),
+        color = Color.White.copy(alpha = 0.14f),
+        contentColor = if (highlighted) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            Color.White
+        }
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+        )
     }
 }
 
@@ -589,9 +647,9 @@ private fun PortraitVideoInfo(
                 Spacer(modifier = Modifier.width(layoutPolicy.avatarNameSpacingDp.dp))
             }
             
-            // 名字
+            // 名字（seed 未带 owner 时勿只渲染裸 `@`）
             Text(
-                text = "@$authorName",
+                text = com.android.purebilibili.feature.video.ui.pager.resolvePortraitAuthorLabel(authorName),
                 color = Color.White,
                 fontSize = layoutPolicy.authorNameFontSp.sp,
                 fontWeight = FontWeight.SemiBold,

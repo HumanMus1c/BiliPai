@@ -1,7 +1,6 @@
 package com.android.purebilibili.feature.dynamic.components
 
 import androidx.compose.ui.geometry.Rect
-import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -43,14 +42,14 @@ class ImagePreviewTransitionPolicyTest {
     }
 
     @Test
-    fun resolveImagePreviewTransitionFrame_clampsVisualProgressButKeepsLayoutOvershoot() {
+    fun resolveImagePreviewTransitionFrame_clampsProgressToClosedState() {
         val frame = resolveImagePreviewTransitionFrame(
             rawProgress = -0.2f,
             hasSourceRect = true,
             sourceCornerRadiusDp = 12f
         )
 
-        assertEquals(-0.08f, frame.layoutProgress)
+        assertEquals(0f, frame.layoutProgress)
         assertEquals(0f, frame.visualProgress)
         assertEquals(12f, frame.cornerRadiusDp)
     }
@@ -90,14 +89,15 @@ class ImagePreviewTransitionPolicyTest {
     }
 
     @Test
-    fun imagePreviewDismissMotion_returnsOvershootThenSettleTargets() {
+    fun imagePreviewDismissMotion_returnsSingleShotSettleTargets() {
         val motion = imagePreviewDismissMotion()
 
-        assertEquals(-0.06f, motion.overshootTarget)
+        assertEquals(0f, motion.overshootTarget)
         assertEquals(0f, motion.settleTarget)
         assertEquals(300, motion.collapseDurationMillis)
         assertEquals(180, motion.cancelRecoverDurationMillis)
-        assertTrue(motion.overshootTarget < motion.settleTarget)
+        assertEquals(320, motion.openDurationMillis)
+        assertEquals(motion.overshootTarget, motion.settleTarget)
     }
 
     @Test
@@ -151,32 +151,19 @@ class ImagePreviewTransitionPolicyTest {
                 bottom = 1260f
             )
         )
-        val overshoot = resolveImagePreviewDismissTransform(
-            transitionProgress = -0.06f,
-            sourceRect = source,
-            displayedImageRect = Rect(
-                left = 0f,
-                top = 660f,
-                right = 1080f,
-                bottom = 1260f
-            )
-        )
 
         assertEquals(1f, start.scale, 0.0001f)
         assertEquals(0f, start.translationXPx, 0.0001f)
         assertEquals(0f, start.translationYPx, 0.0001f)
 
-        assertTrue(middle.scale in 0.7f..0.85f)
+        // 线性 morph：中点约在起终点几何中点。
+        assertTrue(middle.scale in 0.55f..0.65f)
         assertTrue(middle.translationXPx < 0f && middle.translationXPx > -340f)
         assertTrue(middle.translationYPx < 0f && middle.translationYPx > -535f)
 
         assertEquals(0.16666669f, end.scale, 0.0001f)
         assertEquals(-340f, end.translationXPx, 0.0001f)
         assertEquals(-510f, end.translationYPx, 0.0001f)
-
-        assertTrue(overshoot.translationXPx < end.translationXPx)
-        assertTrue(overshoot.translationYPx < end.translationYPx)
-        assertTrue(overshoot.scale in 0.01f..end.scale)
     }
 
     @Test
@@ -236,7 +223,7 @@ class ImagePreviewTransitionPolicyTest {
     }
 
     @Test
-    fun resolveImagePreviewDismissRectFrame_keepsSourceSizeDuringOvershoot() {
+    fun resolveImagePreviewDismissRectFrame_clampsBelowZeroToSource() {
         val displayed = Rect(
             left = 0f,
             top = 0f,
@@ -250,14 +237,16 @@ class ImagePreviewTransitionPolicyTest {
             bottom = 720f
         )
 
-        val overshoot = resolveImagePreviewDismissRectFrame(
+        val clamped = resolveImagePreviewDismissRectFrame(
             transitionProgress = -0.06f,
             sourceRect = source,
             displayedImageRect = displayed
-        ) ?: error("Expected overshoot frame")
+        ) ?: error("Expected clamped frame")
 
-        assertEquals(source.width, overshoot.rect.width, 0.0001f)
-        assertEquals(source.height, overshoot.rect.height, 0.0001f)
+        assertEquals(source.width, clamped.rect.width, 0.0001f)
+        assertEquals(source.height, clamped.rect.height, 0.0001f)
+        assertEquals(source.left, clamped.rect.left, 0.0001f)
+        assertEquals(source.top, clamped.rect.top, 0.0001f)
     }
 
     @Test
@@ -379,15 +368,27 @@ class ImagePreviewTransitionPolicyTest {
     }
 
     @Test
-    fun resolveImagePreviewDismissBackdropAlpha_fadesNearLinearlyWithMorph() {
+    fun resolveImagePreviewDismissBackdropAlpha_fadesLinearlyWithMorph() {
         val start = resolveImagePreviewDismissBackdropAlpha(1f)
         val middle = resolveImagePreviewDismissBackdropAlpha(0.5f)
         val end = resolveImagePreviewDismissBackdropAlpha(0f)
 
         assertEquals(1f, start, 0.0001f)
-        assertEquals(0.5f.pow(0.9f), middle, 0.0001f)
-        assertTrue(middle < 0.6f)
+        assertEquals(0.5f, middle, 0.0001f)
         assertEquals(0f, end, 0.0001f)
+    }
+
+    @Test
+    fun resolveImagePreviewChromeAlpha_fadesEarlierThanImageDuringDismiss() {
+        assertEquals(1f, resolveImagePreviewChromeAlpha(visualProgress = 1f, isDismissing = false))
+        assertEquals(0.5f, resolveImagePreviewChromeAlpha(visualProgress = 0.5f, isDismissing = false))
+
+        // dismiss 时 0.35 以下 chrome 已清零，图片仍可继续 morph。
+        assertEquals(0f, resolveImagePreviewChromeAlpha(visualProgress = 0.35f, isDismissing = true))
+        assertTrue(
+            resolveImagePreviewChromeAlpha(visualProgress = 0.7f, isDismissing = true) < 0.7f
+        )
+        assertEquals(1f, resolveImagePreviewChromeAlpha(visualProgress = 1f, isDismissing = true))
     }
 
     @Test

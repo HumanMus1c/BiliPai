@@ -1,8 +1,11 @@
 package com.android.purebilibili.feature.video.screen
 
 import androidx.compose.animation.core.Easing
+import com.android.purebilibili.core.ui.transition.VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_START
+import com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.isVideoCardLiveReturnMorphOwnership
+import com.android.purebilibili.core.ui.transition.resolveReturnSessionLockedCoverOwnership
 import com.android.purebilibili.core.ui.transition.resolveVideoCardLiveMorphSecondaryContentAlpha
 import com.android.purebilibili.core.ui.transition.resolveVideoCardReturnCoverOwnership
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionEnterEasing
@@ -103,11 +106,11 @@ internal fun resolveVideoDetailReturnCoverOwnership(
 )
 
 internal fun isLiveReturnMorphFromOwnership(
-    ownership: com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership,
+    ownership: VideoCardReturnCoverOwnership,
 ): Boolean = isVideoCardLiveReturnMorphOwnership(ownership)
 
 internal fun shouldHandResidentCoverFromOwnership(
-    ownership: com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership,
+    ownership: VideoCardReturnCoverOwnership,
     useReturningVisualState: Boolean,
     hasResidentCover: Boolean,
 ): Boolean = shouldHandVisualOwnershipToResidentCoverForOwnership(
@@ -115,6 +118,22 @@ internal fun shouldHandResidentCoverFromOwnership(
     useReturningVisualState = useReturningVisualState,
     hasResidentCover = hasResidentCover,
 )
+
+/**
+ * 返回会话 ownership 锁定包装（供详情页 state 接线）。
+ * @see resolveReturnSessionLockedCoverOwnership
+ */
+internal fun resolveVideoDetailReturnSessionLockedOwnership(
+    lockedOwnership: VideoCardReturnCoverOwnership?,
+    isReturnSessionActive: Boolean,
+    candidateOwnership: VideoCardReturnCoverOwnership,
+): Pair<VideoCardReturnCoverOwnership?, VideoCardReturnCoverOwnership> {
+    return resolveReturnSessionLockedCoverOwnership(
+        lockedOwnership = lockedOwnership,
+        isReturnSessionActive = isReturnSessionActive,
+        candidateOwnership = candidateOwnership,
+    )
+}
 
 internal fun resolveVideoDetailReturnCoverAlpha(
     transitionProgress: Float,
@@ -145,13 +164,29 @@ internal fun resolveVideoDetailReturnContentAlpha(
     holdFullyOpaqueAfterBackPreview: Boolean = false,
     liveReturnMorph: Boolean = false,
     depthBlurProgress: Float? = null,
+    isQuickReturn: Boolean = false,
+    /**
+     * 单时钟 morph 深度（[VideoCardTransitionClock.depthProgress]）：1=详情，0=列表。
+     * 提供时 live morph 正文只跟这一路，与源卡 chrome settle 对齐。
+     */
+    morphDepthProgress: Float? = null,
 ): Float {
-    // live morph：中段正文仍参与壳收缩；末段 settle 过 yield 点后淡出，给源卡标题/UP 让位。
-    // settle 与源卡 chrome 同源（transition + 景深取较晚），避免叠字。
+    // live morph：正文与源卡 chrome 共用 morphDepth settle，禁止 AVS/depth 双源 max 叠字。
     if (liveReturnMorph) {
+        // 快速返回 + 已提交：源卡 chrome 立刻 1，详情正文立刻 0。
+        if (isCommittedCardReturn && isQuickReturn) {
+            return 0f
+        }
+        val yieldStart = if (isQuickReturn) {
+            0f
+        } else {
+            VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_START
+        }
         return resolveVideoCardLiveMorphSecondaryContentAlpha(
             transitionProgress = transitionProgress,
             depthBlurProgress = depthBlurProgress,
+            yieldStart = yieldStart,
+            morphDepthProgress = morphDepthProgress,
         )
     }
     if (isCommittedCardReturn) return 0f
@@ -167,6 +202,25 @@ internal fun shouldTreatVideoDetailCardExitAsReturning(
     return isExitTransitionInProgress &&
         sharedBoundsActive &&
         !keepLoadedContentForBackPreview
+}
+
+/**
+ * 返回 morph 期间是否保活播放会话（surface）。
+ *
+ * 预测返回 **轻滑即松手** 时：栈先 pop → 入口 `isVisible=false`，但详情仍在
+ * sharedBounds overlay 里缩回。若此时掐掉 playbackSession，surface 变黑，
+ * 慢放可见「动画前半段卡片消失」；手指拖到一半再松手时，seek 阶段仍 visible，
+ * 所以往往复现不了。
+ *
+ * 规则：栈顶可见 **或**（shell shared 且正在 exit transition）→ 保活。
+ */
+internal fun shouldKeepPlaybackSessionActiveForSharedReturnMorph(
+    isVisible: Boolean,
+    sharedBoundsActive: Boolean,
+    isExitTransitionInProgress: Boolean,
+): Boolean {
+    if (isVisible) return true
+    return sharedBoundsActive && isExitTransitionInProgress
 }
 
 internal fun shouldForceBackPreviewPlayerCover(

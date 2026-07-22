@@ -699,6 +699,38 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
+    fun phoneOrientationObserverPolicy_stopsListeningDuringPortraitImmersiveFullscreen() {
+        assertFalse(
+            shouldObservePhoneAutoRotate(
+                autoRotateEnabled = true,
+                systemAutoRotateEnabled = true,
+                isCompactDevice = true,
+                isOrientationDrivenFullscreen = true,
+                fullscreenMode = FullscreenMode.AUTO,
+                manualPortraitHoldActive = false,
+                isPortraitFullscreen = true
+            )
+        )
+    }
+
+    @Test
+    fun phoneOrientationPolicy_locksPortraitWhilePortraitImmersiveFullscreen() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            resolvePhoneVideoRequestedOrientation(
+                autoRotateEnabled = true,
+                systemAutoRotateEnabled = true,
+                fullscreenMode = FullscreenMode.AUTO,
+                isCompactDevice = true,
+                isOrientationDrivenFullscreen = true,
+                isFullscreenMode = true,
+                isVerticalVideo = true,
+                isPortraitFullscreen = true
+            )
+        )
+    }
+
+    @Test
     fun phoneOrientationPolicy_fullscreenModeNone_keepsCurrentOrientation() {
         assertEquals(
             null,
@@ -948,8 +980,10 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    fun autoPortraitRoutePolicy_entersStandalone_whenRouteRequestsInitialVerticalDespiteInline() {
-        assertTrue(
+    fun autoPortraitRoutePolicy_keepsOfficialInline_whenOnlySoftInitialVerticalHint() {
+        // Home always passes autoPortrait + initialVertical for vertical cards; that must
+        // not force standalone when official inline detail is active.
+        assertFalse(
             shouldAutoEnterPortraitFullscreenFromRoute(
                 autoEnterPortraitFromRoute = true,
                 startAudioFromRoute = false,
@@ -982,13 +1016,21 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
-    fun startPortraitHint_directPortraitEntryIgnoresAutoPortraitPairing() {
+    fun startPortraitHint_onlyDirectPortraitEntryStartsInFullscreen() {
         assertTrue(
             shouldStartInPortraitFullscreenFromRouteHint(
                 autoEnterPortraitFromRoute = false,
                 startAudioFromRoute = false,
                 initialVerticalFromRoute = false,
                 directPortraitEntryFromRoute = true,
+            )
+        )
+        assertFalse(
+            shouldStartInPortraitFullscreenFromRouteHint(
+                autoEnterPortraitFromRoute = true,
+                startAudioFromRoute = false,
+                initialVerticalFromRoute = true,
+                directPortraitEntryFromRoute = false,
             )
         )
         assertFalse(

@@ -79,6 +79,38 @@ class StoryFeedPolicyTest {
     }
 
     @Test
+    fun resolveStoryPortraitIndexForBvid_mapsFeedAndSeedPositions() {
+        val items = listOf(
+            storyItem(id = 1L, aid = 100L, cid = 1L, bvid = "BV_A"),
+            storyItem(id = 2L, aid = 200L, cid = 2L, bvid = "BV_B")
+        )
+        assertEquals(
+            1,
+            resolveStoryPortraitIndexForBvid(
+                bvid = "BV_B",
+                items = items,
+                seedBvid = "BV_SEED"
+            )
+        )
+        assertEquals(
+            0,
+            resolveStoryPortraitIndexForBvid(
+                bvid = "BV_SEED",
+                items = items,
+                seedBvid = "BV_SEED"
+            )
+        )
+        assertEquals(
+            -1,
+            resolveStoryPortraitIndexForBvid(
+                bvid = "BV_MISSING",
+                items = items,
+                seedBvid = "BV_SEED"
+            )
+        )
+    }
+
+    @Test
     fun buildStoryPortraitFeed_mapsRemainingPlayableStoriesAsRecommendations() {
         val feed = buildStoryPortraitFeed(
             listOf(

@@ -853,7 +853,7 @@ private fun HomeLoadingStrip(
         contentAlignment = Alignment.Center
     ) {
         com.android.purebilibili.core.ui.CutePersonLoadingIndicator(
-            modifier = Modifier.size(32.dp),
+            size = 32.dp,
             strokeWidth = 2.dp
         )
     }
@@ -1258,7 +1258,7 @@ private fun BangumiSearchGrid(
                     contentAlignment = Alignment.Center
                 ) {
                     com.android.purebilibili.core.ui.CutePersonLoadingIndicator(
-                        modifier = Modifier.size(24.dp),
+                        size = 24.dp,
                         strokeWidth = 2.dp
                     )
                 }

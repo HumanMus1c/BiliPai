@@ -47,6 +47,8 @@ import com.android.purebilibili.R
 import com.android.purebilibili.core.store.BottomBarSearchAutoExpandMode
 import com.android.purebilibili.core.store.BottomBarSearchLayoutMode
 import com.android.purebilibili.core.store.CommonListHeaderCollapseMode
+import com.android.purebilibili.core.store.HomeCardBadgeEffectMode
+import com.android.purebilibili.core.store.HomeCardInfoGlassMode
 import com.android.purebilibili.core.store.HomeDurationStyle
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode
@@ -427,6 +429,12 @@ fun AppearanceSettingsContent(
     val homeDurationStyle by SettingsManager
         .getHomeDurationStyle(context)
         .collectAsStateWithLifecycle(initialValue = HomeDurationStyle.OUTSIDE_COVER)
+    val homeCardBadgeEffectMode by SettingsManager
+        .getHomeCardBadgeEffectMode(context)
+        .collectAsStateWithLifecycle(initialValue = HomeCardBadgeEffectMode.SOFT_GLASS)
+    val homeCardInfoGlassMode by SettingsManager
+        .getHomeCardInfoGlassMode(context)
+        .collectAsStateWithLifecycle(initialValue = HomeCardInfoGlassMode.OFF)
     val homeFeedCardStyle by SettingsManager
         .getHomeFeedCardStyle(context)
         .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.CURRENT)
@@ -1490,8 +1498,8 @@ fun AppearanceSettingsContent(
                         IOSDivider(modifier = Modifier.padding(start = 16.dp))
                         Column(modifier = Modifier.padding(16.dp)) {
                             IOSSlidingSegmentedSetting(
-                                title = "首页卡片样式：${homeFeedCardStyle.label}",
-                                subtitle = "当前样式使用 16:9；官方样式使用更宽的 4:3 卡片与紧凑信息区",
+                                title = "卡片封面比例：${homeFeedCardStyle.label}",
+                                subtitle = homeFeedCardStyle.subtitle + "（首页、搜索、列表、相关推荐等同步）",
                                 options = HomeFeedCardStyle.entries.map {
                                     PlaybackSegmentOption(it, it.label)
                                 },
@@ -1516,9 +1524,44 @@ fun AppearanceSettingsContent(
                                     }
                                 }
                             )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            IOSSlidingSegmentedSetting(
+                                title = "卡片标签效果：${homeCardBadgeEffectMode.label}",
+                                subtitle = homeCardBadgeEffectMode.subtitle,
+                                options = HomeCardBadgeEffectMode.entries.map {
+                                    PlaybackSegmentOption(it, it.label)
+                                },
+                                selectedValue = homeCardBadgeEffectMode,
+                                onSelectionChange = {
+                                    scope.launch {
+                                        SettingsManager.setHomeCardBadgeEffectMode(context, it)
+                                    }
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            IOSSlidingSegmentedSetting(
+                                title = "卡片信息区：${homeCardInfoGlassMode.label}",
+                                subtitle = homeCardInfoGlassMode.subtitle,
+                                options = HomeCardInfoGlassMode.entries.map {
+                                    PlaybackSegmentOption(it, it.label)
+                                },
+                                selectedValue = homeCardInfoGlassMode,
+                                onSelectionChange = {
+                                    scope.launch {
+                                        SettingsManager.setHomeCardInfoGlassMode(context, it)
+                                    }
+                                }
+                            )
                         }
 
                         IOSDivider(modifier = Modifier.padding(start = 16.dp))
+                        // Wallpaper section: realtime card glass is WIP — keep default OFF.
+                        Text(
+                            text = "壁纸与卡片实时模糊 / 实时液态玻璃仍在开发中，请勿使用相关选项（默认关闭）。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                        )
                         var showHomeWallpaperPicker by remember { mutableStateOf(false) }
                         Row(
                             modifier = Modifier

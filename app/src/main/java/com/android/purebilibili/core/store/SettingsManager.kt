@@ -361,9 +361,16 @@ enum class HomeFeedCardWidthPreset(
     }
 }
 
-enum class HomeFeedCardStyle(val value: Int, val label: String) {
-    CURRENT(0, "当前样式"),
-    OFFICIAL(1, "官方样式");
+/**
+ * 双列视频卡封面框三档（全局一份设置，均居中 Crop）：
+ * - [CURRENT] 16:9：与 CDN 投稿源同比例，标准封面几乎不裁
+ * - [OFFICIAL] 4:3：更高列表框，左右会裁
+ * - [PILIPLUS] 16:10：介于 16:9 与 4:3 之间
+ */
+enum class HomeFeedCardStyle(val value: Int, val label: String, val subtitle: String) {
+    CURRENT(0, "16:9", "完整显示，接近投稿源图"),
+    OFFICIAL(1, "4:3", "更高列表框，左右居中裁切"),
+    PILIPLUS(2, "16:10", "介于两者之间，轻微裁切");
 
     companion object {
         fun fromValue(value: Int): HomeFeedCardStyle =
@@ -379,6 +386,51 @@ enum class HomeDurationStyle(val value: Int, val label: String) {
     companion object {
         fun fromValue(value: Int): HomeDurationStyle =
             entries.find { it.value == value } ?: OUTSIDE_COVER
+    }
+}
+
+/**
+ * 首页/列表视频卡片标签（播放量、时长、信息区）表面效果。
+ * 轻模糊在滚动时会降级为软玻璃，避免列表掉帧。
+ */
+enum class HomeCardBadgeEffectMode(
+    val value: Int,
+    val label: String,
+    val subtitle: String
+) {
+    OFF(0, "关闭", "纯文字标签，性能最好"),
+    SOFT_GLASS(1, "软玻璃", "半透明描边拟态，无实时采样"),
+    LIGHT_BLUR(2, "实时模糊", "开发中，请勿使用：Haze 采样壁纸/背景");
+
+    companion object {
+        fun fromValue(value: Int): HomeCardBadgeEffectMode =
+            entries.find { it.value == value } ?: SOFT_GLASS
+    }
+}
+
+/**
+ * Card info strip (title + UP under cover) glass — independent of cover badge pills.
+ * Realtime blur (Haze) and realtime liquid glass (LayerBackdrop) are separate modes.
+ */
+enum class HomeCardInfoGlassMode(
+    val value: Int,
+    val label: String,
+    val subtitle: String
+) {
+    OFF(0, "关闭", "实色/轻 tint，性能最好（推荐）"),
+    REALTIME_BLUR(1, "实时模糊", "开发中，请勿使用：Haze 采样壁纸磨砂"),
+    REALTIME_LIQUID_GLASS(2, "实时液态玻璃", "开发中，请勿使用：折射液态玻璃"),
+    BLUR_AND_LIQUID(3, "模糊+液态", "开发中，请勿使用：Haze + 液态叠加");
+
+    val usesRealtimeBlur: Boolean
+        get() = this == REALTIME_BLUR || this == BLUR_AND_LIQUID
+
+    val usesRealtimeLiquidGlass: Boolean
+        get() = this == REALTIME_LIQUID_GLASS || this == BLUR_AND_LIQUID
+
+    companion object {
+        fun fromValue(value: Int): HomeCardInfoGlassMode =
+            entries.find { it.value == value } ?: OFF
     }
 }
 
@@ -447,8 +499,11 @@ data class HomeSettings(
     val smartVisualGuardEnabled: Boolean = false, // [Retired] 智能流畅优先已下线，固定关闭
     val compactVideoStatsOnCover: Boolean = true, //  播放量/评论数显示在封面底部（默认开启）
     val lowQualityHomeCoverInDataSaver: Boolean = false, // 省流量时首页封面使用低清晰度
-    val showHomeCoverGlassBadges: Boolean = false, // 首页封面玻璃标签已退役
-    val showHomeInfoGlassBadges: Boolean = false, // 首页信息区玻璃标签已退役
+    val showHomeCoverGlassBadges: Boolean = true, // 兼容旧字段：由 [homeCardBadgeEffectMode] 推导
+    val showHomeInfoGlassBadges: Boolean = true, // 兼容旧字段：由 [homeCardBadgeEffectMode] 推导
+    val homeCardBadgeEffectMode: HomeCardBadgeEffectMode = HomeCardBadgeEffectMode.SOFT_GLASS,
+    /** Title/UP strip under cover — blur and liquid glass are independent. */
+    val homeCardInfoGlassMode: HomeCardInfoGlassMode = HomeCardInfoGlassMode.OFF,
     val homeWallpaperEffectMode: HomeWallpaperEffectMode = HomeWallpaperEffectMode.SOFT_BLUR,
     val homeWallpaperEffectScope: HomeWallpaperEffectScope = HomeWallpaperEffectScope.HOME_ONLY,
     val showHomeUpBadges: Boolean = true, // 首页和相关推荐 UP 主标识显示
@@ -778,6 +833,35 @@ data class HomeTopTabSettings(
     val visibleIds: Set<String> = setOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME", "PARTITION")
 )
 
+/**
+ * 自动退出全屏策略。
+ * - [OFF]：不自动退
+ * - [CURRENT_PART]：当前分P/单视频结束就退（旧「开」语义中的激进行为）
+ * - [ALL_PARTS]：还有下一段可连播时保持全屏，全部播完再退（默认）
+ */
+enum class AutoExitFullscreenMode(val value: Int, val label: String, val subtitle: String) {
+    OFF(0, "关闭", "播放结束不自动退出全屏"),
+    CURRENT_PART(1, "当前分P结束", "每个分P/视频播完就退出全屏"),
+    ALL_PARTS(2, "全部连播结束", "合集/分P/列表全部播完再退出全屏");
+
+    companion object {
+        fun fromValue(value: Int): AutoExitFullscreenMode =
+            entries.find { it.value == value } ?: ALL_PARTS
+
+        /** 兼容旧布尔：true→全部结束再退，false→关闭 */
+        fun fromLegacyEnabled(enabled: Boolean): AutoExitFullscreenMode =
+            if (enabled) ALL_PARTS else OFF
+    }
+}
+
+internal fun resolveAutoExitFullscreenMode(
+    modeValue: Int?,
+    legacyEnabled: Boolean?,
+): AutoExitFullscreenMode {
+    if (modeValue != null) return AutoExitFullscreenMode.fromValue(modeValue)
+    return AutoExitFullscreenMode.fromLegacyEnabled(legacyEnabled ?: true)
+}
+
 data class PlayerInteractionSettings(
     val gestureSensitivity: Float = 1.0f,
     val doubleTapLikeEnabled: Boolean = true,
@@ -798,12 +882,19 @@ data class PlayerInteractionSettings(
         TabletCommentPanelWidthPreset.STANDARD,
     val autoEnterFullscreenEnabled: Boolean = false,
     val autoExitFullscreenEnabled: Boolean = true,
+    /**
+     * 自动退出全屏粒度。旧布尔 [autoExitFullscreenEnabled]=true 映射为 [ALL_PARTS]，
+     * 避免连播下一P 时被 STATE_ENDED 踢回竖屏。
+     */
+    val autoExitFullscreenMode: AutoExitFullscreenMode = AutoExitFullscreenMode.ALL_PARTS,
     val fixedFullscreenAspectRatio: FullscreenAspectRatio = FullscreenAspectRatio.FIT,
     val subtitleAutoPreference: SubtitleAutoPreference = SubtitleAutoPreference.OFF,
     val longPressSpeed: Float = 2.0f,
     val longPressSpeedLockEnabled: Boolean = false,
     val longPressSpeedLockHintShown: Boolean = false,
     val subtitleVerticalOffsetFraction: Float = 0.0f,
+    /** Vertical offset for portrait immersive / story subtitles (independent of landscape). */
+    val subtitlePortraitVerticalOffsetFraction: Float = 0.0f,
     val twoFingerVerticalSpeedEnabled: Boolean = false,
     val twoFingerHorizontalSpeedEnabled: Boolean = false,
     val hiResLongPressCompatHintShown: Boolean = false,
@@ -1053,6 +1144,8 @@ object SettingsManager {
         booleanPreferencesKey("hi_res_long_press_compat_hint_shown")
     private val KEY_SUBTITLE_VERTICAL_OFFSET_FRACTION =
         floatPreferencesKey("subtitle_vertical_offset_fraction")
+    private val KEY_SUBTITLE_PORTRAIT_VERTICAL_OFFSET_FRACTION =
+        floatPreferencesKey("subtitle_portrait_vertical_offset_fraction")
     //  [新增] 默认播放速度/记忆上次播放速度
     private val KEY_DEFAULT_PLAYBACK_SPEED = floatPreferencesKey("default_playback_speed")
     private val KEY_REMEMBER_LAST_PLAYBACK_SPEED = booleanPreferencesKey("remember_last_playback_speed")
@@ -1187,6 +1280,8 @@ object SettingsManager {
         booleanPreferencesKey("low_quality_home_cover_in_data_saver")
     private val KEY_HOME_COVER_GLASS_BADGES_VISIBLE = booleanPreferencesKey("home_cover_glass_badges_visible")
     private val KEY_HOME_INFO_GLASS_BADGES_VISIBLE = booleanPreferencesKey("home_info_glass_badges_visible")
+    private val KEY_HOME_CARD_BADGE_EFFECT_MODE = intPreferencesKey("home_card_badge_effect_mode")
+    private val KEY_HOME_CARD_INFO_GLASS_MODE = intPreferencesKey("home_card_info_glass_mode")
     private val KEY_HOME_WALLPAPER_URI = stringPreferencesKey("home_wallpaper_uri")
     private val KEY_HOME_WALLPAPER_EFFECT_MODE = intPreferencesKey("home_wallpaper_effect_mode")
     private val KEY_HOME_WALLPAPER_EFFECT_SCOPE = intPreferencesKey("home_wallpaper_effect_scope")
@@ -1316,8 +1411,12 @@ object SettingsManager {
             compactVideoStatsOnCover = preferences[KEY_COMPACT_VIDEO_STATS_ON_COVER] ?: true,
             lowQualityHomeCoverInDataSaver =
                 preferences[KEY_LOW_QUALITY_HOME_COVER_IN_DATA_SAVER] ?: false,
-            showHomeCoverGlassBadges = false,
-            showHomeInfoGlassBadges = false,
+            showHomeCoverGlassBadges = resolveHomeCardBadgeEffectMode(preferences)
+                != HomeCardBadgeEffectMode.OFF,
+            showHomeInfoGlassBadges = resolveHomeCardBadgeEffectMode(preferences)
+                != HomeCardBadgeEffectMode.OFF,
+            homeCardBadgeEffectMode = resolveHomeCardBadgeEffectMode(preferences),
+            homeCardInfoGlassMode = resolveHomeCardInfoGlassMode(preferences),
             homeWallpaperEffectMode = HomeWallpaperEffectMode.fromValue(
                 preferences[KEY_HOME_WALLPAPER_EFFECT_MODE] ?: HomeWallpaperEffectMode.SOFT_BLUR.value
             ),
@@ -1389,6 +1488,10 @@ object SettingsManager {
             ),
             autoEnterFullscreenEnabled = preferences[KEY_AUTO_ENTER_FULLSCREEN] ?: false,
             autoExitFullscreenEnabled = preferences[KEY_AUTO_EXIT_FULLSCREEN] ?: true,
+            autoExitFullscreenMode = resolveAutoExitFullscreenMode(
+                modeValue = preferences[KEY_AUTO_EXIT_FULLSCREEN_MODE],
+                legacyEnabled = preferences[KEY_AUTO_EXIT_FULLSCREEN],
+            ),
             fixedFullscreenAspectRatio = FullscreenAspectRatio.fromValue(
                 preferences[KEY_FULLSCREEN_ASPECT_RATIO] ?: FullscreenAspectRatio.FIT.value
             ),
@@ -1402,6 +1505,9 @@ object SettingsManager {
             longPressSpeedLockHintShown = preferences[KEY_LONG_PRESS_SPEED_LOCK_HINT_SHOWN] ?: false,
             subtitleVerticalOffsetFraction = normalizeSubtitleVerticalOffsetFraction(
                 preferences[KEY_SUBTITLE_VERTICAL_OFFSET_FRACTION] ?: 0.0f
+            ),
+            subtitlePortraitVerticalOffsetFraction = normalizeSubtitleVerticalOffsetFraction(
+                preferences[KEY_SUBTITLE_PORTRAIT_VERTICAL_OFFSET_FRACTION] ?: 0.0f
             ),
             twoFingerVerticalSpeedEnabled = preferences[KEY_TWO_FINGER_VERTICAL_SPEED_ENABLED] ?: false,
             twoFingerHorizontalSpeedEnabled = preferences[KEY_TWO_FINGER_HORIZONTAL_SPEED_ENABLED] ?: false,
@@ -2162,6 +2268,21 @@ object SettingsManager {
         }
     }
 
+    fun getSubtitlePortraitVerticalOffsetFraction(context: Context): Flow<Float> =
+        context.settingsDataStore.data
+            .map { preferences ->
+                normalizeSubtitleVerticalOffsetFraction(
+                    preferences[KEY_SUBTITLE_PORTRAIT_VERTICAL_OFFSET_FRACTION] ?: 0.0f
+                )
+            }
+
+    suspend fun setSubtitlePortraitVerticalOffsetFraction(context: Context, value: Float) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_SUBTITLE_PORTRAIT_VERTICAL_OFFSET_FRACTION] =
+                normalizeSubtitleVerticalOffsetFraction(value)
+        }
+    }
+
     fun getTwoFingerVerticalSpeedEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data
             .map { preferences -> preferences[KEY_TWO_FINGER_VERTICAL_SPEED_ENABLED] ?: false }
@@ -2451,21 +2572,75 @@ object SettingsManager {
     }
 
     fun getHomeCoverGlassBadgesVisible(context: Context): Flow<Boolean> = context.settingsDataStore.data
-        .map { preferences -> preferences[KEY_HOME_COVER_GLASS_BADGES_VISIBLE] ?: true }
+        .map { preferences ->
+            resolveHomeCardBadgeEffectMode(preferences) != HomeCardBadgeEffectMode.OFF
+        }
 
     suspend fun setHomeCoverGlassBadgesVisible(context: Context, value: Boolean) {
-        context.settingsDataStore.edit { preferences ->
-            preferences[KEY_HOME_COVER_GLASS_BADGES_VISIBLE] = value
-        }
+        setHomeCardBadgeEffectMode(
+            context,
+            if (value) HomeCardBadgeEffectMode.SOFT_GLASS else HomeCardBadgeEffectMode.OFF
+        )
     }
 
     fun getHomeInfoGlassBadgesVisible(context: Context): Flow<Boolean> = context.settingsDataStore.data
-        .map { preferences -> preferences[KEY_HOME_INFO_GLASS_BADGES_VISIBLE] ?: true }
+        .map { preferences ->
+            resolveHomeCardBadgeEffectMode(preferences) != HomeCardBadgeEffectMode.OFF
+        }
 
     suspend fun setHomeInfoGlassBadgesVisible(context: Context, value: Boolean) {
-        context.settingsDataStore.edit { preferences ->
-            preferences[KEY_HOME_INFO_GLASS_BADGES_VISIBLE] = value
+        setHomeCardBadgeEffectMode(
+            context,
+            if (value) HomeCardBadgeEffectMode.SOFT_GLASS else HomeCardBadgeEffectMode.OFF
+        )
+    }
+
+    fun getHomeCardBadgeEffectMode(context: Context): Flow<HomeCardBadgeEffectMode> =
+        context.settingsDataStore.data.map { preferences ->
+            resolveHomeCardBadgeEffectMode(preferences)
         }
+
+    suspend fun setHomeCardBadgeEffectMode(context: Context, mode: HomeCardBadgeEffectMode) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_HOME_CARD_BADGE_EFFECT_MODE] = mode.value
+            val enabled = mode != HomeCardBadgeEffectMode.OFF
+            preferences[KEY_HOME_COVER_GLASS_BADGES_VISIBLE] = enabled
+            preferences[KEY_HOME_INFO_GLASS_BADGES_VISIBLE] = enabled
+        }
+    }
+
+    private fun resolveHomeCardBadgeEffectMode(preferences: Preferences): HomeCardBadgeEffectMode {
+        preferences[KEY_HOME_CARD_BADGE_EFFECT_MODE]?.let { raw ->
+            return HomeCardBadgeEffectMode.fromValue(raw)
+        }
+        // Legacy: both old toggles defaulted true when unset; retired path forced OFF in map.
+        // Prefer soft glass when either legacy flag is still true.
+        val cover = preferences[KEY_HOME_COVER_GLASS_BADGES_VISIBLE]
+        val info = preferences[KEY_HOME_INFO_GLASS_BADGES_VISIBLE]
+        return if (cover == false && info == false) {
+            HomeCardBadgeEffectMode.OFF
+        } else {
+            HomeCardBadgeEffectMode.SOFT_GLASS
+        }
+    }
+
+    fun getHomeCardInfoGlassMode(context: Context): Flow<HomeCardInfoGlassMode> =
+        context.settingsDataStore.data.map { preferences ->
+            resolveHomeCardInfoGlassMode(preferences)
+        }
+
+    suspend fun setHomeCardInfoGlassMode(context: Context, mode: HomeCardInfoGlassMode) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_HOME_CARD_INFO_GLASS_MODE] = mode.value
+        }
+    }
+
+    private fun resolveHomeCardInfoGlassMode(preferences: Preferences): HomeCardInfoGlassMode {
+        preferences[KEY_HOME_CARD_INFO_GLASS_MODE]?.let { raw ->
+            return HomeCardInfoGlassMode.fromValue(raw)
+        }
+        // WIP realtime glass defaults off — do not auto-enable from badge mode.
+        return HomeCardInfoGlassMode.OFF
     }
 
     fun getHomeWallpaperUri(context: Context): Flow<String> = context.settingsDataStore.data
@@ -5290,6 +5465,7 @@ object SettingsManager {
         intPreferencesKey("tablet_comment_panel_width_preset")
     private val KEY_AUTO_ENTER_FULLSCREEN = booleanPreferencesKey("auto_enter_fullscreen")
     private val KEY_AUTO_EXIT_FULLSCREEN = booleanPreferencesKey("auto_exit_fullscreen")
+    private val KEY_AUTO_EXIT_FULLSCREEN_MODE = intPreferencesKey("auto_exit_fullscreen_mode")
     private val KEY_SHOW_FULLSCREEN_LOCK_BUTTON = booleanPreferencesKey("show_fullscreen_lock_button")
     private val KEY_SHOW_FULLSCREEN_SCREENSHOT_BUTTON = booleanPreferencesKey("show_fullscreen_screenshot_button")
     private val KEY_APP_GESTURE_SCREENSHOT_ENABLED =
@@ -5504,11 +5680,32 @@ object SettingsManager {
     }
 
     fun getAutoExitFullscreen(context: Context): Flow<Boolean> = context.settingsDataStore.data
-        .map { preferences -> preferences[KEY_AUTO_EXIT_FULLSCREEN] ?: true }
+        .map { preferences ->
+            resolveAutoExitFullscreenMode(
+                modeValue = preferences[KEY_AUTO_EXIT_FULLSCREEN_MODE],
+                legacyEnabled = preferences[KEY_AUTO_EXIT_FULLSCREEN],
+            ) != AutoExitFullscreenMode.OFF
+        }
+
+    fun getAutoExitFullscreenMode(context: Context): Flow<AutoExitFullscreenMode> =
+        context.settingsDataStore.data.map { preferences ->
+            resolveAutoExitFullscreenMode(
+                modeValue = preferences[KEY_AUTO_EXIT_FULLSCREEN_MODE],
+                legacyEnabled = preferences[KEY_AUTO_EXIT_FULLSCREEN],
+            )
+        }
 
     suspend fun setAutoExitFullscreen(context: Context, enabled: Boolean) {
+        setAutoExitFullscreenMode(
+            context,
+            AutoExitFullscreenMode.fromLegacyEnabled(enabled),
+        )
+    }
+
+    suspend fun setAutoExitFullscreenMode(context: Context, mode: AutoExitFullscreenMode) {
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_AUTO_EXIT_FULLSCREEN] = enabled
+            preferences[KEY_AUTO_EXIT_FULLSCREEN_MODE] = mode.value
+            preferences[KEY_AUTO_EXIT_FULLSCREEN] = mode != AutoExitFullscreenMode.OFF
         }
     }
 
@@ -6125,6 +6322,10 @@ object SettingsManager {
             BooleanShareablePreferenceDefinition(KEY_LONG_PRESS_SPEED_LOCK_ENABLED, SettingsShareSection.GESTURE),
             FloatShareablePreferenceDefinition(
                 KEY_SUBTITLE_VERTICAL_OFFSET_FRACTION,
+                SettingsShareSection.GESTURE
+            ),
+            FloatShareablePreferenceDefinition(
+                KEY_SUBTITLE_PORTRAIT_VERTICAL_OFFSET_FRACTION,
                 SettingsShareSection.GESTURE
             ),
             BooleanShareablePreferenceDefinition(KEY_PIP_NO_DANMAKU, SettingsShareSection.GESTURE),

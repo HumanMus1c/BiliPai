@@ -137,6 +137,15 @@ class SpaceLoadPolicyTest {
     }
 
     @Test
+    fun resolveSpaceSearchEntryLabel_andVisibility() {
+        assertEquals("搜索 TA 的动态", resolveSpaceSearchEntryLabel(SpaceSearchScope.DYNAMIC))
+        assertEquals("搜索 TA 的视频", resolveSpaceSearchEntryLabel(SpaceSearchScope.VIDEO))
+        assertTrue(shouldShowSpaceSearchEntry(SpaceSearchScope.DYNAMIC, isSearchMode = false))
+        assertFalse(shouldShowSpaceSearchEntry(SpaceSearchScope.DYNAMIC, isSearchMode = true))
+        assertFalse(shouldShowSpaceSearchEntry(SpaceSearchScope.NONE, isSearchMode = false))
+    }
+
+    @Test
     fun resolveSpaceSearchBarGridItemIndex_keepsSearchBarVisibleAfterTopBarClick() {
         assertEquals(
             2,

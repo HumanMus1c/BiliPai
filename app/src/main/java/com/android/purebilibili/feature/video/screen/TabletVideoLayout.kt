@@ -720,11 +720,17 @@ private fun TabletSecondaryContent(
                 }
 
                 1 -> {
+                    var hiddenRelatedBvids by remember(success.info.bvid) {
+                        mutableStateOf(emptySet<String>())
+                    }
+                    val visibleRelatedVideos = remember(success.related, hiddenRelatedBvids) {
+                        filterRelatedVideosByHiddenBvids(success.related, hiddenRelatedBvids)
+                    }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(8.dp)
                     ) {
-                        val relatedRows = chunkRelatedVideosForHomeStyleGrid(success.related)
+                        val relatedRows = chunkRelatedVideosForHomeStyleGrid(visibleRelatedVideos)
                         itemsIndexed(
                             items = relatedRows,
                             key = { rowIndex, row ->
@@ -757,6 +763,9 @@ private fun TabletSecondaryContent(
                                             navOptions.putLong(VIDEO_NAV_TARGET_CID_KEY, video.cid)
                                         }
                                         onRelatedVideoClick(video.bvid, navOptions)
+                                    },
+                                    onVideoHidden = { video ->
+                                        hiddenRelatedBvids = hiddenRelatedBvids + video.bvid
                                     }
                                 )
                             }

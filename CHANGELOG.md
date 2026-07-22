@@ -1,5 +1,106 @@
 # Changelog
 
+## v9.9.8.7 (2026-07-22)
+
+### 版本信息
+- 版本号从 `9.9.8.6` 升级到 `9.9.8.7`，`versionCode` 从 `261` 升级到 `262`。
+
+### 相对 v9.9.8.6 的完整更新
+
+#### 首页进场动画与过渡协同
+- **进场 + 滚动**：列表滚动中挂载的卡片不再播放进场，避免 Lazy 复用反复 fade/scale 与快滑时多卡并发 spring。
+- **进场 + 过渡并存**：与共享元素过渡同时开启时，进场降为仅 alpha 淡入（无缩放 / 位移），避免污染 sharedBounds 源几何。
+- **实现升级**：`animateEnter` 改为 `Animatable` + `graphicsLayer` 内读 progress，去掉 `animateFloatAsState` 每帧重组。
+- **门控保留**：从详情返回、切分类仍不播进场；设置文案同步说明滚动不播与过渡协同。
+
+#### 视频卡片 shared 过渡 / 返回 morph
+- **统一时钟**：`VideoCardTransitionClock` 驱动 morph 与景深，返回 ownership 与 single-clock settle 收口。
+- **返回 live surface**：返回 morph 期间保持 live surface，pop 后 surface 不提前卸掉。
+- **进场优先 / 首帧 jank**：恢复完整进场后的返回 morph；点击首帧卡顿与落位闪烁修复；开场 blur 与 morph 同步清理。
+- **自适应过渡成本**：中低端设备下调卡片过渡开销。
+- **景深与遮罩**：打开时列表景深缩放与 scrim 加强；开场 blur 恢复满 20px（撤销按设备降档）。
+- **快速返回双标题**：消除 quick shared return 时双标题闪一下。
+
+#### 封面 / 进详情
+- **封面到 surface 显露**：详情再进时保持 cover→surface reveal 路径。
+- **封面粘住**：针对再进详情封面粘住做过修复与回退收敛（最终以当前 main 行为为准）。
+
+#### 竖屏全屏 / 横屏播放器
+- **竖屏全屏双击快进 / 快退**：恢复 portrait fullscreen 双击 seek。
+- **横屏弹幕面板**：收窄横屏弹幕侧栏宽度；更聪明的全屏退出。
+- **UP 预览 sheet**：主题感知的 UP 预览面板，并修横屏弹幕面板相关问题。
+
+#### 图片预览
+- **一键 dismiss morph**：图片预览关闭为 seamless one-shot morph，减少割裂感。
+
+#### 提交清单（自 v9.9.8.6 起，不含版本号提交本身）
+```
+perf(home): make card enter play well with scroll and shared transition
+Revert "fix(video): unstick autoplay cover on detail re-entry"
+fix(video): unstick autoplay cover on detail re-entry
+fix(video): stop cover from sticking when re-entering detail
+fix(video): keep cover-to-surface reveal on detail re-entry
+feat(video): theme-aware UP preview sheet and fix landscape danmaku panel
+fix(player): narrow landscape danmaku panel and smarter fullscreen exit
+fix(video): keep live surface during return morph
+fix(video): lock return ownership and single-clock settle
+fix(video): stop dual-title flash on quick shared return
+fix(preview): seamless one-shot image dismiss morph
+fix(video): restore double-tap seek in portrait fullscreen
+feat(video): stronger list depth scale and scrim on card open
+fix(video): keep surface alive during shared return morph after pop
+feat(video): single VideoCardTransitionClock for morph and depth
+fix(video): lockstep return blur clear with morph, open depth with first frame
+revert(video): restore full 20px open blur, drop device tier downgrade
+fix(video): kill click first-frame jank and return land flicker
+fix(video): restore return morph after full entry, prefer animation-first open
+perf(video): adaptive card transition cost for low/mid devices
+test: bump AppVersionPolicyTest to 9.9.8.6
+```
+
+## v9.9.8.6 (2026-07-21)
+
+### 版本信息
+- 版本号从 `9.9.8.5` 升级到 `9.9.8.6`，`versionCode` 从 `260` 升级到 `261`。
+
+### 相对 v9.9.8.5 的完整更新
+
+#### 播放器手势与反馈
+- **音量 / 亮度 UI 重做**：按 MD3 / iOS / MIUIX 主题提供原生感反馈（竖条、胶囊、侧轨），动态图标随档位变化。
+- **音量 / 亮度可见性与步进触感**：恢复遮罩可见性，拖动过程步进震动。
+- **横屏左右滑动快进 / 快退**：抬高 Seek 预览层级，补齐步进振动；小窗全屏 Seek 秒数默认可用。
+- **字幕位置**：支持拖动调节字幕纵向位置并写入偏好。
+
+#### 竖屏 / 直达刷视频
+- **画质 / 比例 / 安全区**：对齐 pager 画质、fit 安全边与全屏方向。
+- **系统栏沉浸与多 P / 合集**：全屏沉浸、多 P / 合集跟进，Story 滑动连续。
+- **字幕宿主**：竖屏字幕层与比例模式修复。
+- **直达进场**：UP 名在直达进场时正确显示；自动最高画质策略更稳妥。
+- **HDR / Dolby / 8K**：恢复 playurl 尝试链中的高规格画质。
+
+#### 导航与卡片过渡
+- **左右退场方向**：卡片退出起点按左右列记录，morph 关闭时仍可用 L/R 退场。
+- **一镜到底**：整卡 morph、封面-only 路径、标题软淡入 / 返回落位与骨架抑制等多轮修复与回退收敛。
+- **下拉刷新指示器**：按屏顶部 inset 修正。
+
+#### 首页与壁纸卡片
+- **顶栏 / Dock**：多 Tab 指示器对齐与高度、浮动 Dock 宽度、搜索与顶栏垂直间距平衡。
+- **封面框三档**：16:9 / 粉版 4:3 / PiliPlus 16:10，官方双列 4:3 与 Crop 裁切修正。
+- **不感兴趣过滤**：分区 / UP 主负反馈本地过滤修复。
+- **卡片标签效果**：关闭 / 软玻璃 / 实时模糊（实时路径仍为实验）。
+- **卡片信息区玻璃（实验）**：独立选项「关闭 / 实时模糊 / 实时液态玻璃 / 模糊+液态」；**壁纸设置处已标注开发中，请勿使用**。采样仅用壁纸专用 Haze 源，避免主内容 Haze 栈溢出。
+
+#### 相关推荐
+- **⋮ 官方菜单**：稍后再看、反馈 chips、我不想看（UP / 无关 / 不感兴趣），不感兴趣会从列表移除并写入本地负反馈。
+
+#### 空间 / 动态
+- **空间搜索**：圆角、搜索后自动预取动态。
+- **动态正文 / 转发**：正文 rich-text 覆盖、转发 orig 映射与点击打开。
+- **@UP 进空间**：动态 @ 与转发场景进入 UP 空间修复。
+
+#### 说明
+- 卡片「实时模糊 / 实时液态玻璃」仍在开发中，默认关闭；请在壁纸相关设置中保持关闭，勿依赖实验选项。
+
 ## v9.9.8.5 (2026-07-20)
 
 ### 版本信息

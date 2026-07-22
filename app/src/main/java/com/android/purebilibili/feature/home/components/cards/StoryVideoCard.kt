@@ -231,8 +231,12 @@ fun StoryVideoCard(
         resolveHomeCardEnterAnimationEnabledAtMount(
             baseAnimationEnabled = animationEnabled,
             isReturningFromDetail = isReturningFromVideoDetail,
-            isSwitchingCategory = CardPositionManager.isSwitchingCategory
+            isSwitchingCategory = CardPositionManager.isSwitchingCategory,
+            isScrollInProgress = scrollLiteModeEnabled
         )
+    }
+    val coordinateEnterWithTransition = remember(animationEnabled, transitionEnabled) {
+        animationEnabled && transitionEnabled
     }
 
     Column(
@@ -248,12 +252,12 @@ fun StoryVideoCard(
                 clipShape = cardShellShape
             )
             .padding(horizontal = cardHorizontalPadding, vertical = 8.dp)
-            //  [修复] 进场动画 - 使用 Unit 作为 key，避免分类切换时重新动画
             .animateEnter(
-                index = index, 
-                key = Unit, 
+                index = index,
+                key = Unit,
                 animationEnabled = enterAnimationEnabledAtMount,
-                motionTier = motionTier
+                motionTier = motionTier,
+                coordinateWithSharedTransition = coordinateEnterWithTransition
             )
             //  [新增] 记录卡片位置
             .onGloballyPositioned { coordinates ->

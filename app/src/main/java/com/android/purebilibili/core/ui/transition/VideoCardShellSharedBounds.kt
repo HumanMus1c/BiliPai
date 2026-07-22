@@ -36,7 +36,7 @@ internal enum class VideoCardShellSharedBoundsRole {
 
 /**
  * 返回时源卡延后淡入的起点（占 morph 总时长比例）。
- * 与 [VIDEO_CARD_RETURN_SOURCE_ENTER_FADE_DELAY_RATIO] 同源。
+ * 与 [VIDEO_CARD_RETURN_SOURCE_ENTER_FADE_DELAY_RATIO] 同源；当前为 0。
  */
 internal const val VIDEO_CARD_SHELL_SOURCE_ENTER_FADE_DELAY_RATIO =
     VIDEO_CARD_RETURN_SOURCE_ENTER_FADE_DELAY_RATIO
@@ -45,8 +45,8 @@ internal const val VIDEO_CARD_SHELL_SOURCE_ENTER_FADE_DELAY_RATIO =
 internal const val VIDEO_CARD_SHELL_SOURCE_EXIT_FADE_RATIO = 0.28f
 
 /**
- * 普通返回：延后淡入源卡，避免封面过早盖住 live 画面。
- * 快速返回：不延后（见 [shouldDelaySourceCardEnterOnReturn]）。
+ * 源卡 shell 是否延后 Enter。
+ * 一律 false：封面待命 + chrome 独立淡入，见 [canCoexistLiveSurfaceStableCoverAndChromeOnReturn]。
  */
 internal fun shouldDelaySourceCardEnterForLiveReturnMorph(
     sourceRoute: String?,
@@ -187,10 +187,13 @@ internal fun Modifier.videoCardShellSharedBoundsOrEmpty(
                 exit = exit,
                 boundsTransform = { initialBounds, targetBounds ->
                     if (motionSpec.enabled) {
+                        // duration/easing 与 VideoCardTransitionTimelineSpec /
+                        // 详情 AVS morph clock 强制同源（进 Continuity / 回 Linear）。
                         videoSharedElementBoundsTransformSpec(
                             motion = motionSpec,
                             initialBounds = initialBounds,
-                            targetBounds = targetBounds
+                            targetBounds = targetBounds,
+                            durationMillis = motionSpec.durationMillis,
                         )
                     } else {
                         com.android.purebilibili.core.ui.motion.AppMotionTokens.spatialSpec()

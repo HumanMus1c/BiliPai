@@ -80,12 +80,28 @@ internal fun resolveVideoDetailSystemBarsVisibilityPolicy(
     isFullscreenMode: Boolean,
     hideVideoPageStatusBar: Boolean,
     isInPipMode: Boolean,
-    isScreenActive: Boolean
+    isScreenActive: Boolean,
+    isPortraitFullscreen: Boolean = false,
+    forceShowSystemBarsInPortrait: Boolean = false
 ): VideoDetailSystemBarsVisibilityPolicy {
     if (!isScreenActive || isInPipMode) {
         return VideoDetailSystemBarsVisibilityPolicy(
             hideStatusBars = false,
             hideNavigationBars = false
+        )
+    }
+    // Portrait immersive pager: hide status + nav bars for full-bleed playback.
+    // forceShow allows the portrait chrome toggle to temporarily restore bars.
+    if (isPortraitFullscreen) {
+        if (forceShowSystemBarsInPortrait) {
+            return VideoDetailSystemBarsVisibilityPolicy(
+                hideStatusBars = false,
+                hideNavigationBars = false
+            )
+        }
+        return VideoDetailSystemBarsVisibilityPolicy(
+            hideStatusBars = true,
+            hideNavigationBars = true
         )
     }
     if (isFullscreenMode) {
@@ -488,11 +504,16 @@ internal fun resolvePhoneVideoRequestedOrientation(
     manualFullscreenRequested: Boolean = false,
     manualPortraitHoldActive: Boolean = false,
     isVerticalVideo: Boolean = false,
+    isPortraitFullscreen: Boolean = false,
     currentRequestedOrientation: Int? = null,
     isInMultiWindowMode: Boolean = false
 ): Int? {
     if (isInMultiWindowMode) {
         return null
+    }
+    // Immersive portrait pager must stay portrait; sensor landscape would tear down the session.
+    if (isPortraitFullscreen) {
+        return ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
     }
     if (!shouldApplyPhoneAutoRotatePolicy(isCompactDevice)) {
         return if (isFullscreenMode || manualFullscreenRequested) {
@@ -713,11 +734,14 @@ internal fun shouldObservePhoneAutoRotate(
     isOrientationDrivenFullscreen: Boolean,
     fullscreenMode: com.android.purebilibili.core.store.FullscreenMode,
     manualPortraitHoldActive: Boolean,
-    isInMultiWindowMode: Boolean = false
+    isInMultiWindowMode: Boolean = false,
+    isPortraitFullscreen: Boolean = false
 ): Boolean {
     if (!autoRotateEnabled) return false
     if (!systemAutoRotateEnabled) return false
     if (isInMultiWindowMode) return false
+    // PiliPlus-style: vertical immersive FS is not kicked by gravity / sensor landscape.
+    if (isPortraitFullscreen) return false
     if (!shouldApplyPhoneAutoRotatePolicy(isCompactDevice)) return false
     if (!isOrientationDrivenFullscreen) return false
     if (fullscreenMode == com.android.purebilibili.core.store.FullscreenMode.NONE) return false

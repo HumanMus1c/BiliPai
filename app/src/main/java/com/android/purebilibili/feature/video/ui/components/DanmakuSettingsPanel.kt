@@ -51,8 +51,13 @@ import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-private const val FULLSCREEN_DANMAKU_PANEL_WIDTH_FRACTION = 0.25f
-private const val FULLSCREEN_DANMAKU_PANEL_MIN_WIDTH_DP = 220
+/**
+ * 横屏全屏侧栏：够放中文标题/滑杆，又不占半屏。
+ * 过窄（≤220）会导致「横屏专用」旁长文案逐字竖排。
+ */
+private const val FULLSCREEN_DANMAKU_PANEL_WIDTH_FRACTION = 0.30f
+private const val FULLSCREEN_DANMAKU_PANEL_MIN_WIDTH_DP = 280
+private const val FULLSCREEN_DANMAKU_PANEL_MAX_WIDTH_DP = 340
 private const val WIDE_INLINE_DANMAKU_PANEL_MAX_WIDTH_DP = 640
 private const val WIDE_INLINE_DANMAKU_PANEL_SCREEN_WIDTH_DP = 840
 
@@ -88,34 +93,43 @@ internal fun resolveDanmakuSettingsPanelSurfaceColors(
     val isDark = colorScheme.surface.luminance() < 0.5f
     val titleColor = colorScheme.onSurface
     val supportingColor = colorScheme.onSurfaceVariant.copy(
-        alpha = if (isDark) 0.74f else 0.8f
+        alpha = if (isDark) 0.78f else 0.72f
     )
+    // 深色：高对比容器；浅色：纯 surface + 低阴影，避免发灰糊成一团
     return DanmakuSettingsPanelSurfaceColors(
         panelColor = if (isDark) {
-            colorScheme.surfaceContainerHigh.copy(alpha = 0.96f)
+            colorScheme.surfaceContainerHigh
         } else {
-            colorScheme.surface.copy(alpha = 0.97f)
+            colorScheme.surface
         },
         itemColor = if (isDark) {
-            colorScheme.surfaceContainer.copy(alpha = 0.72f)
+            colorScheme.surfaceContainer
         } else {
-            colorScheme.surfaceContainerLow.copy(alpha = 0.9f)
+            colorScheme.surfaceContainerLowest
         },
         titleColor = titleColor,
         supportingColor = supportingColor,
-        dividerColor = titleColor.copy(alpha = if (isDark) 0.1f else 0.08f),
-        badgeBackgroundColor = colorScheme.primary.copy(alpha = if (isDark) 0.18f else 0.12f),
-        badgeBorderColor = colorScheme.primary.copy(alpha = if (isDark) 0.35f else 0.22f),
-        badgeContentColor = colorScheme.primary,
-        sliderActiveTrackColor = colorScheme.primary.copy(alpha = if (isDark) 0.82f else 0.9f),
-        sliderInactiveTrackColor = titleColor.copy(alpha = if (isDark) 0.14f else 0.1f),
-        sliderActiveTickColor = colorScheme.primary.copy(alpha = if (isDark) 0.34f else 0.3f),
-        sliderInactiveTickColor = titleColor.copy(alpha = if (isDark) 0.2f else 0.14f),
-        sliderThumbColor = colorScheme.primaryContainer.copy(alpha = if (isDark) 0.96f else 1f),
-        resetButtonColor = titleColor.copy(alpha = if (isDark) 0.78f else 0.68f),
-        resetButtonBackgroundColor = titleColor.copy(alpha = if (isDark) 0.08f else 0.05f),
-        fieldBorderColor = titleColor.copy(alpha = if (isDark) 0.2f else 0.14f),
-        fieldBackgroundColor = titleColor.copy(alpha = if (isDark) 0.03f else 0.02f)
+        dividerColor = colorScheme.outlineVariant.copy(alpha = if (isDark) 0.55f else 0.7f),
+        badgeBackgroundColor = colorScheme.primaryContainer.copy(alpha = if (isDark) 0.55f else 0.85f),
+        badgeBorderColor = colorScheme.primary.copy(alpha = if (isDark) 0.45f else 0.28f),
+        badgeContentColor = if (isDark) {
+            colorScheme.primary
+        } else {
+            colorScheme.onPrimaryContainer
+        },
+        sliderActiveTrackColor = colorScheme.primary,
+        sliderInactiveTrackColor = colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.85f else 1f),
+        sliderActiveTickColor = colorScheme.primary.copy(alpha = 0.4f),
+        sliderInactiveTickColor = colorScheme.onSurface.copy(alpha = if (isDark) 0.18f else 0.12f),
+        sliderThumbColor = colorScheme.primary,
+        resetButtonColor = colorScheme.onSurfaceVariant,
+        resetButtonBackgroundColor = colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.55f else 0.7f),
+        fieldBorderColor = colorScheme.outline.copy(alpha = if (isDark) 0.45f else 0.35f),
+        fieldBackgroundColor = if (isDark) {
+            colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
+        } else {
+            colorScheme.surfaceContainerLow
+        }
     )
 }
 
@@ -180,21 +194,26 @@ fun resolveDanmakuSettingsPanelLayoutPolicy(
     fullscreenWidthMode: DanmakuPanelWidthMode = DanmakuPanelWidthMode.THIRD
 ): DanmakuSettingsPanelLayoutPolicy {
     if (isFullscreen) {
-        val availableWidthDp = (screenWidthDp - 32).coerceAtLeast(0)
-        val resolvedMaxWidth = (
-            availableWidthDp *
-                FULLSCREEN_DANMAKU_PANEL_WIDTH_FRACTION
+        val availableWidthDp = (screenWidthDp - 24).coerceAtLeast(0)
+        // 模式保留入参兼容；横屏全屏统一收窄侧栏，不再铺半屏/全宽。
+        @Suppress("UNUSED_VARIABLE")
+        val ignoredMode = fullscreenWidthMode
+        val resolvedWidth = (
+            availableWidthDp * FULLSCREEN_DANMAKU_PANEL_WIDTH_FRACTION
             )
             .roundToInt()
-            .coerceAtLeast(FULLSCREEN_DANMAKU_PANEL_MIN_WIDTH_DP)
+            .coerceIn(
+                FULLSCREEN_DANMAKU_PANEL_MIN_WIDTH_DP,
+                FULLSCREEN_DANMAKU_PANEL_MAX_WIDTH_DP
+            )
         return DanmakuSettingsPanelLayoutPolicy(
             presentation = DanmakuSettingsPanelPresentation.CenteredDialog,
             anchor = DanmakuSettingsPanelAnchor.End,
-            horizontalPaddingDp = 16,
+            horizontalPaddingDp = 10,
             bottomPaddingDp = 0,
-            minWidthDp = FULLSCREEN_DANMAKU_PANEL_MIN_WIDTH_DP,
-            maxWidthDp = resolvedMaxWidth,
-            maxHeightDp = 480
+            minWidthDp = resolvedWidth,
+            maxWidthDp = resolvedWidth,
+            maxHeightDp = (screenHeightDp - 20).coerceIn(320, 480)
         )
     }
 
@@ -394,15 +413,26 @@ fun DanmakuSettingsPanel(
 
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .then(
+                        if (
+                            isFullscreenStyle &&
+                            layoutPolicy.anchor == DanmakuSettingsPanelAnchor.End
+                        ) {
+                            // 横屏侧栏：固定窄宽，避免 fillMaxWidth 在部分机型上撑满半屏。
+                            Modifier.width(layoutPolicy.maxWidthDp.dp)
+                        } else {
+                            Modifier
+                                .fillMaxWidth()
+                                .widthIn(
+                                    min = layoutPolicy.minWidthDp.dp,
+                                    max = layoutPolicy.maxWidthDp.dp
+                                )
+                        }
+                    )
                     .padding(
                         start = layoutPolicy.horizontalPaddingDp.dp,
                         end = layoutPolicy.horizontalPaddingDp.dp,
                         bottom = layoutPolicy.bottomPaddingDp.dp
-                    )
-                    .widthIn(
-                        min = layoutPolicy.minWidthDp.dp,
-                        max = layoutPolicy.maxWidthDp.dp
                     )
                     .heightIn(max = layoutPolicy.maxHeightDp.dp)
                     .clickable(
@@ -410,60 +440,50 @@ fun DanmakuSettingsPanel(
                         interactionSource = remember { MutableInteractionSource() }
                     ) { },
                 color = panelColors.panelColor,
-                shape = RoundedCornerShape(20.dp),
-                tonalElevation = 16.dp,
-                shadowElevation = 24.dp
+                shape = RoundedCornerShape(if (isFullscreenStyle) 16.dp else 20.dp),
+                tonalElevation = if (isFullscreenStyle) 6.dp else 16.dp,
+                shadowElevation = if (isFullscreenStyle) 8.dp else 24.dp
             ) {
                 Column(
                     modifier = Modifier
                         .verticalScroll(rememberScrollState())
                         .padding(if (isFullscreenStyle) 20.dp else 24.dp)
                 ) {
-                    // Header
+                    // Header：窄侧栏只放标题+徽章+关闭，长副标题不挤进横排（避免竖字）
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(
-                            modifier = Modifier.weight(1f)
+                        Text(
+                            text = "弹幕设置",
+                            color = panelColors.titleColor,
+                            fontSize = if (isFullscreenStyle) 17.sp else 20.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(panelColors.badgeBackgroundColor)
+                                .border(
+                                    width = 1.dp,
+                                    color = panelColors.badgeBorderColor,
+                                    shape = RoundedCornerShape(999.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "弹幕设置",
-                                color = panelColors.titleColor,
-                                fontSize = if (isFullscreenStyle) 18.sp else 20.sp,
-                                fontWeight = FontWeight.SemiBold
+                                text = settingsScope.badgeLabel,
+                                color = panelColors.badgeContentColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(999.dp))
-                                        .background(panelColors.badgeBackgroundColor)
-                                        .border(
-                                            width = 1.dp,
-                                            color = panelColors.badgeBorderColor,
-                                            shape = RoundedCornerShape(999.dp)
-                                        )
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                                ) {
-                                    Text(
-                                        text = settingsScope.badgeLabel,
-                                        color = panelColors.badgeContentColor,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                                Text(
-                                    text = settingsScope.subtitle,
-                                    color = panelColors.supportingColor,
-                                    fontSize = 11.sp
-                                )
-                            }
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
                         IconButton(
                             onClick = onDismiss,
                             modifier = Modifier
@@ -478,8 +498,17 @@ fun DanmakuSettingsPanel(
                             )
                         }
                     }
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
+                    if (!isFullscreenStyle && settingsScope.subtitle.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = settingsScope.subtitle,
+                            color = panelColors.supportingColor,
+                            fontSize = 12.sp,
+                            maxLines = 2
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(if (isFullscreenStyle) 14.dp else 24.dp))
 
                     if (showSyncSection) {
                         Surface(
@@ -596,11 +625,15 @@ fun DanmakuSettingsPanel(
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
+                            modifier = Modifier.padding(
+                                if (isFullscreenStyle) 12.dp else 16.dp
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(
+                                if (isFullscreenStyle) 14.dp else 20.dp
+                            )
                         ) {
                             DanmakuSliderItem(
-                                label = if (isFullscreenStyle) "全屏字体大小" else "字体大小",
+                                label = if (isFullscreenStyle) "字体" else "字体大小",
                                 value = fontScale,
                                 valueRange = 0.3f..2f,
                                 displayValue = { "${(it * 100).toInt()}%" },
@@ -608,8 +641,8 @@ fun DanmakuSettingsPanel(
                                 colors = panelColors,
                                 fullscreenStyle = isFullscreenStyle,
                                 resetValue = 1f,
-                                tickCount = 20,
-                                valueText = { String.format("%.1f%%", it * 100f) }
+                                tickCount = if (isFullscreenStyle) 10 else 20,
+                                valueText = { String.format("%.0f%%", it * 100f) }
                             )
                             if (isFullscreenStyle && showAdvancedSection) {
                                 DanmakuSliderItem(

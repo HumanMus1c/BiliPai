@@ -2,7 +2,9 @@ package com.android.purebilibili.feature.video.ui.section
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class VideoPlayerSeekGesturePolicyTest {
 
@@ -150,6 +152,34 @@ class VideoPlayerSeekGesturePolicyTest {
             shouldCommitGestureSeek(
                 currentPositionMs = 100_000L,
                 targetPositionMs = 102_000L
+            )
+        )
+    }
+
+    @Test
+    fun `seek step haptic ticks once per second of target progress`() {
+        assertFalse(
+            shouldTriggerSeekStepHaptic(
+                previousTargetMs = 10_200L,
+                currentTargetMs = 10_800L
+            )
+        )
+        assertTrue(
+            shouldTriggerSeekStepHaptic(
+                previousTargetMs = 10_200L,
+                currentTargetMs = 11_100L
+            )
+        )
+        assertTrue(
+            shouldTriggerSeekStepHaptic(
+                previousTargetMs = 11_100L,
+                currentTargetMs = 9_900L
+            )
+        )
+        assertFalse(
+            shouldTriggerSeekStepHaptic(
+                previousTargetMs = 5_000L,
+                currentTargetMs = 5_000L
             )
         )
     }

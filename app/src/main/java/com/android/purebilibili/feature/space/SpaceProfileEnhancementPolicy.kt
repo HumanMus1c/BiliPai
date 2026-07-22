@@ -62,25 +62,54 @@ fun buildDefaultSpaceMainTabs(): List<SpaceMainTabItem> {
         SpaceMainTabItem(SpaceMainTab.HOME, "主页"),
         SpaceMainTabItem(SpaceMainTab.DYNAMIC, "动态"),
         SpaceMainTabItem(SpaceMainTab.CONTRIBUTION, "投稿"),
-        SpaceMainTabItem(SpaceMainTab.COLLECTIONS, "合集和系列")
+        // Short label keeps the four primary destinations readable on phones.
+        SpaceMainTabItem(SpaceMainTab.COLLECTIONS, "合集")
     )
 }
 
+/**
+ * Keep the primary space destinations always visible (PiliPlus-like).
+ * 主页 / 动态 / 投稿 / 合集 — avoid burying collections behind overflow.
+ */
 internal fun resolveSpaceDisplayedMainTabs(
     tabs: List<SpaceMainTabItem>,
     selectedTab: SpaceMainTab
 ): List<SpaceMainTabItem> {
-    if (tabs.isEmpty()) return buildDefaultSpaceMainTabs().take(3)
-    val primary = listOf(
+    val defaults = buildDefaultSpaceMainTabs()
+    if (tabs.isEmpty()) return defaults
+    val preferredOrder = listOf(
         SpaceMainTab.HOME,
         SpaceMainTab.DYNAMIC,
-        SpaceMainTab.CONTRIBUTION
-    ).mapNotNull { target -> tabs.firstOrNull { it.tab == target } }
-    if (primary.isEmpty()) return tabs
-    return if (selectedTab in setOf(SpaceMainTab.HOME, SpaceMainTab.DYNAMIC, SpaceMainTab.CONTRIBUTION)) {
+        SpaceMainTab.CONTRIBUTION,
+        SpaceMainTab.COLLECTIONS,
+        SpaceMainTab.FAVORITE,
+        SpaceMainTab.BANGUMI
+    )
+    val ordered = preferredOrder.mapNotNull { target ->
+        tabs.firstOrNull { it.tab == target }
+    }
+    val extras = tabs.filter { candidate -> ordered.none { it.tab == candidate.tab } }
+    val merged = (ordered + extras).ifEmpty { defaults }
+    // Always keep the four primary destinations; append currently selected extra if any.
+    val primary = merged.filter {
+        it.tab in setOf(
+            SpaceMainTab.HOME,
+            SpaceMainTab.DYNAMIC,
+            SpaceMainTab.CONTRIBUTION,
+            SpaceMainTab.COLLECTIONS
+        )
+    }.ifEmpty { defaults }
+    return if (
+        selectedTab in setOf(
+            SpaceMainTab.HOME,
+            SpaceMainTab.DYNAMIC,
+            SpaceMainTab.CONTRIBUTION,
+            SpaceMainTab.COLLECTIONS
+        )
+    ) {
         primary
     } else {
-        primary + tabs.filter { it.tab == selectedTab }
+        primary + merged.filter { it.tab == selectedTab }
     }
 }
 
@@ -159,7 +188,8 @@ fun buildHeaderState(
 }
 
 internal fun resolveSpaceMainTabs(tab2: List<SpaceAggregateTab>): List<SpaceMainTabItem> {
-    if (tab2.isEmpty()) return buildDefaultSpaceMainTabs()
+    val defaults = buildDefaultSpaceMainTabs()
+    if (tab2.isEmpty()) return defaults
 
     val resolved = tab2.mapNotNull { item ->
         when (item.param.lowercase()) {
@@ -168,11 +198,20 @@ internal fun resolveSpaceMainTabs(tab2: List<SpaceAggregateTab>): List<SpaceMain
             "contribute" -> SpaceMainTabItem(SpaceMainTab.CONTRIBUTION, item.title.ifBlank { "投稿" })
             "favorite" -> SpaceMainTabItem(SpaceMainTab.FAVORITE, item.title.ifBlank { "收藏" })
             "bangumi" -> SpaceMainTabItem(SpaceMainTab.BANGUMI, item.title.ifBlank { "追番" })
+            "channel", "collection", "collections", "series" ->
+                SpaceMainTabItem(SpaceMainTab.COLLECTIONS, item.title.ifBlank { "合集" })
             else -> null
         }
     }.distinctBy { it.tab }
 
-    return resolved.ifEmpty { buildDefaultSpaceMainTabs() }
+    if (resolved.isEmpty()) return defaults
+
+    // API tab2 often omits 合集; always keep the four primary destinations first.
+    val primary = defaults.map { default ->
+        resolved.firstOrNull { it.tab == default.tab } ?: default
+    }
+    val extras = resolved.filter { candidate -> primary.none { it.tab == candidate.tab } }
+    return primary + extras
 }
 
 internal fun resolveSpaceContributionTabs(tab2: List<SpaceAggregateTab>): List<SpaceContributionTab> {

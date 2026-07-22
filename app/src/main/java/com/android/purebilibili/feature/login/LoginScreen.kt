@@ -29,7 +29,7 @@ import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -390,7 +390,7 @@ private fun TvQrLoginContent(
                         )
                     }
                 }
-                LoginState.Loading -> CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                LoginState.Loading -> AdaptiveLoadingIndicator(size = 48.dp)
                 else -> Icon(
                     imageVector = Icons.Outlined.QrCode2,
                     contentDescription = null,

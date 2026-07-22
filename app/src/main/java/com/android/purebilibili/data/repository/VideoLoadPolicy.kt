@@ -63,10 +63,20 @@ internal fun resolveInitialStartQuality(
     isAutoHighestQuality: Boolean,
     isLogin: Boolean,
     isVip: Boolean,
-    auto1080pEnabled: Boolean
+    auto1080pEnabled: Boolean,
+    /**
+     * Cellular / constrained network: prefer a slightly lower first hop so the first
+     * frame arrives sooner; Wi‑Fi keeps the premium first request.
+     */
+    preferFastStartOnMobile: Boolean = false
 ): Int {
     return when {
-        isAutoHighestQuality && isVip -> 120
+        // VIP auto-highest must request HDR-capable qn first on Wi‑Fi; bilibili often
+        // omits 125 tracks when the first playurl call only asks for 4K (120).
+        // On mobile, start at 1080P+ for faster TTFF; UI can still switch up later.
+        isAutoHighestQuality && isVip && preferFastStartOnMobile -> 112
+        isAutoHighestQuality && isVip -> 125
+        isAutoHighestQuality && isLogin && preferFastStartOnMobile -> 64
         isAutoHighestQuality && isLogin -> 80
         isAutoHighestQuality -> 64
         targetQuality != null -> targetQuality
@@ -89,16 +99,40 @@ internal fun shouldSkipPlayUrlCache(
     isVip: Boolean,
     audioLang: String?
 ): Boolean {
-    return audioLang != null || (isAutoHighestQuality && isVip)
+    // Language-specific streams must not reuse the default-language cache entry.
+    // VIP auto-highest used to always skip cache and hurt re-open TTFF; accept cache
+    // when [shouldAcceptCachedPlayUrlForAutoHighest] says the payload is good enough.
+    return audioLang != null
 }
 
+/**
+ * VIP auto-highest can reuse a cached playurl when it already contains a premium track.
+ * Thin/low-quality cache entries are ignored so we still re-negotiate high quality.
+ */
+internal fun shouldAcceptCachedPlayUrlForAutoHighest(
+    isAutoHighestQuality: Boolean,
+    isVip: Boolean,
+    cachedDashVideoIds: List<Int>,
+    minPremiumQuality: Int = 112
+): Boolean {
+    if (!isAutoHighestQuality || !isVip) return true
+    return cachedDashVideoIds.any { it >= minPremiumQuality }
+}
+
+/**
+ * Build the DASH playurl attempt chain for a target quality.
+ *
+ * The requested quality itself must lead the list. Premium tiers such as 8K (127),
+ * Dolby Vision (126), and HDR (125) are not always bundled into a lower-qn response
+ * (e.g. qn=120), so omitting the target causes QUALITY_SWITCH_FAILURE / no HDR tracks.
+ */
 internal fun buildDashAttemptQualities(targetQn: Int): List<Int> {
     if (targetQn <= 80) return listOf(targetQn)
 
-    val premiumFallbacks = listOf(120, 116, 112)
-        .filter { quality -> quality <= targetQn }
+    val premiumQualities = listOf(127, 126, 125, 120, 116, 112)
+    val lowerFallbacks = premiumQualities.filter { quality -> quality < targetQn }
 
-    return (premiumFallbacks + 80).distinct()
+    return (listOf(targetQn) + lowerFallbacks + 80).distinct()
 }
 
 internal fun resolveDashRetryDelays(targetQn: Int): List<Long> {

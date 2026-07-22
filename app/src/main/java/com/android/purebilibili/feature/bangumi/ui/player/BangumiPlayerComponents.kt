@@ -44,10 +44,18 @@ import androidx.media3.ui.PlayerView
 import com.android.purebilibili.data.model.response.Page
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.feature.video.danmaku.DanmakuManager
+import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
+import com.android.purebilibili.core.theme.LocalUiPreset
 import com.android.purebilibili.feature.video.ui.components.AnimatedGesturePercentText
 import com.android.purebilibili.feature.video.ui.components.SponsorSkipButton
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
+import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayContent
+import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle
+import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelKind
+import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlaySpec
+import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle
 import com.android.purebilibili.feature.video.ui.overlay.PlaybackDebugInfo
+import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import com.android.purebilibili.feature.video.ui.section.resolveSystemStreamVolumeFromGesture
 import com.android.purebilibili.feature.video.util.captureAndSaveVideoScreenshot
 import com.android.purebilibili.data.model.response.SponsorSegment
@@ -379,7 +387,11 @@ fun BangumiPlayerView(
                 },
                 seekTime = if (gestureMode == BangumiGestureMode.Seek) seekPreviewPosition else null,
                 duration = duration,
-                modifier = Modifier.align(Alignment.Center)
+                modifier = if (gestureMode == BangumiGestureMode.Seek) {
+                    Modifier.align(Alignment.Center)
+                } else {
+                    Modifier.fillMaxSize()
+                }
             )
         }
         
@@ -479,50 +491,56 @@ fun BangumiGestureIndicator(
     duration: Long,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = Color.Transparent
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(24.dp)
-        ) {
-            when (mode) {
-                BangumiGestureMode.Brightness -> {
-                    //  亮度图标：CupertinoIcons SunMax (iOS SF Symbols 风格)
-                    Icon(CupertinoIcons.Default.SunMax, null, tint = Color.White, modifier = Modifier.size(36.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text("亮度", color = Color.White, fontSize = 14.sp)
-                    Spacer(Modifier.height(4.dp))
-                    AnimatedGesturePercentText(
-                        percent = (value * 100).toInt(),
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        label = "bangumi-brightness-percent"
-                    )
-                }
-                BangumiGestureMode.Volume -> {
-                    //  动态音量图标：3 级
-                    val volumeIcon = when {
-                        value < 0.01f -> CupertinoIcons.Default.SpeakerSlash
-                        value < 0.5f -> CupertinoIcons.Default.Speaker
-                        else -> CupertinoIcons.Default.SpeakerWave2
+    val uiPreset = LocalUiPreset.current
+    val androidNativeVariant = LocalAndroidNativeVariant.current
+    val overlayStyle = remember(uiPreset, androidNativeVariant) {
+        resolveGestureLevelOverlayStyle(
+            uiPreset = uiPreset,
+            androidNativeVariant = androidNativeVariant
+        )
+    }
+    when (mode) {
+        BangumiGestureMode.Brightness, BangumiGestureMode.Volume -> {
+            val mappedMode = if (mode == BangumiGestureMode.Brightness) {
+                VideoGestureMode.Brightness
+            } else {
+                VideoGestureMode.Volume
+            }
+            val kind = resolveGestureLevelKind(mappedMode) ?: return
+            val alignment = resolveGestureLevelOverlaySpec(
+                style = overlayStyle,
+                kind = kind,
+                percent = value
+            ).alignment
+            Box(
+                modifier = modifier.fillMaxSize(),
+                contentAlignment = alignment
+            ) {
+                GestureLevelOverlayContent(
+                    mode = mappedMode,
+                    percent = value,
+                    style = overlayStyle,
+                    modifier = if (overlayStyle == GestureLevelOverlayStyle.Miuix) {
+                        Modifier.padding(horizontal = 22.dp)
+                    } else {
+                        Modifier
                     }
-                    Icon(volumeIcon, null, tint = Color.White, modifier = Modifier.size(36.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text("音量", color = Color.White, fontSize = 14.sp)
-                    Spacer(Modifier.height(4.dp))
-                    AnimatedGesturePercentText(
-                        percent = (value * 100).toInt(),
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        label = "bangumi-volume-percent"
-                    )
-                }
-                BangumiGestureMode.Seek -> {
+                )
+            }
+        }
+        BangumiGestureMode.Seek -> {
+            Surface(
+                modifier = modifier,
+                shape = RoundedCornerShape(18.dp),
+                color = Color.Black.copy(alpha = 0.74f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.58f)),
+                shadowElevation = 6.dp,
+                tonalElevation = 0.dp
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp)
+                ) {
                     Text(
                         "${FormatUtils.formatDuration(((seekTime ?: 0) / 1000).toInt())} / ${FormatUtils.formatDuration((duration / 1000).toInt())}",
                         color = Color.White,
@@ -530,9 +548,9 @@ fun BangumiGestureIndicator(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                else -> {}
             }
         }
+        else -> Unit
     }
 }
 

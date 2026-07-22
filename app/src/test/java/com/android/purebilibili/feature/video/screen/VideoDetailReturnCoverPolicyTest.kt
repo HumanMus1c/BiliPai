@@ -66,6 +66,39 @@ class VideoDetailReturnCoverPolicyTest {
     }
 
     @Test
+    fun `shared return morph keeps playback session after stack pop`() {
+        // 轻滑即松：栈已非详情但 exit morph 仍在 → 必须保活，否则前半段黑壳。
+        assertTrue(
+            shouldKeepPlaybackSessionActiveForSharedReturnMorph(
+                isVisible = false,
+                sharedBoundsActive = true,
+                isExitTransitionInProgress = true,
+            ),
+        )
+        assertTrue(
+            shouldKeepPlaybackSessionActiveForSharedReturnMorph(
+                isVisible = true,
+                sharedBoundsActive = false,
+                isExitTransitionInProgress = false,
+            ),
+        )
+        assertFalse(
+            shouldKeepPlaybackSessionActiveForSharedReturnMorph(
+                isVisible = false,
+                sharedBoundsActive = true,
+                isExitTransitionInProgress = false,
+            ),
+        )
+        assertFalse(
+            shouldKeepPlaybackSessionActiveForSharedReturnMorph(
+                isVisible = false,
+                sharedBoundsActive = false,
+                isExitTransitionInProgress = true,
+            ),
+        )
+    }
+
+    @Test
     fun `predictive cancel keeps the cover until the detail exit transition has settled`() {
         assertTrue(
             shouldTreatVideoDetailCardExitAsReturning(
@@ -255,15 +288,119 @@ class VideoDetailReturnCoverPolicyTest {
             resolveVideoDetailReturnPlayerAlpha(0.8f, true, true, liveReturnMorph = true),
             0.0001f,
         )
-        // 中段（settle=0.2 < yield）：正文仍可见随壳收缩
+        // 中段（settle=0.15 < yield 0.18）：正文仍可见随壳收缩
         assertEquals(
             1f,
-            resolveVideoDetailReturnContentAlpha(0.8f, true, liveReturnMorph = true),
+            resolveVideoDetailReturnContentAlpha(0.85f, true, liveReturnMorph = true),
             0.0001f,
         )
         // 末段（settle=0.7 > yield）：正文让位给源卡标题，alpha 下降
         val lateContent = resolveVideoDetailReturnContentAlpha(0.3f, true, liveReturnMorph = true)
         assertTrue(lateContent < 1f && lateContent > 0f)
+    }
+
+    @Test
+    fun `quick committed live return hides detail content immediately to avoid dual title flash`() {
+        // 源卡 chrome 快速返回立刻全显；详情标题必须马上让位，否则卸层时标题闪一下。
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnContentAlpha(
+                transitionProgress = 0.9f,
+                isCommittedCardReturn = true,
+                liveReturnMorph = true,
+                isQuickReturn = true,
+            ),
+            0.0001f,
+        )
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnContentAlpha(
+                transitionProgress = 0.2f,
+                isCommittedCardReturn = true,
+                liveReturnMorph = true,
+                isQuickReturn = true,
+            ),
+            0.0001f,
+        )
+        // 预测返回未提交：快速返回跟 morphDepth 线性让位（yieldStart=0），可取消。
+        assertEquals(
+            0.9f,
+            resolveVideoDetailReturnContentAlpha(
+                transitionProgress = 0.9f,
+                isCommittedCardReturn = false,
+                liveReturnMorph = true,
+                isQuickReturn = true,
+                morphDepthProgress = 0.9f,
+            ),
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun `live morph content settle follows single morphDepth clock only`() {
+        // 即使 AVS progress 与 depth 不一致，只认 morphDepth，避免与源卡 chrome 叠字。
+        val content = resolveVideoDetailReturnContentAlpha(
+            transitionProgress = 0.95f,
+            isCommittedCardReturn = true,
+            liveReturnMorph = true,
+            depthBlurProgress = 0.95f,
+            morphDepthProgress = 0.2f,
+        )
+        // settle = 1 - 0.2 = 0.8 > 0.18 → 正文已让位
+        assertTrue(content < 0.3f)
+        assertEquals(
+            resolveVideoDetailReturnContentAlpha(
+                transitionProgress = 0.2f,
+                isCommittedCardReturn = true,
+                liveReturnMorph = true,
+                morphDepthProgress = 0.2f,
+            ),
+            content,
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun `return session prefers LIVE upgrade and blocks LIVE demotion`() {
+        val lockedResident = resolveVideoDetailReturnSessionLockedOwnership(
+            lockedOwnership = null,
+            isReturnSessionActive = true,
+            candidateOwnership = com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership.RESIDENT_COVER,
+        )
+        assertEquals(
+            com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership.RESIDENT_COVER,
+            lockedResident.second,
+        )
+        // 首帧到达：升 LIVE，实时画面跟壳缩
+        val upgraded = resolveVideoDetailReturnSessionLockedOwnership(
+            lockedOwnership = lockedResident.first,
+            isReturnSessionActive = true,
+            candidateOwnership = com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership.LIVE_SURFACE,
+        )
+        assertEquals(
+            com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership.LIVE_SURFACE,
+            upgraded.second,
+        )
+        // 中途 candidate 变 RESIDENT：不得掐 live
+        val stillLive = resolveVideoDetailReturnSessionLockedOwnership(
+            lockedOwnership = upgraded.first,
+            isReturnSessionActive = true,
+            candidateOwnership = com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership.RESIDENT_COVER,
+        )
+        assertEquals(
+            com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership.LIVE_SURFACE,
+            stillLive.second,
+        )
+        val cleared = resolveVideoDetailReturnSessionLockedOwnership(
+            lockedOwnership = stillLive.first,
+            isReturnSessionActive = false,
+            candidateOwnership = com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership.RESIDENT_COVER,
+        )
+        assertEquals(null, cleared.first)
+        assertEquals(
+            com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership.RESIDENT_COVER,
+            cleared.second,
+        )
     }
 
     @Test
@@ -299,7 +436,7 @@ class VideoDetailReturnCoverPolicyTest {
         )
         assertEquals(
             1f,
-            resolveVideoDetailReturnContentAlpha(0.8f, false, liveReturnMorph = true),
+            resolveVideoDetailReturnContentAlpha(0.85f, false, liveReturnMorph = true),
             0.0001f,
         )
     }
@@ -547,7 +684,7 @@ class VideoDetailReturnCoverPolicyTest {
             .substringBefore("val handleTopBarAction")
         assertTrue(call.contains("isCardReturnExitInProgress = isCardReturnExitInProgress"))
         assertTrue(call.contains("isSessionReturningToCard = isReturningFromDetail"))
-        assertTrue(transitionHostSource.contains("video-detail-shared-transition-progress"))
+        assertTrue(transitionHostSource.contains("video-detail-shared-morph-clock"))
     }
 
     @Test

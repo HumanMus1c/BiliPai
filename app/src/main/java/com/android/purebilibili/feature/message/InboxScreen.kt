@@ -106,9 +106,11 @@ fun InboxScreen(
                     )
                 }
                 else -> {
+                    // Scaffold body already below topBar.
                     AdaptivePullToRefreshBox(
                         isRefreshing = uiState.isRefreshing,
-                        onRefresh = { viewModel.refresh() }
+                        onRefresh = { viewModel.refresh() },
+                        indicatorTopInset = 0.dp
                     ) {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -187,7 +189,7 @@ fun InboxScreen(
                                     ) {
                                         if (uiState.isLoadingMore) {
                                             com.android.purebilibili.core.ui.CutePersonLoadingIndicator(
-                                                modifier = Modifier.size(24.dp)
+                                                size = 24.dp
                                             )
                                         } else {
                                             TextButton(onClick = { viewModel.loadMoreSessions() }) {

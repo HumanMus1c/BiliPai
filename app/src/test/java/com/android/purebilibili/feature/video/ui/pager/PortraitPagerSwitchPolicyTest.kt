@@ -228,6 +228,16 @@ class PortraitPagerSwitchPolicyTest {
                 currentPlayerMediaId = " "
             )
         )
+        // Multi-P: same bvid, different cid must reload.
+        assertFalse(
+            shouldSkipPortraitReloadForCurrentMedia(
+                currentPlayingBvid = "BV1xx411c7mD",
+                targetBvid = "BV1xx411c7mD",
+                currentPlayerMediaId = "BV1xx411c7mD#1",
+                targetCid = 2L,
+                currentPlayingCid = 1L
+            )
+        )
     }
 
     @Test
@@ -454,6 +464,23 @@ class PortraitPagerSwitchPolicyTest {
         )
 
         assertEquals(listOf("BV_C", "BV_D"), appendItems.map { it.bvid })
+    }
+
+    @Test
+    fun externalRecommendationAppend_keepsOnlyNewBvidsInOrder() {
+        val appendItems = resolvePortraitExternalRecommendationAppendItems(
+            currentInitialBvid = "BV_SEED",
+            existingBvids = setOf("BV_SEED", "BV_A"),
+            externalRecommendations = listOf(
+                related("BV_SEED"),
+                related("BV_A"),
+                related("BV_B"),
+                related("BV_C"),
+                related("BV_B")
+            )
+        )
+
+        assertEquals(listOf("BV_B", "BV_C"), appendItems.map { it.bvid })
     }
 
     @Test

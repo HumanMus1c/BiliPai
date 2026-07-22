@@ -398,7 +398,7 @@ fun LottieAnimation(
 }
 
 /**
- *  加载动画组件
+ *  加载动画组件（按 UI 预设分发：iOS 吉祥物 / MD3 LoadingIndicator / Miuix 进度环）
  */
 @Composable
 fun LoadingAnimation(
@@ -410,10 +410,9 @@ fun LoadingAnimation(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        CutePersonLoadingIndicator(
-            modifier = Modifier.size(size),
-            color = MaterialTheme.colorScheme.primary,
-            strokeWidth = 2.4.dp
+        AdaptiveLoadingIndicator(
+            size = size,
+            strokeWidth = 2.4.dp,
         )
         if (text != null) {
             Spacer(modifier = Modifier.height(BiliDesign.Spacing.sm))
@@ -438,8 +437,37 @@ internal fun resolveMascotDotAlpha(phase: Float, index: Int): Float {
     return (0.18f + 0.82f * wave).coerceIn(0.18f, 1f)
 }
 
+/**
+ * Theme-aware loading indicator entry used across feature screens.
+ *
+ * Historically iOS-only cute person; now routes through [AdaptiveLoadingIndicator]
+ * so MD3 uses the official morphing [androidx.compose.material3.LoadingIndicator]
+ * (dynamic primary) and Miuix uses native progress chrome. iOS keeps the mascot.
+ *
+ * @param size optional visual size. Prefer this over [Modifier.size] so compact
+ *   slots (≤ 32.dp) can select the compact circular recipe on MD3/Miuix.
+ */
 @Composable
 fun CutePersonLoadingIndicator(
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    strokeWidth: Dp = 2.dp,
+    size: Dp? = null,
+) {
+    AdaptiveLoadingIndicator(
+        modifier = modifier,
+        size = size,
+        color = color,
+        strokeWidth = strokeWidth,
+    )
+}
+
+/**
+ * iOS-only cute person bounce. Prefer [CutePersonLoadingIndicator] /
+ * [AdaptiveLoadingIndicator] at call sites so other presets get native chrome.
+ */
+@Composable
+internal fun IosCutePersonLoadingIndicator(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary,
     strokeWidth: Dp = 2.dp

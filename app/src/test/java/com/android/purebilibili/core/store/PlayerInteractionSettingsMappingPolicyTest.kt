@@ -30,6 +30,7 @@ class PlayerInteractionSettingsMappingPolicyTest {
         assertFalse(result.longPressSpeedLockEnabled)
         assertFalse(result.longPressSpeedLockHintShown)
         assertEquals(0.0f, result.subtitleVerticalOffsetFraction)
+        assertEquals(0.0f, result.subtitlePortraitVerticalOffsetFraction)
         assertFalse(result.hideVideoPageStatusBar)
         assertEquals(TabletCommentPanelWidthPreset.STANDARD, result.tabletCommentPanelWidthPreset)
         assertFalse(result.hiResLongPressCompatHintShown)

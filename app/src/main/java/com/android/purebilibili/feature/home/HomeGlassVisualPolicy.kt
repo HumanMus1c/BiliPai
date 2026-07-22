@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.home
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import com.android.purebilibili.core.store.HomeCardInfoGlassMode
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode
 import com.android.purebilibili.core.store.HomeWallpaperEffectScope
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -103,7 +104,14 @@ data class HomeCardInfoSurfaceAppearance(
     val useTintedSurface: Boolean,
     val containerAlpha: Float,
     val borderAlpha: Float,
-    val highlightAlpha: Float
+    val highlightAlpha: Float,
+    /**
+     * Sample [LocalWallpaperHazeState] (wallpaper-only source) like the bottom bar.
+     * Must never use the main content HazeState — cards live inside that source tree.
+     */
+    val useRealtimeHaze: Boolean = false,
+    /** LayerBackdrop liquid-glass path (refraction), independent of Haze. */
+    val useRealtimeLiquidGlass: Boolean = false
 )
 
 internal fun resolveHomeGlassChromeStyle(
@@ -316,24 +324,72 @@ internal fun resolveHomeWallpaperDecodeSizePx(
     return min(shortSide, maxShortSide) to min(longSide, maxLongSide)
 }
 
+/**
+ * Realtime Haze on the info strip — wallpaper-only source required to avoid prepareTree SO.
+ */
+internal fun shouldUseRealtimeHomeCardInfoBlur(
+    infoGlassMode: HomeCardInfoGlassMode,
+    hasWallpaperHazeState: Boolean,
+    blurEnabled: Boolean,
+    isDataSaverActive: Boolean
+): Boolean {
+    if (!infoGlassMode.usesRealtimeBlur) return false
+    if (!hasWallpaperHazeState || !blurEnabled || isDataSaverActive) return false
+    return true
+}
+
+/**
+ * Realtime liquid glass on the info strip — needs LayerBackdrop + blur pipeline allowed.
+ */
+internal fun shouldUseRealtimeHomeCardInfoLiquidGlass(
+    infoGlassMode: HomeCardInfoGlassMode,
+    hasLayerBackdrop: Boolean,
+    blurEnabled: Boolean,
+    isDataSaverActive: Boolean
+): Boolean {
+    if (!infoGlassMode.usesRealtimeLiquidGlass) return false
+    if (!hasLayerBackdrop || !blurEnabled || isDataSaverActive) return false
+    return true
+}
+
 internal fun resolveHomeCardInfoSurfaceAppearance(
     wallpaperTintEnabled: Boolean,
     wallpaperEffectMode: HomeWallpaperEffectMode = HomeWallpaperEffectMode.SOFT_BLUR,
     isDarkTheme: Boolean,
-    isDataSaverActive: Boolean
+    isDataSaverActive: Boolean,
+    infoGlassMode: HomeCardInfoGlassMode = HomeCardInfoGlassMode.OFF,
+    hasWallpaperHazeState: Boolean = false,
+    hasLayerBackdrop: Boolean = false,
+    blurEnabled: Boolean = true
 ): HomeCardInfoSurfaceAppearance {
-    if (!wallpaperTintEnabled || wallpaperEffectMode == HomeWallpaperEffectMode.OFF) {
+    val useRealtimeHaze = shouldUseRealtimeHomeCardInfoBlur(
+        infoGlassMode = infoGlassMode,
+        hasWallpaperHazeState = hasWallpaperHazeState,
+        blurEnabled = blurEnabled,
+        isDataSaverActive = isDataSaverActive
+    )
+    val useRealtimeLiquidGlass = shouldUseRealtimeHomeCardInfoLiquidGlass(
+        infoGlassMode = infoGlassMode,
+        hasLayerBackdrop = hasLayerBackdrop,
+        blurEnabled = blurEnabled,
+        isDataSaverActive = isDataSaverActive
+    )
+    val glassActive = useRealtimeHaze || useRealtimeLiquidGlass
+
+    // Wallpaper tint alone (no glass mode): keep previous translucent fill without Haze.
+    if (!glassActive && (!wallpaperTintEnabled || wallpaperEffectMode == HomeWallpaperEffectMode.OFF)) {
         return HomeCardInfoSurfaceAppearance(
             useTintedSurface = false,
             containerAlpha = 1f,
             borderAlpha = 0f,
-            highlightAlpha = 0f
+            highlightAlpha = 0f,
+            useRealtimeHaze = false,
+            useRealtimeLiquidGlass = false
         )
     }
 
-    return HomeCardInfoSurfaceAppearance(
-        useTintedSurface = true,
-        containerAlpha = when {
+    if (!glassActive) {
+        val baseContainerAlpha = when {
             wallpaperEffectMode == HomeWallpaperEffectMode.ORIGINAL && isDarkTheme -> 0.26f
             wallpaperEffectMode == HomeWallpaperEffectMode.ORIGINAL -> 0.12f
             wallpaperEffectMode == HomeWallpaperEffectMode.STRONG_BLUR && isDarkTheme -> 0.50f
@@ -341,14 +397,34 @@ internal fun resolveHomeCardInfoSurfaceAppearance(
             isDataSaverActive -> if (isDarkTheme) 0.56f else 0.36f
             isDarkTheme -> 0.36f
             else -> 0.16f
+        }
+        return HomeCardInfoSurfaceAppearance(
+            useTintedSurface = true,
+            containerAlpha = baseContainerAlpha,
+            borderAlpha = when {
+                wallpaperEffectMode == HomeWallpaperEffectMode.ORIGINAL && isDarkTheme -> 0.18f
+                wallpaperEffectMode == HomeWallpaperEffectMode.ORIGINAL -> 0.22f
+                isDarkTheme -> 0.12f
+                else -> 0.14f
+            },
+            highlightAlpha = if (isDarkTheme) 0.04f else 0.06f,
+            useRealtimeHaze = false,
+            useRealtimeLiquidGlass = false
+        )
+    }
+
+    // Glass modes: keep fill very light so frosted/refracted wallpaper stays readable.
+    return HomeCardInfoSurfaceAppearance(
+        useTintedSurface = true,
+        containerAlpha = when {
+            useRealtimeHaze && useRealtimeLiquidGlass -> if (isDarkTheme) 0.10f else 0.06f
+            useRealtimeLiquidGlass -> if (isDarkTheme) 0.12f else 0.08f
+            else -> if (isDarkTheme) 0.14f else 0.08f
         },
-        borderAlpha = when {
-            wallpaperEffectMode == HomeWallpaperEffectMode.ORIGINAL && isDarkTheme -> 0.18f
-            wallpaperEffectMode == HomeWallpaperEffectMode.ORIGINAL -> 0.22f
-            isDarkTheme -> 0.12f
-            else -> 0.14f
-        },
-        highlightAlpha = if (isDarkTheme) 0.04f else 0.06f
+        borderAlpha = if (isDarkTheme) 0.20f else 0.22f,
+        highlightAlpha = if (isDarkTheme) 0.08f else 0.12f,
+        useRealtimeHaze = useRealtimeHaze,
+        useRealtimeLiquidGlass = useRealtimeLiquidGlass
     )
 }
 

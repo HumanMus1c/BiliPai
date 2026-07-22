@@ -161,6 +161,78 @@ internal fun resolveTopTabDockIndicatorHeightDp(
     ).coerceAtLeast(minHeight)
 }
 
+/**
+ * Preferred per-tab width when the floating dock **wraps content** instead of stretching
+ * full width (icon / text density drives dock length).
+ */
+internal fun resolveTopTabWrapItemWidthDp(
+    labelMode: Int,
+    isFloatingStyle: Boolean = true
+): Float {
+    return when (normalizeTopTabLabelMode(labelMode)) {
+        0 -> if (isFloatingStyle) 74f else 70f // icon + text
+        1 -> if (isFloatingStyle) 56f else 52f // icon only
+        else -> if (isFloatingStyle) 66f else 62f // text only
+    }
+}
+
+/**
+ * Whether the top dock should shrink to tab content instead of fillMaxWidth.
+ * Floating / bottom-bar-matched docks: wrap so right side isn't empty chrome.
+ * Embedded / full-bleed rows keep stretch.
+ */
+internal fun shouldWrapTopTabDockWidth(
+    isFloatingStyle: Boolean,
+    hasOuterChromeSurface: Boolean,
+    edgeToEdge: Boolean
+): Boolean {
+    if (edgeToEdge) return false
+    return isFloatingStyle || hasOuterChromeSurface
+}
+
+/**
+ * Dock content width = itemWidth × tabCount (+ optional horizontal content padding).
+ * Clamped to [maxWidthDp] so small phones still fill when content is wider.
+ */
+internal fun resolveTopTabDockWrapWidthDp(
+    itemWidthDp: Float,
+    categoryCount: Int,
+    maxWidthDp: Float,
+    contentPaddingHorizontalDp: Float = 0f
+): Float {
+    if (itemWidthDp <= 0f || categoryCount <= 0) return 0f
+    val content = itemWidthDp * categoryCount + contentPaddingHorizontalDp.coerceAtLeast(0f) * 2f
+    if (maxWidthDp <= 0f) return content
+    return content.coerceIn(0f, maxWidthDp)
+}
+
+/**
+ * Item width for wrap dock: use content-driven preferred width when it fits;
+ * otherwise fall back to dividing the available max width (scrollable denser slots).
+ */
+internal fun resolveTopTabDockItemWidthDp(
+    maxWidthDp: Float,
+    categoryCount: Int,
+    labelMode: Int,
+    isFloatingStyle: Boolean,
+    wrapContent: Boolean,
+    fillItemWidthDp: Float
+): Float {
+    if (!wrapContent || categoryCount <= 0) return fillItemWidthDp
+    val preferred = resolveTopTabWrapItemWidthDp(labelMode, isFloatingStyle)
+    val wrapWidth = resolveTopTabDockWrapWidthDp(
+        itemWidthDp = preferred,
+        categoryCount = categoryCount,
+        maxWidthDp = maxWidthDp
+    )
+    // Preferred pack fits: use content-driven item width.
+    if (wrapWidth <= maxWidthDp + 0.01f && preferred * categoryCount <= maxWidthDp + 0.01f) {
+        return preferred
+    }
+    // Overflow: pack into available width.
+    return fillItemWidthDp
+}
+
 internal fun resolveTopTabDockIndicatorOffsetPx(
     slotTranslationPx: Float,
     horizontalGapPx: Float
@@ -228,9 +300,13 @@ internal fun resolveMd3TopTabContentPaddingDp(
     if (containerWidthDp <= 0f || itemWidthDp <= 0f || categoryCount <= 0) return 0f
     val contentWidth = itemWidthDp * categoryCount
     val leftover = (containerWidthDp - contentWidth).coerceAtLeast(0f)
-    // Text-only MD3/Miuix: keep the first indicator near the leading edge. Centering the
-    // leftover (from the 72dp item-width cap) pushes "推荐" too far from the left.
-    return if (normalizeTopTabLabelMode(labelMode) == 2) {
+    // Multi-tab rows (MD3 / MIUIX / all label modes): lead-align so the first indicator
+    // sits at the leading edge. The 72dp item-width cap on 4–6 tabs creates leftover;
+    // centering it pushes "推荐" away from the left of the dock.
+    // Sparse rows (1–2 tabs): keep residual centered so a single tab is not glued left.
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredLabelMode = labelMode
+    return if (categoryCount >= 3) {
         0f
     } else {
         leftover / 2f
@@ -707,6 +783,8 @@ private fun LightweightHomeTopTabs(
     topTabSkinIconPaths: Map<String, TopTabSkinIconPaths> = emptyMap(),
     partitionSkinIconPath: String? = null,
     hasOuterChromeSurface: Boolean = false,
+    /** When non-null, overrides [shouldWrapTopTabDockWidth] so shell and tabs share one decision. */
+    wrapDockWidth: Boolean? = null,
     isTransitionRunning: Boolean = false,
     showPartitionAction: Boolean = true,
     forceMaterialUnderline: Boolean = false
@@ -839,13 +917,18 @@ private fun LightweightHomeTopTabs(
                     labelMode = normalizedLabelMode
                 ).dp
             )
-        ) {
-        val itemWidth = when (effectiveRenderer) {
+    ) {
+        val wrapDock = wrapDockWidth ?: shouldWrapTopTabDockWidth(
+            isFloatingStyle = isFloatingStyle,
+            hasOuterChromeSurface = hasOuterChromeSurface,
+            edgeToEdge = edgeToEdge
+        )
+        val fillItemWidthDp = when (effectiveRenderer) {
             HomeTopTabRenderer.IOS -> resolveIosTopTabItemWidthDp(
                 containerWidthDp = maxWidth.value,
                 categoryCount = categories.size,
                 labelMode = normalizedLabelMode
-            ).dp
+            )
             HomeTopTabRenderer.MD3,
             HomeTopTabRenderer.MIUIX -> resolveMd3TopTabItemWidthDp(
                 containerWidthDp = maxWidth.value,
@@ -854,11 +937,35 @@ private fun LightweightHomeTopTabs(
                     labelMode = normalizedLabelMode,
                     showPartitionAction = showPartitionAction
                 )
-            ).dp
+            )
+        }
+        val itemWidthDp = resolveTopTabDockItemWidthDp(
+            maxWidthDp = maxWidth.value,
+            categoryCount = categories.size,
+            labelMode = normalizedLabelMode,
+            isFloatingStyle = isFloatingStyle,
+            wrapContent = wrapDock,
+            fillItemWidthDp = fillItemWidthDp
+        )
+        val itemWidth = itemWidthDp.dp
+        // Prefer content-driven dock length; parent chrome also uses this policy so shell + tabs match.
+        val dockContentWidthDp = if (wrapDock) {
+            resolveTopTabDockWrapWidthDp(
+                itemWidthDp = itemWidthDp,
+                categoryCount = categories.size,
+                maxWidthDp = maxWidth.value
+            )
+        } else {
+            maxWidth.value
         }
         val density = LocalDensity.current
         val isDarkTheme = isSystemInDarkTheme()
-        val md3ContentPadding = if (effectiveRenderer == HomeTopTabRenderer.MD3) {
+        // When dock wraps content, no leftover to center — lead padding is always 0.
+        val md3ContentPadding = if (
+            (effectiveRenderer == HomeTopTabRenderer.MD3 ||
+                effectiveRenderer == HomeTopTabRenderer.MIUIX) &&
+            !wrapDock
+        ) {
             resolveMd3TopTabContentPaddingDp(
                 containerWidthDp = maxWidth.value,
                 itemWidthDp = itemWidth.value,
@@ -1181,7 +1288,16 @@ private fun LightweightHomeTopTabs(
         }
         Row(
             modifier = Modifier
-                .fillMaxSize()
+                .then(
+                    if (wrapDock) {
+                        Modifier
+                            .width(dockContentWidthDp.dp)
+                            .fillMaxHeight()
+                            .align(Alignment.Center)
+                    } else {
+                        Modifier.fillMaxSize()
+                    }
+                )
                 .graphicsLayer {
                     translationY = if (effectiveRenderer == HomeTopTabRenderer.MD3) {
                         md3TopTabRowVerticalTranslationPx
@@ -1722,6 +1838,8 @@ fun CategoryTabRow(
     isFloatingStyle: Boolean = false,
     edgeToEdge: Boolean = false,
     hasOuterChromeSurface: Boolean = false,
+    /** Shared with [HomeTopTabChrome.wrapDockWidth] so glass shell and tabs stay the same length. */
+    wrapDockWidth: Boolean? = null,
     interactionBudget: HomeInteractionMotionBudget = HomeInteractionMotionBudget.FULL,
     motionTier: MotionTier = MotionTier.Normal,
     isTransitionRunning: Boolean = false,
@@ -1760,6 +1878,7 @@ fun CategoryTabRow(
         topTabSkinIconPaths = topTabSkinIconPaths,
         partitionSkinIconPath = partitionSkinIconPath,
         hasOuterChromeSurface = hasOuterChromeSurface,
+        wrapDockWidth = wrapDockWidth,
         isTransitionRunning = isTransitionRunning,
         showPartitionAction = showPartitionAction,
         forceMaterialUnderline = forceMaterialUnderline

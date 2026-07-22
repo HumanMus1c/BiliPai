@@ -19,7 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
@@ -136,6 +136,10 @@ internal fun HomeCategoryPageContent(
     compactStatsOnCover: Boolean = true,
     showCoverGlassBadges: Boolean = true,
     showInfoGlassBadges: Boolean = true,
+    badgeEffectMode: com.android.purebilibili.core.store.HomeCardBadgeEffectMode =
+        com.android.purebilibili.core.store.HomeCardBadgeEffectMode.SOFT_GLASS,
+    infoGlassMode: com.android.purebilibili.core.store.HomeCardInfoGlassMode =
+        com.android.purebilibili.core.store.HomeCardInfoGlassMode.OFF,
     wallpaperTintEnabled: Boolean = false,
     wallpaperEffectMode: HomeWallpaperEffectMode = HomeWallpaperEffectMode.SOFT_BLUR,
     showUpBadges: Boolean = true,
@@ -481,6 +485,8 @@ internal fun HomeCategoryPageContent(
                                         compactStatsOnCover = compactStatsOnCover,
                                         showCoverGlassBadges = showCoverGlassBadges,
                                         showInfoGlassBadges = showInfoGlassBadges,
+                                        badgeEffectMode = badgeEffectMode,
+                                        infoGlassMode = infoGlassMode,
                                         wallpaperTintEnabled = wallpaperTintEnabled,
                                         wallpaperEffectMode = wallpaperEffectMode,
                                         showUpBadge = showUpBadges,
@@ -722,7 +728,10 @@ private fun TodayWatchPlanCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.8.dp)
+                    AdaptiveLoadingIndicator(
+                        size = 14.dp,
+                        strokeWidth = 1.8.dp
+                    )
                     Text("正在根据你的历史观看习惯生成推荐…", style = MaterialTheme.typography.bodySmall)
                 }
             }

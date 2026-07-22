@@ -28,6 +28,7 @@ import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import androidx.compose.ui.draw.scale
 import android.widget.Toast
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 
 /**
  * 修复壁纸图片 URL (不添加缩放后缀，保持原图质量)
@@ -107,7 +108,7 @@ fun OfficialWallpaperSheet(
             when {
                 isLoading && officialWallpapers.isEmpty() -> {
                     Box(Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                        AdaptiveLoadingIndicator()
                     }
                 }
                 error != null && officialWallpapers.isEmpty() -> {
@@ -306,8 +307,8 @@ fun OfficialWallpaperSheet(
                             )
                         ) {
                             if (saveState is WallpaperSaveState.Loading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
+                                AdaptiveLoadingIndicator(
+                                    size = 20.dp,
                                     strokeWidth = 2.dp
                                 )
                             } else {

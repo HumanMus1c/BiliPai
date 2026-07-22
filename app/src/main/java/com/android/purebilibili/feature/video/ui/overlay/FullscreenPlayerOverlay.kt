@@ -9,6 +9,7 @@ import com.android.purebilibili.feature.video.ui.section.resolveHorizontalSeekDe
 import com.android.purebilibili.feature.video.ui.section.rebindPlayerSurfaceIfNeeded
 import com.android.purebilibili.feature.video.ui.section.shouldCommitGestureSeek
 import com.android.purebilibili.feature.video.ui.section.shouldKeepVideoPlaybackAwake
+import com.android.purebilibili.feature.video.ui.section.shouldTriggerSeekStepHaptic
 import com.android.purebilibili.feature.video.usecase.applyPlaybackButtonUserAction
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.usecase.togglePlayerPlaybackFromUserAction
@@ -61,9 +62,17 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.android.purebilibili.core.store.DanmakuSettings
 import com.android.purebilibili.core.store.FullscreenAspectRatio
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
+import com.android.purebilibili.core.theme.LocalUiPreset
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.blur.unifiedBlur
+import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayContent
+import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle
+import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlaySpec
+import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelKind
+import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle
+import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.android.purebilibili.core.util.FormatUtils
@@ -82,6 +91,7 @@ import com.android.purebilibili.feature.video.ui.components.DanmakuSettingsPanel
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.PlaybackSpeed
 import com.android.purebilibili.feature.video.ui.components.SpeedSelectionMenuPlacement
+import com.android.purebilibili.feature.video.ui.components.resolveSafeVideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.toFullscreenAspectRatio
 import com.android.purebilibili.feature.video.ui.components.toVideoAspectRatio
 import com.android.purebilibili.core.ui.common.copyOnLongPress
@@ -189,7 +199,21 @@ fun FullscreenPlayerOverlay(
         .getFullscreenAspectRatio(context)
         .collectAsStateWithLifecycle(initialValue = FullscreenAspectRatio.FIT
         )
-    var aspectRatio by remember { mutableStateOf(fixedFullscreenAspectRatio.toVideoAspectRatio()) }
+    var isVerticalContent by remember(player) {
+        mutableStateOf(
+            player?.videoSize?.let { size ->
+                size.width > 0 && size.height > size.width
+            } ?: false
+        )
+    }
+    var aspectRatio by remember {
+        mutableStateOf(
+            resolveSafeVideoAspectRatio(
+                preferred = fixedFullscreenAspectRatio.toVideoAspectRatio(),
+                isVerticalVideo = isVerticalContent
+            )
+        )
+    }
     var showRatioMenu by remember { mutableStateOf(false) }
     
     //  画质选择菜单状态
@@ -250,7 +274,10 @@ fun FullscreenPlayerOverlay(
     var dragDelta by remember { mutableFloatStateOf(0f) }
     var seekPreviewPosition by remember { mutableLongStateOf(0L) }
     var gestureSeekStartPosition by remember { mutableLongStateOf(0L) }
-    val fullscreenSwipeSeekSeconds by produceState<Int?>(initialValue = null, context) {
+    var lastSeekHapticTargetMs by remember { mutableLongStateOf(0L) }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    // Default to 15s so seek UI/haptics work immediately before prefs load (null blocked delta).
+    val fullscreenSwipeSeekSeconds by produceState(initialValue = 15, context) {
         SettingsManager.getFullscreenSwipeSeekSeconds(context)
             .collectLatest { value = it }
     }
@@ -313,8 +340,32 @@ fun FullscreenPlayerOverlay(
         }
     }
 
-    LaunchedEffect(fixedFullscreenAspectRatio) {
-        aspectRatio = fixedFullscreenAspectRatio.toVideoAspectRatio()
+    DisposableEffect(player) {
+        val exoPlayer = player
+        if (exoPlayer == null) {
+            isVerticalContent = false
+            onDispose { }
+        } else {
+            fun updateVerticalContent() {
+                val size = exoPlayer.videoSize
+                isVerticalContent = size.width > 0 && size.height > size.width
+            }
+            updateVerticalContent()
+            val listener = object : Player.Listener {
+                override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
+                    isVerticalContent = videoSize.width > 0 && videoSize.height > videoSize.width
+                }
+            }
+            exoPlayer.addListener(listener)
+            onDispose { exoPlayer.removeListener(listener) }
+        }
+    }
+
+    LaunchedEffect(fixedFullscreenAspectRatio, isVerticalContent) {
+        aspectRatio = resolveSafeVideoAspectRatio(
+            preferred = fixedFullscreenAspectRatio.toVideoAspectRatio(),
+            isVerticalVideo = isVerticalContent
+        )
     }
     
     // 进入全屏时设置横屏和沉浸式
@@ -582,6 +633,10 @@ fun FullscreenPlayerOverlay(
                             else -> {
                                 seekPreviewPosition = currentPosition
                                 gestureSeekStartPosition = currentPosition
+                                lastSeekHapticTargetMs = currentPosition
+                                haptic.performHapticFeedback(
+                                    androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                                )
                                 FullscreenGestureMode.Seek
                             }
                         }
@@ -642,7 +697,22 @@ fun FullscreenPlayerOverlay(
                                 )
                                 if (seekDelta != null) {
                                     seekPreviewPosition = (gestureSeekStartPosition + seekDelta).coerceIn(0L, duration)
-                                    currentProgress = (seekPreviewPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                                    currentProgress = if (duration > 0L) {
+                                        (seekPreviewPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                                    } else {
+                                        0f
+                                    }
+                                    if (
+                                        shouldTriggerSeekStepHaptic(
+                                            previousTargetMs = lastSeekHapticTargetMs,
+                                            currentTargetMs = seekPreviewPosition
+                                        )
+                                    ) {
+                                        haptic.performHapticFeedback(
+                                            androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                                        )
+                                        lastSeekHapticTargetMs = seekPreviewPosition
+                                    }
                                 }
                             }
                             else -> {}
@@ -839,7 +909,12 @@ fun FullscreenPlayerOverlay(
                 seekTime = if (gestureMode == FullscreenGestureMode.Seek) seekPreviewPosition else null,
                 duration = duration,
                 hazeState = overlayHazeState,
-                modifier = Modifier.align(Alignment.Center)
+                // Level overlays (esp. MIUIX edge rails) need full-size host for side alignment.
+                modifier = if (gestureMode == FullscreenGestureMode.Seek) {
+                    Modifier.align(Alignment.Center)
+                } else {
+                    Modifier.fillMaxSize()
+                }
             )
         }
         
@@ -1213,11 +1288,15 @@ fun FullscreenPlayerOverlay(
                 com.android.purebilibili.feature.video.ui.components.AspectRatioMenu(
                     currentRatio = aspectRatio,
                     onRatioSelected = { ratio ->
-                        aspectRatio = ratio
+                        val safeRatio = resolveSafeVideoAspectRatio(
+                            preferred = ratio,
+                            isVerticalVideo = isVerticalContent
+                        )
+                        aspectRatio = safeRatio
                         scope.launch {
                             SettingsManager.setFullscreenAspectRatio(
                                 context,
-                                ratio.toFullscreenAspectRatio()
+                                safeRatio.toFullscreenAspectRatio()
                             )
                         }
                         showRatioMenu = false
@@ -1239,15 +1318,13 @@ private fun GestureIndicator(
     hazeState: HazeState? = null,
     modifier: Modifier = Modifier
 ) {
-    val renderProgress by animateFloatAsState(
-        targetValue = value.coerceIn(0f, 1f),
-        animationSpec = tween(durationMillis = 120),
-        label = "fullscreen-gesture-progress"
-    )
-    val accentColor = when (mode) {
-        FullscreenGestureMode.Brightness -> Color(0xFFFFD54F)
-        FullscreenGestureMode.Volume -> Color(0xFF80DEEA)
-        else -> Color.White
+    val uiPreset = LocalUiPreset.current
+    val androidNativeVariant = LocalAndroidNativeVariant.current
+    val overlayStyle = remember(uiPreset, androidNativeVariant) {
+        resolveGestureLevelOverlayStyle(
+            uiPreset = uiPreset,
+            androidNativeVariant = androidNativeVariant
+        )
     }
     val overlayShape = RoundedCornerShape(18.dp)
     if (mode == FullscreenGestureMode.Seek) {
@@ -1282,84 +1359,35 @@ private fun GestureIndicator(
             }
         }
     } else {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = modifier
-                .widthIn(min = 128.dp, max = 190.dp)
-                .padding(horizontal = 18.dp, vertical = 14.dp)
+        val mappedMode = when (mode) {
+            FullscreenGestureMode.Brightness -> VideoGestureMode.Brightness
+            FullscreenGestureMode.Volume -> VideoGestureMode.Volume
+            else -> VideoGestureMode.None
+        }
+        val kind = resolveGestureLevelKind(mappedMode)
+        val sideAlignment = if (kind != null) {
+            resolveGestureLevelOverlaySpec(
+                style = overlayStyle,
+                kind = kind,
+                percent = value
+            ).alignment
+        } else {
+            Alignment.Center
+        }
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = sideAlignment
         ) {
-            when (mode) {
-                FullscreenGestureMode.Brightness -> {
-                    Icon(CupertinoIcons.Default.SunMax, null, tint = accentColor, modifier = Modifier.size(36.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text("亮度", color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
-                    Spacer(Modifier.height(4.dp))
-                    AnimatedGesturePercentText(
-                        percent = (value * 100).toInt(),
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        label = "fullscreen-brightness-percent"
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(99.dp))
-                            .background(Color.White.copy(alpha = 0.20f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .fillMaxWidth(renderProgress)
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(accentColor.copy(alpha = 0.66f), accentColor)
-                                    )
-                                )
-                        )
-                    }
+            GestureLevelOverlayContent(
+                mode = mappedMode,
+                percent = value,
+                style = overlayStyle,
+                modifier = if (overlayStyle == GestureLevelOverlayStyle.Miuix) {
+                    Modifier.padding(horizontal = 22.dp)
+                } else {
+                    Modifier
                 }
-                FullscreenGestureMode.Volume -> {
-                    val volumeIcon = when {
-                        value < 0.01f -> CupertinoIcons.Default.SpeakerSlash
-                        value < 0.5f -> CupertinoIcons.Default.Speaker
-                        else -> CupertinoIcons.Default.SpeakerWave2
-                    }
-                    Icon(volumeIcon, null, tint = accentColor, modifier = Modifier.size(36.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text("音量", color = Color.White.copy(alpha = 0.9f), fontSize = 14.sp)
-                    Spacer(Modifier.height(4.dp))
-                    AnimatedGesturePercentText(
-                        percent = (value * 100).toInt(),
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        label = "fullscreen-volume-percent"
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(99.dp))
-                            .background(Color.White.copy(alpha = 0.20f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .fillMaxWidth(renderProgress)
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(accentColor.copy(alpha = 0.66f), accentColor)
-                                    )
-                                )
-                        )
-                    }
-                }
-                else -> Unit
-            }
+            )
         }
     }
 }

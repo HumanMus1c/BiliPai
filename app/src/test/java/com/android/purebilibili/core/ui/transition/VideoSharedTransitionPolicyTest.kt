@@ -394,13 +394,11 @@ class VideoSharedTransitionPolicyTest {
                 transitionDurationMillis = 360,
             )
         )
-        assertTrue(shouldDelaySourceCardEnterForLiveReturnMorph("home"))
-        assertTrue(shouldDelaySourceCardEnterForLiveReturnMorph("dynamic"))
-        // 分区竖卡与首页一样：返回延后淡入源卡。
-        assertTrue(shouldDelaySourceCardEnterForLiveReturnMorph("partition"))
-        // 相关推荐竖卡与首页一样：返回延后淡入源卡。
-        assertTrue(shouldDelaySourceCardEnterForLiveReturnMorph("video/BV_A"))
-        // 快速返回：不延后，标题/UP 与封面同步落位。
+        // 整壳 Enter 永不延后：封面列表位待命，文字只靠 chrome alpha，消除卸层闪烁。
+        assertFalse(shouldDelaySourceCardEnterForLiveReturnMorph("home"))
+        assertFalse(shouldDelaySourceCardEnterForLiveReturnMorph("dynamic"))
+        assertFalse(shouldDelaySourceCardEnterForLiveReturnMorph("partition"))
+        assertFalse(shouldDelaySourceCardEnterForLiveReturnMorph("video/BV_A"))
         assertFalse(
             shouldDelaySourceCardEnterForLiveReturnMorph(
                 sourceRoute = "home",
@@ -415,7 +413,7 @@ class VideoSharedTransitionPolicyTest {
                 delaySourceCardEnterForLiveReturn = false,
             ),
         )
-        // 竖卡：源卡返回 Enter 延后淡入，避免封面盖住实时画面。
+        // delay 标志为 true 时仍可算出 fadeIn（API 保留）；默认接线 delay=false → None。
         assertTrue(
             resolveVideoCardShellSharedBoundsEnter(
                 role = VideoCardShellSharedBoundsRole.SourceCard,
@@ -423,8 +421,9 @@ class VideoSharedTransitionPolicyTest {
                 delaySourceCardEnterForLiveReturn = true,
             ) != EnterTransition.None
         )
-        // 360 * 0.38 = 136.8 → 136
-        assertEquals(136, resolveVideoCardShellSourceEnterFadeDelayMillis(360))
+        // ratio 已为 0 → delay ms 为 0
+        assertEquals(0, resolveVideoCardShellSourceEnterFadeDelayMillis(360))
+        assertTrue(canCoexistLiveSurfaceStableCoverAndChromeOnReturn())
         assertEquals(
             ExitTransition.None,
             resolveVideoCardShellSharedBoundsExit(
@@ -519,10 +518,11 @@ class VideoSharedTransitionPolicyTest {
             resolveVideoCardSharedTransitionReturnEasing().transform(0.5f),
             0.001f,
         )
-        // 景深返回清晰单独用 SoftClear：中段 fraction 明显低于 Continuity，模糊不会过早掐清。
-        assertTrue(
-            resolveVideoCardTransitionBackgroundReturnClearEasing().transform(0.5f) <
-                AppMotionEasing.Continuity.transform(0.5f) - 0.2f,
+        // 景深返回清晰与 morph 同用 Linear，中段 fraction 与时间线性对齐。
+        assertEquals(
+            0.5f,
+            resolveVideoCardTransitionBackgroundReturnClearEasing().transform(0.5f),
+            0.001f,
         )
     }
 
@@ -697,7 +697,7 @@ class VideoSharedTransitionPolicyTest {
 
     @Test
     fun sharedCoverAspectRatio_defaultsToHomeCardSixteenByTen() {
-        assertEquals(1.6f, VIDEO_SHARED_COVER_ASPECT_RATIO, 0.0001f)
+        assertEquals(16f / 10f, VIDEO_SHARED_COVER_ASPECT_RATIO, 0.0001f)
     }
 
     @Test

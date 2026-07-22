@@ -195,7 +195,8 @@ class SpaceTabChromePolicyTest {
         assertFalse(spec.showTotalText)
         assertFalse(spec.showPlayAllText)
         assertFalse(spec.showSortText)
-        assertTrue(spec.collapseAfterTabSelection)
+        // Keep categories expanded so 视频/图文/音频 stay discoverable (PiliPlus-like).
+        assertFalse(spec.collapseAfterTabSelection)
     }
 
     @Test

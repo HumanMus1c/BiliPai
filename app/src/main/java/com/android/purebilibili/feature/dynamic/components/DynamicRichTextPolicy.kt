@@ -8,6 +8,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import com.android.purebilibili.core.util.BilibiliNavigationTarget
 import com.android.purebilibili.core.util.BilibiliNavigationTargetParser
 import com.android.purebilibili.data.model.response.DynamicDesc
 import com.android.purebilibili.data.model.response.RichTextNode
@@ -167,10 +168,18 @@ private fun AnnotatedString.Builder.appendDynamicRichTextNode(
 }
 
 internal fun resolveDynamicRichTextUserMid(node: RichTextNode): Long? {
-    return node.rid
+    node.rid
         ?.trim()
         ?.toLongOrNull()
         ?.takeIf { it > 0L }
+        ?.let { return it }
+
+    // Space feeds often put the mid only on jump_url (//space.bilibili.com/{mid}).
+    when (val target = BilibiliNavigationTargetParser.parse(node.jump_url.orEmpty())) {
+        is BilibiliNavigationTarget.Space -> return target.mid.takeIf { it > 0L }
+        else -> Unit
+    }
+    return null
 }
 
 private fun AnnotatedString.Builder.appendDynamicRichTextAtMention(

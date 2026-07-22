@@ -57,6 +57,12 @@ internal enum class VideoSharedTransitionTargetMode {
     PortraitFullscreen
 }
 
+/**
+ * 共享元素 / Glass·Cinematic 等默认封面框比例。
+ *
+ * 列表卡三档见 [HomeFeedCardStyle]：16:9 / 4:3 / 16:10。
+ * 此处默认 **16:10**；具体列表卡仍以 [resolveHomeFeedCardLayout] 传入的比例为准。
+ */
 internal const val VIDEO_SHARED_COVER_ASPECT_RATIO = 16f / 10f
 private const val HOME_SOURCE_ROUTE = "home"
 internal const val VIDEO_SHARED_TRANSITION_FAST_DURATION_MILLIS = 280
@@ -165,11 +171,14 @@ internal fun resolveVideoCardSharedTransitionReturnEasing(): Easing =
     resolveVideoCardSharedTransitionSpatialEasing()
 
 /**
- * 仅用于卡片景深背景的返回清晰动画（blur/scale/scrim → 0）。
- * 与 Hero 共享元素的 Continuity / soft spring 分开，避免把空间位移动画也改成 ease-in。
+ * 卡片景深返回清晰曲线。
+ *
+ * **必须与 sharedBounds 返回 morph 一致用 Linear**：
+ * morph 已是 Linear tween（可 seek / remainingDuration 可算），景深若用 SoftClear
+ * 会在卡片将落位时仍「挂糊」，观感上模糊层和壳不同步。
  */
 internal fun resolveVideoCardTransitionBackgroundReturnClearEasing(): Easing =
-    AppMotionEasing.SoftClear
+    LinearEasing
 
 internal fun resolveVideoCardSharedTransitionSpatialEasing(): Easing = AppMotionEasing.Continuity
 

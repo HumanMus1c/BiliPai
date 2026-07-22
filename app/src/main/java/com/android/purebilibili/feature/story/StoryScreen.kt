@@ -123,7 +123,16 @@ fun StoryScreen(
                     isActive = isActive,
                     onBack = onBack,
                     onHomeClick = onBack,
-                    onVideoChange = { },
+                    onVideoChange = { bvid ->
+                        val index = resolveStoryPortraitIndexForBvid(
+                            bvid = bvid,
+                            items = uiState.items,
+                            seedBvid = seed?.bvid.orEmpty()
+                        )
+                        if (index >= 0) {
+                            viewModel.updateCurrentIndex(index)
+                        }
+                    },
                     viewModel = playerViewModel,
                     engagementViewModel = engagementViewModel,
                     onExitSnapshot = { bvid, _, cid ->

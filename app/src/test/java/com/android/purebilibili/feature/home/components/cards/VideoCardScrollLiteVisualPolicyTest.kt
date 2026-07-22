@@ -297,7 +297,7 @@ class VideoCardScrollLiteVisualPolicyTest {
             ),
             0.001f,
         )
-        // 末段落位：settle=0.8 → 已过 revealStart(0.42)，开始淡入
+        // 末段落位：settle=0.8 → 已过 revealStart(0.18)，开始淡入
         val midReveal = resolveHomeCardChromeAlphaDuringShellReturnMorph(
             useCardContainerSharedBounds = true,
             isSharedMorphSourceCard = true,
@@ -312,7 +312,7 @@ class VideoCardScrollLiteVisualPolicyTest {
             midReveal,
             0.001f,
         )
-        // 中段 settle=0.3 < 0.42：标题仍藏，避免叠 live
+        // 中段 settle=0.1 < 0.18：标题仍藏，避免叠 live
         assertEquals(
             0f,
             resolveHomeCardChromeAlphaDuringShellReturnMorph(
@@ -320,11 +320,27 @@ class VideoCardScrollLiteVisualPolicyTest {
                 isSharedMorphSourceCard = true,
                 isReturningFromDetail = true,
                 isSharedTransitionActive = true,
-                transitionBackgroundProgress = 0.7f,
+                transitionBackgroundProgress = 0.9f,
             ),
             0.001f,
         )
-        // morph 结束后即使仍标记 returning / 景深未 IDLE，也要立刻恢复标题，避免相关推荐空白。
+        // shared 停了但 depth 未落位：继续跟 settle，禁止硬切 1（那是标题闪的根因之一）
+        val afterMorphStillReturning = resolveHomeCardChromeAlphaDuringShellReturnMorph(
+            useCardContainerSharedBounds = true,
+            isSharedMorphSourceCard = true,
+            isReturningFromDetail = true,
+            transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.RETURNING,
+            isSharedTransitionActive = false,
+            isVideoCardReturnGestureInProgress = false,
+            transitionBackgroundProgress = 0.4f,
+        )
+        assertEquals(
+            resolveHomeCardChromeEarlyRevealAlpha(settleProgress = 0.6f),
+            afterMorphStillReturning,
+            0.001f,
+        )
+        assertTrue(afterMorphStillReturning in 0f..1f && afterMorphStillReturning < 1f)
+        // depth 已落位（progress≈0）→ 全显
         assertEquals(
             1f,
             resolveHomeCardChromeAlphaDuringShellReturnMorph(
@@ -333,8 +349,7 @@ class VideoCardScrollLiteVisualPolicyTest {
                 isReturningFromDetail = true,
                 transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.RETURNING,
                 isSharedTransitionActive = false,
-                isVideoCardReturnGestureInProgress = false,
-                transitionBackgroundProgress = 0.4f,
+                transitionBackgroundProgress = 0f,
             ),
             0.001f,
         )
@@ -349,8 +364,35 @@ class VideoCardScrollLiteVisualPolicyTest {
             ),
             0.001f,
         )
-        assertEquals(0f, resolveHomeCardChromeEarlyRevealAlpha(settleProgress = 0.2f), 0.001f)
+        // revealStart=0.18：0.15 仍藏字，1.0 全显
+        assertEquals(0f, resolveHomeCardChromeEarlyRevealAlpha(settleProgress = 0.15f), 0.001f)
         assertEquals(1f, resolveHomeCardChromeEarlyRevealAlpha(settleProgress = 1f), 0.001f)
+        // 快速返回：源卡标题立刻全显（详情正文须同步立刻让位）
+        assertEquals(
+            1f,
+            resolveHomeCardChromeAlphaDuringShellReturnMorph(
+                useCardContainerSharedBounds = true,
+                isSharedMorphSourceCard = true,
+                isReturningFromDetail = true,
+                isSharedTransitionActive = true,
+                transitionBackgroundProgress = 1f,
+                isQuickReturnFromDetail = true,
+            ),
+            0.001f,
+        )
+        // 进场 OPENING：藏字
+        assertEquals(
+            0f,
+            resolveHomeCardChromeAlphaDuringShellReturnMorph(
+                useCardContainerSharedBounds = true,
+                isSharedMorphSourceCard = true,
+                isReturningFromDetail = false,
+                transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
+                isSharedTransitionActive = true,
+                transitionBackgroundProgress = 0.5f,
+            ),
+            0.001f,
+        )
         assertTrue(
             isVideoCardSharedReturnTarget(
                 bvid = "BV1xx",

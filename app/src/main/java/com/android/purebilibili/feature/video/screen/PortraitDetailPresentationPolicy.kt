@@ -25,8 +25,11 @@ internal enum class PortraitFullscreenButtonAction {
 internal fun shouldUseOfficialInlinePortraitDetailExperience(
     useTabletLayout: Boolean,
     isVerticalVideo: Boolean,
-    portraitExperienceEnabled: Boolean
+    portraitExperienceEnabled: Boolean,
+    directPortraitEntry: Boolean = false
 ): Boolean {
+    // 「竖屏直达」走 card→全屏 morph，不能先落官方内联详情再二次跳进 pager。
+    if (directPortraitEntry) return false
     return portraitExperienceEnabled && !useTabletLayout && isVerticalVideo
 }
 
@@ -77,8 +80,30 @@ internal fun shouldEnableInlinePortraitScrollTransform(
     }
 }
 
-internal fun shouldAnimateStandalonePortraitPager(useSharedPlayer: Boolean): Boolean {
-    return true
+/**
+ * Whether the standalone portrait pager should play enter/exit chrome animation.
+ *
+ * Direct-entry morph already animates the card shell to full-bleed; a second
+ * fadeIn on the pager reads as “先详情再跳转竖全屏”.
+ */
+internal fun shouldAnimateStandalonePortraitPager(
+    useSharedPlayer: Boolean,
+    directPortraitEntry: Boolean = false
+): Boolean {
+    @Suppress("UNUSED_PARAMETER")
+    val ignored = useSharedPlayer
+    return !directPortraitEntry
+}
+
+/**
+ * When true, keep the phone detail body fully suppressed from the first frame of a
+ * direct-portrait morph so only the full-bleed shell + entry cover are visible.
+ */
+internal fun shouldSuppressPhoneDetailBodyForDirectPortraitEntry(
+    directPortraitEntry: Boolean,
+    isPortraitFullscreen: Boolean
+): Boolean {
+    return directPortraitEntry && isPortraitFullscreen
 }
 
 internal fun resolvePortraitFullscreenButtonAction(
@@ -152,6 +177,13 @@ internal fun resolveInlinePortraitPlayerCommentCollapseDurationMillis(
     return tabSwitchAnimationSpec.durationMs
 }
 
+/**
+ * Inline portrait detail player size.
+ *
+ * PiliPlus parity for phone: expanded ≈ max(longestSide * 0.65, shortestSide),
+ * so vertical videos get a tall preview without becoming full-screen cards.
+ * Wide foldable portrait windows stay capped so intro/comment remain reachable.
+ */
 internal fun resolvePortraitInlinePlayerLayoutSpec(
     screenWidthDp: Float,
     screenHeightDp: Float,
@@ -166,12 +198,14 @@ internal fun resolvePortraitInlinePlayerLayoutSpec(
         )
     }
 
+    val shortestSide = min(screenWidthDp, screenHeightDp)
+    val longestSide = max(screenWidthDp, screenHeightDp)
     val isWidePortraitWindow = screenWidthDp >= 600f && screenHeightDp > screenWidthDp
     val expandedHeight = if (isWidePortraitWindow) {
         // 折叠屏内屏竖屏窗口不能按手机竖屏体验撑满首屏，否则详情区入口会被播放器挤出。
         min(max(screenHeightDp * 0.52f, collapsedHeight), screenWidthDp)
     } else {
-        max(screenHeightDp * 0.65f, screenWidthDp)
+        max(longestSide * 0.65f, shortestSide)
     }
     return PortraitInlinePlayerLayoutSpec(
         widthDp = width,

@@ -14,17 +14,19 @@ package com.android.purebilibili.core.ui.transition
  */
 
 /**
- * 源卡 sharedBounds Enter 延后淡入起点（占 morph 总时长）。
- * 低于此值源卡（含标题结构）仍不可见；过大会导致快速返回「先封面后字」。
- * 与 [VIDEO_CARD_RETURN_CHROME_REVEAL_START] 对齐：字略晚于壳出现、早于旧 0.62 末段。
+ * 源卡 sharedBounds Enter 延后淡入比例（遗留字段）。
+ *
+ * **当前策略：始终 0 / 不延后整壳 Enter。**
+ * 封面在列表位全程待命；标题/UP 仅靠 [VIDEO_CARD_RETURN_CHROME_REVEAL_START]。
+ * 整壳 delayed fadeIn 会在 overlay 卸层瞬间与封面二次叠化，是落位闪烁主因。
  */
-internal const val VIDEO_CARD_RETURN_SOURCE_ENTER_FADE_DELAY_RATIO = 0.38f
+internal const val VIDEO_CARD_RETURN_SOURCE_ENTER_FADE_DELAY_RATIO = 0f
 
 /**
  * 源卡 chrome（标题/UP）在返回 settle 进度上的淡入起点。
- * 略高于 source enter delay，让壳/封面先露一拍；live 正文在此点起让位，避免字叠实时画面。
+ * live 正文在此点起让位；封面始终可见，与实时画面/稳定封面共存。
  */
-internal const val VIDEO_CARD_RETURN_CHROME_REVEAL_START = 0.42f
+internal const val VIDEO_CARD_RETURN_CHROME_REVEAL_START = 0.18f
 
 /**
  * live morph 详情次要内容（简介/推荐等）开始让位的 settle 进度。
@@ -97,33 +99,63 @@ internal fun resolveVideoCardReturnTimeline(
         } else {
             VIDEO_CARD_RETURN_CHROME_REVEAL_START
         },
-        sourceEnterFadeDelayRatio = if (isQuickReturn) {
-            0f
-        } else {
-            VIDEO_CARD_RETURN_SOURCE_ENTER_FADE_DELAY_RATIO
-        },
+        // 整壳 Enter 永不延后；快速/普通返回一致。
+        sourceEnterFadeDelayRatio = VIDEO_CARD_RETURN_SOURCE_ENTER_FADE_DELAY_RATIO,
     )
 }
 
 /**
- * 快速返回：源卡 Enter 不延后，标题/UP 与封面同步落位，避免「先占位后出字」。
+ * 源卡 shell sharedBounds 是否延后 Enter（整壳 fadeIn）。
+ *
+ * 一律 **false**：封面必须在列表位待命，卸层时零叠化；
+ * 文字过渡只走 [resolveHomeCardChromeAlphaDuringShellReturnMorph] / chrome reveal。
+ * [isQuickReturnFromDetail] 保留签名兼容。
  */
+@Suppress("UNUSED_PARAMETER")
 internal fun shouldDelaySourceCardEnterOnReturn(
     isQuickReturnFromDetail: Boolean,
-): Boolean = !isQuickReturnFromDetail
+): Boolean = false
+
+/**
+ * 预测返回 / 普通返回：实时画面 + 稳定封面 + 文字能否共存。
+ *
+ * **可以，且应始终共存**，分工如下：
+ * - **LIVE_SURFACE**（详情壳 overlay）：一镜到底缩回，跟手/seek
+ * - **列表封面**：列表位 alpha=1 待命，不 crossfade、不藏封面，卸层瞬间接住
+ * - **标题/UP**：仅 chrome alpha 按 settle 末段淡入，不跟整壳 fade
+ *
+ * 禁止：整壳 delayed Enter、中途 LIVE↔RESIDENT 切换、卸层瞬间改 Coil 请求。
+ */
+internal fun canCoexistLiveSurfaceStableCoverAndChromeOnReturn(): Boolean = true
+
+/**
+ * 单时钟 morph 深度 → settle。
+ *
+ * [morphDepthProgress] 与 [VideoCardTransitionClock.depthProgress] 同语义：
+ * - 1 = 详情全屏
+ * - 0 = 列表落位
+ *
+ * settle = 1 - depth：0 刚开始缩回，1 完全落位。
+ * chrome / 详情正文 / 景深 **只读这一路**，禁止再 max(AVS, depth)。
+ */
+internal fun resolveVideoCardReturnSettleFromMorphDepth(morphDepthProgress: Float): Float {
+    return (1f - morphDepthProgress.coerceIn(0f, 1f)).coerceIn(0f, 1f)
+}
 
 /**
  * 统一返回 settle 进度 0→1（刚开始缩回 → 完全落位）。
  *
- * - [transitionProgress]：详情 AnimatedVisibility，Visible=1、PostExit=0
- * - [depthBlurProgress]：景深 blur，HELD=1、清完=0
- *
- * 多源时取 **更靠后** 的 settle，避免正文让位慢于标题淡入（叠字）或反过来。
+ * 优先使用 [morphDepthProgress]（单时钟）。若未提供则回退旧双源 max 语义，
+ * 仅供遗留调用；新接线应只传 morphDepth。
  */
 internal fun resolveVideoCardReturnSettleProgress(
     transitionProgress: Float? = null,
     depthBlurProgress: Float? = null,
+    morphDepthProgress: Float? = null,
 ): Float {
+    if (morphDepthProgress != null) {
+        return resolveVideoCardReturnSettleFromMorphDepth(morphDepthProgress)
+    }
     var settle = 0f
     var hasSource = false
     if (transitionProgress != null) {
@@ -140,22 +172,89 @@ internal fun resolveVideoCardReturnSettleProgress(
 /**
  * live morph 详情次要内容 alpha：settle 过 [yieldStart] 后淡出，给源卡标题让位。
  *
- * @param transitionProgress 根过渡进度，Visible=1、PostExit=0
- * @param depthBlurProgress 可选景深进度，与 transition 取较晚 settle，和源卡 chrome 对齐
+ * 优先 [morphDepthProgress] 单时钟；与源卡 chrome 的 settle 同源。
  */
 internal fun resolveVideoCardLiveMorphSecondaryContentAlpha(
-    transitionProgress: Float,
+    transitionProgress: Float = 1f,
     depthBlurProgress: Float? = null,
     yieldStart: Float = VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_START,
+    morphDepthProgress: Float? = null,
 ): Float {
     val settle = resolveVideoCardReturnSettleProgress(
-        transitionProgress = transitionProgress,
-        depthBlurProgress = depthBlurProgress,
+        transitionProgress = if (morphDepthProgress == null) transitionProgress else null,
+        depthBlurProgress = if (morphDepthProgress == null) depthBlurProgress else null,
+        morphDepthProgress = morphDepthProgress,
     )
+    return resolveVideoCardLiveMorphSecondaryContentAlphaFromSettle(
+        settleProgress = settle,
+        yieldStart = yieldStart,
+    )
+}
+
+/**
+ * 由 settle 直接算详情正文 alpha（可单测）。
+ * settle≤yieldStart → 1；settle=1 → 0；中间线性让位。
+ */
+internal fun resolveVideoCardLiveMorphSecondaryContentAlphaFromSettle(
+    settleProgress: Float,
+    yieldStart: Float = VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_START,
+): Float {
+    val settle = settleProgress.coerceIn(0f, 1f)
     val start = yieldStart.coerceIn(0f, 1f)
     if (settle <= start) return 1f
     if (start >= 1f) return if (settle >= 1f) 0f else 1f
     return (1f - (settle - start) / (1f - start)).coerceIn(0f, 1f)
+}
+
+/**
+ * 返回会话 ownership 稳定策略（保留实时画面优先）：
+ *
+ * - 会话外：不锁，跟 candidate
+ * - 会话内首次：采样 candidate
+ * - **允许 RESIDENT/FALLBACK → LIVE 升级**（首帧就绪后一镜到底跟壳缩，不能锁死封面）
+ * - **禁止 LIVE → RESIDENT 降级**（中途 forceCover / 短暂无帧不得掐掉实时画面）
+ * - 其它降级/同级：保持已锁值，避免 cover↔player 来回对切
+ *
+ * @return first = 写入 state 的 lock（非返回中为 null），second = 本帧生效 ownership
+ */
+internal fun resolveReturnSessionLockedCoverOwnership(
+    lockedOwnership: VideoCardReturnCoverOwnership?,
+    isReturnSessionActive: Boolean,
+    candidateOwnership: VideoCardReturnCoverOwnership,
+): Pair<VideoCardReturnCoverOwnership?, VideoCardReturnCoverOwnership> {
+    if (!isReturnSessionActive) {
+        return null to candidateOwnership
+    }
+    val locked = lockedOwnership
+    if (locked == null) {
+        return candidateOwnership to candidateOwnership
+    }
+    // 升级到 LIVE：实时 surface 可用时必须放开，否则进入/返回一镜到底变死封面。
+    if (candidateOwnership == VideoCardReturnCoverOwnership.LIVE_SURFACE) {
+        return VideoCardReturnCoverOwnership.LIVE_SURFACE to
+            VideoCardReturnCoverOwnership.LIVE_SURFACE
+    }
+    // 已是 LIVE：禁止降级到封面路径。
+    if (locked == VideoCardReturnCoverOwnership.LIVE_SURFACE) {
+        return locked to locked
+    }
+    // RESIDENT/FALLBACK 之间保持首次采样，避免无意义抖动。
+    return locked to locked
+}
+
+/**
+ * 是否应对播放器强制封面-only（掐 live surface）。
+ * live ownership 时永远 false，保证 shell morph 实时画面。
+ */
+internal fun shouldForceCoverOnlyForReturnOwnership(
+    ownership: VideoCardReturnCoverOwnership,
+    useReturningVisualState: Boolean,
+    forceCoverOnlyOnReturn: Boolean,
+): Boolean {
+    if (isVideoCardLiveReturnMorphOwnership(ownership)) return false
+    if (forceCoverOnlyOnReturn) return true
+    return useReturningVisualState &&
+        ownership != VideoCardReturnCoverOwnership.LIVE_SURFACE
 }
 
 /**

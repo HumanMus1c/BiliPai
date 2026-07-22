@@ -4,15 +4,14 @@ import android.view.SurfaceView
 import android.view.TextureView
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.android.purebilibili.core.theme.AndroidNativeVariant
+import com.android.purebilibili.core.theme.UiPreset
 import com.android.purebilibili.feature.video.ui.components.GesturePercentMotionDefaults
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.android.purebilibili.feature.video.playback.session.PlaybackSeekSessionState
 import com.android.purebilibili.feature.video.playback.session.shouldUsePlaybackSeekSessionPosition
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.*
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -442,10 +441,28 @@ internal fun shouldShowDanmakuLayers(
     return true
 }
 
+/**
+ * Portrait-only surface mode for detail player danmaku.
+ * Landscape fullscreen always stays on the video viewport so horizontal playback is unchanged.
+ */
+internal fun shouldUseScreenTopDanmakuSurface(
+    portraitDisplayAreaMode: com.android.purebilibili.core.store.PortraitDanmakuDisplayAreaMode,
+    isLandscapeFullscreen: Boolean
+): Boolean {
+    if (isLandscapeFullscreen) return false
+    return portraitDisplayAreaMode ==
+        com.android.purebilibili.core.store.PortraitDanmakuDisplayAreaMode.SCREEN_TOP
+}
+
 internal fun resolveDanmakuLayerTopOffsetPx(
     isFullscreen: Boolean,
-    statusBarHeightPx: Int
+    statusBarHeightPx: Int,
+    useScreenTopSurface: Boolean = false
 ): Int {
+    // Screen-top mode can sit under status bar when chrome is hidden; keep a small inset.
+    if (useScreenTopSurface && isFullscreen) {
+        return statusBarHeightPx.coerceAtLeast(0)
+    }
     return 0
 }
 
@@ -515,6 +532,20 @@ internal fun shouldCommitGestureSeek(
     return abs(targetPositionMs - currentPositionMs) >= minDeltaMs
 }
 
+/**
+ * Stepped haptics while scrubbing by horizontal seek:
+ * fire once every [stepMs] of target position change (default 1s ticks).
+ */
+internal fun shouldTriggerSeekStepHaptic(
+    previousTargetMs: Long,
+    currentTargetMs: Long,
+    stepMs: Long = 1_000L
+): Boolean {
+    if (stepMs <= 0L) return false
+    if (previousTargetMs == currentTargetMs) return false
+    return previousTargetMs / stepMs != currentTargetMs / stepMs
+}
+
 internal fun resolveOrientationSwitchHintText(isFullscreen: Boolean): String {
     return if (isFullscreen) "已切换到横屏" else "已切换到竖屏"
 }
@@ -548,7 +579,14 @@ internal fun shouldToggleAutoFullscreenForCurrentPlaybackSnapshot(
     playbackState: Int,
     playWhenReady: Boolean,
     hasAutoEnteredFullscreen: Boolean,
-    isFullscreen: Boolean
+    isFullscreen: Boolean,
+    willContinueToNextItem: Boolean = false,
+    autoExitFullscreenMode: com.android.purebilibili.core.store.AutoExitFullscreenMode =
+        if (autoExitFullscreenEnabled) {
+            com.android.purebilibili.core.store.AutoExitFullscreenMode.ALL_PARTS
+        } else {
+            com.android.purebilibili.core.store.AutoExitFullscreenMode.OFF
+        },
 ): Boolean {
     return shouldToggleAutoFullscreenForPlaybackEvent(
         autoEnterFullscreenEnabled = autoEnterFullscreenEnabled,
@@ -558,7 +596,9 @@ internal fun shouldToggleAutoFullscreenForCurrentPlaybackSnapshot(
         playWhenReady = playWhenReady,
         hasAutoEnteredFullscreen = hasAutoEnteredFullscreen,
         isFullscreen = isFullscreen,
-        previousPlayWhenReady = false
+        previousPlayWhenReady = false,
+        willContinueToNextItem = willContinueToNextItem,
+        autoExitFullscreenMode = autoExitFullscreenMode,
     )
 }
 
@@ -570,7 +610,14 @@ internal fun shouldToggleAutoFullscreenForPlaybackEvent(
     playWhenReady: Boolean,
     hasAutoEnteredFullscreen: Boolean,
     isFullscreen: Boolean,
-    previousPlayWhenReady: Boolean = playWhenReady
+    previousPlayWhenReady: Boolean = playWhenReady,
+    willContinueToNextItem: Boolean = false,
+    autoExitFullscreenMode: com.android.purebilibili.core.store.AutoExitFullscreenMode =
+        if (autoExitFullscreenEnabled) {
+            com.android.purebilibili.core.store.AutoExitFullscreenMode.ALL_PARTS
+        } else {
+            com.android.purebilibili.core.store.AutoExitFullscreenMode.OFF
+        },
 ): Boolean {
     if (!allowPlaybackStateAutoFullscreen) return false
 
@@ -583,9 +630,49 @@ internal fun shouldToggleAutoFullscreenForPlaybackEvent(
             (!previousPlayWhenReady || playbackState == Player.STATE_READY)
     if (shouldEnterFullscreen) return true
 
-    return autoExitFullscreenEnabled &&
-        playbackState == Player.STATE_ENDED &&
-        isFullscreen
+    return shouldAutoExitFullscreenOnPlaybackEnded(
+        mode = autoExitFullscreenMode,
+        isFullscreen = isFullscreen,
+        playbackState = playbackState,
+        willContinueToNextItem = willContinueToNextItem,
+    )
+}
+
+/**
+ * 播放结束是否应退出全屏。
+ * - OFF：不退出
+ * - CURRENT_PART：当前分P/视频结束即退
+ * - ALL_PARTS：仍有下一段（分P/合集/队列）可连播时保持全屏
+ */
+internal fun shouldAutoExitFullscreenOnPlaybackEnded(
+    mode: com.android.purebilibili.core.store.AutoExitFullscreenMode,
+    isFullscreen: Boolean,
+    playbackState: Int,
+    willContinueToNextItem: Boolean,
+): Boolean {
+    if (!isFullscreen || playbackState != Player.STATE_ENDED) return false
+    return when (mode) {
+        com.android.purebilibili.core.store.AutoExitFullscreenMode.OFF -> false
+        com.android.purebilibili.core.store.AutoExitFullscreenMode.CURRENT_PART -> true
+        com.android.purebilibili.core.store.AutoExitFullscreenMode.ALL_PARTS -> !willContinueToNextItem
+    }
+}
+
+/**
+ * 当前条目结束后是否还会自动切到下一段（分P / 合集 / 播放列表）。
+ */
+internal fun resolveWillContinuePlaybackAfterCurrentItem(
+    pageCount: Int,
+    currentPageIndex: Int,
+    hasUgcSeasonNext: Boolean,
+    hasPlaylistNext: Boolean,
+    completionAdvancesToNext: Boolean,
+): Boolean {
+    if (!completionAdvancesToNext) return false
+    val hasNextPage = pageCount > 1 &&
+        currentPageIndex >= 0 &&
+        currentPageIndex < pageCount - 1
+    return hasNextPage || hasUgcSeasonNext || hasPlaylistNext
 }
 
 internal fun resolveGestureIndicatorLabel(mode: VideoGestureMode): String {
@@ -596,24 +683,89 @@ internal fun resolveGestureIndicatorLabel(mode: VideoGestureMode): String {
     }
 }
 
+/**
+ * @deprecated Prefer [com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle].
+ * Kept as a thin bridge for older call sites during the overlay redesign.
+ */
+enum class GestureLevelIconStyle {
+    SharedMaterial,
+    Md3,
+    Ios,
+    Miuix
+}
+
+internal fun resolveGestureLevelIconStyle(
+    uiPreset: UiPreset,
+    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+): GestureLevelIconStyle {
+    return when (
+        com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle(
+            uiPreset = uiPreset,
+            androidNativeVariant = androidNativeVariant
+        )
+    ) {
+        com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle.Md3 ->
+            GestureLevelIconStyle.Md3
+        com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle.Ios ->
+            GestureLevelIconStyle.Ios
+        com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle.Miuix ->
+            GestureLevelIconStyle.Miuix
+    }
+}
+
+private fun GestureLevelIconStyle.toOverlayStyle():
+    com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle {
+    return when (this) {
+        GestureLevelIconStyle.SharedMaterial,
+        GestureLevelIconStyle.Md3 ->
+            com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle.Md3
+        GestureLevelIconStyle.Ios ->
+            com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle.Ios
+        GestureLevelIconStyle.Miuix ->
+            com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle.Miuix
+    }
+}
+
 internal fun resolveGestureDisplayIcon(
     mode: VideoGestureMode,
     percent: Float,
-    fallbackIcon: ImageVector?
+    fallbackIcon: ImageVector?,
+    iconStyle: GestureLevelIconStyle = GestureLevelIconStyle.Md3
 ): ImageVector {
-    val normalizedPercent = percent.coerceIn(0f, 1f)
-    return when (mode) {
-        VideoGestureMode.Brightness -> when {
-            normalizedPercent < 0.34f -> CupertinoIcons.Outlined.SunMax
-            else -> CupertinoIcons.Default.SunMax
-        }
-        VideoGestureMode.Volume -> when {
-            normalizedPercent < 0.01f -> CupertinoIcons.Default.SpeakerSlash
-            normalizedPercent < 0.5f -> CupertinoIcons.Default.Speaker
-            else -> CupertinoIcons.Default.SpeakerWave2
-        }
-        else -> fallbackIcon ?: CupertinoIcons.Filled.SunMax
-    }
+    val kind = com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelKind(mode)
+        ?: return fallbackIcon
+            ?: com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelIcon(
+                style = iconStyle.toOverlayStyle(),
+                kind = com.android.purebilibili.feature.video.ui.gesture.GestureLevelKind.Brightness,
+                percent = 1f
+            )
+    return com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelIcon(
+        style = iconStyle.toOverlayStyle(),
+        kind = kind,
+        percent = percent
+    )
+}
+
+internal fun resolveVolumeGestureIcon(
+    percent: Float,
+    iconStyle: GestureLevelIconStyle
+): ImageVector {
+    return com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelIcon(
+        style = iconStyle.toOverlayStyle(),
+        kind = com.android.purebilibili.feature.video.ui.gesture.GestureLevelKind.Volume,
+        percent = percent
+    )
+}
+
+internal fun resolveBrightnessGestureIcon(
+    percent: Float,
+    iconStyle: GestureLevelIconStyle
+): ImageVector {
+    return com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelIcon(
+        style = iconStyle.toOverlayStyle(),
+        kind = com.android.purebilibili.feature.video.ui.gesture.GestureLevelKind.Brightness,
+        percent = percent
+    )
 }
 
 internal data class GestureLevelOverlayVisualPolicy(
@@ -693,21 +845,22 @@ internal fun resolveGestureLevelOverlayVisualPolicy(
     return when (mode) {
         VideoGestureMode.Brightness -> GestureLevelOverlayVisualPolicy(
             accentColor = Color(0xFFFFD54F),
-            containerAlpha = 0.20f + progress * 0.08f,
-            borderAlpha = 0.52f + progress * 0.22f,
+            // Dark scrim must stay opaque enough for white text on bright frames.
+            containerAlpha = 0.70f + progress * 0.06f,
+            borderAlpha = 0.48f + progress * 0.22f,
             glowAlpha = 0.30f + progress * 0.40f
         )
 
         VideoGestureMode.Volume -> GestureLevelOverlayVisualPolicy(
             accentColor = Color(0xFF80DEEA),
-            containerAlpha = 0.19f + progress * 0.08f,
-            borderAlpha = 0.50f + progress * 0.20f,
+            containerAlpha = 0.70f + progress * 0.06f,
+            borderAlpha = 0.46f + progress * 0.22f,
             glowAlpha = 0.28f + progress * 0.38f
         )
 
         else -> GestureLevelOverlayVisualPolicy(
             accentColor = Color.White,
-            containerAlpha = 0.22f,
+            containerAlpha = 0.72f,
             borderAlpha = 0.50f,
             glowAlpha = 0.32f
         )
@@ -817,6 +970,13 @@ internal data class VideoPlayerCoverBootstrapState(
     val hasStartedSmoothReveal: Boolean
 )
 
+/**
+ * 进场封面 bootstrap。
+ *
+ * - 可复用已渲染首帧时：跳过等待 FIRST_FRAME 事件，但 **不** 直接把 smooth reveal 置 true。
+ *   否则「详情已出画 → 回首页 → 再进详情」会瞬间揭开画面，封面→画面过渡丢失。
+ * - 两条路径统一：先垫封面，再由 [shouldCommitSmoothCoverReveal] 在 hold 后揭开。
+ */
 internal fun resolveVideoPlayerCoverBootstrapState(
     forceCoverDuringReturnAnimation: Boolean,
     shouldKeepCoverForManualStart: Boolean,
@@ -827,7 +987,7 @@ internal fun resolveVideoPlayerCoverBootstrapState(
         hasPersistedRenderedFirstFrame
     return VideoPlayerCoverBootstrapState(
         isFirstFrameRendered = shouldReuseRenderedFrame,
-        hasStartedSmoothReveal = shouldReuseRenderedFrame
+        hasStartedSmoothReveal = false,
     )
 }
 
@@ -840,6 +1000,31 @@ internal fun shouldStartSmoothCoverReveal(
         !forceCoverDuringReturnAnimation &&
         !shouldKeepCoverForManualStart
 }
+
+/**
+ * 是否应把 [hasStartedSmoothReveal] 清回 false。
+ * 仅在「强制封面 / 手动起播垫底」时回退；首帧标志短暂抖动不得清掉已排程的揭开。
+ */
+internal fun shouldResetSmoothCoverReveal(
+    forceCoverDuringReturnAnimation: Boolean,
+    shouldKeepCoverForManualStart: Boolean,
+): Boolean {
+    return forceCoverDuringReturnAnimation || shouldKeepCoverForManualStart
+}
+
+/**
+ * hold delay 结束后是否提交揭开。
+ * 与 [shouldStartSmoothCoverReveal] 相同门闩，单独命名便于单测「提交」语义。
+ */
+internal fun shouldCommitSmoothCoverReveal(
+    isFirstFrameRendered: Boolean,
+    forceCoverDuringReturnAnimation: Boolean,
+    shouldKeepCoverForManualStart: Boolean,
+): Boolean = shouldStartSmoothCoverReveal(
+    isFirstFrameRendered = isFirstFrameRendered,
+    forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation,
+    shouldKeepCoverForManualStart = shouldKeepCoverForManualStart,
+)
 
 internal fun shouldKeepCoverForManualStart(
     playWhenReady: Boolean,
@@ -1113,10 +1298,11 @@ internal fun shouldPromoteFirstFrameByPlaybackFallback(
 ): Boolean {
     if (isFirstFrameRendered || forceCoverDuringReturnAnimation) return false
     val hasVideoTrack = videoWidth > 0 && videoHeight > 0
+    // READY + 有画面尺寸即可提升，避免重进时迟迟等不到 RENDERED_FIRST_FRAME 卡封面。
     return hasVideoTrack &&
         playWhenReady &&
         playbackState == Player.STATE_READY &&
-        currentPositionMs > 300L
+        currentPositionMs >= 0L
 }
 
 internal fun shouldAutoHidePlayerChromeOnPlaybackStart(

@@ -43,7 +43,7 @@ class VideoLoadPolicyTest {
     }
 
     @Test
-    fun `resolveInitialStartQuality keeps stable first request for vip auto highest`() {
+    fun `resolveInitialStartQuality requests HDR capable qn for vip auto highest`() {
         val quality = resolveInitialStartQuality(
             targetQuality = 127,
             isAutoHighestQuality = true,
@@ -52,7 +52,33 @@ class VideoLoadPolicyTest {
             auto1080pEnabled = true
         )
 
-        assertEquals(120, quality)
+        assertEquals(125, quality)
+    }
+
+    @Test
+    fun `resolveInitialStartQuality prefers faster mobile start for auto highest`() {
+        assertEquals(
+            112,
+            resolveInitialStartQuality(
+                targetQuality = 127,
+                isAutoHighestQuality = true,
+                isLogin = true,
+                isVip = true,
+                auto1080pEnabled = true,
+                preferFastStartOnMobile = true
+            )
+        )
+        assertEquals(
+            64,
+            resolveInitialStartQuality(
+                targetQuality = 127,
+                isAutoHighestQuality = true,
+                isLogin = true,
+                isVip = false,
+                auto1080pEnabled = true,
+                preferFastStartOnMobile = true
+            )
+        )
     }
 
     @Test
@@ -82,11 +108,11 @@ class VideoLoadPolicyTest {
     }
 
     @Test
-    fun `shouldSkipPlayUrlCache only skips auto highest when vip`() {
+    fun `shouldSkipPlayUrlCache only skips non default audio language`() {
         assertFalse(
             shouldSkipPlayUrlCache(
                 isAutoHighestQuality = true,
-                isVip = false,
+                isVip = true,
                 audioLang = null
             )
         )
@@ -94,7 +120,32 @@ class VideoLoadPolicyTest {
             shouldSkipPlayUrlCache(
                 isAutoHighestQuality = true,
                 isVip = true,
-                audioLang = null
+                audioLang = "ai-zh"
+            )
+        )
+    }
+
+    @Test
+    fun `shouldAcceptCachedPlayUrlForAutoHighest requires premium dash for vip`() {
+        assertTrue(
+            shouldAcceptCachedPlayUrlForAutoHighest(
+                isAutoHighestQuality = true,
+                isVip = true,
+                cachedDashVideoIds = listOf(120, 80)
+            )
+        )
+        assertFalse(
+            shouldAcceptCachedPlayUrlForAutoHighest(
+                isAutoHighestQuality = true,
+                isVip = true,
+                cachedDashVideoIds = listOf(80, 64)
+            )
+        )
+        assertTrue(
+            shouldAcceptCachedPlayUrlForAutoHighest(
+                isAutoHighestQuality = true,
+                isVip = false,
+                cachedDashVideoIds = listOf(64)
             )
         )
     }
@@ -110,6 +161,13 @@ class VideoLoadPolicyTest {
         assertEquals(listOf(120, 116, 112, 80), buildDashAttemptQualities(120))
         assertEquals(listOf(116, 112, 80), buildDashAttemptQualities(116))
         assertEquals(listOf(112, 80), buildDashAttemptQualities(112))
+    }
+
+    @Test
+    fun `buildDashAttemptQualities leads with requested HDR Dolby and 8K targets`() {
+        assertEquals(listOf(125, 120, 116, 112, 80), buildDashAttemptQualities(125))
+        assertEquals(listOf(126, 125, 120, 116, 112, 80), buildDashAttemptQualities(126))
+        assertEquals(listOf(127, 126, 125, 120, 116, 112, 80), buildDashAttemptQualities(127))
     }
 
     @Test

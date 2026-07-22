@@ -80,11 +80,13 @@ import com.android.purebilibili.feature.video.ui.section.shouldAnimateVideoDetai
 import com.android.purebilibili.feature.video.ui.components.DanmakuSettingsPanel
 import com.android.purebilibili.feature.video.ui.components.RelatedVideoGridRow
 import com.android.purebilibili.feature.video.ui.components.chunkRelatedVideosForHomeStyleGrid
+import com.android.purebilibili.feature.video.ui.components.filterRelatedVideosByHiddenBvids
 import com.android.purebilibili.feature.video.ui.components.CollectionRow
 import com.android.purebilibili.feature.video.ui.components.CollectionSheet
 import com.android.purebilibili.feature.video.ui.components.PagesSelector
 import com.android.purebilibili.feature.video.ui.components.CommentSortFilterBar
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
+import com.android.purebilibili.feature.video.ui.components.UpPreviewSheet
 import com.android.purebilibili.feature.video.ui.components.rememberVideoCommentAppearance
 import com.android.purebilibili.feature.video.ui.components.resolveReplyItemContentType
 import com.android.purebilibili.feature.video.ui.components.shouldShowReplyTopAction
@@ -775,6 +777,10 @@ private fun VideoIntroTab(
     chromeBackdrop: LayerBackdrop? = null
 ) {
     val hasPages = info.pages.size > 1
+    var hiddenRelatedBvids by remember(info.bvid) { mutableStateOf(emptySet<String>()) }
+    val visibleRelatedVideos = remember(relatedVideos, hiddenRelatedBvids) {
+        filterRelatedVideosByHiddenBvids(relatedVideos, hiddenRelatedBvids)
+    }
     LazyColumn(
         state = listState,
         modifier = modifier
@@ -857,7 +863,7 @@ private fun VideoIntroTab(
             VideoRecommendationHeader()
         }
 
-        val relatedRows = chunkRelatedVideosForHomeStyleGrid(relatedVideos)
+        val relatedRows = chunkRelatedVideosForHomeStyleGrid(visibleRelatedVideos)
         itemsIndexed(
             items = relatedRows,
             key = { rowIndex, row ->
@@ -888,6 +894,9 @@ private fun VideoIntroTab(
                             null
                         }
                         onRelatedVideoClick(video.bvid, navOptions)
+                    },
+                    onVideoHidden = { video ->
+                        hiddenRelatedBvids = hiddenRelatedBvids + video.bvid
                     }
                 )
             }
@@ -1169,6 +1178,33 @@ private fun VideoHeaderContent(
         .getVideoNoteDefaultCollapsed(context)
         .collectAsStateWithLifecycle(initialValue = false
         )
+    var showUpPreview by remember(info.bvid, info.owner.mid) { mutableStateOf(false) }
+    // 同 UP 的相关推荐作首屏种子，再异步拉投稿列表
+    val upPreviewSeedVideos = remember(relatedVideos, info.owner.mid) {
+        relatedVideos.filter { it.owner.mid == info.owner.mid || it.owner.mid <= 0L }
+    }
+
+    if (showUpPreview) {
+        UpPreviewSheet(
+            visible = true,
+            owner = info.owner,
+            isFollowing = isFollowing,
+            followerCount = ownerFollowerCount,
+            videoCount = ownerVideoCount,
+            seedVideos = upPreviewSeedVideos,
+            onDismiss = { showUpPreview = false },
+            onFollowClick = onFollowClick,
+            onEnterSpace = { mid ->
+                showUpPreview = false
+                onUpClick(mid)
+            },
+            onVideoClick = { bvid, _ ->
+                showUpPreview = false
+                onRelatedVideoClick(bvid, null)
+            },
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1181,7 +1217,13 @@ private fun VideoHeaderContent(
             info = info,
             isFollowing = isFollowing,
             onFollowClick = onFollowClick,
-            onUpClick = onUpClick,
+            onUpClick = {
+                if (info.owner.mid > 0L) {
+                    showUpPreview = true
+                } else {
+                    onUpClick(it)
+                }
+            },
             showOwnerAvatar = true,
             followerCount = ownerFollowerCount,
             videoCount = ownerVideoCount,

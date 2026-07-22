@@ -40,4 +40,15 @@ class CuteLoadingIndicatorPolicyTest {
         )
         assertFalse(source.contains("lf20_wnqlfojb.json"))
     }
+
+    @Test
+    fun `cute person entry point dispatches through adaptive loading`() {
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/core/ui/LottieComponents.kt"
+        ).readText()
+
+        assertTrue(source.contains("fun CutePersonLoadingIndicator("))
+        assertTrue(source.contains("AdaptiveLoadingIndicator("))
+        assertTrue(source.contains("internal fun IosCutePersonLoadingIndicator("))
+    }
 }

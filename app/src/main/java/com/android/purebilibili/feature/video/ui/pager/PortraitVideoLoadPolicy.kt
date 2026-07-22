@@ -19,6 +19,10 @@ import com.android.purebilibili.feature.plugin.PlaybackCdnPlugin
 import com.android.purebilibili.feature.video.viewmodel.buildPlaybackAudioUrlCandidates
 import kotlin.math.min
 
+/**
+ * Fallback when no user preference is available (e.g. unit tests / cold path).
+ * Live portrait playback should pass the detail-page playable default quality instead.
+ */
 internal const val PORTRAIT_PLAYBACK_TARGET_QUALITY = 64
 internal const val PORTRAIT_SWIPE_PREFETCH_OFFSET_THRESHOLD = 0.25f
 internal const val PORTRAIT_EARLY_PLAYBACK_OFFSET_THRESHOLD = 0.58f
@@ -34,7 +38,70 @@ internal data class PortraitPlaybackStreamUrls(
     val audioUrl: String?
 )
 
-internal fun resolvePortraitPlaybackTargetQuality(): Int = PORTRAIT_PLAYBACK_TARGET_QUALITY
+/**
+ * Resolve the playurl qn for portrait pager / Story.
+ *
+ * Prefer the same playable default used by video detail so Wi‑Fi 1080P / VIP 4K-HDR
+ * settings are honored. Cap invalid values to the safe fallback.
+ */
+internal fun resolvePortraitPlaybackTargetQuality(
+    preferredQuality: Int? = null
+): Int {
+    val quality = preferredQuality ?: return PORTRAIT_PLAYBACK_TARGET_QUALITY
+    return quality.takeIf { it > 0 } ?: PORTRAIT_PLAYBACK_TARGET_QUALITY
+}
+
+/**
+ * Short label for the portrait chrome quality chip.
+ * Auto-highest (marker ≥ 127) stays generic because actual track is per-video.
+ */
+internal fun resolvePortraitQualityLabel(qualityId: Int): String {
+    return when {
+        qualityId >= 127 -> "自动"
+        qualityId >= 126 -> "杜比"
+        qualityId >= 125 -> "HDR"
+        qualityId >= 120 -> "4K"
+        qualityId >= 116 -> "1080P60"
+        qualityId >= 112 -> "1080P+"
+        qualityId >= 80 -> "1080P"
+        qualityId >= 74 -> "720P60"
+        qualityId >= 64 -> "720P"
+        qualityId >= 32 -> "480P"
+        qualityId >= 16 -> "360P"
+        else -> "高清"
+    }
+}
+
+/**
+ * Qualities shown in the portrait quality menu.
+ * Prefer DASH track ids (switchable now); union accept_quality so higher tiers remain requestable.
+ */
+internal fun resolvePortraitAvailableQualityIds(
+    acceptQualities: List<Int>,
+    dashVideoIds: List<Int>
+): List<Int> {
+    return (dashVideoIds + acceptQualities)
+        .filter { it > 0 }
+        .distinct()
+        .sortedDescending()
+}
+
+internal fun resolvePortraitQualityMenuLabels(qualityIds: List<Int>): List<String> {
+    return qualityIds.map(::resolvePortraitQualityLabel)
+}
+
+/**
+ * After a quality switch or reload, pick the label to show from the actual track when possible.
+ */
+internal fun resolvePortraitDisplayedQualityId(
+    requestedQuality: Int,
+    returnedQuality: Int,
+    dashVideoIds: List<Int>
+): Int {
+    if (requestedQuality > 0 && requestedQuality in dashVideoIds) return requestedQuality
+    if (returnedQuality > 0) return returnedQuality
+    return dashVideoIds.maxOrNull() ?: requestedQuality.takeIf { it > 0 } ?: PORTRAIT_PLAYBACK_TARGET_QUALITY
+}
 
 internal fun shouldUsePortraitParallelPlaybackBootstrap(
     bvid: String,
@@ -65,6 +132,59 @@ internal fun resolvePortraitPagePlaybackIdentity(item: Any): PortraitPagePlaybac
 
         else -> null
     }
+}
+
+/**
+ * Story / 竖屏直达 seeds often only carry bvid+cover (no owner). After playurl bootstrap
+ * succeeds, merge owner/title/pic from [loaded] so the chrome can render `@UP名`.
+ */
+internal fun enrichPortraitPageItemWithLoadedInfo(
+    existing: Any,
+    loaded: ViewInfo
+): Any {
+    return when (existing) {
+        is ViewInfo -> existing.copy(
+            aid = loaded.aid.takeIf { it > 0L } ?: existing.aid,
+            cid = loaded.cid.takeIf { it > 0L } ?: existing.cid,
+            title = loaded.title.ifBlank { existing.title },
+            pic = loaded.pic.ifBlank { existing.pic },
+            owner = if (loaded.owner.name.isNotBlank() || loaded.owner.mid > 0L) {
+                loaded.owner
+            } else {
+                existing.owner
+            },
+            stat = if (loaded.stat.view > 0 || loaded.stat.like > 0) loaded.stat else existing.stat,
+            pages = loaded.pages.ifEmpty { existing.pages },
+            dimension = loaded.dimension ?: existing.dimension,
+            ugc_season = loaded.ugc_season ?: existing.ugc_season
+        )
+        is RelatedVideo -> existing.copy(
+            aid = loaded.aid.takeIf { it > 0L } ?: existing.aid,
+            cid = loaded.cid.takeIf { it > 0L } ?: existing.cid,
+            title = loaded.title.ifBlank { existing.title },
+            pic = loaded.pic.ifBlank { existing.pic },
+            owner = if (loaded.owner.name.isNotBlank() || loaded.owner.mid > 0L) {
+                loaded.owner
+            } else {
+                existing.owner
+            },
+            stat = if (loaded.stat.view > 0 || loaded.stat.like > 0) loaded.stat else existing.stat,
+            duration = loaded.pages.firstOrNull()?.duration?.toInt()?.takeIf { it > 0 }
+                ?: existing.duration
+        )
+        else -> existing
+    }
+}
+
+/** Overlay label: never show a bare `@` when seed/owner is still empty. */
+internal fun resolvePortraitAuthorDisplayName(authorName: String): String {
+    val trimmed = authorName.trim()
+    return if (trimmed.isEmpty()) "UP主" else trimmed
+}
+
+internal fun resolvePortraitAuthorLabel(authorName: String): String {
+    val display = resolvePortraitAuthorDisplayName(authorName)
+    return if (display == "UP主") display else "@$display"
 }
 
 internal fun resolvePortraitPlaybackStreamUrls(

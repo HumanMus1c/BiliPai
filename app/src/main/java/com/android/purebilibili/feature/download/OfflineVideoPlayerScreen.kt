@@ -39,11 +39,19 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
+import com.android.purebilibili.core.theme.LocalUiPreset
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.feature.video.player.MiniPlayerManager
 import com.android.purebilibili.feature.video.danmaku.configureAsPassiveDanmakuOverlay
 import com.android.purebilibili.feature.video.danmaku.rememberDanmakuManager
+import com.android.purebilibili.feature.video.ui.gesture.GestureLevelKind
+import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayContent
+import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle
+import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelIcon
+import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle
+import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import com.bytedance.danmaku.render.engine.DanmakuView
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.*
@@ -78,6 +86,14 @@ fun OfflineVideoPlayerScreen(
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
     val miniPlayerManager = remember(context) { MiniPlayerManager.getInstance(context) }
     val danmakuManager = rememberDanmakuManager()
+    val uiPreset = LocalUiPreset.current
+    val androidNativeVariant = LocalAndroidNativeVariant.current
+    val gestureLevelOverlayStyle = remember(uiPreset, androidNativeVariant) {
+        resolveGestureLevelOverlayStyle(
+            uiPreset = uiPreset,
+            androidNativeVariant = androidNativeVariant
+        )
+    }
     
     val tasks by DownloadManager.tasks.collectAsStateWithLifecycle()
     var currentTaskId by remember(taskId) { mutableStateOf(taskId) }
@@ -501,7 +517,11 @@ fun OfflineVideoPlayerScreen(
                                         }
                                         gesturePercent = newBrightness
                                     }
-                                    gestureIcon = CupertinoIcons.Default.SunMax
+                                    gestureIcon = resolveGestureLevelIcon(
+                                        style = gestureLevelOverlayStyle,
+                                        kind = GestureLevelKind.Brightness,
+                                        percent = gesturePercent
+                                    )
                                 }
                                 GestureMode.Volume -> {
                                     totalDragDistanceY -= dragAmount.y
@@ -512,11 +532,11 @@ fun OfflineVideoPlayerScreen(
                                     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
                                     gesturePercent = newVolPercent
                                     
-                                    gestureIcon = when {
-                                        gesturePercent < 0.01f -> CupertinoIcons.Default.SpeakerSlash
-                                        gesturePercent < 0.5f -> CupertinoIcons.Default.Speaker
-                                        else -> CupertinoIcons.Default.SpeakerWave2
-                                    }
+                                    gestureIcon = resolveGestureLevelIcon(
+                                        style = gestureLevelOverlayStyle,
+                                        kind = GestureLevelKind.Volume,
+                                        percent = gesturePercent
+                                    )
                                 }
                                 else -> {}
                             }
@@ -624,29 +644,21 @@ fun OfflineVideoPlayerScreen(
         }
         
         // 3. 手势指示器（亮度/音量/进度）
-        AnimatedVisibility(
-            visible = isGestureVisible,
-            modifier = Modifier.align(Alignment.Center),
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(120.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (gestureMode == GestureMode.Seek) {
+        if (isGestureVisible) {
+            if (gestureMode == GestureMode.Seek) {
+                Box(
+                    modifier = Modifier.align(Alignment.Center),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         val durationSeconds = (player.duration / 1000).coerceAtLeast(1)
                         val targetSeconds = (seekTargetTime / 1000).toInt()
-                        
                         Text(
                             text = "${FormatUtils.formatDuration(targetSeconds)} / ${FormatUtils.formatDuration(durationSeconds.toInt())}",
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        
                         val deltaSeconds = (seekTargetTime - startPosition) / 1000
                         val sign = if (deltaSeconds > 0) "+" else ""
                         if (deltaSeconds != 0L) {
@@ -656,23 +668,41 @@ fun OfflineVideoPlayerScreen(
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
-                    } else {
-                        Icon(
-                            imageVector = gestureIcon ?: CupertinoIcons.Default.SunMax,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "${(gesturePercent * 100).toInt()}%",
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
-                            )
-                        )
                     }
+                }
+            } else if (
+                gestureMode == GestureMode.Brightness ||
+                gestureMode == GestureMode.Volume
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    GestureLevelOverlayContent(
+                        mode = if (gestureMode == GestureMode.Brightness) {
+                            VideoGestureMode.Brightness
+                        } else {
+                            VideoGestureMode.Volume
+                        },
+                        percent = gesturePercent,
+                        style = gestureLevelOverlayStyle,
+                        modifier = Modifier
+                            .align(
+                                if (gestureLevelOverlayStyle == GestureLevelOverlayStyle.Miuix) {
+                                    if (gestureMode == GestureMode.Volume) {
+                                        Alignment.CenterEnd
+                                    } else {
+                                        Alignment.CenterStart
+                                    }
+                                } else {
+                                    Alignment.Center
+                                }
+                            )
+                            .then(
+                                if (gestureLevelOverlayStyle == GestureLevelOverlayStyle.Miuix) {
+                                    Modifier.padding(horizontal = 22.dp)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                    )
                 }
             }
         }

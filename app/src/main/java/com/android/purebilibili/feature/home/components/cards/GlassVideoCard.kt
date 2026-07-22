@@ -85,6 +85,7 @@ fun GlassVideoCard(
     sharedElementSourceRoute: String? = null,
     isReturningFromVideoDetail: Boolean = false,
     isQuickReturningFromVideoDetail: Boolean = false,
+    scrollLiteModeEnabled: Boolean = false,
     isDataSaverActive: Boolean = false,
     preferLowQualityCover: Boolean = false,
     showCoverGlassBadges: Boolean = true,
@@ -238,8 +239,12 @@ fun GlassVideoCard(
         resolveHomeCardEnterAnimationEnabledAtMount(
             baseAnimationEnabled = animationEnabled,
             isReturningFromDetail = isReturningFromVideoDetail,
-            isSwitchingCategory = CardPositionManager.isSwitchingCategory
+            isSwitchingCategory = CardPositionManager.isSwitchingCategory,
+            isScrollInProgress = scrollLiteModeEnabled
         )
+    }
+    val coordinateEnterWithTransition = remember(animationEnabled, transitionEnabled) {
+        animationEnabled && transitionEnabled
     }
 
     Box(
@@ -255,12 +260,12 @@ fun GlassVideoCard(
                 clipShape = cardShellShape
             )
             .padding(6.dp)
-            //  [修复] 进场动画 - 使用 Unit 作为 key，避免分类切换时重新动画
             .animateEnter(
-                index = index, 
-                key = Unit, 
+                index = index,
+                key = Unit,
                 animationEnabled = enterAnimationEnabledAtMount,
-                motionTier = motionTier
+                motionTier = motionTier,
+                coordinateWithSharedTransition = coordinateEnterWithTransition
             )
             //  [新增] 记录卡片位置
             .onGloballyPositioned { coordinates ->

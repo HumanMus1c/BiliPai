@@ -94,6 +94,24 @@ internal fun buildStoryPortraitFeed(
     )
 }
 
+/**
+ * Map a portrait-pager bvid back to Story feed index for load-more thresholds.
+ * Seed-only videos (not yet present in the story feed) report 0.
+ */
+internal fun resolveStoryPortraitIndexForBvid(
+    bvid: String,
+    items: List<StoryItem>,
+    seedBvid: String = ""
+): Int {
+    val normalized = bvid.trim()
+    if (normalized.isEmpty()) return -1
+    val playable = items.mapNotNull(::toPlayableStoryItem)
+    val feedIndex = playable.indexOfFirst { it.playbackId == normalized }
+    if (feedIndex >= 0) return feedIndex
+    if (seedBvid.isNotBlank() && normalized == seedBvid.trim()) return 0
+    return -1
+}
+
 private data class PlayableStoryItem(
     val source: StoryItem,
     val aid: Long,

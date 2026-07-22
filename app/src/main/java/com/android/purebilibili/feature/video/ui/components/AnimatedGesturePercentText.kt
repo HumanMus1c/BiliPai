@@ -70,15 +70,16 @@ fun shouldTriggerGesturePercentHaptic(
 }
 
 internal object GesturePercentMotionDefaults {
-    const val InitialBlurRadiusDp = 10f
-    const val InitialAlpha = 0.42f
-    const val BlurHoldDurationMillis = 40
-    const val BlurResetDurationMillis = 260
-    const val AlphaResetDurationMillis = 220
-    const val EnterFadeDurationMillis = 220
-    const val ExitFadeDurationMillis = 140
-    const val SlideSpringDampingRatio = 0.82f
-    const val SlideSpringStiffness = 520f
+    // Keep blur subtle so rapid volume/brightness ticks stay readable.
+    const val InitialBlurRadiusDp = 5f
+    const val InitialAlpha = 0.78f
+    const val BlurHoldDurationMillis = 0
+    const val BlurResetDurationMillis = 90
+    const val AlphaResetDurationMillis = 80
+    const val EnterFadeDurationMillis = 100
+    const val ExitFadeDurationMillis = 70
+    const val SlideSpringDampingRatio = 0.88f
+    const val SlideSpringStiffness = 780f
 
     fun <T> slideSpring(): SpringSpec<T> = spring(
         dampingRatio = SlideSpringDampingRatio,
@@ -93,7 +94,8 @@ fun AnimatedGesturePercentText(
     fontSize: TextUnit,
     fontWeight: FontWeight,
     modifier: Modifier = Modifier,
-    label: String = "gesture-percent-blur-fade"
+    label: String = "gesture-percent-blur-fade",
+    enableHaptic: Boolean = true
 ) {
     val normalizedPercent = percent.coerceIn(0, 100)
     val blurAnim = remember { Animatable(0f) }
@@ -102,13 +104,16 @@ fun AnimatedGesturePercentText(
     var previousPercent by remember { mutableIntStateOf(normalizedPercent) }
     val haptic = rememberHapticFeedback()
 
-    LaunchedEffect(normalizedPercent) {
+    LaunchedEffect(normalizedPercent, enableHaptic) {
         if (!initialized) {
             initialized = true
             previousPercent = normalizedPercent
             return@LaunchedEffect
         }
-        if (shouldTriggerGesturePercentHaptic(previousPercent, normalizedPercent)) {
+        if (
+            enableHaptic &&
+            shouldTriggerGesturePercentHaptic(previousPercent, normalizedPercent)
+        ) {
             haptic(HapticType.SELECTION)
         }
         previousPercent = normalizedPercent

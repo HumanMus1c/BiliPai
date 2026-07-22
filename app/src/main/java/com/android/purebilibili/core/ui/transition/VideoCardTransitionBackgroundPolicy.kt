@@ -17,22 +17,27 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.navigation.isVideoCardReturnTargetRoute
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
-// 景深标定（Hero 氛围，非完整 App 开合）：
-// - 背景下沉 4%（0.96），跟放大可读、又不抢 Hero
-// - 峰值 blur 20px：冻结层上进度驱动 BlurEffect（动态模糊观感，避免 live 重录掉帧）
+// 景深三层（与 Hero 卡片放大配合，progress 0→1 同源）：
+// 1) scale 下沉：列表「退后」；过小无感，过大返回像回弹 → 标定 ~5.5%
+// 2) blur：空间纵深（冻结层 + BlurEffect 20px）
+// 3) scrim 压暗：聚焦/可读；纯 blur 偏发灰发飘，压暗把注意力钉在飞卡上
+// - 冻结层：首帧 record 一次后只改 BlurEffect/scale，禁止 live 重录
 // - 压暗全程保留（含 HELD），避免打开完成后景深断裂
-// - 返回：SoftClear 时间曲线 + soft-clear remapping，模糊→清晰不硬切
+// - 返回：景深 progress 与 shared morph 同墙钟、同 Linear
 private const val VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_PX = 20f
 private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = 1f
-private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.22f
-private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT = 0.11f
-private const val VIDEO_CARD_TRANSITION_LIGHT_REDUCED_OPENING_SCRIM_ALPHA = 0.07f
-private const val VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION = 0.04f
+// 压暗：配合更大下沉仍要可读，略强于旧 0.22/0.11，但低于半透明模态（避免脏）。
+private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.28f
+private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT = 0.14f
+private const val VIDEO_CARD_TRANSITION_LIGHT_REDUCED_OPENING_SCRIM_ALPHA = 0.08f
+// 列表下沉：0.022 几乎看不出；0.055 与卡片放大对仗清晰，返回 Linear 清回仍不「弹」。
+private const val VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION = 0.055f
 /** 景深缩放露出的边缘：至少压到这个 tint 强度，避免浅色主题读成「白条」。 */
-private const val VIDEO_CARD_TRANSITION_SCALE_GAP_MIN_TINT_LIGHT = 0.34f
-private const val VIDEO_CARD_TRANSITION_SCALE_GAP_MIN_TINT_DARK = 0.42f
+private const val VIDEO_CARD_TRANSITION_SCALE_GAP_MIN_TINT_LIGHT = 0.36f
+private const val VIDEO_CARD_TRANSITION_SCALE_GAP_MIN_TINT_DARK = 0.44f
 private val VIDEO_CARD_TRANSITION_LIGHT_SCRIM_TINT = Color(0xFF8E8E93)
 private val VIDEO_CARD_TRANSITION_DARK_GAP_BASE = Color(0xFF121212)
 
@@ -120,19 +125,23 @@ internal fun resolveVideoCardTransitionBackgroundFrame(
         phase = phase,
     )
     val blurStrength = resolveVideoCardTransitionBlurStrength(depthProgress)
-    // 低端/省电/无障碍减弱动画(Reduced)时跳过整帧 GPU 实时模糊与景深缩放，仅保留 scrim。
+    val maxBlurRadiusPx = resolveVideoCardTransitionMaxBlurRadiusPx(motionTier)
+    // 仅系统减弱动画(Reduced) / API<31 跳过 GPU 模糊；不按机型降级峰值。
     val rawBlurRadiusPx = if (
         phase != VideoCardTransitionBackgroundPhase.IDLE &&
-        motionTier != MotionTier.Reduced &&
+        maxBlurRadiusPx > 0f &&
         sdkInt >= Build.VERSION_CODES.S
     ) {
-        VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_PX * blurStrength
+        maxBlurRadiusPx * blurStrength
     } else {
         0f
     }
 
     return VideoCardTransitionBackgroundFrame(
-        blurRadiusPx = quantizeVideoCardTransitionBlurRadius(rawBlurRadiusPx),
+        blurRadiusPx = quantizeVideoCardTransitionBlurRadius(
+            radiusPx = rawBlurRadiusPx,
+            maxRadiusPx = maxBlurRadiusPx,
+        ),
         scrimAlpha = when (phase) {
             VideoCardTransitionBackgroundPhase.OPENING,
             VideoCardTransitionBackgroundPhase.HELD,
@@ -216,11 +225,10 @@ internal fun resolveVideoCardTransitionReturnFullDurationMillis(
 }
 
 /**
- * 返回动画提交时，若手势已消解部分虚化(startProgress < 1)，剩余 [RETURNING] 动画按比例缩短，
- * 保持与共享元素落位一致的视觉速度，避免手势拖到底后仍补一段完整时长的收尾。
+ * 返回动画提交时，若手势已消解部分虚化(startProgress < 1)，剩余 [RETURNING] 动画按比例缩短。
  *
- * 与 [resolveVideoCardReturnDepthBlurRemainingDurationMs] 同一公式；
- * morph 后半段时长见 [resolveVideoCardSharedMorphRemainingDurationMs]。
+ * 默认 [minDurationMs] 仅用于**非 morph 对齐**的取消收尾；与 shell morph 同墙钟时请用
+ * [resolveMorphAlignedDepthClearDurationMs]（min=0，禁止把糊拖过落位）。
  */
 internal fun resolveVideoCardTransitionBackgroundReturnDurationMs(
     startProgress: Float,
@@ -228,8 +236,29 @@ internal fun resolveVideoCardTransitionBackgroundReturnDurationMs(
     minDurationMs: Int = VIDEO_CARD_TRANSITION_BACKGROUND_CANCEL_DURATION_MS
 ): Int {
     val clamped = startProgress.coerceIn(0f, 1f)
-    val safeFull = fullDurationMs.coerceAtLeast(minDurationMs)
-    return (safeFull * clamped).roundToInt().coerceIn(minDurationMs, safeFull)
+    val safeFull = fullDurationMs.coerceAtLeast(0)
+    val raw = (safeFull * clamped).roundToInt()
+    if (minDurationMs <= 0) return raw.coerceIn(0, safeFull.coerceAtLeast(0))
+    val safeMin = minDurationMs.coerceAtMost(safeFull.coerceAtLeast(minDurationMs))
+    return raw.coerceIn(safeMin, safeFull.coerceAtLeast(safeMin))
+}
+
+/**
+ * 景深消糊时长与 shared morph 剩余时长锁步。
+ *
+ * - morphRemainingMs：shell bounds 后半段（或满程）墙钟
+ * - blurStartProgress：提交时剩余模糊 1→0
+ * - 结果 = morph * blur，Linear 播完时二者同时到 0，避免「卡已落位、背景还糊」
+ */
+internal fun resolveMorphAlignedDepthClearDurationMs(
+    morphRemainingMs: Int,
+    blurStartProgress: Float,
+): Int {
+    return resolveVideoCardTransitionBackgroundReturnDurationMs(
+        startProgress = blurStartProgress,
+        fullDurationMs = morphRemainingMs.coerceAtLeast(0),
+        minDurationMs = 0,
+    )
 }
 
 /**
@@ -467,10 +496,10 @@ internal fun shouldLiveRecordVideoCardTransitionSnapshot(
 
 /**
  * 卡片开合景深：
- * - OPENING：录 1～2 帧后冻结，BlurEffect/scale 跟进度（动态模糊观感）
+ * - OPENING：首帧 record 一次后立刻冻结，BlurEffect/scale 跟进度（完整 20px 观感）
  * - HELD / RETURNING：复用冻结层，不每帧重录 feed
  * - IDLE：释放并恢复普通绘制
- * - Reduced / API 31 以下：不模糊，仅 scrim
+ * - Reduced / API 31 以下：不模糊，仅 scrim（无障碍/系统设置，非机型降级）
  */
 @Composable
 internal fun Modifier.videoCardTransitionBackgroundEffect(
@@ -498,13 +527,10 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
         }
         when (phase) {
             VideoCardTransitionBackgroundPhase.OPENING -> {
-                // 多等 1～2 帧再冻结：减少源卡封面与 overlay 双影。
+                // 允许首帧立刻 record（完整模糊观感）；draw 侧只录一次后冻结。
                 snapshotState.freezeRecording = false
                 snapshotState.hasRecordedContent = false
                 withFrameNanos { }
-                if (!snapshotState.hasRecordedContent) {
-                    withFrameNanos { }
-                }
                 snapshotState.freezeRecording = true
             }
             VideoCardTransitionBackgroundPhase.HELD,
@@ -512,9 +538,6 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
                 if (!snapshotState.hasRecordedContent) {
                     snapshotState.freezeRecording = false
                     withFrameNanos { }
-                    if (!snapshotState.hasRecordedContent) {
-                        withFrameNanos { }
-                    }
                 }
                 snapshotState.freezeRecording = true
             }
@@ -562,13 +585,14 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
             return@drawWithContent
         }
 
-        // 未冻结或尚未成功 record：录制来源页；冻结后只更新 blur/scale，不再重绘 feed。
-        if (!snapshotState.freezeRecording || !snapshotState.hasRecordedContent) {
+        // 只 record 一次：立刻有完整模糊观感，又避免 OPENING 每帧重录 feed 卡顿。
+        if (!snapshotState.hasRecordedContent) {
             contentLayer.record {
                 this@drawWithContent.drawContent()
             }
             if (size.width > 0f && size.height > 0f) {
                 snapshotState.hasRecordedContent = true
+                snapshotState.freezeRecording = true
             }
         }
 
@@ -609,27 +633,28 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
 }
 
 /**
- * 进场/持有：景深与导航 progress 同源。
- * 返回：soft-clear remapping，中段多留一点模糊与下沉，避免线性/ Continuity 过早掐清。
+ * 进场/持有/返回：景深 progress 一律线性同源。
+ *
+ * 返回不再做 soft-clear 二次映射——shared morph 是 Linear，再 remap 会让模糊层
+ * 落后于壳落位。遗留 [softClearVideoCardTransitionDepth] 仅供测试/兼容读取。
  */
 internal fun resolveVideoCardTransitionDepthProgress(
     progress: Float,
     phase: VideoCardTransitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
 ): Float {
-    val clamped = progress.coerceIn(0f, 1f)
-    return when (phase) {
-        VideoCardTransitionBackgroundPhase.RETURNING -> softClearVideoCardTransitionDepth(clamped)
-        else -> clamped
-    }
+    @Suppress("UNUSED_PARAMETER")
+    val ignored = phase
+    return progress.coerceIn(0f, 1f)
 }
 
 /**
- * progress 仍为「剩余景深」1→0；映射成先留住再柔化：
- * depth = 1 - (1 - p)²，p=0.5 时仍约 0.75。
+ * 遗留 soft-clear 曲线（主路径 RETURNING 已改线性锁步 morph）。
+ * depth = 1 - (1 - p)^1.2，p=0.5 时约 0.56。
  */
 internal fun softClearVideoCardTransitionDepth(progress: Float): Float {
     val remaining = (1f - progress.coerceIn(0f, 1f))
-    return (1f - remaining * remaining).coerceIn(0f, 1f)
+    val easedRemaining = remaining.toDouble().pow(1.2).toFloat()
+    return (1f - easedRemaining).coerceIn(0f, 1f)
 }
 
 private fun resolveVideoCardTransitionBlurStrength(progress: Float): Float {
@@ -637,11 +662,37 @@ private fun resolveVideoCardTransitionBlurStrength(progress: Float): Float {
     return progress.coerceIn(0f, 1f)
 }
 
-private fun quantizeVideoCardTransitionBlurRadius(radiusPx: Float): Float {
-    if (radiusPx <= 0f) return 0f
+/**
+ * 开合景深峰值模糊半径。
+ * - Reduced（仅系统减弱动画）：0
+ * - Normal / Enhanced：统一 20px，**不按机型降级**
+ */
+internal fun resolveVideoCardTransitionMaxBlurRadiusPx(
+    motionTier: MotionTier,
+): Float {
+    return when (motionTier) {
+        MotionTier.Reduced -> 0f
+        MotionTier.Normal,
+        MotionTier.Enhanced -> VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_PX
+    }
+}
+
+internal fun resolveVideoCardTransitionBlurQuantumPx(
+    motionTier: MotionTier,
+): Float {
+    @Suppress("UNUSED_PARAMETER")
+    val ignored = motionTier
+    return VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX
+}
+
+private fun quantizeVideoCardTransitionBlurRadius(
+    radiusPx: Float,
+    maxRadiusPx: Float,
+): Float {
+    if (radiusPx <= 0f || maxRadiusPx <= 0f) return 0f
     return ((radiusPx / VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX).roundToInt() *
         VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX)
-        .coerceIn(0f, VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_PX)
+        .coerceIn(0f, maxRadiusPx)
 }
 
 private fun normalizeVideoCardTransitionRoute(route: String?): String? {

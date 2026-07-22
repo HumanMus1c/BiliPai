@@ -204,7 +204,7 @@ fun ChatScreen(
                                 ) {
                                     if (uiState.isLoadingMore) {
                                         com.android.purebilibili.core.ui.CutePersonLoadingIndicator(
-                                            modifier = Modifier.size(24.dp)
+                                            size = 24.dp
                                         )
                                     } else {
                                         TextButton(onClick = { viewModel.loadMoreMessages() }) {
@@ -434,7 +434,7 @@ fun ChatInputBar(
             ) {
                 if (isBusy) {
                     com.android.purebilibili.core.ui.CutePersonLoadingIndicator(
-                        modifier = Modifier.size(24.dp),
+                        size = 24.dp,
                         strokeWidth = 2.dp
                     )
                 } else {

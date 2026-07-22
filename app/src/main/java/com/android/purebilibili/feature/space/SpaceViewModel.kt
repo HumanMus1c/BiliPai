@@ -1441,13 +1441,114 @@ class SpaceViewModel(
             searchQuery = query
         )
 
-        if (scope != SpaceSearchScope.VIDEO) return
-
         activeSpaceSearchJob?.cancel()
-        activeSpaceSearchJob = viewModelScope.launch {
-            delay(300L)
-            currentKeyword = query.trim()
-            refreshVideoSearchResults()
+        when (scope) {
+            SpaceSearchScope.VIDEO -> {
+                activeSpaceSearchJob = viewModelScope.launch {
+                    delay(SPACE_DYNAMIC_SEARCH_DEBOUNCE_MS)
+                    currentKeyword = query.trim()
+                    refreshVideoSearchResults()
+                }
+            }
+            SpaceSearchScope.DYNAMIC -> {
+                activeSpaceSearchJob = viewModelScope.launch {
+                    delay(SPACE_DYNAMIC_SEARCH_DEBOUNCE_MS)
+                    prefetchSpaceDynamicsForSearch(query)
+                }
+            }
+            SpaceSearchScope.NONE -> Unit
+        }
+    }
+
+    /**
+     * When local filter has no hits, auto-pull more dynamic pages and re-filter.
+     * Stops on first match, feed end, or [SPACE_DYNAMIC_SEARCH_PREFETCH_PAGE_LIMIT].
+     */
+    private suspend fun prefetchSpaceDynamicsForSearch(query: String) {
+        val normalizedQuery = query.trim()
+        if (normalizedQuery.isEmpty()) return
+
+        var pagesFetchedForSearch = 0
+        while (true) {
+            val state = _uiState.value as? SpaceUiState.Success ?: return
+            if (state.searchQuery.trim() != normalizedQuery) return
+            if (state.tabShellState.selectedTab != SpaceMainTab.DYNAMIC) return
+
+            val matchCount = filterSpaceDynamicItemsByQuery(state.dynamics, normalizedQuery).size
+            if (!shouldPrefetchMoreSpaceDynamicsForSearch(
+                    query = normalizedQuery,
+                    matchCount = matchCount,
+                    hasMore = state.hasMoreDynamics,
+                    pagesFetchedForSearch = pagesFetchedForSearch
+                )
+            ) {
+                return
+            }
+
+            if (state.isLoadingDynamics) {
+                // Wait for an in-flight list load (scroll / initial) instead of racing.
+                delay(80L)
+                continue
+            }
+
+            val fetched = fetchNextSpaceDynamicPage()
+            if (!fetched) return
+            pagesFetchedForSearch += 1
+        }
+    }
+
+    /**
+     * Loads one additional space-dynamic page into Success state.
+     * @return true if a network page was applied; false on failure / no more / cancelled.
+     */
+    private suspend fun fetchNextSpaceDynamicPage(): Boolean {
+        val current = _uiState.value as? SpaceUiState.Success ?: return false
+        if (current.isLoadingDynamics || !current.hasMoreDynamics) return false
+
+        _uiState.value = current.markTabLoading(SpaceMainTab.DYNAMIC).copy(
+            isLoadingDynamics = true,
+            lastDynamicLoadFailed = false
+        )
+
+        return try {
+            val stateBefore = _uiState.value as? SpaceUiState.Success ?: return false
+            val response = spaceApi.getSpaceDynamic(currentMid, stateBefore.dynamicOffset)
+            if (response.code != 0 || response.data == null) {
+                val failed = _uiState.value as? SpaceUiState.Success ?: return false
+                _uiState.value = failed.copy(
+                    isLoadingDynamics = false,
+                    lastDynamicLoadFailed = true
+                ).markTabResult(SpaceMainTab.DYNAMIC, error = "加载失败")
+                return false
+            }
+
+            val responseData = response.data
+            val visibleItems = responseData.items.filter { it.visible }
+            val latest = _uiState.value as? SpaceUiState.Success ?: return false
+            val merged = mergeSpaceDynamicPages(existing = latest.dynamics, incoming = visibleItems)
+            _uiState.value = latest.copy(
+                dynamics = merged,
+                dynamicOffset = responseData.offset,
+                hasMoreDynamics = responseData.has_more,
+                isLoadingDynamics = false,
+                hasLoadedDynamicsOnce = true,
+                lastDynamicLoadFailed = false
+            ).markTabResult(SpaceMainTab.DYNAMIC, error = null)
+            true
+        } catch (e: CancellationException) {
+            val cancelled = _uiState.value as? SpaceUiState.Success
+            if (cancelled != null) {
+                _uiState.value = cancelled.copy(isLoadingDynamics = false)
+            }
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.e("SpaceVM", "fetchNextSpaceDynamicPage error: ${e.message}", e)
+            val failed = _uiState.value as? SpaceUiState.Success ?: return false
+            _uiState.value = failed.copy(
+                isLoadingDynamics = false,
+                lastDynamicLoadFailed = true
+            ).markTabResult(SpaceMainTab.DYNAMIC, error = e.message ?: "加载失败")
+            false
         }
     }
     

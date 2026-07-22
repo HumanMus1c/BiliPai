@@ -7,26 +7,47 @@ import kotlin.test.assertEquals
 class HomeFeedCardStylePolicyTest {
 
     @Test
-    fun currentStyle_usesSixteenByNineAndExistingSpacing() {
+    fun currentStyle_usesSixteenByNineFullCover() {
         val layout = resolveHomeFeedCardLayout(HomeFeedCardStyle.CURRENT)
 
-        assertEquals(16f / 9f, layout.coverAspectRatio)
+        assertEquals(HOME_FEED_FULL_COVER_ASPECT_RATIO, layout.coverAspectRatio, 0.0001f)
+        assertEquals(16f / 9f, resolveHomeFeedCoverAspectRatio(HomeFeedCardStyle.CURRENT), 0.0001f)
         assertEquals(8, layout.outerPaddingDp)
         assertEquals(8, layout.itemSpacingDp)
         assertEquals(8, layout.verticalItemSpacingDp)
         assertEquals(16, layout.storyCardHorizontalPaddingDp)
         assertEquals(false, layout.compactMetadata)
+        assertEquals("16:9", HomeFeedCardStyle.CURRENT.label)
     }
 
     @Test
-    fun officialStyle_usesFourByThreeWithLargerCardsAndCompactSpacing() {
+    fun officialStyle_usesFourByThreeLikeOfficialDualColumnFeed() {
         val layout = resolveHomeFeedCardLayout(HomeFeedCardStyle.OFFICIAL)
 
-        assertEquals(4f / 3f, layout.coverAspectRatio)
+        // 4:3 列表框 + 居中 Crop（CDN 源 16:9 会裁左右）
+        assertEquals(HOME_FEED_OFFICIAL_COVER_ASPECT_RATIO, layout.coverAspectRatio, 0.0001f)
+        assertEquals(4f / 3f, resolveHomeFeedCoverAspectRatio(HomeFeedCardStyle.OFFICIAL), 0.0001f)
         assertEquals(4, layout.outerPaddingDp)
         assertEquals(4, layout.itemSpacingDp)
         assertEquals(6, layout.verticalItemSpacingDp)
         assertEquals(0, layout.storyCardHorizontalPaddingDp)
         assertEquals(true, layout.compactMetadata)
+        assertEquals("4:3", HomeFeedCardStyle.OFFICIAL.label)
+    }
+
+    @Test
+    fun piliPlusStyle_usesSixteenByTenBetweenFullAndTall() {
+        val layout = resolveHomeFeedCardLayout(HomeFeedCardStyle.PILIPLUS)
+
+        assertEquals(HOME_FEED_PILIPLUS_COVER_ASPECT_RATIO, layout.coverAspectRatio, 0.0001f)
+        assertEquals(16f / 10f, resolveHomeFeedCoverAspectRatio(HomeFeedCardStyle.PILIPLUS), 0.0001f)
+        assertEquals(8, layout.outerPaddingDp)
+        assertEquals(8, layout.itemSpacingDp)
+        assertEquals(8, layout.verticalItemSpacingDp)
+        assertEquals(8, layout.storyCardHorizontalPaddingDp)
+        assertEquals(true, layout.compactMetadata)
+        assertEquals("16:10", HomeFeedCardStyle.PILIPLUS.label)
+        assertEquals(2, HomeFeedCardStyle.PILIPLUS.value)
+        assertEquals(HomeFeedCardStyle.PILIPLUS, HomeFeedCardStyle.fromValue(2))
     }
 }

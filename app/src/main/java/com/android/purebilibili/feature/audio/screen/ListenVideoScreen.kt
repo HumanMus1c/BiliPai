@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -338,7 +339,7 @@ private fun ListenVideoPage(
         )
 
         state.isLoading -> Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+            AdaptiveLoadingIndicator()
         }
 
         state.error != null && state.playlists.isEmpty() -> ListenVideoMessage(
@@ -712,7 +713,7 @@ private fun ListenVideoTrackSheet(
                     .height(220.dp),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                AdaptiveLoadingIndicator()
             }
 
             error != null -> ListenVideoMessage(

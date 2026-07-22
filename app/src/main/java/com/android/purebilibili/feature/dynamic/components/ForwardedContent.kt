@@ -67,6 +67,7 @@ fun ForwardedContent(
     onVideoClick: (String) -> Unit,
     onBangumiClick: (Long, Long) -> Unit,
     onUserClick: (Long) -> Unit,
+    onDynamicDetailClick: ((String) -> Unit)? = null,
     gifImageLoader: ImageLoader,
     defaultPreviewTextVisible: Boolean = true
 ) {
@@ -96,11 +97,24 @@ fun ForwardedContent(
             body = bodyText
         )
     }
+    val origDynamicId = remember(orig.id_str) { orig.id_str.trim() }
+    val openOrigDynamic = remember(origDynamicId, onDynamicDetailClick) {
+        {
+            if (origDynamicId.isNotEmpty()) {
+                onDynamicDetailClick?.invoke(origDynamicId)
+            }
+        }
+    }
     
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+            // Tap the forward card (not @ / video / images) → open the original dynamic.
+            .clickable(
+                enabled = onDynamicDetailClick != null && origDynamicId.isNotEmpty(),
+                onClick = openOrigDynamic
+            )
             .padding(horizontal = 15.dp, vertical = 8.dp)
     ) {
         // 原作者
@@ -117,7 +131,9 @@ fun ForwardedContent(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary, // 主题自适应颜色
-                    modifier = Modifier.clickable { onUserClick(author.mid) }
+                    modifier = Modifier.clickable(enabled = author.mid > 0L) {
+                        onUserClick(author.mid)
+                    }
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(

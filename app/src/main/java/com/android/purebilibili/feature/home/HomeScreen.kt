@@ -115,6 +115,7 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import dev.chrisbanes.haze.HazeState
+import com.android.purebilibili.core.ui.LocalWallpaperHazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope  //  共享过渡
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
@@ -153,6 +154,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 // [新增] 全局回顶事件通道
 val LocalHomeScrollChannel = compositionLocalOf<Channel<Unit>?> { null }
+
+/** Home feed LayerBackdrop for card info liquid glass (sibling capture, not nested SO). */
+val LocalHomeLayerBackdrop = staticCompositionLocalOf<com.kyant.backdrop.backdrops.LayerBackdrop?> { null }
 
 // [New] Global Scroll Offset for Liquid Glass Effect
 // Used to pass scroll position from HomeScreen to BottomBar without causing recomposition
@@ -1191,7 +1195,8 @@ fun HomeScreen(
         searchBarHeight = searchBarHeightDp,
         tabRowHeight = tabRowHeightDp,
         uiPreset = uiPreset,
-        androidNativeVariant = androidNativeVariant
+        androidNativeVariant = androidNativeVariant,
+        isTabFloating = topTabStyle.floating
     )
     
     // Pixels
@@ -1391,6 +1396,7 @@ fun HomeScreen(
                    // [Refactor] Use Box to allow overlay and proper blur nesting
                    // [新增] Video Preview State (Long Press)
 
+                    CompositionLocalProvider(LocalHomeLayerBackdrop provides homeBackdrop) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -1398,12 +1404,28 @@ fun HomeScreen(
                             // 首页使用 Pager + Lazy 子层，source 挂在外层容器更稳定。
                             .hazeSourceCompat(state = hazeState)
                     ) {
-                    HomeWallpaperBackdrop(
-                        wallpaperUri = homeWallpaperUri,
-                        appearance = homeWallpaperBackdropAppearance,
-                        baseColor = AppSurfaceTokens.chromeBackground(),
-                        isDataSaverActive = isDataSaverActive
-                    )
+                    // Wallpaper-only HazeSource (app LocalWallpaperHazeState): cards sample this
+                    // for frosted info glass. Must stay a sibling of feed content so hazeEffect
+                    // on cards is never nested inside its own source (prepareTree SO).
+                    val wallpaperHazeState = LocalWallpaperHazeState.current
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (wallpaperHazeState != null) {
+                                    Modifier.hazeSourceCompat(state = wallpaperHazeState)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                    ) {
+                        HomeWallpaperBackdrop(
+                            wallpaperUri = homeWallpaperUri,
+                            appearance = homeWallpaperBackdropAppearance,
+                            baseColor = AppSurfaceTokens.chromeBackground(),
+                            isDataSaverActive = isDataSaverActive
+                        )
+                    }
                     // [Fix] Re-enabled default overscroll for better feedback
                         HorizontalPager(
                             state = pagerState,
@@ -1500,28 +1522,27 @@ fun HomeScreen(
                         
                         //  把 GridState 提升给父级用于控制 Header? 
                         
+                        // Overlay chrome (status + search + tabs); not for Scaffold-padded screens.
+                        val homeRefreshIndicatorTopInset = listTopPadding
                         AdaptivePullToRefreshBox(
                             isRefreshing = isRefreshing && currentCategory == category,
                             onRefresh = {
                                 viewModel.refresh(category)
                             },
                             state = pullRefreshState,
-                            contentPadding = if (
-                                pullRefreshIndicatorStyle == HomePullRefreshIndicatorStyle.MIUIX_NATIVE
-                            ) {
-                                PaddingValues(top = listTopPadding)
-                            } else {
-                                PaddingValues()
-                            },
+                            indicatorTopInset = homeRefreshIndicatorTopInset,
                             modifier = Modifier.fillMaxSize(),
                              //  不同原生外观使用不同下拉刷新指示器，位移策略仍由 policy 统一控制。
+                             //  Custom indicators must include the same top inset as MIUIX contentPadding.
                              indicator = {
                                 when (pullRefreshIndicatorStyle) {
                                     HomePullRefreshIndicatorStyle.MATERIAL_DEFAULT -> {
-                                        PullToRefreshDefaults.Indicator(
+                                        // Official M3 expressive ContainedLoadingIndicator
+                                        // (dynamic color) for Android Native Material 3.
+                                        PullToRefreshDefaults.LoadingIndicator(
                                             modifier = Modifier
                                                 .align(Alignment.TopCenter)
-                                                .padding(top = listTopPadding),
+                                                .padding(top = homeRefreshIndicatorTopInset),
                                             isRefreshing = isPageRefreshing,
                                             state = pullRefreshState
                                         )
@@ -1542,7 +1563,7 @@ fun HomeScreen(
                                             indicatorHeight = indicatorHeight,
                                             modifier = Modifier
                                                 .align(Alignment.TopCenter)
-                                                .padding(top = listTopPadding)
+                                                .padding(top = homeRefreshIndicatorTopInset)
                                                 .zIndex(1f)
                                                 .graphicsLayer {
                                                     val currentDragOffset = calculateDragOffset()
@@ -1561,7 +1582,7 @@ fun HomeScreen(
                                             isRefreshing = isPageRefreshing,
                                             modifier = Modifier
                                                 .align(Alignment.TopCenter)
-                                                .padding(top = listTopPadding)
+                                                .padding(top = homeRefreshIndicatorTopInset)
                                                 .zIndex(1f)
                                                 .graphicsLayer {
                                                     val currentDragOffset = calculateDragOffset()
@@ -1709,6 +1730,8 @@ fun HomeScreen(
                                      compactStatsOnCover = homeSettings.compactVideoStatsOnCover,
                                      showCoverGlassBadges = homeSettings.showHomeCoverGlassBadges,
                                      showInfoGlassBadges = homeSettings.showHomeInfoGlassBadges,
+                                     badgeEffectMode = homeSettings.homeCardBadgeEffectMode,
+                                     infoGlassMode = homeSettings.homeCardInfoGlassMode,
                                      wallpaperTintEnabled = homeWallpaperBackdropAppearance.visible,
                                      wallpaperEffectMode = homeSettings.homeWallpaperEffectMode,
                                      showUpBadges = homeSettings.showHomeUpBadges,
@@ -1789,6 +1812,7 @@ fun HomeScreen(
                         }
                 } // Close HorizontalPager lambda
             } // Close Box wrapper
+                    } // Close LocalHomeLayerBackdrop provider
         } // Close Scaffold lambda
         
         //  ===== Header Overlay (毛玻璃效果) =====

@@ -98,7 +98,8 @@ internal fun resolveSpaceContributionToolbarSpec(
         showTotalText = showVideoActions && roomy,
         showPlayAllText = showVideoActions && !compactActions,
         showSortText = showVideoActions && !compactActions,
-        collapseAfterTabSelection = true
+        // Keep contribution categories expanded after pick so entries stay discoverable.
+        collapseAfterTabSelection = false
     )
 }
 

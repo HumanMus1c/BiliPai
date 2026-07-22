@@ -233,9 +233,11 @@ fun CategoryScreen(
                     color = MaterialTheme.colorScheme.error
                 )
             } else {
+                // Scaffold body already below topBar.
                 AdaptivePullToRefreshBox(
                     isRefreshing = isRefreshing,
                     onRefresh = viewModel::refresh,
+                    indicatorTopInset = 0.dp,
                     modifier = Modifier.fillMaxSize()
                 ) {
                     // 视频网格
@@ -313,7 +315,7 @@ fun CategoryScreen(
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    com.android.purebilibili.core.ui.CutePersonLoadingIndicator(modifier = Modifier.size(24.dp))
+                                    com.android.purebilibili.core.ui.CutePersonLoadingIndicator(size = 24.dp)
                                 }
                             }
                         }

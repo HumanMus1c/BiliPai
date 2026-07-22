@@ -26,7 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.CircularProgressIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -329,7 +329,7 @@ private fun AudioModeInitialState(
                     }
                 }
                 else -> {
-                    CircularProgressIndicator()
+                    AdaptiveLoadingIndicator()
                     Text(title)
                     if (title != "正在加载音频") {
                         Text("正在加载音频", color = MaterialTheme.colorScheme.onSurfaceVariant)

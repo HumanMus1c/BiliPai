@@ -11,10 +11,34 @@ internal data class HomeFeedCardLayout(
     val compactMetadata: Boolean
 )
 
+/** 4:3 更高列表框。CDN 16:9 源图会左右裁。 */
+internal const val HOME_FEED_OFFICIAL_COVER_ASPECT_RATIO = 4f / 3f
+
+/** 16:10，介于 16:9 与 4:3 之间。 */
+internal const val HOME_FEED_PILIPLUS_COVER_ASPECT_RATIO = 16f / 10f
+
+/** 与投稿/CDN 源同比例，标准封面几乎不裁。 */
+internal const val HOME_FEED_FULL_COVER_ASPECT_RATIO = 16f / 9f
+
+/** @deprecated 使用 [HOME_FEED_FULL_COVER_ASPECT_RATIO] */
+internal const val HOME_FEED_CURRENT_COVER_ASPECT_RATIO = HOME_FEED_FULL_COVER_ASPECT_RATIO
+
+/**
+ * 解析首页/相关推荐等视频卡封面框比例。
+ */
+internal fun resolveHomeFeedCoverAspectRatio(style: HomeFeedCardStyle): Float {
+    return when (style) {
+        HomeFeedCardStyle.CURRENT -> HOME_FEED_FULL_COVER_ASPECT_RATIO
+        HomeFeedCardStyle.OFFICIAL -> HOME_FEED_OFFICIAL_COVER_ASPECT_RATIO
+        HomeFeedCardStyle.PILIPLUS -> HOME_FEED_PILIPLUS_COVER_ASPECT_RATIO
+    }
+}
+
 internal fun resolveHomeFeedCardLayout(style: HomeFeedCardStyle): HomeFeedCardLayout {
+    val coverAspectRatio = resolveHomeFeedCoverAspectRatio(style)
     return when (style) {
         HomeFeedCardStyle.CURRENT -> HomeFeedCardLayout(
-            coverAspectRatio = 16f / 9f,
+            coverAspectRatio = coverAspectRatio,
             outerPaddingDp = 8,
             itemSpacingDp = 8,
             verticalItemSpacingDp = 8,
@@ -23,11 +47,21 @@ internal fun resolveHomeFeedCardLayout(style: HomeFeedCardStyle): HomeFeedCardLa
         )
 
         HomeFeedCardStyle.OFFICIAL -> HomeFeedCardLayout(
-            coverAspectRatio = 4f / 3f,
+            coverAspectRatio = coverAspectRatio,
             outerPaddingDp = 4,
             itemSpacingDp = 4,
             verticalItemSpacingDp = 6,
             storyCardHorizontalPaddingDp = 0,
+            compactMetadata = true
+        )
+
+        HomeFeedCardStyle.PILIPLUS -> HomeFeedCardLayout(
+            // 间距对齐 PiliPlus Style.cardSpace / safeSpace 系：8dp 卡间距
+            coverAspectRatio = coverAspectRatio,
+            outerPaddingDp = 8,
+            itemSpacingDp = 8,
+            verticalItemSpacingDp = 8,
+            storyCardHorizontalPaddingDp = 8,
             compactMetadata = true
         )
     }

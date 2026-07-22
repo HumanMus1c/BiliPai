@@ -2,7 +2,9 @@ package com.android.purebilibili.feature.video.policy
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class VideoDetailScrollCoordinatorTest {
 
@@ -57,6 +59,44 @@ class VideoDetailScrollCoordinatorTest {
             isPortraitFullscreen = true
         )
 
+        assertNull(update)
+    }
+
+    @Test
+    fun preScroll_doesNothingWhenLayoutAlreadyCollapsedByIntroThreshold() {
+        val update = reduceVideoDetailPreScroll(
+            currentOffsetPx = 0f,
+            deltaPx = -40f,
+            minOffsetPx = -320f,
+            inlinePortraitScrollEnabled = true,
+            isPortraitFullscreen = false,
+            layoutAlreadyCollapsed = true,
+        )
+        assertNull(update)
+        assertTrue(
+            shouldSkipGesturePlayerCollapseForLayout(
+                compactForIntroScroll = true,
+                compactForCommentTab = false,
+            )
+        )
+        assertFalse(
+            shouldSkipGesturePlayerCollapseForLayout(
+                compactForIntroScroll = false,
+                compactForCommentTab = false,
+            )
+        )
+    }
+
+    @Test
+    fun postScroll_doesNothingWhenLayoutAlreadyCollapsed() {
+        val update = reduceVideoDetailPostScroll(
+            currentOffsetPx = -80f,
+            deltaPx = 25f,
+            minOffsetPx = -320f,
+            inlinePortraitScrollEnabled = true,
+            isPortraitFullscreen = false,
+            layoutAlreadyCollapsed = true,
+        )
         assertNull(update)
     }
 

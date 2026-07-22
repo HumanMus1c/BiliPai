@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.feature.video.policy.resolveFavoriteFolderMediaId
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,7 +82,7 @@ fun FavoriteFolderSheet(
                         .height(200.dp),
                         contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    AdaptiveLoadingIndicator()
                 }
             } else if (folders.isEmpty()) {
                 Box(

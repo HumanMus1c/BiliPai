@@ -48,7 +48,12 @@ import com.android.purebilibili.core.util.animateEnter
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.core.theme.BiliPink
+import com.android.purebilibili.core.store.HomeCardBadgeEffectMode
+import com.android.purebilibili.core.store.HomeCardInfoGlassMode
 import com.android.purebilibili.core.store.HomeDurationStyle
+import com.android.purebilibili.core.ui.LocalWallpaperHazeState
+import com.android.purebilibili.core.ui.blur.BlurSurfaceType
+import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.theme.LocalCornerRadiusScale
 import com.android.purebilibili.core.theme.iOSCornerRadius
 import com.android.purebilibili.core.util.HapticType
@@ -61,6 +66,11 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.feature.home.LocalHomeLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
 import com.android.purebilibili.core.ui.ContainerLevel
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -329,10 +339,13 @@ fun ElegantVideoCard(
     compactStatsOnCover: Boolean = true, // 播放量/评论数是否贴在封面底部
     showCoverGlassBadges: Boolean = true,
     showInfoGlassBadges: Boolean = true,
+    badgeEffectMode: HomeCardBadgeEffectMode = HomeCardBadgeEffectMode.SOFT_GLASS,
+    infoGlassMode: HomeCardInfoGlassMode = HomeCardInfoGlassMode.OFF,
     wallpaperTintEnabled: Boolean = false,
     wallpaperEffectMode: HomeWallpaperEffectMode = HomeWallpaperEffectMode.SOFT_BLUR,
     showUpBadge: Boolean = true,
     homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
+    // 默认跟官方双列 4:3；首页会传入 resolveHomeFeedCardLayout 的比例覆盖
     coverAspectRatio: Float = 4f / 3f,
     compactMetadata: Boolean = true,
     titleMinLines: Int = 2,
@@ -387,22 +400,46 @@ fun ElegantVideoCard(
     }
     val showDurationOutside = homeDurationStyle == HomeDurationStyle.OUTSIDE_COVER
     val inlinePillBaseColor = AppSurfaceTokens.cardContainer()
-    val pillColors = remember(glassEnabled, blurEnabled, inlinePillBaseColor) {
+    val wallpaperHazeState = LocalWallpaperHazeState.current
+    val homeLayerBackdrop = LocalHomeLayerBackdrop.current
+    val badgeEffectVisual = remember(badgeEffectMode, scrollLiteModeEnabled, wallpaperHazeState != null) {
+        resolveHomeCardBadgeEffectVisual(
+            mode = badgeEffectMode,
+            scrollLiteModeEnabled = scrollLiteModeEnabled,
+            hasHazeState = wallpaperHazeState != null
+        )
+    }
+    val effectiveGlassEnabled = badgeEffectVisual.glassEnabled && glassEnabled
+    val effectiveBlurEnabled = badgeEffectVisual.blurEnabled && blurEnabled
+    val pillColors = remember(effectiveGlassEnabled, effectiveBlurEnabled, inlinePillBaseColor) {
         resolveVideoCardPillColors(
-            glassEnabled = glassEnabled,
-            blurEnabled = blurEnabled,
+            glassEnabled = effectiveGlassEnabled,
+            blurEnabled = effectiveBlurEnabled,
             inlineBaseColor = inlinePillBaseColor
         )
     }
     val coverPillColors = pillColors.cover
     val inlinePillColors = pillColors.inline
     val isDarkCardTheme = AppSurfaceTokens.chromeBackground().luminance() < 0.5f
-    val infoSurfaceAppearance = remember(wallpaperTintEnabled, wallpaperEffectMode, isDarkCardTheme, isDataSaverActive) {
+    val infoSurfaceAppearance = remember(
+        wallpaperTintEnabled,
+        wallpaperEffectMode,
+        isDarkCardTheme,
+        isDataSaverActive,
+        infoGlassMode,
+        wallpaperHazeState != null,
+        homeLayerBackdrop != null,
+        blurEnabled
+    ) {
         resolveHomeCardInfoSurfaceAppearance(
             wallpaperTintEnabled = wallpaperTintEnabled,
             wallpaperEffectMode = wallpaperEffectMode,
             isDarkTheme = isDarkCardTheme,
-            isDataSaverActive = isDataSaverActive
+            isDataSaverActive = isDataSaverActive,
+            infoGlassMode = infoGlassMode,
+            hasWallpaperHazeState = wallpaperHazeState != null,
+            hasLayerBackdrop = homeLayerBackdrop != null,
+            blurEnabled = blurEnabled
         )
     }
     val scrollLitePolicy = remember(scrollLiteModeEnabled, compactStatsOnCover) {
@@ -411,10 +448,18 @@ fun ElegantVideoCard(
             compactStatsOnCover = compactStatsOnCover
         )
     }
-    val badgeStylePolicy = remember(showCoverGlassBadges, showInfoGlassBadges) {
-        resolveHomeVideoGlassBadgeStylePolicy(
-            showCoverGlassBadges = showCoverGlassBadges,
-            showInfoGlassBadges = showInfoGlassBadges
+    val badgeStylePolicy = remember(badgeEffectVisual, showCoverGlassBadges, showInfoGlassBadges) {
+        HomeVideoGlassBadgeStylePolicy(
+            coverStyle = if (showCoverGlassBadges) {
+                badgeEffectVisual.coverStyle
+            } else {
+                HomeVideoBadgeStyle.PLAIN
+            },
+            infoStyle = if (showInfoGlassBadges) {
+                badgeEffectVisual.infoStyle
+            } else {
+                HomeVideoBadgeStyle.PLAIN
+            }
         )
     }
     val historyProgressState = remember(video.bvid, video.cid, video.view_at, video.duration, video.progress, refreshKey) {
@@ -544,20 +589,24 @@ fun ElegantVideoCard(
         resolveHomeCardEnterAnimationEnabledAtMount(
             baseAnimationEnabled = animationEnabled,
             isReturningFromDetail = isReturningFromVideoDetail,
-            isSwitchingCategory = CardPositionManager.isSwitchingCategory
+            isSwitchingCategory = CardPositionManager.isSwitchingCategory,
+            isScrollInProgress = scrollLiteModeEnabled
         )
+    }
+    val coordinateEnterWithTransition = remember(animationEnabled, transitionEnabled) {
+        animationEnabled && transitionEnabled
     }
     Box(
         modifier = Modifier
             .then(modifier)
             .fillMaxWidth()
-            //  [修复] 进场动画 - 使用 Unit 作为 key，只在首次挂载时播放
-            // 原问题：使用 video.bvid 作为 key，分类切换时所有卡片重新触发动画（缩放收缩效果）
+            // 进场动画：挂载门控已含滚动/返回/切分类；与过渡并存时仅淡入不改几何
             .animateEnter(
-                index = index, 
-                key = Unit, 
+                index = index,
+                key = Unit,
                 animationEnabled = enterAnimationEnabledAtMount,
-                motionTier = motionTier
+                motionTier = motionTier,
+                coordinateWithSharedTransition = coordinateEnterWithTransition
             )
             //  [新增] 记录卡片位置（仅存引用，boundsInRoot() 在交互时惰性计算）
             .onGloballyPositioned { coordinates ->
@@ -736,12 +785,15 @@ fun ElegantVideoCard(
                     .graphicsLayer {
                         alpha = if (hideCoverDuringShellMorph) 0f else 1f
                     },
-                contentScale = ContentScale.Crop
+                // 官方粉版：居中 Crop；16:9 框配 16:9 投稿封面时基本不裁
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.Center,
             )
 
             if (premiumBadgeLabel != null) {
                 HomeVideoBadgePill(
                     style = badgeStylePolicy.coverStyle,
+                    useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
                     shape = RoundedCornerShape(smallCornerRadius),
                     containerColor = BiliPink.copy(alpha = if (badgeStylePolicy.coverStyle == HomeVideoBadgeStyle.GLASS) 0.78f else 1f),
                     borderColor = Color.White.copy(alpha = 0.24f),
@@ -840,6 +892,7 @@ fun ElegantVideoCard(
                         HomeVideoBadgePill(
                             modifier = compactViewsModifier,
                             style = badgeStylePolicy.coverStyle,
+                            useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
                             shape = AppShapes.container(ContainerLevel.Pill),
                             containerColor = coverPillColors.containerColor,
                             borderColor = coverPillColors.borderColor
@@ -867,6 +920,7 @@ fun ElegantVideoCard(
                             HomeVideoBadgePill(
                                 modifier = compactDanmakuModifier,
                                 style = badgeStylePolicy.coverStyle,
+                                useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
                                 shape = AppShapes.container(ContainerLevel.Pill),
                                 containerColor = coverPillColors.containerColor,
                                 borderColor = coverPillColors.borderColor
@@ -894,6 +948,7 @@ fun ElegantVideoCard(
                             HomeVideoBadgePill(
                                 modifier = Modifier.weight(1f, fill = false),
                                 style = badgeStylePolicy.coverStyle,
+                                useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
                                 shape = AppShapes.container(ContainerLevel.Pill),
                                 containerColor = coverPillColors.containerColor,
                                 borderColor = coverPillColors.borderColor
@@ -966,15 +1021,52 @@ fun ElegantVideoCard(
             )
         }
         val infoContainerModifier = if (infoSurfaceAppearance.useTintedSurface) {
+            // Wallpaper-only Haze for realtime blur (never main content HazeState).
+            val hazeModifier = if (
+                infoSurfaceAppearance.useRealtimeHaze && wallpaperHazeState != null
+            ) {
+                Modifier.unifiedBlur(
+                    hazeState = wallpaperHazeState,
+                    shape = infoSurfaceShape,
+                    surfaceType = BlurSurfaceType.BOTTOM_BAR,
+                    isScrolling = false,
+                    isTransitionRunning = false,
+                    forceLowBudget = false
+                )
+            } else {
+                Modifier
+            }
+            // LayerBackdrop liquid glass — independent of Haze, samples home feed layer.
+            val liquidModifier = if (
+                infoSurfaceAppearance.useRealtimeLiquidGlass && homeLayerBackdrop != null
+            ) {
+                Modifier.drawBackdrop(
+                    backdrop = homeLayerBackdrop,
+                    shape = { infoSurfaceShape },
+                    effects = {
+                        vibrancy()
+                        blur(22.dp.toPx())
+                        lens(
+                            refractionHeight = 8.dp.toPx(),
+                            refractionAmount = 14.dp.toPx()
+                        )
+                    }
+                )
+            } else {
+                Modifier
+            }
             Modifier
                 .fillMaxWidth()
+                .clip(infoSurfaceShape)
+                .then(hazeModifier)
+                .then(liquidModifier)
                 .background(
                     color = AppSurfaceTokens.cardContainer().copy(alpha = infoSurfaceAppearance.containerAlpha),
                     shape = infoSurfaceShape
                 )
                 .border(
                     width = 0.8.dp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = infoSurfaceAppearance.borderAlpha),
+                    color = Color.White.copy(alpha = infoSurfaceAppearance.borderAlpha),
                     shape = infoSurfaceShape
                 )
                 .padding(
@@ -1211,6 +1303,7 @@ fun ElegantVideoCard(
                 Box(modifier = viewsRowModifier) {
                     HomeVideoBadgePill(
                         style = badgeStylePolicy.infoStyle,
+                        useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
                         shape = AppShapes.container(ContainerLevel.Pill),
                         containerColor = inlinePillColors.containerColor,
                         borderColor = inlinePillColors.borderColor
@@ -1235,6 +1328,7 @@ fun ElegantVideoCard(
                     HomeVideoBadgePill(
                         modifier = danmakuModifier,
                         style = badgeStylePolicy.infoStyle,
+                        useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
                         shape = AppShapes.container(ContainerLevel.Pill),
                         containerColor = inlinePillColors.containerColor,
                         borderColor = inlinePillColors.borderColor
@@ -1257,6 +1351,7 @@ fun ElegantVideoCard(
                 if (onlineCount.isNotEmpty()) {
                     HomeVideoBadgePill(
                         style = badgeStylePolicy.infoStyle,
+                        useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
                         shape = AppShapes.container(ContainerLevel.Pill),
                         containerColor = inlinePillColors.containerColor,
                         borderColor = inlinePillColors.borderColor
@@ -1377,13 +1472,38 @@ internal fun HomeVideoBadgePill(
     containerColor: Color,
     borderColor: Color,
     modifier: Modifier = Modifier,
+    /** When true, sample [LocalMainHazeState] like the bottom bar (realtime blur). */
+    useRealtimeHaze: Boolean = false,
     content: @Composable RowScope.() -> Unit
 ) {
     if (style == HomeVideoBadgeStyle.GLASS) {
+        // Wallpaper-only HazeState (sibling source), never main content HazeState —
+        // badges live inside the main hazeSource and would SO the render tree otherwise.
+        val hazeState = LocalWallpaperHazeState.current
+        // Match bottom bar: keep blur on while scrolling (isScrolling=false → full visual path).
+        val glassModifier = if (useRealtimeHaze && hazeState != null) {
+            modifier.unifiedBlur(
+                hazeState = hazeState,
+                shape = shape,
+                surfaceType = BlurSurfaceType.BOTTOM_BAR,
+                // Bottom bar intentionally does not zero blur on feed scroll.
+                isScrolling = false,
+                isTransitionRunning = false,
+                forceLowBudget = false
+            )
+        } else {
+            modifier
+        }
+        // Slightly clearer fill when realtime haze already provides frosted backdrop.
+        val surfaceColor = if (useRealtimeHaze && hazeState != null) {
+            containerColor.copy(alpha = (containerColor.alpha * 0.55f).coerceIn(0.08f, 0.45f))
+        } else {
+            containerColor
+        }
         Surface(
-            modifier = modifier,
+            modifier = glassModifier,
             shape = shape,
-            color = containerColor,
+            color = surfaceColor,
             border = BorderStroke(0.8.dp, borderColor)
         ) {
             Row(

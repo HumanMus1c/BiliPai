@@ -51,6 +51,23 @@ internal fun mapDanmakuDisplayAreaRatioToCloudValue(displayAreaRatio: Float): In
     return (normalizeDanmakuDisplayArea(displayAreaRatio) * 100f).toInt()
 }
 
+/**
+ * B 站 `x/v2/dm/web/config` 的 fontsize 实测拒绝 ≤0.5（≤50% 同步失败）。
+ * 本地仍可调到更小；上云时抬到 API 可接受下限，避免「无法同步设置」。
+ */
+internal const val DANMAKU_CLOUD_FONT_SIZE_MIN_EXCLUSIVE = 0.5f
+internal const val DANMAKU_CLOUD_FONT_SIZE_MIN = 0.51f
+internal const val DANMAKU_CLOUD_FONT_SIZE_MAX = 1.6f
+
+internal fun mapDanmakuFontScaleToCloudFontSize(fontScale: Float): Float {
+    val clamped = fontScale.coerceIn(0.3f, DANMAKU_CLOUD_FONT_SIZE_MAX)
+    return if (clamped <= DANMAKU_CLOUD_FONT_SIZE_MIN_EXCLUSIVE) {
+        DANMAKU_CLOUD_FONT_SIZE_MIN
+    } else {
+        clamped
+    }
+}
+
 internal fun buildDanmakuCloudConfigPayload(settings: DanmakuCloudSyncSettings): DanmakuCloudConfigPayload {
     return DanmakuCloudConfigPayload(
         dmSwitch = settings.enabled.toCloudFlag(),
@@ -63,7 +80,7 @@ internal fun buildDanmakuCloudConfigPayload(settings: DanmakuCloudSyncSettings):
         opacity = settings.opacity.coerceIn(0f, 1f),
         dmArea = mapDanmakuDisplayAreaRatioToCloudValue(settings.displayAreaRatio),
         speedPlus = settings.speed.coerceIn(0.4f, 1.6f),
-        fontSize = settings.fontScale.coerceIn(0.4f, 1.6f)
+        fontSize = mapDanmakuFontScaleToCloudFontSize(settings.fontScale)
     )
 }
 

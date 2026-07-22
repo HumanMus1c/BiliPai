@@ -13,7 +13,7 @@ class AppVersionPolicyTest {
             File("build.gradle.kts")
         ).first { it.exists() }.readText()
 
-        assertTrue(buildFile.contains("versionCode = 260"))
-        assertTrue(buildFile.contains("versionName = \"9.9.8.5\""))
+        assertTrue(buildFile.contains("versionCode = 262"))
+        assertTrue(buildFile.contains("versionName = \"9.9.8.7\""))
     }
 }

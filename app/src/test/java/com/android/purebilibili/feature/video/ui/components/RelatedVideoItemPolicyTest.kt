@@ -66,7 +66,10 @@ class RelatedVideoItemPolicyTest {
             .readText()
 
         assertTrue(source.contains("RELATED_VIDEO_CARD_COVER_ASPECT_RATIO"))
-        assertTrue(source.contains("aspectRatio(RELATED_VIDEO_CARD_COVER_ASPECT_RATIO)"))
+        assertTrue(source.contains("coverAspectRatio: Float = RELATED_VIDEO_CARD_COVER_ASPECT_RATIO"))
+        assertTrue(source.contains("aspectRatio(coverAspectRatio)"))
+        assertTrue(source.contains("resolveHomeFeedCardLayout(homeFeedCardStyle)"))
+        assertTrue(source.contains("coverAspectRatio = cardLayout.coverAspectRatio"))
         assertTrue(source.contains("videoCardShellSharedBoundsOrEmpty("))
         assertTrue(source.contains("RelatedVideoGridRow("))
         assertTrue(source.contains("chunkRelatedVideosForHomeStyleGrid("))
@@ -115,5 +118,14 @@ class RelatedVideoItemPolicyTest {
                 transitionEnabled = false
             )
         )
+    }
+
+    @Test
+    fun `related cards expose official style more menu entry`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/RelatedVideoItem.kt")
+            .readText()
+        assertTrue(source.contains("onMoreClick: (() -> Unit)? = null"))
+        assertTrue(source.contains("RelatedVideoActionSheet("))
+        assertTrue(source.contains("onVideoHidden"))
     }
 }

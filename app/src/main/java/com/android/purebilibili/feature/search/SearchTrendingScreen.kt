@@ -23,7 +23,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.North
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.CircularProgressIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -97,7 +97,7 @@ fun SearchTrendingScreen(
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                AdaptiveLoadingIndicator()
             }
 
             state.error != null && state.items.isEmpty() -> Box(
@@ -113,10 +113,12 @@ fun SearchTrendingScreen(
                 )
             }
 
+            // Scaffold padding applied on the box — indicator at content top.
             else -> AdaptivePullToRefreshBox(
                 isRefreshing = state.isRefreshing,
                 onRefresh = viewModel::refresh,
                 state = pullRefreshState,
+                indicatorTopInset = 0.dp,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)

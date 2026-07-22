@@ -56,6 +56,81 @@ class VideoCardReturnTimelineTest {
     }
 
     @Test
+    fun settleFromMorphDepth_isInverseOfDepth() {
+        assertEquals(0f, resolveVideoCardReturnSettleFromMorphDepth(1f), 0.0001f)
+        assertEquals(1f, resolveVideoCardReturnSettleFromMorphDepth(0f), 0.0001f)
+        assertEquals(0.4f, resolveVideoCardReturnSettleFromMorphDepth(0.6f), 0.0001f)
+    }
+
+    @Test
+    fun liveMorphContentAlpha_prefersMorphDepthOverDualSourceMax() {
+        // 双源会取较晚 settle；单时钟只认 morphDepth=0.9 → settle 0.1 → 正文仍满
+        assertEquals(
+            1f,
+            resolveVideoCardLiveMorphSecondaryContentAlpha(
+                transitionProgress = 0.2f,
+                depthBlurProgress = 0.2f,
+                morphDepthProgress = 0.9f,
+            ),
+            0.0001f,
+        )
+        // morphDepth=0.2 → settle 0.8 → 正文已让位
+        val late = resolveVideoCardLiveMorphSecondaryContentAlpha(
+            morphDepthProgress = 0.2f,
+        )
+        assertTrue(late < 0.3f)
+    }
+
+    @Test
+    fun returnSessionLock_allowsUpgradeToLiveAndBlocksDemotion() {
+        val first = resolveReturnSessionLockedCoverOwnership(
+            lockedOwnership = null,
+            isReturnSessionActive = true,
+            candidateOwnership = VideoCardReturnCoverOwnership.RESIDENT_COVER,
+        )
+        assertEquals(VideoCardReturnCoverOwnership.RESIDENT_COVER, first.second)
+        // 首帧就绪：必须升到 LIVE，保留一镜到底实时画面
+        val upgraded = resolveReturnSessionLockedCoverOwnership(
+            lockedOwnership = first.first,
+            isReturnSessionActive = true,
+            candidateOwnership = VideoCardReturnCoverOwnership.LIVE_SURFACE,
+        )
+        assertEquals(VideoCardReturnCoverOwnership.LIVE_SURFACE, upgraded.second)
+        // LIVE 不得降回封面
+        val noDemote = resolveReturnSessionLockedCoverOwnership(
+            lockedOwnership = upgraded.first,
+            isReturnSessionActive = true,
+            candidateOwnership = VideoCardReturnCoverOwnership.RESIDENT_COVER,
+        )
+        assertEquals(VideoCardReturnCoverOwnership.LIVE_SURFACE, noDemote.second)
+        val ended = resolveReturnSessionLockedCoverOwnership(
+            lockedOwnership = noDemote.first,
+            isReturnSessionActive = false,
+            candidateOwnership = VideoCardReturnCoverOwnership.RESIDENT_COVER,
+        )
+        assertEquals(null, ended.first)
+        assertEquals(VideoCardReturnCoverOwnership.RESIDENT_COVER, ended.second)
+    }
+
+    @Test
+    fun forceCoverOnly_neverWhenLiveOwnership() {
+        assertFalse(
+            shouldForceCoverOnlyForReturnOwnership(
+                ownership = VideoCardReturnCoverOwnership.LIVE_SURFACE,
+                useReturningVisualState = true,
+                forceCoverOnlyOnReturn = true,
+            )
+        )
+        assertTrue(
+            shouldForceCoverOnlyForReturnOwnership(
+                ownership = VideoCardReturnCoverOwnership.RESIDENT_COVER,
+                useReturningVisualState = true,
+                forceCoverOnlyOnReturn = false,
+            )
+        )
+    }
+
+    @Test
     fun coverOwnership_tableCoversLiveResidentAndFallback() {
         data class Case(
             val name: String,
@@ -259,15 +334,16 @@ class VideoCardReturnTimelineTest {
         assertEquals(0f, quick.chromeRevealStart)
         assertEquals(0f, quick.sourceEnterFadeDelayRatio)
         assertFalse(shouldDelaySourceCardEnterOnReturn(isQuickReturnFromDetail = true))
-        assertTrue(shouldDelaySourceCardEnterOnReturn(isQuickReturnFromDetail = false))
+        assertFalse(shouldDelaySourceCardEnterOnReturn(isQuickReturnFromDetail = false))
+        assertTrue(canCoexistLiveSurfaceStableCoverAndChromeOnReturn())
     }
 
     @Test
     fun liveMorphSecondaryContent_yieldsNearSettleForTitle() {
-        // settle 0.2：尚未到 yield
+        // settle 0.1 < yieldStart(0.18)：尚未让位
         assertEquals(
             1f,
-            resolveVideoCardLiveMorphSecondaryContentAlpha(transitionProgress = 0.8f),
+            resolveVideoCardLiveMorphSecondaryContentAlpha(transitionProgress = 0.9f),
             0.001f,
         )
         // settle 1：完全让位

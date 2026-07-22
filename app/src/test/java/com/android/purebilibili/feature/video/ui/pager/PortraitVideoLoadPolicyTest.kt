@@ -4,16 +4,97 @@ import com.android.purebilibili.data.model.response.Dash
 import com.android.purebilibili.data.model.response.DashAudio
 import com.android.purebilibili.data.model.response.DashVideo
 import com.android.purebilibili.data.model.response.Durl
+import com.android.purebilibili.data.model.response.Owner
 import com.android.purebilibili.data.model.response.PlayUrlData
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.model.response.ViewInfo
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PortraitVideoLoadPolicyTest {
+
+    @Test
+    fun enrichPortraitPageItemWithLoadedInfo_fillsOwnerFromDetail() {
+        val seed = ViewInfo(bvid = "BV1", title = "seed", pic = "cover")
+        val loaded = ViewInfo(
+            bvid = "BV1",
+            aid = 99L,
+            cid = 12L,
+            title = "正式标题",
+            pic = "https://i0.hdslb.com/bfs/cover.jpg",
+            owner = Owner(mid = 42L, name = "熊猫大G", face = "https://face")
+        )
+
+        val enriched = assertIs<ViewInfo>(
+            enrichPortraitPageItemWithLoadedInfo(existing = seed, loaded = loaded)
+        )
+        assertEquals("熊猫大G", enriched.owner.name)
+        assertEquals(42L, enriched.owner.mid)
+        assertEquals("正式标题", enriched.title)
+        assertEquals(99L, enriched.aid)
+        assertEquals(12L, enriched.cid)
+    }
+
+    @Test
+    fun resolvePortraitAuthorLabel_avoidsBareAtWhenNameMissing() {
+        assertEquals("UP主", resolvePortraitAuthorLabel(""))
+        assertEquals("UP主", resolvePortraitAuthorLabel("   "))
+        assertEquals("@熊猫大G", resolvePortraitAuthorLabel("熊猫大G"))
+    }
+
+    @Test
+    fun playbackTargetQuality_prefersUserSettingOverFallback() {
+        assertEquals(64, resolvePortraitPlaybackTargetQuality())
+        assertEquals(80, resolvePortraitPlaybackTargetQuality(preferredQuality = 80))
+        assertEquals(125, resolvePortraitPlaybackTargetQuality(preferredQuality = 125))
+        assertEquals(127, resolvePortraitPlaybackTargetQuality(preferredQuality = 127))
+        assertEquals(64, resolvePortraitPlaybackTargetQuality(preferredQuality = 0))
+        assertEquals(64, resolvePortraitPlaybackTargetQuality(preferredQuality = -1))
+    }
+
+    @Test
+    fun qualityLabel_coversPremiumAndAutoTiers() {
+        assertEquals("自动", resolvePortraitQualityLabel(127))
+        assertEquals("HDR", resolvePortraitQualityLabel(125))
+        assertEquals("4K", resolvePortraitQualityLabel(120))
+        assertEquals("1080P", resolvePortraitQualityLabel(80))
+        assertEquals("720P", resolvePortraitQualityLabel(64))
+    }
+
+    @Test
+    fun availableQualityIds_unionsDashAndAcceptSortedDesc() {
+        assertEquals(
+            listOf(125, 120, 80, 64, 32),
+            resolvePortraitAvailableQualityIds(
+                acceptQualities = listOf(125, 120, 80, 64, 32),
+                dashVideoIds = listOf(80, 64)
+            )
+        )
+    }
+
+    @Test
+    fun displayedQualityId_prefersExactRequestedDashTrack() {
+        assertEquals(
+            80,
+            resolvePortraitDisplayedQualityId(
+                requestedQuality = 80,
+                returnedQuality = 64,
+                dashVideoIds = listOf(80, 64)
+            )
+        )
+        assertEquals(
+            64,
+            resolvePortraitDisplayedQualityId(
+                requestedQuality = 125,
+                returnedQuality = 64,
+                dashVideoIds = listOf(64, 32)
+            )
+        )
+    }
 
     @Test
     fun parallelBootstrap_enablesWhenFeedProvidesCid() {
@@ -109,6 +190,41 @@ class PortraitVideoLoadPolicyTest {
 
         assertEquals("https://cdn.example/64.m4s", urls?.videoUrl)
         assertEquals("https://cdn.example/audio.m4s", urls?.audioUrl)
+    }
+
+    @Test
+    fun playbackStreamUrls_honorsPreferredHighQualityTrack() {
+        val playData = PlayUrlData(
+            dash = Dash(
+                video = listOf(
+                    DashVideo(
+                        id = 64,
+                        baseUrl = "https://cdn.example/64.m4s",
+                        codecs = "avc1.64001E"
+                    ),
+                    DashVideo(
+                        id = 80,
+                        baseUrl = "https://cdn.example/80.m4s",
+                        codecs = "hev1.1.6.L120.90"
+                    )
+                ),
+                audio = listOf(
+                    DashAudio(
+                        id = 30232,
+                        baseUrl = "https://cdn.example/audio.m4s"
+                    )
+                )
+            )
+        )
+
+        val urls = resolvePortraitPlaybackStreamUrls(
+            playData = playData,
+            targetQuality = 80,
+            isHevcSupported = true,
+            isAv1Supported = false
+        )
+
+        assertEquals("https://cdn.example/80.m4s", urls?.videoUrl)
     }
 
     @Test

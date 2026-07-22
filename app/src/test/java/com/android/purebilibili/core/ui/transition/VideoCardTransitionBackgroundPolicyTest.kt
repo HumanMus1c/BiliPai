@@ -109,15 +109,54 @@ class VideoCardTransitionBackgroundPolicyTest {
         val frame = resolveVideoCardTransitionBackgroundFrame(
             progress = 1f,
             phase = VideoCardTransitionBackgroundPhase.OPENING,
+            motionTier = MotionTier.Enhanced,
             isLightBackground = false,
             sdkInt = 35
         )
 
         assertEquals(20f, frame.blurRadiusPx)
         assertEquals(0f, frame.blurRadiusPx % 1f)
-        assertEquals(0.22f, frame.scrimAlpha)
+        assertEquals(0.28f, frame.scrimAlpha)
         assertFalse(frame.useLightScrimTint)
-        assertEquals(0.96f, frame.contentScale, 0.0001f)
+        // 1 - 0.055 = 0.945
+        assertEquals(0.945f, frame.contentScale, 0.0001f)
+    }
+
+    @Test
+    fun normalAndEnhancedShareFullBlurBudget_noDeviceTierDowngrade() {
+        val normal = resolveVideoCardTransitionBackgroundFrame(
+            progress = 1f,
+            phase = VideoCardTransitionBackgroundPhase.OPENING,
+            motionTier = MotionTier.Normal,
+            sdkInt = 35,
+        )
+        val enhanced = resolveVideoCardTransitionBackgroundFrame(
+            progress = 1f,
+            phase = VideoCardTransitionBackgroundPhase.OPENING,
+            motionTier = MotionTier.Enhanced,
+            sdkInt = 35,
+        )
+
+        assertEquals(20f, normal.blurRadiusPx)
+        assertEquals(20f, enhanced.blurRadiusPx)
+        assertEquals(20f, resolveVideoCardTransitionMaxBlurRadiusPx(MotionTier.Normal))
+        assertEquals(20f, resolveVideoCardTransitionMaxBlurRadiusPx(MotionTier.Enhanced))
+        assertEquals(0f, resolveVideoCardTransitionMaxBlurRadiusPx(MotionTier.Reduced))
+        assertEquals(1f, resolveVideoCardTransitionBlurQuantumPx(MotionTier.Normal))
+        assertEquals(1f, resolveVideoCardTransitionBlurQuantumPx(MotionTier.Enhanced))
+    }
+
+    @Test
+    fun openingEarlyProgressStillAppliesBlurForVisualQuality() {
+        val early = resolveVideoCardTransitionBackgroundFrame(
+            progress = 0.1f,
+            phase = VideoCardTransitionBackgroundPhase.OPENING,
+            motionTier = MotionTier.Normal,
+            sdkInt = 35,
+        )
+        assertEquals(2f, early.blurRadiusPx, 1f)
+        assertTrue(early.scrimAlpha > 0f)
+        assertTrue(early.blurRadiusPx > 0f)
     }
 
     @Test
@@ -125,12 +164,13 @@ class VideoCardTransitionBackgroundPolicyTest {
         val frame = resolveVideoCardTransitionBackgroundFrame(
             progress = 1f,
             phase = VideoCardTransitionBackgroundPhase.OPENING,
+            motionTier = MotionTier.Enhanced,
             isLightBackground = true,
             sdkInt = 35
         )
 
         assertEquals(20f, frame.blurRadiusPx)
-        assertEquals(0.11f, frame.scrimAlpha)
+        assertEquals(0.14f, frame.scrimAlpha)
         assertTrue(frame.useLightScrimTint)
     }
 
@@ -145,7 +185,7 @@ class VideoCardTransitionBackgroundPolicyTest {
         )
 
         assertEquals(0f, frame.blurRadiusPx)
-        assertEquals(0.07f, frame.scrimAlpha)
+        assertEquals(0.08f, frame.scrimAlpha)
         assertTrue(frame.useLightScrimTint)
     }
 
@@ -166,16 +206,58 @@ class VideoCardTransitionBackgroundPolicyTest {
     }
 
     @Test
-    fun softClearDepthKeepsMoreBlurThroughMidReturn() {
-        assertEquals(1f, softClearVideoCardTransitionDepth(1f), 0.0001f)
-        assertEquals(0.75f, softClearVideoCardTransitionDepth(0.5f), 0.0001f)
-        assertEquals(0f, softClearVideoCardTransitionDepth(0f), 0.0001f)
-        assertTrue(
-            softClearVideoCardTransitionDepth(0.5f) >
-                resolveVideoCardTransitionDepthProgress(
-                    progress = 0.5f,
-                    phase = VideoCardTransitionBackgroundPhase.OPENING,
-                ),
+    fun returningDepthProgressIsLinearToLockstepWithMorph() {
+        // RETURNING 与 OPENING 同源线性，禁止 soft-clear 二次映射拖糊。
+        assertEquals(
+            0.5f,
+            resolveVideoCardTransitionDepthProgress(
+                progress = 0.5f,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+            ),
+            0.0001f,
+        )
+        assertEquals(
+            0.5f,
+            resolveVideoCardTransitionDepthProgress(
+                progress = 0.5f,
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+            ),
+            0.0001f,
+        )
+        // 遗留 soft-clear 曲线仍可算，但主路径不再使用。
+        assertEquals(0.5647f, softClearVideoCardTransitionDepth(0.5f), 0.01f)
+    }
+
+    @Test
+    fun morphAlignedDepthClearDuration_matchesMorphRemainingWallClock() {
+        assertEquals(
+            360,
+            resolveMorphAlignedDepthClearDurationMs(
+                morphRemainingMs = 360,
+                blurStartProgress = 1f,
+            ),
+        )
+        assertEquals(
+            180,
+            resolveMorphAlignedDepthClearDurationMs(
+                morphRemainingMs = 360,
+                blurStartProgress = 0.5f,
+            ),
+        )
+        // 禁止 min 160 地板：手势已拖到底后不应再补一段长消糊。
+        assertEquals(
+            0,
+            resolveMorphAlignedDepthClearDurationMs(
+                morphRemainingMs = 90,
+                blurStartProgress = 0f,
+            ),
+        )
+        assertEquals(
+            18,
+            resolveMorphAlignedDepthClearDurationMs(
+                morphRemainingMs = 90,
+                blurStartProgress = 0.2f,
+            ),
         )
     }
 
@@ -184,29 +266,33 @@ class VideoCardTransitionBackgroundPolicyTest {
         val start = resolveVideoCardTransitionBackgroundFrame(
             progress = 1f,
             phase = VideoCardTransitionBackgroundPhase.RETURNING,
+            motionTier = MotionTier.Enhanced,
             sdkInt = 35
         )
         val middle = resolveVideoCardTransitionBackgroundFrame(
             progress = 0.5f,
             phase = VideoCardTransitionBackgroundPhase.RETURNING,
+            motionTier = MotionTier.Enhanced,
             sdkInt = 35
         )
         val end = resolveVideoCardTransitionBackgroundFrame(
             progress = 0f,
             phase = VideoCardTransitionBackgroundPhase.RETURNING,
+            motionTier = MotionTier.Enhanced,
             sdkInt = 35
         )
 
         assertEquals(20f, start.blurRadiusPx)
-        // soft-clear：progress=0.5 时 depth≈0.75，blur 仍约 15px，中段不清空。
-        assertEquals(15f, middle.blurRadiusPx)
+        // 线性锁步：progress=0.5 → blur 10px
+        assertEquals(10f, middle.blurRadiusPx, 1f)
         assertTrue(middle.blurRadiusPx in 1f..<start.blurRadiusPx)
         assertEquals(0f, end.blurRadiusPx)
         assertTrue(start.scrimAlpha > middle.scrimAlpha)
         assertTrue(middle.scrimAlpha > 0f)
         assertEquals(0f, end.scrimAlpha)
-        assertEquals(0.96f, start.contentScale, 0.0001f)
-        assertEquals(0.97f, middle.contentScale, 0.0001f)
+        assertEquals(0.945f, start.contentScale, 0.0001f)
+        // 线性：p=0.5 → scale = 1 - 0.055*0.5 = 0.9725
+        assertEquals(0.9725f, middle.contentScale, 0.0001f)
         assertEquals(1f, end.contentScale)
     }
 
@@ -226,14 +312,15 @@ class VideoCardTransitionBackgroundPolicyTest {
         val frame = resolveVideoCardTransitionBackgroundFrame(
             progress = 1f,
             phase = VideoCardTransitionBackgroundPhase.HELD,
+            motionTier = MotionTier.Enhanced,
             isLightBackground = false,
             sdkInt = 35
         )
 
         assertEquals(20f, frame.blurRadiusPx)
         // HELD 保留与满进度开场一致的压暗，避免详情停留时景深断裂。
-        assertEquals(0.22f, frame.scrimAlpha)
-        assertEquals(0.96f, frame.contentScale, 0.0001f)
+        assertEquals(0.28f, frame.scrimAlpha)
+        assertEquals(0.945f, frame.contentScale, 0.0001f)
     }
 
     @Test
@@ -251,8 +338,8 @@ class VideoCardTransitionBackgroundPolicyTest {
             isGestureRestoreInProgress = true,
         )
 
-        assertEquals(0.96f, openingScale, 0.0001f)
-        assertEquals(0.98f, restoreScale, 0.0001f)
+        assertEquals(0.945f, openingScale, 0.0001f)
+        assertEquals(0.9725f, restoreScale, 0.002f)
     }
 
     @Test
@@ -297,8 +384,8 @@ class VideoCardTransitionBackgroundPolicyTest {
 
         assertTrue(frame.blurRadiusPx > 0f)
         assertTrue(frame.scrimAlpha > 0f)
-        // soft-clear：p=0.25 → depth=0.4375 → scale=1-0.04*0.4375
-        assertEquals(0.9825f, frame.contentScale, 0.0001f)
+        // 线性：p=0.25 → scale = 1 - 0.055*0.25 = 0.98625
+        assertEquals(0.98625f, frame.contentScale, 0.0001f)
     }
 
     @Test
@@ -615,9 +702,9 @@ class VideoCardTransitionBackgroundPolicyTest {
             isLightBackground = false,
         )
 
-        assertEquals(0.11f, heldFull.scrimAlpha)
+        assertEquals(0.14f, heldFull.scrimAlpha)
         assertTrue(heldHalf.scrimAlpha < heldFull.scrimAlpha)
-        assertEquals(0.22f, openingFull.scrimAlpha)
+        assertEquals(0.28f, openingFull.scrimAlpha)
         assertTrue(heldFull.useLightScrimTint)
         assertFalse(openingFull.useLightScrimTint)
     }
@@ -642,7 +729,7 @@ class VideoCardTransitionBackgroundPolicyTest {
     fun scaleGapFillKeepsOpaqueGrayFloorSoPredictiveBackEdgesDoNotReadAsWhiteBars() {
         val lightHeld = resolveVideoCardTransitionScaleGapFillColor(
             isLightBackground = true,
-            scrimAlpha = 0.11f,
+            scrimAlpha = 0.14f,
         )
         val lightMidGesture = resolveVideoCardTransitionScaleGapFillColor(
             isLightBackground = true,
@@ -650,7 +737,7 @@ class VideoCardTransitionBackgroundPolicyTest {
         )
         val darkHeld = resolveVideoCardTransitionScaleGapFillColor(
             isLightBackground = false,
-            scrimAlpha = 0.22f,
+            scrimAlpha = 0.28f,
         )
 
         assertEquals(1f, lightHeld.alpha)

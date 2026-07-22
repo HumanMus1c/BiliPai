@@ -258,8 +258,11 @@ internal fun resolveBiliPaiNavEntryPopRouteTransition(
     }
 
     if (cardTransitionEnabled) {
-        val sharedReadyVideoToSourceCard = sourceMetadata.sharedTransitionEntryReady &&
-            videoToCardReturnTarget &&
+        // 完整进入详情后 CardPositionManager 可能过期或 key 失配；只要 session 仍记着
+        // 列表来源，Video→卡片返回就必须 NO_OP，交给 shell sharedBounds 落位。
+        // 否则 FALLBACK fade 会盖掉 morph，表现为「卡片已经在原位、没有落位动画」。
+        val sharedReadyVideoToSourceCard = videoToCardReturnTarget &&
+            !normalizedSourceRoute.isNullOrBlank() &&
             (
                 normalizedToRoute == normalizedSourceRoute ||
                     (
@@ -324,8 +327,11 @@ internal fun resolveBiliPaiNavEntryRouteTransitions(
     val recordedMatchingVideoSource = isSharedReadyCardMorphPush(key, sourceMetadata)
     val sharedReadyVideoPush = recordedMatchingVideoSource &&
         sourceMetadata.sharedTransitionEntryReady
-    val directionalVideoPushReady = recordedMatchingVideoSource &&
-        sourceMetadata.sharedTransitionReady
+    // Card-disabled directional motion: any VideoDetail with a known left/right origin.
+    // Do NOT require strict shared-element key matching — that caused hard-cut enter and
+    // always-right exit when home?category keys diverged from session keys.
+    val directionalVideoPushReady = key is BiliPaiNavKey.VideoDetail &&
+        sourceMetadata.cardSourceDirection != BiliPaiNavCardSourceDirection.NONE
     val sharedReadyFavoriteCollection =
         key is BiliPaiNavKey.SeasonSeriesDetail && key.sharedElementTransition
     val relatedVideoDetail = key is BiliPaiNavKey.VideoDetail &&
@@ -339,15 +345,29 @@ internal fun resolveBiliPaiNavEntryRouteTransitions(
             BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         !cardTransitionEnabled && directionalVideoPushReady ->
             resolveCardDisabledVideoForwardTransition(sourceMetadata.cardSourceDirection)
-                ?: BiliPaiNavRouteTransition.FALLBACK
+                ?: BiliPaiNavRouteTransition.LIGHT_SIBLING_FORWARD
+        !cardTransitionEnabled && key is BiliPaiNavKey.VideoDetail ->
+            // No left/right origin: soft sibling push, never 180ms hard-cut fade.
+            BiliPaiNavRouteTransition.LIGHT_SIBLING_FORWARD
         else -> BiliPaiNavRouteTransition.FALLBACK
     }
+    val videoHasMorphSource = key is BiliPaiNavKey.VideoDetail &&
+        !key.sourceRoute.isNullOrBlank()
     val pop = when {
         cardTransitionEnabled && relatedVideoDetail ->
+            BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
+        // 有列表来源的 VideoDetail：pop 默认 NO_OP，避免 entry metadata 在完整观看后
+        // 仍以 FALLBACK 写入、依赖瞬时 CardPosition 二次解析才勉强 NO_OP。
+        cardTransitionEnabled && videoHasMorphSource ->
             BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         cardTransitionEnabled && sharedReadyFavoriteCollection ->
             BiliPaiNavRouteTransition.LIGHT_SIBLING_POP
         // Story 返回不用 NO_OP shared：没有 sharedBounds 对端，NO_OP 会黑底卡死。
+        // 关闭整卡过渡时，把方向化 pop 写进 entry metadata 默认值，避免仅依赖 pop 路径解析。
+        !cardTransitionEnabled && directionalVideoPushReady ->
+            resolveCardDisabledReturnTransition(sourceMetadata.cardSourceDirection)
+        !cardTransitionEnabled && key is BiliPaiNavKey.VideoDetail ->
+            BiliPaiNavRouteTransition.LIGHT_SIBLING_POP
         else -> BiliPaiNavRouteTransition.FALLBACK
     }
     return BiliPaiNavEntryRouteTransitions(

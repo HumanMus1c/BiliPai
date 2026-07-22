@@ -164,8 +164,10 @@ import com.android.purebilibili.navigation3.popBiliPaiNavKeyToRoot
 import com.android.purebilibili.navigation3.pushBiliPaiNavKey
 import com.android.purebilibili.navigation3.pushOrReplaceSettingsCategoryNavKey
 import com.android.purebilibili.navigation3.resolveBiliPaiBackGestureDecision
+import com.android.purebilibili.navigation3.areVideoSourceKeysCompatible
 import com.android.purebilibili.navigation3.resolveBiliPaiNavCardSourceDirection
 import com.android.purebilibili.navigation3.resolveBiliPaiNavEntryContentRole
+import com.android.purebilibili.navigation3.resolveEffectiveCardSourceDirection
 import com.android.purebilibili.navigation3.resolveNavigation3SaveableStateKey
 import com.android.purebilibili.navigation3.resolveBiliPaiNavSourceMetadata
 import com.android.purebilibili.navigation3.shouldBindVideoDetailBackPreviewPlayer
@@ -594,17 +596,32 @@ fun AppNavigation(
         fun currentNavigation3SourceMetadata() = resolveBiliPaiNavSourceMetadata(
             sourceKey = navigation3ReturnSession.lastVideoSourceKey,
             sourceRoute = navigation3ReturnSession.lastVideoSourceRoute,
+            // Shared-element still wants key compatibility; geometry alone is enough for L/R direction.
             clickedBoundsRecorded = CardPositionManager.lastClickedCardBounds != null &&
-                CardPositionManager.lastClickedVideoSourceKey == navigation3ReturnSession.lastVideoSourceKey,
+                areVideoSourceKeysCompatible(
+                    cardKey = CardPositionManager.lastClickedVideoSourceKey,
+                    sessionKey = navigation3ReturnSession.lastVideoSourceKey
+                ),
             cardFullyVisible = CardPositionManager.isCardFullyVisible,
-            cardSourceDirection = resolveBiliPaiNavCardSourceDirection(
-                clickedBoundsRecorded = CardPositionManager.lastClickedCardBounds != null &&
-                    CardPositionManager.lastClickedVideoSourceKey == navigation3ReturnSession.lastVideoSourceKey,
+            cardSourceDirection = resolveEffectiveCardSourceDirection(
+                liveDirection = resolveBiliPaiNavCardSourceDirection(
+                    // Direction only needs click geometry, not strict key equality.
+                    clickedBoundsRecorded = CardPositionManager.lastClickedCardBounds != null,
+                    cardFullyVisible = CardPositionManager.isCardFullyVisible,
+                    isSingleColumnCard = CardPositionManager.isSingleColumnCard,
+                    normalizedCenterX = CardPositionManager.lastClickedCardCenter?.x
+                ),
+                sessionDirection = navigation3ReturnSession.lastCardSourceDirection
+            )
+        )
+        fun captureCardSourceDirectionForSession(): BiliPaiNavCardSourceDirection {
+            return resolveBiliPaiNavCardSourceDirection(
+                clickedBoundsRecorded = CardPositionManager.lastClickedCardBounds != null,
                 cardFullyVisible = CardPositionManager.isCardFullyVisible,
                 isSingleColumnCard = CardPositionManager.isSingleColumnCard,
                 normalizedCenterX = CardPositionManager.lastClickedCardCenter?.x
             )
-        )
+        }
         fun pushNavigation3KeyDirect(key: BiliPaiNavKey) {
             navigation3BackStack = when (key) {
                 is BiliPaiNavKey.SettingsCategory -> pushOrReplaceSettingsCategoryNavKey(
@@ -723,6 +740,7 @@ fun AppNavigation(
             if (source.route != null) {
                 navigation3ReturnSession = navigation3ReturnSession
                     .recordVideoSource(source)
+                    .recordCardSourceDirection(captureCardSourceDirectionForSession())
                     .markDetailEntered(SystemClock.uptimeMillis())
             }
             pushNavigation3Key(
@@ -818,6 +836,7 @@ fun AppNavigation(
             )
             navigation3ReturnSession = navigation3ReturnSession
                 .recordVideoSource(source)
+                .recordCardSourceDirection(captureCardSourceDirectionForSession())
                 .markDetailEntered(SystemClock.uptimeMillis())
             miniPlayerManager?.isNavigatingToVideo = true
             miniPlayerManager?.exitMiniMode(animate = false)
@@ -1306,12 +1325,24 @@ fun AppNavigation(
         // Capture the wallpaper and navigation content together so transparent wallpaper-aware
         // pages feed the same background into the floating dock as Home.
         val bottomBarBackdrop = rememberMiuixLayerBackdrop()
+        // Wallpaper-only Haze source for card badge frosted glass. Must stay separate from
+        // mainHazeState: badges live inside the main content source tree, and reusing that
+        // state for hazeEffect causes HWUI prepareTree stack overflow.
+        val wallpaperHazeState = if (mainHazeState != null) {
+            com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState(
+                initialBlurEnabled = true
+            )
+        } else {
+            null
+        }
 
         CompositionLocalProvider(
             LocalSetBottomBarVisible provides setBottomBarVisible,
             LocalBottomBarVisible provides finalBottomBarVisible,
             LocalGlobalWallpaperBackdropVisible provides exposeGlobalHomeWallpaperChrome,
             LocalPredictiveBackGestureEnabled provides predictiveBackEnabled,
+            com.android.purebilibili.core.ui.LocalMainHazeState provides mainHazeState,
+            com.android.purebilibili.core.ui.LocalWallpaperHazeState provides wallpaperHazeState,
             com.android.purebilibili.feature.home.LocalHomeScrollChannel provides homeScrollChannel,
             LocalDynamicScrollChannel provides dynamicScrollChannel,
             com.android.purebilibili.feature.home.LocalHomeScrollOffset provides scrollOffsetState,
@@ -1331,7 +1362,12 @@ fun AppNavigation(
                 if (manager.shouldShowInAppMiniPlayer()) {
                     manager.enterMiniMode()
                 } else if (shouldMarkNavigationLeaveBeforeVideoExit(isMiniMode = manager.isMiniMode)) {
-                    manager.markLeavingByNavigation(expectedBvid = videoKey.bvid)
+                    // 卡片过渡开启时延后停播：完整进入后再返回需要 live surface 跟壳缩。
+                    manager.markLeavingByNavigation(
+                        expectedBvid = videoKey.bvid,
+                        deferPlaybackStop = cardTransitionEnabled &&
+                            !videoKey.sourceRoute.isNullOrBlank(),
+                    )
                 }
             }
 
@@ -1418,17 +1454,32 @@ fun AppNavigation(
                         // 必须添加 hazeSource，否则底栏的 hazeEffect 无法获取背景内容，导致模糊失效
                         .then(if (mainHazeState != null) Modifier.hazeSourceCompat(mainHazeState) else Modifier)
                 ) {
-                    DepthSyncedGlobalHomeWallpaperBackdrop(
-                        wallpaperUri = globalHomeWallpaperUri,
-                        appearance = globalHomeWallpaperAppearance,
-                        baseColor = backgroundColor,
-                        depthProgress = globalWallpaperDepthProgress,
-                        depthPhase = globalWallpaperDepthPhase,
-                        depthGestureRestore = globalWallpaperDepthGestureRestore,
-                        isDataSaverActive = isDataSaverActiveForGlobalWallpaper,
-                        isLightBackground = isLightBackground,
-                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
-                    )
+                    // Wallpaper-only source for card badge realtime blur (not nested under
+                    // the badge effect). Bottom bar still samples via mainHazeState above.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (wallpaperHazeState != null) {
+                                    Modifier.hazeSourceCompat(wallpaperHazeState)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                    ) {
+                        DepthSyncedGlobalHomeWallpaperBackdrop(
+                            wallpaperUri = globalHomeWallpaperUri,
+                            appearance = globalHomeWallpaperAppearance,
+                            baseColor = backgroundColor,
+                            depthProgress = globalWallpaperDepthProgress,
+                            depthPhase = globalWallpaperDepthPhase,
+                            depthGestureRestore = globalWallpaperDepthGestureRestore,
+                            isDataSaverActive = isDataSaverActiveForGlobalWallpaper,
+                            isLightBackground = isLightBackground,
+                            // Transition depth blur is independent of badge haze sampling.
+                            realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
+                        )
+                    }
                 fun bottomPagerNavKeyForItem(item: BottomNavItem): BiliPaiNavKey {
                     return when (item) {
                         BottomNavItem.HOME -> BiliPaiNavKey.Home

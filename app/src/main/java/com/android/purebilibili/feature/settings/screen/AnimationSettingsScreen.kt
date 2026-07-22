@@ -177,7 +177,7 @@ fun AnimationSettingsContent(
                         IOSSwitchItem(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_ENTRANCE_ANIMATION),
                             title = "界面入场动画",
-                            subtitle = "进入页面时内容逐条淡入浮现",
+                            subtitle = "设置等页面进入时内容逐条淡入；等导航转场落定后播放，不抢过渡",
                             checked = uiEntranceAnimationEnabled,
                             onCheckedChange = { value ->
                                 scope.launch {
@@ -216,7 +216,7 @@ fun AnimationSettingsContent(
 	                        IOSSwitchItem(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_ENTRANCE_ANIMATION),
                             title = "进场动画",
-                            subtitle = "首页视频卡片的入场动画效果",
+                            subtitle = "首页首屏卡片淡入；滚动复用不播，与过渡动画并存时仅淡入不改几何",
                             checked = state.cardAnimationEnabled,
                             onCheckedChange = { viewModel.toggleCardAnimation(it) },
                             iconTint = iOSPink
