@@ -287,12 +287,12 @@ class MainActivityAppCompatContractTest {
         val manifest = loadResourceText("../AndroidManifest.xml")
 
         mapOf(
-            "MainActivityAliasBlueSnowMaid" to SplashAliasContract("MainActivitySplashBlueSnowMaid", "Theme.PureBiliBili.Splash.BlueSnowMaid", "ic_launcher_blue_snow_maid"),
-            "MainActivityAliasBlueSnowMaidFront" to SplashAliasContract("MainActivitySplashBlueSnowMaidFront", "Theme.PureBiliBili.Splash.BlueSnowMaidFront", "ic_launcher_blue_snow_maid_front"),
-            "MainActivityAliasBlueSnowMaidLight" to SplashAliasContract("MainActivitySplashBlueSnowMaidLight", "Theme.PureBiliBili.Splash.BlueSnowMaidLight", "ic_launcher_blue_snow_maid_light"),
-            "MainActivityAliasBlueSnowMaidDark" to SplashAliasContract("MainActivitySplashBlueSnowMaidDark", "Theme.PureBiliBili.Splash.BlueSnowMaidDark", "ic_launcher_blue_snow_maid_dark"),
-            "MainActivityAliasBlueSnowMaidFrontLight" to SplashAliasContract("MainActivitySplashBlueSnowMaidFrontLight", "Theme.PureBiliBili.Splash.BlueSnowMaidFrontLight", "ic_launcher_blue_snow_maid_front_light"),
-            "MainActivityAliasBlueSnowMaidFrontDark" to SplashAliasContract("MainActivitySplashBlueSnowMaidFrontDark", "Theme.PureBiliBili.Splash.BlueSnowMaidFrontDark", "ic_launcher_blue_snow_maid_front_dark"),
+            "MainActivityAliasBlueSnowMaid" to SplashAliasContract("MainActivitySplashBlueSnowMaid", "Theme.PureBiliBili.Splash.BlueSnowMaid", "ic_launcher_blue_snow_maid", "@drawable/splash_icon_blue_snow_maid"),
+            "MainActivityAliasBlueSnowMaidFront" to SplashAliasContract("MainActivitySplashBlueSnowMaidFront", "Theme.PureBiliBili.Splash.BlueSnowMaidFront", "ic_launcher_blue_snow_maid_front", "@drawable/splash_icon_blue_snow_maid_front"),
+            "MainActivityAliasBlueSnowMaidLight" to SplashAliasContract("MainActivitySplashBlueSnowMaidLight", "Theme.PureBiliBili.Splash.BlueSnowMaidLight", "ic_launcher_blue_snow_maid_light", "@drawable/splash_icon_blue_snow_maid_light"),
+            "MainActivityAliasBlueSnowMaidDark" to SplashAliasContract("MainActivitySplashBlueSnowMaidDark", "Theme.PureBiliBili.Splash.BlueSnowMaidDark", "ic_launcher_blue_snow_maid_dark", "@drawable/splash_icon_blue_snow_maid_dark"),
+            "MainActivityAliasBlueSnowMaidFrontLight" to SplashAliasContract("MainActivitySplashBlueSnowMaidFrontLight", "Theme.PureBiliBili.Splash.BlueSnowMaidFrontLight", "ic_launcher_blue_snow_maid_front_light", "@drawable/splash_icon_blue_snow_maid_front_light"),
+            "MainActivityAliasBlueSnowMaidFrontDark" to SplashAliasContract("MainActivitySplashBlueSnowMaidFrontDark", "Theme.PureBiliBili.Splash.BlueSnowMaidFrontDark", "ic_launcher_blue_snow_maid_front_dark", "@drawable/splash_icon_blue_snow_maid_front_dark"),
             "MainActivityAlias3DLauncher" to SplashAliasContract("MainActivitySplashIcon3D", "Theme.PureBiliBili.Splash.Icon3D", "ic_launcher_3d"),
             "MainActivityAlias3D" to SplashAliasContract("MainActivitySplashIcon3D", "Theme.PureBiliBili.Splash.Icon3D", "ic_launcher_3d"),
             "MainActivityAliasBiliPai" to SplashAliasContract("MainActivitySplashBiliPai", "Theme.PureBiliBili.Splash.BiliPai", "ic_launcher_bilipai"),
@@ -326,8 +326,12 @@ class MainActivityAppCompatContractTest {
                 "${contract.targetActivity} should bind ${contract.theme} so Android splash follows the selected launcher icon"
             )
             assertTrue(
-                targetActivityBlock.contains("""android:icon="@mipmap/${contract.launcherIcon}""""),
-                "${contract.targetActivity} should reuse ${contract.launcherIcon} instead of exposing duplicate splash drawables"
+                targetActivityBlock.contains("""android:icon="${contract.splashActivityIcon}""""),
+                "${contract.targetActivity} should use ${contract.splashActivityIcon} from the first splash frame"
+            )
+            assertTrue(
+                targetActivityBlock.contains("""android:roundIcon="${contract.splashActivityIcon}""""),
+                "${contract.targetActivity} should keep the same rounded drawable for round-icon starting windows"
             )
         }
     }
@@ -520,7 +524,8 @@ class MainActivityAppCompatContractTest {
     private data class SplashAliasContract(
         val targetActivity: String,
         val theme: String,
-        val launcherIcon: String
+        val launcherIcon: String,
+        val splashActivityIcon: String = "@mipmap/$launcherIcon"
     )
 
     private fun readPngHeader(file: File): PngHeader {
