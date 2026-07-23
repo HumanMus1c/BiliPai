@@ -128,9 +128,12 @@ internal fun shouldHandlePortraitTapGesture(scale: Float): Boolean {
 
 internal fun shouldEnablePortraitPagerUserScroll(
     scale: Float,
-    commentOverlayActive: Boolean
+    commentOverlayActive: Boolean,
+    upPreviewActive: Boolean
 ): Boolean {
-    return shouldHandlePortraitTapGesture(scale = scale) && !commentOverlayActive
+    return shouldHandlePortraitTapGesture(scale = scale) &&
+        !commentOverlayActive &&
+        !upPreviewActive
 }
 
 internal fun shouldBlockPortraitPagerScrollForCommentOverlay(

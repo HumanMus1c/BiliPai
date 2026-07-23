@@ -6,6 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.android.purebilibili.core.store.DEFAULT_APP_ICON_KEY
+import com.android.purebilibili.core.store.AppIconAppearance
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.BottomBarSearchAutoExpandMode
 import com.android.purebilibili.core.store.BottomBarSearchLayoutMode
@@ -17,6 +19,7 @@ import com.android.purebilibili.core.store.resolveLegacyLiquidGlassProgress
 import com.android.purebilibili.core.store.resolveLegacyLiquidGlassMode
 import com.android.purebilibili.core.store.normalizeAppIconKey
 import com.android.purebilibili.core.store.resolveAppIconLauncherAlias
+import com.android.purebilibili.core.store.supportsAppIconAppearance
 import com.android.purebilibili.core.theme.AppFontSizePreset
 import com.android.purebilibili.core.theme.AppUiScalePreset
 import com.android.purebilibili.core.theme.AndroidNativeVariant
@@ -59,7 +62,7 @@ data class SettingsUiState(
     val bgPlay: Boolean = false,
     val gestureSensitivity: Float = 1.0f,
     val themeColorIndex: Int = 0,
-    val appIcon: String = "icon_3d",
+    val appIcon: String = DEFAULT_APP_ICON_KEY,
     val isBottomBarFloating: Boolean = true,
     val bottomBarLabelMode: Int = 1,  // 0=图标+文字, 1=仅图标, 2=仅文字
     val headerBlurEnabled: Boolean = true,
@@ -735,7 +738,22 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private suspend fun applyLauncherAliasForCurrentSplashIconSetting(iconKey: String) {
+    fun setAppIconAppearance(appearance: AppIconAppearance) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            SettingsManager.setAppIconAppearance(context, appearance)
+            val currentIcon = SettingsManager.getAppIconSync(context)
+            if (!supportsAppIconAppearance(currentIcon)) return@launch
+            applyLauncherAliasForCurrentSplashIconSetting(
+                iconKey = currentIcon,
+                appearance = appearance
+            )
+        }
+    }
+
+    private suspend fun applyLauncherAliasForCurrentSplashIconSetting(
+        iconKey: String,
+        appearance: AppIconAppearance = SettingsManager.getAppIconAppearanceSync(context)
+    ) {
         val normalizedIconKey = normalizeAppIconKey(iconKey)
         // 2. 应用 Alias
         val pm = context.packageManager
@@ -745,7 +763,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val targetAlias = resolveAppIconLauncherAlias(
             packageName = packageName,
             rawKey = normalizedIconKey,
-            splashIconVisible = splashIconVisible
+            splashIconVisible = splashIconVisible,
+            appearance = appearance
         )
         val allUniqueAliases = allManagedAppIconLauncherAliases(packageName)
 

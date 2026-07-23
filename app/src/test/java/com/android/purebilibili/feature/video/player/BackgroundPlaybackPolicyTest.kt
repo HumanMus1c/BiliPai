@@ -887,16 +887,18 @@ class BackgroundPlaybackPolicyTest {
 
     @Test
     fun notificationIconShouldFollowSelectedAppIconKey() {
-        assertEquals(R.mipmap.ic_launcher_3d, resolveNotificationSmallIconRes("icon_telegram_blue"))
-        assertEquals(R.mipmap.ic_launcher_3d, resolveNotificationSmallIconRes("Dark"))
+        assertEquals(R.mipmap.ic_launcher_blue_snow_maid_monochrome, resolveNotificationSmallIconRes("icon_blue_snow_maid"))
+        assertEquals(R.mipmap.ic_launcher_blue_snow_maid_front_monochrome, resolveNotificationSmallIconRes("icon_blue_snow_maid_front"))
+        assertEquals(R.mipmap.ic_launcher_blue_snow_maid_monochrome, resolveNotificationSmallIconRes("icon_telegram_blue"))
+        assertEquals(R.mipmap.ic_launcher_blue_snow_maid_monochrome, resolveNotificationSmallIconRes("Dark"))
         assertEquals(R.mipmap.ic_launcher_bilipai, resolveNotificationSmallIconRes("icon_bilipai"))
         assertEquals(R.mipmap.ic_launcher_bilipai_pink, resolveNotificationSmallIconRes("icon_bilipai_pink"))
         assertEquals(R.mipmap.ic_launcher_bilipai_white, resolveNotificationSmallIconRes("BiliPai White"))
         assertEquals(R.mipmap.ic_launcher_bilipai_monet, resolveNotificationSmallIconRes("BiliPai Monet"))
-        assertEquals(R.mipmap.ic_launcher_3d, resolveNotificationSmallIconRes("Flat Material"))
-        assertEquals(R.mipmap.ic_launcher_3d, resolveNotificationSmallIconRes("Neon"))
-        assertEquals(R.mipmap.ic_launcher_3d, resolveNotificationSmallIconRes("Pink"))
-        assertEquals(R.mipmap.ic_launcher_3d, resolveNotificationSmallIconRes("unknown_key"))
+        assertEquals(R.mipmap.ic_launcher_blue_snow_maid_monochrome, resolveNotificationSmallIconRes("Flat Material"))
+        assertEquals(R.mipmap.ic_launcher_blue_snow_maid_monochrome, resolveNotificationSmallIconRes("Neon"))
+        assertEquals(R.mipmap.ic_launcher_blue_snow_maid_monochrome, resolveNotificationSmallIconRes("Pink"))
+        assertEquals(R.mipmap.ic_launcher_blue_snow_maid_monochrome, resolveNotificationSmallIconRes("unknown_key"))
     }
 
     @Test
@@ -913,7 +915,7 @@ class BackgroundPlaybackPolicyTest {
     @Test
     fun notificationIconShouldFallbackToIconKeyWhenLauncherIconMissing() {
         assertEquals(
-            R.mipmap.ic_launcher_3d,
+            R.mipmap.ic_launcher_blue_snow_maid_monochrome,
             resolveNotificationIconResByPriority(
                 launcherIconRes = 0,
                 fallbackIconKey = "Neon"

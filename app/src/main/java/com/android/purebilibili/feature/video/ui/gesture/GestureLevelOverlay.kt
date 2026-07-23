@@ -99,6 +99,7 @@ fun BoxScope.GestureLevelOverlayHost(
             .align(spec.alignment)
             .then(
                 when (style) {
+                    GestureLevelOverlayStyle.Md3 -> Modifier.padding(horizontal = 24.dp)
                     GestureLevelOverlayStyle.Miuix -> Modifier.padding(horizontal = 22.dp)
                     else -> Modifier
                 }

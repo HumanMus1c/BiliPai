@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.android.purebilibili.R
+import com.android.purebilibili.core.store.AppIconAppearance
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.theme.*
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
@@ -74,6 +76,8 @@ fun getIconGroups(): List<IconGroup> {
         IconGroup(
             title = "精选",
             icons = listOf(
+                IconOption("icon_blue_snow_maid", "蓝雪女仆", "蓝白女仆主题", R.mipmap.ic_launcher_blue_snow_maid_round),
+                IconOption("icon_blue_snow_maid_front", "蓝雪女仆·正面", "正面微笑主题", R.mipmap.ic_launcher_blue_snow_maid_front_round),
                 IconOption("icon_3d", "3D立体", "全新3D设计", R.mipmap.ic_launcher_3d_foreground),
                 IconOption("icon_bilipai", "BiliPai", "全新品牌图标", R.mipmap.ic_launcher_bilipai_round),
                 IconOption("icon_bilipai_pink", "BiliPai 粉", "同款粉色", R.mipmap.ic_launcher_bilipai_pink_round),
@@ -84,6 +88,26 @@ fun getIconGroups(): List<IconGroup> {
     )
 }
 
+internal fun resolveIconOptionPreviewRes(
+    iconKey: String,
+    appearance: AppIconAppearance
+): Int {
+    return when (iconKey to appearance) {
+        "icon_blue_snow_maid" to AppIconAppearance.LIGHT ->
+            R.mipmap.ic_launcher_blue_snow_maid_light_round
+        "icon_blue_snow_maid" to AppIconAppearance.DARK ->
+            R.mipmap.ic_launcher_blue_snow_maid_dark_round
+        "icon_blue_snow_maid_front" to AppIconAppearance.LIGHT ->
+            R.mipmap.ic_launcher_blue_snow_maid_front_light_round
+        "icon_blue_snow_maid_front" to AppIconAppearance.DARK ->
+            R.mipmap.ic_launcher_blue_snow_maid_front_dark_round
+        else -> getIconGroups()
+            .flatMap { it.icons }
+            .first { it.key == iconKey }
+            .iconRes
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IconSettingsScreen(
@@ -92,6 +116,8 @@ fun IconSettingsScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val iconAppearance by SettingsManager.getAppIconAppearance(context)
+        .collectAsStateWithLifecycle(initialValue = AppIconAppearance.FOLLOW_SYSTEM)
     val screenTitle = stringResource(R.string.icon_settings_title)
     val backLabel = stringResource(R.string.common_back)
     
@@ -110,6 +136,7 @@ fun IconSettingsScreen(
             viewModel = viewModel,
             context = context,
             iconGroups = iconGroups,
+            iconAppearance = iconAppearance,
         )
     }
 }
@@ -128,7 +155,8 @@ fun IconSettingsContent(
     state: SettingsUiState,
     viewModel: SettingsViewModel,
     context: android.content.Context,
-    iconGroups: List<IconGroup>
+    iconGroups: List<IconGroup>,
+    iconAppearance: AppIconAppearance
 ) {
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { isVisible = true }
@@ -183,6 +211,27 @@ fun IconSettingsContent(
                 }
             }
 
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(AppShapes.container(ContainerLevel.Card))
+                        .background(AppSurfaceTokens.cardContainer())
+                ) {
+                    IOSSlidingSegmentedSetting(
+                        title = "女仆图标外观",
+                        subtitle = "可跟随系统，或在任意系统主题下固定明亮、暗黑外壳",
+                        options = listOf(
+                            PlaybackSegmentOption(AppIconAppearance.FOLLOW_SYSTEM, "跟随系统"),
+                            PlaybackSegmentOption(AppIconAppearance.LIGHT, "明亮"),
+                            PlaybackSegmentOption(AppIconAppearance.DARK, "暗黑")
+                        ),
+                        selectedValue = iconAppearance,
+                        onSelectionChange = viewModel::setAppIconAppearance
+                    )
+                }
+            }
+
             iconGroups.forEach { group ->
                 // 分组标题
                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -217,7 +266,7 @@ fun IconSettingsContent(
                             // iOS App Icon 形状: 连续曲率圆角 (Squircle)
                             val iconShape = AppShapes.container(ContainerLevel.Dialog)
                             AsyncImage(
-                                model = option.iconRes,
+                                model = resolveIconOptionPreviewRes(option.key, iconAppearance),
                                 contentDescription = option.name,
                                 modifier = Modifier
                                     .size(64.dp)

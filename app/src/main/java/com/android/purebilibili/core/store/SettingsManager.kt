@@ -1158,6 +1158,7 @@ object SettingsManager {
     private val KEY_APP_DPI_OVERRIDE_PERCENT = intPreferencesKey("app_dpi_override_percent")
     //  [新增] 应用图标 Key (Blue, Red, Green...)
     private val KEY_APP_ICON = androidx.datastore.preferences.core.stringPreferencesKey("app_icon_key")
+    private val KEY_APP_ICON_APPEARANCE = intPreferencesKey("app_icon_appearance")
     //  [新增] 底部栏样式 (true=悬浮, false=贴底)
     private val KEY_BOTTOM_BAR_FLOATING = booleanPreferencesKey("bottom_bar_floating")
     //  [新增] 底栏显示模式 (0=图标+文字, 1=仅图标, 2=仅文字)
@@ -2373,6 +2374,16 @@ object SettingsManager {
     fun getPreferredPlayerVolumeSync(context: Context): Float =
         PlayerSettingsStore.getPreferredPlayerVolumeSync(context)
 
+    fun getPlayerInsightMode(context: Context): Flow<PlayerSettingsStore.PlayerInsightMode> =
+        PlayerSettingsStore.getPlayerInsightMode(context)
+
+    suspend fun setPlayerInsightMode(context: Context, mode: PlayerSettingsStore.PlayerInsightMode) {
+        PlayerSettingsStore.setPlayerInsightMode(context, mode)
+    }
+
+    fun getPlayerInsightModeSync(context: Context): PlayerSettingsStore.PlayerInsightMode =
+        PlayerSettingsStore.getPlayerInsightModeSync(context)
+
     //  [新增] --- 主题色索引 (默认 0 = 经典蓝) ---
     fun getThemeColorIndex(context: Context): Flow<Int> = context.settingsDataStore.data
         .map { preferences -> normalizeThemeColorIndex(preferences[KEY_THEME_COLOR_INDEX] ?: 0) }
@@ -2724,6 +2735,21 @@ object SettingsManager {
             
         com.android.purebilibili.core.util.Logger.d("SettingsManager", "App icon saved: $iconKey -> $normalizedKey, persisted to prefs: $success")
     }
+
+    fun getAppIconAppearance(context: Context): Flow<AppIconAppearance> =
+        context.settingsDataStore.data.map { preferences ->
+            resolveAppIconAppearance(preferences[KEY_APP_ICON_APPEARANCE] ?: 0)
+        }
+
+    suspend fun setAppIconAppearance(context: Context, appearance: AppIconAppearance) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_APP_ICON_APPEARANCE] = appearance.storedValue
+        }
+        context.getSharedPreferences("app_icon_cache", Context.MODE_PRIVATE)
+            .edit()
+            .putInt("appearance", appearance.storedValue)
+            .commit()
+    }
     
     //  [新增] --- 开屏壁纸 ---
     fun getSplashWallpaperUri(context: Context): Flow<String> = context.settingsDataStore.data
@@ -2882,6 +2908,12 @@ object SettingsManager {
             context.getSharedPreferences("app_icon_cache", Context.MODE_PRIVATE)
                 .getString("current_icon", DEFAULT_APP_ICON_KEY)
         )
+    }
+
+    fun getAppIconAppearanceSync(context: Context): AppIconAppearance {
+        val storedValue = context.getSharedPreferences("app_icon_cache", Context.MODE_PRIVATE)
+            .getInt("appearance", AppIconAppearance.FOLLOW_SYSTEM.storedValue)
+        return resolveAppIconAppearance(storedValue)
     }
 
     //  [新增] --- 底部栏样式 ---
@@ -6223,6 +6255,7 @@ object SettingsManager {
             StringShareablePreferenceDefinition(KEY_THEME_COLOR_SPEC, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_THEME_COLOR_INDEX, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_APP_ICON, SettingsShareSection.APPEARANCE),
+            IntShareablePreferenceDefinition(KEY_APP_ICON_APPEARANCE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_BOTTOM_BAR_FLOATING, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_BOTTOM_BAR_LABEL_MODE, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_TOP_TAB_LABEL_MODE, SettingsShareSection.APPEARANCE),

@@ -86,7 +86,6 @@ import com.android.purebilibili.feature.video.ui.components.CollectionSheet
 import com.android.purebilibili.feature.video.ui.components.PagesSelector
 import com.android.purebilibili.feature.video.ui.components.CommentSortFilterBar
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
-import com.android.purebilibili.feature.video.ui.components.UpPreviewSheet
 import com.android.purebilibili.feature.video.ui.components.rememberVideoCommentAppearance
 import com.android.purebilibili.feature.video.ui.components.resolveReplyItemContentType
 import com.android.purebilibili.feature.video.ui.components.shouldShowReplyTopAction
@@ -781,6 +780,9 @@ private fun VideoIntroTab(
     val visibleRelatedVideos = remember(relatedVideos, hiddenRelatedBvids) {
         filterRelatedVideosByHiddenBvids(relatedVideos, hiddenRelatedBvids)
     }
+    val isRelatedListScrolling by remember(listState) {
+        derivedStateOf { listState.isScrollInProgress }
+    }
     LazyColumn(
         state = listState,
         modifier = modifier
@@ -884,6 +886,7 @@ private fun VideoIntroTab(
                     videos = row,
                     followingMids = followingMids,
                     transitionEnabled = relatedVideoTransitionEnabled,
+                    isListScrolling = isRelatedListScrolling,
                     showUpBadge = showUpBadge,
                     onVideoClick = { video ->
                         val navOptions = if (video.cid > 0L) {
@@ -1178,33 +1181,6 @@ private fun VideoHeaderContent(
         .getVideoNoteDefaultCollapsed(context)
         .collectAsStateWithLifecycle(initialValue = false
         )
-    var showUpPreview by remember(info.bvid, info.owner.mid) { mutableStateOf(false) }
-    // 同 UP 的相关推荐作首屏种子，再异步拉投稿列表
-    val upPreviewSeedVideos = remember(relatedVideos, info.owner.mid) {
-        relatedVideos.filter { it.owner.mid == info.owner.mid || it.owner.mid <= 0L }
-    }
-
-    if (showUpPreview) {
-        UpPreviewSheet(
-            visible = true,
-            owner = info.owner,
-            isFollowing = isFollowing,
-            followerCount = ownerFollowerCount,
-            videoCount = ownerVideoCount,
-            seedVideos = upPreviewSeedVideos,
-            onDismiss = { showUpPreview = false },
-            onFollowClick = onFollowClick,
-            onEnterSpace = { mid ->
-                showUpPreview = false
-                onUpClick(mid)
-            },
-            onVideoClick = { bvid, _ ->
-                showUpPreview = false
-                onRelatedVideoClick(bvid, null)
-            },
-        )
-    }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1217,13 +1193,7 @@ private fun VideoHeaderContent(
             info = info,
             isFollowing = isFollowing,
             onFollowClick = onFollowClick,
-            onUpClick = {
-                if (info.owner.mid > 0L) {
-                    showUpPreview = true
-                } else {
-                    onUpClick(it)
-                }
-            },
+            onUpClick = onUpClick,
             showOwnerAvatar = true,
             followerCount = ownerFollowerCount,
             videoCount = ownerVideoCount,

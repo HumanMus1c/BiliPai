@@ -227,6 +227,15 @@ internal fun shouldShowDynamicCommentSheet(selectedDynamicId: String?): Boolean 
     return !selectedDynamicId.isNullOrBlank()
 }
 
+/**
+ * Detail page should open comments once on entry so users who already
+ * tapped into a dynamic do not need a second "评论" tap to read replies.
+ * Keep false after the first open so dismiss is respected.
+ */
+internal fun shouldAutoOpenCommentsOnDynamicDetailEntry(
+    hasAlreadyOpened: Boolean
+): Boolean = !hasAlreadyOpened
+
 internal fun resolveDynamicCommentSheetTotalCount(
     liveCount: Int,
     fallbackCount: Int

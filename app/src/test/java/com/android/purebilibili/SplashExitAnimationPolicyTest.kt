@@ -1,10 +1,17 @@
 package com.android.purebilibili
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SplashExitAnimationPolicyTest {
+
+    @Test
+    fun clipsSplashFlyoutToLauncherStyleRoundedSquare() {
+        assertEquals(24f, splashFlyoutCornerRadiusPx(sizePx = 100), 0.001f)
+        assertEquals(48f, splashFlyoutCornerRadiusPx(sizePx = 200), 0.001f)
+    }
 
     @Test
     fun enablesRealtimeBlurOnlyOnAndroid14And15() {

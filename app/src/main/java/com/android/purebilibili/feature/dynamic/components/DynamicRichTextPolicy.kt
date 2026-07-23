@@ -31,7 +31,7 @@ internal fun buildDynamicRichTextAnnotatedString(
     textColor: Color
 ): AnnotatedString {
     return buildAnnotatedString {
-        if (desc.rich_text_nodes.isNotEmpty()) {
+        if (shouldUseDynamicRichTextNodes(desc)) {
             desc.rich_text_nodes.forEach { node ->
                 appendDynamicRichTextNode(
                     node = node,
@@ -46,6 +46,12 @@ internal fun buildDynamicRichTextAnnotatedString(
             )
         }
     }
+}
+
+internal fun shouldUseDynamicRichTextNodes(desc: DynamicDesc): Boolean {
+    if (desc.rich_text_nodes.isEmpty()) return false
+    if (desc.text.isBlank()) return true
+    return desc.rich_text_nodes.joinToString(separator = "") { it.text }.length >= desc.text.length
 }
 
 internal fun resolveDynamicDescForImages(

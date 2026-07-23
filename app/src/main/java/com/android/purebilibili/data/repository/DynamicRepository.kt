@@ -235,6 +235,16 @@ object DynamicRepository {
                 if (shouldFetchOpusDetailForDynamicDetail(item)) {
                     fetchOpusDetailItem(cleanedId)?.let { return@withContext Result.success(it) }
                 }
+                if (shouldFetchStandardDetailForPlainTextDynamic(item)) {
+                    fetchStandardDetailItem(cleanedId)?.let { standardItem ->
+                        return@withContext Result.success(
+                            mergeDynamicDetailWithLongerDesc(
+                                desktopItem = item,
+                                standardItem = standardItem,
+                            )
+                        )
+                    }
+                }
                 if (!shouldFallbackForDynamicDetail(item)) {
                     return@withContext Result.success(item)
                 }
@@ -277,6 +287,13 @@ object DynamicRepository {
     private suspend fun fetchOpusDetailItem(dynamicId: String): DynamicItem? {
         return runCatching {
             val response = NetworkModule.dynamicApi.getOpusDetail(id = dynamicId)
+            response.data?.item?.takeIf { response.code == 0 }
+        }.getOrNull()
+    }
+
+    private suspend fun fetchStandardDetailItem(dynamicId: String): DynamicItem? {
+        return runCatching {
+            val response = NetworkModule.dynamicApi.getDynamicDetailFallback(id = dynamicId)
             response.data?.item?.takeIf { response.code == 0 }
         }.getOrNull()
     }

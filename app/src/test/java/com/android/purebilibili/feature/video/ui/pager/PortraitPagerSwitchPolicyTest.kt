@@ -89,19 +89,33 @@ class PortraitPagerSwitchPolicyTest {
         assertFalse(
             shouldEnablePortraitPagerUserScroll(
                 scale = 1f,
-                commentOverlayActive = true
+                commentOverlayActive = true,
+                upPreviewActive = false
             )
         )
         assertTrue(
             shouldEnablePortraitPagerUserScroll(
                 scale = 1f,
-                commentOverlayActive = false
+                commentOverlayActive = false,
+                upPreviewActive = false
             )
         )
         assertFalse(
             shouldEnablePortraitPagerUserScroll(
                 scale = 1.2f,
-                commentOverlayActive = false
+                commentOverlayActive = false,
+                upPreviewActive = false
+            )
+        )
+    }
+
+    @Test
+    fun shouldEnablePortraitPagerUserScroll_blocksWhenUpPreviewActive() {
+        assertFalse(
+            shouldEnablePortraitPagerUserScroll(
+                scale = 1f,
+                commentOverlayActive = false,
+                upPreviewActive = true
             )
         )
     }

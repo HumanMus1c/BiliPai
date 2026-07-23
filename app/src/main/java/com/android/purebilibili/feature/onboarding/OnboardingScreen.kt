@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import coil.compose.AsyncImage
+import com.android.purebilibili.core.store.DEFAULT_APP_ICON_KEY
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
@@ -261,7 +262,7 @@ private fun OnboardingAnimatedPage(
 @Composable
 private fun WelcomePage(motionSpec: OnboardingMotionSpec) {
     val context = LocalContext.current
-    val appIconKey by SettingsManager.getAppIcon(context).collectAsStateWithLifecycle(initialValue = "icon_3d")
+    val appIconKey by SettingsManager.getAppIcon(context).collectAsStateWithLifecycle(initialValue = DEFAULT_APP_ICON_KEY)
     val heroIconSpec = remember(appIconKey) { resolveOnboardingHeroIconSpec(appIconKey) }
 
     OnboardingFloatingContent(motionSpec = motionSpec) {

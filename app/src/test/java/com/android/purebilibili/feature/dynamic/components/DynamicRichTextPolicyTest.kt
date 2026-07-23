@@ -143,6 +143,23 @@ class DynamicRichTextPolicyTest {
     }
 
     @Test
+    fun buildDynamicRichTextAnnotatedString_usesFullTextWhenNodesAreTruncated() {
+        val desc = DynamicDesc(
+            text = "第一段\n第二段\n第三段",
+            rich_text_nodes = listOf(RichTextNode(type = "TEXT", text = "第一段\n"))
+        )
+
+        val annotated = buildDynamicRichTextAnnotatedString(
+            desc = desc,
+            primaryColor = Color.Blue,
+            textColor = Color.Black
+        )
+
+        assertFalse(shouldUseDynamicRichTextNodes(desc))
+        assertEquals(desc.text, annotated.text)
+    }
+
+    @Test
     fun resolveDynamicRichTextOpenMode_usesInAppForShortLink() {
         val mode = resolveDynamicRichTextOpenMode(
             "https://b23.tv/cm-yaoyue-0-3jgPM"

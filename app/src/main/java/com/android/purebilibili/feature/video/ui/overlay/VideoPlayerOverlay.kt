@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.video.ui.overlay
 
 import android.content.ClipData
 import android.content.Context
+import android.os.Build
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.outlined.Close
 //  Cupertino Icons - iOS SF Symbols 风格图标
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
@@ -38,6 +40,8 @@ import com.android.purebilibili.core.store.DanmakuPanelWidthMode
 import com.android.purebilibili.core.store.PortraitDanmakuDisplayAreaMode
 import com.android.purebilibili.core.theme.BiliPink
 import com.android.purebilibili.core.ui.blur.unifiedBlur
+import com.android.purebilibili.core.ui.blur.BlurSurfaceType
+import com.android.purebilibili.core.ui.blur.shouldAllowRuntimeShaderBackedHazeEffect
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.feature.video.danmaku.DanmakuCloudSyncUiState
 // Import reusable components from standalone files
@@ -73,6 +77,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.android.purebilibili.core.store.BottomProgressBehavior
 import com.android.purebilibili.core.store.PlaybackCompletionBehavior
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.store.player.PlayerSettingsStore
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.adaptive.resolveEffectiveMotionTier
@@ -427,7 +432,7 @@ fun VideoPlayerOverlay(
     // 🔒 [新增] 屏幕锁定
     isScreenLocked: Boolean = false,
     onLockToggle: () -> Unit = {},
-    showStats: Boolean = false,
+    insightMode: PlayerSettingsStore.PlayerInsightMode = PlayerSettingsStore.PlayerInsightMode.OFF,
     debugInfo: PlaybackDebugInfo = PlaybackDebugInfo(),
     diagnosticEvents: List<String> = emptyList(),
     pendingUserAction: PendingPlaybackUserAction? = null,
@@ -688,6 +693,19 @@ fun VideoPlayerOverlay(
     val debugRows = remember(effectiveDebugInfo) {
         resolvePlaybackDebugRows(effectiveDebugInfo)
     }
+    val insightPresentation = remember(effectiveDebugInfo) {
+        resolvePlaybackInsightPresentation(effectiveDebugInfo)
+    }
+    val insightPanelLayoutPolicy = remember(
+        configuration.screenWidthDp,
+        configuration.screenHeightDp
+    ) {
+        resolvePlaybackInsightPanelLayoutPolicy(
+            screenWidthDp = configuration.screenWidthDp,
+            screenHeightDp = configuration.screenHeightDp
+        )
+    }
+    var showInsightDetails by remember(player, bvid, cid) { mutableStateOf(false) }
     var bufferingStartedAtMs by remember(player) { mutableLongStateOf(0L) }
     var waitingFirstFrameStartedAtMs by remember(player, bvid, cid) { mutableLongStateOf(0L) }
     var playbackIssueSignal by remember(player, bvid, cid) { mutableStateOf<PlaybackIssueSignal?>(null) }
@@ -1453,85 +1471,104 @@ fun VideoPlayerOverlay(
             }
         }
 
-        // --- 4.  [新增] 真实分辨率统计信息 (仅在设置开启时显示) ---
-        if (showStats && debugRows.isNotEmpty() && isVisible) {
-            Box(
+        val showInsightHud = shouldShowPlaybackInsightHud(
+            mode = insightMode,
+            hasMeasuredData = debugRows.isNotEmpty(),
+            controlsVisible = isVisible,
+            screenLocked = isScreenLocked,
+            level = insightPresentation.level
+        )
+        if (showInsightHud) {
+            Surface(
+                onClick = { showInsightDetails = true },
+                color = Color.Black.copy(alpha = 0.68f),
+                contentColor = Color.White,
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(
                         top = overlayVisualPolicy.statsTopPaddingDp.dp,
                         end = overlayVisualPolicy.statsEndPaddingDp.dp
                     )
-                    .padding(
-                        horizontal = overlayVisualPolicy.statsHorizontalPaddingDp.dp,
-                        vertical = overlayVisualPolicy.statsVerticalPaddingDp.dp
-                    )
+                    .heightIn(min = 48.dp)
             ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(
+                                color = when (insightPresentation.level) {
+                                    PlaybackInsightLevel.LIVE -> Color(0xFF66E28A)
+                                    PlaybackInsightLevel.ATTENTION -> Color(0xFFFFB74D)
+                                    PlaybackInsightLevel.UNAVAILABLE -> Color(0xFFB0B4BA)
+                                },
+                                shape = CircleShape
+                            )
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
-                            text = "Player stats",
-                            color = Color.White.copy(alpha = 0.82f),
+                            text = insightPresentation.summary,
+                            color = Color.White,
                             style = MaterialTheme.typography.labelMedium,
                             fontSize = overlayVisualPolicy.statsFontSp.sp,
-                            fontFamily = FontFamily.Monospace
+                            maxLines = 1
                         )
-                        if (playerDiagnosticLoggingEnabled) {
-                            Text(
-                                text = "Copy diag",
-                                color = BiliPink,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontSize = overlayVisualPolicy.statsFontSp.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.clickable {
-                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
-                                        as android.content.ClipboardManager
-                                    clipboard.setPrimaryClip(
-                                        ClipData.newPlainText(
-                                            "BiliPai Player Diagnostics",
-                                            exportDiagnosticReport(null)
-                                        )
-                                    )
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        "播放器诊断已复制",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    debugRows.forEach { row ->
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.widthIn(min = 164.dp)
-                        ) {
-                            Text(
-                                text = row.label,
-                                color = Color.White.copy(alpha = 0.72f),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = overlayVisualPolicy.statsFontSp.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            Text(
-                                text = row.value,
-                                color = Color(0xFF9BFFB0),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = overlayVisualPolicy.statsFontSp.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
+                        Text(
+                            text = insightPresentation.statusText,
+                            color = Color.White.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = (overlayVisualPolicy.statsFontSp - 1f).coerceAtLeast(9f).sp
+                        )
                     }
                 }
             }
+        }
+
+        if (showInsightDetails) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = 0.12f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { showInsightDetails = false }
+                    )
+            )
+            PlaybackInsightPanel(
+                presentation = insightPresentation,
+                diagnosticEvents = diagnosticEvents,
+                onCopyReport = if (playerDiagnosticLoggingEnabled) {
+                    {
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                            as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                "BiliPai Player Diagnostics",
+                                exportDiagnosticReport(null)
+                            )
+                        )
+                        android.widget.Toast.makeText(
+                            context,
+                            "播放器诊断已复制",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    null
+                },
+                onDismiss = { showInsightDetails = false },
+                hazeState = drawerHazeState,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(insightPanelLayoutPolicy.edgePaddingDp.dp)
+                    .width(insightPanelLayoutPolicy.widthDp.dp)
+                    .heightIn(max = insightPanelLayoutPolicy.maxHeightDp.dp)
+            )
         }
 
         if (playerDiagnosticLoggingEnabled) playbackIssueSignal?.let { signal ->
@@ -2268,6 +2305,134 @@ private fun PortraitTopBar(
                     tint = Color.White,
                     modifier = Modifier.size(layoutPolicy.iconSizeDp.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaybackInsightPanel(
+    presentation: PlaybackInsightPresentation,
+    diagnosticEvents: List<String>,
+    onCopyReport: (() -> Unit)?,
+    onDismiss: () -> Unit,
+    hazeState: HazeState?,
+    modifier: Modifier = Modifier
+) {
+    val panelShape = RoundedCornerShape(22.dp)
+    val realtimeHazeState = hazeState?.takeIf {
+        shouldAllowRuntimeShaderBackedHazeEffect(Build.VERSION.SDK_INT)
+    }
+    Surface(
+        modifier = modifier.then(
+            if (realtimeHazeState != null) {
+                Modifier.unifiedBlur(
+                    hazeState = realtimeHazeState,
+                    shape = panelShape,
+                    surfaceType = BlurSurfaceType.DRAWER_OR_SHEET
+                )
+            } else {
+                Modifier
+            }
+        ),
+        shape = panelShape,
+        color = MaterialTheme.colorScheme.surface.copy(
+            alpha = if (realtimeHazeState != null) 0.72f else 0.94f
+        ),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 0.dp,
+        border = BorderStroke(
+            width = 0.6.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        )
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 4.dp, top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("播放器洞察", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        presentation.statusText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (onCopyReport != null) {
+                    TextButton(onClick = onCopyReport) {
+                        Text("复制")
+                    }
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "关闭"
+                    )
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+            LazyColumn(
+                modifier = Modifier.weight(1f, fill = false),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                presentation.sections.forEach { (section, rows) ->
+                    item(key = section.name) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                section.title,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            rows.forEach { row ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        row.label,
+                                        modifier = Modifier.weight(0.8f),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                    Text(
+                                        row.value,
+                                        modifier = Modifier.weight(1.2f),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontFamily = FontFamily.Monospace,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                if (onCopyReport != null && diagnosticEvents.isNotEmpty()) {
+                    item(key = "diagnostic-events") {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                "诊断事件",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            diagnosticEvents.takeLast(6).asReversed().forEach { event ->
+                                Text(
+                                    event,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 2,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

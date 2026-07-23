@@ -2,6 +2,27 @@ package com.android.purebilibili.data.repository
 
 import com.android.purebilibili.data.model.response.DynamicItem
 
+internal fun shouldFetchStandardDetailForPlainTextDynamic(item: DynamicItem): Boolean {
+    val content = item.modules.module_dynamic ?: return false
+    return item.type == "DYNAMIC_TYPE_WORD" && content.desc?.text?.isNotBlank() == true
+}
+
+internal fun mergeDynamicDetailWithLongerDesc(
+    desktopItem: DynamicItem,
+    standardItem: DynamicItem,
+): DynamicItem {
+    val desktopContent = desktopItem.modules.module_dynamic ?: return desktopItem
+    val standardDesc = standardItem.modules.module_dynamic?.desc ?: return desktopItem
+    val desktopDesc = desktopContent.desc
+    if (standardDesc.text.length <= desktopDesc?.text?.length ?: 0) return desktopItem
+
+    return desktopItem.copy(
+        modules = desktopItem.modules.copy(
+            module_dynamic = desktopContent.copy(desc = standardDesc)
+        )
+    )
+}
+
 internal fun shouldFallbackForDynamicDetail(item: DynamicItem): Boolean {
     val modules = item.modules
     val hasDescText = modules.module_dynamic?.desc?.text?.isNotBlank() == true

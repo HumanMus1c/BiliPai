@@ -9,6 +9,7 @@ import com.android.purebilibili.data.model.response.DynamicModules
 import com.android.purebilibili.data.model.response.OpusMajor
 import com.android.purebilibili.data.model.response.OpusSummary
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.assertFalse
 
@@ -40,6 +41,43 @@ class DynamicDetailFallbackPolicyTest {
             )
         )
         assertTrue(shouldFallbackForDynamicDetail(item))
+    }
+
+    @Test
+    fun standardDetail_isFetchedForPlainTextDynamicAndSuppliesLongerBody() {
+        val desktopItem = DynamicItem(
+            type = "DYNAMIC_TYPE_WORD",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(desc = DynamicDesc(text = "摘要"))
+            )
+        )
+        val standardItem = DynamicItem(
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(desc = DynamicDesc(text = "这是动态的完整正文"))
+            )
+        )
+
+        assertTrue(shouldFetchStandardDetailForPlainTextDynamic(desktopItem))
+        assertEquals(
+            "这是动态的完整正文",
+            mergeDynamicDetailWithLongerDesc(desktopItem, standardItem)
+                .modules.module_dynamic?.desc?.text
+        )
+    }
+
+    @Test
+    fun standardDetail_isNotFetchedForDynamicWithMajorContent() {
+        val item = DynamicItem(
+            type = "DYNAMIC_TYPE_AV",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    desc = DynamicDesc(text = "视频动态文案"),
+                    major = DynamicMajor(type = "MAJOR_TYPE_ARCHIVE")
+                )
+            )
+        )
+
+        assertFalse(shouldFetchStandardDetailForPlainTextDynamic(item))
     }
 
     @Test

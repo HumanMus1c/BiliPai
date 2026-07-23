@@ -27,4 +27,17 @@ class DynamicCommentStructureTest {
         assertTrue(source.contains("restPage = data.page"))
         assertTrue(source.contains("grpcNextOffset = null"))
     }
+
+    @Test
+    fun `dynamic detail auto opens comments on first successful load`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/dynamic/DynamicDetailScreen.kt")
+            .readText()
+
+        assertTrue(source.contains("shouldAutoOpenCommentsOnDynamicDetailEntry(hasAutoOpenedComments)"))
+        assertTrue(source.contains("interactionViewModel.openCommentSheet("))
+        assertTrue(source.contains("hasAutoOpenedComments = true"))
+        // Must not gate auto-open on routed root reply only.
+        assertTrue(!source.contains("openCommentRootRpid > 0L && !hasHandledRoutedComment"))
+        assertTrue(!source.contains("openCommentRootRpid > 0L && !hasAutoOpenedComments"))
+    }
 }

@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.Outline
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.net.Uri
@@ -15,6 +16,7 @@ import android.os.Bundle
 import android.util.Rational
 import android.view.Gravity
 import android.view.View
+import android.view.ViewOutlineProvider
 import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -428,6 +430,24 @@ internal fun shouldUseRealtimeSplashBlur(sdkInt: Int): Boolean =
 
 internal fun resolveSplashIconResIdForComponentClassName(className: String?): Int {
     return when (className?.substringAfterLast('.')) {
+        "MainActivityAliasBlueSnowMaid",
+        "MainActivityAliasBlueSnowMaidNoIcon" -> R.mipmap.ic_launcher_blue_snow_maid
+        "MainActivitySplashBlueSnowMaid" -> R.drawable.splash_icon_blue_snow_maid
+        "MainActivityAliasBlueSnowMaidLight",
+        "MainActivityAliasBlueSnowMaidLightNoIcon" -> R.mipmap.ic_launcher_blue_snow_maid_light
+        "MainActivitySplashBlueSnowMaidLight" -> R.drawable.splash_icon_blue_snow_maid_light
+        "MainActivityAliasBlueSnowMaidDark",
+        "MainActivityAliasBlueSnowMaidDarkNoIcon" -> R.mipmap.ic_launcher_blue_snow_maid_dark
+        "MainActivitySplashBlueSnowMaidDark" -> R.drawable.splash_icon_blue_snow_maid_dark
+        "MainActivityAliasBlueSnowMaidFront",
+        "MainActivityAliasBlueSnowMaidFrontNoIcon" -> R.mipmap.ic_launcher_blue_snow_maid_front
+        "MainActivitySplashBlueSnowMaidFront" -> R.drawable.splash_icon_blue_snow_maid_front
+        "MainActivityAliasBlueSnowMaidFrontLight",
+        "MainActivityAliasBlueSnowMaidFrontLightNoIcon" -> R.mipmap.ic_launcher_blue_snow_maid_front_light
+        "MainActivitySplashBlueSnowMaidFrontLight" -> R.drawable.splash_icon_blue_snow_maid_front_light
+        "MainActivityAliasBlueSnowMaidFrontDark",
+        "MainActivityAliasBlueSnowMaidFrontDarkNoIcon" -> R.mipmap.ic_launcher_blue_snow_maid_front_dark
+        "MainActivitySplashBlueSnowMaidFrontDark" -> R.drawable.splash_icon_blue_snow_maid_front_dark
         "MainActivityAlias3DLauncher",
         "MainActivityAlias3D",
         "MainActivityAlias3DNoIcon",
@@ -604,6 +624,27 @@ internal fun splashExitBackgroundAlpha(progress: Float): Float {
     if (progress <= 0.18f) return 1f
     val normalized = ((progress - 0.18f) / 0.82f).coerceIn(0f, 1f)
     return (1f - normalized.pow(1.1f)).coerceIn(0f, 1f)
+}
+
+internal fun splashFlyoutCornerRadiusPx(sizePx: Int): Float {
+    return sizePx.coerceAtLeast(0) * 0.24f
+}
+
+private fun applySplashFlyoutRoundedClip(view: View) {
+    view.outlineProvider = object : ViewOutlineProvider() {
+        override fun getOutline(view: View, outline: Outline) {
+            val sizePx = minOf(view.width, view.height)
+            outline.setRoundRect(
+                0,
+                0,
+                view.width,
+                view.height,
+                splashFlyoutCornerRadiusPx(sizePx)
+            )
+        }
+    }
+    view.clipToOutline = true
+    view.invalidateOutline()
 }
 
 internal fun splashTrailPrimaryAlpha(progress: Float): Float {
@@ -867,6 +908,7 @@ open class MainActivity : AppCompatActivity() {
                 runCatching {
                     val splashView = splashScreenViewProvider.view
                     val animatedTarget = splashScreenViewProvider.iconView
+                    applySplashFlyoutRoundedClip(animatedTarget)
                     val targetType = resolveSplashFlyoutTargetType(
                         hasSystemIcon = true,
                         hasFallbackIcon = false
@@ -901,6 +943,7 @@ open class MainActivity : AppCompatActivity() {
                         return ImageView(this).apply {
                             scaleType = ImageView.ScaleType.FIT_CENTER
                             alpha = 0f
+                            applySplashFlyoutRoundedClip(this)
                             if (drawable != null) {
                                 setImageDrawable(drawable)
                             } else {

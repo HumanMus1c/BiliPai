@@ -35,6 +35,7 @@ import com.android.purebilibili.core.store.DEFAULT_PLAYER_DIAGNOSTIC_LOGGING_ENA
 import com.android.purebilibili.core.store.DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ENABLED
 import com.android.purebilibili.core.store.DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ONCE_ENABLED
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.store.player.PlayerSettingsStore
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.store.BottomProgressBehavior
 import com.android.purebilibili.core.store.FullscreenAspectRatio
@@ -103,7 +104,6 @@ fun PlaybackSettingsContent(
     val warningTint = rememberAdaptiveSemanticIconTint(iOSOrange)
     val windowSizeClass = LocalWindowSizeClass.current
     // val state by viewModel.state.collectAsStateWithLifecycle() // Moved to parameter
-    val prefs = remember { context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE) }
     val deviceUiProfile = remember(windowSizeClass.widthSizeClass) {
         resolveDeviceUiProfile(
             widthSizeClass = windowSizeClass.widthSizeClass
@@ -123,8 +123,9 @@ fun PlaybackSettingsContent(
     }
 
 
-    var isStatsEnabled by remember { mutableStateOf(prefs.getBoolean("show_stats", false)) }
     var showPipPermissionDialog by remember { mutableStateOf(false) }
+    var showPlayerInsightModeDialog by remember { mutableStateOf(false) }
+    val playbackInsightScope = rememberCoroutineScope()
 
     // 获取动态圆角用于统一风格
     // 注意：这里需要导入 LocalCornerRadiusScale，如果该文件没有导入，可能需要添加。
@@ -146,6 +147,9 @@ fun PlaybackSettingsContent(
     val playerDiagnosticLoggingEnabled by com.android.purebilibili.core.store.SettingsManager
         .getPlayerDiagnosticLoggingEnabled(context)
         .collectAsStateWithLifecycle(initialValue = DEFAULT_PLAYER_DIAGNOSTIC_LOGGING_ENABLED)
+    val playerInsightMode by SettingsManager
+        .getPlayerInsightMode(context)
+        .collectAsStateWithLifecycle(initialValue = SettingsManager.getPlayerInsightModeSync(context))
     val dashSegmentRequestsEnabled by com.android.purebilibili.core.store.SettingsManager
         .getDashSegmentRequestsEnabled(context)
         .collectAsStateWithLifecycle(initialValue = DEFAULT_DASH_SEGMENT_REQUESTS_ENABLED)
@@ -214,6 +218,41 @@ fun PlaybackSettingsContent(
             dismissButton = {
                 com.android.purebilibili.core.ui.IOSDialogAction(onClick = { showPipPermissionDialog = false }) {
                     Text("暂不开启", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        )
+    }
+
+    if (showPlayerInsightModeDialog) {
+        com.android.purebilibili.core.ui.IOSAlertDialog(
+            onDismissRequest = { showPlayerInsightModeDialog = false },
+            title = { Text("播放器洞察") },
+            text = {
+                Column {
+                    listOf(
+                        PlayerSettingsStore.PlayerInsightMode.OFF to "关闭",
+                        PlayerSettingsStore.PlayerInsightMode.SMART to "智能显示",
+                        PlayerSettingsStore.PlayerInsightMode.ALWAYS to "始终显示"
+                    ).forEach { (mode, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .clickable {
+                                    playbackInsightScope.launch {
+                                        SettingsManager.setPlayerInsightMode(context, mode)
+                                    }
+                                    showPlayerInsightModeDialog = false
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = playerInsightMode == mode,
+                                onClick = null
+                            )
+                            Text(label, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
                 }
             }
         )
@@ -612,20 +651,25 @@ fun PlaybackSettingsContent(
             }
             item {
                 Box(modifier = Modifier.entrance()) {
+                    val scope = rememberCoroutineScope()
                     IOSGroup {
-	                        IOSSwitchItem(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYER_STATS),
-                            title = "详细统计信息",
-                            subtitle = "显示编解码、码率等极客信息",
-                            checked = isStatsEnabled,
-                            onCheckedChange = {
-                                isStatsEnabled = it
-                                prefs.edit().putBoolean("show_stats", it).apply()
+	                        IOSClickableItem(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYER_STATS),
+                            title = "播放器洞察",
+                            subtitle = when (playerInsightMode) {
+                                PlayerSettingsStore.PlayerInsightMode.OFF -> "不显示播放状态信息"
+                                PlayerSettingsStore.PlayerInsightMode.SMART -> "控制栏出现时显示；观测到掉帧或软件解码时主动保留"
+                                PlayerSettingsStore.PlayerInsightMode.ALWAYS -> "常驻显示实测的编解码、码率与播放状态"
                             },
+                            value = when (playerInsightMode) {
+                                PlayerSettingsStore.PlayerInsightMode.OFF -> "关闭"
+                                PlayerSettingsStore.PlayerInsightMode.SMART -> "智能"
+                                PlayerSettingsStore.PlayerInsightMode.ALWAYS -> "常驻"
+                            },
+                            onClick = { showPlayerInsightModeDialog = true },
                             iconTint = iOSSystemGray
                         )
                         IOSDivider()
-                        val scope = rememberCoroutineScope()
 	                        IOSSwitchItem(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYER_DIAGNOSTIC_LOGS),
                             title = "播放器诊断日志",

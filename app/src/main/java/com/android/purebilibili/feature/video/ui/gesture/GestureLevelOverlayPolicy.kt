@@ -35,7 +35,7 @@ import top.yukonga.miuix.kmp.icon.extended.VolumeUp
  * Layout, placement, icon family and motion all differ by style.
  */
 enum class GestureLevelOverlayStyle {
-    /** Material 3: centered vertical pill with bottom-up fill. */
+    /** Material 3: edge vertical pill with bottom-up fill. */
     Md3,
     /** iOS: centered frosted capsule with SF-style glyphs. */
     Ios,
@@ -98,7 +98,9 @@ fun resolveGestureLevelOverlaySpec(
         GestureLevelOverlayStyle.Md3 -> GestureLevelOverlaySpec(
             style = style,
             kind = kind,
-            alignment = Alignment.Center,
+            // Keep the video center clear: brightness follows the left gesture zone,
+            // volume follows the right gesture zone.
+            alignment = if (isVolume) Alignment.CenterEnd else Alignment.CenterStart,
             showLabel = false,
             showPercentText = true,
             verticalRail = true,

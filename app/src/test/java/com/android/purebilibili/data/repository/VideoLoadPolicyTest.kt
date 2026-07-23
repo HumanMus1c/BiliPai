@@ -1,5 +1,6 @@
 package com.android.purebilibili.data.repository
 
+import com.android.purebilibili.data.model.response.DashVideo
 import com.android.purebilibili.data.model.response.Page
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -509,6 +510,100 @@ class VideoLoadPolicyTest {
     @Test
     fun `shouldRefreshVipStatusOnVideoLoad keeps first frame path lean`() {
         assertFalse(shouldRefreshVipStatusOnVideoLoad())
+    }
+
+    @Test
+    fun `exact premium track must have a playable url`() {
+        assertFalse(
+            hasExactPlayableRequestedTrack(
+                requestedTargetQn = 125,
+                dashVideos = listOf(
+                    DashVideo(id = 125),
+                    DashVideo(id = 120, baseUrl = "https://example.com/sdr.m4s")
+                )
+            )
+        )
+        assertTrue(
+            hasExactPlayableRequestedTrack(
+                requestedTargetQn = 125,
+                dashVideos = listOf(
+                    DashVideo(id = 125, backupUrl = listOf("https://example.com/hdr.m4s"))
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `only explicit premium requests use strict quality lookup`() {
+        assertTrue(isStrictPremiumQualityRequest(PlayUrlRequestKind.EXPLICIT, 125))
+        assertTrue(isStrictPremiumQualityRequest(PlayUrlRequestKind.EXPLICIT, 126))
+        assertTrue(isStrictPremiumQualityRequest(PlayUrlRequestKind.EXPLICIT, 127))
+        assertFalse(isStrictPremiumQualityRequest(PlayUrlRequestKind.EXPLICIT, 120))
+        assertFalse(isStrictPremiumQualityRequest(PlayUrlRequestKind.INITIAL, 125))
+    }
+
+    @Test
+    fun `explicit premium result requires the exact playable dash track`() {
+        assertFalse(
+            shouldAcceptAppApiResultForTargetQuality(
+                requestKind = PlayUrlRequestKind.EXPLICIT,
+                targetQn = 125,
+                returnedQuality = 125,
+                dashVideoIds = listOf(120, 80)
+            )
+        )
+        assertTrue(
+            shouldAcceptAppApiResultForTargetQuality(
+                requestKind = PlayUrlRequestKind.EXPLICIT,
+                targetQn = 125,
+                returnedQuality = 120,
+                dashVideoIds = listOf(125, 120)
+            )
+        )
+    }
+
+    @Test
+    fun `HDR auto upgrade requires an eligible untouched playback`() {
+        val eligible = shouldScheduleHdrAutoUpgrade(
+            isInitialRequest = true,
+            isAutoHighestQuality = true,
+            isVip = true,
+            isMobileData = false,
+            hasAccessToken = true,
+            currentPlayableDashVideoIds = listOf(120, 80),
+            userHasExplicitQualitySelection = false,
+            upgradeAlreadyAttempted = false
+        )
+        val alreadyHasHdr = shouldScheduleHdrAutoUpgrade(
+            isInitialRequest = true,
+            isAutoHighestQuality = true,
+            isVip = true,
+            isMobileData = false,
+            hasAccessToken = true,
+            currentPlayableDashVideoIds = listOf(125, 120),
+            userHasExplicitQualitySelection = false,
+            upgradeAlreadyAttempted = false
+        )
+        val explicitlySelected = shouldScheduleHdrAutoUpgrade(
+            isInitialRequest = true,
+            isAutoHighestQuality = true,
+            isVip = true,
+            isMobileData = false,
+            hasAccessToken = true,
+            currentPlayableDashVideoIds = listOf(120, 80),
+            userHasExplicitQualitySelection = true,
+            upgradeAlreadyAttempted = false
+        )
+
+        assertTrue(eligible)
+        assertFalse(alreadyHasHdr)
+        assertFalse(explicitlySelected)
+    }
+
+    @Test
+    fun `premium upgrade selection must keep the exact requested quality`() {
+        assertTrue(isExactRequestedQualitySelected(requestedTargetQn = 125, actualQuality = 125))
+        assertFalse(isExactRequestedQualitySelected(requestedTargetQn = 125, actualQuality = 120))
     }
 
     @Test

@@ -195,6 +195,12 @@ class DynamicScreenStatePolicyTest {
     }
 
     @Test
+    fun `dynamic detail auto-opens comments only once per entry`() {
+        assertTrue(shouldAutoOpenCommentsOnDynamicDetailEntry(hasAlreadyOpened = false))
+        assertFalse(shouldAutoOpenCommentsOnDynamicDetailEntry(hasAlreadyOpened = true))
+    }
+
+    @Test
     fun `comment sheet total count should prefer live comment payload`() {
         assertEquals(26, resolveDynamicCommentSheetTotalCount(liveCount = 26, fallbackCount = 12))
         assertEquals(12, resolveDynamicCommentSheetTotalCount(liveCount = 0, fallbackCount = 12))
