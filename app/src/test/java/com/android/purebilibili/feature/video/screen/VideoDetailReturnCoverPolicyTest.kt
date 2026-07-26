@@ -605,6 +605,68 @@ class VideoDetailReturnCoverPolicyTest {
     }
 
     @Test
+    fun `cover-first entry upgrades to live surface after current video renders`() {
+        val returnIntent = resolveVideoDetailReturnPlaybackIntent(
+            entryPlaybackIntent = VideoSharedTransitionPlaybackIntent.CoverFirst,
+            hasRenderableLiveFrame = true,
+        )
+
+        assertEquals(VideoSharedTransitionPlaybackIntent.ImmediatePlayback, returnIntent)
+        val ownership = resolveVideoDetailReturnCoverOwnership(
+            transitionEnabled = true,
+            sharedBoundsActive = true,
+            keepLoadedContentForBackPreview = false,
+            playbackIntent = returnIntent,
+            detailContentReady = true,
+            hasResidentCover = true,
+            hasRenderableLiveFrame = true,
+        )
+        assertTrue(isLiveReturnMorphFromOwnership(ownership))
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnCoverAlpha(
+                transitionProgress = 0.5f,
+                isCommittedCardReturn = false,
+                hasResidentCover = true,
+                liveReturnMorph = true,
+            ),
+            0.0001f,
+        )
+        assertEquals(
+            1f,
+            resolveVideoDetailReturnPlayerAlpha(
+                transitionProgress = 0.5f,
+                isCommittedCardReturn = false,
+                hasResidentCover = true,
+                liveReturnMorph = true,
+            ),
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun `cover-first entry keeps resident cover before first frame`() {
+        assertEquals(
+            VideoSharedTransitionPlaybackIntent.CoverFirst,
+            resolveVideoDetailReturnPlaybackIntent(
+                entryPlaybackIntent = VideoSharedTransitionPlaybackIntent.CoverFirst,
+                hasRenderableLiveFrame = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `detail state holder derives return intent from rendered live frame`() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt"
+        ).readText()
+
+        assertTrue(source.contains("val returnPlaybackIntent = resolveVideoDetailReturnPlaybackIntent("))
+        assertTrue(source.contains("hasRenderableLiveFrame = hasRenderableLiveFrameForReturn"))
+        assertTrue(source.contains("playbackIntent = returnPlaybackIntent"))
+    }
+
+    @Test
     fun `missing return cover keeps player visible instead of revealing black`() {
         assertEquals(0f, resolveVideoDetailReturnCoverAlpha(0.2f, true, false), 0.0001f)
         assertEquals(1f, resolveVideoDetailReturnPlayerAlpha(0.2f, true, false), 0.0001f)

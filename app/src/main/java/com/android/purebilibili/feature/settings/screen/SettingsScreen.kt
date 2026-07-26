@@ -170,8 +170,8 @@ fun SettingsScreen(
     var updateCheckResult by remember { mutableStateOf<AppUpdateCheckResult?>(null) }
     var changelogCheckResult by remember { mutableStateOf<AppUpdateCheckResult?>(null) }
     var updateDownloadState by remember { mutableStateOf(AppUpdateDownloadState()) }
-    var currentReleaseEvidence by remember { mutableStateOf<AppUpdateCheckResult?>(null) }
-    var installedApkSha256 by remember { mutableStateOf<String?>(null) }
+    val currentReleaseEvidence = state.currentReleaseEvidence
+    val installedApkSha256 = state.installedApkSha256
     
     // [新增] 黑名单页面状态
     var showBlockedList by remember { mutableStateOf(false) }
@@ -369,6 +369,7 @@ fun SettingsScreen(
         }
         val result = AppUpdateChecker.check(com.android.purebilibili.BuildConfig.VERSION_NAME)
         result.onSuccess { info ->
+            viewModel.recordReleaseEvidence(info)
             updateStatusText = info.message
             when (resolveAppUpdateDialogMode(info.isUpdateAvailable, shouldOpenReleaseNotes)) {
                 AppUpdateDialogMode.UPDATE_AVAILABLE -> {
@@ -451,13 +452,11 @@ fun SettingsScreen(
         }
     }
 
+    LaunchedEffect(viewModel) {
+        viewModel.ensureDiagnosticsLoaded()
+    }
     LaunchedEffect(Unit) {
-        viewModel.refreshCacheSize()
         AnalyticsHelper.logScreenView("SettingsScreen")
-        installedApkSha256 = calculateInstalledApkSha256(context)
-        currentReleaseEvidence = AppUpdateChecker
-            .check(com.android.purebilibili.BuildConfig.VERSION_NAME)
-            .getOrNull()
     }
 
     //  Transparent Navigation Bar

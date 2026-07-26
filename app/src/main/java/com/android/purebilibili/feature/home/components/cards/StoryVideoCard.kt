@@ -60,6 +60,7 @@ import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransit
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
+import com.android.purebilibili.feature.home.HomeCoverRequestSpec
 import com.android.purebilibili.feature.home.resolveHomeCardEnterAnimationEnabledAtMount
 import com.android.purebilibili.feature.video.ui.section.resolveCompactPublishTimeRowText
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
@@ -77,7 +78,7 @@ import kotlin.math.roundToInt
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun StoryVideoCard(
+internal fun StoryVideoCard(
     video: VideoItem,
     index: Int = 0,  //  [新增] 索引用于动画延迟
     animationEnabled: Boolean = true,  //  卡片动画开关
@@ -89,6 +90,7 @@ fun StoryVideoCard(
     scrollLiteModeEnabled: Boolean = false,
     isDataSaverActive: Boolean = false,
     preferLowQualityCover: Boolean = false,
+    coverRequestSpec: HomeCoverRequestSpec? = null,
     showCoverGlassBadges: Boolean = true,
     showInfoGlassBadges: Boolean = true,
     showUpBadge: Boolean = true,
@@ -118,9 +120,9 @@ fun StoryVideoCard(
         TextStyle(shadow = resolveVideoCardCoverOverlayTextShadow())
     }
     val showDurationOutside = homeDurationStyle == HomeDurationStyle.OUTSIDE_COVER
-    val scrollLitePolicy = remember(scrollLiteModeEnabled) {
+    val scrollLitePolicy = remember {
         resolveStoryVideoCardScrollLiteVisualPolicy(
-            scrollLiteModeEnabled = scrollLiteModeEnabled
+            scrollLiteModeEnabled = false
         )
     }
     val badgeStylePolicy = remember(showCoverGlassBadges, showInfoGlassBadges) {
@@ -137,11 +139,14 @@ fun StoryVideoCard(
         showOnlineCount = showOnlineCount
     )
     val useLowQualityCover = isDataSaverActive && preferLowQualityCover
-    val coverUrl = remember(video.bvid, useLowQualityCover) {
-        FormatUtils.resolveVideoCoverUrl(
-            if (video.pic.startsWith("//")) "https:${video.pic}" else video.pic,
-            useLowQuality = useLowQualityCover
+    val coverUrl = remember(video.bvid, video.pic, useLowQualityCover, coverRequestSpec) {
+        coverRequestSpec?.resolveUrl(video.pic) ?: FormatUtils.resolveVideoCoverUrl(
+            video.pic,
+            useLowQuality = useLowQualityCover,
         )
+    }
+    val coverCacheKey = remember(video.bvid, video.pic, coverRequestSpec) {
+        "story_${video.bvid.ifBlank { video.pic }}_${coverRequestSpec?.cacheKeySuffix ?: "default"}"
     }
     val publishTimeRowText = remember(showPublishTime, video.pubdate) {
         if (!showPublishTime) {
@@ -251,10 +256,6 @@ fun StoryVideoCard(
                 motionSpec = cardSharedTransitionMotionSpec,
                 clipShape = cardShellShape
             )
-            .videoCardSiblingDepthScale(
-                bvid = video.bvid,
-                sourceRoute = effectiveSharedElementSourceRoute,
-            )
             .padding(horizontal = cardHorizontalPadding, vertical = 8.dp)
             .animateEnter(
                 index = index,
@@ -311,9 +312,12 @@ fun StoryVideoCard(
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(coverUrl)
+                    .apply {
+                        coverRequestSpec?.let { size(it.widthPx, it.heightPx) }
+                    }
                     .crossfade(coverCrossfadeEnabled)
-                    .memoryCacheKey("story_${video.bvid}")
-                    .diskCacheKey("story_${video.bvid}")
+                    .memoryCacheKey(coverCacheKey)
+                    .diskCacheKey(coverCacheKey)
                     .build(),
                 contentDescription = null,
                 modifier = Modifier

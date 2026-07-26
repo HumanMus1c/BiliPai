@@ -70,6 +70,21 @@ internal fun shouldTreatVideoDetailContentReadyForLiveReturnMorph(
 ): Boolean = hasSuccessfulDetailContent
 
 /**
+ * 入口播放意图只决定首次展开的视觉路径。
+ * 当前视频已有可靠首帧后，返回应优先保留实时 surface，不能再退回静态封面。
+ */
+internal fun resolveVideoDetailReturnPlaybackIntent(
+    entryPlaybackIntent: VideoSharedTransitionPlaybackIntent,
+    hasRenderableLiveFrame: Boolean,
+): VideoSharedTransitionPlaybackIntent {
+    return if (hasRenderableLiveFrame) {
+        VideoSharedTransitionPlaybackIntent.ImmediatePlayback
+    } else {
+        entryPlaybackIntent
+    }
+}
+
+/**
  * 是否把视觉主导权交给常驻封面（forceCover / 藏 surface）。
  * live morph 时必须为 false，否则会出现「先切封面再缩小」。
  * ownership 真相见 [resolveVideoCardReturnCoverOwnership]。

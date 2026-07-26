@@ -11,6 +11,55 @@ import kotlin.test.assertTrue
 class HomeRefreshPolicyTest {
 
     @Test
+    fun normalRefreshOnlyDeduplicatesWithinResponse() {
+        val output = selectHomeFeedIncomingVideos(
+            responseVideos = listOf(
+                VideoItem(bvid = "BV1"),
+                VideoItem(bvid = "BV1"),
+                VideoItem(bvid = "BV2"),
+            ),
+            currentVideos = listOf(VideoItem(bvid = "BV1")),
+            isLoadMore = false,
+            isIncrementalRefresh = false,
+        )
+
+        assertEquals(listOf("BV1", "BV2"), output.map { it.bvid })
+    }
+
+    @Test
+    fun loadMoreExcludesOnlyVideosAlreadyInCurrentList() {
+        val output = selectHomeFeedIncomingVideos(
+            responseVideos = listOf(
+                VideoItem(bvid = "BV1"),
+                VideoItem(bvid = "BV2"),
+                VideoItem(bvid = "BV3"),
+            ),
+            currentVideos = listOf(VideoItem(bvid = "BV1")),
+            isLoadMore = true,
+            isIncrementalRefresh = false,
+        )
+
+        assertEquals(listOf("BV2", "BV3"), output.map { it.bvid })
+    }
+
+    @Test
+    fun incrementalRefreshExcludesCurrentListAndKeepsEvenBatch() {
+        val output = selectHomeFeedIncomingVideos(
+            responseVideos = listOf(
+                VideoItem(bvid = "BV1"),
+                VideoItem(bvid = "BV2"),
+                VideoItem(bvid = "BV3"),
+                VideoItem(bvid = "BV4"),
+            ),
+            currentVideos = listOf(VideoItem(bvid = "BV1")),
+            isLoadMore = false,
+            isIncrementalRefresh = true,
+        )
+
+        assertEquals(listOf("BV2", "BV3"), output.map { it.bvid })
+    }
+
+    @Test
     fun trimIncrementalRefreshVideosToEvenCount_keepsSingleItem() {
         val input = listOf(VideoItem(bvid = "BV1"))
 

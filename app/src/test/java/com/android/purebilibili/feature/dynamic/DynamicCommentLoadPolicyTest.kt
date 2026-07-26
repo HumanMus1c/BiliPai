@@ -98,7 +98,7 @@ class DynamicCommentLoadPolicyTest {
             cursorIsEnd = false,
             fetchedReplyCount = 0,
             loadedReplyCount = 20,
-            totalCount = 20
+            totalCount = 138
         )
 
         assertEquals(true, isEnd)

@@ -117,8 +117,14 @@ internal fun resolveDynamicCommentTarget(item: DynamicItem): DynamicCommentTarge
                 ?.let { DynamicCommentTarget(oid = it, type = 17) }
             DynamicCommentTarget(oid = drawId, type = 11)
         }
+        "DYNAMIC_TYPE_FORWARD" -> {
+            resolveCommentTargetFromBasic(basic)?.let { target ->
+                if (target.type == 17) return target
+            }
+            val oid = item.id_str.toPositiveLongOrNull() ?: return null
+            DynamicCommentTarget(oid = oid, type = 17)
+        }
         "DYNAMIC_TYPE_WORD",
-        "DYNAMIC_TYPE_FORWARD",
         "DYNAMIC_TYPE_LIVE_RCMD",
         "DYNAMIC_TYPE_COMMON_SQUARE",
         "DYNAMIC_TYPE_COMMON_VERTICAL" -> {

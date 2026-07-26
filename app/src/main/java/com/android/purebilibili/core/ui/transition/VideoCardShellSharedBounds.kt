@@ -15,16 +15,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import com.android.purebilibili.core.ui.adaptive.MotionTier
 
 /**
  * shell sharedBounds 角色。
  *
- * - 进场（首页等大卡）：源卡 Exit.None、详情壳 Enter.None，整卡跟手放大。
- * - 进场（相关/分区横条卡）：源卡短淡出，避免横条卡内容叠在详情播放器上。
+ * - 进场：首页等大卡由源卡 Exit.None、详情壳 Enter.None，整卡跟手放大。
  * - 返回（首页等大卡）：详情壳 Exit.None 保住实时画面；源卡 Enter 延后淡入，
  *   避免封面一开始盖住直播画面。
- * - 返回（相关/分区横条卡）：源卡 Enter.None，标题与封面同步落位。
+ * - 相关/分区横条卡同样由整卡承载 shared bounds，封面与文字作为一个整体移动。
  */
 internal enum class VideoCardShellSharedBoundsRole {
     /** 列表源卡片 */
@@ -44,6 +45,16 @@ internal const val VIDEO_CARD_SHELL_SOURCE_ENTER_FADE_DELAY_RATIO =
 /** 横条卡进场源卡淡出时长（占 morph 总时长比例）。 */
 internal const val VIDEO_CARD_SHELL_SOURCE_EXIT_FADE_RATIO = 0.28f
 
+/** 横条卡返回时，源卡内容在最后一段开始接回播放器内容。 */
+internal fun resolveVideoCardShellCrossfadeSourceEnterDelayMillis(
+    transitionDurationMillis: Int,
+): Int {
+    val duration = transitionDurationMillis.coerceAtLeast(0)
+    val fadeDuration = resolveVideoCardShellSourceExitFadeDurationMillis(duration)
+        .coerceAtMost(duration)
+    return (duration - fadeDuration).coerceAtLeast(0)
+}
+
 /**
  * 源卡 shell 是否延后 Enter。
  * 一律 false：封面待命 + chrome 独立淡入，见 [canCoexistLiveSurfaceStableCoverAndChromeOnReturn]。
@@ -57,9 +68,7 @@ internal fun shouldDelaySourceCardEnterForLiveReturnMorph(
     return shouldDelaySourceCardEnterOnReturn(isQuickReturnFromDetail)
 }
 
-/**
- * 竖卡进场 Exit.None；不再对横条做特判淡出。
- */
+/** shell 竖卡进场保持 Exit.None。 */
 internal fun shouldFadeOutShellSourceCardOnOpen(sourceRoute: String?): Boolean {
     @Suppress("UNUSED_PARAMETER")
     val ignored = sourceRoute
@@ -84,7 +93,21 @@ internal fun resolveVideoCardShellSharedBoundsEnter(
     role: VideoCardShellSharedBoundsRole,
     transitionDurationMillis: Int,
     delaySourceCardEnterForLiveReturn: Boolean = true,
+    crossfadeSourceContent: Boolean = false,
 ): EnterTransition {
+    if (
+        role == VideoCardShellSharedBoundsRole.SourceCard &&
+        crossfadeSourceContent
+    ) {
+        val duration = transitionDurationMillis.coerceAtLeast(0)
+        val delay = resolveVideoCardShellCrossfadeSourceEnterDelayMillis(duration)
+        return fadeIn(
+            animationSpec = tween(
+                durationMillis = (duration - delay).coerceAtLeast(0),
+                delayMillis = delay,
+            ),
+        )
+    }
     if (
         role == VideoCardShellSharedBoundsRole.SourceCard &&
         delaySourceCardEnterForLiveReturn
@@ -137,25 +160,43 @@ internal fun Modifier.videoCardShellSharedBoundsOrEmpty(
      * 竖屏直达 Story 全屏：FillBounds + Center，卡片从列表位整卡展开。
      */
     fillFullscreenShell: Boolean = false,
+    /**
+     * 横卡整壳：打开前段让源卡内容淡出并由详情播放器接管；
+     * 返回时在落位末段恢复源卡内容。几何仍只由 shared bounds 驱动。
+     */
+    crossfadeSourceContent: Boolean = false,
 ): Modifier {
     if (!enabled || sharedTransitionScope == null || animatedVisibilityScope == null || bvid.isBlank()) {
         return this
     }
     val bgState = LocalVideoCardTransitionBackgroundState.current
+    val siblingDepthScaleActive =
+        role == VideoCardShellSharedBoundsRole.SourceCard &&
+            bgState.isBackgroundSinkEnabledProvider() &&
+            bgState.phaseProvider() != VideoCardTransitionBackgroundPhase.IDLE &&
+            bgState.motionTierProvider() != MotionTier.Reduced
     // 快速返回：源卡 Enter.None，标题/UP 与封面同步落位，避免先占位后出字。
     val isQuickReturnFromDetail = bgState.isQuickReturnFromDetailProvider()
+    val crossfadeSourceContentOnReturn =
+        crossfadeSourceContent && !isQuickReturnFromDetail
     val delaySourceCardEnter = shouldDelaySourceCardEnterForLiveReturnMorph(
         sourceRoute = sourceRoute,
         isQuickReturnFromDetail = isQuickReturnFromDetail,
     )
-    val fadeOutSourceOnOpen = remember(sourceRoute) {
-        shouldFadeOutShellSourceCardOnOpen(sourceRoute)
+    val fadeOutSourceOnOpen = remember(sourceRoute, crossfadeSourceContent) {
+        crossfadeSourceContent || shouldFadeOutShellSourceCardOnOpen(sourceRoute)
     }
-    val enter = remember(role, motionSpec.durationMillis, delaySourceCardEnter) {
+    val enter = remember(
+        role,
+        motionSpec.durationMillis,
+        delaySourceCardEnter,
+        crossfadeSourceContentOnReturn,
+    ) {
         resolveVideoCardShellSharedBoundsEnter(
             role = role,
             transitionDurationMillis = motionSpec.durationMillis,
             delaySourceCardEnterForLiveReturn = delaySourceCardEnter,
+            crossfadeSourceContent = crossfadeSourceContentOnReturn,
         )
     }
     val exit = remember(role, motionSpec.durationMillis, fadeOutSourceOnOpen) {
@@ -175,13 +216,14 @@ internal fun Modifier.videoCardShellSharedBoundsOrEmpty(
     }
     return then(
         with(sharedTransitionScope) {
+            val sharedContentState = rememberSharedContentState(
+                key = videoCardShellSharedElementKey(
+                    bvid = bvid,
+                    sourceRoute = sourceRoute
+                )
+            )
             Modifier.sharedBounds(
-                sharedContentState = rememberSharedContentState(
-                    key = videoCardShellSharedElementKey(
-                        bvid = bvid,
-                        sourceRoute = sourceRoute
-                    )
-                ),
+                sharedContentState = sharedContentState,
                 animatedVisibilityScope = animatedVisibilityScope,
                 enter = enter,
                 exit = exit,
@@ -202,6 +244,22 @@ internal fun Modifier.videoCardShellSharedBoundsOrEmpty(
                 resizeMode = resizeMode,
                 clipInOverlayDuringTransition = OverlayClip(clipShape)
             )
+                .then(
+                    if (siblingDepthScaleActive) {
+                        Modifier.graphicsLayer {
+                            val scale = resolveVideoCardSiblingDepthScale(
+                                depthProgress = bgState.progressProvider(),
+                                phase = bgState.phaseProvider(),
+                                isSharedMorphSourceCard = sharedContentState.isMatchFound,
+                                motionTier = bgState.motionTierProvider(),
+                            )
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
         }
     )
 }

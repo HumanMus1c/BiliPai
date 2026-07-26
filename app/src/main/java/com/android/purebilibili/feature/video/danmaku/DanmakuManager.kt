@@ -1748,6 +1748,7 @@ class DanmakuManager private constructor(
     fun hide() {
         Log.d(TAG, "🙈 hide()")
         controller?.pause()
+        controller?.clear()
         danmakuView?.visibility = android.view.View.GONE
         isPlaying = false
     }

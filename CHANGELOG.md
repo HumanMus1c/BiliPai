@@ -1,5 +1,128 @@
 # Changelog
 
+## v9.9.8.9 (2026-07-26)
+
+### 版本信息
+
+- 版本号从 `9.9.8.8` 升级到 `9.9.8.9`，`versionCode` 从 `263` 升级到 `264`。
+- 更新范围：自最近已发布基线 `v9.9.8.7` 至本版本发布前的 72 个提交。
+
+### 相对 v9.9.8.7 的完整更新
+
+#### 播放器、画质与插件
+
+- 新增 Anime4K CNN 视频增强插件，提供适配帧预算的预设、Kazumi 对齐、稳定切换与 surface 重绑；插件版本升级到 `0.2.2`，并支持番剧播放与显示比例保持。
+- 新增严格自定义 CDN 模式，IP 刷新后仍保留用户自定义规则。
+- 修复 TextureView 下 HDR 视频仅以 SDR 渲染、`hvc1` HEVC 流识别和实验性 DASH 忽略编码偏好；CDN fallback 保留原编码，超时保持 `2.5s`。
+- 修复章节跳转、弹幕开关、长按倍速平滑度与全屏播放队列保持；预测返回时继续保留视频画面。
+
+#### 首页、列表与卡片过渡
+
+- 首页封面请求增加尺寸约束并取消过期加载，隔离 Feed 与顶部标签动效状态。
+- 支持单列视频列表，并对齐单列、横向卡片 chrome、源页面缩放、景深分层与 shared-card 过渡。
+- 优化视频卡片过渡时序与开销，返回首页时保持当前分区，列表设置下首页顶栏继续可见。
+
+#### 空间、动态与图标
+
+- 空间资料支持复制 UP 主简介、名称、UID 与空间链接；富文本中的空间链接可在应用内打开。
+- 动态转发评论按文档目标加载，修复评论分页重复请求。
+- 女仆图标继续完善 Pixel 自适应图标兼容、深色模式、系统启动页、前景尺寸与圆角；保留主题化加载反馈与空间观看记录等此前未发布改动。
+
+### Pull Requests
+
+- [#639](https://github.com/jay3-yy/BiliPai/pull/639) **@maxzrb** — `fix(player): 继续修复 TextureView 导致 HDR 视频只能以 SDR 渲染到屏幕`。
+- [#645](https://github.com/jay3-yy/BiliPai/pull/645) **@maxzrb** — `fix(player): 修正HEVC视频流获取能力漏洞`。
+- [#648](https://github.com/jay3-yy/BiliPai/pull/648) **@Kurarion** — `feat(cdn): 保留自定义规则并新增严格自定义 CDN 模式`。
+- [#655](https://github.com/jay3-yy/BiliPai/pull/655) **@maxzrb** — `feat(player): Anime4K超分辨率插件支持`。
+- [#657](https://github.com/jay3-yy/BiliPai/pull/657) **@maxzrb** — `fix(player): 修复偶发的CDN fallback导致视频编码意外降级`。
+- [#658](https://github.com/jay3-yy/BiliPai/pull/658) **@maxzrb** — `fix(player): 完善 Anime4K 播放场景接入并修复画面比例`。
+
+### 作者与提交清单
+
+#### @Jay3-yy（48 个提交）
+
+- `1c0942c30` feat(ui): theme-aware loading indicators for MD3, Miuix, and iOS
+- `c06b04653` feat(ui): extend theme-aware loading to refresh and content spinners
+- `9a4da3c4c` feat: add blue snow maid app icon
+- `6211b6d1d` fix: preserve white shell around maid icons
+- `5161f8cdb` fix: enlarge maid adaptive icon artwork
+- `25f7cead8` feat: add dark mode maid app icons
+- `16bd1845b` fix: refresh dark launcher icon and splash corners
+- `f1a329558` fix: round maid system splash icons
+- `dc62c8c38` feat: add selectable maid icon appearance
+- `9d69c51f1` fix: keep maid splash corners stable
+- `30d1fe42f` fix: stabilize video card return depth effect
+- `759501622` fix(player): apply exact HDR quality upgrades
+- `ee7803b04` feat(player): model reliable playback insights
+- `1f3b1d027` feat(player): add playback insight experience
+- `29935dd24` refactor(player): compact playback insight glass
+- `e46abf311` fix(dynamic): auto-open comments when entering dynamic detail
+- `8c0014cb8` fix(home): preserve feed position after space return
+- `f50a197c2` fix(detail): inline dynamic comments and smooth related scroll
+- `9f32a081d` fix(video): restore related card transitions after scroll
+- `cf8b553a7` fix(video): return unit from related card click
+- `969544e67` fix(player): move md3 level feedback to edges
+- `751c83460` fix(video): keep current frame during fullscreen switch
+- `efc4d6b7f` fix(favorite): isolate collection playback queue
+- `ebe112179` feat(space): remember watched videos
+- `6736685d5` fix(video): move UP preview to portrait player
+- `861fc230c` fix(player): defer long-press lock hint
+- `b083d2173` fix(dynamic): load complete plain text detail
+- `e81691d21` fix(video): block pager while UP preview is open
+- `42cb9c0bd` chore(release): bump version to 9.9.8.8
+- `56175c894` fix(comment): route rich space links in app
+- `0cd2340df` fix(player): repair chapter seeking and danmaku toggle
+- `7a6c881ac` perf(ui): streamline video card transitions
+- `a2373304b` fix(video): keep live frame during predictive return
+- `da263e44f` feat(ui): use single-column video lists
+- `8cecf052c` fix(ui): align single-column video card transitions
+- `6f4b1b53e` fix(ui): sync horizontal card chrome motion
+- `239c91b41` feat(ui): add card transition depth separation
+- `0d117aaa6` fix(ui): shrink source page behind shared card
+- `cd9955865e` fix(ui): shrink video elements behind shared card
+- `9fa7909f1` perf(home): isolate feed and tab motion state
+- `e5d49d57d` perf(home): size covers and cancel stale feed loads
+- `cf2145514` fix: smooth long press speed and preserve fullscreen queue
+- `85d065aa4` fix: keep home header visible with list setting
+- `c68aecfb4` fix(icon): keep adaptive maid icons on Pixel
+- `0cc25c20d` fix(dynamic): load forwarded comments by documented target
+- `9edf3c5e6` fix(dynamic): stop repeated comment pagination
+- `fb941651b` Fix home tab restore after video return
+- `fc5c41b26` Add copy actions to UP spaces
+
+#### @maxzrb（16 个提交；含 PR #639、#645、#655、#657、#658）
+
+- `edf23e150` fix(player): 修复 TextureView 导致 HDR 视频只能以 SDR 渲染到屏幕
+- `c785edc1d` fix(player): recognize hvc1 as HEVC
+- `ca6bad51f` fix(player): 修复实验性 DASH 忽略编码偏好
+- `6d25d212c` feat(player): add Anime4K video enhancement plugin
+- `e4b28e70c` feat(player): adapt Anime4K preset to frame budget
+- `5d55e8cc2` fix(player): improve Anime4K switching and controls
+- `353cb760b` fix(player): rebind surface after Anime4K toggle
+- `cec1c8e76` feat(player): port Kazumi Anime4K CNN chains
+- `f2ce0d0ac` fix(player): align Anime4K presets with Kazumi
+- `753aba3e1` chore(plugin): bump Anime4K version to 0.2.1
+- `7ea3d7043` fix(player): preserve codec across CDN fallback
+- `98eff784c` fix(player): enable Anime4K for bangumi playback
+- `75a3219f4` fix(player): preserve bangumi Anime4K aspect ratio
+- `d85f5da4c` fix(player): preserve Anime4K display aspect ratio
+- `1067d247a` chore(plugin): bump Anime4K version to 0.2.2
+- `c22015361` fix(player): keep CDN fallback timeout at 2.5 seconds
+
+#### @Kurarion（2 个提交；PR #648）
+
+- `6e37d12b6` fix(cdn): preserve custom rules during IP refresh
+- `20978deca` feat(cdn): add strict custom CDN mode
+
+#### 合并记录（@Jay3-yy）
+
+- `f7e66449f` Merge pull request #639 from maxzrb/fix/hdr-two-stage-upgrade
+- `39d34e59f` Merge pull request #645 from maxzrb/fix/hvc1-hevc-selection
+- `fc3b4d3c6` Merge pull request #648 from Kurarion/feature/cdn-strict-custom-mode
+- `25bfd5e4e` Merge pull request #655 from maxzrb/feat/anime4k-cnn-plugin
+- `a2611791e` Merge pull request #657 from maxzrb/fix/cdn-fallback-preserve-codec
+- `3e1a607ce` Merge pull request #658 from maxzrb/fix/anime4k-0.2.2-playback
+
 ## v9.9.8.8 (2026-07-23)
 
 ### 版本信息

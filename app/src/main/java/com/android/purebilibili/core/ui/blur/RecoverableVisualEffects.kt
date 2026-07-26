@@ -15,7 +15,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
 fun Modifier.hazeSourceCompat(state: HazeState): Modifier {
-    if (!shouldAllowRuntimeShaderBackedHazeEffect(Build.VERSION.SDK_INT)) return this
+    if (!shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT)) return this
     return hazeSource(state)
 }
 
@@ -42,6 +42,12 @@ internal fun shouldAllowRuntimeShaderBackedHazeEffect(
     sdkInt: Int
 ): Boolean {
     return sdkInt >= Build.VERSION_CODES.TIRAMISU
+}
+
+internal fun shouldAllowRenderEffectBackedHazeEffect(
+    sdkInt: Int
+): Boolean {
+    return sdkInt >= Build.VERSION_CODES.S
 }
 
 internal fun shouldAllowDirectHazeLiquidGlassFallback(

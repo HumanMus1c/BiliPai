@@ -1,5 +1,6 @@
 package com.android.purebilibili.core.ui.blur
 
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -66,6 +67,46 @@ class RecoverableVisualEffectsPolicyTest {
         assertTrue(
             shouldAllowRuntimeShaderBackedHazeEffect(
                 sdkInt = 33
+            )
+        )
+    }
+
+    @Test
+    fun renderEffectBackedHazeSupportsAndroid12AndAbove() {
+        assertFalse(
+            shouldAllowRenderEffectBackedHazeEffect(
+                sdkInt = 30
+            )
+        )
+        assertTrue(
+            shouldAllowRenderEffectBackedHazeEffect(
+                sdkInt = 31
+            )
+        )
+        assertTrue(
+            shouldAllowRenderEffectBackedHazeEffect(
+                sdkInt = 32
+            )
+        )
+    }
+
+    @Test
+    fun android12RenderEffectCompatibilityIsUsedByHazeSourceAndUnifiedBlur() {
+        val recoverableSource = File(
+            "src/main/java/com/android/purebilibili/core/ui/blur/RecoverableVisualEffects.kt"
+        ).readText()
+        val unifiedBlurSource = File(
+            "src/main/java/com/android/purebilibili/core/ui/blur/UnifiedBlur.kt"
+        ).readText()
+
+        assertTrue(
+            recoverableSource.contains(
+                "if (!shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT)) return this"
+            )
+        )
+        assertTrue(
+            unifiedBlurSource.contains(
+                "if (!shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT))"
             )
         )
     }

@@ -560,6 +560,8 @@ object VideoRepository {
                 }
                 else -> return fetchWebFeed(idx = idx, refreshCount = refreshCount)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             return Result.failure(e)
@@ -597,6 +599,8 @@ object VideoRepository {
             com.android.purebilibili.core.util.Logger.d("VideoRepo", " Web推荐: total=${list.size}, vertical=$verticalCount")
             
             return Result.success(list)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             return Result.failure(e)
@@ -646,6 +650,8 @@ object VideoRepository {
             com.android.purebilibili.core.util.Logger.d("VideoRepo", " Mobile推荐: total=${list.size}")
             
             return Result.success(list)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             com.android.purebilibili.core.util.Logger.d("VideoRepo", " Mobile feed exception: ${e.message}")
             return Result.failure(e)
@@ -658,6 +664,8 @@ object VideoRepository {
             val resp = api.getPopularVideos(pn = page, ps = 30)
             val list = resp.data?.list?.map { it.toVideoItem() }?.filter { it.bvid.isNotEmpty() } ?: emptyList()
             Result.success(list)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
@@ -675,6 +683,8 @@ object VideoRepository {
                 ?.filter { it.bvid.isNotEmpty() }
                 ?: emptyList()
             Result.success(list)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
@@ -692,6 +702,8 @@ object VideoRepository {
                 ?.filter { it.bvid.isNotEmpty() }
                 ?: emptyList()
             Result.success(list)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
@@ -719,6 +731,8 @@ object VideoRepository {
                 ?.filter { it.bvid.isNotEmpty() }
                 ?: emptyList()
             Result.success(list)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
@@ -747,6 +761,8 @@ object VideoRepository {
                 return@withContext Result.failure(Exception(resp.message.ifBlank { "分区视频加载失败(${resp.code})" }))
             }
             Result.success(list)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)

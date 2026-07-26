@@ -15,7 +15,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Version-9.9.8.8-007AFF?style=flat-square&labelColor=ffffff" alt="Version 9.9.8.8" />
+  <img src="https://img.shields.io/badge/Version-9.9.8.9-007AFF?style=flat-square&labelColor=ffffff" alt="Version 9.9.8.9" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -43,7 +43,7 @@
   </a>
 </p>
 
-<sub>README 更新：2026-07-23 · 当前构建版本以 app/build.gradle.kts 为准 · 发布记录以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
+<sub>README 更新：2026-07-26 · 当前构建版本以 app/build.gradle.kts 为准 · 发布记录以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
 
 </div>
 
@@ -188,12 +188,12 @@ cd BiliPai
 
 ## 最近更新
 
-当前仓库版本号已更新到 `9.9.8.8 / versionCode 263`。公开发布说明请以 [CHANGELOG.md](CHANGELOG.md) 为准；最新完整记录为 `v9.9.8.8`：
+当前仓库版本号已更新到 `9.9.8.9 / versionCode 264`。公开发布说明请以 [CHANGELOG.md](CHANGELOG.md) 为准；最新完整记录为 `v9.9.8.9`：
 
-- 主题化加载反馈与蓝雪女仆深浅色应用图标。
-- 播放洞察、精确 HDR 升级、全屏画面保持与卡片返回过渡修复。
-- 空间观看记录、收藏合集队列隔离、动态全文与内联评论优化。
-- 竖屏 UP 预览移至头像入口，并修复预览面板下拉切换视频的手势冲突。
+- 新增 Anime4K CNN 视频增强插件，并补齐帧预算、切换、预设与版本升级。
+- 新增严格自定义 CDN 模式；修复 HDR TextureView、HEVC/hvc1 与 DASH 编码选择。
+- 首页改进封面加载、过渡状态隔离、单列视频列表与详情返回分区恢复。
+- 空间资料支持复制简介、名称、UID 和空间链接；动态评论分页与转发评论目标修复。
 
 ## 路线图
 

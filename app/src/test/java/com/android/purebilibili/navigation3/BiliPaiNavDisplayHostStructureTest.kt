@@ -1,6 +1,5 @@
 package com.android.purebilibili.navigation3
 
-import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -22,6 +21,11 @@ class BiliPaiNavDisplayHostStructureTest {
         assertFalse(source.contains("videoCardTransitionController"))
         assertFalse(source.contains("LocalVideoCardTransitionSession"))
         assertTrue(source.contains("predictivePopTransitionSpec"))
+        assertTrue(
+            source.contains(
+                "NavDisplayTransitionEffects(blockInputDuringTransition = false)"
+            )
+        )
     }
 
     @Test
@@ -168,51 +172,26 @@ class BiliPaiNavDisplayHostStructureTest {
     }
 
     @Test
-    fun navDisplayHostPublishesVideoCardDepthFramesForExternalLayers() {
+    fun navDisplayHostUsesRootClockWithoutPerFrameSnapshotBridge() {
         val source = navDisplayHostSource()
-        assertTrue(source.contains("onVideoCardDepthFrame"))
-        assertTrue(source.contains("withFrameNanos"))
-        assertTrue(source.contains("onVideoCardDepthFrameUpdated"))
-        assertTrue(source.contains("shouldContinuouslyPublishVideoCardDepthFrames("))
+        assertTrue(source.contains("videoCardClock: VideoCardTransitionClock"))
+        assertTrue(source.contains("{ videoCardClock.depthProgress() }"))
+        assertFalse(source.contains("onVideoCardDepthFrame"))
+        assertFalse(source.contains("withFrameNanos"))
     }
 
     @Test
-    fun videoCardDepthFramesRunContinuouslyOnlyWhileVisualStateChanges() {
-        assertTrue(
-            shouldContinuouslyPublishVideoCardDepthFrames(
-                phase = VideoCardTransitionBackgroundPhase.OPENING,
-                isReturnGestureInProgress = false,
-                isGestureRestoreInProgress = false,
-            )
-        )
-        assertTrue(
-            shouldContinuouslyPublishVideoCardDepthFrames(
-                phase = VideoCardTransitionBackgroundPhase.RETURNING,
-                isReturnGestureInProgress = false,
-                isGestureRestoreInProgress = false,
-            )
-        )
-        assertTrue(
-            shouldContinuouslyPublishVideoCardDepthFrames(
-                phase = VideoCardTransitionBackgroundPhase.HELD,
-                isReturnGestureInProgress = true,
-                isGestureRestoreInProgress = false,
-            )
-        )
-        assertTrue(
-            shouldContinuouslyPublishVideoCardDepthFrames(
-                phase = VideoCardTransitionBackgroundPhase.HELD,
-                isReturnGestureInProgress = false,
-                isGestureRestoreInProgress = true,
-            )
-        )
-        assertFalse(
-            shouldContinuouslyPublishVideoCardDepthFrames(
-                phase = VideoCardTransitionBackgroundPhase.HELD,
-                isReturnGestureInProgress = false,
-                isGestureRestoreInProgress = false,
-            )
-        )
+    fun programmaticBackSharesPerformBackPathAndRejectsReentry() {
+        val source = navDisplayHostSource()
+        val performBackBlock = source
+            .substringAfter("val performBack: (() -> Unit) -> Unit = {")
+            .substringBefore("val quickReturnFromDetailProvider")
+
+        assertTrue(performBackBlock.contains("navigationBackJob?.isActive != true"))
+        assertTrue(performBackBlock.contains("programmaticBackDispatcher.register(callback)"))
+        assertTrue(performBackBlock.contains("performBack { }"))
+        assertTrue(source.contains("onBackCompleted = performBack"))
+        assertTrue(source.contains("onBack = { performBack { } }"))
     }
 
     @Test
@@ -256,7 +235,8 @@ class BiliPaiNavDisplayHostStructureTest {
     @Test
     fun navDisplayHostSuppressesOpeningBackgroundScaleDuringGestureRestore() {
         val source = navDisplayHostSource()
-        assertTrue(source.contains("videoCardBackgroundGestureRestoreInProgress"))
+        assertTrue(source.contains("videoCardClock.beginGestureRestore()"))
+        assertTrue(source.contains("videoCardClock.endGestureRestore()"))
         assertTrue(source.contains("isGestureRestoreInProgressProvider"))
     }
 

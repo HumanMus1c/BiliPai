@@ -297,7 +297,7 @@ class VideoCardScrollLiteVisualPolicyTest {
             ),
             0.001f,
         )
-        // 末段落位：settle=0.8 → 已过 revealStart(0.18)，开始淡入
+        // 最后 32% 落位：settle=0.8 → 已过 revealStart(0.68)，开始淡入
         val midReveal = resolveHomeCardChromeAlphaDuringShellReturnMorph(
             useCardContainerSharedBounds = true,
             isSharedMorphSourceCard = true,
@@ -312,7 +312,7 @@ class VideoCardScrollLiteVisualPolicyTest {
             midReveal,
             0.001f,
         )
-        // 中段 settle=0.1 < 0.18：标题仍藏，避免叠 live
+        // 中段 settle=0.1 < 0.68：标题仍藏，避免叠 live
         assertEquals(
             0f,
             resolveHomeCardChromeAlphaDuringShellReturnMorph(
@@ -364,7 +364,7 @@ class VideoCardScrollLiteVisualPolicyTest {
             ),
             0.001f,
         )
-        // revealStart=0.18：0.15 仍藏字，1.0 全显
+        // revealStart=0.68：0.15 仍藏字，1.0 全显
         assertEquals(0f, resolveHomeCardChromeEarlyRevealAlpha(settleProgress = 0.15f), 0.001f)
         assertEquals(1f, resolveHomeCardChromeEarlyRevealAlpha(settleProgress = 1f), 0.001f)
         // 快速返回：源卡标题立刻全显（详情正文须同步立刻让位）
@@ -400,5 +400,55 @@ class VideoCardScrollLiteVisualPolicyTest {
                 lastClickedVideoSourceKey = "home?category=1:BV1xx",
             )
         )
+    }
+
+    @Test
+    fun horizontalCardChrome_followsOpeningAndReturnProgress() {
+        val openingStart = resolveHorizontalCardChromeMotionFrame(
+            useCardContainerSharedBounds = true,
+            isSharedMorphSourceCard = true,
+            transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
+            transitionBackgroundProgress = 0f,
+        )
+        assertEquals(1f, openingStart.alpha, 0.001f)
+        assertEquals(0f, openingStart.translationProgress, 0.001f)
+
+        val openingMid = resolveHorizontalCardChromeMotionFrame(
+            useCardContainerSharedBounds = true,
+            isSharedMorphSourceCard = true,
+            transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
+            transitionBackgroundProgress = 0.14f,
+        )
+        assertEquals(0.5f, openingMid.alpha, 0.001f)
+        assertEquals(0.5f, openingMid.translationProgress, 0.001f)
+
+        val openingFinished = resolveHorizontalCardChromeMotionFrame(
+            useCardContainerSharedBounds = true,
+            isSharedMorphSourceCard = true,
+            transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.OPENING,
+            transitionBackgroundProgress = 0.28f,
+        )
+        assertEquals(0f, openingFinished.alpha, 0.001f)
+        assertEquals(1f, openingFinished.translationProgress, 0.001f)
+
+        val returnReveal = resolveHorizontalCardChromeMotionFrame(
+            useCardContainerSharedBounds = true,
+            isSharedMorphSourceCard = true,
+            isReturningFromDetail = true,
+            transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.RETURNING,
+            transitionBackgroundProgress = 0.16f,
+        )
+        assertEquals(0.5f, returnReveal.alpha, 0.001f)
+        assertEquals(0.16f, returnReveal.translationProgress, 0.001f)
+
+        val landed = resolveHorizontalCardChromeMotionFrame(
+            useCardContainerSharedBounds = true,
+            isSharedMorphSourceCard = true,
+            isReturningFromDetail = true,
+            transitionBackgroundPhase = VideoCardTransitionBackgroundPhase.RETURNING,
+            transitionBackgroundProgress = 0f,
+        )
+        assertEquals(1f, landed.alpha, 0.001f)
+        assertEquals(0f, landed.translationProgress, 0.001f)
     }
 }

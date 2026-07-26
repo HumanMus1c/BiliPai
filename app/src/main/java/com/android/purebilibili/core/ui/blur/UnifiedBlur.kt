@@ -84,7 +84,7 @@ fun Modifier.unifiedBlur(
     forceLowBudget: Boolean = false
 ): Modifier = composed {
     if (!enabled) return@composed this
-    if (!shouldAllowRuntimeShaderBackedHazeEffect(Build.VERSION.SDK_INT)) return@composed this
+    if (!shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT)) return@composed this
 
     val blurIntensity = currentUnifiedBlurIntensity()
     val budget = resolveBlurBudget(

@@ -11,6 +11,7 @@ internal enum class BiliPaiNavMotionMode {
 
 internal enum class BiliPaiNavRouteTransition {
     NO_OP_SHARED_ELEMENT,
+    REDUCED_MOTION_FADE,
     CARD_DISABLED_VIDEO_FORWARD_FROM_LEFT,
     CARD_DISABLED_VIDEO_FORWARD_FROM_RIGHT,
     CARD_DISABLED_VIDEO_RETURN_TO_LEFT,

@@ -60,7 +60,9 @@ object DynamicRepository {
 
             val visibleItems = mutableListOf<DynamicItem>()
             var pagesFetched = 0
+            var fetchedItemCount = 0
             var reportedUpdateNum = 0
+            var resolvedUpdateBaseline = paginationForPageUpdate.updateBaseline
             var requestOffset = if (refresh) "" else feedPagination.offset(scope, type)
             while (true) {
                 val previousOffset = requestOffset
@@ -99,6 +101,11 @@ object DynamicRepository {
                     // 首包的 update_num 才是「相对 update_baseline 的新动态数」
                     reportedUpdateNum = data.update_num.coerceAtLeast(0)
                 }
+                resolvedUpdateBaseline = resolveDynamicFeedUpdateBaseline(
+                    currentBaseline = resolvedUpdateBaseline,
+                    responseBaseline = data.update_baseline,
+                    pagesFetched = pagesFetched
+                )
 
                 // 更新分页状态
                 requestOffset = data.offset
@@ -108,7 +115,7 @@ object DynamicRepository {
                     state = resolveDynamicPaginationStateAfterPage(
                         paginationBeforeRefresh = paginationForPageUpdate,
                         responseOffset = data.offset,
-                        responseUpdateBaseline = data.update_baseline,
+                        responseUpdateBaseline = resolvedUpdateBaseline,
                         responseHasMore = data.has_more,
                         preserveExistingPagination = useIncrementalRefresh
                     )
@@ -116,16 +123,27 @@ object DynamicRepository {
 
                 // 过滤不可见的动态
                 visibleItems += data.items.filter { it.visible }
+                fetchedItemCount += data.items.size
                 pagesFetched += 1
 
-                if (!shouldContinueDynamicFetchAfterFilter(
+                val shouldContinue = if (useIncrementalRefresh) {
+                    shouldContinueDynamicIncrementalFetch(
+                        accumulatedItemCount = fetchedItemCount,
+                        updateNum = reportedUpdateNum,
+                        hasMore = data.has_more,
+                        previousOffset = previousOffset,
+                        nextOffset = data.offset
+                    )
+                } else {
+                    shouldContinueDynamicFetchAfterFilter(
                         accumulatedVisibleCount = visibleItems.size,
                         hasMore = data.has_more,
                         previousOffset = previousOffset,
                         nextOffset = data.offset,
                         pagesFetched = pagesFetched
                     )
-                ) {
+                }
+                if (!shouldContinue) {
                     break
                 }
             }

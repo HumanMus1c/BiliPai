@@ -29,12 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.HomeDurationStyle
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode
@@ -59,7 +57,7 @@ import androidx.compose.ui.Alignment
 import coil.compose.AsyncImage
 import java.io.File
 import kotlinx.coroutines.yield
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.snapshots.Snapshot
 
 internal fun resolveHomeCategoryVideoGridKey(
     video: VideoItem,
@@ -116,6 +114,8 @@ internal fun HomeCategoryPageContent(
     contentPadding: PaddingValues,
     dissolvingVideos: Set<String>,
     followingMids: Set<Long>,
+    showOnlineCount: Boolean,
+    coverRequestSpec: HomeCoverRequestSpec,
     onVideoClick: (HomeVideoClickRequest) -> Unit,
     onUpClick: (Long) -> Unit = {},
     onLiveClick: (Long, String, String) -> Unit,
@@ -185,14 +185,6 @@ internal fun HomeCategoryPageContent(
     val cardLayout = remember(homeFeedCardStyle) {
         resolveHomeFeedCardLayout(homeFeedCardStyle)
     }
-    val scrollLiteModeEnabled by remember(gridState) {
-        derivedStateOf { gridState.isScrollInProgress }
-    }
-    val context = LocalContext.current
-    val showOnlineCount by SettingsManager
-        .getShowOnlineCount(context)
-        .collectAsStateWithLifecycle(initialValue = false
-        )
     TrackScrollJank(
         scrollableState = gridState,
         stateName = "home:feed:${category.name.lowercase()}"
@@ -412,6 +404,11 @@ internal fun HomeCategoryPageContent(
                         key = resolveHomeCategoryVideoGridKey(video, index),
                         contentType = "home_video_card"
                     ) {
+                        val mountedDuringScroll = remember(video.bvid, video.id, video.cid) {
+                            Snapshot.withoutReadObservation {
+                                gridState.isScrollInProgress
+                            }
+                        }
                         val isDynamicDetailCard = video.dynamicId.isNotBlank() && !video.bvid.startsWith("BV", ignoreCase = true)
                         val isDissolving = video.bvid in dissolvingVideos
 
@@ -437,9 +434,10 @@ internal fun HomeCategoryPageContent(
                                         transitionEnabled = cardTransitionEnabled,
                                         isReturningFromVideoDetail = isReturningFromVideoDetail,
                                         isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
-                                        scrollLiteModeEnabled = scrollLiteModeEnabled,
+                                        scrollLiteModeEnabled = mountedDuringScroll,
                                         isDataSaverActive = isDataSaverActive,
                                         preferLowQualityCover = preferLowQualityCover,
+                                        coverRequestSpec = coverRequestSpec,
                                         showCoverGlassBadges = showCoverGlassBadges,
                                         showInfoGlassBadges = showInfoGlassBadges,
                                         showUpBadge = showUpBadges,
@@ -478,10 +476,11 @@ internal fun HomeCategoryPageContent(
                                         transitionEnabled = cardTransitionEnabled,
                                         isReturningFromVideoDetail = isReturningFromVideoDetail,
                                         isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail,
-                                        scrollLiteModeEnabled = scrollLiteModeEnabled,
+                                        scrollLiteModeEnabled = mountedDuringScroll,
                                         showPublishTime = true,
                                         isDataSaverActive = isDataSaverActive,
                                         preferLowQualityCover = preferLowQualityCover,
+                                        coverRequestSpec = coverRequestSpec,
                                         compactStatsOnCover = compactStatsOnCover,
                                         showCoverGlassBadges = showCoverGlassBadges,
                                         showInfoGlassBadges = showInfoGlassBadges,

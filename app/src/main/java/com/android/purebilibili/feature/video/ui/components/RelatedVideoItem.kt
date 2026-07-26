@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -71,7 +70,6 @@ import com.android.purebilibili.data.model.response.RecommendationFeedbackLocalA
 import com.android.purebilibili.data.model.response.RecommendationFeedbackReason
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.repository.ActionRepository
-import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.video.ui.FollowBadgeTone
 import com.android.purebilibili.feature.video.ui.resolveVideoFollowVisualPolicy
@@ -85,12 +83,11 @@ import kotlinx.coroutines.withContext
 import android.widget.Toast
 
 /**
- * 相关推荐默认封面框（未读到首页样式时的回退，对齐粉版 4:3）。
- * 实际展示由 [RelatedVideoGridRow] 读取首页三档样式后传入 [coverAspectRatio]。
+ * 相关推荐默认跟随首页官方卡片的 4:3 封面；列表会按首页样式设置覆盖。
  */
 internal const val RELATED_VIDEO_CARD_COVER_ASPECT_RATIO = 4f / 3f
 
-internal const val RELATED_VIDEO_GRID_COLUMNS = 2
+internal const val RELATED_VIDEO_GRID_COLUMNS = 1
 
 internal fun shouldEnableRelatedVideoGridSharedTransition(
     sharedTransitionEnabled: Boolean,
@@ -157,16 +154,12 @@ internal fun shouldEnableRelatedVideoMetadataSharedBounds(
 
 internal fun chunkRelatedVideosForHomeStyleGrid(
     videos: List<RelatedVideo>,
-    columns: Int = RELATED_VIDEO_GRID_COLUMNS,
 ): List<List<RelatedVideo>> {
-    val safeColumns = columns.coerceAtLeast(1)
     if (videos.isEmpty()) return emptyList()
-    return videos.chunked(safeColumns)
+    return videos.chunked(RELATED_VIDEO_GRID_COLUMNS)
 }
 
-/**
- * 相关推荐竖卡：上封面下标题，尺寸形态对齐首页，复用整卡 shell 一镜到底。
- */
+/** 相关推荐单列横卡：整卡进入 shared overlay，封面、标题与元数据一起移动。 */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun RelatedVideoItem(
@@ -186,7 +179,7 @@ fun RelatedVideoItem(
     val latestOnClick by rememberUpdatedState(onClick)
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
-    val coverSharedEnabled = effectiveTransitionEnabled &&
+    val sharedReady = effectiveTransitionEnabled &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
     val configuration = LocalConfiguration.current
@@ -240,10 +233,12 @@ fun RelatedVideoItem(
         Unit
     }
     val cardShape = RoundedCornerShape(12.dp)
-    val coverShape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+    val coverShape = RoundedCornerShape(10.dp)
+    val coverWidth = 144.dp
+    val coverHeight = coverWidth / coverAspectRatio.coerceAtLeast(1f)
     val useCardShellSharedBounds = shouldUseVideoCardShellSharedBounds(
         sourceRoute = sourceRoute,
-        transitionEnabled = coverSharedEnabled
+        transitionEnabled = sharedReady
     )
     val context = LocalContext.current
     val coverRequest = remember(video.pic, transitionEnabled) {
@@ -253,9 +248,12 @@ fun RelatedVideoItem(
             .build()
     }
 
-    Column(
+    Row(
         modifier = modifier
             .fillMaxWidth()
+            .onGloballyPositioned { coordinates ->
+                cardBoundsRef.value = coordinates.boundsInRoot()
+            }
             .videoCardShellSharedBoundsOrEmpty(
                 enabled = useCardShellSharedBounds,
                 sharedTransitionScope = sharedTransitionScope,
@@ -263,19 +261,20 @@ fun RelatedVideoItem(
                 bvid = video.bvid,
                 sourceRoute = sourceRoute,
                 motionSpec = cardSharedTransitionMotionSpec,
-                clipShape = cardShape
+                clipShape = cardShape,
+                crossfadeSourceContent = true
             )
             .clip(cardShape)
             .background(MaterialTheme.colorScheme.surface)
-            .onGloballyPositioned { coordinates ->
-                cardBoundsRef.value = coordinates.boundsInRoot()
-            }
             .clickable(onClick = triggerRelatedVideoClick)
+            .padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(coverAspectRatio)
+                .width(coverWidth)
+                .height(coverHeight)
                 .clip(coverShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
@@ -332,20 +331,14 @@ fun RelatedVideoItem(
 
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp)
-                .videoCardShellReturnChromeAlpha(
-                    enabled = useCardShellSharedBounds,
-                    bvid = video.bvid,
-                    sourceRoute = sourceRoute,
-                ),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+                .weight(1f)
+                .height(coverHeight),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 text = video.title,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 maxLines = 2,
-                minLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -413,7 +406,6 @@ fun RelatedVideoGridRow(
     transitionEnabled: Boolean = false,
     isListScrolling: Boolean = false,
     showUpBadge: Boolean = true,
-    columns: Int = RELATED_VIDEO_GRID_COLUMNS,
     onVideoClick: (RelatedVideo) -> Unit,
     onVideoHidden: ((RelatedVideo) -> Unit)? = null,
 ) {
@@ -425,7 +417,6 @@ fun RelatedVideoGridRow(
     val cardLayout = remember(homeFeedCardStyle) {
         resolveHomeFeedCardLayout(homeFeedCardStyle)
     }
-    val safeColumns = columns.coerceAtLeast(1)
     val cardTransitionEnabled = shouldEnableRelatedVideoGridSharedTransition(
         sharedTransitionEnabled = transitionEnabled,
         isListScrolling = isListScrolling,
@@ -434,10 +425,9 @@ fun RelatedVideoGridRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = cardLayout.outerPaddingDp.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(cardLayout.itemSpacingDp.dp)
+            .padding(horizontal = cardLayout.outerPaddingDp.dp, vertical = 4.dp)
     ) {
-        videos.take(safeColumns).forEach { video ->
+        videos.firstOrNull()?.let { video ->
             RelatedVideoItem(
                 video = video,
                 isFollowed = video.owner.mid in followingMids,
@@ -445,13 +435,10 @@ fun RelatedVideoGridRow(
                 sharedTransitionEnabled = transitionEnabled,
                 showUpBadge = showUpBadge,
                 coverAspectRatio = cardLayout.coverAspectRatio,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 onClick = { onVideoClick(video) },
                 onMoreClick = { actionVideo = video }
             )
-        }
-        repeat((safeColumns - videos.size).coerceAtLeast(0)) {
-            Spacer(modifier = Modifier.weight(1f))
         }
     }
 

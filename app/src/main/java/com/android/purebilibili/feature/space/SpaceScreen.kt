@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Menu
@@ -105,6 +106,8 @@ import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
 import com.android.purebilibili.core.ui.components.IOSSearchBar
+import com.android.purebilibili.core.ui.common.copyOnLongPress
+import com.android.purebilibili.core.ui.common.rememberClipboardCopyHandler
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
@@ -163,6 +166,7 @@ fun SpaceScreen(
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val context = LocalContext.current
+    val copyToClipboard = rememberClipboardCopyHandler()
     val playbackProgressManager = remember(context) {
         PlaybackProgressManager.getInstance(context)
     }
@@ -276,6 +280,22 @@ fun SpaceScreen(
                                 onDismissRequest = { showMenu = false },
                                 modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                             ) {
+                                DropdownMenuItem(
+                                    text = { Text("复制空间链接") },
+                                    onClick = {
+                                        showMenu = false
+                                        copyToClipboard(
+                                            "https://space.bilibili.com/$mid",
+                                            "空间链接"
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.ContentCopy,
+                                            contentDescription = null
+                                        )
+                                    }
+                                )
                                 DropdownMenuItem(
                                     text = { Text(if (isBlocked) unblockUserLabel else blockUserLabel) },
                                     onClick = {
@@ -2059,6 +2079,7 @@ private fun SpaceHeader(
             ) {
                 Text(
                     text = userInfo.name,
+                    modifier = Modifier.copyOnLongPress(userInfo.name, "UP主名称"),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (userInfo.vip.status == 1) Color(0xFFFF6699) else MaterialTheme.colorScheme.onSurface,
@@ -2097,6 +2118,7 @@ private fun SpaceHeader(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = userInfo.sign.trim(),
+                    modifier = Modifier.copyOnLongPress(userInfo.sign, "UP主简介"),
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -2115,6 +2137,7 @@ private fun SpaceHeader(
                     if (userInfo.mid > 0L) {
                         Text(
                             text = "UID: ${userInfo.mid}",
+                            modifier = Modifier.copyOnLongPress(userInfo.mid.toString(), "UID"),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

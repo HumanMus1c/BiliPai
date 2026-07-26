@@ -75,4 +75,57 @@ class DynamicFeedFetchPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `incremental refresh continues until all reported updates are covered`() {
+        assertTrue(
+            shouldContinueDynamicIncrementalFetch(
+                accumulatedItemCount = 20,
+                updateNum = 25,
+                hasMore = true,
+                previousOffset = "",
+                nextOffset = "200"
+            )
+        )
+
+        assertFalse(
+            shouldContinueDynamicIncrementalFetch(
+                accumulatedItemCount = 40,
+                updateNum = 25,
+                hasMore = true,
+                previousOffset = "200",
+                nextOffset = "400"
+            )
+        )
+    }
+
+    @Test
+    fun `incremental refresh stops when pagination cannot advance`() {
+        assertFalse(
+            shouldContinueDynamicIncrementalFetch(
+                accumulatedItemCount = 20,
+                updateNum = 25,
+                hasMore = true,
+                previousOffset = "200",
+                nextOffset = "200"
+            )
+        )
+    }
+
+    @Test
+    fun `multi page fetch keeps update baseline from first page`() {
+        val firstPageBaseline = resolveDynamicFeedUpdateBaseline(
+            currentBaseline = "old",
+            responseBaseline = "newest",
+            pagesFetched = 0
+        )
+        val secondPageBaseline = resolveDynamicFeedUpdateBaseline(
+            currentBaseline = firstPageBaseline,
+            responseBaseline = "older-page",
+            pagesFetched = 1
+        )
+
+        assertTrue(firstPageBaseline == "newest")
+        assertTrue(secondPageBaseline == "newest")
+    }
 }

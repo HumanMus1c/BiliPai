@@ -92,7 +92,8 @@ object CommentRepository {
         type: Int,
         page: Int,
         ps: Int,
-        mode: Int
+        mode: Int,
+        paginationOffset: String? = null
     ): ReplyResponse {
         return when (mode) {
             2 -> {
@@ -135,12 +136,7 @@ object CommentRepository {
                 params["ps"] = ps.toString()
                 params["plat"] = "1"
                 params["web_location"] = "1315875"
-                if (page <= 1) {
-                    params["seek_rpid"] = "0"
-                    params["pagination_str"] = """{"offset":""}"""
-                } else {
-                    params["next"] = page.toString()
-                }
+                params.putAll(resolveCommentMainListPaginationParameters(page, paginationOffset))
                 val signedParams = WbiUtils.sign(params, imgKey, subKey)
                 apiClient.getReplyList(signedParams)
             }
@@ -151,7 +147,8 @@ object CommentRepository {
         oid: Long,
         type: Int,
         page: Int,
-        ps: Int
+        ps: Int,
+        paginationOffset: String? = null
     ): ReplyResponse {
         Logger.d("CommentRepo", " getComments (CompatMain): oid=$oid, type=$type, page=$page, mode=3 (热度)")
         val params = TreeMap<String, String>()
@@ -161,12 +158,7 @@ object CommentRepository {
         params["ps"] = ps.toString()
         params["plat"] = "1"
         params["web_location"] = "1315875"
-        if (page <= 1) {
-            params["seek_rpid"] = "0"
-            params["pagination_str"] = """{"offset":""}"""
-        } else {
-            params["next"] = page.toString()
-        }
+        params.putAll(resolveCommentMainListPaginationParameters(page, paginationOffset))
         return guestApi.getReplyListMain(params)
     }
 
@@ -176,7 +168,8 @@ object CommentRepository {
         type: Int,
         page: Int,
         ps: Int,
-        mode: Int
+        mode: Int,
+        paginationOffset: String?
     ): ReplyResponse {
         var compatResponse: ReplyResponse? = null
         if (mode == 3) {
@@ -184,7 +177,8 @@ object CommentRepository {
                 oid = oid,
                 type = type,
                 page = page,
-                ps = ps
+                ps = ps,
+                paginationOffset = paginationOffset
             )
             val compatNeedsFallback =
                 shouldFallbackCommentReadOnEmptyRenderableSuccess(
@@ -210,7 +204,8 @@ object CommentRepository {
                 type = type,
                 page = page,
                 ps = ps,
-                mode = mode
+                mode = mode,
+                paginationOffset = paginationOffset
             )
         } else {
             compatResponse ?: ReplyResponse(code = -1, message = "empty comment payload")
@@ -251,7 +246,7 @@ object CommentRepository {
             // 确保 buvid3 已初始化
             VideoRepository.ensureBuvid3()
 
-            if (shouldTryGrpcMainList(page = page, mode = mode, paginationOffset = paginationOffset)) {
+            if (shouldTryGrpcMainList(type = type, page = page, mode = mode, paginationOffset = paginationOffset)) {
                 val grpcResult = CommentGrpcRepository.getMainList(
                     oid = oid,
                     type = type,
@@ -291,7 +286,8 @@ object CommentRepository {
                 type = type,
                 page = page,
                 ps = ps,
-                mode = mode
+                mode = mode,
+                paginationOffset = paginationOffset
             )
             val finalResponse = if (
                 shouldFallbackCommentReadOnEmptyRenderableSuccess(
@@ -309,7 +305,8 @@ object CommentRepository {
                     type = type,
                     page = page,
                     ps = ps,
-                    mode = mode
+                    mode = mode,
+                    paginationOffset = paginationOffset
                 )
             } else if (
                 primaryResponse.code != 0 &&
@@ -327,7 +324,8 @@ object CommentRepository {
                     type = type,
                     page = page,
                     ps = ps,
-                    mode = mode
+                    mode = mode,
+                    paginationOffset = paginationOffset
                 )
             } else {
                 primaryResponse
@@ -345,7 +343,12 @@ object CommentRepository {
             )
 
             if (finalResponse.code == 0) {
-                Result.success(finalResponse.data ?: ReplyData())
+                val data = finalResponse.data ?: ReplyData()
+                Result.success(
+                    data.copy(
+                        grpcNextOffset = data.cursor.paginationReply?.nextOffset.orEmpty()
+                    )
+                )
             } else {
                 val errorMsg = resolveCommentReadErrorMessage(finalResponse.code)
                 android.util.Log.e("CommentRepo", " getComments failed: oid=$oid, type=$type, ${finalResponse.code} - ${finalResponse.message}")
@@ -728,13 +731,33 @@ object CommentRepository {
     }
 
     internal fun shouldTryGrpcMainList(
+        type: Int,
         page: Int,
         mode: Int,
         paginationOffset: String?
     ): Boolean {
+        if (type == 17) return false
         val supportedMode = mode == CommentGrpcRepository.MODE_HOT || mode == CommentGrpcRepository.MODE_TIME
         if (!supportedMode) return false
         return shouldTryGrpcPagedRequest(page = page, paginationOffset = paginationOffset)
+    }
+
+    internal fun resolveCommentMainListPaginationParameters(
+        page: Int,
+        paginationOffset: String?
+    ): Map<String, String> {
+        if (page <= 1) {
+            return mapOf(
+                "seek_rpid" to "0",
+                "pagination_str" to """{"offset":""}"""
+            )
+        }
+        if (!paginationOffset.isNullOrBlank()) {
+            return mapOf(
+                "pagination_str" to commentJson.encodeToString(mapOf("offset" to paginationOffset))
+            )
+        }
+        return mapOf("next" to page.toString())
     }
 
     internal fun shouldTryGrpcPagedRequest(

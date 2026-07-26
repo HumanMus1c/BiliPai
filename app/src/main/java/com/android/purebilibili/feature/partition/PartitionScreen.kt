@@ -60,6 +60,7 @@ import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.store.HomeSettings
+import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.BottomBarLiquidGlassPreset
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.resolveSharedLiquidGlassChromeEnabled
@@ -69,7 +70,8 @@ import com.android.purebilibili.data.model.response.BangumiType
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.data.repository.VideoRepository
 import com.android.purebilibili.feature.common.resolveIndexedVideoLazyKey
-import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard
+import com.android.purebilibili.feature.home.components.cards.HomeStyleSingleColumnVideoCard
+import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.home.components.BottomBarClickPulseTransform
 import com.android.purebilibili.feature.home.components.BottomBarIndicatorLayerTransform
 import com.android.purebilibili.feature.home.components.KernelSuBottomBarIndicatorLayer
@@ -838,6 +840,13 @@ private fun PartitionVideoList(
     contentPadding: PaddingValues,
     onVideoClick: (VideoItem) -> Unit
 ) {
+    val context = LocalContext.current
+    val homeFeedCardStyle by SettingsManager
+        .getHomeFeedCardStyle(context)
+        .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.OFFICIAL)
+    val cardLayout = remember(homeFeedCardStyle) {
+        resolveHomeFeedCardLayout(homeFeedCardStyle)
+    }
     val sharedTransitionEnabled = LocalSharedTransitionEnabled.current
     val sharedElementSourceRoute = LocalVideoCardSharedElementSourceRoute.current
         ?.takeIf { it.isNotBlank() }
@@ -858,7 +867,6 @@ private fun PartitionVideoList(
             }
         }
         else -> {
-            val videoRows = remember(state.videos) { state.videos.chunked(2) }
             LazyColumn(
                 state = listState,
                 modifier = modifier.fillMaxHeight(),
@@ -866,37 +874,25 @@ private fun PartitionVideoList(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 itemsIndexed(
-                    items = videoRows,
-                    key = { rowIndex, row ->
-                        val first = row.firstOrNull()
+                    items = state.videos,
+                    key = { index, video ->
                         resolveIndexedVideoLazyKey(
-                            namespace = "partition_feed_row",
-                            index = rowIndex,
-                            bvid = first?.bvid.orEmpty(),
-                            aid = first?.aid ?: 0L,
-                            cid = first?.cid ?: 0L
+                            namespace = "partition_feed_item",
+                            index = index,
+                            bvid = video.bvid,
+                            aid = video.aid,
+                            cid = video.cid
                         )
                     }
-                ) { rowIndex, row ->
-                    Row(
+                ) { _, video ->
+                    HomeStyleSingleColumnVideoCard(
+                        video = video,
+                        sourceRoute = sharedElementSourceRoute,
+                        coverAspectRatio = cardLayout.coverAspectRatio,
+                        transitionEnabled = sharedTransitionEnabled,
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        row.forEachIndexed { columnIndex, video ->
-                            ElegantVideoCard(
-                                video = video,
-                                index = rowIndex * 2 + columnIndex,
-                                transitionEnabled = sharedTransitionEnabled,
-                                sharedElementSourceRoute = sharedElementSourceRoute,
-                                coverAspectRatio = 4f / 3f,
-                                modifier = Modifier.weight(1f),
-                                onClick = { _, _ -> onVideoClick(video) }
-                            )
-                        }
-                        repeat((2 - row.size).coerceAtLeast(0)) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
+                        onClick = { onVideoClick(video) },
+                    )
                 }
 
                 if (state.isLoading) {

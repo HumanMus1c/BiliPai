@@ -20,3 +20,19 @@ fun resolveVideoPlayerDanmakuLoadPolicy(
         durationHintMs = durationHintMs.coerceAtLeast(0L)
     )
 }
+
+enum class VideoPlayerDanmakuEngineSyncAction {
+    Enable,
+    DisableAndClear
+}
+
+fun resolveVideoPlayerDanmakuEngineSyncAction(
+    danmakuEnabled: Boolean,
+    cid: Long
+): VideoPlayerDanmakuEngineSyncAction {
+    return if (cid > 0L && danmakuEnabled) {
+        VideoPlayerDanmakuEngineSyncAction.Enable
+    } else {
+        VideoPlayerDanmakuEngineSyncAction.DisableAndClear
+    }
+}

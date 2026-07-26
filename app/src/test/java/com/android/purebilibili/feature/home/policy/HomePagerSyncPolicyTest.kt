@@ -155,6 +155,16 @@ class HomePagerSyncPolicyTest {
     }
 
     @Test
+    fun restoredPagerPage_requiresResync_whenItDoesNotMatchCurrentCategory() {
+        assertFalse(
+            shouldTreatInitialHomePagerPageAsSyncedWithState(
+                initialEntry = HomeTopTabEntry.Category(HomeCategory.POPULAR),
+                currentCategory = HomeCategory.RECOMMEND
+            )
+        )
+    }
+
+    @Test
     fun pagerStateDrive_skipsWhenCategoryWasAlreadyDriven() {
         assertTrue(
             shouldSkipHomePagerStateDrive(

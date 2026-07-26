@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.video.ui.components
 
 import androidx.media3.ui.AspectRatioFrameLayout
+import com.android.purebilibili.feature.anime4k.gl.Anime4KDisplayScaleMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -129,5 +130,14 @@ class VideoAspectRatioLayoutPolicyTest {
                 isVerticalVideo = false
             )
         )
+    }
+
+    @Test
+    fun `video ratio modes map to matching Anime4K display modes`() {
+        assertEquals(Anime4KDisplayScaleMode.FIT, VideoAspectRatio.FIT.toAnime4KDisplayScaleMode())
+        assertEquals(Anime4KDisplayScaleMode.CROP, VideoAspectRatio.FILL.toAnime4KDisplayScaleMode())
+        assertEquals(Anime4KDisplayScaleMode.FIT, VideoAspectRatio.RATIO_16_9.toAnime4KDisplayScaleMode())
+        assertEquals(Anime4KDisplayScaleMode.FIT, VideoAspectRatio.RATIO_4_3.toAnime4KDisplayScaleMode())
+        assertEquals(Anime4KDisplayScaleMode.STRETCH, VideoAspectRatio.STRETCH.toAnime4KDisplayScaleMode())
     }
 }

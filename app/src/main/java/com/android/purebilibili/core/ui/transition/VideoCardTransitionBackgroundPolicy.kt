@@ -26,24 +26,21 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 // 景深层（与 Hero 卡片放大配合，progress 0→1 同源）：
-// 1) **页面层不缩放**：整页 scale 会把状态栏外框缩进黑边；纵深改由 sibling 卡片承担
-// 2) blur：空间纵深（冻结层 + BlurEffect）。半径按 **dp** 定义、按密度换算
-// 3) scrim 压暗：聚焦/可读
-// 4) 页面圆角：仅在整页缩放开启时启用；当前关闭，避免四角啃边
-// - sibling 卡片：非飞卡随 depth 缩约 8%，飞卡保持 1（sharedBounds 接管）
+// 1) **页面层不缩放**：状态栏、顶底栏和屏幕边界保持原位
+// 2) sibling 视频元素缩小后撤；shared overlay 中的飞卡保持 1
+// 3) blur：空间纵深（冻结层 + BlurEffect）。半径按 **dp** 定义、按密度换算
+// 4) scrim 压暗：聚焦/可读
 // - 冻结层：首帧 record 一次后只改 BlurEffect，禁止 live 重录
 // - 压暗全程保留（含 HELD），避免打开完成后景深断裂
 // - 返回：景深 progress 与 shared morph 同墙钟、同 Linear
 private const val VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_DP = 12f
 private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = 1f
-// 压暗：配合 sibling 下沉仍要可读，略强于旧 0.22/0.11，但低于半透明模态（避免脏）。
-private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.28f
-private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT = 0.14f
-private const val VIDEO_CARD_TRANSITION_LIGHT_REDUCED_OPENING_SCRIM_ALPHA = 0.08f
-// 列表下沉：整页缩放会把状态栏/页面外框一起缩进黑边，观感像「整页在抖」。
-// 页面层恒为 1；下沉改由首页其他卡片组件（sibling）跟随 depthProgress。
+// 保持遮罩克制，让元素缩小与 shared 卡片放大承担主要层级对比。
+private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.22f
+private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT = 0.10f
+private const val VIDEO_CARD_TRANSITION_REDUCED_SCRIM_ALPHA = 0.08f
 private const val VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION = 0f
-/** 首页非飞卡组件在满深度时的缩放减量（约 8%），跟随景深、不带动整页。 */
+/** 未被点击的视频元素在满深度时缩小 8%。 */
 internal const val VIDEO_CARD_TRANSITION_SIBLING_SCALE_REDUCTION = 0.08f
 /** 景深缩放露出的边缘：至少压到这个 tint 强度，避免浅色主题读成「白条」。 */
 private const val VIDEO_CARD_TRANSITION_SCALE_GAP_MIN_TINT_LIGHT = 0.36f
@@ -90,6 +87,7 @@ internal data class VideoCardTransitionBackgroundState(
     val isQuickReturnFromDetailProvider: () -> Boolean = { false },
     val motionTierProvider: () -> MotionTier = { MotionTier.Normal },
     val isLightBackgroundProvider: () -> Boolean = { false },
+    val isBackgroundSinkEnabledProvider: () -> Boolean = { false },
 )
 
 internal val LocalVideoCardTransitionBackgroundState = compositionLocalOf {
@@ -103,8 +101,8 @@ internal fun resolveVideoCardTransitionScrimAlpha(
 ): Float {
     val clamped = progress.coerceIn(0f, 1f)
     val maxAlpha = when {
-        isLightBackground && motionTier == MotionTier.Reduced ->
-            VIDEO_CARD_TRANSITION_LIGHT_REDUCED_OPENING_SCRIM_ALPHA
+        motionTier == MotionTier.Reduced ->
+            VIDEO_CARD_TRANSITION_REDUCED_SCRIM_ALPHA
         isLightBackground ->
             VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT
         else ->
@@ -120,7 +118,6 @@ internal fun resolveVideoCardTransitionContentScale(
     motionTier: MotionTier,
     isGestureRestoreInProgress: Boolean,
 ): Float {
-    // 页面层禁止缩放：黑边/整页抖动来源。纵深交给 sibling 组件缩放。
     if (VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION <= 0f) return 1f
     if (phase == VideoCardTransitionBackgroundPhase.IDLE || motionTier == MotionTier.Reduced) {
         return 1f
@@ -133,8 +130,7 @@ internal fun resolveVideoCardTransitionContentScale(
 }
 
 /**
- * 首页其他卡片（非当前飞卡）的景深缩放。
- * 飞卡本身由 sharedBounds 接管几何，这里必须保持 1，避免双重缩放。
+ * 未被点击的视频元素随景深缩小；飞卡由 sharedBounds 单独负责几何变化。
  */
 internal fun resolveVideoCardSiblingDepthScale(
     depthProgress: Float,
@@ -265,7 +261,6 @@ internal fun resolveVideoCardTransitionBackgroundCornerRadiusPx(
     deviceCornerRadiusPx: Float = 0f,
 ): Float {
     if (motionTier == MotionTier.Reduced) return 0f
-    // 无整页缩放时不加页面圆角，否则四角会啃出黑角，像又缩了一圈。
     if (VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION <= 0f) return 0f
     val fullRadiusDp = resolveVideoCardTransitionBackgroundCornerRadiusDp(
         deviceCornerRadiusPx = deviceCornerRadiusPx,
@@ -621,10 +616,11 @@ internal fun shouldLiveRecordVideoCardTransitionSnapshot(
 
 /**
  * 卡片开合景深：
- * - OPENING：首帧 record 一次后立刻冻结，BlurEffect/scale/圆角跟进度（完整 12dp 观感）
+ * - OPENING：首帧 record 一次后立刻冻结，BlurEffect 跟进度（完整 12dp 观感）
  * - HELD / RETURNING：复用冻结层，不每帧重录 feed
  * - IDLE：释放并恢复普通绘制
- * - Reduced / API 31 以下：不模糊，仅 scrim（无障碍/系统设置，非机型降级）
+ * - API 31 以下 / 实时模糊关闭：保留 scrim 与元素级缩放
+ * - Reduced：只保留轻 scrim，元素不缩放
  */
 @Composable
 internal fun Modifier.videoCardTransitionBackgroundEffect(
@@ -703,9 +699,8 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
             motionTier = activeMotionTier,
             realtimeBlurEnabled = realtimeBlurEnabledProvider(),
         )
-
         if (!snapshotBlurActive) {
-            // IDLE / Reduced / 低版本：正常绘制内容；需要时只叠 scrim。
+            // IDLE / Reduced / 低版本：正常绘制页面；元素缩放由各 shared shell 自己承担。
             drawContent()
             if (frame.scrimAlpha > 0.001f) {
                 val scrimColor = if (frame.useLightScrimTint) {

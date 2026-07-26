@@ -4,9 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableFloatState
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -27,22 +24,22 @@ import com.android.purebilibili.core.ui.transition.videoCardTransitionBackground
 
 /**
  * App 根层全局壁纸。
- * 景深 progress 仍由外部写入（兼容旧接线），但壁纸本身不跟卡片缩/糊，避免全屏壁纸猛缩猛放。
+ * 景深值直接延迟读取根层单时钟，不再经每帧 Snapshot 状态桥接。
  */
 @Composable
 internal fun DepthSyncedGlobalHomeWallpaperBackdrop(
     wallpaperUri: String,
     appearance: HomeWallpaperBackdropAppearance,
     baseColor: Color,
-    depthProgress: MutableFloatState,
-    depthPhase: MutableState<VideoCardTransitionBackgroundPhase>,
-    depthGestureRestore: MutableState<Boolean>,
+    depthProgressProvider: () -> Float,
+    depthPhaseProvider: () -> VideoCardTransitionBackgroundPhase,
+    depthGestureRestoreProvider: () -> Boolean,
     isDataSaverActive: Boolean = false,
     isLightBackground: Boolean = false,
     realtimeBlurEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    val phase by depthPhase
+    val phase = depthPhaseProvider()
     val applyDepth = shouldApplyVideoCardDepthToGlobalHomeWallpaper(
         wallpaperVisible = appearance.visible,
         phase = phase,
@@ -55,9 +52,9 @@ internal fun DepthSyncedGlobalHomeWallpaperBackdrop(
             .then(
                 if (applyDepth) {
                     Modifier.videoCardTransitionBackgroundEffect(
-                        progressProvider = { depthProgress.floatValue },
-                        phaseProvider = { depthPhase.value },
-                        isGestureRestoreInProgressProvider = { depthGestureRestore.value },
+                        progressProvider = depthProgressProvider,
+                        phaseProvider = depthPhaseProvider,
+                        isGestureRestoreInProgressProvider = depthGestureRestoreProvider,
                         motionTierProvider = { motionTier },
                         isLightBackgroundProvider = { isLightBackground },
                         realtimeBlurEnabledProvider = { realtimeBlurEnabled },

@@ -1106,6 +1106,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 val currentReplies = _comments.value
                 val newReplies = data.replies.orEmpty()
                 val mergedReplies = (currentReplies + newReplies).distinctBy { it.rpid }
+                val addedReplyCount = mergedReplies.size - currentReplies.size
                 val totalCount = maxOf(
                     data.getAllCount(),
                     _commentTotalCount.value,
@@ -1117,7 +1118,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 commentGrpcNextOffset = data.grpcNextOffset.takeIf { it.isNotBlank() }
                 commentsEnd = resolveDynamicMainCommentPageEnd(
                     cursorIsEnd = data.cursor.isEnd,
-                    fetchedReplyCount = newReplies.size,
+                    fetchedReplyCount = addedReplyCount,
                     loadedReplyCount = mergedReplies.size,
                     totalCount = totalCount
                 )

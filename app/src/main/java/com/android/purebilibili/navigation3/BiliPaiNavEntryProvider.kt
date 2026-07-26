@@ -55,6 +55,7 @@ private val SEARCH_LIGHT_SIBLING_ROUTE_BASES = setOf(
 internal fun biliPaiNavEntryProvider(
     sourceMetadata: BiliPaiNavSourceMetadata,
     cardTransitionEnabled: Boolean = true,
+    reduceMotion: Boolean = false,
     visibleBottomBarRoutes: Set<String> = emptySet(),
     activeMainHostRoute: String? = null,
     content: @Composable (BiliPaiNavKey) -> Unit
@@ -64,6 +65,7 @@ internal fun biliPaiNavEntryProvider(
             key = key,
             sourceMetadata = sourceMetadata,
             cardTransitionEnabled = cardTransitionEnabled,
+            reduceMotion = reduceMotion,
             visibleBottomBarRoutes = visibleBottomBarRoutes,
             activeMainHostRoute = activeMainHostRoute,
         )
@@ -158,38 +160,55 @@ internal fun biliPaiNavEntryMetadata(
     key: BiliPaiNavKey,
     sourceMetadata: BiliPaiNavSourceMetadata,
     cardTransitionEnabled: Boolean = true,
+    reduceMotion: Boolean = false,
     visibleBottomBarRoutes: Set<String> = emptySet(),
     activeMainHostRoute: String? = null,
 ): Map<String, Any> {
-    val transitions = resolveBiliPaiNavEntryRouteTransitions(
-        key = key,
-        cardTransitionEnabled = cardTransitionEnabled,
-        sourceMetadata = sourceMetadata
-    )
+    val transitions = if (reduceMotion) {
+        BiliPaiNavEntryRouteTransitions(
+            forward = BiliPaiNavRouteTransition.REDUCED_MOTION_FADE,
+            pop = BiliPaiNavRouteTransition.REDUCED_MOTION_FADE,
+            predictivePop = BiliPaiNavRouteTransition.REDUCED_MOTION_FADE,
+        )
+    } else {
+        resolveBiliPaiNavEntryRouteTransitions(
+            key = key,
+            cardTransitionEnabled = cardTransitionEnabled,
+            sourceMetadata = sourceMetadata
+        )
+    }
     return mapOf(
         BILI_PAI_NAV_ROUTE_BASE_METADATA_KEY to key.routeBase
     ) + NavDisplay.transitionSpec {
-        val transition = resolveBiliPaiNavEntryForwardRouteTransition(
-            defaultTransition = transitions.forward,
-            fromRoute = initialState.biliPaiRouteBase(),
-            toRoute = targetState.biliPaiRouteBase(),
-            visibleBottomBarRoutes = visibleBottomBarRoutes,
-            activeMainHostRoute = activeMainHostRoute
-        )
+        val transition = if (reduceMotion) {
+            BiliPaiNavRouteTransition.REDUCED_MOTION_FADE
+        } else {
+            resolveBiliPaiNavEntryForwardRouteTransition(
+                defaultTransition = transitions.forward,
+                fromRoute = initialState.biliPaiRouteBase(),
+                toRoute = targetState.biliPaiRouteBase(),
+                visibleBottomBarRoutes = visibleBottomBarRoutes,
+                activeMainHostRoute = activeMainHostRoute
+            )
+        }
         resolveBiliPaiNavContentTransform(transition)
     } + NavDisplay.popTransitionSpec {
-        val transition = resolveBiliPaiNavEntryPopRouteTransition(
-            defaultTransition = transitions.pop,
-            fromRoute = initialState.biliPaiRouteBase(),
-            toRoute = targetState.biliPaiRouteBase(),
-            cardTransitionEnabled = cardTransitionEnabled,
-            sharedElementPopReady = isRelatedVideoDetailReturn(
-                fromKey = key as? BiliPaiNavKey.VideoDetail,
-                toKey = targetState.biliPaiTopKey(),
-            ),
-            sourceMetadata = sourceMetadata,
-            activeMainHostRoute = activeMainHostRoute
-        )
+        val transition = if (reduceMotion) {
+            BiliPaiNavRouteTransition.REDUCED_MOTION_FADE
+        } else {
+            resolveBiliPaiNavEntryPopRouteTransition(
+                defaultTransition = transitions.pop,
+                fromRoute = initialState.biliPaiRouteBase(),
+                toRoute = targetState.biliPaiRouteBase(),
+                cardTransitionEnabled = cardTransitionEnabled,
+                sharedElementPopReady = isRelatedVideoDetailReturn(
+                    fromKey = key as? BiliPaiNavKey.VideoDetail,
+                    toKey = targetState.biliPaiTopKey(),
+                ),
+                sourceMetadata = sourceMetadata,
+                activeMainHostRoute = activeMainHostRoute
+            )
+        }
         resolveBiliPaiNavContentTransform(transition)
     }
 }

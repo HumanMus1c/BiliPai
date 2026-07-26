@@ -874,8 +874,8 @@ private fun LightweightHomeTopTabs(
     var tabViewportLeftInWindowPx by remember { mutableFloatStateOf(Float.NaN) }
     var selectedItemLeftInWindowPx by remember { mutableFloatStateOf(Float.NaN) }
     val pagerIsDragging = rememberTopTabPagerDragHeld(pagerState)
-    val currentPosition by remember(pagerState, selectedIndex) {
-        derivedStateOf {
+    val currentPositionProvider = remember(pagerState, selectedIndex) {
+        {
             resolveTopTabIndicatorRenderPosition(
                 selectedIndex = selectedIndex,
                 pagerCurrentPage = pagerState?.currentPage,
@@ -885,8 +885,8 @@ private fun LightweightHomeTopTabs(
             )
         }
     }
-    val selectedContentPosition by remember(pagerState, selectedIndex) {
-        derivedStateOf {
+    val selectedContentPositionProvider = remember(pagerState, selectedIndex) {
+        {
             resolveTopTabSelectedContentPosition(
                 selectedIndex = selectedIndex,
                 pagerCurrentPage = pagerState?.currentPage,
@@ -895,6 +895,9 @@ private fun LightweightHomeTopTabs(
                 pagerIsScrolling = pagerState?.isScrollInProgress == true
             )
         }
+    }
+    val pagerScrollingProvider = remember(pagerState) {
+        { pagerState?.isScrollInProgress == true }
     }
 
     LaunchedEffect(selectedIndex, categories.size) {
@@ -997,7 +1000,10 @@ private fun LightweightHomeTopTabs(
             }
         }
         val rowScrollStartPadding = with(density) { (-rowScrollOffsetPx).toDp() }
-        val pagerIsScrolling = pagerState?.isScrollInProgress == true
+        HomeTopTabMotionLayer {
+        val pagerIsScrolling = pagerScrollingProvider()
+        val currentPosition = currentPositionProvider()
+        val selectedContentPosition = selectedContentPositionProvider()
         val topTabDragPosition by remember(topTabDragState, categories.size) {
             derivedStateOf {
                 topTabDragState.value.coerceIn(0f, (categories.size - 1).coerceAtLeast(0).toFloat())
@@ -1648,7 +1654,15 @@ private fun LightweightHomeTopTabs(
                 Spacer(modifier = Modifier.width(6.dp))
             }
         }
+        }
     }
+}
+
+@Composable
+private fun HomeTopTabMotionLayer(
+    content: @Composable () -> Unit
+) {
+    content()
 }
 
 internal enum class TopTabLiquidColorMode {

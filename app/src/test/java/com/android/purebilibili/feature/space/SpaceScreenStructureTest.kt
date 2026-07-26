@@ -112,6 +112,17 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("onPrimaryClickOverride = { onSpaceDynamicCommentClick(dynamic) }"))
     }
 
+    @Test
+    fun `space profile exposes copy actions for its identifying text`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+
+        assertTrue(source.contains("copyOnLongPress(userInfo.name, \"UP主名称\")"))
+        assertTrue(source.contains("copyOnLongPress(userInfo.sign, \"UP主简介\")"))
+        assertTrue(source.contains("copyOnLongPress(userInfo.mid.toString(), \"UID\")"))
+        assertTrue(source.contains("Text(\"复制空间链接\")"))
+        assertTrue(source.contains("https://space.bilibili.com/${'$'}mid"))
+    }
+
     private fun loadSource(path: String): String {
         val normalizedPath = path.removePrefix("app/")
         val sourceFile = listOf(

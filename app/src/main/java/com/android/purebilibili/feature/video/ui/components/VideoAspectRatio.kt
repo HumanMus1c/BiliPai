@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.ui.AspectRatioFrameLayout
+import com.android.purebilibili.feature.anime4k.gl.Anime4KDisplayScaleMode
 import kotlin.math.roundToInt
 //  已改用 MaterialTheme.colorScheme.primary
 
@@ -104,6 +105,20 @@ internal fun resolveVideoViewportLayout(
             width = safeWidth,
             height = (safeWidth / targetAspectRatio).roundToInt().coerceIn(1, safeHeight)
         )
+    }
+}
+
+/**
+ * 为直接绘制到 GL Surface 的视频计算内容视口。
+ * PlayerView 会在内部处理 FIT/ZOOM，GL 输出必须显式保持源视频比例。
+ */
+internal fun VideoAspectRatio.toAnime4KDisplayScaleMode(): Anime4KDisplayScaleMode {
+    return when (this) {
+        VideoAspectRatio.FILL -> Anime4KDisplayScaleMode.CROP
+        VideoAspectRatio.STRETCH -> Anime4KDisplayScaleMode.STRETCH
+        VideoAspectRatio.FIT,
+        VideoAspectRatio.RATIO_16_9,
+        VideoAspectRatio.RATIO_4_3 -> Anime4KDisplayScaleMode.FIT
     }
 }
 

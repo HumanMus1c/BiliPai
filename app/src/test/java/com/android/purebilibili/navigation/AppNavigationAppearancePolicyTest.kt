@@ -116,7 +116,9 @@ class AppNavigationAppearancePolicyTest {
 
         assertTrue(wallpaperIndex >= 0)
         assertTrue(navDisplayIndex > wallpaperIndex)
-        assertTrue(capturedLayerSource.contains("onVideoCardDepthFrame"))
+        assertTrue(capturedLayerSource.contains("depthProgressProvider"))
+        assertTrue(capturedLayerSource.contains("videoCardTransitionClock.depthProgress()"))
+        assertFalse(capturedLayerSource.contains("onVideoCardDepthFrame"))
         assertTrue(capturedLayerSource.contains(".then(if (mainHazeState != null) Modifier.hazeSourceCompat(mainHazeState) else Modifier)"))
     }
 
@@ -138,7 +140,17 @@ class AppNavigationAppearancePolicyTest {
         val providerSource = loadSource("app/src/main/java/com/android/purebilibili/core/ui/SharedTransitionProvider.kt")
         val activitySource = loadSource("app/src/main/java/com/android/purebilibili/MainActivity.kt")
 
-        assertTrue(navigationSource.contains("SharedTransitionProvider(enabled = cardTransitionEnabled)"))
+        assertTrue(
+            navigationSource.contains(
+                "SharedTransitionProvider(enabled = sharedVideoCardTransitionEnabled)"
+            )
+        )
+        assertTrue(navigationSource.contains("cardTransitionEnabled && !systemReduceMotion"))
+        assertTrue(
+            navigationSource.contains(
+                "VideoCardTransitionVisualTimeline.REDUCED_MOTION_DURATION_MILLIS"
+            )
+        )
         assertTrue(providerSource.contains("val sharedTransitionScope = if (enabled) this else null"))
         assertTrue(providerSource.contains("LocalSharedTransitionScope provides sharedTransitionScope"))
         assertTrue(providerSource.contains("LocalSharedTransitionEnabled provides enabled"))
@@ -153,6 +165,33 @@ class AppNavigationAppearancePolicyTest {
         assertTrue(source.contains("realtimeBlurEnabledProvider"))
         assertFalse(source.contains("video_source_background_blur"))
         assertFalse(source.contains("RenderEffect.createBlurEffect"))
+    }
+
+    @Test
+    fun backgroundSinkToggleDoesNotDisableTheTransitionBlurClock() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt")
+        val navHostSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/navigation3/BiliPaiNavDisplayHost.kt"
+        )
+        val navHostCall = source
+            .substringAfter("BiliPaiNavDisplayHost(")
+            .substringBefore(") { key ->")
+
+        assertTrue(
+            navHostCall.contains("videoCardDepthEffectEnabled = sharedVideoCardTransitionEnabled")
+        )
+        assertTrue(
+            navHostCall.contains(
+                "videoCardBackgroundSinkEnabled = videoTransitionBackgroundSinkEnabled"
+            )
+        )
+        assertFalse(
+            navHostCall.contains(
+                "sharedVideoCardTransitionEnabled && videoTransitionBackgroundSinkEnabled"
+            )
+        )
+        assertTrue(navHostSource.contains("isBackgroundSinkEnabledProvider ="))
+        assertTrue(navHostSource.contains("videoCardBackgroundSinkEnabled"))
     }
 
     @Test

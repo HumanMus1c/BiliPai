@@ -20,9 +20,12 @@ class PartitionScreenStructureTest {
 
         assertTrue(source.contains("PartitionSideRail("))
         assertTrue(source.contains("PartitionVideoList("))
-        assertTrue(source.contains("ElegantVideoCard("))
-        assertTrue(source.contains("state.videos.chunked(2)"))
-        assertTrue(source.contains("coverAspectRatio = 4f / 3f"))
+        assertTrue(source.contains("HomeStyleSingleColumnVideoCard("))
+        assertTrue(source.contains("items = state.videos"))
+        assertFalse(source.contains("state.videos.chunked(2)"))
+        assertTrue(source.contains("resolveHomeFeedCardLayout(homeFeedCardStyle)"))
+        assertTrue(source.contains("coverAspectRatio = cardLayout.coverAspectRatio"))
+        assertTrue(source.contains("modifier = Modifier.fillMaxWidth()"))
         assertTrue(source.contains("SettingsManager.getHomeSettings(context)"))
         assertTrue(source.contains("resolveSharedLiquidGlassChromeEnabled("))
         assertTrue(source.contains("KernelSuBottomBarIndicatorLayer("))
@@ -30,7 +33,7 @@ class PartitionScreenStructureTest {
         assertFalse(source.contains("partitionSideRailSweepSelection("))
         assertFalse(source.contains("PartitionVideoRow("))
         assertFalse(source.contains("videoTitleSharedElementKey("))
-        assertTrue(source.contains("sharedElementSourceRoute = sharedElementSourceRoute"))
+        assertTrue(source.contains("sourceRoute = sharedElementSourceRoute"))
         assertTrue(source.contains("LocalVideoCardSharedElementSourceRoute.current"))
         assertTrue(source.contains("VideoRepository.getPopularVideos(page = pageToFetch)"))
         assertTrue(source.contains("VideoRepository.getRegionVideos(tid = partition.id, page = pageToFetch)"))
@@ -175,7 +178,7 @@ class PartitionScreenStructureTest {
 
         assertTrue(listSource.contains("val sharedTransitionEnabled = LocalSharedTransitionEnabled.current"))
         assertTrue(listSource.contains("transitionEnabled = sharedTransitionEnabled"))
-        assertTrue(listSource.contains("ElegantVideoCard("))
+        assertTrue(listSource.contains("HomeStyleSingleColumnVideoCard("))
         assertFalse(listSource.contains("spring(dampingRatio = 0.8f, stiffness = 200f)"))
         assertFalse(listSource.contains("transitionEnabled = true"))
     }

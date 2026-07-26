@@ -1,5 +1,6 @@
 package com.android.purebilibili.core.ui.transition
 
+import com.android.purebilibili.core.ui.adaptive.MotionTier
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -64,9 +65,9 @@ class VideoCardReturnTimelineTest {
 
     @Test
     fun liveMorphContentAlpha_prefersMorphDepthOverDualSourceMax() {
-        // 双源会取较晚 settle；单时钟只认 morphDepth=0.9 → settle 0.1 → 正文仍满
+        // 单时钟只认 morphDepth=0.9 → settle 0.1，正文处于前 28% 的让位过程。
         assertEquals(
-            1f,
+            1f - 0.1f / 0.28f,
             resolveVideoCardLiveMorphSecondaryContentAlpha(
                 transitionProgress = 0.2f,
                 depthBlurProgress = 0.2f,
@@ -339,22 +340,83 @@ class VideoCardReturnTimelineTest {
     }
 
     @Test
-    fun liveMorphSecondaryContent_yieldsNearSettleForTitle() {
-        // settle 0.1 < yieldStart(0.18)：尚未让位
+    fun liveMorphSecondaryContent_yieldsWithinFirstReturnSegment() {
+        // settle 0：正文保持完整。
         assertEquals(
             1f,
-            resolveVideoCardLiveMorphSecondaryContentAlpha(transitionProgress = 0.9f),
+            resolveVideoCardLiveMorphSecondaryContentAlpha(transitionProgress = 1f),
             0.001f,
         )
-        // settle 1：完全让位
+        // settle 0.28：前 28% 内完成让位。
         assertEquals(
             0f,
-            resolveVideoCardLiveMorphSecondaryContentAlpha(transitionProgress = 0f),
+            resolveVideoCardLiveMorphSecondaryContentAlpha(transitionProgress = 0.72f),
             0.001f,
         )
-        // settle 0.7：让位中
-        val mid = resolveVideoCardLiveMorphSecondaryContentAlpha(transitionProgress = 0.3f)
+        val mid = resolveVideoCardLiveMorphSecondaryContentAlpha(transitionProgress = 0.86f)
         assertTrue(mid in 0.01f..0.99f)
+    }
+
+    @Test
+    fun visualTimeline_stagesOpeningReturnAndReducedMotionWithoutScale() {
+        val openingStart = resolveVideoCardSecondaryContentVisualFrame(
+            morphDepthProgress = 0.24f,
+            phase = VideoCardTransitionBackgroundPhase.OPENING,
+            isReturnGestureInProgress = false,
+            motionTier = MotionTier.Normal,
+        )
+        val openingEnd = resolveVideoCardSecondaryContentVisualFrame(
+            morphDepthProgress = 0.82f,
+            phase = VideoCardTransitionBackgroundPhase.OPENING,
+            isReturnGestureInProgress = false,
+            motionTier = MotionTier.Normal,
+        )
+        assertEquals(0f, openingStart.alpha, 0.001f)
+        assertEquals(8f, openingStart.translationYDp, 0.001f)
+        assertEquals(1f, openingEnd.alpha, 0.001f)
+        assertEquals(0f, openingEnd.translationYDp, 0.001f)
+
+        val returnEnd = resolveVideoCardSecondaryContentVisualFrame(
+            morphDepthProgress = 0.72f,
+            phase = VideoCardTransitionBackgroundPhase.RETURNING,
+            isReturnGestureInProgress = false,
+            motionTier = MotionTier.Normal,
+        )
+        assertEquals(0f, returnEnd.alpha, 0.001f)
+
+        val reduced = resolveVideoCardSecondaryContentVisualFrame(
+            morphDepthProgress = 0.5f,
+            phase = VideoCardTransitionBackgroundPhase.OPENING,
+            isReturnGestureInProgress = false,
+            motionTier = MotionTier.Reduced,
+        )
+        assertEquals(0.5f, reduced.alpha, 0.001f)
+        assertEquals(0f, reduced.translationYDp, 0.001f)
+        assertEquals(140, VideoCardTransitionVisualTimeline.REDUCED_MOTION_DURATION_MILLIS)
+    }
+
+    @Test
+    fun detailChromeAndSourceChromeUseNonOverlappingMilestones() {
+        assertEquals(
+            0f,
+            resolveVideoCardDetailChromeAlpha(
+                morphDepthProgress = 0.18f,
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+                isReturnGestureInProgress = false,
+            ),
+            0.001f,
+        )
+        assertEquals(
+            1f,
+            resolveVideoCardDetailChromeAlpha(
+                morphDepthProgress = 0.72f,
+                phase = VideoCardTransitionBackgroundPhase.OPENING,
+                isReturnGestureInProgress = false,
+            ),
+            0.001f,
+        )
+        assertEquals(0f, resolveVideoCardTimelineWindowProgress(0.68f, 0.68f, 1f))
+        assertEquals(1f, resolveVideoCardTimelineWindowProgress(1f, 0.68f, 1f))
     }
 
     @Test

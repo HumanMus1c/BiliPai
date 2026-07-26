@@ -73,15 +73,44 @@ class HomeFeedScrollStatePersistenceStructureTest {
     }
 
     @Test
-    fun `home feed enables scroll lite mode only from grid scroll state`() {
+    fun `home feed samples scroll state without observing every scroll transition`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeCategoryPage.kt")
         val pageFunctionSource = source
             .substringAfter("internal fun HomeCategoryPageContent(")
-            .substringBefore("val context = LocalContext.current")
+            .substringBefore("@Composable\nprivate fun PopularSubCategorySegmentedControl")
 
-        assertTrue(pageFunctionSource.contains("val scrollLiteModeEnabled by remember(gridState)"))
-        assertTrue(pageFunctionSource.contains("derivedStateOf { gridState.isScrollInProgress }"))
-        assertFalse(pageFunctionSource.contains("val scrollLiteModeEnabled = false"))
+        assertTrue(pageFunctionSource.contains("Snapshot.withoutReadObservation"))
+        assertTrue(pageFunctionSource.contains("gridState.isScrollInProgress"))
+        assertFalse(pageFunctionSource.contains("derivedStateOf { gridState.isScrollInProgress }"))
+    }
+
+    @Test
+    fun `home pager frame state is read inside isolated motion layer`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
+        val tabsSource = source
+            .substringAfter("private fun LightweightHomeTopTabs(")
+            .substringBefore("internal enum class TopTabLiquidColorMode")
+        val motionSource = tabsSource.substringAfter("HomeTopTabMotionLayer {")
+
+        assertTrue(tabsSource.contains("val currentPositionProvider = remember(pagerState, selectedIndex)"))
+        assertTrue(tabsSource.contains("val pagerScrollingProvider = remember(pagerState)"))
+        assertTrue(motionSource.contains("val currentPosition = currentPositionProvider()"))
+        assertTrue(motionSource.contains("val pagerIsScrolling = pagerScrollingProvider()"))
+    }
+
+    @Test
+    fun `category initial load is owned and cancelled by home view model`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeViewModel.kt")
+        val switchSource = source
+            .substringAfter("fun switchCategory(category: HomeCategory)")
+            .substringBefore("fun updateDisplayedTabIndex")
+
+        assertTrue(source.contains("private var categoryInitialLoadJob: Job? = null"))
+        assertTrue(switchSource.contains("categoryInitialLoadJob?.cancel()"))
+        assertTrue(switchSource.contains("fetchData(isLoadMore = false, category = category)"))
+        assertTrue(switchSource.contains("catch (error: CancellationException)"))
+        assertTrue(switchSource.contains("throw error"))
+        assertFalse(source.contains("sessionSeenBvids"))
     }
 
     @Test

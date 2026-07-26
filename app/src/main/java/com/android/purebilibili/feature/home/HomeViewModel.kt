@@ -37,7 +37,10 @@ import com.android.purebilibili.feature.plugin.TodayWatchPlugin
 import com.android.purebilibili.feature.plugin.TodayWatchPluginConfig
 import com.android.purebilibili.feature.plugin.TodayWatchPluginMode
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -58,6 +61,26 @@ internal fun trimIncrementalRefreshVideosToEvenCount(videos: List<VideoItem>): L
     val size = videos.size
     if (size <= 1 || size % 2 == 0) return videos
     return videos.dropLast(1)
+}
+
+internal fun selectHomeFeedIncomingVideos(
+    responseVideos: List<VideoItem>,
+    currentVideos: List<VideoItem>,
+    isLoadMore: Boolean,
+    isIncrementalRefresh: Boolean,
+): List<VideoItem> {
+    val responseDistinct = responseVideos.distinctBy { it.bvid }
+    val currentBvids = currentVideos.asSequence().map { it.bvid }.filter { it.isNotBlank() }.toHashSet()
+    val outsideCurrentList = if (isLoadMore || isIncrementalRefresh) {
+        responseDistinct.filter { it.bvid !in currentBvids }
+    } else {
+        responseDistinct
+    }
+    return if (isIncrementalRefresh) {
+        trimIncrementalRefreshVideosToEvenCount(outsideCurrentList)
+    } else {
+        outsideCurrentList
+    }
 }
 
 internal fun resolveRecommendFeedRequestIndex(
@@ -284,13 +307,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var hasMoreLiveData = true  //  是否还有更多直播数据
     private var incrementalTimelineRefreshEnabled = false
     
-    //  [新增] 会话级去重集合 (避免重复推荐)
-    private val sessionSeenBvids = mutableSetOf<String>()
     //  [新增] 刷新撤销快照
     private var _undoSnapshot: HomeRefreshUndoSnapshot? = null
     private var undoDismissJob: Job? = null
     private var userInfoRefreshJob: Job? = null
     private var messageUnreadRefreshJob: Job? = null
+    private var categoryInitialLoadJob: Job? = null
 
     // [Feature] Blocked UPs
     private val blockedUpRepository = com.android.purebilibili.data.repository.BlockedUpRepository(application)
@@ -645,7 +667,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         //  [修复] 标记正在切换分类，避免入场动画产生收缩效果
         com.android.purebilibili.core.util.CardPositionManager.isSwitchingCategory = true
         
-        viewModelScope.launch {
+        categoryInitialLoadJob?.cancel()
+        categoryInitialLoadJob = viewModelScope.launch {
             //  [修复] 如果切换到直播分类，未登录用户默认显示热门
             val liveSubCategory = if (category == HomeCategory.LIVE) {
                 val isLoggedIn = !com.android.purebilibili.core.store.TokenManager.sessDataCache.isNullOrEmpty()
@@ -675,18 +698,33 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                            targetCategoryState.error == null
 
             // 如果目标分类没有数据，则加载
-            if (needFetch) {
-                 fetchData(isLoadMore = false)
-            } else if (category == HomeCategory.RECOMMEND) {
-                val runtime = syncTodayWatchPluginState(clearWhenDisabled = true)
-                if (shouldAutoRebuildTodayWatchPlan(
-                        currentCategory = category,
-                        isTodayWatchEnabled = runtime.enabled,
-                        isTodayWatchCollapsed = runtime.collapsed
-                    )
-                ) {
-                    rebuildTodayWatchPlan()
+            try {
+                if (needFetch) {
+                    fetchData(isLoadMore = false, category = category)
+                } else if (category == HomeCategory.RECOMMEND) {
+                    val runtime = syncTodayWatchPluginState(clearWhenDisabled = true)
+                    if (shouldAutoRebuildTodayWatchPlan(
+                            currentCategory = category,
+                            isTodayWatchEnabled = runtime.enabled,
+                            isTodayWatchCollapsed = runtime.collapsed
+                        )
+                    ) {
+                        rebuildTodayWatchPlan()
+                    }
                 }
+            } catch (error: CancellationException) {
+                if (_uiState.value.currentCategory != category) {
+                    if (category == HomeCategory.POPULAR) {
+                        updatePopularCategoryState(currentState.popularSubCategory) { state ->
+                            state.copy(isLoading = false, error = null)
+                        }
+                    } else {
+                        updateCategoryState(category) { state ->
+                            state.copy(isLoading = false, error = null)
+                        }
+                    }
+                }
+                throw error
             }
         }
     }
@@ -960,9 +998,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadData() {
-        viewModelScope.launch {
+        categoryInitialLoadJob?.cancel()
+        val category = _uiState.value.currentCategory
+        categoryInitialLoadJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            fetchData(isLoadMore = false)
+            try {
+                fetchData(isLoadMore = false, category = category)
+            } catch (error: CancellationException) {
+                updateCategoryState(category) { state ->
+                    state.copy(isLoading = false, error = null)
+                }
+                _uiState.value = _uiState.value.copy(isLoading = false, error = null)
+                throw error
+            }
         }
     }
 
@@ -1174,15 +1222,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         //  直播分类单独处理 (TODO: Adapt fetchLiveRooms to use categoryStates)
         if (currentCategory == HomeCategory.LIVE) {
             fetchLiveRooms(isLoadMore)
+            currentCoroutineContext().ensureActive()
             return refreshNewItemsCount
         }
         
         //  关注动态分类单独处理 (TODO: Adapt fetchFollowFeed to use categoryStates)
         if (currentCategory == HomeCategory.FOLLOW) {
-            return fetchFollowFeed(
+            val result = fetchFollowFeed(
                 isLoadMore = isLoadMore,
                 isManualRefresh = isManualRefresh
             )
+            currentCoroutineContext().ensureActive()
+            return result
         }
         
         val currentCategoryState = if (currentCategory == HomeCategory.POPULAR) {
@@ -1227,6 +1278,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+        currentCoroutineContext().ensureActive()
+        videoResult.exceptionOrNull()?.let { error ->
+            if (error is CancellationException) throw error
+        }
         
         if (shouldRefreshHomeUserInfoAfterFeedLoad(isLoadMore)) {
             refreshUserInfoInBackground()
@@ -1253,31 +1308,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val filteredVideos = com.android.purebilibili.core.plugin.json.JsonPluginManager
                 .filterVideos(builtinFiltered)
             
-            // Global deduplication for RECOMMEND only? Or per category? 
-            // Usually Recommend needs global deduplication. Other categories might just need simple append.
-            // For now, let's keep sessionSeenBvids for RECOMMEND, or apply globally to avoid seeing same video across tabs?
-            // Let's apply globally for now as per existing logic, but maybe we should scope it?
-            // Existing logic had a single sessionSeenBvids.
-            
-            val uniqueNewVideos = if (currentCategory == HomeCategory.RECOMMEND) {
-                filteredVideos.filter { it.bvid !in sessionSeenBvids }
-            } else {
-                filteredVideos
-            }
-            
             val useIncrementalRecommendRefresh = !isLoadMore &&
                 currentCategory == HomeCategory.RECOMMEND &&
                 incrementalTimelineRefreshEnabled
 
-            val incomingVideos = if (useIncrementalRecommendRefresh) {
-                trimIncrementalRefreshVideosToEvenCount(uniqueNewVideos)
-            } else {
-                uniqueNewVideos
-            }
-
-            if (currentCategory == HomeCategory.RECOMMEND) {
-                sessionSeenBvids.addAll(incomingVideos.map { it.bvid })
-            }
+            val incomingVideos = selectHomeFeedIncomingVideos(
+                responseVideos = filteredVideos,
+                currentVideos = currentCategoryState.videos,
+                isLoadMore = isLoadMore,
+                isIncrementalRefresh = useIncrementalRecommendRefresh,
+            )
             
             if (incomingVideos.isNotEmpty() || useIncrementalRecommendRefresh) {
                 var addedCount = 0

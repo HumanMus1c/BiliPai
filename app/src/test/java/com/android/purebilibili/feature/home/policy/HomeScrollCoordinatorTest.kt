@@ -1,10 +1,34 @@
 package com.android.purebilibili.feature.home.policy
 
+import com.android.purebilibili.core.store.CommonListHeaderCollapseMode
+import com.android.purebilibili.core.store.HomeHeaderCollapseMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class HomeScrollCoordinatorTest {
+
+    @Test
+    fun alwaysVisibleListHeaderMode_keepsHomeRecommendationHeaderExpanded() {
+        assertEquals(
+            HomeHeaderCollapseMode.OFF,
+            resolveHomeRecommendationHeaderCollapseMode(
+                homeHeaderCollapseMode = HomeHeaderCollapseMode.BOTH,
+                commonListHeaderCollapseMode = CommonListHeaderCollapseMode.ALWAYS_VISIBLE
+            )
+        )
+    }
+
+    @Test
+    fun otherListHeaderModes_preserveHomeRecommendationHeaderPreference() {
+        assertEquals(
+            HomeHeaderCollapseMode.SEARCH_ONLY,
+            resolveHomeRecommendationHeaderCollapseMode(
+                homeHeaderCollapseMode = HomeHeaderCollapseMode.SEARCH_ONLY,
+                commonListHeaderCollapseMode = CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY
+            )
+        )
+    }
 
     @Test
     fun headerOffset_isQuantizedInsteadOfChangingEveryPixel() {

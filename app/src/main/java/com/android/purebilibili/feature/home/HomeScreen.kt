@@ -102,6 +102,7 @@ import com.android.purebilibili.feature.home.policy.shouldRestoreHomeFeedScrollA
 import com.android.purebilibili.feature.home.policy.reduceHomeBottomBarListScroll
 import com.android.purebilibili.feature.home.policy.resolveHomeBottomBarBaseVisibility
 import com.android.purebilibili.feature.home.policy.resolveHomeHeaderOffsetForSettledPage
+import com.android.purebilibili.feature.home.policy.resolveHomeRecommendationHeaderCollapseMode
 import com.android.purebilibili.feature.home.policy.resolveHomePagerSettledAction
 import com.android.purebilibili.feature.home.policy.shouldAnimateHomePagerToCategory
 import com.android.purebilibili.feature.home.policy.HomePagerSettledAction
@@ -384,11 +385,13 @@ fun HomeScreen(
         currentCategory = currentCategory,
         displayedTabIndex = displayedTabIndexFromState
     )
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(initialPage = initialPage) { topTabEntries.size }
+    // PagerState 会从 SaveableState 恢复实际页码；不能用 initialPage 判断同步状态，
+    // 否则详情返回后可能把恢复的旧页反向写回当前分类。
     val initialPageSyncedWithState = shouldTreatInitialHomePagerPageAsSyncedWithState(
-        initialEntry = resolveHomeTopTabEntryOrNull(topTabEntries, initialPage),
+        initialEntry = resolveHomeTopTabEntryOrNull(topTabEntries, pagerState.currentPage),
         currentCategory = currentCategory
     )
-    val pagerState = androidx.compose.foundation.pager.rememberPagerState(initialPage = initialPage) { topTabEntries.size }
     // 返回详情页时按标签身份恢复，避免自定义顺序把旧页码解释成另一个分类。
     var retainedTopTabEntry by remember {
         mutableStateOf(resolveHomeTopTabEntryOrNull(topTabEntries, initialPage))
@@ -624,6 +627,11 @@ fun HomeScreen(
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeSettings(),
         context = kotlin.coroutines.EmptyCoroutineContext
     )
+    val dissolvingVideos by viewModel.dissolvingVideos.collectAsStateWithLifecycle()
+    val followingMids by viewModel.followingMids.collectAsStateWithLifecycle()
+    val showOnlineCount by SettingsManager
+        .getShowOnlineCount(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val homeFeedCardStyle by SettingsManager
         .getHomeFeedCardStyle(context)
         .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeFeedCardStyle.OFFICIAL,
@@ -1026,6 +1034,26 @@ fun HomeScreen(
     }
 
     val density = LocalDensity.current
+    val homeCoverRequestSpec = remember(
+        contentWidth,
+        gridColumns,
+        homeFeedCardLayout,
+        density.density,
+        isDataSaverActive,
+        homeSettings.lowQualityHomeCoverInDataSaver,
+    ) {
+        val cardWidthDp = (
+            contentWidth.value -
+                homeFeedCardLayout.outerPaddingDp * 2f -
+                homeFeedCardLayout.itemSpacingDp * (gridColumns - 1).coerceAtLeast(0)
+            ) / gridColumns.coerceAtLeast(1)
+        resolveHomeCoverRequestSpec(
+            cardWidthDp = cardWidthDp,
+            density = density.density,
+            useLowQualityCover =
+                isDataSaverActive && homeSettings.lowQualityHomeCoverInDataSaver,
+        )
+    }
     val navBarHeight = WindowInsets.navigationBars.getBottom(density).let { with(density) { it.toDp() } }
 
     //  [修复] 动态计算内容顶部边距，防止被头部遮挡
@@ -1272,7 +1300,10 @@ fun HomeScreen(
     
     // Pixels
     val searchCollapseDistancePx = with(density) { searchCollapseDistanceDp.toPx() }
-    val headerCollapseMode = homeSettings.homeHeaderCollapseMode
+    val headerCollapseMode = resolveHomeRecommendationHeaderCollapseMode(
+        homeHeaderCollapseMode = homeSettings.homeHeaderCollapseMode,
+        commonListHeaderCollapseMode = homeSettings.commonListHeaderCollapseMode
+    )
     val collapseSearchOnScroll = headerCollapseMode.collapseSearch
     val collapseTabsOnScroll = headerCollapseMode.collapseTabs
     val isAnyHeaderCollapseEnabled = headerCollapseMode.hasAnyCollapse
@@ -1757,8 +1788,6 @@ fun HomeScreen(
                                      PopularSubCategory,
                                      () -> Unit
                                  ) -> Unit = { pageCategoryState, contentGridState, selectedPopularSubCategory, onPageLoadMore ->
-                                 val pageDissolvingVideos by viewModel.dissolvingVideos.collectAsStateWithLifecycle()
-                                 val pageFollowingMids by viewModel.followingMids.collectAsStateWithLifecycle()
                                  val pageShowsHeroCarousel = shouldShowHomeHeroCarousel(
                                      enabled = homeSettings.homeHeroCarouselEnabled,
                                      category = category,
@@ -1779,8 +1808,10 @@ fun HomeScreen(
                                      gridState = contentGridState,
                                      gridColumns = gridColumns,
                                      contentPadding = pageContentPadding,
-                                     dissolvingVideos = pageDissolvingVideos,
-                                     followingMids = pageFollowingMids,
+                                     dissolvingVideos = dissolvingVideos,
+                                     followingMids = followingMids,
+                                     showOnlineCount = showOnlineCount,
+                                     coverRequestSpec = homeCoverRequestSpec,
                                      onVideoClick = wrappedOnVideoClick,
                                      onUpClick = onHomeFeedUpClick,
                                      onLiveClick = onLiveClickCallback,

@@ -7,6 +7,20 @@ import kotlin.test.assertTrue
 class BiliPaiNavContentTransformPolicyStructureTest {
 
     @Test
+    fun reducedMotionUsesShortCrossfadeWithoutSpatialTranslation() {
+        val source = contentTransformPolicySource()
+        val reducedBranch = source
+            .substringAfter("BiliPaiNavRouteTransition.REDUCED_MOTION_FADE ->")
+            .substringBefore("BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_FORWARD_FROM_LEFT")
+
+        assertTrue(source.contains("NAV3_REDUCED_MOTION_FADE_MILLIS = 140"))
+        assertTrue(reducedBranch.contains("fadeIn("))
+        assertTrue(reducedBranch.contains("fadeOut("))
+        assertTrue(reducedBranch.contains("slideInHorizontally(").not())
+        assertTrue(reducedBranch.contains("slideOutHorizontally(").not())
+    }
+
+    @Test
     fun disabledVideoDirectionalReturnKeepsTargetPageImmediatelyVisible() {
         val source = contentTransformPolicySource()
         val returnFunctionStart = source.indexOf("private fun disabledVideoDirectionReturnTransform")

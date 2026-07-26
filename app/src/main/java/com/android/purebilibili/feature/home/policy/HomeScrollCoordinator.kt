@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home.policy
 
+import com.android.purebilibili.core.store.CommonListHeaderCollapseMode
+import com.android.purebilibili.core.store.HomeHeaderCollapseMode
 import com.android.purebilibili.feature.home.resolveNextHomeGlobalScrollOffset
 import kotlin.math.abs
 import kotlin.math.round
@@ -19,6 +21,17 @@ internal data class HomeHeaderSettleTransition(
     val targetOffsetPx: Float,
     val shouldAnimate: Boolean
 )
+
+internal fun resolveHomeRecommendationHeaderCollapseMode(
+    homeHeaderCollapseMode: HomeHeaderCollapseMode,
+    commonListHeaderCollapseMode: CommonListHeaderCollapseMode
+): HomeHeaderCollapseMode {
+    return if (commonListHeaderCollapseMode == CommonListHeaderCollapseMode.ALWAYS_VISIBLE) {
+        HomeHeaderCollapseMode.OFF
+    } else {
+        homeHeaderCollapseMode
+    }
+}
 
 internal fun quantizeHomeHeaderOffset(
     offsetPx: Float,

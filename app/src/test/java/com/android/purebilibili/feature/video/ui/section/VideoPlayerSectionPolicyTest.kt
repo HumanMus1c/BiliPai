@@ -1001,6 +1001,22 @@ class VideoPlayerSectionPolicyTest {
     }
 
     @Test
+    fun playbackSnapshot_doesNotAutoExitFullscreenFromStaleEndedStateDuringContinuousPlayback() {
+        assertFalse(
+            shouldToggleAutoFullscreenForCurrentPlaybackSnapshot(
+                autoEnterFullscreenEnabled = false,
+                autoExitFullscreenEnabled = true,
+                allowPlaybackStateAutoFullscreen = true,
+                playbackState = Player.STATE_ENDED,
+                playWhenReady = true,
+                hasAutoEnteredFullscreen = true,
+                isFullscreen = true,
+                willContinueToNextItem = false,
+            )
+        )
+    }
+
+    @Test
     fun playbackStateAutoFullscreen_triggersWhenReadyStartsPlayingInline() {
         assertTrue(
             shouldToggleAutoFullscreenForPlaybackEvent(
@@ -1727,6 +1743,22 @@ class VideoPlayerSectionPolicyTest {
 
         assertTrue(startBlock.contains("resetPlaybackSeekSessionForActivePlayback("))
         assertTrue(startBlock.contains("gestureMode = VideoGestureMode.None"))
+    }
+
+    @Test
+    fun longPressSpeed_usesDirectPlayerParametersWithoutRefreshingThePlaybackSource() {
+        val source = loadVideoPlayerSectionSource()
+        val startBlock = source
+            .substringAfter("fun startLongPressSpeedGesture(startOffset: Offset? = null) {")
+            .substringBefore("fun unlockLockedLongPressSpeedFromGesture()")
+        val finishBlock = source
+            .substringAfter("fun finishLongPressSpeedGesture(gestureEnded: Boolean) {")
+            .substringBefore("// 换集/换片后收口侧栏与手势中间态")
+
+        assertTrue(startBlock.contains("applyLongPressPlaybackParameters"))
+        assertTrue(finishBlock.contains("applyLongPressPlaybackParameters"))
+        assertFalse(startBlock.contains("onPlaybackSpeedChange("))
+        assertFalse(finishBlock.contains("onPlaybackSpeedChange("))
     }
 
     @Test

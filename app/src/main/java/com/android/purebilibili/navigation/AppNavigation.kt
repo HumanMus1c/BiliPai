@@ -101,7 +101,9 @@ import com.android.purebilibili.core.ui.transition.LocalPredictiveBackBackground
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
-import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
+import com.android.purebilibili.core.ui.transition.rememberVideoCardTransitionClock
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionVisualTimeline
+import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionDurationMillis
 import com.android.purebilibili.core.ui.transition.predictiveBackBackgroundEffect
@@ -154,6 +156,7 @@ import com.android.purebilibili.core.store.resolveEffectiveHomeSettings
 import com.android.purebilibili.core.theme.LocalUiPreset
 import com.android.purebilibili.core.util.NetworkUtils
 import com.android.purebilibili.navigation3.BiliPaiNavDisplayHost
+import com.android.purebilibili.navigation3.BiliPaiProgrammaticBackDispatcher
 import com.android.purebilibili.navigation3.BiliPaiNavCardSourceDirection
 import com.android.purebilibili.navigation3.BiliPaiNavEntryContentRole
 import com.android.purebilibili.navigation3.BiliPaiNavKey
@@ -372,6 +375,9 @@ fun AppNavigation(
     val videoTransitionRealtimeBlurEnabled by SettingsManager
         .getVideoTransitionRealtimeBlurEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val videoTransitionBackgroundSinkEnabled by SettingsManager
+        .getVideoTransitionBackgroundSinkEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val isBottomBarBlurEnabled = appearance.bottomBarBlurEnabled
     val bottomBarLabelMode = appearance.bottomBarLabelMode
     val isBottomBarFloating = appearance.bottomBarFloating
@@ -429,7 +435,15 @@ fun AppNavigation(
     val videoSharedTransitionDurationMillis = remember(videoSharedTransitionSpeedSettings) {
         resolveVideoSharedTransitionDurationMillis(videoSharedTransitionSpeedSettings)
     }
-    SharedTransitionProvider(enabled = cardTransitionEnabled) {
+    val videoCardTransitionClock = rememberVideoCardTransitionClock()
+    val systemReduceMotion = rememberSystemReduceMotion()
+    val sharedVideoCardTransitionEnabled = cardTransitionEnabled && !systemReduceMotion
+    val effectiveVideoCardTransitionDurationMillis = if (systemReduceMotion) {
+        VideoCardTransitionVisualTimeline.REDUCED_MOTION_DURATION_MILLIS
+    } else {
+        videoSharedTransitionDurationMillis
+    }
+    SharedTransitionProvider(enabled = sharedVideoCardTransitionEnabled) {
         CompositionLocalProvider(
             LocalVideoSharedTransitionSpeedSettings provides videoSharedTransitionSpeedSettings
         ) {
@@ -442,6 +456,9 @@ fun AppNavigation(
                     openPortraitFeedOnStartup = firstLaunchShown && launchToPortraitFeedOnStartupAtInit
                 )
             )
+        }
+        val navigation3ProgrammaticBackDispatcher = remember {
+            BiliPaiProgrammaticBackDispatcher()
         }
         var predictiveBackCancelRecoveryGeneration by remember { mutableIntStateOf(0) }
         var accountSessionRefreshGeneration by remember { mutableIntStateOf(0) }
@@ -471,11 +488,6 @@ fun AppNavigation(
             hasWallpaperUri = globalHomeWallpaperUri.isNotBlank(),
             currentRoute = currentRoute,
         )
-        val globalWallpaperDepthProgress = remember { mutableFloatStateOf(0f) }
-        val globalWallpaperDepthPhase = remember {
-            mutableStateOf(VideoCardTransitionBackgroundPhase.IDLE)
-        }
-        val globalWallpaperDepthGestureRestore = remember { mutableStateOf(false) }
         val globalHomeWallpaperAppearance = remember(
             globalHomeWallpaperUri,
             effectiveHomeSettings.homeWallpaperEffectMode,
@@ -1471,9 +1483,15 @@ fun AppNavigation(
                             wallpaperUri = globalHomeWallpaperUri,
                             appearance = globalHomeWallpaperAppearance,
                             baseColor = backgroundColor,
-                            depthProgress = globalWallpaperDepthProgress,
-                            depthPhase = globalWallpaperDepthPhase,
-                            depthGestureRestore = globalWallpaperDepthGestureRestore,
+                            depthProgressProvider = {
+                                videoCardTransitionClock.depthProgress()
+                            },
+                            depthPhaseProvider = {
+                                videoCardTransitionClock.phase
+                            },
+                            depthGestureRestoreProvider = {
+                                videoCardTransitionClock.gestureRestoreInProgress
+                            },
                             isDataSaverActive = isDataSaverActiveForGlobalWallpaper,
                             isLightBackground = isLightBackground,
                             // Transition depth blur is independent of badge haze sampling.
@@ -2085,15 +2103,12 @@ fun AppNavigation(
                                     navigation3ReturnSession = navigation3ReturnSession.clearReturning()
                                 },
                                 transitionEnabled = shouldEnableVideoDetailSharedTransition(
-                                    cardTransitionEnabled = cardTransitionEnabled
+                                    cardTransitionEnabled = sharedVideoCardTransitionEnabled
                                 ),
                                 transitionEnterDurationMillis = navMotionSpec.slowFadeDurationMillis,
                                 onBack = {
-                                    popVideoDetailWithSharedReturnState(
-                                        videoKey = videoKey,
-                                        targetKey = navigation3BackStack.getOrNull(navigation3BackStack.lastIndex - 1)
-                                    ) {
-                                        navigation3BackStack = popBiliPaiNavKey(navigation3BackStack)
+                                    if (!navigation3ProgrammaticBackDispatcher.dispatch()) {
+                                        performSystemBackAction()
                                     }
                                 },
                                 onHomeClick = {
@@ -2991,25 +3006,22 @@ fun AppNavigation(
 
                 BiliPaiNavDisplayHost(
                     backStack = navigation3BackStack,
-                    cardTransitionEnabled = cardTransitionEnabled,
-                    videoSharedTransitionDurationMillis = videoSharedTransitionDurationMillis,
-                    predictiveBackEnabled = predictiveBackEnabled,
+                    cardTransitionEnabled = sharedVideoCardTransitionEnabled,
+                    videoCardDepthEffectEnabled = sharedVideoCardTransitionEnabled,
+                    videoCardBackgroundSinkEnabled = videoTransitionBackgroundSinkEnabled,
+                    reduceMotion = systemReduceMotion,
+                    videoSharedTransitionDurationMillis =
+                        effectiveVideoCardTransitionDurationMillis,
+                    videoCardClock = videoCardTransitionClock,
+                    predictiveBackEnabled = predictiveBackEnabled && !systemReduceMotion,
                     predictiveBackAnimationStyle = predictiveBackAnimationStyle,
                     predictiveBackExitDirectionOverride = predictiveBackExitDirection,
                     sourceMetadata = navigation3SourceMetadata,
+                    programmaticBackDispatcher = navigation3ProgrammaticBackDispatcher,
                     onBack = { performSystemBackAction() },
                     onNativeVideoBackCancelled = { currentKey, targetKey ->
                         if (shouldRecoverVideoPlayerAfterBackCancellation(currentKey, targetKey)) {
                             predictiveBackCancelRecoveryGeneration += 1
-                        }
-                    },
-                    onVideoCardDepthFrame = { progress, phase, gestureRestore ->
-                        globalWallpaperDepthProgress.floatValue = progress
-                        if (globalWallpaperDepthPhase.value != phase) {
-                            globalWallpaperDepthPhase.value = phase
-                        }
-                        if (globalWallpaperDepthGestureRestore.value != gestureRestore) {
-                            globalWallpaperDepthGestureRestore.value = gestureRestore
                         }
                     },
                     isQuickReturnFromDetail = navigation3ReturnSession.isQuickReturnFromDetail,

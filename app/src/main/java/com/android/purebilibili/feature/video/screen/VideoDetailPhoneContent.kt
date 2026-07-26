@@ -37,6 +37,7 @@ import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.data.model.response.BgmInfo
 import com.android.purebilibili.feature.video.share.VideoSharePayload
 import com.android.purebilibili.feature.video.share.buildVideoSharePayload
+import com.android.purebilibili.feature.video.danmaku.rememberDanmakuManager
 import com.android.purebilibili.feature.video.state.VideoPlayerState
 import com.android.purebilibili.feature.video.ui.components.BottomInputBar
 import com.android.purebilibili.feature.video.ui.components.resolveBottomInputBarContentBottomPadding
@@ -110,6 +111,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     onShowExternalPlaylistQueueSheet: () -> Unit
 ) {
     val engagementSuccess = success.withEngagementUiState(engagementState)
+    val danmakuManager = rememberDanmakuManager()
     val relatedVideoTransitionEnabled = LocalSharedTransitionEnabled.current
     // Android 16 ART 曾拒绝校验 VideoDetailScreen 中捕获过多状态的匿名 Compose lambda。
     // 保持这个成功态为命名边界，避免 R8/Compose 再生成单个超大内容块。
@@ -269,6 +271,10 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 danmakuEnabled = danmakuEnabledForDetail,
                                 onDanmakuToggle = {
                                     val newValue = !danmakuEnabledForDetail
+                                    danmakuManager.isEnabled = newValue
+                                    if (!newValue) {
+                                        danmakuManager.clear()
+                                    }
                                     sortPreferenceScope.launch {
                                         com.android.purebilibili.core.store.SettingsManager
                                             .setDanmakuEnabled(

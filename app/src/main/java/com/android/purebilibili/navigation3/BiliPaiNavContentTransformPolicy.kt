@@ -17,6 +17,7 @@ import com.android.purebilibili.core.ui.motion.resolveSettingsIosPushPopContentT
 import com.android.purebilibili.navigation.resolveBottomPagerNavigationDurationMillis
 
 private const val NAV3_FALLBACK_FADE_MILLIS = 180
+private const val NAV3_REDUCED_MOTION_FADE_MILLIS = 140
 // Slightly longer so card-disabled enter/exit never reads as a hard cut.
 private const val NAV3_DISABLED_VIDEO_DIRECTION_MILLIS = 280
 private const val NAV3_DISABLED_VIDEO_RETURN_MILLIS = 260
@@ -30,6 +31,9 @@ internal fun resolveBiliPaiNavContentTransform(
     return when (routeTransition) {
         BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT ->
             EnterTransition.None togetherWith ExitTransition.None
+        BiliPaiNavRouteTransition.REDUCED_MOTION_FADE ->
+            fadeIn(animationSpec = tween(NAV3_REDUCED_MOTION_FADE_MILLIS)) togetherWith
+                fadeOut(animationSpec = tween(NAV3_REDUCED_MOTION_FADE_MILLIS))
         BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_FORWARD_FROM_LEFT ->
             disabledVideoDirectionForwardTransform(directionSign = -1)
         BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_FORWARD_FROM_RIGHT ->
@@ -64,6 +68,7 @@ internal fun resolveBiliPaiNavPopContentTransform(
 ): ContentTransform? {
     return when (routeTransition) {
         BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT,
+        BiliPaiNavRouteTransition.REDUCED_MOTION_FADE,
         BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT,
         BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT ->
             resolveBiliPaiNavContentTransform(routeTransition)

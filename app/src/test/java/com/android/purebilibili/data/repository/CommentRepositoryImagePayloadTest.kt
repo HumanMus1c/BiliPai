@@ -49,15 +49,29 @@ class CommentRepositoryImagePayloadTest {
 
     @Test
     fun `shouldTryGrpcMainList supports hot and time modes with offset paging`() {
-        assertTrue(CommentRepository.shouldTryGrpcMainList(page = 1, mode = 3, paginationOffset = null))
-        assertTrue(CommentRepository.shouldTryGrpcMainList(page = 2, mode = 3, paginationOffset = "next"))
-        assertTrue(CommentRepository.shouldTryGrpcMainList(page = 1, mode = 2, paginationOffset = null))
+        assertTrue(CommentRepository.shouldTryGrpcMainList(type = 1, page = 1, mode = 3, paginationOffset = null))
+        assertTrue(CommentRepository.shouldTryGrpcMainList(type = 1, page = 2, mode = 3, paginationOffset = "next"))
+        assertTrue(CommentRepository.shouldTryGrpcMainList(type = 1, page = 1, mode = 2, paginationOffset = null))
         assertNull(CommentRepository.resolveSyncToDynamicField(false))
-        assertTrue(!CommentRepository.shouldTryGrpcMainList(page = 2, mode = 3, paginationOffset = null))
-        assertTrue(!CommentRepository.shouldTryGrpcMainList(page = 1, mode = 4, paginationOffset = null))
+        assertTrue(!CommentRepository.shouldTryGrpcMainList(type = 17, page = 1, mode = 3, paginationOffset = null))
+        assertTrue(!CommentRepository.shouldTryGrpcMainList(type = 1, page = 2, mode = 3, paginationOffset = null))
+        assertTrue(!CommentRepository.shouldTryGrpcMainList(type = 1, page = 1, mode = 4, paginationOffset = null))
         assertTrue(CommentRepository.shouldTryGrpcPagedRequest(page = 1, paginationOffset = null))
         assertTrue(CommentRepository.shouldTryGrpcPagedRequest(page = 2, paginationOffset = "offset"))
         assertTrue(!CommentRepository.shouldTryGrpcPagedRequest(page = 2, paginationOffset = null))
+    }
+
+    @Test
+    fun `comment main list uses documented pagination offset before deprecated next`() {
+        val offset = "{\"type\":1,\"direction\":1,\"data\":{\"pn\":2}}"
+
+        val parameters = CommentRepository.resolveCommentMainListPaginationParameters(
+            page = 2,
+            paginationOffset = offset
+        )
+
+        assertEquals("{\"offset\":\"{\\\"type\\\":1,\\\"direction\\\":1,\\\"data\\\":{\\\"pn\\\":2}}\"}", parameters["pagination_str"])
+        assertNull(parameters["next"])
     }
 
     @Test

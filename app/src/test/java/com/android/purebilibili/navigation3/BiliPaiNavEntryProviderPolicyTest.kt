@@ -10,6 +10,16 @@ import kotlin.test.assertTrue
 class BiliPaiNavEntryProviderPolicyTest {
 
     @Test
+    fun reducedMotionMetadataOverridesSharedAndDirectionalMotionWithFade() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/navigation3/BiliPaiNavEntryProvider.kt"
+        ).readText()
+
+        assertTrue(source.contains("if (reduceMotion)"))
+        assertTrue(source.contains("BiliPaiNavRouteTransition.REDUCED_MOTION_FADE"))
+    }
+
+    @Test
     fun subscribedFavoriteCollectionUsesSharedElementRouteLayer() {
         val transitions = resolveBiliPaiNavEntryRouteTransitions(
             key = BiliPaiNavKey.SeasonSeriesDetail(

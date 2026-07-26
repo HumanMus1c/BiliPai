@@ -95,7 +95,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.alpha
 import com.android.purebilibili.core.ui.blur.shouldAllowDirectHazeLiquidGlassFallback
 import com.android.purebilibili.core.ui.blur.shouldAllowHomeChromeLiquidGlass
-import com.android.purebilibili.core.ui.blur.shouldAllowRuntimeShaderBackedHazeEffect
+import com.android.purebilibili.core.ui.blur.shouldAllowRenderEffectBackedHazeEffect
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
 import com.android.purebilibili.core.ui.blur.BlurStyles
@@ -967,8 +967,9 @@ internal fun resolveAndroidNativeFloatingBottomBarContainerColor(
 
 internal fun resolveAndroidNativeBottomBarGlassEnabled(
     liquidGlassEnabled: Boolean,
-    blurEnabled: Boolean
-): Boolean = liquidGlassEnabled
+    blurEnabled: Boolean,
+    sdkInt: Int = Build.VERSION.SDK_INT
+): Boolean = liquidGlassEnabled && shouldAllowHomeChromeLiquidGlass(sdkInt)
 
 internal fun resolveBottomBarIndicatorEffectsEnabled(
     liquidGlassEnabled: Boolean,
@@ -1003,7 +1004,7 @@ internal fun shouldUseAndroidNativeFloatingHazeBlur(
 ): Boolean = blurEnabled &&
     !glassEnabled &&
     hasHazeState &&
-    shouldAllowRuntimeShaderBackedHazeEffect(sdkInt)
+    shouldAllowRenderEffectBackedHazeEffect(sdkInt)
 
 internal fun Modifier.kernelSuFloatingDockSurface(
     shape: androidx.compose.ui.graphics.Shape,
@@ -2321,7 +2322,10 @@ fun FrostedBottomBar(
         androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
     )
     if (isFloating) {
-        val glassEnabled = sharedLiquidGlassEnabled
+        val glassEnabled = resolveAndroidNativeBottomBarGlassEnabled(
+            liquidGlassEnabled = sharedLiquidGlassEnabled,
+            blurEnabled = hazeState != null
+        )
         val tuning = resolveAndroidNativeBottomBarTuning(
             blurEnabled = glassEnabled || hazeState != null,
             darkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.chromeBackground())

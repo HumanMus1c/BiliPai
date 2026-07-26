@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -60,6 +61,8 @@ import com.android.purebilibili.feature.video.subtitle.SubtitleTrackOption
 import com.android.purebilibili.feature.video.subtitle.resolveSubtitleDisplayOptions
 import com.android.purebilibili.feature.video.playback.policy.resolveDisplayedPlaybackTransitionPosition
 import com.android.purebilibili.core.store.PlayerProgressPlacement
+import com.android.purebilibili.feature.anime4k.Anime4KPreset
+import com.android.purebilibili.feature.anime4k.resolveAnime4KPresetLabel
 import kotlin.math.roundToInt
 
 /**
@@ -173,6 +176,22 @@ internal fun shouldCancelSeekDragOnPointerInputCompletion(
     dragInProgress: Boolean
 ): Boolean = dragInProgress
 
+/**
+ * Seek tap/drag must live on a shared outer container that wraps both the chapter label and the
+ * track. Placing gestures on a track sibling loses pointer DOWN to the chapter [clickable].
+ */
+enum class VideoProgressBarSeekGestureHost {
+    SharedOuterContainer
+}
+
+internal fun resolveVideoProgressBarSeekGestureHost(
+    @Suppress("UNUSED_PARAMETER") hasChapterLabel: Boolean
+): VideoProgressBarSeekGestureHost {
+    // Always use a shared outer host. Chapter videos previously broke scrubbing when seek
+    // gestures lived on a track sibling under the chapter label's clickable hit target.
+    return VideoProgressBarSeekGestureHost.SharedOuterContainer
+}
+
 data class LandscapeDanmakuPlaceholderPolicy(
     val maxLines: Int,
     val ellipsis: Boolean,
@@ -240,14 +259,16 @@ internal fun shouldShowMoreActionsButtonInControlBar(
     showNextEpisodeButton: Boolean,
     showPlaybackOrderLabel: Boolean,
     showAspectRatioButton: Boolean,
-    showPortraitSwitchButton: Boolean
+    showPortraitSwitchButton: Boolean,
+    showAnime4KToggle: Boolean = false
 ): Boolean {
     return isFullscreen && (
         showEpisodeInMoreActions ||
             showNextEpisodeButton ||
             showPlaybackOrderLabel ||
             showAspectRatioButton ||
-            showPortraitSwitchButton
+            showPortraitSwitchButton ||
+            showAnime4KToggle
         )
 }
 
@@ -257,9 +278,9 @@ internal fun shouldApplyNavigationBarPaddingToBottomControlBar(
 
 internal fun resolveFloatingControlPanelMinWidthDp(widthDp: Int): Int {
     return when {
-        widthDp >= 840 -> 216
-        widthDp >= 600 -> 196
-        else -> 176
+        widthDp >= 840 -> 184
+        widthDp >= 600 -> 176
+        else -> 168
     }
 }
 
@@ -361,6 +382,11 @@ fun BottomControlBar(
     isLoggedIn: Boolean = true,
     subtitleControlState: SubtitleControlUiState = SubtitleControlUiState(),
     subtitleControlCallbacks: SubtitleControlCallbacks = SubtitleControlCallbacks(),
+    anime4kEnabled: Boolean = false,
+    anime4kAvailable: Boolean = false,
+    anime4kPreset: Anime4KPreset = Anime4KPreset.FAST,
+    onAnime4kToggle: (Boolean) -> Unit = {},
+    onAnime4kPresetChange: (Anime4KPreset) -> Unit = {},
     
     // Quality
     currentQualityLabel: String = "",
@@ -526,7 +552,8 @@ fun BottomControlBar(
         showNextEpisodeButton,
         showPlaybackOrderLabel,
         showAspectRatioButton,
-        showPortraitSwitchButton
+        showPortraitSwitchButton,
+        anime4kAvailable
     ) {
         shouldShowMoreActionsButtonInControlBar(
             isFullscreen = isFullscreen,
@@ -534,7 +561,8 @@ fun BottomControlBar(
             showNextEpisodeButton = showNextEpisodeButton,
             showPlaybackOrderLabel = showPlaybackOrderLabel,
             showAspectRatioButton = showAspectRatioButton,
-            showPortraitSwitchButton = showPortraitSwitchButton
+            showPortraitSwitchButton = showPortraitSwitchButton,
+            showAnime4KToggle = anime4kAvailable
         )
     }
     val shouldConsumeFloatingPanelBackground = remember(showSubtitlePanel, showMoreActionsPanel) {
@@ -985,7 +1013,7 @@ fun BottomControlBar(
             ) {
                 Column(
                     modifier = Modifier
-                        .widthIn(min = floatingPanelMinWidthDp.dp)
+                        .width(floatingPanelMinWidthDp.dp)
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1039,6 +1067,14 @@ fun BottomControlBar(
                                 showMoreActionsPanel = false
                                 onPortraitFullscreen()
                             }
+                        )
+                    }
+                    if (anime4kAvailable) {
+                        Anime4KMoreAction(
+                            enabled = anime4kEnabled,
+                            preset = anime4kPreset,
+                            onCheckedChange = onAnime4kToggle,
+                            onPresetChange = onAnime4kPresetChange
                         )
                     }
                     if (
@@ -1149,6 +1185,86 @@ private fun MoreActionTextButton(
     )
 }
 
+@Composable
+private fun Anime4KMoreAction(
+    enabled: Boolean,
+    preset: Anime4KPreset,
+    onCheckedChange: (Boolean) -> Unit,
+    onPresetChange: (Anime4KPreset) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Anime4K", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    text = if (enabled) "模型：${resolveAnime4KPresetLabel(preset)}" else "实时超分辨率",
+                    color = Color.White.copy(alpha = 0.68f),
+                    fontSize = 11.sp
+                )
+            }
+            Switch(
+                checked = enabled,
+                onCheckedChange = onCheckedChange
+            )
+        }
+        AnimatedVisibility(visible = enabled) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                listOf(
+                    Anime4KPreset.FAST,
+                    Anime4KPreset.QUALITY
+                ).forEach { option ->
+                    Anime4KIntensityOption(
+                        label = resolveAnime4KPresetLabel(option),
+                        selected = preset == option,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onPresetChange(option) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Anime4KIntensityOption(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f)
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = if (selected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.86f),
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1
+        )
+    }
+}
+
 /**
  * Reusing existing VideoProgressBar
  */
@@ -1226,6 +1342,11 @@ fun VideoProgressBar(
     val thumbSizePx = with(LocalDensity.current) { thumbSizeDp.toPx() }
     val trackHeightPx = with(LocalDensity.current) { layoutPolicy.trackHeightDp.dp.toPx() }
 
+    // Seek gestures must wrap chapter + track. A track-sibling pointerInput loses DOWN to the
+    // chapter clickable (full-width + 48dp min touch), which is why chapter videos cannot scrub.
+    val seekGestureHost = resolveVideoProgressBarSeekGestureHost(
+        hasChapterLabel = currentChapter != null
+    )
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -1261,104 +1382,129 @@ fun VideoProgressBar(
             }
         }
 
-        if (currentChapter != null) {
-            Row(
-                modifier = Modifier
-                    .clickable(onClick = onChapterClick)
-                    .padding(
-                        bottom = layoutPolicy.chapterBottomPaddingDp.dp,
-                        start = layoutPolicy.chapterStartPaddingDp.dp
-                    ),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    CupertinoIcons.Default.ListBullet,
-                    contentDescription = "Chapter",
-                    tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(layoutPolicy.chapterIconSizeDp.dp)
-                )
-                Spacer(modifier = Modifier.width(layoutPolicy.chapterSpacingDp.dp))
-                Text(
-                    text = currentChapter,
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontSize = layoutPolicy.chapterFontSp.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(layoutPolicy.touchContainerHeightDp.dp)
+                .height(baseHeightDp)
                 .onSizeChanged { containerWidthPx = it.width.toFloat() }
-                .pointerInput(duration) {
-                    detectTapGestures { offset ->
-                        val targetPositionMs = resolveSeekPositionFromTouch(
-                            touchX = offset.x,
-                            containerWidthPx = size.width.toFloat(),
-                            durationMs = duration
-                        )
-                        dragTargetPositionMs = targetPositionMs
-                        currentOnSeekStart()
-                        currentOnSeekDragStart(targetPositionMs)
-                        currentOnSeekDragUpdate(targetPositionMs)
-                        currentOnSeek(targetPositionMs)
-                    }
-                }
-                .pointerInput(duration) {
-                    var dragInProgress = false
-                    try {
-                        var dragStartPositionMs = displayPositionMs.coerceAtLeast(0L)
-                        var latestDragPositionMs = dragStartPositionMs
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                val targetPositionMs = resolveSeekPositionFromTouch(
-                                    touchX = offset.x,
-                                    containerWidthPx = size.width.toFloat(),
-                                    durationMs = duration
-                                )
-                                dragInProgress = true
-                                dragStartPositionMs = targetPositionMs
-                                latestDragPositionMs = targetPositionMs
-                                dragTargetPositionMs = targetPositionMs
-                                currentOnSeekStart()
-                                currentOnSeekDragStart(targetPositionMs)
-                            },
-                            onDrag = { change, _ ->
-                                change.consume()
-                                val targetPositionMs = resolveSeekPositionFromTouch(
-                                    touchX = change.position.x,
-                                    containerWidthPx = size.width.toFloat(),
-                                    durationMs = duration
-                                )
-                                latestDragPositionMs = targetPositionMs
-                                dragTargetPositionMs = targetPositionMs
-                                currentOnSeekDragUpdate(targetPositionMs)
-                            },
-                            onDragEnd = {
-                                val commitPositionMs = resolveSeekDragCommitPositionMs(
-                                    dragStartPositionMs = dragStartPositionMs,
-                                    latestDragPositionMs = latestDragPositionMs
-                                )
-                                dragInProgress = false
-                                currentOnSeek(commitPositionMs)
-                            },
-                            onDragCancel = {
-                                dragInProgress = false
-                                currentOnSeekDragCancel()
+                .then(
+                    if (seekGestureHost == VideoProgressBarSeekGestureHost.SharedOuterContainer) {
+                        Modifier
+                            .pointerInput(duration) {
+                                detectTapGestures { offset ->
+                                    val targetPositionMs = resolveSeekPositionFromTouch(
+                                        touchX = offset.x,
+                                        containerWidthPx = size.width.toFloat(),
+                                        durationMs = duration
+                                    )
+                                    dragTargetPositionMs = targetPositionMs
+                                    currentOnSeekStart()
+                                    currentOnSeekDragStart(targetPositionMs)
+                                    currentOnSeekDragUpdate(targetPositionMs)
+                                    currentOnSeek(targetPositionMs)
+                                }
                             }
-                        )
-                    } finally {
-                        if (shouldCancelSeekDragOnPointerInputCompletion(dragInProgress)) {
-                            currentOnSeekDragCancel()
+                            .pointerInput(duration) {
+                                var dragInProgress = false
+                                try {
+                                    var dragStartPositionMs = displayPositionMs.coerceAtLeast(0L)
+                                    var latestDragPositionMs = dragStartPositionMs
+                                    detectDragGestures(
+                                        onDragStart = { offset ->
+                                            val targetPositionMs = resolveSeekPositionFromTouch(
+                                                touchX = offset.x,
+                                                containerWidthPx = size.width.toFloat(),
+                                                durationMs = duration
+                                            )
+                                            dragInProgress = true
+                                            dragStartPositionMs = targetPositionMs
+                                            latestDragPositionMs = targetPositionMs
+                                            dragTargetPositionMs = targetPositionMs
+                                            currentOnSeekStart()
+                                            currentOnSeekDragStart(targetPositionMs)
+                                        },
+                                        onDrag = { change, _ ->
+                                            change.consume()
+                                            val targetPositionMs = resolveSeekPositionFromTouch(
+                                                touchX = change.position.x,
+                                                containerWidthPx = size.width.toFloat(),
+                                                durationMs = duration
+                                            )
+                                            latestDragPositionMs = targetPositionMs
+                                            dragTargetPositionMs = targetPositionMs
+                                            currentOnSeekDragUpdate(targetPositionMs)
+                                        },
+                                        onDragEnd = {
+                                            val commitPositionMs = resolveSeekDragCommitPositionMs(
+                                                dragStartPositionMs = dragStartPositionMs,
+                                                latestDragPositionMs = latestDragPositionMs
+                                            )
+                                            dragInProgress = false
+                                            currentOnSeek(commitPositionMs)
+                                        },
+                                        onDragCancel = {
+                                            dragInProgress = false
+                                            currentOnSeekDragCancel()
+                                        }
+                                    )
+                                } finally {
+                                    if (shouldCancelSeekDragOnPointerInputCompletion(dragInProgress)) {
+                                        currentOnSeekDragCancel()
+                                    }
+                                }
+                            }
+                    } else {
+                        Modifier
+                    }
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+            ) {
+                if (currentChapter != null) {
+                    CompositionLocalProvider(
+                        LocalMinimumInteractiveComponentSize provides 0.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .wrapContentWidth()
+                                .pointerInput(currentChapter) {
+                                    detectTapGestures { onChapterClick() }
+                                }
+                                .padding(
+                                    bottom = layoutPolicy.chapterBottomPaddingDp.dp,
+                                    start = layoutPolicy.chapterStartPaddingDp.dp
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                CupertinoIcons.Default.ListBullet,
+                                contentDescription = "Chapter",
+                                tint = Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.size(layoutPolicy.chapterIconSizeDp.dp)
+                            )
+                            Spacer(modifier = Modifier.width(layoutPolicy.chapterSpacingDp.dp))
+                            Text(
+                                text = currentChapter,
+                                color = Color.White.copy(alpha = 0.9f),
+                                fontSize = layoutPolicy.chapterFontSp.sp,
+                                lineHeight = layoutPolicy.chapterFontSp.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
-                },
-            contentAlignment = Alignment.CenterStart
-        ) {
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(layoutPolicy.touchContainerHeightDp.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1486,19 +1632,21 @@ fun VideoProgressBar(
                 }
             }
 
-            if (duration > 0L && containerWidthPx > 0f) {
-                val thumbOffsetPx = remember(containerWidthPx, displayProgress, thumbSizePx) {
-                    (containerWidthPx * displayProgress - thumbSizePx / 2f)
-                        .coerceIn(0f, (containerWidthPx - thumbSizePx).coerceAtLeast(0f))
-                        .roundToInt()
+                    if (duration > 0L && containerWidthPx > 0f) {
+                        val thumbOffsetPx = remember(containerWidthPx, displayProgress, thumbSizePx) {
+                            (containerWidthPx * displayProgress - thumbSizePx / 2f)
+                                .coerceIn(0f, (containerWidthPx - thumbSizePx).coerceAtLeast(0f))
+                                .roundToInt()
+                        }
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .offset { IntOffset(thumbOffsetPx, 0) }
+                                .size(thumbSizeDp)
+                                .background(primaryColor, CircleShape)
+                        )
+                    }
                 }
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .offset { IntOffset(thumbOffsetPx, 0) }
-                        .size(thumbSizeDp)
-                        .background(primaryColor, CircleShape)
-                )
             }
         }
     }

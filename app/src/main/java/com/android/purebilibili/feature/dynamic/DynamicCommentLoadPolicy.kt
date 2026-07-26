@@ -80,10 +80,11 @@ internal fun resolveDynamicMainCommentPageEnd(
     loadedReplyCount: Int,
     totalCount: Int
 ): Boolean {
+    if (fetchedReplyCount <= 0) return true
     if (totalCount > loadedReplyCount.coerceAtLeast(0)) {
         return false
     }
-    return cursorIsEnd || fetchedReplyCount <= 0
+    return cursorIsEnd
 }
 
 internal fun resolveDynamicDetailInteractionModel(

@@ -67,6 +67,7 @@ import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.feature.home.LocalHomeLayerBackdrop
+import com.android.purebilibili.feature.home.HomeCoverRequestSpec
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -141,14 +142,16 @@ internal fun resolveVideoCardMenuOffset(
 
 internal fun resolveVideoCardCoverCacheKey(
     video: VideoItem,
-    useLowQualityCover: Boolean
+    useLowQualityCover: Boolean,
+    requestSpec: HomeCoverRequestSpec? = null,
 ): String {
     val normalizedIdentity = video.bvid.trim().ifEmpty {
         video.pic.trim().ifEmpty {
             "fallback_${video.id.coerceAtLeast(0L)}_${video.cid.coerceAtLeast(0L)}_${video.title.hashCode()}"
         }
     }
-    return resolveVideoSharedCoverCacheKey(normalizedIdentity, useLowQualityCover)
+    val baseKey = resolveVideoSharedCoverCacheKey(normalizedIdentity, useLowQualityCover)
+    return requestSpec?.let { "${baseKey}_${it.cacheKeySuffix}" } ?: baseKey
 }
 
 private data class VideoCardTexts(
@@ -319,7 +322,7 @@ private fun resolveVideoCardPillColors(
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun ElegantVideoCard(
+internal fun ElegantVideoCard(
     video: VideoItem,
     index: Int,
     refreshKey: Long = 0L,
@@ -334,6 +337,7 @@ fun ElegantVideoCard(
     showPublishTime: Boolean = false,   //  是否显示发布时间（搜索结果用）
     isDataSaverActive: Boolean = false, // 🚀 [性能优化] 从父级传入，避免每个卡片重复计算
     preferLowQualityCover: Boolean = false,
+    coverRequestSpec: HomeCoverRequestSpec? = null,
     glassEnabled: Boolean = true,
     blurEnabled: Boolean = true,
     compactStatsOnCover: Boolean = true, // 播放量/评论数是否贴在封面底部
@@ -402,10 +406,10 @@ fun ElegantVideoCard(
     val inlinePillBaseColor = AppSurfaceTokens.cardContainer()
     val wallpaperHazeState = LocalWallpaperHazeState.current
     val homeLayerBackdrop = LocalHomeLayerBackdrop.current
-    val badgeEffectVisual = remember(badgeEffectMode, scrollLiteModeEnabled, wallpaperHazeState != null) {
+    val badgeEffectVisual = remember(badgeEffectMode, wallpaperHazeState != null) {
         resolveHomeCardBadgeEffectVisual(
             mode = badgeEffectMode,
-            scrollLiteModeEnabled = scrollLiteModeEnabled,
+            scrollLiteModeEnabled = false,
             hasHazeState = wallpaperHazeState != null
         )
     }
@@ -442,9 +446,9 @@ fun ElegantVideoCard(
             blurEnabled = blurEnabled
         )
     }
-    val scrollLitePolicy = remember(scrollLiteModeEnabled, compactStatsOnCover) {
+    val scrollLitePolicy = remember(compactStatsOnCover) {
         resolveVideoCardScrollLiteVisualPolicy(
-            scrollLiteModeEnabled = scrollLiteModeEnabled,
+            scrollLiteModeEnabled = false,
             compactStatsOnCover = compactStatsOnCover
         )
     }
@@ -496,12 +500,16 @@ fun ElegantVideoCard(
     val coverCacheKey: String
     val coverUrl: String
     val premiumBadgeLabel: String?
-    remember(video, useLowQualityCover) {
+    remember(video, useLowQualityCover, coverRequestSpec) {
         Triple(
-            resolveVideoCardCoverCacheKey(video = video, useLowQualityCover = useLowQualityCover),
-            FormatUtils.resolveVideoCoverUrl(
-                if (video.pic.startsWith("//")) "https:${video.pic}" else video.pic,
-                useLowQuality = useLowQualityCover
+            resolveVideoCardCoverCacheKey(
+                video = video,
+                useLowQualityCover = useLowQualityCover,
+                requestSpec = coverRequestSpec,
+            ),
+            coverRequestSpec?.resolveUrl(video.pic) ?: FormatUtils.resolveVideoCoverUrl(
+                video.pic,
+                useLowQuality = useLowQualityCover,
             ),
             resolveVideoPremiumBadgeLabel(video.rights)
         )
@@ -707,10 +715,6 @@ fun ElegantVideoCard(
                 motionSpec = homeSharedTransitionMotionSpec,
                 clipShape = cardShellShape
             )
-            .videoCardSiblingDepthScale(
-                bvid = video.bvid,
-                sourceRoute = effectiveSharedElementSourceRoute,
-            )
         Column(
             modifier = cardContainerModifier
         ) {
@@ -775,6 +779,9 @@ fun ElegantVideoCard(
             ) {
                 ImageRequest.Builder(context)
                     .data(requestCoverUrl)
+                    .apply {
+                        coverRequestSpec?.let { size(it.widthPx, it.heightPx) }
+                    }
                     .placeholderMemoryCacheKey(requestCoverCacheKey)
                     .crossfade(coverCrossfadeEnabled)
                     .memoryCacheKey(requestCoverCacheKey)

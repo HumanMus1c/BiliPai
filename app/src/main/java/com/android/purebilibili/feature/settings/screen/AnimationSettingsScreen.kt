@@ -130,6 +130,9 @@ fun AnimationSettingsContent(
     val videoTransitionRealtimeBlurEnabled by SettingsManager
         .getVideoTransitionRealtimeBlurEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val videoTransitionBackgroundSinkEnabled by SettingsManager
+        .getVideoTransitionBackgroundSinkEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val effectiveEntranceSpec = rememberEffectiveEntranceMotionSpec()
     // 开关开着、但有效参数被降级为不动画 → 系统减弱动效在生效。
     val entranceDowngradedBySystem = uiEntranceAnimationEnabled && !effectiveEntranceSpec.animate
@@ -222,12 +225,25 @@ fun AnimationSettingsContent(
                             iconTint = iOSPink
                         )
                         IOSDivider()
-	                        IOSSwitchItem(
+                        IOSSwitchItem(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
                             title = "过渡动画",
                             subtitle = "全局视频卡片与详情页的共享元素过渡效果",
                             checked = state.cardTransitionEnabled,
                             onCheckedChange = { viewModel.toggleCardTransition(it) },
+                            iconTint = iOSTeal
+                        )
+                        IOSDivider()
+                        IOSSwitchItem(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
+                            title = "过渡动画背景下沉",
+                            subtitle = "过渡时让背景产生纵深下沉效果，默认关闭",
+                            checked = videoTransitionBackgroundSinkEnabled,
+                            onCheckedChange = { value ->
+                                scope.launch {
+                                    SettingsManager.setVideoTransitionBackgroundSinkEnabled(context, value)
+                                }
+                            },
                             iconTint = iOSTeal
                         )
                         IOSDivider()

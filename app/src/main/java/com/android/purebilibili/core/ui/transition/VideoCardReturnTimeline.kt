@@ -1,5 +1,7 @@
 package com.android.purebilibili.core.ui.transition
 
+import com.android.purebilibili.core.ui.adaptive.MotionTier
+
 /**
  * 详情 → 来源卡片返回的**单一时间轴契约**（纯 Kotlin，无 Compose）。
  *
@@ -26,14 +28,104 @@ internal const val VIDEO_CARD_RETURN_SOURCE_ENTER_FADE_DELAY_RATIO = 0f
  * 源卡 chrome（标题/UP）在返回 settle 进度上的淡入起点。
  * live 正文在此点起让位；封面始终可见，与实时画面/稳定封面共存。
  */
-internal const val VIDEO_CARD_RETURN_CHROME_REVEAL_START = 0.18f
+internal object VideoCardTransitionVisualTimeline {
+    const val DETAIL_CHROME_ENTER_START = 0.18f
+    const val DETAIL_CHROME_ENTER_END = 0.72f
+    const val SECONDARY_CONTENT_ENTER_START = 0.24f
+    const val SECONDARY_CONTENT_ENTER_END = 0.82f
+    const val DETAIL_CONTENT_RETURN_END = 0.28f
+    const val SOURCE_CHROME_RETURN_START = 0.68f
+    const val SECONDARY_CONTENT_TRANSLATION_DP = 8
+    const val REDUCED_MOTION_DURATION_MILLIS = 140
+}
+
+internal const val VIDEO_CARD_RETURN_CHROME_REVEAL_START =
+    VideoCardTransitionVisualTimeline.SOURCE_CHROME_RETURN_START
 
 /**
  * live morph 详情次要内容（简介/推荐等）开始让位的 settle 进度。
  * 与 chrome 同源，保证标题出现时下方已不是叠层实时页。
  */
-internal const val VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_START =
-    VIDEO_CARD_RETURN_CHROME_REVEAL_START
+internal const val VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_START = 0f
+internal const val VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_END =
+    VideoCardTransitionVisualTimeline.DETAIL_CONTENT_RETURN_END
+
+internal data class VideoCardSecondaryContentVisualFrame(
+    val alpha: Float,
+    val translationYDp: Float,
+)
+
+internal fun resolveVideoCardTimelineWindowProgress(
+    progress: Float,
+    start: Float,
+    end: Float,
+): Float {
+    val value = progress.coerceIn(0f, 1f)
+    val safeStart = start.coerceIn(0f, 1f)
+    val safeEnd = end.coerceIn(safeStart, 1f)
+    if (value <= safeStart) return 0f
+    if (safeEnd <= safeStart) return 1f
+    return ((value - safeStart) / (safeEnd - safeStart)).coerceIn(0f, 1f)
+}
+
+internal fun resolveVideoCardDetailChromeAlpha(
+    morphDepthProgress: Float,
+    phase: VideoCardTransitionBackgroundPhase,
+    isReturnGestureInProgress: Boolean,
+): Float {
+    val depth = morphDepthProgress.coerceIn(0f, 1f)
+    val returning = phase == VideoCardTransitionBackgroundPhase.RETURNING ||
+        isReturnGestureInProgress
+    return when {
+        returning -> 1f - resolveVideoCardTimelineWindowProgress(
+            progress = 1f - depth,
+            start = 0f,
+            end = VideoCardTransitionVisualTimeline.DETAIL_CONTENT_RETURN_END,
+        )
+        phase == VideoCardTransitionBackgroundPhase.OPENING ->
+            resolveVideoCardTimelineWindowProgress(
+                progress = depth,
+                start = VideoCardTransitionVisualTimeline.DETAIL_CHROME_ENTER_START,
+                end = VideoCardTransitionVisualTimeline.DETAIL_CHROME_ENTER_END,
+            )
+        else -> 1f
+    }
+}
+
+internal fun resolveVideoCardSecondaryContentVisualFrame(
+    morphDepthProgress: Float,
+    phase: VideoCardTransitionBackgroundPhase,
+    isReturnGestureInProgress: Boolean,
+    motionTier: MotionTier,
+): VideoCardSecondaryContentVisualFrame {
+    val depth = morphDepthProgress.coerceIn(0f, 1f)
+    val returning = phase == VideoCardTransitionBackgroundPhase.RETURNING ||
+        isReturnGestureInProgress
+    val alpha = when {
+        motionTier == MotionTier.Reduced -> depth
+        returning -> 1f - resolveVideoCardTimelineWindowProgress(
+            progress = 1f - depth,
+            start = 0f,
+            end = VideoCardTransitionVisualTimeline.DETAIL_CONTENT_RETURN_END,
+        )
+        phase == VideoCardTransitionBackgroundPhase.OPENING ->
+            resolveVideoCardTimelineWindowProgress(
+                progress = depth,
+                start = VideoCardTransitionVisualTimeline.SECONDARY_CONTENT_ENTER_START,
+                end = VideoCardTransitionVisualTimeline.SECONDARY_CONTENT_ENTER_END,
+            )
+        else -> 1f
+    }
+    return VideoCardSecondaryContentVisualFrame(
+        alpha = alpha,
+        translationYDp = if (motionTier == MotionTier.Reduced) {
+            0f
+        } else {
+            VideoCardTransitionVisualTimeline.SECONDARY_CONTENT_TRANSLATION_DP.toFloat() *
+                (1f - alpha)
+        },
+    )
+}
 
 /**
  * 详情侧返回时封面视觉主导权。
@@ -178,6 +270,7 @@ internal fun resolveVideoCardLiveMorphSecondaryContentAlpha(
     transitionProgress: Float = 1f,
     depthBlurProgress: Float? = null,
     yieldStart: Float = VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_START,
+    yieldEnd: Float = VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_END,
     morphDepthProgress: Float? = null,
 ): Float {
     val settle = resolveVideoCardReturnSettleProgress(
@@ -188,6 +281,7 @@ internal fun resolveVideoCardLiveMorphSecondaryContentAlpha(
     return resolveVideoCardLiveMorphSecondaryContentAlphaFromSettle(
         settleProgress = settle,
         yieldStart = yieldStart,
+        yieldEnd = yieldEnd,
     )
 }
 
@@ -198,12 +292,14 @@ internal fun resolveVideoCardLiveMorphSecondaryContentAlpha(
 internal fun resolveVideoCardLiveMorphSecondaryContentAlphaFromSettle(
     settleProgress: Float,
     yieldStart: Float = VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_START,
+    yieldEnd: Float = VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_END,
 ): Float {
     val settle = settleProgress.coerceIn(0f, 1f)
     val start = yieldStart.coerceIn(0f, 1f)
+    val end = yieldEnd.coerceIn(start, 1f)
     if (settle <= start) return 1f
-    if (start >= 1f) return if (settle >= 1f) 0f else 1f
-    return (1f - (settle - start) / (1f - start)).coerceIn(0f, 1f)
+    if (end <= start) return 0f
+    return (1f - (settle - start) / (end - start)).coerceIn(0f, 1f)
 }
 
 /**

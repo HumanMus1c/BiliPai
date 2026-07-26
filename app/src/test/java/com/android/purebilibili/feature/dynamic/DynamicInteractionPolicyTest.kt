@@ -235,6 +235,22 @@ class DynamicInteractionPolicyTest {
     }
 
     @Test
+    fun `resolve forwarded dynamic comment target prefers documented basic target`() {
+        val item = DynamicItem(
+            id_str = "967717348014293017",
+            type = "DYNAMIC_TYPE_FORWARD",
+            basic = DynamicBasic(
+                comment_id_str = "967717348014293018",
+                comment_type = 17
+            )
+        )
+
+        val target = resolveDynamicCommentTarget(item)
+
+        assertEquals(DynamicCommentTarget(oid = 967717348014293018L, type = 17), target)
+    }
+
+    @Test
     fun `resolve primary action prefers video even when forwarded`() {
         val forwarded = DynamicItem(
             type = "DYNAMIC_TYPE_FORWARD",

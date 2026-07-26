@@ -113,13 +113,15 @@ class BottomBarSurfaceColorPolicyTest {
         assertTrue(
             resolveAndroidNativeBottomBarGlassEnabled(
                 liquidGlassEnabled = true,
-                blurEnabled = false
+                blurEnabled = false,
+                sdkInt = 33
             )
         )
         assertFalse(
             resolveAndroidNativeBottomBarGlassEnabled(
                 liquidGlassEnabled = false,
-                blurEnabled = false
+                blurEnabled = false,
+                sdkInt = 33
             )
         )
     }
@@ -129,13 +131,34 @@ class BottomBarSurfaceColorPolicyTest {
         assertFalse(
             resolveAndroidNativeBottomBarGlassEnabled(
                 liquidGlassEnabled = false,
-                blurEnabled = true
+                blurEnabled = true,
+                sdkInt = 33
             )
         )
         assertTrue(
             resolveAndroidNativeBottomBarGlassEnabled(
                 liquidGlassEnabled = true,
-                blurEnabled = true
+                blurEnabled = true,
+                sdkInt = 33
+            )
+        )
+    }
+
+    @Test
+    fun `android 12 downgrades liquid glass to ordinary frosted blur`() {
+        assertFalse(
+            resolveAndroidNativeBottomBarGlassEnabled(
+                liquidGlassEnabled = true,
+                blurEnabled = true,
+                sdkInt = 31
+            )
+        )
+        assertTrue(
+            shouldUseAndroidNativeFloatingHazeBlur(
+                blurEnabled = true,
+                glassEnabled = false,
+                hasHazeState = true,
+                sdkInt = 31
             )
         )
     }

@@ -8,6 +8,14 @@ import kotlin.test.assertNull
 class BilibiliNavigationTargetParserTest {
 
     @Test
+    fun parse_commentSpaceSchema_resolvesSpaceTarget() {
+        val target = BilibiliNavigationTargetParser.parse("bilibili://space/495695169")
+
+        assertIs<BilibiliNavigationTarget.Space>(target)
+        assertEquals(495695169L, target.mid)
+    }
+
+    @Test
     fun parse_wrappedSpaceUrl_resolvesSpaceTarget() {
         val target = BilibiliNavigationTargetParser.parse(
             "bilibili://browser?url=https%3A%2F%2Fspace.bilibili.com%2F123456"

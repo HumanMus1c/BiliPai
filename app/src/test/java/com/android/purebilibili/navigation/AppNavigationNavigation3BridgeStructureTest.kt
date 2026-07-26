@@ -58,6 +58,28 @@ class AppNavigationNavigation3BridgeStructureTest {
     }
 
     @Test
+    fun videoDetailTopBackUsesNavDisplayProgrammaticBackCoordinator() {
+        val source = appNavigationSource()
+        val videoDetailBranch = source
+            .substringAfter("BiliPaiNavEntryContentRole.VIDEO_DETAIL ->")
+            .substringBefore("BiliPaiNavEntryContentRole.ARTICLE_DETAIL ->")
+        val onBackBlock = videoDetailBranch
+            .substringAfter("onBack = {")
+            .substringBefore("onHomeClick = {")
+
+        assertTrue(
+            onBackBlock.contains("navigation3ProgrammaticBackDispatcher.dispatch()")
+        )
+        assertTrue(onBackBlock.contains("performSystemBackAction()"))
+        assertFalse(onBackBlock.contains("popVideoDetailWithSharedReturnState("))
+        assertTrue(
+            source.contains(
+                "programmaticBackDispatcher = navigation3ProgrammaticBackDispatcher"
+            )
+        )
+    }
+
+    @Test
     fun videoDetailHomeClickUsesPopToRootSoHorizontalReturnTransitionPlays() {
         val source = appNavigationSource()
         val videoDetailBranch = source

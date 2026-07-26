@@ -15,6 +15,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -137,7 +138,13 @@ data class ReplyTop(
 data class ReplyCursor(
     @SerialName("all_count") val allCount: Int = 0,
     @SerialName("is_end") val isEnd: Boolean = false,
-    val next: Int = 0
+    val next: Int = 0,
+    @SerialName("pagination_reply") val paginationReply: ReplyPaginationReply? = null
+)
+
+@Serializable
+data class ReplyPaginationReply(
+    @SerialName("next_offset") val nextOffset: String = ""
 )
 
 //  旧版 API 的分页信息
@@ -516,6 +523,7 @@ data class ReplyContent(
     val vote: ReplyVote? = null,
     @SerialName("rich_text")
     val richText: ReplyRichText = ReplyRichText(),
+    @JsonNames("jump_url", "urls")
     val urls: Map<String, ReplyContentUrl> = emptyMap(),
     val topics: Map<String, JsonElement> = emptyMap(),
     @SerialName("at_name_to_mid")
@@ -569,10 +577,10 @@ data class ReplyContentUrl(
     @Serializable(with = FlexibleStringSerializer::class)
     val url: String = "",
     @Serializable(with = FlexibleStringSerializer::class)
-    @SerialName("app_url_schema")
+    @JsonNames("appUrlSchema", "app_url_schema")
     val appUrlSchema: String = "",
     @Serializable(with = FlexibleStringSerializer::class)
-    @SerialName("prefix_icon")
+    @JsonNames("prefixIcon", "prefix_icon")
     val prefixIcon: String = ""
 )
 

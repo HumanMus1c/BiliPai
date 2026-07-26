@@ -21,7 +21,7 @@ import kotlin.math.roundToInt
  * - **0** = 落在列表源卡（景深清晰）
  * - **1** = 落在详情全屏（景深满糊）
  *
- * 景深 blur / scale / scrim、chrome settle、壁纸 depth **只读** [depthProgress]，
+ * 元素 scale、背景 blur / scrim、chrome settle、壁纸 depth **只读** [depthProgress]，
  * 不再各自 Animatable 并行。
  *
  * ## 驱动优先级（高 → 低）
@@ -47,6 +47,9 @@ internal class VideoCardTransitionClock {
 
     /** 手势开始时的 depth（通常 1，OPENING 中途可能 <1）。 */
     var gestureStartDepth: Float by mutableFloatStateOf(1f)
+
+    var gestureRestoreInProgress: Boolean by mutableStateOf(false)
+        private set
 
     private val fallback = Animatable(0f)
 
@@ -123,6 +126,7 @@ internal class VideoCardTransitionClock {
         this.sourceRoute = sourceRoute
         phase = VideoCardTransitionBackgroundPhase.OPENING
         gestureBackProgress = null
+        gestureRestoreInProgress = false
         clearSharedMorphProgress()
     }
 
@@ -130,6 +134,7 @@ internal class VideoCardTransitionClock {
         this.sourceRoute = sourceRoute
         phase = VideoCardTransitionBackgroundPhase.RETURNING
         gestureBackProgress = null
+        gestureRestoreInProgress = false
         // 保留 shared 回灌通道；fallback 从当前 depth 起
     }
 
@@ -145,6 +150,7 @@ internal class VideoCardTransitionClock {
         phase = VideoCardTransitionBackgroundPhase.IDLE
         sourceRoute = null
         gestureBackProgress = null
+        gestureRestoreInProgress = false
         clearSharedMorphProgress()
     }
 
@@ -157,6 +163,14 @@ internal class VideoCardTransitionClock {
 
     fun endGesture() {
         gestureBackProgress = null
+    }
+
+    fun beginGestureRestore() {
+        gestureRestoreInProgress = true
+    }
+
+    fun endGestureRestore() {
+        gestureRestoreInProgress = false
     }
 
     suspend fun snapFallback(value: Float) {
@@ -186,6 +200,7 @@ internal class VideoCardTransitionClock {
     suspend fun snapClearAndIdle() {
         clearSharedMorphProgress()
         gestureBackProgress = null
+        gestureRestoreInProgress = false
         fallback.snapTo(0f)
         phase = VideoCardTransitionBackgroundPhase.IDLE
     }

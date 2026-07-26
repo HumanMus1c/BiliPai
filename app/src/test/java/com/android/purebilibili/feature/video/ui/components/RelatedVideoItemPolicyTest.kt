@@ -61,23 +61,28 @@ class RelatedVideoItemPolicyTest {
     }
 
     @Test
-    fun `related detail uses home style vertical card shell`() {
+    fun `related detail uses single column horizontal card with transparent shell anchor`() {
         val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/RelatedVideoItem.kt")
             .readText()
 
         assertTrue(source.contains("RELATED_VIDEO_CARD_COVER_ASPECT_RATIO"))
         assertTrue(source.contains("coverAspectRatio: Float = RELATED_VIDEO_CARD_COVER_ASPECT_RATIO"))
-        assertTrue(source.contains("aspectRatio(coverAspectRatio)"))
+        assertTrue(source.contains("val coverWidth = 144.dp"))
+        assertTrue(source.contains("val coverHeight = coverWidth / coverAspectRatio.coerceAtLeast(1f)"))
         assertTrue(source.contains("resolveHomeFeedCardLayout(homeFeedCardStyle)"))
+        assertTrue(source.contains("RELATED_VIDEO_GRID_COLUMNS = 1"))
         assertTrue(source.contains("coverAspectRatio = cardLayout.coverAspectRatio"))
+        assertTrue(source.contains("modifier = Modifier.fillMaxWidth()"))
         assertTrue(source.contains("videoCardShellSharedBoundsOrEmpty("))
+        assertFalse(source.contains("videoCoverSharedBoundsOrEmpty("))
+        assertTrue(source.contains("followShellMotion = true"))
         assertTrue(source.contains("RelatedVideoGridRow("))
         assertTrue(source.contains("chunkRelatedVideosForHomeStyleGrid("))
         assertFalse(source.contains("relatedCoverWidth = 130.dp"))
     }
 
     @Test
-    fun `related videos chunk into home style two column rows`() {
+    fun `related videos chunk into single column rows`() {
         val videos = (1..5).map { index ->
             RelatedVideo(
                 aid = index.toLong(),
@@ -88,11 +93,23 @@ class RelatedVideoItemPolicyTest {
             )
         }
         val rows = chunkRelatedVideosForHomeStyleGrid(videos)
-        assertEquals(3, rows.size)
-        assertEquals(2, rows[0].size)
-        assertEquals(2, rows[1].size)
-        assertEquals(1, rows[2].size)
-        assertEquals("BV5", rows[2].single().bvid)
+        assertEquals(5, rows.size)
+        assertTrue(rows.all { it.size == 1 })
+        assertEquals("BV5", rows.last().single().bvid)
+    }
+
+    @Test
+    fun `related skeleton mirrors the single column transition geometry`() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/components/SkeletonComponents.kt"
+        ).readText()
+        val relatedSkeleton = source
+            .substringAfter("private fun RelatedVideoGridRowSkeleton()")
+            .substringBefore("private fun RelatedVideoItemSkeleton(")
+
+        assertTrue(relatedSkeleton.contains("coverAspectRatio = cardLayout.coverAspectRatio"))
+        assertTrue(relatedSkeleton.contains("RelatedVideoItemSkeleton("))
+        assertFalse(relatedSkeleton.contains("repeat(2)"))
     }
 
     @Test
