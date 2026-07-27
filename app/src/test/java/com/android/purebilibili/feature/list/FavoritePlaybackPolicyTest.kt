@@ -17,6 +17,11 @@ class FavoritePlaybackPolicyTest {
         assertFalse(shouldLoadNextFavoritePlaybackPage(hasMore = true, pageItemCount = 0))
     }
 
+    @Test
+    fun favoriteResourcePageSizeRespectsApiLimit() {
+        assertEquals(20, resolveFavoriteFolderContentPageSize())
+    }
+
     private fun item(
         bvid: String,
         title: String,

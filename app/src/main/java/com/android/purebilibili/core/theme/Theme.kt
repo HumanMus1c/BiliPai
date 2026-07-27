@@ -3,7 +3,10 @@ package com.android.purebilibili.core.theme
 
 import android.app.Activity
 import android.app.WallpaperManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -31,6 +34,7 @@ import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.android.purebilibili.core.store.ThemeRoleOverrides
 import com.android.purebilibili.feature.settings.AppThemeMode
@@ -672,6 +676,7 @@ private fun createMd3LightColorScheme(primaryColor: Color) = createStaticMd3Colo
 )
 
 @Composable
+@Suppress("DEPRECATION") // Broadcast is retained as an OEM fallback for wallpaper palette delivery.
 private fun rememberSystemWallpaperRefreshToken(
     dynamicColorActive: Boolean
 ): Int {
@@ -687,20 +692,52 @@ private fun rememberSystemWallpaperRefreshToken(
             return@DisposableEffect onDispose { }
         }
         val wallpaperManager = WallpaperManager.getInstance(context)
-        val listener = WallpaperManager.OnColorsChangedListener { _, _ ->
+        val handler = Handler(Looper.getMainLooper())
+        val settledPaletteRefresh = Runnable {
             token += 1
+        }
+        val requestPaletteRefresh = {
+            token += 1
+            // The wallpaper callback can arrive before the framework has finished
+            // applying the new Monet resource overlay. Refresh once more after it
+            // settles so an already-open app picks up the new palette immediately.
+            handler.removeCallbacks(settledPaletteRefresh)
+            handler.postDelayed(
+                settledPaletteRefresh,
+                SYSTEM_WALLPAPER_PALETTE_SETTLE_DELAY_MS
+            )
+        }
+        val listener = WallpaperManager.OnColorsChangedListener { _, _ ->
+            requestPaletteRefresh()
+        }
+        val wallpaperChangedReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == Intent.ACTION_WALLPAPER_CHANGED) {
+                    requestPaletteRefresh()
+                }
+            }
         }
         wallpaperManager.addOnColorsChangedListener(
             listener,
-            Handler(Looper.getMainLooper())
+            handler
+        )
+        ContextCompat.registerReceiver(
+            context,
+            wallpaperChangedReceiver,
+            IntentFilter(Intent.ACTION_WALLPAPER_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
         )
         onDispose {
+            handler.removeCallbacks(settledPaletteRefresh)
             wallpaperManager.removeOnColorsChangedListener(listener)
+            context.unregisterReceiver(wallpaperChangedReceiver)
         }
     }
 
     return token
 }
+
+private const val SYSTEM_WALLPAPER_PALETTE_SETTLE_DELAY_MS = 200L
 
 @Composable
 private fun rememberIosColorScheme(

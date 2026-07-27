@@ -135,9 +135,13 @@ sealed class ScreenRoutes(val route: String) {
     }
     
     //  [新增] UP主空间页面
-    object Space : ScreenRoutes("space/{mid}") {
-        fun createRoute(mid: Long): String {
-            return "space/$mid"
+    object Space : ScreenRoutes("space/{mid}?targetBvid={targetBvid}") {
+        fun createRoute(mid: Long, targetBvid: String = ""): String {
+            return targetBvid.trim().takeIf { it.isNotEmpty() }
+                ?.let {
+                    "space/$mid?targetBvid=${java.net.URLEncoder.encode(it, Charsets.UTF_8.name())}"
+                }
+                ?: "space/$mid"
         }
     }
 

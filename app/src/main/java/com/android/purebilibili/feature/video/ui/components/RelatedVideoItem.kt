@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.ui.components
 
+import android.widget.Toast
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,6 +55,8 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.TodayWatchDislikedVideoSnapshot
 import com.android.purebilibili.core.store.TodayWatchFeedbackStore
 import com.android.purebilibili.core.store.withDislikedVideoFeedback
+import com.android.purebilibili.core.ui.IOSAlertDialog
+import com.android.purebilibili.core.ui.IOSDialogAction
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.components.UpBadgeName
@@ -70,6 +73,7 @@ import com.android.purebilibili.data.model.response.RecommendationFeedbackLocalA
 import com.android.purebilibili.data.model.response.RecommendationFeedbackReason
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.repository.ActionRepository
+import com.android.purebilibili.data.repository.BlockedUpRepository
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.video.ui.FollowBadgeTone
 import com.android.purebilibili.feature.video.ui.resolveVideoFollowVisualPolicy
@@ -80,7 +84,6 @@ import io.github.alexzhirkevich.cupertino.icons.filled.Play
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.widget.Toast
 
 /**
  * 相关推荐默认跟随首页官方卡片的 4:3 封面；列表会按首页样式设置覆盖。
@@ -300,33 +303,6 @@ fun RelatedVideoItem(
                     .align(Alignment.BottomEnd)
                     .padding(6.dp)
             )
-            if (onMoreClick != null) {
-                val moreHaptic = rememberHapticFeedback()
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.38f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            moreHaptic(HapticType.LIGHT)
-                            onMoreClick()
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "⋮",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 2.dp)
-                    )
-                }
-            }
         }
 
         Column(
@@ -384,7 +360,10 @@ fun RelatedVideoItem(
                 showUpBadge = showUpBadge,
                 modifier = Modifier.fillMaxWidth()
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 StatItem(
                     icon = CupertinoIcons.Filled.Play,
                     text = FormatUtils.formatStat(video.stat.view.toLong())
@@ -394,6 +373,31 @@ fun RelatedVideoItem(
                     icon = CupertinoIcons.Filled.BubbleLeft,
                     text = FormatUtils.formatStat(video.stat.danmaku.toLong())
                 )
+                if (onMoreClick != null) {
+                    val moreHaptic = rememberHapticFeedback()
+                    Spacer(modifier = Modifier.weight(1f))
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                moreHaptic(HapticType.LIGHT)
+                                onMoreClick()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "⋮",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -422,6 +426,11 @@ fun RelatedVideoGridRow(
         isListScrolling = isListScrolling,
     )
     var actionVideo by remember { mutableStateOf<RelatedVideo?>(null) }
+    var blockCreatorRequest by remember {
+        mutableStateOf<RelatedVideoBlockRequest?>(null)
+    }
+    var isBlockingCreator by remember { mutableStateOf(false) }
+    val blockedUpRepository = remember(context) { BlockedUpRepository(context) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -459,26 +468,110 @@ fun RelatedVideoGridRow(
                 }
             },
             onReasonSelected = { reason ->
-                scope.launch {
-                    recordRelatedVideoFeedback(
-                        context = context,
-                        video = pendingVideo,
-                        reason = reason
-                    )
-                    if (shouldRemoveRelatedVideoAfterFeedback(reason)) {
-                        onVideoHidden?.invoke(pendingVideo)
+                if (reason.localAction == RecommendationFeedbackLocalAction.CREATOR &&
+                    pendingVideo.owner.mid > 0L
+                ) {
+                    blockCreatorRequest = RelatedVideoBlockRequest(pendingVideo, reason)
+                } else {
+                    scope.launch {
+                        recordRelatedVideoFeedback(
+                            context = context,
+                            video = pendingVideo,
+                            reason = reason
+                        )
+                        if (shouldRemoveRelatedVideoAfterFeedback(reason)) {
+                            onVideoHidden?.invoke(pendingVideo)
+                        }
+                        Toast.makeText(
+                            context,
+                            resolveRelatedFeedbackToast(reason),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
-                    Toast.makeText(
-                        context,
-                        resolveRelatedFeedbackToast(reason),
-                        Toast.LENGTH_SHORT
-                    ).show()
                 }
             },
             onDismissRequest = { actionVideo = null }
         )
     }
+
+    val blockRequest = blockCreatorRequest
+    if (blockRequest != null) {
+        IOSAlertDialog(
+            onDismissRequest = {
+                if (!isBlockingCreator) {
+                    blockCreatorRequest = null
+                }
+            },
+            title = { Text("屏蔽 UP 主") },
+            text = {
+                Text(
+                    "确定要屏蔽 ${blockRequest.video.owner.name.ifBlank { "该 UP 主" }} 吗？\n" +
+                        "屏蔽后将不再推荐该 UP 主的视频。"
+                )
+            },
+            confirmButton = {
+                IOSDialogAction(
+                    onClick = {
+                        if (!isBlockingCreator) {
+                            isBlockingCreator = true
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    blockedUpRepository.blockUpWithBilibiliSync(
+                                        mid = blockRequest.video.owner.mid,
+                                        name = blockRequest.video.owner.name,
+                                        face = blockRequest.video.owner.face
+                                    )
+                                }
+                                recordRelatedVideoFeedback(
+                                    context = context,
+                                    video = blockRequest.video,
+                                    reason = blockRequest.reason
+                                )
+                                onVideoHidden?.invoke(blockRequest.video)
+                                Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                                isBlockingCreator = false
+                                blockCreatorRequest = null
+                            }
+                        }
+                    }
+                ) {
+                    Text("屏蔽", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                IOSDialogAction(
+                    onClick = {
+                        if (!isBlockingCreator) {
+                            blockCreatorRequest?.let { request ->
+                                blockCreatorRequest = null
+                                scope.launch {
+                                    recordRelatedVideoFeedback(
+                                        context = context,
+                                        video = request.video,
+                                        reason = request.reason
+                                    )
+                                    onVideoHidden?.invoke(request.video)
+                                    Toast.makeText(
+                                        context,
+                                        resolveRelatedFeedbackToast(request.reason),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text("暂不屏蔽")
+                }
+            }
+        )
+    }
 }
+
+private data class RelatedVideoBlockRequest(
+    val video: RelatedVideo,
+    val reason: RecommendationFeedbackReason,
+)
 
 private suspend fun recordRelatedVideoFeedback(
     context: android.content.Context,

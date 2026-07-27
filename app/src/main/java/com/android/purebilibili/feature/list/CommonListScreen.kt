@@ -467,7 +467,7 @@ fun CommonListScreen(
                 )
             }
     }
-    val shouldShowBackToTop by remember {
+    val shouldShowBackToTop by remember(activeCommonListScrollState) {
         derivedStateOf {
             when (val scrollState = activeCommonListScrollState()) {
                 is CommonListScrollState.Grid -> shouldShowCommonListBackToTop(
@@ -536,7 +536,10 @@ fun CommonListScreen(
     val headerHeightDp = with(LocalDensity.current) { headerHeightPx.toDp() }
     var commonListHeaderOffsetPx by remember { mutableFloatStateOf(0f) }
     var commonListHeaderSettleJob by remember { androidx.compose.runtime.mutableStateOf<Job?>(null) }
-    val commonListHeaderCollapseMode = homeSettings.commonListHeaderCollapseMode
+    val commonListHeaderCollapseMode = resolveCommonListHeaderCollapseModeForScreen(
+        configuredMode = homeSettings.commonListHeaderCollapseMode,
+        isFavoritePage = favoriteViewModel != null
+    )
     val commonListHeaderCollapseEnabled = supportsCollapsibleCommonListHeader &&
         commonListHeaderCollapseMode != CommonListHeaderCollapseMode.ALWAYS_VISIBLE
     fun animateCommonListHeaderOffsetTo(targetOffsetPx: Float) {
@@ -744,7 +747,12 @@ fun CommonListScreen(
             }
             }
             if (favoriteViewModel != null && folderIndex != null) {
-                favoriteViewModel.loadAllForPlayback(folderIndex, ::startPlayback)
+                startPlayback(items)
+                favoriteViewModel.loadAllForPlayback(folderIndex) { allItems ->
+                    buildExternalPlaylistFromFavorite(allItems)?.let { playlist ->
+                        PlaylistManager.addAllToPlaylist(playlist.playlistItems)
+                    }
+                }
             } else {
                 startPlayback(items)
             }

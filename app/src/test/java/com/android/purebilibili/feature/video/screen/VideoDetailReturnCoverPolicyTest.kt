@@ -277,7 +277,7 @@ class VideoDetailReturnCoverPolicyTest {
     }
 
     @Test
-    fun `live return morph keeps player visible instead of handing to resident cover`() {
+    fun `live return morph keeps player visible before the landing handoff`() {
         assertEquals(
             0f,
             resolveVideoDetailReturnCoverAlpha(0.8f, true, true, liveReturnMorph = true),
@@ -297,6 +297,41 @@ class VideoDetailReturnCoverPolicyTest {
         // 末段（settle=0.7 > yield）：正文让位给源卡标题，alpha 下降
         val lateContent = resolveVideoDetailReturnContentAlpha(0.3f, true, liveReturnMorph = true)
         assertTrue(lateContent < 1f && lateContent > 0f)
+    }
+
+    @Test
+    fun `committed live return crossfades only during the final landing window`() {
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnCoverAlpha(0.2f, true, true, liveReturnMorph = true),
+            0.0001f,
+        )
+        assertEquals(
+            1f,
+            resolveVideoDetailReturnPlayerAlpha(0.2f, true, true, liveReturnMorph = true),
+            0.0001f,
+        )
+        // settle=0.94：最后 12% 窗口已走一半，视频与驻留封面等权交接。
+        assertEquals(
+            0.5f,
+            resolveVideoDetailReturnCoverAlpha(0.06f, true, true, liveReturnMorph = true),
+            0.0001f,
+        )
+        assertEquals(
+            0.5f,
+            resolveVideoDetailReturnPlayerAlpha(0.06f, true, true, liveReturnMorph = true),
+            0.0001f,
+        )
+        assertEquals(
+            1f,
+            resolveVideoDetailReturnCoverAlpha(0f, true, true, liveReturnMorph = true),
+            0.0001f,
+        )
+        assertEquals(
+            0f,
+            resolveVideoDetailReturnPlayerAlpha(0f, true, true, liveReturnMorph = true),
+            0.0001f,
+        )
     }
 
     @Test

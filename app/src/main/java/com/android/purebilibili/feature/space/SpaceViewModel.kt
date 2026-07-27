@@ -168,7 +168,7 @@ class SpaceViewModel(
     
     fun loadSpaceInfo(mid: Long) {
         if (mid <= 0) return
-        
+
         // Fix: Prevent reloading if data is already loaded for this mid
         if (currentMid == mid && _uiState.value is SpaceUiState.Success) {
             return
@@ -1497,7 +1497,47 @@ class SpaceViewModel(
 
     fun locateLastWatchedVideo() {
         val current = _uiState.value as? SpaceUiState.Success ?: return
-        val target = current.lastWatchedVideo
+        locateVideo(current.lastWatchedVideo)
+    }
+
+    fun locatePlayedVideoContribution(targetBvid: String) {
+        val current = _uiState.value as? SpaceUiState.Success ?: return
+        val normalizedBvid = targetBvid.trim()
+        if (normalizedBvid.isBlank()) return
+
+        current.watchProgressByBvid[normalizedBvid]?.let(::locateVideo)
+            ?: openVideoContributionPosition(normalizedBvid)
+    }
+
+    private fun openVideoContributionPosition(targetBvid: String) {
+        val current = _uiState.value as? SpaceUiState.Success ?: return
+        val videoTab = current.contributionTabs.firstOrNull { it.subTab == SpaceSubTab.VIDEO }
+        if (videoTab == null) {
+            _uiState.value = current.copy(locateMessage = "该空间没有可定位的视频投稿")
+            return
+        }
+
+        currentTid = 0
+        currentOrder = VideoSortOrder.PUBDATE
+        currentKeyword = ""
+        _selectedMainTab.value = mainTabToTabIndex(SpaceMainTab.CONTRIBUTION)
+        savedStateHandle[KEY_SELECTED_MAIN_TAB] = _selectedMainTab.value
+        _uiState.value = current.copy(
+            selectedTid = 0,
+            sortOrder = VideoSortOrder.PUBDATE,
+            selectedSubTab = SpaceSubTab.VIDEO,
+            selectedContributionTabId = videoTab.id,
+            isSearchMode = false,
+            searchQuery = "",
+            pendingLocateBvid = targetBvid,
+            locateMessage = null,
+            tabShellState = current.tabShellState.withSelectedTab(SpaceMainTab.CONTRIBUTION)
+        )
+        refreshVideoSearchResults()
+    }
+
+    private fun locateVideo(target: SpaceWatchProgress?) {
+        val current = _uiState.value as? SpaceUiState.Success ?: return
         if (target == null || target.title.isBlank()) {
             _uiState.value = current.copy(locateMessage = "未找到可定位的最近观看视频")
             return

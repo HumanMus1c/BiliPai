@@ -111,13 +111,6 @@ fun DynamicDetailScreen(
     var previewInitialIndex by remember { mutableIntStateOf(0) }
     var previewSourceRect by remember { mutableStateOf<Rect?>(null) }
     var previewTextContent by remember { mutableStateOf<ImagePreviewTextContent?>(null) }
-    // Load comments once when detail loads (or when route targets a specific reply).
-    var hasAutoOpenedComments by rememberSaveable(
-        dynamicId,
-        openCommentRootRpid,
-        openCommentTargetRpid
-    ) { mutableStateOf(false) }
-
     AdaptiveScaffold(
         topBar = {
             AdaptiveTopAppBar(
@@ -170,14 +163,11 @@ fun DynamicDetailScreen(
                     openCommentRootRpid,
                     openCommentTargetRpid
                 ) {
-                    if (shouldAutoOpenCommentsOnDynamicDetailEntry(hasAutoOpenedComments)) {
-                        interactionViewModel.openCommentSheet(
-                            item = state.item,
-                            rootReplyId = openCommentRootRpid,
-                            targetReplyId = openCommentTargetRpid
-                        )
-                        hasAutoOpenedComments = true
-                    }
+                    interactionViewModel.openCommentSheet(
+                        item = state.item,
+                        rootReplyId = openCommentRootRpid,
+                        targetReplyId = openCommentTargetRpid
+                    )
                 }
 
                 LaunchedEffect(

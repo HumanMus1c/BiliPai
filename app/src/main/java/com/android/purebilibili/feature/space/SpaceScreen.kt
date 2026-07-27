@@ -1,10 +1,18 @@
 package com.android.purebilibili.feature.space
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -151,6 +159,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SpaceScreen(
     mid: Long,
+    targetBvid: String? = null,
     onBack: () -> Unit,
     onVideoClick: (String, Long, Long) -> Unit,
     onAudioClick: (Long) -> Unit = {},
@@ -202,6 +211,15 @@ fun SpaceScreen(
     }
 
     val currentSuccessState = uiState as? SpaceUiState.Success
+    val playedVideoBvid = targetBvid?.trim().orEmpty()
+    var playedVideoLocatePromptHandled by rememberSaveable(mid, playedVideoBvid) {
+        mutableStateOf(false)
+    }
+    val shouldPromptToLocatePlayedVideo = shouldPromptToLocatePlayedVideo(
+        targetBvid = playedVideoBvid,
+        hasLoadedSpace = currentSuccessState != null,
+        promptHandled = playedVideoLocatePromptHandled
+    )
     val locateMessage = currentSuccessState?.locateMessage
     LaunchedEffect(locateMessage) {
         locateMessage?.let { message ->
@@ -435,7 +453,6 @@ fun SpaceScreen(
                             onLoadMoreArticles = { viewModel.loadSpaceArticles(refresh = false) },
                             onSearchQueryChange = viewModel::updateSearchQuery,
                             onSearchEntryClick = { viewModel.setSearchMode(true) },
-                            onLocateLastWatchedVideo = viewModel::locateLastWatchedVideo,
                             onLocateTargetConsumed = viewModel::consumePendingLocateBvid,
                             onFollowClick = viewModel::toggleFollow,
                             onTopPhotoClick = { showTopPhotoPreview = true },
@@ -475,6 +492,18 @@ fun SpaceScreen(
                     }
                 }
             }
+
+            SpacePlayedVideoLocatePrompt(
+                visible = shouldPromptToLocatePlayedVideo,
+                onDismiss = { playedVideoLocatePromptHandled = true },
+                onConfirm = {
+                    playedVideoLocatePromptHandled = true
+                    viewModel.locatePlayedVideoContribution(playedVideoBvid)
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 16.dp)
+            )
         }
     }
 
@@ -654,6 +683,64 @@ fun SpaceScreen(
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
+private fun SpacePlayedVideoLocatePrompt(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn(animationSpec = tween(160)) + scaleIn(
+            initialScale = 0.92f,
+            animationSpec = tween(160)
+        ),
+        exit = fadeOut(animationSpec = tween(120)) + scaleOut(
+            targetScale = 0.92f,
+            animationSpec = tween(120)
+        )
+    ) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 248.dp)
+                    .padding(start = 16.dp, top = 12.dp, end = 8.dp, bottom = 6.dp)
+            ) {
+                Text(
+                    text = "刚刚看过",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "是否定位到视频投稿",
+                    modifier = Modifier.padding(top = 2.dp),
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("暂不")
+                    }
+                    TextButton(onClick = onConfirm) {
+                        Text("定位")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
 private fun SpaceContent(
     state: SpaceUiState.Success,
     gridState: LazyGridState,
@@ -683,7 +770,6 @@ private fun SpaceContent(
     onLoadMoreArticles: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onSearchEntryClick: () -> Unit,
-    onLocateLastWatchedVideo: () -> Unit,
     onLocateTargetConsumed: (String) -> Unit,
     onFollowClick: () -> Unit,
     onTopPhotoClick: () -> Unit,
@@ -808,6 +894,8 @@ private fun SpaceContent(
     }
 
     val bangumiTabState = state.tabShellState.tabStates[SpaceMainTab.BANGUMI] ?: SpaceTabContentState()
+    var highlightedLocateBvid by remember { mutableStateOf<String?>(null) }
+    var isLocateHighlightVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedMainTab, state.hasLoadedDynamicsOnce, state.isLoadingDynamics) {
         if (
@@ -837,7 +925,6 @@ private fun SpaceContent(
         selectedMainTab,
         displayedContributionTabs,
         selectedContributionTab,
-        state.lastWatchedVideo,
         state.isSearchMode,
         currentSearchScope
     ) {
@@ -846,15 +933,39 @@ private fun SpaceContent(
         } else {
             2 +
                 (if (displayedContributionTabs.isNotEmpty()) 1 else 0) +
-                (if (selectedContributionTab.subTab == SpaceSubTab.VIDEO && state.lastWatchedVideo != null) 1 else 0) +
                 (if (shouldShowSpaceSearchEntry(currentSearchScope, state.isSearchMode)) 1 else 0) +
                 (if (state.isSearchMode && currentSearchScope == SpaceSearchScope.VIDEO) 1 else 0)
         }
     }
-    LaunchedEffect(state.pendingLocateBvid, state.videos, contributionVideoItemStartIndex) {
+    LaunchedEffect(
+        state.pendingLocateBvid,
+        selectedMainTab,
+        selectedContributionTab,
+        contributionVideoItemStartIndex,
+        state.videos
+    ) {
         val targetBvid = state.pendingLocateBvid ?: return@LaunchedEffect
-        if (state.videos.any { it.bvid == targetBvid }) {
-            gridState.animateScrollToItem(contributionVideoItemStartIndex)
+        if (
+            selectedMainTab == SpaceMainTab.CONTRIBUTION &&
+            selectedContributionTab.subTab == SpaceSubTab.VIDEO
+        ) {
+            val targetVideoIndex = state.videos.indexOfFirst { it.bvid == targetBvid }
+            if (targetVideoIndex < 0) {
+                if (state.isLoadingMore) return@LaunchedEffect
+                gridState.animateScrollToItem(contributionVideoItemStartIndex)
+                onLocateTargetConsumed(targetBvid)
+                return@LaunchedEffect
+            }
+
+            gridState.animateScrollToItem(contributionVideoItemStartIndex + targetVideoIndex)
+            highlightedLocateBvid = targetBvid
+            repeat(3) {
+                isLocateHighlightVisible = true
+                kotlinx.coroutines.delay(220)
+                isLocateHighlightVisible = false
+                kotlinx.coroutines.delay(140)
+            }
+            highlightedLocateBvid = null
             onLocateTargetConsumed(targetBvid)
         }
     }
@@ -1287,12 +1398,6 @@ private fun SpaceContent(
                     }
                 }
 
-                if (selectedContributionTab.subTab == SpaceSubTab.VIDEO && state.lastWatchedVideo != null) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        SpaceLocateWatchedVideoChip(onClick = onLocateLastWatchedVideo)
-                    }
-                }
-
                 if (
                     shouldShowSpaceSearchEntry(currentSearchScope, state.isSearchMode) &&
                     selectedContributionTab.subTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO)
@@ -1365,6 +1470,8 @@ private fun SpaceContent(
                                             syncedProgress = state.watchProgressByBvid[video.bvid]
                                         ),
                                         badgeLabel = resolveSpaceVideoChargeBadgeLabel(video),
+                                        isLocateHighlight = highlightedLocateBvid == video.bvid &&
+                                            isLocateHighlightVisible,
                                         onClick = { playVideoFromSpace(video.bvid) },
                                         sharedTransitionKey = resolveSpaceArchiveSharedTransitionKey(video.bvid),
                                         sharedTransitionScope = lazyGridSharedTransitionScope,
@@ -1385,6 +1492,8 @@ private fun SpaceContent(
                                             syncedProgress = state.watchProgressByBvid[video.bvid]
                                         ),
                                         badgeLabel = resolveSpaceVideoChargeBadgeLabel(video),
+                                        isLocateHighlight = highlightedLocateBvid == video.bvid &&
+                                            isLocateHighlightVisible,
                                         onClick = { playVideoFromSpace(video.bvid) },
                                         sharedTransitionKey = resolveSpaceArchiveSharedTransitionKey(video.bvid),
                                         sharedTransitionScope = lazyGridSharedTransitionScope,
@@ -2200,45 +2309,6 @@ private fun SpaceSearchEntryChip(
 }
 
 @Composable
-private fun SpaceLocateWatchedVideoChip(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = AppShapes.borderedContainer(ContainerLevel.Field),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.PlayCircleOutline,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
-            )
-            Text(
-                text = "定位刚看视频",
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
-
-@Composable
 private fun SpaceMainTabRow(
     tabs: List<SpaceMainTabItem>,
     selectedTab: SpaceMainTab,
@@ -2744,12 +2814,22 @@ private fun SpaceHomeVideoCard(
     video: SpaceVideoItem,
     progressState: VideoProgressDisplayState,
     badgeLabel: String? = null,
+    isLocateHighlight: Boolean = false,
     onClick: () -> Unit,
     sharedTransitionKey: String? = null,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
 ) {
+    val locateHighlightColor by animateColorAsState(
+        targetValue = if (isLocateHighlight) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            Color.Transparent
+        },
+        animationSpec = tween(120),
+        label = "space-video-locate-highlight"
+    )
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenWidthPx = remember(configuration.screenWidthDp, density) {
@@ -2804,6 +2884,7 @@ private fun SpaceHomeVideoCard(
                 motionSpec = cardSharedTransitionMotionSpec,
                 clipShape = coverShape
             )
+            .border(width = 3.dp, color = locateHighlightColor, shape = coverShape)
             .clip(coverShape)
             .clickable {
                 coverBounds?.let { bounds ->
@@ -3217,12 +3298,22 @@ private fun SpaceArchiveListItemRow(
     secondaryCount: Long,
     progressState: VideoProgressDisplayState? = null,
     badgeLabel: String? = null,
+    isLocateHighlight: Boolean = false,
     onClick: () -> Unit,
     sharedTransitionKey: String? = null,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
 ) {
+    val locateHighlightColor by animateColorAsState(
+        targetValue = if (isLocateHighlight) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            Color.Transparent
+        },
+        animationSpec = tween(120),
+        label = "space-video-locate-highlight"
+    )
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenWidthPx = remember(configuration.screenWidthDp, density) {
@@ -3270,6 +3361,7 @@ private fun SpaceArchiveListItemRow(
                 motionSpec = cardSharedTransitionMotionSpec,
                 clipShape = cardShellShape
             )
+            .border(width = 3.dp, color = locateHighlightColor, shape = cardShellShape)
             .padding(horizontal = 16.dp)
             .clickable {
                 coverBounds?.let { bounds ->

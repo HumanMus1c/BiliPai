@@ -15,9 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import com.android.purebilibili.core.ui.adaptive.MotionTier
 
 /**
  * shell sharedBounds 角色。
@@ -170,11 +168,6 @@ internal fun Modifier.videoCardShellSharedBoundsOrEmpty(
         return this
     }
     val bgState = LocalVideoCardTransitionBackgroundState.current
-    val siblingDepthScaleActive =
-        role == VideoCardShellSharedBoundsRole.SourceCard &&
-            bgState.isBackgroundSinkEnabledProvider() &&
-            bgState.phaseProvider() != VideoCardTransitionBackgroundPhase.IDLE &&
-            bgState.motionTierProvider() != MotionTier.Reduced
     // 快速返回：源卡 Enter.None，标题/UP 与封面同步落位，避免先占位后出字。
     val isQuickReturnFromDetail = bgState.isQuickReturnFromDetailProvider()
     val crossfadeSourceContentOnReturn =
@@ -244,22 +237,6 @@ internal fun Modifier.videoCardShellSharedBoundsOrEmpty(
                 resizeMode = resizeMode,
                 clipInOverlayDuringTransition = OverlayClip(clipShape)
             )
-                .then(
-                    if (siblingDepthScaleActive) {
-                        Modifier.graphicsLayer {
-                            val scale = resolveVideoCardSiblingDepthScale(
-                                depthProgress = bgState.progressProvider(),
-                                phase = bgState.phaseProvider(),
-                                isSharedMorphSourceCard = sharedContentState.isMatchFound,
-                                motionTier = bgState.motionTierProvider(),
-                            )
-                            scaleX = scale
-                            scaleY = scale
-                        }
-                    } else {
-                        Modifier
-                    }
-                )
         }
     )
 }

@@ -34,14 +34,14 @@ import kotlin.math.roundToInt
 // - 压暗全程保留（含 HELD），避免打开完成后景深断裂
 // - 返回：景深 progress 与 shared morph 同墙钟、同 Linear
 private const val VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_DP = 12f
-private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = 1f
+// 同一条景深时间线仅让模糊轻微滞后；峰值不变，减少过渡中段的 GPU 模糊成本。
+private const val VIDEO_CARD_TRANSITION_BLUR_PROGRESS_EXPONENT = 1.15
+private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = 2f
 // 保持遮罩克制，让元素缩小与 shared 卡片放大承担主要层级对比。
 private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.22f
 private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT = 0.10f
 private const val VIDEO_CARD_TRANSITION_REDUCED_SCRIM_ALPHA = 0.08f
 private const val VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION = 0f
-/** 未被点击的视频元素在满深度时缩小 8%。 */
-internal const val VIDEO_CARD_TRANSITION_SIBLING_SCALE_REDUCTION = 0.08f
 /** 景深缩放露出的边缘：至少压到这个 tint 强度，避免浅色主题读成「白条」。 */
 private const val VIDEO_CARD_TRANSITION_SCALE_GAP_MIN_TINT_LIGHT = 0.36f
 private const val VIDEO_CARD_TRANSITION_SCALE_GAP_MIN_TINT_DARK = 0.44f
@@ -87,7 +87,6 @@ internal data class VideoCardTransitionBackgroundState(
     val isQuickReturnFromDetailProvider: () -> Boolean = { false },
     val motionTierProvider: () -> MotionTier = { MotionTier.Normal },
     val isLightBackgroundProvider: () -> Boolean = { false },
-    val isBackgroundSinkEnabledProvider: () -> Boolean = { false },
 )
 
 internal val LocalVideoCardTransitionBackgroundState = compositionLocalOf {
@@ -127,24 +126,6 @@ internal fun resolveVideoCardTransitionContentScale(
         phase = phase,
     )
     return 1f - VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION * depthProgress
-}
-
-/**
- * 未被点击的视频元素随景深缩小；飞卡由 sharedBounds 单独负责几何变化。
- */
-internal fun resolveVideoCardSiblingDepthScale(
-    depthProgress: Float,
-    phase: VideoCardTransitionBackgroundPhase,
-    isSharedMorphSourceCard: Boolean,
-    motionTier: MotionTier,
-    maxReduction: Float = VIDEO_CARD_TRANSITION_SIBLING_SCALE_REDUCTION,
-): Float {
-    if (isSharedMorphSourceCard) return 1f
-    if (phase == VideoCardTransitionBackgroundPhase.IDLE || motionTier == MotionTier.Reduced) {
-        return 1f
-    }
-    if (maxReduction <= 0f) return 1f
-    return 1f - maxReduction * depthProgress.coerceIn(0f, 1f)
 }
 
 internal fun resolveVideoCardTransitionBackgroundFrame(
@@ -796,8 +777,10 @@ internal fun softClearVideoCardTransitionDepth(progress: Float): Float {
 }
 
 private fun resolveVideoCardTransitionBlurStrength(progress: Float): Float {
-    // 与景深进度同源：模糊与背景下沉同步建立/消退，避免“先糊后沉”的分层错位。
-    return progress.coerceIn(0f, 1f)
+    // 与景深进度共用时钟；轻微滞后建立/提前消退，保留峰值而降低平均模糊半径。
+    return progress.coerceIn(0f, 1f).toDouble()
+        .pow(VIDEO_CARD_TRANSITION_BLUR_PROGRESS_EXPONENT)
+        .toFloat()
 }
 
 /**

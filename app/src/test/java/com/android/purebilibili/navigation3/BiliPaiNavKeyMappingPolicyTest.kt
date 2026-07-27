@@ -80,6 +80,13 @@ class BiliPaiNavKeyMappingPolicyTest {
     }
 
     @Test
+    fun spaceRoute_preservesVideoLocateTarget() {
+        val key = BiliPaiNavKey.Space(mid = 42L, targetBvid = "BV1abc?x")
+
+        assertEquals(key, legacyRouteToBiliPaiNavKey(key.toLegacyRoute()))
+    }
+
+    @Test
     fun settingsSecondaryRoutes_mapToNavigation3Keys() {
         assertEquals(BiliPaiNavKey.OpenSourceLicenses, legacyRouteToBiliPaiNavKey(ScreenRoutes.OpenSourceLicenses.route))
         assertEquals(BiliPaiNavKey.AppearanceSettings, legacyRouteToBiliPaiNavKey(ScreenRoutes.AppearanceSettings.route))

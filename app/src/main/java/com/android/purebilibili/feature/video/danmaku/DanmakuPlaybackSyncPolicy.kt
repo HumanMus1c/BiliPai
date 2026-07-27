@@ -150,6 +150,19 @@ internal fun resolveDanmakuActionForForegroundRecovery(
     }
 }
 
+/**
+ * Loading can finish before the ExoPlayer is attached to the danmaku session.
+ * Rebind the cached timeline when the player arrives so an enabled session does
+ * not require toggling the switch to become visible.
+ */
+internal fun shouldResyncDanmakuAfterPlayerAttach(
+    danmakuEnabled: Boolean,
+    hasData: Boolean,
+    hasController: Boolean
+): Boolean {
+    return danmakuEnabled && hasData && hasController
+}
+
 internal fun resolveDanmakuGuardAction(
     videoSpeed: Float,
     tickCount: Int,

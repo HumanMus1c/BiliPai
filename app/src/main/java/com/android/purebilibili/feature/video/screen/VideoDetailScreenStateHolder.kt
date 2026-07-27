@@ -163,6 +163,7 @@ import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 //  共享元素过渡
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -271,6 +272,7 @@ internal fun VideoDetailScreenStateHolder(
     onOpenBilibiliLink: ((String) -> Unit)? = null,
     onVideoClick: (String, android.os.Bundle?) -> Unit,
     onUpClick: (Long) -> Unit = {},
+    onUpClickWithVideo: ((Long, String) -> Unit)? = null,
     miniPlayerManager: MiniPlayerManager? = null,
     isInPipMode: Boolean = false,
     isVisible: Boolean = true,
@@ -521,8 +523,12 @@ internal fun VideoDetailScreenStateHolder(
         miniPlayerManager?.markLeavingByNavigation(expectedBvid = expectedBvid)
     }
 
+    var hasStartedCurrentVideoPlayback by rememberSaveable(currentBvid) {
+        mutableStateOf(false)
+    }
     val navigateToUserSpaceFromVideo: (Long) -> Unit = { mid ->
-        onUpClick(mid)
+        val locateBvid = currentBvid.takeIf { hasStartedCurrentVideoPlayback }.orEmpty()
+        onUpClickWithVideo?.invoke(mid, locateBvid) ?: onUpClick(mid)
     }
 
     val navigateToSearchFromVideo: () -> Unit = {
@@ -825,6 +831,7 @@ internal fun VideoDetailScreenStateHolder(
     var userRequestedFullscreen by rememberSaveable { mutableStateOf(false) }
     var manualPortraitHoldActive by rememberSaveable { mutableStateOf(false) }
     var preserveCurrentFrameOnFullscreenChange by remember { mutableStateOf(false) }
+    var pendingFullscreenPositionRestoreMs by remember { mutableLongStateOf(-1L) }
     val activity = remember { context.findActivity() }
     val isActivityInMultiWindowMode = activity?.let { host ->
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && host.isInMultiWindowMode
@@ -1406,6 +1413,33 @@ internal fun VideoDetailScreenStateHolder(
         entryTransitionFinished = entryTransitionFinished,
         playbackSessionActive = playbackSessionActiveForMorph,
     )
+    LaunchedEffect(isFullscreenMode) {
+        val restorePositionMs = pendingFullscreenPositionRestoreMs
+        if (restorePositionMs <= 0L) return@LaunchedEffect
+
+        val player = playerState.player
+        kotlinx.coroutines.withTimeoutOrNull(3_000L) {
+            while (isActive) {
+                if (
+                    player.mediaItemCount > 0 &&
+                    player.playbackState == Player.STATE_READY
+                ) {
+                    val currentPositionMs = player.currentPosition.coerceAtLeast(0L)
+                    if (currentPositionMs + 750L < restorePositionMs) {
+                        player.seekTo(restorePositionMs)
+                        com.android.purebilibili.core.util.Logger.d(
+                            "VideoDetailScreen",
+                            "Restored playback position after fullscreen change: " +
+                                "${currentPositionMs}ms -> ${restorePositionMs}ms"
+                        )
+                    }
+                    break
+                }
+                kotlinx.coroutines.delay(32L)
+            }
+        }
+        pendingFullscreenPositionRestoreMs = -1L
+    }
     VideoDetailKeepScreenOnEffect(
         window = window,
         player = playerState.player,
@@ -1432,6 +1466,11 @@ internal fun VideoDetailScreenStateHolder(
         player.addListener(listener)
         awaitDispose {
             player.removeListener(listener)
+        }
+    }
+    LaunchedEffect(currentBvid, isVideoPlaying) {
+        if (isVideoPlaying) {
+            hasStartedCurrentVideoPlayback = true
         }
     }
     val playerDebugInfo by playerState.debugInfo.collectAsStateWithLifecycle()
@@ -2168,10 +2207,17 @@ internal fun VideoDetailScreenStateHolder(
     // 辅助函数：切换全屏状态
     val toggleFullscreen = {
         val activity = context.findActivity()
-        preserveCurrentFrameOnFullscreenChange = activity != null &&
+        val currentPositionMs = playerState.player.currentPosition.coerceAtLeast(0L)
+        val shouldPreserveCurrentFrame = activity != null &&
             (!isVerticalVideo || isFullscreenMode) &&
             playerState.player.playWhenReady &&
-            playerState.player.currentPosition > 0L
+            currentPositionMs > 0L
+        preserveCurrentFrameOnFullscreenChange = shouldPreserveCurrentFrame
+        if (shouldPreserveCurrentFrame) {
+            pendingFullscreenPositionRestoreMs = currentPositionMs
+        } else {
+            pendingFullscreenPositionRestoreMs = -1L
+        }
         toggleVideoDetailFullscreen(
             activity = activity,
             isOrientationDrivenFullscreen = isOrientationDrivenFullscreen,

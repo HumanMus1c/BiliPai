@@ -14,6 +14,8 @@ import com.android.purebilibili.core.ui.transition.shouldHandVisualOwnershipToRe
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardLiveReturnMorph
 
 private const val COVER_TAKEOVER_PRE_BACK_DELAY_MILLIS = 0L
+/** 已提交返回的最后 12%：实时画面淡到驻留封面，掩盖 shared overlay 卸层。 */
+private const val LIVE_RETURN_COVER_HANDOFF_START = 0.88f
 internal const val VIDEO_CONTENT_COMMENT_TAB_INDEX = 1
 
 internal fun resolveForceCoverOnlyForReturn(
@@ -156,8 +158,13 @@ internal fun resolveVideoDetailReturnCoverAlpha(
     hasResidentCover: Boolean,
     liveReturnMorph: Boolean = false,
 ): Float {
-    // live morph：全程不抢封面，实时画面跟 shell 缩小；落位后由首页卡自身封面承接。
-    if (liveReturnMorph || !hasResidentCover) return 0f
+    if (!hasResidentCover) return 0f
+    if (liveReturnMorph) {
+        return resolveVideoDetailLiveReturnLandingHandoffAlpha(
+            transitionProgress = transitionProgress,
+            isCommittedCardReturn = isCommittedCardReturn,
+        )
+    }
     val progress = transitionProgress.coerceIn(0f, 1f)
     return if (isCommittedCardReturn) 1f else 1f - progress
 }
@@ -168,9 +175,29 @@ internal fun resolveVideoDetailReturnPlayerAlpha(
     hasResidentCover: Boolean,
     liveReturnMorph: Boolean = false,
 ): Float {
-    if (liveReturnMorph) return 1f
+    if (liveReturnMorph) {
+        if (!hasResidentCover) return 1f
+        return 1f - resolveVideoDetailLiveReturnLandingHandoffAlpha(
+            transitionProgress = transitionProgress,
+            isCommittedCardReturn = isCommittedCardReturn,
+        )
+    }
     if (isCommittedCardReturn) return if (hasResidentCover) 0f else 1f
     return transitionProgress.coerceIn(0f, 1f)
+}
+
+/**
+ * live morph 保持实时画面缩回；仅已提交返回的最后一小段，与驻留封面交叉淡化。
+ * 两层仍读同一个 shared transition progress，取消或预测返回不会产生独立补间。
+ */
+private fun resolveVideoDetailLiveReturnLandingHandoffAlpha(
+    transitionProgress: Float,
+    isCommittedCardReturn: Boolean,
+): Float {
+    if (!isCommittedCardReturn) return 0f
+    val settle = 1f - transitionProgress.coerceIn(0f, 1f)
+    return ((settle - LIVE_RETURN_COVER_HANDOFF_START) /
+        (1f - LIVE_RETURN_COVER_HANDOFF_START)).coerceIn(0f, 1f)
 }
 
 internal fun resolveVideoDetailReturnContentAlpha(

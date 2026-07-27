@@ -79,6 +79,31 @@ class DanmakuPlaybackSyncPolicyTest {
     }
 
     @Test
+    fun `player attach resyncs cached data only for an enabled bound session`() {
+        assertTrue(
+            shouldResyncDanmakuAfterPlayerAttach(
+                danmakuEnabled = true,
+                hasData = true,
+                hasController = true
+            )
+        )
+        assertFalse(
+            shouldResyncDanmakuAfterPlayerAttach(
+                danmakuEnabled = false,
+                hasData = true,
+                hasController = true
+            )
+        )
+        assertFalse(
+            shouldResyncDanmakuAfterPlayerAttach(
+                danmakuEnabled = true,
+                hasData = false,
+                hasController = true
+            )
+        )
+    }
+
+    @Test
     fun `explicit resync should pause before setData and start`() {
         val calls = mutableListOf<String>()
 

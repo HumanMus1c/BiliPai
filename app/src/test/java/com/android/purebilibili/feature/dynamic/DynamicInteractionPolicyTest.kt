@@ -235,7 +235,7 @@ class DynamicInteractionPolicyTest {
     }
 
     @Test
-    fun `resolve forwarded dynamic comment target prefers documented basic target`() {
+    fun `resolve forwarded dynamic comment target uses documented basic target`() {
         val item = DynamicItem(
             id_str = "967717348014293017",
             type = "DYNAMIC_TYPE_FORWARD",
@@ -248,6 +248,23 @@ class DynamicInteractionPolicyTest {
         val target = resolveDynamicCommentTarget(item)
 
         assertEquals(DynamicCommentTarget(oid = 967717348014293018L, type = 17), target)
+    }
+
+    @Test
+    fun `forwarded image dynamic only uses the documented image comment target`() {
+        val item = DynamicItem(
+            id_str = "1224850859523833879",
+            type = "DYNAMIC_TYPE_FORWARD",
+            basic = DynamicBasic(
+                comment_id_str = "401730991",
+                comment_type = 11
+            )
+        )
+
+        assertEquals(
+            listOf(DynamicCommentTarget(oid = 401730991L, type = 11)),
+            resolveDynamicCommentTargets(item)
+        )
     }
 
     @Test

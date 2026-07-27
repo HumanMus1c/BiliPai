@@ -71,6 +71,41 @@ class SpacePlaybackPolicyTest {
     }
 
     @Test
+    fun playedVideoPrompt_onlyShowsForLoadedSpaceAndUnhandledVideoTarget() {
+        assertTrue(
+            shouldPromptToLocatePlayedVideo(
+                targetBvid = "BV1",
+                hasLoadedSpace = true,
+                promptHandled = false
+            )
+        )
+        assertEquals(
+            false,
+            shouldPromptToLocatePlayedVideo(
+                targetBvid = "BV1",
+                hasLoadedSpace = false,
+                promptHandled = false
+            )
+        )
+        assertEquals(
+            false,
+            shouldPromptToLocatePlayedVideo(
+                targetBvid = "",
+                hasLoadedSpace = true,
+                promptHandled = false
+            )
+        )
+        assertEquals(
+            false,
+            shouldPromptToLocatePlayedVideo(
+                targetBvid = "BV1",
+                hasLoadedSpace = true,
+                promptHandled = true
+            )
+        )
+    }
+
+    @Test
     fun resolveSpaceVideoProgressState_showsLocalPlaybackProgress() {
         val state = resolveSpaceVideoProgressState(
             video = item(bvid = "BV1", title = "first", length = "02:00"),

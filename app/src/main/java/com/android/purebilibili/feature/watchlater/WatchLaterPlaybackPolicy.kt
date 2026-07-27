@@ -8,6 +8,23 @@ internal enum class WatchLaterManagementAction {
     CLEAR_ALL
 }
 
+/** The server-provided order is the default order for the Watch Later list. */
+internal enum class WatchLaterSortOrder {
+    FORWARD,
+    REVERSE;
+
+    fun toggled(): WatchLaterSortOrder = when (this) {
+        FORWARD -> REVERSE
+        REVERSE -> FORWARD
+    }
+
+    companion object {
+        fun fromSavedValue(value: String): WatchLaterSortOrder {
+            return entries.firstOrNull { it.name == value } ?: FORWARD
+        }
+    }
+}
+
 data class WatchLaterExternalPlaylist(
     val playlistItems: List<PlaylistItem>,
     val startIndex: Int
@@ -18,6 +35,16 @@ internal data class WatchLaterPlaybackTarget(
     val cid: Long,
     val resumePositionMs: Long
 )
+
+internal fun sortWatchLaterItems(
+    items: List<VideoItem>,
+    order: WatchLaterSortOrder
+): List<VideoItem> {
+    return when (order) {
+        WatchLaterSortOrder.FORWARD -> items
+        WatchLaterSortOrder.REVERSE -> items.asReversed()
+    }
+}
 
 fun buildExternalPlaylistFromWatchLater(
     items: List<VideoItem>,

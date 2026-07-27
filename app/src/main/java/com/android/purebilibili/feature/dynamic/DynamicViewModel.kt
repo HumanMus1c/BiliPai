@@ -30,6 +30,7 @@ import com.android.purebilibili.feature.video.viewmodel.resolveSubReplyRemoteTot
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -893,6 +894,8 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     private var commentNextPage = 1
     private var commentsEnd = true
     private var commentGrpcNextOffset: String? = null
+    private var commentLoadJob: Job? = null
+    private var commentLoadRequestId = 0L
     
     // 点赞状态缓存 (dynamicId -> isLiked)
     private val _likedDynamics = MutableStateFlow<Set<String>>(emptySet())
@@ -941,6 +944,9 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
      *  关闭评论弹窗
      */
     fun closeCommentSheet() {
+        commentLoadRequestId++
+        commentLoadJob?.cancel()
+        commentLoadJob = null
         _selectedDynamic.value = null
         _selectedCommentTarget.value = null
         _comments.value = emptyList()
@@ -975,7 +981,9 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         routedRootReplyId: Long = 0L,
         routedTargetReplyId: Long = 0L
     ) {
-        viewModelScope.launch {
+        val requestId = ++commentLoadRequestId
+        commentLoadJob?.cancel()
+        commentLoadJob = viewModelScope.launch {
             val sortMode = _dynamicCommentSortMode.value
             _commentsLoading.value = true
             _commentsLoadingMore.value = false
@@ -1008,7 +1016,8 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                         type = target.type,
                         page = 1,
                         ps = 20,
-                        mode = sortMode.apiMode
+                        mode = sortMode.apiMode,
+                        fallbackOnMissingLocation = target.type != 11
                     )
                     result.onSuccess { data ->
                         val payload = resolveDynamicCommentPayload(
@@ -1053,6 +1062,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     attempts = attempts,
                     expectedCount = fallbackCount
                 )
+                if (requestId != commentLoadRequestId) return@launch
                 if (selected != null) {
                     if (_dynamicCommentSortMode.value != sortMode) {
                         return@launch
@@ -1076,11 +1086,15 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     commentsEnd = true
                     commentGrpcNextOffset = null
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 com.android.purebilibili.core.util.Logger.e("DynamicVM", "加载评论异常: ${e.message}")
                 e.printStackTrace()
             } finally {
-                _commentsLoading.value = false
+                if (requestId == commentLoadRequestId) {
+                    _commentsLoading.value = false
+                }
             }
         }
     }
@@ -1099,7 +1113,8 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 page = pageToLoad,
                 ps = 20,
                 mode = sortMode.apiMode,
-                paginationOffset = commentGrpcNextOffset
+                paginationOffset = commentGrpcNextOffset,
+                fallbackOnMissingLocation = target.type != 11
             ).onSuccess { data ->
                 if (_selectedCommentTarget.value != target || _dynamicCommentSortMode.value != sortMode) return@onSuccess
 

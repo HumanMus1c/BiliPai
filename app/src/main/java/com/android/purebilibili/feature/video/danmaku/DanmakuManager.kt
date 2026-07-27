@@ -1441,6 +1441,15 @@ class DanmakuManager private constructor(
         }
         
         exoPlayer.addListener(playerListener!!)
+
+        if (shouldResyncDanmakuAfterPlayerAttach(
+                danmakuEnabled = config.isEnabled,
+                hasData = cachedDanmakuList != null,
+                hasController = controller != null
+            )
+        ) {
+            applyCachedDanmakuToController("player_attach")
+        }
     }
     
     /**

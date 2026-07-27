@@ -50,6 +50,7 @@ class CommentRepositoryImagePayloadTest {
     @Test
     fun `shouldTryGrpcMainList supports hot and time modes with offset paging`() {
         assertTrue(CommentRepository.shouldTryGrpcMainList(type = 1, page = 1, mode = 3, paginationOffset = null))
+        assertTrue(CommentRepository.shouldTryGrpcMainList(type = 11, page = 1, mode = 3, paginationOffset = null))
         assertTrue(CommentRepository.shouldTryGrpcMainList(type = 1, page = 2, mode = 3, paginationOffset = "next"))
         assertTrue(CommentRepository.shouldTryGrpcMainList(type = 1, page = 1, mode = 2, paginationOffset = null))
         assertNull(CommentRepository.resolveSyncToDynamicField(false))

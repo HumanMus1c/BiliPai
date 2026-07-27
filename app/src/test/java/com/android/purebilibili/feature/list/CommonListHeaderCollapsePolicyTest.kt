@@ -15,6 +15,24 @@ class CommonListHeaderCollapsePolicyTest {
     }
 
     @Test
+    fun `favorite header only returns after reaching the top`() {
+        assertEquals(
+            CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
+            resolveCommonListHeaderCollapseModeForScreen(
+                configuredMode = CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
+                isFavoritePage = true
+            )
+        )
+        assertEquals(
+            CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
+            resolveCommonListHeaderCollapseModeForScreen(
+                configuredMode = CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
+                isFavoritePage = false
+            )
+        )
+    }
+
+    @Test
     fun `always visible mode ignores scroll deltas`() {
         assertEquals(
             0f,

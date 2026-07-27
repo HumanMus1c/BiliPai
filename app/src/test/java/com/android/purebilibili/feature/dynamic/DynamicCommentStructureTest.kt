@@ -29,15 +29,23 @@ class DynamicCommentStructureTest {
     }
 
     @Test
-    fun `dynamic detail auto opens comments on first successful load`() {
+    fun `dynamic detail reloads comments for each screen entry`() {
         val source = File("src/main/java/com/android/purebilibili/feature/dynamic/DynamicDetailScreen.kt")
             .readText()
 
-        assertTrue(source.contains("shouldAutoOpenCommentsOnDynamicDetailEntry(hasAutoOpenedComments)"))
         assertTrue(source.contains("interactionViewModel.openCommentSheet("))
-        assertTrue(source.contains("hasAutoOpenedComments = true"))
-        // Must not gate auto-open on routed root reply only.
-        assertTrue(!source.contains("openCommentRootRpid > 0L && !hasHandledRoutedComment"))
-        assertTrue(!source.contains("openCommentRootRpid > 0L && !hasAutoOpenedComments"))
+        assertTrue(!source.contains("hasAutoOpenedComments"))
+        assertTrue(!source.contains("rememberSaveable(\n        dynamicId"))
+    }
+
+    @Test
+    fun `dynamic comment reload cancels and ignores the previous request`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/dynamic/DynamicViewModel.kt")
+            .readText()
+
+        assertTrue(source.contains("private var commentLoadJob: Job? = null"))
+        assertTrue(source.contains("val requestId = ++commentLoadRequestId"))
+        assertTrue(source.contains("commentLoadJob?.cancel()"))
+        assertTrue(source.contains("if (requestId != commentLoadRequestId) return@launch"))
     }
 }

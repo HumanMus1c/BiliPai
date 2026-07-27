@@ -83,6 +83,14 @@ fun resolveSpacePlayAllStartTarget(videos: List<SpaceVideoItem>): String? {
     return videos.firstOrNull()?.bvid
 }
 
+internal fun shouldPromptToLocatePlayedVideo(
+    targetBvid: String?,
+    hasLoadedSpace: Boolean,
+    promptHandled: Boolean
+): Boolean {
+    return hasLoadedSpace && targetBvid?.isNotBlank() == true && !promptHandled
+}
+
 internal fun resolveSpaceWatchProgressByBvid(
     history: List<HistoryData>,
     upMid: Long

@@ -97,6 +97,29 @@ class WatchLaterRefreshContractTest {
         )
     }
 
+    @Test
+    fun watchLaterTopBar_keepsBatchDeleteOutOfTheActionRow() {
+        val source = sourceText("src/main/java/com/android/purebilibili/feature/watchlater/WatchLaterScreen.kt")
+        val topBarSection = source
+            .substringAfter("AdaptiveTopAppBar(")
+            .substringBefore("containerColor = MaterialTheme.colorScheme.background")
+
+        assertTrue(
+            topBarSection.contains("text = { Text(\"批量删除\") }") &&
+                topBarSection.contains("isBatchMode = true"),
+            "批量删除应放进管理菜单，避免 MIUIX 顶栏操作区挤压标题"
+        )
+        assertFalse(
+            topBarSection.contains("TextButton(\n                                    onClick = {\n                                        isBatchMode = true"),
+                "顶栏操作区不应直接放置批量删除文字按钮"
+        )
+        assertTrue(
+            topBarSection.contains("text = { Text(\"全部听\") }") &&
+                topBarSection.contains("onPlayAllAudioClick?.invoke"),
+            "全部听应放进管理菜单，避免 MIUIX 顶栏操作区挤压标题"
+        )
+    }
+
     private fun sourceText(path: String): String {
         val sourceFile = listOf(
             File(path),

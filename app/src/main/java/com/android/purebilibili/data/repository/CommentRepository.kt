@@ -240,7 +240,8 @@ object CommentRepository {
         page: Int,
         ps: Int = 20,
         mode: Int = 3,
-        paginationOffset: String? = null
+        paginationOffset: String? = null,
+        fallbackOnMissingLocation: Boolean = true
     ): Result<ReplyData> = withContext(Dispatchers.IO) {
         try {
             // 确保 buvid3 已初始化
@@ -260,7 +261,7 @@ object CommentRepository {
                             "CommentRepo",
                             "getComments gRPC fallback to REST: oid=$oid, type=$type, page=$page, mode=$mode, reason=empty-renderable-success"
                         )
-                    } else if (!shouldFallbackGrpcCommentReadOnMissingLocation(grpcData)) {
+                    } else if (!fallbackOnMissingLocation || !shouldFallbackGrpcCommentReadOnMissingLocation(grpcData)) {
                         Logger.d("CommentRepo", " getComments (gRPC MainList): oid=$oid, type=$type, page=$page, mode=$mode")
                         return@withContext grpcResult
                     } else {

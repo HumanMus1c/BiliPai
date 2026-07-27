@@ -104,7 +104,7 @@ internal fun BiliPaiNavKey.toLegacyRoute(): String {
             commentRootRpid = commentRootRpid,
             commentTargetRpid = commentTargetRpid
         )
-        is BiliPaiNavKey.Space -> ScreenRoutes.Space.createRoute(mid)
+        is BiliPaiNavKey.Space -> ScreenRoutes.Space.createRoute(mid, targetBvid)
         is BiliPaiNavKey.Category -> ScreenRoutes.Category.createRoute(tid, name)
         is BiliPaiNavKey.Live -> ScreenRoutes.Live.createRoute(roomId, title, uname, siteId)
         is BiliPaiNavKey.BangumiDetail -> ScreenRoutes.BangumiDetail.createRoute(seasonId, epId)
@@ -259,7 +259,10 @@ internal fun legacyRouteToBiliPaiNavKey(route: String?): BiliPaiNavKey {
             )
         }
         segments.firstOrNull() == "space" && segments.size >= 2 -> {
-            BiliPaiNavKey.Space(mid = segments[1].toLongOrNull() ?: 0L)
+            BiliPaiNavKey.Space(
+                mid = segments[1].toLongOrNull() ?: 0L,
+                targetBvid = query["targetBvid"].orEmpty()
+            )
         }
         segments.firstOrNull() == "category" && segments.size >= 2 -> {
             BiliPaiNavKey.Category(

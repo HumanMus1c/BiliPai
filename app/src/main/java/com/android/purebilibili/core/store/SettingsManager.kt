@@ -1264,8 +1264,6 @@ object SettingsManager {
     private val KEY_CARD_ANIMATION_ENABLED = booleanPreferencesKey("card_animation_enabled")
     //  [新增] 卡片过渡动画开关
     private val KEY_CARD_TRANSITION_ENABLED = booleanPreferencesKey("card_transition_enabled")
-    private val KEY_VIDEO_TRANSITION_BACKGROUND_SINK_ENABLED =
-        booleanPreferencesKey("video_transition_background_sink_enabled")
     private val KEY_VIDEO_TRANSITION_REALTIME_BLUR_ENABLED =
         booleanPreferencesKey("video_transition_realtime_blur_enabled")
     private val KEY_VIDEO_SHARED_TRANSITION_SPEED =
@@ -2499,16 +2497,6 @@ object SettingsManager {
 
     suspend fun setCardTransitionEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences -> preferences[KEY_CARD_TRANSITION_ENABLED] = value }
-    }
-
-    fun getVideoTransitionBackgroundSinkEnabled(context: Context): Flow<Boolean> =
-        context.settingsDataStore.data
-            .map { preferences -> preferences[KEY_VIDEO_TRANSITION_BACKGROUND_SINK_ENABLED] ?: false }
-
-    suspend fun setVideoTransitionBackgroundSinkEnabled(context: Context, value: Boolean) {
-        context.settingsDataStore.edit { preferences ->
-            preferences[KEY_VIDEO_TRANSITION_BACKGROUND_SINK_ENABLED] = value
-        }
     }
 
     fun getVideoTransitionRealtimeBlurEnabled(context: Context): Flow<Boolean> =
