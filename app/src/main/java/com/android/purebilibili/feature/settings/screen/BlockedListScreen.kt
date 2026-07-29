@@ -28,8 +28,8 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.rememberAppBackIcon
-import com.android.purebilibili.core.ui.components.IOSAdaptiveTextField
-import com.android.purebilibili.core.ui.components.IOSSectionTitle
+import com.android.purebilibili.core.ui.components.AppTextField
+import com.android.purebilibili.core.ui.components.AppPreferenceSectionTitle
 import com.android.purebilibili.core.ui.components.UserLevelBadge
 import com.android.purebilibili.core.util.ShareUtils
 import kotlinx.coroutines.launch
@@ -171,7 +171,7 @@ fun BlockedListContent(
             onDismissRequest = { showImportDialog = false },
             title = { Text("导入黑名单") },
             text = {
-                IOSAdaptiveTextField(
+                AppTextField(
                     value = importText,
                     onValueChange = { importText = it },
                     label = "粘贴分享出来的黑名单文本",
@@ -255,7 +255,7 @@ fun BlockedListContent(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
-                IOSSectionTitle("已屏蔽的 UP 主")
+                AppPreferenceSectionTitle("已屏蔽的 UP 主")
                 Spacer(modifier = Modifier.height(8.dp))
             }
             

@@ -38,13 +38,13 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.BlurOn
 import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -110,13 +110,13 @@ fun OnboardingScreen(
         }
     }
 
-    Surface(
+    AppSurface(
         color = MaterialTheme.colorScheme.surface,
         modifier = Modifier
             .fillMaxSize()
             .testTag("onboarding_root")
     ) {
-        Scaffold(
+        AppScaffold(
             bottomBar = {
                 OnboardingBottomControls(
                     pageCount = pageCount,
@@ -132,9 +132,11 @@ fun OnboardingScreen(
                 modifier = Modifier.fillMaxSize(),
                 userScrollEnabled = true
             ) { page ->
-                val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
                 OnboardingAnimatedPage(
-                    pageOffset = pageOffset,
+                    // 传 lambda 而不是 Float：currentPageOffsetFraction 横滑时每帧变化，
+                    // 在这里直接读会让整页（含所有子页内容）每帧重组。
+                    // OnboardingAnimatedPage 本来就只在 graphicsLayer 里用它。
+                    pageOffset = { (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction },
                     motionSpec = motionSpec,
                     modifier = Modifier
                         .fillMaxSize()
@@ -204,7 +206,7 @@ private fun OnboardingBottomControls(
         }
 
         val actionColors = resolveAdaptivePrimaryAccentColors(MaterialTheme.colorScheme)
-        Button(
+        AppButton(
             onClick = onActionClick,
             modifier = Modifier
                 .fillMaxWidth()
@@ -222,7 +224,7 @@ private fun OnboardingBottomControls(
             enabled = !isApplyingSettings
         ) {
             if (isApplyingSettings) {
-                CircularProgressIndicator(
+                AppCircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     strokeWidth = 2.dp,
                     color = actionColors.contentColor
@@ -240,14 +242,14 @@ private fun OnboardingBottomControls(
 
 @Composable
 private fun OnboardingAnimatedPage(
-    pageOffset: Float,
+    pageOffset: () -> Float,
     motionSpec: OnboardingMotionSpec,
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit
 ) {
     Box(
         modifier = modifier.graphicsLayer {
-            val clampedOffset = pageOffset.absoluteValue.coerceIn(0f, 1f)
+            val clampedOffset = pageOffset().absoluteValue.coerceIn(0f, 1f)
             val scale = lerp(1f, motionSpec.pager.minScale, clampedOffset)
             scaleX = scale
             scaleY = scale

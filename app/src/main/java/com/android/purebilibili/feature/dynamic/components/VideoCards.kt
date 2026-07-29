@@ -1,5 +1,13 @@
 package com.android.purebilibili.feature.dynamic.components
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.MediaContrastPalette
+
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.rememberAppPlayIcon
+
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -52,8 +60,6 @@ import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrE
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
 import com.android.purebilibili.data.model.response.ArchiveMajor
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.PlayCircle
 
 /**
  * 对齐 PiliPlus 的动态视频呈现：
@@ -171,7 +177,7 @@ fun VideoCardLarge(
                 sourceRoute = sourceRoute,
             )
         ) {
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
             VideoCardLargeInfo(
                 archive = archive,
                 isCollection = isCollection,
@@ -217,13 +223,13 @@ private fun VideoCardLargeCover(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .padding(AppSpacingTokens.Small)
+                    .background(MaterialTheme.colorScheme.primary, AppShapes.container(ContainerLevel.Tag))
+                    .padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Micro)
             ) {
                 Text(
                     text = badgeText,
-                    fontSize = 10.sp,
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
@@ -234,12 +240,12 @@ private fun VideoCardLargeCover(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(72.dp)
+                .height(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.ExtraLarge)
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.7f)
+                            MediaContrastPalette.Scrim.copy(alpha = 0.7f)
                         )
                     )
                 )
@@ -248,41 +254,41 @@ private fun VideoCardLargeCover(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .padding(start = 10.dp, end = 8.dp, bottom = 8.dp),
+                    .padding(start = AppSpacingTokens.Small + AppSpacingTokens.Micro, end = AppSpacingTokens.Small, bottom = AppSpacingTokens.Small),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (archive.duration_text.isNotBlank()) {
                     Box(
                         modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .background(MediaContrastPalette.Scrim.copy(alpha = 0.45f), AppShapes.container(ContainerLevel.Tag))
+                            .padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Micro)
                     ) {
                         Text(
                             text = archive.duration_text,
-                            fontSize = 11.sp,
-                            color = Color.White,
+                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                            color = MediaContrastPalette.Foreground,
                             fontWeight = FontWeight.Medium
                         )
                     }
-                    Spacer(modifier = Modifier.size(6.dp))
+                    Spacer(modifier = Modifier.size(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
                 }
 
                 VideoCardLargeMetaText(text = "${archive.stat.play}播放")
-                Spacer(modifier = Modifier.size(6.dp))
+                Spacer(modifier = Modifier.size(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
                 VideoCardLargeMetaText(text = "${archive.stat.danmaku}弹幕")
                 Spacer(modifier = Modifier.weight(1f))
 
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
-                        .background(Color.Black.copy(alpha = 0.28f), CircleShape),
+                        .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Micro)
+                        .background(MediaContrastPalette.Scrim.copy(alpha = 0.28f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = CupertinoIcons.Filled.PlayCircle,
+                        imageVector = rememberAppPlayIcon(),
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        tint = MediaContrastPalette.Foreground,
+                        modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
                     )
                 }
             }
@@ -301,16 +307,16 @@ private fun VideoCardLargeInfo(
     if (isCollection && collectionTitle.isNotBlank()) {
         Text(
             text = collectionTitle,
-            fontSize = 15.sp,
+            fontSize = MaterialTheme.typography.bodyMedium.fontSize,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             color = MaterialTheme.colorScheme.onSurface
         )
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Micro))
         Text(
             text = archive.title,
-            fontSize = 13.sp,
+            fontSize = MaterialTheme.typography.labelMedium.fontSize,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -319,11 +325,11 @@ private fun VideoCardLargeInfo(
     } else {
         Text(
             text = archive.title,
-            fontSize = 15.sp,
+            fontSize = MaterialTheme.typography.bodyMedium.fontSize,
             fontWeight = FontWeight.Bold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            lineHeight = 21.sp,
+            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = titleModifier
         )
@@ -336,8 +342,8 @@ private fun VideoCardLargeMetaText(
 ) {
     Text(
         text = text,
-        fontSize = 11.sp,
-        color = Color.White,
+        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+        color = MediaContrastPalette.Foreground,
         maxLines = 1
     )
 }

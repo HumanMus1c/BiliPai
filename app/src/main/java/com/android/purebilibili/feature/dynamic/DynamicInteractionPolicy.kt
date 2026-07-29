@@ -2,11 +2,23 @@ package com.android.purebilibili.feature.dynamic
 
 import com.android.purebilibili.data.model.response.DynamicBasic
 import com.android.purebilibili.data.model.response.DynamicItem
+import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 
 internal data class DynamicCommentTarget(
     val oid: Long,
     val type: Int
 )
+
+internal fun shouldApplyDynamicCommentPageResult(
+    activeRequestId: Long,
+    requestId: Long,
+    activeTarget: DynamicCommentTarget?,
+    requestTarget: DynamicCommentTarget,
+    activeSortMode: CommentSortMode,
+    requestSortMode: CommentSortMode,
+): Boolean = activeRequestId == requestId &&
+    activeTarget == requestTarget &&
+    activeSortMode == requestSortMode
 
 private val DESKTOP_DYNAMIC_COMMENT_TYPES = setOf(
     "DYNAMIC_TYPE_WORD",

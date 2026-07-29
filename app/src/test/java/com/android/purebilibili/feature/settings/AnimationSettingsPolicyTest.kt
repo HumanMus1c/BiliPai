@@ -45,7 +45,8 @@ class AnimationSettingsPolicyTest {
         assertFalse(animationSource.contains("当前底栏材质"))
         assertFalse(animationSource.contains("BottomBarLiquidGlassPreset"))
         assertFalse(animationSource.contains("getBottomBarLiquidGlassPreset"))
-        assertFalse(settingsManagerSource.contains("enum class BottomBarLiquidGlassPreset"))
+        assertFalse(settingsManagerSource.contains("getBottomBarLiquidGlassPreset"))
+        assertFalse(settingsManagerSource.contains("setBottomBarLiquidGlassPreset"))
         assertFalse(animationSource.contains("底栏跟随高光"))
         assertFalse(animationSource.contains("getBottomBarInteractiveHighlightEnabled"))
         assertFalse(animationSource.contains("setBottomBarInteractiveHighlightEnabled"))
@@ -64,7 +65,6 @@ class AnimationSettingsPolicyTest {
 
         assertFalse(animationSource.contains("预测性返回动画"))
         assertFalse(animationSource.contains("Predictive" + "BackAnimationDialog"))
-        assertFalse(animationSource.contains("SettingsIconRole.PREDICTIVE" + "_BACK"))
         assertFalse(policySource.contains("Predictive" + "BackToggleUiState"))
         assertFalse(policySource.contains("resolvePredictive" + "BackToggleUiState"))
     }

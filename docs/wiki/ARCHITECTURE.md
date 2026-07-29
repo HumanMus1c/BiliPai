@@ -1,6 +1,6 @@
 # 架构说明
 
-最后更新：2026-03-07（按当前 main 分支结构校对）
+最后更新：2026-07-28（按当前源码校对）
 
 ## 代码分层
 
@@ -11,14 +11,23 @@
 - `data/`：数据模型与仓库（Repository）
 - `domain/`：用例层（UseCase）
 - `feature/`：按业务场景拆分的 UI 与交互
-- `navigation/`：路由定义与页面导航编排
+- `navigation/`、`navigation3/`：当前并存的路由定义与页面导航编排
+
+## Gradle 模块
+
+- `app/`：应用壳与业务功能，依赖其余公共模块
+- `design-system/`：三套界面风格共用的主题、组件、图标、动效与视觉策略
+- `settings-core/`：可复用设置与偏好逻辑
+- `network-core/`：网络策略与底层网络支持
+- `plugin-sdk/`：外部插件可依赖的稳定接口与能力声明
+- `baselineprofile/`：启动和帧性能的基准配置
 
 ## 插件体系
 
 - 内置插件接口与管理器位于 `core/plugin/`
 - 外部 JSON 规则插件位于 `core/plugin/json/`
 - 内置插件实现位于 `feature/plugin/`
-- 当前应用入口 `PureApplication.kt` 会初始化 5 个内置插件，并初始化 `JsonPluginManager`
+- 当前应用入口 `PureApplication.kt` 会注册 10 个内置插件，并初始化 `JsonPluginManager`
 
 ## 当前结构关注点
 

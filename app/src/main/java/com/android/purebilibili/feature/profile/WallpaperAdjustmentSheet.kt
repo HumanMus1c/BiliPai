@@ -40,9 +40,9 @@ fun WallpaperAdjustmentSheet(
     onSave: (mobileBias: Float, tabletBias: Float) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var selectedTab by remember { mutableStateOf(0) } // 0: Mobile, 1: Tablet
-    var mobileBias by remember { mutableStateOf(initialMobileBias) }
-    var tabletBias by remember { mutableStateOf(initialTabletBias) }
+    var selectedTab by remember { mutableIntStateOf(0) } // 0: Mobile, 1: Tablet
+    var mobileBias by remember { mutableFloatStateOf(initialMobileBias) }
+    var tabletBias by remember { mutableFloatStateOf(initialTabletBias) }
     
     val currentBias = if (selectedTab == 0) mobileBias else tabletBias
     
@@ -221,7 +221,7 @@ fun ProfileWallpaperAdjustmentSheet(
     onSave: (mobileTransform: ProfileWallpaperTransform, tabletTransform: ProfileWallpaperTransform) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
     var mobileTransform by remember {
         mutableStateOf(sanitizeProfileWallpaperTransform(initialMobileTransform))
     }

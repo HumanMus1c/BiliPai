@@ -9,6 +9,29 @@ import kotlin.test.assertTrue
 class BottomBarMiuixStructureTest {
 
     @Test
+    fun `runtime low blur budget gates every kernelsu liquid glass layer`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+        val renderer = source
+            .substringAfter("private fun KernelSuAlignedBottomBar(")
+            .substringBefore("@Composable\nprivate fun AndroidNativeBottomBarItem(")
+        val indicator = source
+            .substringAfter("internal fun BoxScope.KernelSuMiuixBottomBarIndicatorLayer(")
+            .substringBefore("internal fun BoxScope.KernelSuBottomBarIndicatorLayer(")
+
+        assertTrue(renderer.contains("val effectiveGlassEnabled = shouldRenderBottomBarLiquidGlassEffects("))
+        assertTrue(renderer.contains("val glassLayersAlwaysOn = effectiveGlassEnabled && miuixBackdrop != null"))
+        assertTrue(
+            renderer.contains(
+                "val shouldRenderIndicatorContentCapture =\n" +
+                    "                effectiveGlassEnabled &&"
+            )
+        )
+        assertTrue(renderer.contains("shouldUseBottomBarCaptureLens(effectiveGlassEnabled)"))
+        assertTrue(renderer.contains("glassEnabled = effectiveGlassEnabled"))
+        assertTrue(indicator.contains("val indicatorBackdrop = if (!glassEnabled)"))
+    }
+
+    @Test
     fun `android native floating branch renders through kernelsu aligned renderer`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
         val kernelSuRendererSource = source
@@ -63,9 +86,9 @@ class BottomBarMiuixStructureTest {
         assertTrue(kernelSuRendererSource.contains("resolveKernelSuBottomBarShellColor("))
         assertTrue(kernelSuRendererSource.contains("containerColor = containerColor"))
         assertTrue(kernelSuRendererSource.contains("blurEnabled = shellBlurEnabled"))
-        assertTrue(source.contains("miuixBlur(4.dp.toPx(), 4.dp.toPx())"))
-        assertTrue(source.contains("refractionHeight = 24.dp.toPx()"))
-        assertTrue(source.contains("refractionAmount = 24.dp.toPx()"))
+        assertTrue(source.contains("miuixBlur(AppSpacingTokens.ExtraSmall.toPx(), AppSpacingTokens.ExtraSmall.toPx())"))
+        assertTrue(source.contains("refractionHeight = AppSpacingTokens.ExtraLarge.toPx()"))
+        assertTrue(source.contains("refractionAmount = AppSpacingTokens.ExtraLarge.toPx()"))
         assertFalse(source.contains("BottomBarShellEffectSpec"))
         assertFalse(source.contains("resolveBottomBarIOS26SurfaceTint("))
         assertFalse(kernelSuRendererSource.contains("bottomBarIOS26ScrollGlassProgress"))
@@ -108,7 +131,10 @@ class BottomBarMiuixStructureTest {
         assertFalse(kernelSuRendererSource.contains("clickPulseKey = if (item == BottomNavItem.HOME)"))
         assertFalse(kernelSuRendererSource.contains("selectedSettlePulseKey"))
         assertFalse(kernelSuRendererSource.contains("settlePulseKey = if (index == selectedIndex)"))
-        assertTrue(kernelSuRendererSource.contains("if (effectiveSearchExpanded) {\n                                    Modifier.clickable("))
+        assertTrue(
+            Regex("""if\s*\(effectiveSearchExpanded\)\s*\{\s*Modifier\.clickable\(""")
+                .containsMatchIn(kernelSuRendererSource)
+        )
         assertTrue(kernelSuRendererSource.contains("ColorFilter.tint(exportTintColor)"))
         assertFalse(kernelSuRendererSource.contains("ColorFilter.tint(uiSkinDecoration"))
         assertFalse(kernelSuRendererSource.contains("val contentColor = Color.White"))
@@ -191,15 +217,19 @@ class BottomBarMiuixStructureTest {
         assertTrue(kernelSuRendererSource.contains("if (shouldRenderIndicatorContentCapture && miuixBackdrop != null)"))
         assertTrue(kernelSuRendererSource.contains(".miuixLayerBackdrop(tabsBackdrop)"))
         assertTrue(kernelSuRendererSource.contains("val shouldRenderIndicatorBackdropRaw = shouldRenderBottomBarIndicatorBackdrop("))
-        assertTrue(kernelSuRendererSource.contains("val glassLayersAlwaysOn = glassEnabled && miuixBackdrop != null"))
+        assertTrue(
+            kernelSuRendererSource.contains(
+                "val glassLayersAlwaysOn = effectiveGlassEnabled && miuixBackdrop != null"
+            )
+        )
         assertTrue(kernelSuRendererSource.contains("glassLayersAlwaysOn || shouldRenderRefractionCaptureRaw"))
         assertTrue(kernelSuRendererSource.contains("glassLayersAlwaysOn || shouldRenderIndicatorBackdropRaw"))
         assertTrue(kernelSuRendererSource.contains("isBottomBarInteractionActive = isBottomBarInteractionActive"))
         assertTrue(kernelSuRendererSource.contains("shouldRenderIndicatorBackdrop && miuixBackdrop != null"))
         assertFalse(kernelSuRendererSource.contains("captureWarm"))
         assertTrue(kernelSuRendererSource.contains("alpha = effectivePressProgress"))
-        assertTrue(kernelSuRendererSource.contains("radius = 8.dp * effectivePressProgress"))
-        assertTrue(kernelSuRendererSource.contains("color = Color.Black.copy(alpha = 0.15f)"))
+        assertTrue(kernelSuRendererSource.contains("radius = AppSpacingTokens.Small * effectivePressProgress"))
+        assertTrue(kernelSuRendererSource.contains("color = OpticalContrastPalette.Shadow.copy(alpha = 0.15f)"))
         assertTrue(kernelSuRendererSource.contains("translationX = presetPanelOffsets.exportPanelOffsetPx"))
         assertTrue(kernelSuRendererSource.contains("resolveBottomBarGlassVisibleContentColor("))
         assertTrue(kernelSuRendererSource.contains("resolveBottomBarGlassExportContentColor("))
@@ -265,9 +295,9 @@ class BottomBarMiuixStructureTest {
             .substringBefore("@Composable\nprivate fun KernelSuBottomBarShell(")
 
         assertTrue(layoutStateSource.contains("if (!searchEnabled) {"))
-        assertTrue(layoutStateSource.contains("searchWidth = 0.dp"))
-        assertTrue(layoutStateSource.contains("searchGap = 0.dp"))
-        assertTrue(layoutStateSource.contains("searchHeight = 0.dp"))
+        assertTrue(layoutStateSource.contains("searchWidth = AppSpacingTokens.None"))
+        assertTrue(layoutStateSource.contains("searchGap = AppSpacingTokens.None"))
+        assertTrue(layoutStateSource.contains("searchHeight = AppSpacingTokens.None"))
         assertTrue(layoutStateSource.contains("return KernelSuBottomBarSearchLayoutState("))
 
         val disabledBranch = layoutStateSource
@@ -370,10 +400,10 @@ class BottomBarMiuixStructureTest {
 
     @Test
     fun `home top skin does not render broad atmosphere block`() {
-        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/iOSHomeHeader.kt")
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/HomeHeader.kt")
         val skinDecorationSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarUiSkin.kt")
         val headerSource = source
-            .substringAfter("fun iOSHomeHeader(")
+            .substringAfter("fun HomeHeader(")
             .substringBefore("@Composable\nprivate fun")
 
         assertFalse(skinDecorationSource.contains("HomeSkinAtmosphere("))
@@ -385,7 +415,7 @@ class BottomBarMiuixStructureTest {
     fun `home and sidebar consume imported skin assets without changing host-only items`() {
         val navigationSource = loadSource("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt")
         val sidebarSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/SideBar.kt")
-        val headerSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/iOSHomeHeader.kt")
+        val headerSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/HomeHeader.kt")
 
         val sideBarCallSource = navigationSource
             .substringAfter("FrostedSideBar(")
@@ -443,7 +473,7 @@ class BottomBarMiuixStructureTest {
             .substringBefore("\n        }\n    }\n}")
         assertTrue(expandedBlankTapSource.contains("currentHaptic(HapticType.LIGHT)"))
         assertTrue(expandedBlankTapSource.contains("currentOnSubmit()"))
-        assertTrue(searchCapsuleSource.contains("easing = AppMotionEasing.Continuity"))
+        assertTrue(searchCapsuleSource.contains("animationSpec = bottomBarContentVisibilityMotionSpec()"))
         assertFalse(source.contains("private fun rememberBottomBarSettlePulseTransform("))
         assertFalse(source.contains("settlePulseKey = if (index == selectedIndex)"))
         assertTrue(refractionProfileSource.contains("rawProgress * rawProgress * (3f - 2f * rawProgress)"))
@@ -573,11 +603,14 @@ class BottomBarMiuixStructureTest {
     }
 
     @Test
-    fun `android native miuix variant routes to dedicated miuix bottom bar renderer`() {
+    fun `neutral bottom bar host routes platform content to dedicated implementation`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
 
-        assertTrue(source.contains("val androidNativeVariant = LocalAndroidNativeVariant.current"))
-        assertTrue(source.contains("androidNativeVariant == AndroidNativeVariant.MIUIX"))
+        assertTrue(source.contains("AppBottomNavigationHost("))
+        assertTrue(source.contains("platformContent = { policy ->"))
+        assertFalse(source.contains("LocalUiPreset"))
+        assertFalse(source.contains("LocalAndroidNativeVariant"))
+        assertFalse(source.contains("AndroidNativeVariant"))
         assertTrue(source.contains("MiuixBottomBar("))
         assertTrue(source.contains("if (isFloating) {"))
         assertTrue(source.contains("KernelSuAlignedBottomBar("))
@@ -637,6 +670,6 @@ class BottomBarMiuixStructureTest {
             File(normalizedPath)
         ).firstOrNull { it.exists() }
         require(sourceFile != null) { "Cannot locate $path from ${File(".").absolutePath}" }
-        return sourceFile.readText()
+        return sourceFile.readText().replace("\r\n", "\n")
     }
 }

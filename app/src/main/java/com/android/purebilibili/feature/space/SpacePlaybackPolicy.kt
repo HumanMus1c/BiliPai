@@ -26,6 +26,14 @@ data class SpacePlaybackTarget(
     val resumePositionMs: Long
 )
 
+internal sealed interface SpaceLocateTargetPageAction {
+    data class Found(val index: Int) : SpaceLocateTargetPageAction
+    data object Wait : SpaceLocateTargetPageAction
+    data object LoadMore : SpaceLocateTargetPageAction
+    data object LoadFailed : SpaceLocateTargetPageAction
+    data object Missing : SpaceLocateTargetPageAction
+}
+
 enum class SpaceCollectionDetailType(val raw: String) {
     SEASON("season"),
     SERIES("series"),
@@ -170,6 +178,23 @@ internal fun resolveSpaceLocateSearchTarget(
     val bvid = target?.bvid.orEmpty()
     if (bvid.isBlank()) return null
     return bvid.takeIf { candidate -> videos.any { it.bvid == candidate } }
+}
+
+internal fun resolveSpaceLocateTargetPageAction(
+    targetBvid: String,
+    videos: List<SpaceVideoItem>,
+    isLoading: Boolean,
+    hasMore: Boolean,
+    lastLoadFailed: Boolean = false,
+): SpaceLocateTargetPageAction {
+    val targetIndex = videos.indexOfFirst { it.bvid == targetBvid }
+    return when {
+        targetIndex >= 0 -> SpaceLocateTargetPageAction.Found(targetIndex)
+        isLoading -> SpaceLocateTargetPageAction.Wait
+        lastLoadFailed -> SpaceLocateTargetPageAction.LoadFailed
+        hasMore -> SpaceLocateTargetPageAction.LoadMore
+        else -> SpaceLocateTargetPageAction.Missing
+    }
 }
 
 private fun Int?.orZero(): Int = this ?: 0

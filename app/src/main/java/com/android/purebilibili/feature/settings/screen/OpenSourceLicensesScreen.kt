@@ -23,6 +23,7 @@ import com.android.purebilibili.R
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
@@ -183,12 +184,8 @@ val openSourceLibraries = listOf(
         url = "https://github.com/chrisbanes/haze",
         description = "毛玻璃效果"
     ),
-    OpenSourceLibrary(
-        name = "Compose Shimmer",
-        license = "Apache 2.0",
-        url = "https://github.com/valentinilk/compose-shimmer",
-        description = "Shimmer 加载动画"
-    ),
+    // Compose Shimmer 已随依赖一并移除：骨架屏改用自研实现，APK 里不再包含该库。
+    // 致谢列表应当反映实际分发的内容，列一个没有随包发出的库是不准确的。
     OpenSourceLibrary(
         name = "Cupertino",
         license = "Apache 2.0",
@@ -365,7 +362,7 @@ fun LicenseCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
+    AppSurface(
         modifier = modifier
             .fillMaxWidth()
             .padding(bottom = 8.dp)
@@ -400,7 +397,7 @@ fun LicenseCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
+                    AppSurface(
                         color = MaterialTheme.colorScheme.primaryContainer,
                         shape = AppShapes.container(ContainerLevel.Tag)
                     ) {

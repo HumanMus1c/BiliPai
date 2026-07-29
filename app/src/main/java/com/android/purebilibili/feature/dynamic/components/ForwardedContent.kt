@@ -1,6 +1,8 @@
 // 文件路径: feature/dynamic/components/ForwardedContent.kt
 package com.android.purebilibili.feature.dynamic.components
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -115,7 +117,7 @@ fun ForwardedContent(
                 enabled = onDynamicDetailClick != null && origDynamicId.isNotEmpty(),
                 onClick = openOrigDynamic
             )
-            .padding(horizontal = 15.dp, vertical = 8.dp)
+            .padding(horizontal = AppSpacingTokens.Large - AppSpacingTokens.Micro / 2, vertical = AppSpacingTokens.Small)
     ) {
         // 原作者
         if (author != null) {
@@ -128,21 +130,21 @@ fun ForwardedContent(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "@${author.name}",
-                    fontSize = 13.sp,
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary, // 主题自适应颜色
                     modifier = Modifier.clickable(enabled = author.mid > 0L) {
                         onUserClick(author.mid)
                     }
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                 Text(
                     authorTimeText,
-                    fontSize = 11.sp,
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         }
         
         // 原文字内容 - 使用 RichTextContent 支持表情
@@ -152,7 +154,7 @@ fun ForwardedContent(
                     desc = desc,
                     onUserClick = onUserClick
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
             }
         }
         
@@ -165,7 +167,7 @@ fun ForwardedContent(
                 cornerBadgeText = resolveDynamicArchiveBadgeLabel(archive),
                 onClick = { playableBvid?.let(onVideoClick) }
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         }
 
         content?.major?.pgc?.let { pgc ->
@@ -176,7 +178,7 @@ fun ForwardedContent(
                 cornerBadgeText = "番剧",
                 onClick = { bangumiTarget?.let { onBangumiClick(it.seasonId, it.epId) } }
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         }
         
         // 原图片（与主卡一致：列表预览最多 9 张，避免拼大图被裁成 2×2）
@@ -191,7 +193,7 @@ fun ForwardedContent(
                     previewSourceRect = rect
                 }
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         }
         
         //  [新增] 原 Opus 图文动态
@@ -204,7 +206,7 @@ fun ForwardedContent(
                             desc = summary,
                             onUserClick = onUserClick
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                     }
                 }
             }
@@ -227,7 +229,7 @@ fun ForwardedContent(
                         previewSourceRect = rect
                     }
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
             }
         }
 

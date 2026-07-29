@@ -249,7 +249,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertEquals(
             SegmentedControlChromeStyle.LIQUID_PILL,
             resolveSegmentedControlChromeStyle(
-                uiPreset = UiPreset.MD3,
+                prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = true,
                 preferInlineContentStyle = true
             )
@@ -261,7 +261,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertEquals(
             SegmentedControlChromeStyle.LIQUID_PILL,
             resolveSegmentedControlChromeStyle(
-                uiPreset = UiPreset.MD3,
+                prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = true,
                 preferInlineContentStyle = false
             )
@@ -290,7 +290,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(source.contains("BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_HEIGHT_DP = 58"))
         assertTrue(source.contains("BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_INDICATOR_HEIGHT_DP = 56"))
         assertTrue(source.contains("resolveSharedLiquidIndicatorPanelOffsetPx("))
-        assertTrue(source.contains("4.dp.toPx()"))
+        assertTrue(source.contains("AppSpacingTokens.ExtraSmall.toPx()"))
         assertTrue(source.contains("resolveBottomBarItemMotionVisual("))
         assertFalse(source.contains("rememberCombinedBackdrop("))
         assertFalse(source.contains("backdrop ?: tabsBackdrop"))
@@ -337,7 +337,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(source.contains("KernelSuBottomBarIndicatorLayer("))
         assertTrue(source.contains("chromaticAberration = true"))
         assertTrue(source.contains("getHomeSettings("))
-        assertTrue(source.contains("resolveSharedLiquidGlassChromeEnabled("))
+        assertTrue(source.contains("visualPolicy.supportsIndependentLiquidGlass"))
         assertTrue(source.contains("resolveSegmentedControlChromeStyle("))
         assertTrue(source.contains("AndroidNativeUnderlinedSegmentedControl("))
         assertTrue(source.contains("SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE"))
@@ -422,7 +422,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
     @Test
     fun `common list and video tabs pass page backdrop into segmented control`() {
         val commonList = loadSource("app/src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt")
-        val iosSegmented = loadSource("app/src/main/java/com/android/purebilibili/feature/settings/IOSSlidingSegmentedControl.kt")
+        val iosSegmented = loadSource("app/src/main/java/com/android/purebilibili/feature/settings/AppSegmentedComponents.kt")
 
         val videoContent = loadSource("app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt")
         val commentSortBar = loadSource(

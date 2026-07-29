@@ -16,11 +16,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.android.purebilibili.core.ui.AppAlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -205,10 +205,10 @@ private fun HomeFeedAnonymizerSettingsContent(enabled: Boolean) {
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { refreshKey += 1 }) {
+                AppTextButton(onClick = { refreshKey += 1 }) {
                     Text("刷新统计")
                 }
-                TextButton(
+                AppTextButton(
                     onClick = {
                         HomeFeedAnonymizerRuntime.resetStats()
                         refreshKey += 1
@@ -256,7 +256,7 @@ private fun HomeFeedAnonymizerSection(
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Medium
         )
-        Surface(
+        AppSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.62f)
@@ -326,7 +326,7 @@ private fun HomeFeedAnonymizerDetailDialog(
     onDismiss: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(row.label) },
         text = {
@@ -351,7 +351,7 @@ private fun HomeFeedAnonymizerDetailDialog(
         },
         confirmButton = {
             if (row.url != null) {
-                TextButton(
+                AppTextButton(
                     onClick = {
                         try {
                             uriHandler.openUri(row.url)
@@ -365,7 +365,7 @@ private fun HomeFeedAnonymizerDetailDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            AppTextButton(onClick = onDismiss) {
                 Text("关闭")
             }
         }

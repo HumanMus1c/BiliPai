@@ -1,8 +1,6 @@
 package com.android.purebilibili.feature.live.components
 
 import android.media.AudioManager
-import android.provider.Settings
-import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -15,79 +13,117 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
+import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.rememberAppCommentIcon
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
+import com.android.purebilibili.core.ui.rememberAppPlayIcon
+import com.android.purebilibili.core.ui.rememberAppRefreshIcon
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.feature.live.resolveLiveVisualSpec
+import com.android.purebilibili.feature.live.LiveStatusPalette
 import com.android.purebilibili.feature.video.ui.gesture.GestureLevelKind
 import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayContent
-import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelIcon
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.ChevronBackward
-import io.github.alexzhirkevich.cupertino.icons.outlined.Pause
-import io.github.alexzhirkevich.cupertino.icons.outlined.Play
-import io.github.alexzhirkevich.cupertino.icons.outlined.ArrowUpLeftAndArrowDownRight
-import io.github.alexzhirkevich.cupertino.icons.outlined.ArrowDownRightAndArrowUpLeft
-import io.github.alexzhirkevich.cupertino.icons.outlined.ArrowClockwise
-import io.github.alexzhirkevich.cupertino.icons.filled.TextBubble
-import io.github.alexzhirkevich.cupertino.icons.filled.BubbleLeft
 import android.app.Activity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.Fullscreen
+import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
+import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.feature.live.rememberLiveChromePalette
+import com.android.purebilibili.feature.live.resolveLivePlayerControlVisualSpec
 
 @Composable
-private fun PlayerIconBtn(
+private fun LivePlayerIconButton(
     icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
-    active: Boolean = false,
+    stateDescription: String? = null,
     modifier: Modifier = Modifier
 ) {
+    require(label.isNotBlank()) { "Live player icon button label must not be blank" }
+
     val palette = rememberLiveChromePalette()
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = if (active) palette.accentSoft else palette.scrim.copy(alpha = 0.48f),
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val visualSpec = remember(playerChromeProfile.tabPresentation) {
+        resolveLiveVisualSpec(playerChromeProfile.tabPresentation)
+    }
+    val touchTargetSize = visualSpec.playerButtonTouchTargetDp.dp
+    val visualSize = visualSpec.playerButtonVisualSizeDp.dp
+
+    Box(
         modifier = modifier
-            .size(38.dp)
-            .border(
-                1.dp,
-                if (active) palette.accent.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.10f),
-                CircleShape
+            .size(touchTargetSize)
+            .clickable(
+                enabled = enabled,
+                role = if (stateDescription == null) Role.Button else Role.Switch,
+                onClickLabel = label,
+                onClick = onClick
             )
+            .semantics(mergeDescendants = true) {
+                contentDescription = label
+                if (stateDescription != null) {
+                    this.selected = selected
+                    this.stateDescription = stateDescription
+                }
+            },
+        contentAlignment = Alignment.Center
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (active) palette.accentStrong else Color.White
-            )
+        AppSurface(
+            shape = CircleShape,
+            color = if (selected) palette.accentSoft else palette.scrim.copy(alpha = 0.48f),
+            modifier = Modifier
+                .size(visualSize)
+                .alpha(if (enabled) 1f else 0.38f)
+                .border(
+                    AppSurfaceTokens.OutlineWidth,
+                    if (selected) palette.accent.copy(alpha = 0.4f) else LiveStatusPalette.MediaContent.copy(alpha = 0.10f),
+                    CircleShape
+                )
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (selected) palette.accentStrong else LiveStatusPalette.MediaContent
+                )
+            }
         }
     }
 }
@@ -136,10 +172,11 @@ fun LivePlayerControls(
     onEnterPip: () -> Unit = {},
     applyTopSystemBarPadding: Boolean = true,
     applyBottomSystemBarPadding: Boolean = true,
-    bottomControlsBottomPadding: Dp = 0.dp
+    bottomControlsBottomPadding: Dp = AppSpacingTokens.None
 ) {
     var isControlsVisible by remember { mutableStateOf(true) }
     val palette = rememberLiveChromePalette()
+    val controlVisualSpec = remember { resolveLivePlayerControlVisualSpec() }
     
     // 自动隐藏控制器
     LaunchedEffect(isControlsVisible, isPlaying) {
@@ -157,13 +194,13 @@ fun LivePlayerControls(
     val context = LocalContext.current
     val activity = context as? Activity
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager }
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val gestureLevelOverlayStyle = remember(uiPreset, androidNativeVariant) {
-        resolveGestureLevelOverlayStyle(
-            uiPreset = uiPreset,
-            androidNativeVariant = androidNativeVariant
-        )
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val backIcon = rememberAppBackIcon()
+    val commentIcon = rememberAppCommentIcon()
+    val playIcon = rememberAppPlayIcon()
+    val refreshIcon = rememberAppRefreshIcon()
+    val gestureLevelOverlayStyle = remember(playerChromeProfile.tabPresentation) {
+        resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
     }
     var gestureKind by remember { mutableStateOf(GestureLevelKind.Volume) }
     var gesturePercent by remember { mutableFloatStateOf(0f) }
@@ -286,7 +323,7 @@ fun LivePlayerControls(
                     style = gestureLevelOverlayStyle,
                     modifier = Modifier
                         .align(
-                            if (gestureLevelOverlayStyle == GestureLevelOverlayStyle.Miuix) {
+                            if (playerChromeProfile.effects.usesTonalContainerTreatment) {
                                 if (gestureKind == GestureLevelKind.Volume) {
                                     Alignment.CenterEnd
                                 } else {
@@ -297,8 +334,8 @@ fun LivePlayerControls(
                             }
                         )
                         .then(
-                            if (gestureLevelOverlayStyle == GestureLevelOverlayStyle.Miuix) {
-                                Modifier.padding(horizontal = 22.dp)
+                            if (playerChromeProfile.effects.usesTonalContainerTreatment) {
+                                Modifier.padding(horizontal = AppSpacingTokens.ExtraLarge)
                             } else {
                                 Modifier
                             }
@@ -327,67 +364,83 @@ fun LivePlayerControls(
                         )
                     )
                     .then(if (applyTopSystemBarPadding) Modifier.statusBarsPadding() else Modifier)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(
+                        horizontal = AppSpacingTokens.Large,
+                        vertical = AppSpacingTokens.Medium
+                    ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PlayerIconBtn(
-                    icon = CupertinoIcons.Default.ChevronBackward,
+                LivePlayerIconButton(
+                    icon = backIcon,
+                    label = "返回",
+                    selected = false,
+                    enabled = true,
                     onClick = onBack
                 )
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(AppSpacingTokens.Large))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
-                        color = Color.White,
+                        color = LiveStatusPalette.MediaContent,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                     )
                     if (subtitle.isNotBlank() && isFullscreen) {
-                        Spacer(Modifier.height(3.dp))
+                        Spacer(Modifier.height(AppSpacingTokens.ExtraSmall))
                         Text(
                             text = subtitle,
-                            color = Color.White.copy(alpha = 0.76f),
+                            color = LiveStatusPalette.MediaContent.copy(alpha = 0.76f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
                 }
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(AppSpacingTokens.Small))
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (showPipButton) {
-                        PlayerIconBtn(
+                        LivePlayerIconButton(
                             icon = Icons.Outlined.PictureInPictureAlt,
-                            onClick = onEnterPip,
-                            modifier = Modifier.size(34.dp)
+                            label = "进入画中画",
+                            selected = false,
+                            enabled = true,
+                            onClick = onEnterPip
                         )
                     }
-                    PlayerIconBtn(
+                    LivePlayerIconButton(
                         icon = Icons.Outlined.MusicNote,
+                        label = "仅听声音",
+                        selected = isAudioOnly,
+                        enabled = true,
                         onClick = onToggleAudioOnly,
-                        active = isAudioOnly,
-                        modifier = Modifier.size(34.dp)
+                        stateDescription = if (isAudioOnly) "已开启" else "已关闭"
                     )
-                    PlayerIconBtn(
+                    LivePlayerIconButton(
                         icon = Icons.Outlined.PlayCircleOutline,
+                        label = "后台播放",
+                        selected = isBackgroundPlaybackEnabled,
+                        enabled = true,
                         onClick = onToggleBackgroundPlayback,
-                        active = isBackgroundPlaybackEnabled,
-                        modifier = Modifier.size(34.dp)
+                        stateDescription = if (isBackgroundPlaybackEnabled) "已开启" else "已关闭"
                     )
-                    PlayerIconBtn(
+                    LivePlayerIconButton(
                         icon = Icons.Outlined.Timer,
+                        label = "定时关闭",
+                        selected = false,
+                        enabled = true,
                         onClick = onOpenShutdownTimer,
-                        modifier = Modifier.size(34.dp)
                     )
-                    PlayerIconBtn(
+                    LivePlayerIconButton(
                         icon = Icons.Outlined.Info,
+                        label = "播放信息",
+                        selected = false,
+                        enabled = true,
                         onClick = onOpenPlayerInfo,
-                        modifier = Modifier.size(34.dp)
                     )
                 }
             }
@@ -416,98 +469,137 @@ fun LivePlayerControls(
                         )
                     )
                     .then(if (applyBottomSystemBarPadding) Modifier.navigationBarsPadding() else Modifier)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(
+                        horizontal = AppSpacingTokens.Large,
+                        vertical = AppSpacingTokens.Medium
+                    ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // 播放/暂停
-                PlayerIconBtn(
-                    icon = if (isPlaying) CupertinoIcons.Default.Pause else CupertinoIcons.Default.Play,
+                LivePlayerIconButton(
+                    icon = if (isPlaying) Icons.Outlined.Pause else playIcon,
+                    label = if (isPlaying) "暂停" else "播放",
+                    selected = false,
+                    enabled = true,
                     onClick = onPlayPause
                 )
                 
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(AppSpacingTokens.Large))
                 
                 // [新增] 刷新按钮
-                PlayerIconBtn(
-                    icon = CupertinoIcons.Outlined.ArrowClockwise,
+                LivePlayerIconButton(
+                    icon = refreshIcon,
+                    label = "刷新直播",
+                    selected = false,
+                    enabled = true,
                     onClick = onRefresh
                 )
                 
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(AppSpacingTokens.Medium))
 
-                PlayerIconBtn(
+                LivePlayerIconButton(
                     icon = Icons.AutoMirrored.Outlined.Send,
+                    label = "发送弹幕",
+                    selected = false,
+                    enabled = true,
                     onClick = onOpenSend
                 )
 
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(AppSpacingTokens.Medium))
                 
                 Row(
                     modifier = Modifier
                         .weight(1f)
                         .horizontalScroll(scrollState),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PlayerIconBtn(
+                    LivePlayerIconButton(
                         icon = Icons.Outlined.Block,
+                        label = "屏蔽设置",
+                        selected = false,
+                        enabled = true,
                         onClick = onOpenBlockSettings
                     )
-                    
-                        Surface(
-                            onClick = onToggleDanmaku,
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (isDanmakuEnabled) palette.accentSoft else palette.scrim.copy(alpha = 0.34f),
-                            modifier = Modifier.height(32.dp)
-                        ) {
+                    AppSurface(
+                        onClick = onToggleDanmaku,
+                        shape = AppShapes.container(ContainerLevel.Pill),
+                        color = if (isDanmakuEnabled) {
+                            palette.accentSoft
+                        } else {
+                            palette.scrim.copy(alpha = 0.34f)
+                        },
+                        modifier = Modifier
+                            .height(controlVisualSpec.rowHeightDp.dp)
+                            .semantics {
+                                selected = isDanmakuEnabled
+                                stateDescription = if (isDanmakuEnabled) "已开启" else "已关闭"
+                            }
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp)
+                            modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium)
                         ) {
-                                Icon(
-                                    imageVector = CupertinoIcons.Filled.TextBubble,
-                                    contentDescription = null,
-                                    tint = if (isDanmakuEnabled) palette.accentStrong else Color.White.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = if (isDanmakuEnabled) "弹幕 开" else "弹幕 关",
-                                    color = if (isDanmakuEnabled) palette.accentStrong else Color.White.copy(alpha = 0.5f),
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
+                            Icon(
+                                imageVector = commentIcon,
+                                contentDescription = null,
+                                tint = if (isDanmakuEnabled) {
+                                    palette.accentStrong
+                                } else {
+                                    LiveStatusPalette.MediaContent.copy(alpha = 0.5f)
+                                },
+                                modifier = Modifier.size(controlVisualSpec.iconSizeDp.dp)
+                            )
+                            Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
+                            Text(
+                                text = if (isDanmakuEnabled) "弹幕 开" else "弹幕 关",
+                                color = if (isDanmakuEnabled) {
+                                    palette.accentStrong
+                                } else {
+                                    LiveStatusPalette.MediaContent.copy(alpha = 0.5f)
+                                },
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
                     }
                     
-                    PlayerIconBtn(
+                    LivePlayerIconButton(
                         icon = Icons.Outlined.Settings,
+                        label = "弹幕设置",
+                        selected = false,
+                        enabled = true,
                         onClick = onOpenDanmakuSettings
                     )
                     
                     if (showChatToggle) {
-                        Surface(
+                        AppSurface(
                             onClick = {
                                 com.android.purebilibili.core.util.Logger.d("LivePlayerControls", "Chat toggle clicked, current visible: $isChatVisible")
                                 onToggleChat()
                             },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = AppShapes.container(ContainerLevel.Pill),
                             color = if (isChatVisible) palette.accentSoft else palette.scrim.copy(alpha = 0.34f),
-                            modifier = Modifier.height(32.dp)
+                            modifier = Modifier
+                                .height(controlVisualSpec.rowHeightDp.dp)
+                                .semantics {
+                                    selected = isChatVisible
+                                    stateDescription = if (isChatVisible) "已展开" else "已收起"
+                                }
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 12.dp)
+                                modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium)
                             ) {
                                 Icon(
-                                    imageVector = CupertinoIcons.Filled.BubbleLeft,
+                                    imageVector = commentIcon,
                                     contentDescription = null,
-                                    tint = if (isChatVisible) palette.accentStrong else Color.White.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(14.dp)
+                                    tint = if (isChatVisible) palette.accentStrong else LiveStatusPalette.MediaContent.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(controlVisualSpec.iconSizeDp.dp)
                                 )
-                                Spacer(Modifier.width(4.dp))
+                                Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
                                 Text(
                                     text = "互动区",
-                                    color = if (isChatVisible) palette.accentStrong else Color.White.copy(alpha = 0.5f),
+                                    color = if (isChatVisible) palette.accentStrong else LiveStatusPalette.MediaContent.copy(alpha = 0.5f),
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
@@ -515,26 +607,26 @@ fun LivePlayerControls(
                     }
 
                     if (videoFitDesc.isNotBlank()) {
-                        Surface(
+                        AppSurface(
                             onClick = onVideoFitClick,
-                            shape = RoundedCornerShape(16.dp),
+                            shape = AppShapes.container(ContainerLevel.Pill),
                             color = palette.scrim.copy(alpha = 0.42f),
-                            modifier = Modifier.height(32.dp)
+                            modifier = Modifier.height(controlVisualSpec.rowHeightDp.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 12.dp)
+                                modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium)
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.AspectRatio,
                                     contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
+                                    tint = LiveStatusPalette.MediaContent,
+                                    modifier = Modifier.size(controlVisualSpec.iconSizeDp.dp)
                                 )
-                                Spacer(Modifier.width(4.dp))
+                                Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
                                 Text(
                                     text = videoFitDesc,
-                                    color = Color.White,
+                                    color = LiveStatusPalette.MediaContent,
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
@@ -542,19 +634,19 @@ fun LivePlayerControls(
                     }
 
                     if (currentQualityDesc.isNotBlank()) {
-                        Surface(
+                        AppSurface(
                             onClick = onQualityClick,
-                            shape = RoundedCornerShape(16.dp),
+                            shape = AppShapes.container(ContainerLevel.Pill),
                             color = palette.scrim.copy(alpha = 0.42f),
-                            modifier = Modifier.height(32.dp)
+                            modifier = Modifier.height(controlVisualSpec.rowHeightDp.dp)
                         ) {
                             Box(
                                 contentAlignment = Alignment.Center,
-                                modifier = Modifier.padding(horizontal = 12.dp)
+                                modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium)
                             ) {
                                 Text(
                                     text = currentQualityDesc,
-                                    color = Color.White,
+                                    color = LiveStatusPalette.MediaContent,
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
@@ -562,11 +654,14 @@ fun LivePlayerControls(
                     }
                 }
 
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(AppSpacingTokens.Medium))
                 
                 // 全屏
-                PlayerIconBtn(
-                    icon = if (isFullscreen) CupertinoIcons.Default.ArrowDownRightAndArrowUpLeft else CupertinoIcons.Default.ArrowUpLeftAndArrowDownRight,
+                LivePlayerIconButton(
+                    icon = if (isFullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
+                    label = if (isFullscreen) "退出全屏" else "进入全屏",
+                    selected = false,
+                    enabled = true,
                     onClick = onToggleFullscreen
                 )
             }

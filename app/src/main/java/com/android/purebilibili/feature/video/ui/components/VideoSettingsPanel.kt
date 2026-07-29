@@ -5,7 +5,6 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,25 +17,18 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-//  Cupertino Icons
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PhotoCamera
 import com.android.purebilibili.core.store.LONG_PRESS_SPEED_OPTIONS
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.ui.rememberAppChevronForwardIcon
+import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.rememberAppCodecIcon
 import com.android.purebilibili.core.ui.rememberAppDownloadIcon
 import com.android.purebilibili.core.ui.rememberAppFlipHorizontalIcon
@@ -52,16 +44,14 @@ import com.android.purebilibili.core.ui.rememberAppSpeedIcon
 import com.android.purebilibili.core.ui.rememberAppTimerIcon
 import com.android.purebilibili.core.ui.rememberAppWifiIcon
 import com.android.purebilibili.core.ui.components.DefaultPlaybackSpeedPreferenceControl
+import com.android.purebilibili.core.ui.components.AppPreference
+import com.android.purebilibili.core.ui.components.AppSwitchPreference
 import com.android.purebilibili.core.ui.components.formatDefaultPlaybackSpeed
 import com.android.purebilibili.data.model.response.AiAudioInfo
 import com.android.purebilibili.feature.plugin.CdnLineDiagnostic
 import com.android.purebilibili.feature.anime4k.Anime4KBypassReason
 import com.android.purebilibili.feature.anime4k.Anime4KPreset
 import com.android.purebilibili.core.ui.AppSurfaceTokens
-import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
-import top.yukonga.miuix.kmp.preference.ArrowPreference as MiuixArrowPreference
-import top.yukonga.miuix.kmp.preference.SwitchPreference as MiuixSwitchPreference
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private data class VideoSettingsPanelVisualSpec(
@@ -79,10 +69,9 @@ private data class VideoSettingsPanelVisualSpec(
 )
 
 private fun resolveVideoSettingsPanelVisualSpec(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
+    usesTonalContainerTreatment: Boolean,
 ): VideoSettingsPanelVisualSpec {
-    return if (uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX) {
+    return if (usesTonalContainerTreatment) {
         VideoSettingsPanelVisualSpec(
             rowHorizontalPadding = 16.dp,
             rowVerticalPadding = 12.dp,
@@ -115,18 +104,20 @@ private fun resolveVideoSettingsPanelVisualSpec(
 
 @Composable
 private fun rememberVideoSettingsPanelVisualSpec(): VideoSettingsPanelVisualSpec {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    return remember(uiPreset, androidNativeVariant) {
-        resolveVideoSettingsPanelVisualSpec(uiPreset, androidNativeVariant)
+    val usesTonalContainerTreatment = rememberAppPlayerChromeProfile()
+        .effects
+        .usesTonalContainerTreatment
+    return remember(usesTonalContainerTreatment) {
+        resolveVideoSettingsPanelVisualSpec(usesTonalContainerTreatment)
     }
 }
 
 @Composable
 private fun videoSettingsChipContainerColor(isSelected: Boolean): Color {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    return if (uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX) {
+    val usesTonalContainerTreatment = rememberAppPlayerChromeProfile()
+        .effects
+        .usesTonalContainerTreatment
+    return if (usesTonalContainerTreatment) {
         if (isSelected) AppSurfaceTokens.secondaryContainer() else AppSurfaceTokens.surfaceContainerHigh()
     } else {
         if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
@@ -135,9 +126,10 @@ private fun videoSettingsChipContainerColor(isSelected: Boolean): Color {
 
 @Composable
 private fun videoSettingsChipContentColor(isSelected: Boolean): Color {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    return if (uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX) {
+    val usesTonalContainerTreatment = rememberAppPlayerChromeProfile()
+        .effects
+        .usesTonalContainerTreatment
+    return if (usesTonalContainerTreatment) {
         if (isSelected) AppSurfaceTokens.onSecondaryContainer() else AppSurfaceTokens.onSurfaceVariantSummary()
     } else {
         if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -226,14 +218,13 @@ fun VideoSettingsPanel(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val panelSpec = rememberVideoSettingsPanelVisualSpec()
-    val androidNativeVariant = LocalAndroidNativeVariant.current
+    val usesTonalContainerTreatment = rememberAppPlayerChromeProfile()
+        .effects
+        .usesTonalContainerTreatment
     val context = androidx.compose.ui.platform.LocalContext.current
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val actionPolicy = remember(configuration.screenWidthDp, androidNativeVariant) {
-        resolveVideoSettingsPanelActionPolicy(
-            widthDp = configuration.screenWidthDp,
-            androidNativeVariant = androidNativeVariant
-        )
+    val actionPolicy = remember(configuration.screenWidthDp) {
+        resolveVideoSettingsPanelActionPolicy(widthDp = configuration.screenWidthDp)
     }
     val scope = rememberCoroutineScope()
     val seekForwardSeconds by com.android.purebilibili.core.store.SettingsManager
@@ -283,7 +274,7 @@ fun VideoSettingsPanel(
     val gestureTapIcon = rememberAppGestureTapIcon()
     val settingsIcon = rememberAppSettingsIcon()
     
-    com.android.purebilibili.core.ui.IOSModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
     ) {
@@ -293,7 +284,7 @@ fun VideoSettingsPanel(
                 .navigationBarsPadding(),
             contentPadding = PaddingValues(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(
-                if (LocalAndroidNativeVariant.current == AndroidNativeVariant.MIUIX) 4.dp else 8.dp
+                if (usesTonalContainerTreatment) 4.dp else 8.dp
             )
         ) {
             //  定时关闭 - 垂直布局，选项在下一行
@@ -309,7 +300,7 @@ fun VideoSettingsPanel(
                         Icon(
                             imageVector = timerIcon,
                             contentDescription = null,
-                            tint = if (LocalAndroidNativeVariant.current == AndroidNativeVariant.MIUIX) {
+                            tint = if (usesTonalContainerTreatment) {
                                 AppSurfaceTokens.onSurfaceVariantActions()
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
@@ -1135,64 +1126,14 @@ private fun VideoSettingsSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val spec = rememberVideoSettingsPanelVisualSpec()
-    if (uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX) {
-        MiuixSwitchPreference(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            title = title,
-            summary = subtitle,
-            insideMargin = PaddingValues(
-                horizontal = spec.rowHorizontalPadding,
-                vertical = spec.rowVerticalPadding
-            ),
-            startAction = {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = AppSurfaceTokens.onSurfaceVariantActions(),
-                    modifier = Modifier.size(spec.iconSize)
-                )
-            }
-        )
-        return
-    }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = Modifier.scale(0.8f)
-        )
-    }
+    AppSwitchPreference(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        iconTint = AppSurfaceTokens.onSurfaceVariantActions(),
+    )
 }
 
 @Composable
@@ -1203,92 +1144,15 @@ private fun SettingsItem(
     onClick: () -> Unit,
     trailing: @Composable (() -> Unit)? = null
 ) {
-    val chevronIcon = rememberAppChevronForwardIcon()
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val spec = rememberVideoSettingsPanelVisualSpec()
-    if (uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX) {
-        val startAction: @Composable () -> Unit = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = AppSurfaceTokens.onSurfaceVariantActions(),
-                modifier = Modifier.size(spec.iconSize)
-            )
-        }
-        val insideMargin = PaddingValues(
-            horizontal = spec.rowHorizontalPadding,
-            vertical = spec.rowVerticalPadding
-        )
-        if (trailing == null) {
-            MiuixArrowPreference(
-                title = title,
-                titleColor = BasicComponentDefaults.titleColor(),
-                summary = subtitle,
-                summaryColor = BasicComponentDefaults.summaryColor(),
-                onClick = onClick,
-                insideMargin = insideMargin,
-                startAction = startAction
-            )
-        } else {
-            BasicComponent(
-                title = title,
-                summary = subtitle,
-                onClick = onClick,
-                insideMargin = insideMargin,
-                startAction = startAction,
-                endActions = { trailing() }
-            )
-        }
-        return
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = spec.rowMinHeight)
-            .clickable(onClick = onClick)
-            .padding(horizontal = spec.rowHorizontalPadding, vertical = spec.rowVerticalPadding),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // 图标
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(spec.iconSize)
-        )
-        
-        Spacer(modifier = Modifier.width(spec.iconGap))
-        
-        // 标题和副标题
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        
-        // 右侧内容
-        if (trailing != null) {
-            trailing()
-        } else {
-            Icon(
-                imageVector = chevronIcon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(16.dp)
-            )
-        }
-    }
+    AppPreference(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        onClick = onClick,
+        iconTint = AppSurfaceTokens.onSurfaceVariantActions(),
+        showChevron = trailing == null,
+        trailingContent = trailing,
+    )
 }
 
 @Composable
@@ -1523,11 +1387,13 @@ private fun SettingsActionPill(
     onClick: () -> Unit,
     policy: VideoSettingsPanelActionPolicy
 ) {
-    val spec = rememberVideoSettingsPanelVisualSpec()
+    val usesTonalContainerTreatment = rememberAppPlayerChromeProfile()
+        .effects
+        .usesTonalContainerTreatment
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(policy.pillHeightDp.dp),
-        color = if (LocalAndroidNativeVariant.current == AndroidNativeVariant.MIUIX) {
+        color = if (usesTonalContainerTreatment) {
             AppSurfaceTokens.secondaryContainer()
         } else {
             MaterialTheme.colorScheme.secondaryContainer

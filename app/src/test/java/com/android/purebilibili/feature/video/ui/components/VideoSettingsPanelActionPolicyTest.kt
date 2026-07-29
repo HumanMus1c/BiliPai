@@ -51,13 +51,14 @@ class VideoSettingsPanelActionPolicyTest {
     }
 
     @Test
-    fun videoSettingsPanel_routesMiuixRowsToOfficialPreferences() {
+    fun videoSettingsPanel_usesStyleNeutralPreferenceEntrypoints() {
         val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/VideoSettingsPanel.kt")
             .readText()
 
         assertTrue(source.contains("VideoSettingsSwitchRow("))
-        assertTrue(source.contains("MiuixSwitchPreference("))
-        assertTrue(source.contains("MiuixArrowPreference("))
+        assertTrue(source.contains("AppSwitchPreference("))
+        assertTrue(source.contains("AppPreference("))
+        assertTrue(source.contains("rememberAppPlayerChromeProfile()"))
     }
 
 }

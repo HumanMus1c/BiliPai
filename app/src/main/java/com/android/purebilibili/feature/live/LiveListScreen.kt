@@ -1,7 +1,6 @@
 package com.android.purebilibili.feature.live
 
 import android.app.Application
-import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -14,16 +13,15 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.Badge
+import com.android.purebilibili.core.ui.components.AppBadge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -36,11 +34,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,9 +50,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.android.purebilibili.core.network.NetworkModule
-import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
-import com.android.purebilibili.core.ui.LocalSharedTransitionScope
-import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
+import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.data.model.response.LiveAreaParent
@@ -276,19 +277,20 @@ fun LiveListScreen(
     }
 
     val windowSizeClass = LocalWindowSizeClass.current
-    val metrics = resolveLivePiliPlusHomeMetrics()
+    val topChromePolicy = rememberAppTopChromePolicy()
+    val visualSpec = remember(topChromePolicy.tabPresentation) {
+        resolveLiveVisualSpec(topChromePolicy.tabPresentation)
+    }
+    val metrics = visualSpec.homeMetrics
     val contentWidth = if (windowSizeClass.isExpandedScreen) {
-        minOf(windowSizeClass.widthDp, 1100.dp)
+        minOf(windowSizeClass.widthDp, visualSpec.maxContentWidthDp.dp)
     } else {
         windowSizeClass.widthDp
     }
-    val gridColumns = remember(contentWidth) {
-        resolveLivePiliPlusGridColumns(contentWidth.value.toInt(), windowSizeClass.isExpandedScreen)
+    val gridColumns = remember(contentWidth, windowSizeClass.isTablet) {
+        resolveLivePiliPlusGridColumns(contentWidth.value.toInt(), windowSizeClass.isTablet)
     }
-    val gridBottomPadding = resolveBottomSafeAreaPadding(
-        navigationBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
-        extraBottomPadding = 100.dp
-    )
+    val gridBottomPadding = LocalBottomBarContentPadding.current
 
     Box(
         modifier = Modifier
@@ -297,9 +299,9 @@ fun LiveListScreen(
     ) {
         Column(
             modifier = Modifier
+                .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
                 .fillMaxSize()
                 .statusBarsPadding()
-                .responsiveContentWidth(maxWidth = 1100.dp)
         ) {
             LiveListHeader(
                 metrics = metrics,
@@ -314,7 +316,7 @@ fun LiveListScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(top = 4.dp)
+                    .padding(top = AppSpacingTokens.ExtraSmall)
             ) {
                 when {
                     state.isLoading -> {
@@ -338,6 +340,7 @@ fun LiveListScreen(
                             gridColumns = gridColumns,
                             bottomPadding = gridBottomPadding,
                             metrics = metrics,
+                            visualSpec = visualSpec,
                             onLiveClick = onLiveClick,
                             onAreaSelected = viewModel::selectHomeArea,
                             onAreaDetailClick = onAreaDetailClick,
@@ -363,6 +366,7 @@ private fun LiveHomeContent(
     gridColumns: Int,
     bottomPadding: androidx.compose.ui.unit.Dp,
     metrics: LivePiliPlusHomeMetrics,
+    visualSpec: LiveVisualSpec,
     onLiveClick: (Long, String, String) -> Unit,
     onAreaSelected: (Int) -> Unit,
     onAreaDetailClick: (Int, Int, String) -> Unit,
@@ -419,10 +423,13 @@ private fun LiveHomeContent(
         }
         when {
             isAreaLoading -> item(span = { GridItemSpan(maxLineSpan) }) { LiveListLoadingState() }
-            contentItems.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) { EmptyState("暂无直播内容") }
+            contentItems.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
+                EmptyState("暂无直播内容", visualSpec)
+            }
             else -> items(contentItems, key = { it.roomId }) { item ->
                 LiveRoomCard(
-                    item = item,
+                    model = item.toLiveRoomCardUiModel(),
+                    enableSharedCoverTransition = true,
                     onClick = { onLiveClick(item.roomId, item.title, item.uname) }
                 )
             }
@@ -441,20 +448,24 @@ private fun LiveListHeader(
     onAvatarClick: () -> Unit
 ) {
     val palette = rememberLiveChromePalette()
+    val compactChrome = rememberAppTopChromePolicy().compactChromeSpec
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = metrics.safeSpaceDp.dp, vertical = 8.dp)
+            .padding(
+                horizontal = metrics.safeSpaceDp.dp,
+                vertical = AppSpacingTokens.Small,
+            )
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
         ) {
-            Surface(
+            AppSurface(
                 onClick = onBack,
                 color = Color.Transparent,
                 shape = CircleShape,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -464,14 +475,18 @@ private fun LiveListHeader(
                     )
                 }
             }
-            Surface(
+            AppSurface(
                 onClick = onSearchClick,
                 color = palette.searchField,
-                shape = RoundedCornerShape(32.dp),
-                modifier = Modifier.weight(1f)
+                shape = AppShapes.container(ContainerLevel.Pill),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(compactChrome.primaryHeightDp.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 13.dp),
+                    modifier = Modifier.padding(
+                        horizontal = compactChrome.inputHorizontalPaddingDp.dp,
+                    ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -479,20 +494,20 @@ private fun LiveListHeader(
                         contentDescription = null,
                         tint = palette.secondaryText
                     )
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(AppSpacingTokens.Medium))
                     Text(
                         text = "搜索直播间 / 主播",
                         color = palette.secondaryText,
-                        fontSize = 14.sp
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             }
             Box {
-                Surface(
+                AppSurface(
                     onClick = onInboxClick,
                     color = Color.Transparent,
                     shape = CircleShape,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
@@ -503,39 +518,46 @@ private fun LiveListHeader(
                     }
                 }
                 if (livingCount > 0) {
-                    Badge(
+                    AppBadge(
                         containerColor = palette.accentStrong,
                         contentColor = palette.onAccent,
                         modifier = Modifier.align(Alignment.TopEnd)
                     ) {
                         Text(
                             text = if (livingCount > 99) "99+" else livingCount.toString(),
-                            fontSize = 10.sp
+                            style = MaterialTheme.typography.labelSmall,
                         )
                     }
                 }
             }
-            Surface(
-                onClick = onAvatarClick,
-                color = palette.surfaceMuted,
-                shape = CircleShape,
-                modifier = Modifier.size(40.dp)
+            Box(
+                modifier = Modifier
+                    .size(AppSpacingTokens.TripleExtraLarge)
+                    .clickable(onClick = onAvatarClick)
+                    .semantics { contentDescription = "全部直播分区" },
+                contentAlignment = Alignment.Center,
             ) {
-                if (primaryFace.isNotBlank()) {
-                    AsyncImage(
-                        model = primaryFace,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "LIVE",
-                            color = palette.primaryText,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold
+                AppSurface(
+                    color = palette.surfaceMuted,
+                    shape = CircleShape,
+                    modifier = Modifier.size(compactChrome.secondaryButtonSizeDp.dp)
+                ) {
+                    if (primaryFace.isNotBlank()) {
+                        AsyncImage(
+                            model = primaryFace,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
                         )
+                    } else {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "LIVE",
+                                color = palette.primaryText,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }
@@ -557,18 +579,18 @@ private fun LiveFollowHeader(
             Text(
                 text = "我的关注  ",
                 color = palette.primaryText,
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium
             )
             Text(
                 text = livingCount.toString(),
                 color = palette.accentStrong,
-                fontSize = 13.sp
+                style = MaterialTheme.typography.bodySmall,
             )
             Text(
                 text = " 人正在直播",
                 color = palette.secondaryText,
-                fontSize = 13.sp
+                style = MaterialTheme.typography.bodySmall,
             )
         }
         Row(
@@ -578,13 +600,13 @@ private fun LiveFollowHeader(
             Text(
                 text = "查看更多",
                 color = palette.secondaryText,
-                fontSize = 14.sp
+                style = MaterialTheme.typography.labelLarge,
             )
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
             Text(
                 text = ">",
                 color = palette.secondaryText,
-                fontSize = 18.sp,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -598,7 +620,7 @@ private fun LiveFollowAvatarRow(
     onLiveClick: (Long, String, String) -> Unit
 ) {
     val palette = rememberLiveChromePalette()
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
         items(items, key = { it.roomId }) { item ->
             Column(
                 modifier = Modifier
@@ -612,7 +634,7 @@ private fun LiveFollowAvatarRow(
                             .size((metrics.followAvatarSizeDp + 5).dp)
                             .clip(CircleShape)
                             .background(palette.accentStrong)
-                            .padding(2.dp)
+                            .padding(AppSpacingTokens.Micro)
                     ) {
                         AsyncImage(
                             model = item.face.ifBlank { item.cover },
@@ -625,12 +647,11 @@ private fun LiveFollowAvatarRow(
                         )
                     }
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(AppSpacingTokens.Small))
                 Text(
                     text = item.uname,
                     color = palette.primaryText,
-                    fontSize = 12.sp,
-                    lineHeight = 12.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center
@@ -655,11 +676,14 @@ private fun LiveAreaHomeChipRow(
             areaIds = areaList.map { it.id }
         )
     }
-    val segmentedSpec = remember { resolveLiveHomeCategorySegmentedControlSpec() }
+    val compactChrome = rememberAppTopChromePolicy().compactChromeSpec
+    val segmentedSpec = remember(compactChrome) {
+        resolveLiveHomeCategorySegmentedControlSpec(compactChrome)
+    }
     val scrollState = rememberScrollState()
     val density = LocalDensity.current
     val itemWidthPx = with(density) { (segmentedSpec.itemWidthDp ?: 0).dp.toPx() }
-    val scrollEdgeBufferPx = with(density) { 20.dp.toPx() }
+    val scrollEdgeBufferPx = with(density) { segmentedSpec.edgeBufferDp.dp.toPx() }
     var indicatorPosition by remember { mutableFloatStateOf(selectedIndex.toFloat()) }
 
     LaunchedEffect(selectedIndex) {
@@ -700,6 +724,8 @@ private fun LiveAreaHomeChipRow(
                 categoryItems.getOrNull(index)?.let { onAreaSelected(it.first) }
             },
             itemWidth = segmentedSpec.itemWidthDp?.dp,
+            height = segmentedSpec.heightDp.dp,
+            indicatorHeight = segmentedSpec.indicatorHeightDp.dp,
             labelFontSize = segmentedSpec.labelFontSizeSp.sp,
             containerHorizontalPadding = segmentedSpec.containerHorizontalPaddingDp.dp,
             containerVerticalPadding = segmentedSpec.containerVerticalPaddingDp.dp,
@@ -720,9 +746,9 @@ private fun LiveAreaChildChipRow(
         selectedContent = colorScheme.onSecondaryContainer,
         unselectedContent = colorScheme.onSurfaceVariant
     )
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)) {
         items(items, key = { it.id }) { child ->
-            Surface(
+            AppSurface(
                 onClick = {
                     onAreaDetailClick(
                         parentAreaId,
@@ -731,15 +757,17 @@ private fun LiveAreaChildChipRow(
                     )
                 },
                 color = chipColors.unselectedContainerColor,
-                shape = RoundedCornerShape(999.dp),
+                shape = AppShapes.container(ContainerLevel.Pill),
                 border = null
             ) {
                 Text(
                     text = child.name,
                     color = chipColors.unselectedContentColor,
-                    fontSize = 13.sp,
-                    lineHeight = 13.sp,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(
+                        horizontal = AppSpacingTokens.Small,
+                        vertical = AppSpacingTokens.ExtraSmall,
+                    )
                 )
             }
         }
@@ -752,13 +780,13 @@ private fun LiveListLoadingState() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(AppSpacingTokens.ExtraLarge),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = "直播内容加载中…",
             color = palette.secondaryText,
-            fontSize = 14.sp
+            style = MaterialTheme.typography.bodyMedium,
         )
     }
 }
@@ -777,28 +805,31 @@ private fun LiveListErrorState(
         Text(
             text = message,
             color = palette.primaryText,
-            fontSize = 15.sp
+            style = MaterialTheme.typography.bodyLarge,
         )
-        Spacer(Modifier.height(12.dp))
-        OutlinedButton(onClick = onRetry) {
+        Spacer(Modifier.height(AppSpacingTokens.Medium))
+        AppOutlinedButton(onClick = onRetry) {
             Text("重试")
         }
     }
 }
 
 @Composable
-private fun EmptyState(message: String) {
+private fun EmptyState(
+    message: String,
+    visualSpec: LiveVisualSpec,
+) {
     val palette = rememberLiveChromePalette()
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 40.dp),
+            .padding(vertical = AppSpacingTokens.DoubleExtraLarge),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
     ) {
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(visualSpec.emptyStateContainerSizeDp.dp)
                 .clip(CircleShape)
                 .background(palette.surfaceMuted),
             contentAlignment = Alignment.Center
@@ -807,122 +838,23 @@ private fun EmptyState(message: String) {
                 imageVector = Icons.Outlined.NotificationsNone,
                 contentDescription = null,
                 tint = palette.secondaryText,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(visualSpec.emptyStateIconSizeDp.dp)
             )
         }
         Text(
             text = message,
             color = palette.secondaryText,
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center
         )
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
-@Composable
-private fun LiveRoomCard(
-    item: LiveRoomItem,
-    onClick: () -> Unit
-) {
-    val palette = rememberLiveChromePalette()
-    val metrics = resolveLivePiliPlusHomeMetrics()
-    val sharedTransitionScope = LocalSharedTransitionScope.current
-    val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(metrics.cardRadiusDp.dp),
-        color = palette.surfaceElevated,
-        border = null,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(metrics.coverAspectRatio)
-                    .then(
-                        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                            with(sharedTransitionScope) {
-                                Modifier.sharedElement(
-                                    sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.liveCoverSharedElementKey(item.roomId)),
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
-                            }
-                        } else {
-                            Modifier
-                        }
-                    )
-            ) {
-                AsyncImage(
-                    model = item.cover.ifBlank { item.face },
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    palette.scrim.copy(alpha = if (palette.isDark) 0.28f else 0.18f),
-                                    palette.scrim
-                                )
-                            )
-                        )
-                )
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .padding(start = 10.dp, end = 10.dp, bottom = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = item.areaName.ifBlank { "直播间" },
-                        color = Color.White.copy(alpha = 0.92f),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "${formatLiveViewerCount(item.online)}人看过",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-            Column(
-                modifier = Modifier
-                    .height(90.dp)
-                    .padding(start = 5.dp, top = 8.dp, end = 5.dp, bottom = 4.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = item.title,
-                    color = palette.primaryText,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Normal,
-                    lineHeight = 22.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = item.uname,
-                    color = palette.secondaryText,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
+private fun LiveRoomItem.toLiveRoomCardUiModel() = LiveRoomCardUiModel(
+    roomId = roomId,
+    title = title,
+    coverUrl = cover.ifBlank { face },
+    hostName = uname,
+    viewerCount = online,
+    areaName = areaName,
+)

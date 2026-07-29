@@ -33,13 +33,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.ThumbUp
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -140,7 +140,7 @@ private fun CommandDanmakuCard(
     val x = resolveCommandDanmakuHorizontalOffsetPx(containerWidth, cardWidthPx, xRatio)
     val y = (containerHeight * yRatio).roundToInt()
 
-    Surface(
+    AppSurface(
         modifier = Modifier
             .offset { IntOffset(x, y) }
             .width(cardWidthDp.dp),
@@ -231,7 +231,7 @@ private fun AttentionCommandCard(
                 Spacer(Modifier.height(6.dp))
         }
         val label = resolveAttentionCommandLabel(item.attentionType)
-        Button(
+        AppButton(
             onClick = {
                 val action = resolveAttentionCommandClickAction(
                     attentionType = item.attentionType,
@@ -274,7 +274,7 @@ private fun CommandDanmakuCloseButton(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    IconButton(
+    AppIconButton(
         onClick = onDismiss,
         modifier = modifier.size(30.dp),
         colors = IconButtonDefaults.iconButtonColors(
@@ -360,7 +360,7 @@ private fun CommandTripleActionIcon(
     progress: Float,
     color: Color
 ) {
-    Surface(
+    AppSurface(
         shape = CircleShape,
         color = Color.White.copy(alpha = 0.92f),
         contentColor = color,

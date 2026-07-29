@@ -3,6 +3,8 @@ package com.android.purebilibili.feature.video.player
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class PlaylistManagerShufflePolicyTest {
 
@@ -160,6 +162,36 @@ class PlaylistManagerShufflePolicyTest {
 
         assertEquals("BV1", PlaylistManager.playNext()?.bvid)
         assertEquals(0, PlaylistManager.currentIndex.value)
+    }
+
+    @Test
+    fun `late playlist completion only appends to the session that started it`() {
+        val staleSession = PlaylistManager.setExternalPlaylist(
+            items = listOf(playlistItem("favorite-1")),
+            source = ExternalPlaylistSource.FAVORITE,
+        )
+        val currentSession = PlaylistManager.setExternalPlaylist(
+            items = listOf(playlistItem("watch-later-1")),
+            source = ExternalPlaylistSource.WATCH_LATER,
+        )
+
+        assertFalse(
+            PlaylistManager.addAllToPlaylistIfCurrent(
+                items = listOf(playlistItem("favorite-2")),
+                session = staleSession,
+            )
+        )
+        assertEquals(listOf("watch-later-1"), PlaylistManager.playlist.value.map { it.bvid })
+        assertTrue(
+            PlaylistManager.addAllToPlaylistIfCurrent(
+                items = listOf(playlistItem("watch-later-2")),
+                session = currentSession,
+            )
+        )
+        assertEquals(
+            listOf("watch-later-1", "watch-later-2"),
+            PlaylistManager.playlist.value.map { it.bvid },
+        )
     }
 
     private fun playlistItem(bvid: String) = PlaylistItem(

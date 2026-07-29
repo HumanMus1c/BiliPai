@@ -29,6 +29,8 @@ internal data class BottomPagerRenderBudget(
 
 internal const val BOTTOM_TAB_RENDER_BUDGET_HOLD_MILLIS = 220L
 internal const val BOTTOM_BAR_MAX_VISIBLE_ITEMS = 5
+// 底栏最多有 5 个栏目；预组合其余 4 页，避免跨多页动画途中临时创建中间页面。
+internal const val BOTTOM_PAGER_MAX_PRELOAD_DISTANCE = BOTTOM_BAR_MAX_VISIBLE_ITEMS - 1
 
 internal fun resolveTopLevelNavigationAction(
     currentRoute: String?,

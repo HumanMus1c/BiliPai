@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home.components.cards
 
+import com.android.purebilibili.core.ui.MediaContrastPalette
+
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,12 +45,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
+import com.android.purebilibili.core.ui.feedContentTypography
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
@@ -64,7 +74,7 @@ import io.github.alexzhirkevich.cupertino.icons.filled.BubbleLeft
 import io.github.alexzhirkevich.cupertino.icons.filled.Play
 import kotlinx.coroutines.launch
 
-internal val HOME_STYLE_SINGLE_COLUMN_COVER_WIDTH = 144.dp
+internal val HOME_STYLE_SINGLE_COLUMN_COVER_WIDTH = AppSpacingTokens.TripleExtraLarge * 3
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -81,6 +91,7 @@ internal fun HomeStyleSingleColumnVideoCard(
     onMoreClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val contentTypography = feedContentTypography()
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenWidthPx = remember(configuration.screenWidthDp, density) {
@@ -107,8 +118,8 @@ internal fun HomeStyleSingleColumnVideoCard(
         )
     }
     val cardBounds = remember { object { var value: Rect? = null } }
-    val cardShape = remember { RoundedCornerShape(12.dp) }
-    val coverShape = remember { RoundedCornerShape(10.dp) }
+    val cardShape = AppShapes.container(ContainerLevel.Card)
+    val coverShape = AppShapes.container(ContainerLevel.Field)
     val useCardShellSharedBounds = shouldUseVideoCardShellSharedBounds(
         sourceRoute = sourceRoute,
         transitionEnabled = sharedReady,
@@ -162,10 +173,10 @@ internal fun HomeStyleSingleColumnVideoCard(
                 crossfadeSourceContent = true,
             )
             .clip(cardShape)
-            .background(MaterialTheme.colorScheme.surface)
+            .background(AppSurfaceTokens.cardContainer())
             .clickable(onClick = triggerClick)
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(AppSpacingTokens.Small),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -183,18 +194,18 @@ internal fun HomeStyleSingleColumnVideoCard(
             )
             Text(
                 text = FormatUtils.formatDuration(video.duration),
-                color = Color.White,
-                style = MaterialTheme.typography.labelSmall.copy(
+                color = MediaContrastPalette.Foreground,
+                style = contentTypography.coverBadge.copy(
                     fontWeight = FontWeight.SemiBold,
                     shadow = Shadow(
-                        color = Color.Black.copy(alpha = 0.64f),
+                        color = MediaContrastPalette.Scrim.copy(alpha = 0.64f),
                         blurRadius = 4f,
                         offset = Offset(0f, 1f),
                     ),
                 ),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(6.dp),
+                    .padding(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro),
             )
         }
 
@@ -211,9 +222,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                 Text(
                     text = video.title,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Medium,
-                    ),
+                    style = contentTypography.title,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -222,8 +231,9 @@ internal fun HomeStyleSingleColumnVideoCard(
                     val moreHaptic = rememberHapticFeedback()
                     Box(
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(AppChromeSizeTokens.MinimumTouchTarget)
                             .clip(CircleShape)
+                            .semantics { contentDescription = "更多操作" }
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -236,7 +246,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                         Text(
                             text = "⋮",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 17.sp,
+                            fontSize = MaterialTheme.typography.titleMedium.fontSize,
                             fontWeight = FontWeight.Bold,
                         )
                     }
@@ -249,14 +259,14 @@ internal fun HomeStyleSingleColumnVideoCard(
                     {
                         Text(
                             text = "已关注",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = contentTypography.coverBadge,
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 } else {
                     null
                 },
-                nameStyle = MaterialTheme.typography.labelMedium,
+                nameStyle = contentTypography.author,
                 nameColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 badgeBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
@@ -269,7 +279,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                     icon = CupertinoIcons.Filled.Play,
                     text = FormatUtils.formatStat(video.stat.view.toLong()),
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
                 SingleColumnStatItem(
                     icon = CupertinoIcons.Filled.BubbleLeft,
                     text = FormatUtils.formatStat(video.stat.danmaku.toLong()),
@@ -284,19 +294,20 @@ private fun SingleColumnStatItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     text: String,
 ) {
+    val contentTypography = feedContentTypography()
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(14.dp),
+            modifier = Modifier.size(AppSpacingTokens.Medium + AppSpacingTokens.Micro),
         )
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall,
+            style = contentTypography.statistic,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

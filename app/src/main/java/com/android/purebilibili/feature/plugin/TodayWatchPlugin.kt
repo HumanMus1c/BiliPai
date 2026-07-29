@@ -8,12 +8,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,7 +42,7 @@ import com.android.purebilibili.core.plugin.RecommendedVideo
 import com.android.purebilibili.core.store.TodayWatchFeedbackSnapshot
 import com.android.purebilibili.core.store.TodayWatchFeedbackStore
 import com.android.purebilibili.core.store.TodayWatchProfileStore
-import com.android.purebilibili.core.ui.components.IOSSwitchItem
+import com.android.purebilibili.core.ui.components.AppSwitchPreference
 import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.feature.home.TodayWatchCreatorSignal
 import com.android.purebilibili.feature.home.TodayWatchMode
@@ -312,7 +312,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
             Text("UP主榜数量", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(3, 5, 8, 10).forEach { value ->
-                    FilterChip(
+                    AppFilterChip(
                         selected = uiConfig.upRankLimit == value,
                         onClick = { commit(uiConfig.copy(upRankLimit = value)) },
                         label = { Text("$value 个") }
@@ -323,7 +323,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
             Text("队列生成长度", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(12, 20, 30, 40).forEach { value ->
-                    FilterChip(
+                    AppFilterChip(
                         selected = uiConfig.queueBuildLimit == value,
                         onClick = {
                             val preview = uiConfig.queuePreviewLimit.coerceAtMost(value)
@@ -338,7 +338,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(4, 6, 8, 10).forEach { value ->
                     val clamped = value.coerceAtMost(uiConfig.queueBuildLimit)
-                    FilterChip(
+                    AppFilterChip(
                         selected = uiConfig.queuePreviewLimit == clamped,
                         onClick = { commit(uiConfig.copy(queuePreviewLimit = clamped)) },
                         label = { Text("$clamped 条") }
@@ -349,7 +349,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
             Text("历史样本量", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(40, 80, 120).forEach { value ->
-                    FilterChip(
+                    AppFilterChip(
                         selected = uiConfig.historySampleLimit == value,
                         onClick = { commit(uiConfig.copy(historySampleLimit = value)) },
                         label = { Text("$value 条") }
@@ -359,7 +359,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            IOSSwitchItem(
+            AppSwitchPreference(
                 icon = CupertinoIcons.Default.Sparkles,
                 title = "联动护眼信号",
                 subtitle = "夜间优先短时长、低刺激内容",
@@ -367,7 +367,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
                 onCheckedChange = { enabled -> commit(uiConfig.copy(linkEyeCareSignal = enabled)) }
             )
 
-            IOSSwitchItem(
+            AppSwitchPreference(
                 icon = CupertinoIcons.Default.Lightbulb,
                 title = "显示模式说明",
                 subtitle = "显示“已结合护眼状态”等提示文案",
@@ -375,7 +375,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
                 onCheckedChange = { enabled -> commit(uiConfig.copy(showReasonHint = enabled)) }
             )
 
-            IOSSwitchItem(
+            AppSwitchPreference(
                 icon = CupertinoIcons.Default.ListBullet,
                 title = "显示 UP 主榜",
                 subtitle = "在卡片中展示你近期偏好的创作者",
@@ -383,7 +383,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
                 onCheckedChange = { enabled -> commit(uiConfig.copy(showUpRank = enabled)) }
             )
 
-            IOSSwitchItem(
+            AppSwitchPreference(
                 icon = CupertinoIcons.Default.Sparkles,
                 title = "瀑布展开动画",
                 subtitle = "卡片内容按非线性节奏依次展开",
@@ -401,7 +401,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
                         1.6f to "明显",
                         1.9f to "强烈"
                     ).forEach { (value, label) ->
-                        FilterChip(
+                        AppFilterChip(
                             selected = kotlin.math.abs(uiConfig.waterfallExponent - value) < 0.01f,
                             onClick = { commit(uiConfig.copy(waterfallExponent = value)) },
                             label = { Text(label) }
@@ -424,7 +424,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            TextButton(
+            AppTextButton(
                 onClick = { showResetDialog = true }
             ) {
                 Text("清空本地推荐画像与反馈")
@@ -447,12 +447,12 @@ class TodayWatchPlugin : RecommendationPluginApi {
         }
 
         if (showResetDialog) {
-            AlertDialog(
+            AppAlertDialog(
                 onDismissRequest = { showResetDialog = false },
                 title = { Text("清空推荐画像") },
                 text = { Text("确定清空本地推荐画像与不感兴趣反馈吗？该操作不可恢复。") },
                 confirmButton = {
-                    TextButton(
+                    AppTextButton(
                         onClick = {
                             clearPersonalizationData()
                             feedbackSnapshot = TodayWatchFeedbackSnapshot()
@@ -465,7 +465,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showResetDialog = false }) {
+                    AppTextButton(onClick = { showResetDialog = false }) {
                         Text("取消")
                     }
                 }
@@ -533,7 +533,7 @@ private fun TodayWatchTasteInsightSection(
         Text("近期偏好 UP", style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             state.preferredCreators.forEach { signal ->
-                FilterChip(
+                AppFilterChip(
                     selected = false,
                     onClick = {},
                     label = { Text("${signal.label} · ${signal.value}") }
@@ -575,7 +575,7 @@ private fun TodayWatchTasteInsightSection(
         Text("已降权信号", style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             state.negativeSignals.forEach { signal ->
-                FilterChip(
+                AppFilterChip(
                     selected = false,
                     onClick = {},
                     label = { Text("${signal.label} · ${signal.value}") }

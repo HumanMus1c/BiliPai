@@ -144,10 +144,6 @@
 -keep class com.airbnb.lottie.** { *; }
 -dontwarn com.airbnb.lottie.**
 
-# === Shimmer ===
--keep class com.valentinilk.shimmer.** { *; }
--dontwarn com.valentinilk.shimmer.**
-
 # === Kotlin Coroutines ===
 -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
 -dontwarn kotlinx.coroutines.**

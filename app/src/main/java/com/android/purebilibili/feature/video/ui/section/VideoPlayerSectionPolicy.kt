@@ -4,8 +4,7 @@ import android.view.SurfaceView
 import android.view.TextureView
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppTopTabPresentation
 import com.android.purebilibili.feature.video.ui.components.GesturePercentMotionDefaults
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -700,13 +699,11 @@ enum class GestureLevelIconStyle {
 }
 
 internal fun resolveGestureLevelIconStyle(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+    presentation: AppTopTabPresentation,
 ): GestureLevelIconStyle {
     return when (
         com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle(
-            uiPreset = uiPreset,
-            androidNativeVariant = androidNativeVariant
+            presentation = presentation,
         )
     ) {
         com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle.Md3 ->

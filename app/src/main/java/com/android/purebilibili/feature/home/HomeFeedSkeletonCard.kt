@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -35,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode
 import com.android.purebilibili.core.theme.LocalCornerRadiusScale
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 
 @Composable
@@ -64,9 +68,8 @@ internal fun HomeFeedSkeletonCard(
     coverAspectRatio: Float = VIDEO_SHARED_COVER_ASPECT_RATIO,
     modifier: Modifier = Modifier
 ) {
-    val cornerRadiusScale = LocalCornerRadiusScale.current
-    val cardCornerRadius = 12.dp * cornerRadiusScale
-    val cardShape = remember(cardCornerRadius) { RoundedCornerShape(cardCornerRadius) }
+    val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Card)
+    val cardShape = AppShapes.container(ContainerLevel.Card)
     val isDarkCardTheme = AppSurfaceTokens.chromeBackground().luminance() < 0.5f
     val infoSurfaceAppearance = remember(
         wallpaperTintEnabled,
@@ -87,29 +90,19 @@ internal fun HomeFeedSkeletonCard(
     )
     val coverShape = remember(cardCornerRadius, infoSurfaceAppearance.useTintedSurface) {
         if (infoSurfaceAppearance.useTintedSurface) {
-            RoundedCornerShape(
-                topStart = cardCornerRadius,
-                topEnd = cardCornerRadius,
-                bottomStart = 0.dp,
-                bottomEnd = 0.dp
-            )
+            resolveHomeSkeletonCoverShape(cardCornerRadius)
         } else {
             cardShape
         }
     }
     val infoSurfaceShape = remember(cardCornerRadius) {
-        RoundedCornerShape(
-            topStart = 0.dp,
-            topEnd = 0.dp,
-            bottomStart = cardCornerRadius,
-            bottomEnd = cardCornerRadius
-        )
+        resolveHomeSkeletonInfoShape(cardCornerRadius)
     }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp)
+            .padding(bottom = AppSpacingTokens.Medium)
     ) {
         Box(
             modifier = Modifier
@@ -129,23 +122,23 @@ internal fun HomeFeedSkeletonCard(
                 )
                 .border(
                     border = BorderStroke(
-                        width = 0.8.dp,
+                        width = AppSpacingTokens.Micro * 0.4f,
                         color = MaterialTheme.colorScheme.onSurface
                             .copy(alpha = infoSurfaceAppearance.borderAlpha)
                     ),
                     shape = infoSurfaceShape
                 )
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Small)
         } else {
             Modifier.fillMaxWidth()
         }
 
         Column(modifier = infoModifier) {
             if (!infoSurfaceAppearance.useTintedSurface) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
             }
             HomeFeedSkeletonTitleRow(blockColor = blockColor)
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
             HomeFeedSkeletonMetaRow(blockColor = blockColor)
         }
     }
@@ -163,20 +156,20 @@ private fun HomeFeedSkeletonTitleRow(blockColor: Color) {
                 color = blockColor,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(16.dp)
+                    .height(AppSpacingTokens.Large)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
             HomeFeedSkeletonBlock(
                 color = blockColor,
                 modifier = Modifier
                     .fillMaxWidth(0.72f)
-                    .height(16.dp)
+                    .height(AppSpacingTokens.Large)
             )
         }
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
         HomeFeedSkeletonBlock(
             color = blockColor,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
             shape = CircleShape
         )
     }
@@ -186,19 +179,19 @@ private fun HomeFeedSkeletonTitleRow(blockColor: Color) {
 private fun HomeFeedSkeletonMetaRow(blockColor: Color) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
     ) {
         HomeFeedSkeletonBlock(
             color = blockColor,
             modifier = Modifier
-                .width(28.dp)
-                .height(14.dp)
+                .width(AppSpacingTokens.ExtraLarge + AppSpacingTokens.ExtraSmall)
+                .height(AppSpacingTokens.Medium + AppSpacingTokens.Micro)
         )
         HomeFeedSkeletonBlock(
             color = blockColor,
             modifier = Modifier
-                .width(96.dp)
-                .height(14.dp)
+                .width(AppSpacingTokens.TripleExtraLarge * 2)
+                .height(AppSpacingTokens.Medium + AppSpacingTokens.Micro)
         )
     }
 }
@@ -207,11 +200,12 @@ private fun HomeFeedSkeletonMetaRow(blockColor: Color) {
 private fun HomeFeedSkeletonBlock(
     color: Color,
     modifier: Modifier,
-    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(4.dp)
+    shape: androidx.compose.ui.graphics.Shape? = null
 ) {
+    val resolvedShape = shape ?: AppShapes.container(ContainerLevel.Tag)
     Box(
         modifier = modifier
-            .clip(shape)
+            .clip(resolvedShape)
             .background(color)
     )
 }

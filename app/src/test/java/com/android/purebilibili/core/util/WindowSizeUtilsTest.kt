@@ -4,6 +4,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isUnspecified
 import androidx.compose.ui.unit.sp
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -53,4 +54,32 @@ class WindowSizeUtilsTest {
         assertFalse(windowSizeClass.isCompactDevice)
         assertTrue(windowSizeClass.isTabletDevice)
     }
+
+    @Test
+    fun `responsive content claims parent width before centering constrained child`() {
+        val source = locateSource().readText()
+        val functionBody = source
+            .substringAfter("fun Modifier.responsiveContentWidth(")
+            .substringBefore("fun Modifier.centeredContent(")
+
+        val fillIndex = functionBody.indexOf(".fillMaxWidth()")
+        val wrapIndex = functionBody.indexOf(".wrapContentWidth(alignment)")
+        val limitIndex = functionBody.indexOf(".widthIn(max = maxWidth)")
+        val innerFillIndex = functionBody.indexOf(".fillMaxWidth()", limitIndex)
+
+        assertTrue(fillIndex >= 0)
+        assertTrue(fillIndex < wrapIndex, "外层必须先占满父容器，居中才有剩余空间")
+        assertTrue(wrapIndex < limitIndex, "限宽必须作用于被居中的内层内容")
+        assertTrue(
+            innerFillIndex > limitIndex,
+            "限宽之后必须再 fillMaxWidth，否则 wrapContentWidth 会把 minWidth 放成 0，" +
+                "窄屏上原本铺满父宽的内容会退化成按内容裁剪",
+        )
+        assertFalse(functionBody.contains("LocalWindowSizeClass.current"))
+    }
+
+    private fun locateSource(): File = listOf(
+        File("src/main/java/com/android/purebilibili/core/util/WindowSizeUtils.kt"),
+        File("app/src/main/java/com/android/purebilibili/core/util/WindowSizeUtils.kt"),
+    ).firstOrNull(File::exists) ?: error("Cannot locate WindowSizeUtils.kt")
 }

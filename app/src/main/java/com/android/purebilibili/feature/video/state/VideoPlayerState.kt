@@ -17,6 +17,7 @@ import android.net.Uri
 import android.os.Build
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.*
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.Format
@@ -973,7 +974,7 @@ fun rememberVideoPlayerState(
     }
 
     //  [后台恢复优化] 监听生命周期，保存/恢复播放状态
-    var savedPosition by remember { mutableStateOf(-1L) }
+    var savedPosition by remember { mutableLongStateOf(-1L) }
     var wasPlaying by remember { mutableStateOf(false) }
     //  [修复] 记录是否从后台音频模式恢复（后台音频时不应 seek 回旧位置）
     var wasBackgroundAudio by remember { mutableStateOf(false) }

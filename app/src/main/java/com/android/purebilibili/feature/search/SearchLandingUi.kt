@@ -33,12 +33,12 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.SuggestionChip
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppSuggestionChip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -262,7 +262,7 @@ fun SearchSuggestionDropdown(
 ) {
     if (suggestions.isEmpty()) return
 
-    Surface(
+    AppSurface(
         modifier = modifier,
         shape = AppShapes.container(ContainerLevel.Pill),
         tonalElevation = 8.dp,
@@ -404,7 +404,7 @@ private fun SearchKeywordSectionHeader(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (enabled) {
-                    IconButton(onClick = onRefresh, modifier = Modifier.size(40.dp)) {
+                    AppIconButton(onClick = onRefresh, modifier = Modifier.size(40.dp)) {
                         Icon(
                             imageVector = Icons.Rounded.Refresh,
                             contentDescription = "刷新搜索发现",
@@ -420,7 +420,7 @@ private fun SearchKeywordSectionHeader(
                             .height(18.dp)
                             .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f))
                     )
-                    IconButton(onClick = onToggleEnabled, modifier = Modifier.size(40.dp)) {
+                    AppIconButton(onClick = onToggleEnabled, modifier = Modifier.size(40.dp)) {
                         Icon(
                             imageVector = if (enabled) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                             contentDescription = if (enabled) "隐藏搜索发现" else "显示搜索发现",
@@ -453,7 +453,7 @@ private fun SearchKeywordSectionHeader(
                 overflow = TextOverflow.Ellipsis
             )
             if (showTrendingAction && enabled && onOpenTrending != null) {
-                TextButton(onClick = onOpenTrending) {
+                AppTextButton(onClick = onOpenTrending) {
                     Text(
                         text = "完整榜单",
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -473,7 +473,7 @@ private fun SearchKeywordSectionHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (enabled) {
-                IconButton(onClick = onRefresh, modifier = Modifier.size(40.dp)) {
+                AppIconButton(onClick = onRefresh, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = Icons.Rounded.Refresh,
                         contentDescription = "刷新搜索发现",
@@ -482,7 +482,7 @@ private fun SearchKeywordSectionHeader(
                 }
             }
             if (onToggleEnabled != null) {
-                IconButton(onClick = onToggleEnabled, modifier = Modifier.size(40.dp)) {
+                AppIconButton(onClick = onToggleEnabled, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = if (enabled) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                         contentDescription = if (enabled) "隐藏搜索发现" else "显示搜索发现",
@@ -503,7 +503,7 @@ private fun SearchDiscoverOriginalCell(
     val displaySubtitle = remember(item.subtitle) {
         resolveSearchDiscoverOriginalSubtitle(item.subtitle)
     }
-    SuggestionChip(
+    AppSuggestionChip(
         onClick = onClick,
         label = {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -619,7 +619,7 @@ private fun SearchHistorySectionModern(
                 text = "搜索历史",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             )
-            TextButton(onClick = onClear) {
+            AppTextButton(onClick = onClear) {
                 Text("清空")
             }
         }

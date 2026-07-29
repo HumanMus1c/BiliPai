@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-07-26 · Synced to v9.9.8.9 (source of truth: <a href="CHANGELOG.md">CHANGELOG</a> + code)</sub>
+  <sub>Last updated: 2026-07-28 · Development build: 9.9.9.1 · Latest documented release: v9.9.8.9</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-9.9.8.9-fb7299?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/Release-9.9.8.9-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/Platform-Android%208.0%2B%20(API%2026)-brightgreen?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/APK-Varies-orange?style=flat-square" alt="Size">
   <img src="https://img.shields.io/badge/License-Non--Commercial-blue?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/Plugins-7%20Built--in-blueviolet?style=flat-square" alt="Plugins">
+  <img src="https://img.shields.io/badge/Plugins-10%20Built--in-blueviolet?style=flat-square" alt="Plugins">
 </p>
 
 <p align="center">
@@ -394,7 +394,7 @@ A lightweight plugin format requiring **no coding**, just a simple JSON file to 
 ## 🗺️ Roadmap
 
 > [!TIP]
-> Roadmap last refreshed on 2026-04-17 (v7.9.1). For current behavior, prefer the latest release notes, `CHANGELOG.md`, and code.
+> This summary reflects the current direction. For implemented behavior and release status, prefer the code, `CHANGELOG.md`, and GitHub Releases.
 
 ### ✅ Completed
 
@@ -405,7 +405,7 @@ A lightweight plugin format requiring **no coding**, just a simple JSON file to 
 - [x] Live Streaming
 - [x] Dynamic Feed (with fast-switch stability improvements)
 - [x] Offline Download + current-video batch caching
-- [x] Search + History (avoid "Delete All" for now)
+- [x] Search + History (including single-item and batch deletion)
 - [x] Native article search + article detail + article-aware history navigation
 - [x] Material You + Dark Mode
 - [x] TV Login + first-play quality auth fixes for logged-in non-premium users
@@ -415,6 +415,7 @@ A lightweight plugin format requiring **no coding**, just a simple JSON file to 
 - [x] In-app update flow (manual + auto-check + startup prompt + in-app download/install)
 - [x] Plugin System Core
 - [x] Built-in Plugins
+- [x] Saved Account Sessions + Account Switching
 - [x] Message Center category pages (Replies / Mentions / Likes / System Notices) with deep-link routing
 - [x] Portrait video like/favorite interaction fixes with favorite-folder sync
 - [x] Seek preview redraw optimization and cross-tab bottom-bar switching polish
@@ -426,9 +427,9 @@ A lightweight plugin format requiring **no coding**, just a simple JSON file to 
 ### 📋 Planned
 
 - [ ] History Cloud Sync
-- [ ] Favorites Management
-- [ ] Multi-account
-- [ ] English/Traditional Chinese Support
+- [ ] Favorites Management Improvements
+- [ ] Per-account Data Isolation Improvements
+- [ ] Complete English/Traditional Chinese Coverage
 
 ---
 
@@ -442,7 +443,7 @@ See full changelog: [CHANGELOG.md](CHANGELOG.md)
 - Strict custom CDN mode, plus HDR TextureView, HEVC/hvc1, and DASH codec-selection fixes.
 - Faster home covers and transitions, single-column video lists, and reliable home-tab restoration.
 - Copy actions for UP profiles, plus dynamic forwarded-comment and pagination fixes.
-- Version metadata is updated to `9.9.8.9 / versionCode 264`.
+- The current development build is `9.9.9.1 / versionCode 266`; the latest fully documented release remains `v9.9.8.9`.
 
 ---
 
@@ -451,7 +452,7 @@ See full changelog: [CHANGELOG.md](CHANGELOG.md)
 ```bash
 git clone https://github.com/jay3-yy/BiliPai.git
 cd BiliPai
-./gradlew assembleDebug
+./gradlew :app:assembleDev
 ```
 
 ---

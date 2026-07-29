@@ -4,7 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,12 +51,12 @@ internal fun CollectionSubscriptionButton(
             }
     }
 
-    TextButton(
+    AppTextButton(
         enabled = !isUpdating,
         onClick = {
             if (collectionId <= 0L) {
                 Toast.makeText(context, "无法识别合集 ID", Toast.LENGTH_SHORT).show()
-                return@TextButton
+                return@AppTextButton
             }
             scope.launch {
                 isUpdating = true

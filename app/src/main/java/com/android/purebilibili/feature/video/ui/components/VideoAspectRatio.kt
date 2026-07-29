@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.ui.AspectRatioFrameLayout
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.anime4k.gl.Anime4KDisplayScaleMode
 import kotlin.math.roundToInt
 //  已改用 MaterialTheme.colorScheme.primary
@@ -132,7 +133,7 @@ fun AspectRatioMenu(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppSurface(
         modifier = modifier.widthIn(min = 120.dp, max = 200.dp),
         shape = RoundedCornerShape(12.dp),
         color = Color.Black.copy(alpha = 0.85f),
@@ -153,7 +154,7 @@ fun AspectRatioMenu(
             // 比例选项
             VideoAspectRatio.entries.forEach { ratio ->
                 val isSelected = ratio == currentRatio
-                Surface(
+                AppSurface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 2.dp),
@@ -186,7 +187,7 @@ fun AspectRatioButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppSurface(
         onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(6.dp),

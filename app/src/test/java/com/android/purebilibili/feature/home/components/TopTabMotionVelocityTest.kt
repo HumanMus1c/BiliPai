@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.home.components
 
 import androidx.compose.ui.graphics.Color
+import com.android.purebilibili.core.ui.AppTopTabPresentation
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -275,7 +276,7 @@ class TopTabMotionVelocityTest {
 
     @Test
     fun `top tab drag does not change search or list layout clearance`() {
-        val headerSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/iOSHomeHeader.kt")
+        val headerSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/HomeHeader.kt")
         val homeSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
 
         assertTrue(headerSource.contains("translationY = searchContentTranslationYPx"))
@@ -289,7 +290,7 @@ class TopTabMotionVelocityTest {
         assertEquals(
             false,
             shouldDrawLightweightTopTabItemContainer(
-                renderer = HomeTopTabRenderer.IOS,
+                presentation = AppTopTabPresentation.MOVING_CAPSULE,
                 skinPlainStyle = false,
                 hasSkinStickerIcon = false
             )
@@ -297,7 +298,7 @@ class TopTabMotionVelocityTest {
         assertEquals(
             true,
             shouldDrawLightweightTopTabItemContainer(
-                renderer = HomeTopTabRenderer.MD3,
+                presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
                 skinPlainStyle = false,
                 hasSkinStickerIcon = false
             )
@@ -305,7 +306,7 @@ class TopTabMotionVelocityTest {
         assertEquals(
             true,
             shouldDrawLightweightTopTabItemContainer(
-                renderer = HomeTopTabRenderer.IOS,
+                presentation = AppTopTabPresentation.MOVING_CAPSULE,
                 skinPlainStyle = false,
                 hasSkinStickerIcon = true
             )
@@ -316,21 +317,21 @@ class TopTabMotionVelocityTest {
     fun `capsule top tabs suppress rectangular item click indication`() {
         assertFalse(
             shouldUseLightweightTopTabItemClickIndication(
-                renderer = HomeTopTabRenderer.IOS,
+                presentation = AppTopTabPresentation.MOVING_CAPSULE,
                 skinPlainStyle = false,
                 usesCapsuleIndicator = true
             )
         )
         assertFalse(
             shouldUseLightweightTopTabItemClickIndication(
-                renderer = HomeTopTabRenderer.MD3,
+                presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
                 skinPlainStyle = false,
                 usesCapsuleIndicator = true
             )
         )
         assertFalse(
             shouldUseLightweightTopTabItemClickIndication(
-                renderer = HomeTopTabRenderer.MIUIX,
+                presentation = AppTopTabPresentation.TONAL_CAPSULE,
                 skinPlainStyle = false,
                 usesCapsuleIndicator = true
             )
@@ -341,14 +342,14 @@ class TopTabMotionVelocityTest {
     fun `plain md3 top tabs keep item click indication`() {
         assertTrue(
             shouldUseLightweightTopTabItemClickIndication(
-                renderer = HomeTopTabRenderer.MD3,
+                presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
                 skinPlainStyle = false,
                 usesCapsuleIndicator = false
             )
         )
         assertTrue(
             shouldUseLightweightTopTabItemClickIndication(
-                renderer = HomeTopTabRenderer.IOS,
+                presentation = AppTopTabPresentation.MOVING_CAPSULE,
                 skinPlainStyle = true,
                 usesCapsuleIndicator = true
             )

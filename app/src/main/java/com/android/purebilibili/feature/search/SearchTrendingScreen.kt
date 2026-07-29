@@ -26,12 +26,12 @@ import androidx.compose.material.icons.rounded.Search
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.android.purebilibili.core.ui.AppTopBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -62,12 +62,12 @@ fun SearchTrendingScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val pullRefreshState = rememberPullToRefreshState()
 
-    Scaffold(
+    AppScaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("bilibili 热搜") },
+            AppTopBar(
+                title = "bilibili 热搜",
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    AppIconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = "返回"
@@ -75,7 +75,7 @@ fun SearchTrendingScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::refresh) {
+                    AppIconButton(onClick = viewModel::refresh) {
                         Icon(
                             imageVector = Icons.Rounded.Refresh,
                             contentDescription = "刷新"
@@ -222,7 +222,7 @@ private fun SearchTrendingRow(
     pinnedCount: Int,
     onClick: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         onClick = onClick,
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(0.dp)

@@ -17,16 +17,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
 import androidx.compose.material3.*
 // 🌈 Material Icons Extended - 亮度图标
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.BrightnessHigh
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -38,6 +35,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -61,15 +59,14 @@ import com.android.purebilibili.feature.anime4k.gl.Anime4KGLSurfaceView
 import com.android.purebilibili.feature.anime4k.isAnime4KGles3Available
 import com.android.purebilibili.feature.anime4k.resolveAnime4KOutputDecision
 import com.android.purebilibili.feature.video.danmaku.DanmakuManager
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.video.ui.components.AnimatedGesturePercentText
 import com.android.purebilibili.feature.video.ui.components.SponsorSkipButton
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.resolveVideoViewportLayout
 import com.android.purebilibili.feature.video.ui.components.toAnime4KDisplayScaleMode
 import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayContent
-import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayStyle
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelKind
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlaySpec
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle
@@ -691,13 +688,9 @@ fun BangumiGestureIndicator(
     duration: Long,
     modifier: Modifier = Modifier
 ) {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val overlayStyle = remember(uiPreset, androidNativeVariant) {
-        resolveGestureLevelOverlayStyle(
-            uiPreset = uiPreset,
-            androidNativeVariant = androidNativeVariant
-        )
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val overlayStyle = remember(playerChromeProfile.tabPresentation) {
+        resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
     }
     when (mode) {
         BangumiGestureMode.Brightness, BangumiGestureMode.Volume -> {
@@ -720,7 +713,7 @@ fun BangumiGestureIndicator(
                     mode = mappedMode,
                     percent = value,
                     style = overlayStyle,
-                    modifier = if (overlayStyle == GestureLevelOverlayStyle.Miuix) {
+                    modifier = if (playerChromeProfile.effects.usesTonalContainerTreatment) {
                         Modifier.padding(horizontal = 22.dp)
                     } else {
                         Modifier
@@ -729,7 +722,7 @@ fun BangumiGestureIndicator(
             }
         }
         BangumiGestureMode.Seek -> {
-            Surface(
+            AppSurface(
                 modifier = modifier,
                 shape = RoundedCornerShape(18.dp),
                 color = Color.Black.copy(alpha = 0.74f),
@@ -860,7 +853,7 @@ fun BangumiQualityMenu(
             ) { onDismiss() },
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        AppSurface(
             modifier = Modifier
                 .widthIn(min = 200.dp, max = 280.dp)
                 .clip(RoundedCornerShape(12.dp))
@@ -901,7 +894,7 @@ fun BangumiQualityMenu(
                         
                         if (tag != null) {
                             Spacer(modifier = Modifier.width(8.dp))
-                            Surface(
+                            AppSurface(
                                 color = MaterialTheme.colorScheme.primary,
                                 shape = RoundedCornerShape(4.dp)
                             ) {
@@ -919,7 +912,7 @@ fun BangumiQualityMenu(
                         
                         if (isSelected) {
                             Icon(
-                                CupertinoIcons.Default.Checkmark,
+                                Icons.Outlined.Check,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
@@ -1015,7 +1008,7 @@ fun BangumiSlimProgressBar(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .size(if (isDragging) 16.dp else 12.dp)
-                    .offset(x = if (isDragging) 8.dp else 6.dp)
+                    .offset { IntOffset(x = (if (isDragging) 8.dp else 6.dp).roundToPx(), y = 0) }
                     .background(primaryColor, androidx.compose.foundation.shape.CircleShape)
             )
         }

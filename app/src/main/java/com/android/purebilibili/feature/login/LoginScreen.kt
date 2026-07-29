@@ -26,21 +26,21 @@ import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppCard
 import androidx.compose.material3.CardDefaults
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryScrollableTabRow
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppPrimaryScrollableTabRow
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppTab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.android.purebilibili.core.ui.AppTopBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -179,13 +179,13 @@ internal fun LoginPage(
     onAuthorizeHighQuality: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    AppSurface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         androidx.compose.material3.Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { Text("登录") },
+                AppTopBar(
+                    title = "登录",
                     actions = {
-                        IconButton(onClick = onClose) {
+                        AppIconButton(onClick = onClose) {
                             Icon(Icons.Outlined.Close, contentDescription = "关闭登录")
                         }
                     },
@@ -271,13 +271,13 @@ private fun LoginMethodTabs(
     onMethodSelected: (LoginMethod) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    PrimaryScrollableTabRow(
+    AppPrimaryScrollableTabRow(
         selectedTabIndex = resolveAvailableLoginMethods().indexOf(selectedMethod),
         modifier = modifier.fillMaxWidth(),
         edgePadding = 0.dp
     ) {
         resolveAvailableLoginMethods().forEach { method ->
-            Tab(
+            AppTab(
                 selected = method == selectedMethod,
                 onClick = { onMethodSelected(method) },
                 text = { Text(loginMethodLabel(method)) },
@@ -304,7 +304,7 @@ private fun loginMethodIcon(method: LoginMethod) = when (method) {
 @Composable
 private fun LoginStateMessage(state: LoginState, modifier: Modifier = Modifier) {
     val message = (state as? LoginState.Error)?.msg ?: return
-    Card(
+    AppCard(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
     ) {
@@ -323,7 +323,7 @@ private fun HighQualityAuthorizationCard(
     onAuthorize: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    AppCard(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     ) {
@@ -341,10 +341,10 @@ private fun HighQualityAuthorizationCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
-            Button(onClick = onAuthorize, modifier = Modifier.fillMaxWidth()) {
+            AppButton(onClick = onAuthorize, modifier = Modifier.fillMaxWidth()) {
                 Text("扫码授权高画质")
             }
-            OutlinedButton(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
+            AppOutlinedButton(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
                 Text("稍后使用")
             }
         }
@@ -357,7 +357,7 @@ private fun TvQrLoginContent(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -398,7 +398,7 @@ private fun TvQrLoginContent(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            OutlinedButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+            AppOutlinedButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.Refresh, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
                 Text("刷新二维码")
@@ -419,7 +419,7 @@ private fun PasswordLoginContent(
     val isLoading = state is LoginState.Loading || state is LoginState.CaptchaReady
 
     LoginFormCard(title = "密码登录", modifier = modifier) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = phone,
             onValueChange = { phone = it.filter(Char::isDigit) },
             label = { Text("手机号") },
@@ -428,13 +428,13 @@ private fun PasswordLoginContent(
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = password,
             onValueChange = { password = it },
             label = { Text("密码") },
             leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
             trailingIcon = {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                AppIconButton(onClick = { passwordVisible = !passwordVisible }) {
                     Icon(
                         if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                         contentDescription = if (passwordVisible) "隐藏密码" else "显示密码"
@@ -451,7 +451,7 @@ private fun PasswordLoginContent(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Button(
+        AppButton(
             onClick = { onSubmit(phone, password) },
             enabled = phone.isNotBlank() && password.isNotBlank() && !isLoading,
             modifier = Modifier.fillMaxWidth()
@@ -474,7 +474,7 @@ private fun SmsLoginContent(
     val isLoading = state is LoginState.Loading || state is LoginState.CaptchaReady
 
     LoginFormCard(title = "短信验证码登录", modifier = modifier) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = phone,
             onValueChange = { phone = it.filter(Char::isDigit) },
             label = { Text("中国大陆手机号") },
@@ -485,7 +485,7 @@ private fun SmsLoginContent(
             modifier = Modifier.fillMaxWidth()
         )
         if (codeSent || code.isNotEmpty()) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = code,
                 onValueChange = { code = it.filter(Char::isDigit).take(6) },
                 label = { Text("短信验证码") },
@@ -501,7 +501,7 @@ private fun SmsLoginContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (codeSent || code.isNotEmpty()) {
-            Button(
+            AppButton(
                 onClick = { onSubmitCode(code.toIntOrNull() ?: 0) },
                 enabled = code.length == 6 && !isLoading,
                 modifier = Modifier.fillMaxWidth()
@@ -509,7 +509,7 @@ private fun SmsLoginContent(
                 Text("登录")
             }
         } else {
-            Button(
+            AppButton(
                 onClick = { onRequestCode(phone) },
                 enabled = phone.length >= 6 && !isLoading,
                 modifier = Modifier.fillMaxWidth()
@@ -535,7 +535,7 @@ private fun CookieImportContent(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = cookieHeader,
             onValueChange = { cookieHeader = it },
             label = { Text("Cookie") },
@@ -543,7 +543,7 @@ private fun CookieImportContent(
             minLines = 5,
             modifier = Modifier.fillMaxWidth()
         )
-        Button(
+        AppButton(
             onClick = { onImport(cookieHeader) },
             enabled = cookieHeader.isNotBlank() && !isLoading,
             modifier = Modifier.fillMaxWidth()
@@ -559,7 +559,7 @@ private fun LoginFormCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)

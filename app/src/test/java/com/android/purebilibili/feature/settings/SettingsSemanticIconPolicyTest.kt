@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.ChartBar
 import io.github.alexzhirkevich.cupertino.icons.outlined.DocOnDoc
@@ -20,7 +20,7 @@ class SettingsSemanticIconPolicyTest {
 
     @Test
     fun homeFeedEntry_usesHomeSemanticIconInsteadOfAnalyticsIcon() {
-        val icon = resolveSettingsSemanticIcon(SettingsIconRole.HOME_FEED, UiPreset.IOS)
+        val icon = resolveSettingsSemanticIcon(SettingsIconRole.HOME_FEED, AppSemanticIconFamily.CUPERTINO)
 
         assertSameVectorAsset(CupertinoIcons.Outlined.House, icon)
         assertNotEquals(CupertinoIcons.Default.ChartBar.name, icon.name)
@@ -30,7 +30,7 @@ class SettingsSemanticIconPolicyTest {
     fun md3HomeFeedEntry_usesMaterialHomeSemanticIcon() {
         assertSameVectorAsset(
             Icons.Outlined.Home,
-            resolveSettingsSemanticIcon(SettingsIconRole.HOME_FEED, UiPreset.MD3)
+            resolveSettingsSemanticIcon(SettingsIconRole.HOME_FEED, AppSemanticIconFamily.MATERIAL)
         )
     }
 
@@ -38,26 +38,26 @@ class SettingsSemanticIconPolicyTest {
     fun settingsSceneRoles_useConcreteDomainIcons() {
         assertSameVectorAsset(
             CupertinoIcons.Outlined.TextBubble,
-            resolveSettingsSemanticIcon(SettingsIconRole.INTERACTION_COMMENT, UiPreset.IOS)
+            resolveSettingsSemanticIcon(SettingsIconRole.INTERACTION_COMMENT, AppSemanticIconFamily.CUPERTINO)
         )
         assertSameVectorAsset(
             CupertinoIcons.Outlined.DocOnDoc,
-            resolveSettingsSemanticIcon(SettingsIconRole.DATA_BACKUP, UiPreset.IOS)
+            resolveSettingsSemanticIcon(SettingsIconRole.DATA_BACKUP, AppSemanticIconFamily.CUPERTINO)
         )
         assertSameVectorAsset(
             Icons.Outlined.Terminal,
-            resolveSettingsSemanticIcon(SettingsIconRole.DIAGNOSTICS, UiPreset.MD3)
+            resolveSettingsSemanticIcon(SettingsIconRole.DIAGNOSTICS, AppSemanticIconFamily.MATERIAL)
         )
     }
 
     @Test
     fun md3Preset_usesUniqueIconForEverySettingsRole() {
-        assertSettingsRoleIconsAreUnique(UiPreset.MD3)
+        assertSettingsRoleIconsAreUnique(AppSemanticIconFamily.MATERIAL)
     }
 
     @Test
     fun iosPreset_usesUniqueIconForEverySettingsRole() {
-        assertSettingsRoleIconsAreUnique(UiPreset.IOS)
+        assertSettingsRoleIconsAreUnique(AppSemanticIconFamily.CUPERTINO)
     }
 
     @Test
@@ -71,15 +71,15 @@ class SettingsSemanticIconPolicyTest {
         )
     }
 
-    private fun assertSettingsRoleIconsAreUnique(uiPreset: UiPreset) {
+    private fun assertSettingsRoleIconsAreUnique(iconFamily: AppSemanticIconFamily) {
         val duplicates = SettingsIconRole.entries
-            .groupBy { role -> resolveSettingsSemanticIcon(role, uiPreset).assetKey() }
+            .groupBy { role -> resolveSettingsSemanticIcon(role, iconFamily).assetKey() }
             .filterValues { roles -> roles.size > 1 }
 
         assertTrue(
             duplicates.isEmpty(),
             duplicates.entries.joinToString(separator = "\n") { (assetKey, roles) ->
-                "$uiPreset duplicate $assetKey: ${roles.joinToString { it.name }}"
+                "$iconFamily duplicate $assetKey: ${roles.joinToString { it.name }}"
             }
         )
     }
@@ -104,7 +104,14 @@ class SettingsSemanticIconPolicyTest {
         val groupRoles = mutableListOf<Pair<Int, String>>()
 
         lines.forEachIndexed { index, line ->
-            if (groupStartLine == null && (line.contains("IOSGroup {") || line.contains("SettingsCardGroup {"))) {
+            if (
+                groupStartLine == null &&
+                (
+                    line.contains("IOSGroup {") ||
+                        line.contains("AppPreferenceGroup {") ||
+                        line.contains("SettingsCardGroup {")
+                    )
+            ) {
                 groupStartLine = index + 1
                 groupBraceDepth = line.braceDelta()
                 groupRoles.clear()

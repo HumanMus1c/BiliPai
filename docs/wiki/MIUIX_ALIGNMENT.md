@@ -7,11 +7,6 @@
 本仓库通过 Maven Central 引入 `top.yukonga.miuix.kmp`（当前钉扎 **0.9.3**），并在
 `AndroidNativeVariant.MIUIX` 下经由 `PresetPrimitiveRenderer.MIUIX_BRIDGED` 分发到官方组件。
 
-完整深度适配设计见：
-
-- [`docs/superpowers/specs/2026-07-19-miuix-deep-adaptation-design.md`](../superpowers/specs/2026-07-19-miuix-deep-adaptation-design.md)
-- [`docs/superpowers/plans/2026-07-19-miuix-deep-adaptation.md`](../superpowers/plans/2026-07-19-miuix-deep-adaptation.md)
-
 上游发布说明：<https://github.com/compose-miuix-ui/miuix/releases/tag/v0.9.3>
 
 ## 本地结论（相对上游能力）

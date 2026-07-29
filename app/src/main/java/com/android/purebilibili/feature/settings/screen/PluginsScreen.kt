@@ -65,7 +65,7 @@ import com.android.purebilibili.feature.settings.SettingsLocalBackHandler
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
 import com.android.purebilibili.core.ui.components.AppAdaptiveSwitch
-import com.android.purebilibili.core.ui.components.IOSAdaptiveTextField
+import com.android.purebilibili.core.ui.components.AppTextField
 import com.android.purebilibili.core.ui.components.rememberAdaptiveSemanticIconTint
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.rememberNotificationPermissionState
@@ -1109,7 +1109,7 @@ fun PluginsContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    IOSAdaptiveTextField(
+                    AppTextField(
                         value = jsImportUrl,
                         onValueChange = {
                             jsImportUrl = it
@@ -1272,7 +1272,7 @@ fun PluginsContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    IOSAdaptiveTextField(
+                    AppTextField(
                         value = importUrl,
                         onValueChange = { 
                             importUrl = it

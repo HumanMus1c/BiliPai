@@ -10,7 +10,7 @@
 | **源码级原生 Kotlin 插件** | ⭐⭐⭐ 进阶 | 复杂功能、API 集成、自定义 UI、立即运行的深度集成 |
 
 > [!CAUTION]
-> 当前仓库已内置 5 个内置插件，并支持通过 URL 导入外部 JSON 规则插件；但插件生态仍处于早期阶段。
+> 当前仓库注册了 10 个内置插件，并支持通过 URL 导入外部 JSON 规则插件；但插件生态仍处于早期阶段。
 > `plugins/community/` 目前仅包含 1 个演示插件，社区规模和兼容性样本都还有限。
 > 外部 `.bpplugin` Kotlin 包当前支持预览、签名/哈希展示和能力授权记录，宿主尚不执行外部 Dex。
 > 外部 `.bpskin` 皮肤包是数据型资源包，只能提供资源、颜色和适用界面声明，不能替换 Compose 组件或执行代码。
@@ -431,7 +431,7 @@ val packageBpPlugin by tasks.registering(Zip::class) {
 
 ```bash
 cd plugins/samples/today-watch-remix
-ANDROID_HOME=/Users/yiyang/Library/Android/sdk ../../../gradlew -p . packageBpPlugin --no-daemon
+../../../gradlew -p . packageBpPlugin --no-daemon
 ```
 
 复制到仓库外独立开发时，可在插件工程根目录创建 `local.properties` 并写入 `sdk.dir=/path/to/android/sdk`。
@@ -546,7 +546,8 @@ interface Plugin {
 interface PlayerPlugin : Plugin {
     suspend fun onVideoLoad(bvid: String, cid: Long)
     suspend fun onPositionUpdate(positionMs: Long): SkipAction?
-    fun onVideoEnd()
+    fun onUserSeek(positionMs: Long) {}
+    fun onVideoEnd() {}
 }
 
 // 跳过动作
@@ -575,7 +576,8 @@ interface FeedPlugin : Plugin {
 
 ```kotlin
 interface DanmakuPlugin : Plugin {
-    fun processDanmaku(danmaku: DanmakuItem): DanmakuItem?
+    fun filterDanmaku(danmaku: DanmakuItem): DanmakuItem?
+    fun styleDanmaku(danmaku: DanmakuItem): DanmakuStyle? = null
 }
 ```
 
@@ -584,11 +586,9 @@ interface DanmakuPlugin : Plugin {
 在 `PureApplication.kt` 的插件初始化区域注册：
 
 ```kotlin
-Looper.myQueue().addIdleHandler {
+private fun initPluginStackNow() {
     PluginManager.initialize(this)
-    PluginManager.register(SponsorBlockPlugin())
-    PluginManager.register(YourCustomPlugin())  // 添加你的插件
-    false
+    PluginManager.register(YourCustomPlugin())
 }
 ```
 

@@ -6,8 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.ui.Alignment
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppTopTabPresentation
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.SpeakerSlash
 import io.github.alexzhirkevich.cupertino.icons.filled.SpeakerWave2
@@ -23,23 +22,18 @@ import kotlin.test.assertTrue
 class GestureLevelOverlayPolicyTest {
 
     @Test
-    fun overlayStyle_mapsUiPresetAndAndroidVariant() {
+    fun overlayStyle_mapsChromePresentation() {
         assertEquals(
             GestureLevelOverlayStyle.Md3,
-            resolveGestureLevelOverlayStyle(UiPreset.MD3, AndroidNativeVariant.MATERIAL3)
+            resolveGestureLevelOverlayStyle(AppTopTabPresentation.MATERIAL_UNDERLINE)
         )
         assertEquals(
             GestureLevelOverlayStyle.Ios,
-            resolveGestureLevelOverlayStyle(UiPreset.IOS, AndroidNativeVariant.MATERIAL3)
+            resolveGestureLevelOverlayStyle(AppTopTabPresentation.MOVING_CAPSULE)
         )
         assertEquals(
             GestureLevelOverlayStyle.Miuix,
-            resolveGestureLevelOverlayStyle(UiPreset.MD3, AndroidNativeVariant.MIUIX)
-        )
-        // iOS preset wins over miuix native variant.
-        assertEquals(
-            GestureLevelOverlayStyle.Ios,
-            resolveGestureLevelOverlayStyle(UiPreset.IOS, AndroidNativeVariant.MIUIX)
+            resolveGestureLevelOverlayStyle(AppTopTabPresentation.TONAL_CAPSULE)
         )
     }
 

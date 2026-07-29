@@ -9,6 +9,38 @@ import kotlin.test.assertTrue
 class VideoDetailScrollCoordinatorTest {
 
     @Test
+    fun collapseJankSignalOnlyTracksRealOffsetMovement() {
+        assertTrue(
+            shouldTrackVideoDetailCollapseMotion(
+                inlinePortraitScrollEnabled = true,
+                previousOffsetPx = -80f,
+                currentOffsetPx = -96f,
+            )
+        )
+        assertFalse(
+            shouldTrackVideoDetailCollapseMotion(
+                inlinePortraitScrollEnabled = true,
+                previousOffsetPx = -96f,
+                currentOffsetPx = -96f,
+            )
+        )
+        assertFalse(
+            shouldTrackVideoDetailCollapseMotion(
+                inlinePortraitScrollEnabled = true,
+                previousOffsetPx = -96f,
+                currentOffsetPx = -96.5f,
+            )
+        )
+        assertFalse(
+            shouldTrackVideoDetailCollapseMotion(
+                inlinePortraitScrollEnabled = false,
+                previousOffsetPx = -80f,
+                currentOffsetPx = -96f,
+            )
+        )
+    }
+
+    @Test
     fun preScroll_doesNothingWhenInlineCollapseDisabled() {
         val update = reduceVideoDetailPreScroll(
             currentOffsetPx = -40f,

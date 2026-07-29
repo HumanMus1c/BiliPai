@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.rememberAppClearIcon
 import com.android.purebilibili.data.model.response.SponsorSegment
 
@@ -44,7 +45,7 @@ fun SponsorSkipButton(
         modifier = modifier
     ) {
         segment?.let { seg ->
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .padding(16.dp)
                     .clip(RoundedCornerShape(12.dp)),
@@ -65,7 +66,7 @@ fun SponsorSkipButton(
                     )
                     
                     // 跳过按钮
-                    Surface(
+                    AppSurface(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { onSkip() },
@@ -123,7 +124,7 @@ fun SponsorSkipToast(
         modifier = modifier
     ) {
         message?.let {
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .padding(top = 60.dp, start = 16.dp, end = 16.dp)
                     .clip(RoundedCornerShape(20.dp)),

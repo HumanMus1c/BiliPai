@@ -47,8 +47,4 @@ internal fun resolveSharedLiquidGlassChromeEnabled(
 
 internal fun resolveEffectiveHomeSettings(
     homeSettings: HomeSettings,
-    uiPreset: UiPreset
-): HomeSettings = when (uiPreset) {
-    UiPreset.IOS,
-    UiPreset.MD3 -> homeSettings
-}
+): HomeSettings = homeSettings

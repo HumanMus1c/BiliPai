@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.blur.unifiedBlur
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.video.ui.gesture.TwoFingerSpeedGestureMode
 import dev.chrisbanes.haze.HazeState
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
@@ -72,7 +72,7 @@ fun BoxScope.TwoFingerSpeedFeedbackOverlay(
             .align(Alignment.TopCenter)
             .padding(top = 18.dp)
     ) {
-        Surface(
+        AppSurface(
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.06f),
             contentColor = Color.White,
             tonalElevation = 0.dp,

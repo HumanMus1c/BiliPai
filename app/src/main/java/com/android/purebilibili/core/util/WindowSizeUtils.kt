@@ -294,22 +294,27 @@ internal fun TextUnit.scaledIfSpecified(scale: Float): TextUnit {
  * @param maxWidth 最大宽度限制
  * @param centerContent 是否居中显示
  */
-@Composable
 fun Modifier.responsiveContentWidth(
     maxWidth: Dp = 800.dp,
     centerContent: Boolean = true
 ): Modifier {
-    val windowSizeClass = LocalWindowSizeClass.current
-    return if (windowSizeClass.widthDp > maxWidth) {
-        val constrained = this.widthIn(max = maxWidth)
-        if (centerContent) {
-            constrained.wrapContentWidth(Alignment.CenterHorizontally)
-        } else {
-            constrained
-        }
+    val alignment = if (centerContent) {
+        Alignment.CenterHorizontally
     } else {
-        this.fillMaxWidth()
+        Alignment.Start
     }
+    // 四段各自负责一件事，顺序不能调：
+    // 1. fillMaxWidth 让本节点占满父容器，居中才有剩余空间可用；
+    // 2. wrapContentWidth 在这段空间里按 alignment 摆放被限宽的内容；
+    // 3. widthIn 把内容的上限压到 maxWidth；
+    // 4. 末尾再 fillMaxWidth 把内容钉死在「min(父宽, maxWidth)」。
+    //    少了第 4 段，wrapContentWidth 传给内容的 minWidth 是 0，窄屏上原本铺满
+    //    父宽的内容会退化成按内容裁剪——调用方紧跟其后的 background() 也会跟着缩。
+    return this
+        .fillMaxWidth()
+        .wrapContentWidth(alignment)
+        .widthIn(max = maxWidth)
+        .fillMaxWidth()
 }
 
 /**

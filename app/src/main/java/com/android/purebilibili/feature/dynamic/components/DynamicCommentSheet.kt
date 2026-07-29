@@ -1,6 +1,13 @@
 // 文件路径: feature/dynamic/components/DynamicCommentSheet.kt
 package com.android.purebilibili.feature.dynamic.components
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.rememberAppSegmentedControlPolicy
+
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
@@ -31,7 +39,6 @@ import com.android.purebilibili.feature.dynamic.resolveDynamicCommentSheetTotalC
 import com.android.purebilibili.feature.video.ui.components.CommentPictures
 import com.android.purebilibili.feature.video.ui.components.RichCommentText
 import com.android.purebilibili.feature.video.ui.components.FanGroupDecorationBadge
-import com.android.purebilibili.feature.video.ui.components.iOSSegmentedControl
 import com.android.purebilibili.feature.video.ui.components.resolveFanGroupDecorationCardBgs
 import com.android.purebilibili.feature.video.ui.components.resolveFanGroupVisualFromMemberAndSailing
 import com.android.purebilibili.feature.video.ui.components.resolveInlineSubReplyToggleLabel
@@ -39,13 +46,16 @@ import com.android.purebilibili.feature.video.ui.components.resolveReplyPreviewT
 import com.android.purebilibili.feature.video.ui.components.resolveVisibleSubReplies
 import com.android.purebilibili.feature.video.ui.components.shouldShowInlineSubReplyToggle
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.rememberAppClearIcon
+import com.android.purebilibili.core.ui.rememberAppCommentIcon
+import com.android.purebilibili.core.ui.rememberAppLikeIcon
+import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.components.AppTextField
 
 @Composable
 fun DynamicCommentOverlayHost(
@@ -158,7 +168,7 @@ fun DynamicCommentSheet(
             }
     }
     
-    com.android.purebilibili.core.ui.IOSModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = null
@@ -172,7 +182,7 @@ fun DynamicCommentSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Medium),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -181,19 +191,19 @@ fun DynamicCommentSheet(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                iOSSegmentedControl(
+                DynamicCommentSortControl(
                     items = sortModes.map { it.label },
                     selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
-                    onScaleChange = { index ->
+                    onSelected = { index ->
                         sortModes.getOrNull(index)?.let(onSortModeChange)
                     }
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                 IconButton(onClick = onDismiss) {
                     Icon(
-                        CupertinoIcons.Default.Xmark,
+                        rememberAppClearIcon(),
                         contentDescription = "关闭",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
                     )
                 }
             }
@@ -208,7 +218,7 @@ fun DynamicCommentSheet(
                         .fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    AdaptiveLoadingIndicator(size = 32.dp)
+                    AdaptiveLoadingIndicator(size = AppSpacingTokens.DoubleExtraLarge)
                 }
             } else if (comments.isEmpty()) {
                 Box(
@@ -219,12 +229,12 @@ fun DynamicCommentSheet(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            CupertinoIcons.Default.BubbleLeft,
+                            rememberAppCommentIcon(),
                             contentDescription = null,
-                            modifier = Modifier.size(48.dp),
+                            modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.3f)
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
                         Text(
                             "暂无评论",
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
@@ -237,8 +247,8 @@ fun DynamicCommentSheet(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    contentPadding = PaddingValues(AppSpacingTokens.Large),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)
                 ) {
                     items(comments, key = { it.rpid }) { reply ->
                         CommentItem(
@@ -258,10 +268,10 @@ fun DynamicCommentSheet(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
+                                    .padding(vertical = AppSpacingTokens.Small),
                                 contentAlignment = Alignment.Center
                             ) {
-                                AdaptiveLoadingIndicator(size = 24.dp)
+                                AdaptiveLoadingIndicator(size = AppSpacingTokens.ExtraLarge)
                             }
                         }
                     }
@@ -274,23 +284,18 @@ fun DynamicCommentSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(AppSpacingTokens.Large),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
+                AppTextField(
                     value = commentText,
                     onValueChange = { commentText = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("发一条友善的评论", fontSize = 14.sp) },
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                    ),
+                    placeholder = "发一条友善的评论",
                     singleLine = true
                 )
                 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
                 
                 Button(
                     onClick = {
@@ -300,14 +305,62 @@ fun DynamicCommentSheet(
                         }
                     },
                     enabled = commentText.isNotBlank(),
-                    shape = RoundedCornerShape(20.dp)
+                    shape = AppShapes.container(ContainerLevel.Sheet)
                 ) {
                     Text("发送")
                 }
             }
             
             // 底部安全区
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
+        }
+    }
+}
+
+@Composable
+private fun DynamicCommentSortControl(
+    items: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+) {
+    if (items.isEmpty()) return
+    val policy = rememberAppSegmentedControlPolicy()
+    val safeSelectedIndex = selectedIndex.coerceIn(items.indices)
+    Row(
+        modifier = Modifier
+            .width(66.dp * items.size)
+            .height(40.dp)
+            .clip(RoundedCornerShape(policy.pillCornerRadius))
+            .background(AppSurfaceTokens.surfaceContainer())
+            .padding(AppSpacingTokens.Micro),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        items.forEachIndexed { index, label ->
+            val selected = index == safeSelectedIndex
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(policy.pillCornerRadius))
+                    .background(
+                        if (selected) AppSurfaceTokens.secondaryContainer() else Color.Transparent
+                    )
+                    .clickable { onSelected(index) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label,
+                    color = if (selected) {
+                        AppSurfaceTokens.onSecondaryContainer()
+                    } else {
+                        AppSurfaceTokens.onSurfaceVariantActions()
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -323,7 +376,7 @@ fun DynamicInlineCommentHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Medium),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -332,10 +385,10 @@ fun DynamicInlineCommentHeader(
             fontWeight = FontWeight.SemiBold,
         )
         Spacer(modifier = Modifier.weight(1f))
-        iOSSegmentedControl(
+        DynamicCommentSortControl(
             items = sortModes.map { it.label },
             selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
-            onScaleChange = { index ->
+            onSelected = { index ->
                 sortModes.getOrNull(index)?.let(onSortModeChange)
             },
         )
@@ -355,10 +408,10 @@ fun LazyListScope.dynamicInlineCommentItems(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 32.dp),
+                    .padding(vertical = AppSpacingTokens.DoubleExtraLarge),
                 contentAlignment = Alignment.Center,
             ) {
-                AdaptiveLoadingIndicator(size = 32.dp)
+                AdaptiveLoadingIndicator(size = AppSpacingTokens.DoubleExtraLarge)
             }
         }
 
@@ -366,7 +419,7 @@ fun LazyListScope.dynamicInlineCommentItems(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 32.dp),
+                    .padding(vertical = AppSpacingTokens.DoubleExtraLarge),
                 contentAlignment = Alignment.Center,
             ) {
                 Text("暂无评论", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
@@ -378,7 +431,7 @@ fun LazyListScope.dynamicInlineCommentItems(
                 reply = reply,
                 onViewReplies = onViewReplies,
                 onImagePreview = onImagePreview,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small),
             )
         }
     }
@@ -387,10 +440,10 @@ fun LazyListScope.dynamicInlineCommentItems(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
+                    .padding(vertical = AppSpacingTokens.Medium),
                 contentAlignment = Alignment.Center,
             ) {
-                AdaptiveLoadingIndicator(size = 24.dp)
+                AdaptiveLoadingIndicator(size = AppSpacingTokens.ExtraLarge)
             }
         }
     }
@@ -404,25 +457,24 @@ fun DynamicInlineCommentComposer(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(AppSpacingTokens.Large),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        OutlinedTextField(
+        AppTextField(
             value = commentText,
             onValueChange = { commentText = it },
             modifier = Modifier.weight(1f),
-            placeholder = { Text("发一条友善的评论", fontSize = 14.sp) },
-            shape = RoundedCornerShape(24.dp),
+            placeholder = "发一条友善的评论",
             singleLine = true,
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
         Button(
             onClick = {
                 onPostComment(commentText)
                 commentText = ""
             },
             enabled = commentText.isNotBlank(),
-            shape = RoundedCornerShape(20.dp),
+            shape = AppShapes.container(ContainerLevel.Sheet),
         ) {
             Text("发送")
         }
@@ -465,38 +517,38 @@ private fun CommentItem(
             },
             contentDescription = null,
             modifier = Modifier
-                .size(36.dp)
+                .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall)
                 .clip(CircleShape),
             contentScale = ContentScale.Crop
         )
         
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
         
         Column(modifier = Modifier.weight(1f)) {
             // 用户名 + 时间
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = member.uname,
-                    fontSize = 13.sp,
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = if (fanGroupVisual != null) Modifier.weight(1f, fill = false) else Modifier
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                 Text(
                     text = formatTime(reply.ctime),
-                    fontSize = 11.sp,
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
                 )
                 if (fanGroupVisual != null) {
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                     FanGroupDecorationBadge(visual = fanGroupVisual)
                 }
             }
             
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
             
             // 评论内容 - 使用 RichCommentText 渲染表情
             val emoteMap = remember(reply.content.emote) {
@@ -504,14 +556,14 @@ private fun CommentItem(
             }
             RichCommentText(
                 text = reply.content.message,
-                fontSize = 14.sp,
+                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 color = MaterialTheme.colorScheme.onSurface,
                 emoteMap = emoteMap
             )
 
             // 评论图片
             if (!reply.content.pictures.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                 CommentPictures(
                     pictures = reply.content.pictures,
                     onImageClick = { images, index, rect ->
@@ -525,47 +577,47 @@ private fun CommentItem(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
             
             // 点赞数
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    CupertinoIcons.Default.HandThumbsup,
+                    rememberAppLikeIcon(),
                     contentDescription = null,
-                    modifier = Modifier.size(14.dp),
+                    modifier = Modifier.size(AppSpacingTokens.Medium + AppSpacingTokens.Micro),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
                 Text(
                     text = "${reply.like}",
-                    fontSize = 12.sp,
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
                 )
             }
 
             if (com.android.purebilibili.feature.dynamic.canOpenDynamicSubReplies(reply)) {
                 if (visibleSubReplies.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.Small + AppSpacingTokens.Micro))
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(AppShapes.container(ContainerLevel.Dialog))
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f))
-                            .padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Small),
+                        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
                     ) {
                         visibleSubReplies.forEach { subReply ->
                             val subEmoteMap = remember(subReply.content.emote) {
                                 subReply.content.emote?.mapValues { it.value.url } ?: emptyMap()
                             }
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
                                 ) {
                                     Text(
                                         text = "${subReply.member.uname}:",
-                                        fontSize = 12.sp,
+                                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.primary,
                                         maxLines = 1,
@@ -574,7 +626,7 @@ private fun CommentItem(
                                     Box(modifier = Modifier.weight(1f)) {
                                         RichCommentText(
                                             text = subReply.content.message,
-                                            fontSize = 12.sp,
+                                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             emoteMap = subEmoteMap,
                                             maxLines = 2
@@ -600,7 +652,7 @@ private fun CommentItem(
                         if (showInlineToggle) {
                             Text(
                                 text = resolveInlineSubReplyToggleLabel(expanded = isSubPreviewExpanded),
-                                fontSize = 12.sp,
+                                fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.clickable { isSubPreviewExpanded = !isSubPreviewExpanded }
@@ -609,14 +661,14 @@ private fun CommentItem(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                 TextButton(
                     onClick = { onViewReplies(reply) },
-                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                    contentPadding = PaddingValues(horizontal = AppSpacingTokens.None, vertical = AppSpacingTokens.None)
                 ) {
                     Text(
                         text = "查看回复(${com.android.purebilibili.feature.dynamic.resolveDynamicSubReplyCount(reply)})",
-                        fontSize = 12.sp,
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }

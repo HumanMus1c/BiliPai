@@ -14,7 +14,7 @@ class HomeSettingsUiPresetPolicyTest {
             androidNativeLiquidGlassEnabled = false
         )
 
-        assertTrue(resolveEffectiveHomeSettings(settings, UiPreset.MD3).isBottomBarLiquidGlassEnabled)
+        assertTrue(resolveEffectiveHomeSettings(settings).isBottomBarLiquidGlassEnabled)
     }
 
     @Test
@@ -25,7 +25,6 @@ class HomeSettingsUiPresetPolicyTest {
                 isBottomBarLiquidGlassEnabled = true,
                 androidNativeLiquidGlassEnabled = false
             ),
-            uiPreset = UiPreset.MD3
         )
 
         assertTrue(disabled.isTopBarLiquidGlassEnabled)
@@ -37,7 +36,6 @@ class HomeSettingsUiPresetPolicyTest {
                 isBottomBarLiquidGlassEnabled = true,
                 androidNativeLiquidGlassEnabled = true
             ),
-            uiPreset = UiPreset.MD3
         )
 
         assertTrue(enabled.isTopBarLiquidGlassEnabled)

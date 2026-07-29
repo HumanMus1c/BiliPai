@@ -56,6 +56,19 @@ internal fun resolveDynamicTopBarLiquidTabSpec(): DynamicTopBarLiquidTabSpec {
     )
 }
 
+internal fun resolveDynamicTabIndicatorPosition(
+    selectedIndex: Int,
+    externalPosition: Float?,
+    itemCount: Int,
+): Float {
+    if (itemCount <= 0) return 0f
+    val lastIndex = itemCount - 1
+    return externalPosition
+        ?.takeIf { it.isFinite() }
+        ?.coerceIn(0f, lastIndex.toFloat())
+        ?: selectedIndex.coerceIn(0, lastIndex).toFloat()
+}
+
 internal fun resolveDynamicSidebarWidth(isExpanded: Boolean): Dp {
     return if (isExpanded) 68.dp else 60.dp
 }

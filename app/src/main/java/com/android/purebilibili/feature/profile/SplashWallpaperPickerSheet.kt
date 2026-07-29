@@ -30,10 +30,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.android.purebilibili.core.store.SettingsManager
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.Icons
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.rememberAppClearIcon
+import com.android.purebilibili.core.ui.rememberAppPhotoIcon
+import com.android.purebilibili.core.ui.rememberAppCheckCircleIcon
 
 /**
  * 🖼️ 开屏壁纸选择器 (用于设置页)
@@ -46,6 +48,8 @@ fun SplashWallpaperPickerSheet(
     target: WallpaperPickerTarget = WallpaperPickerTarget.SPLASH,
     onDismiss: () -> Unit
 ) {
+    val clearIcon = rememberAppClearIcon()
+    val photoIcon = rememberAppPhotoIcon()
     val context = LocalContext.current
     val officialWallpapers by viewModel.officialWallpapers.collectAsStateWithLifecycle()
     val isLoading by viewModel.officialWallpapersLoading.collectAsStateWithLifecycle()
@@ -120,7 +124,7 @@ fun SplashWallpaperPickerSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     IconButton(onClick = onDismiss) {
-                        Icon(CupertinoIcons.Default.Xmark, contentDescription = "关闭")
+                        Icon(clearIcon, contentDescription = "关闭")
                     }
 
                     Text(
@@ -142,7 +146,7 @@ fun SplashWallpaperPickerSheet(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         OutlinedButton(onClick = openCustomWallpaperPicker) {
-                            Icon(CupertinoIcons.Default.Photo, contentDescription = null)
+                            Icon(photoIcon, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("从相册选择")
                         }
@@ -159,7 +163,7 @@ fun SplashWallpaperPickerSheet(
                         Text(text = error ?: "加载失败", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(12.dp))
                         OutlinedButton(onClick = openCustomWallpaperPicker) {
-                            Icon(CupertinoIcons.Default.Photo, contentDescription = null)
+                            Icon(photoIcon, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("从相册选择")
                         }
@@ -178,7 +182,7 @@ fun SplashWallpaperPickerSheet(
                         Text(text = "暂无官方壁纸", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(12.dp))
                         OutlinedButton(onClick = openCustomWallpaperPicker) {
-                            Icon(CupertinoIcons.Default.Photo, contentDescription = null)
+                            Icon(photoIcon, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("从相册选择")
                         }
@@ -230,7 +234,7 @@ fun SplashWallpaperPickerSheet(
 
                                     if (isSelected) {
                                         Icon(
-                                            imageVector = CupertinoIcons.Default.CheckmarkCircle,
+                                            imageVector = rememberAppCheckCircleIcon(),
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier
@@ -391,6 +395,7 @@ private fun SplashCustomWallpaperTile(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val photoIcon = rememberAppPhotoIcon()
     Column(
         modifier = Modifier
             .clickable(onClick = onClick)
@@ -415,7 +420,7 @@ private fun SplashCustomWallpaperTile(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
-                    CupertinoIcons.Default.Photo,
+                    photoIcon,
                     contentDescription = null,
                     tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(28.dp)
@@ -430,7 +435,7 @@ private fun SplashCustomWallpaperTile(
 
             if (isSelected) {
                 Icon(
-                    imageVector = CupertinoIcons.Default.CheckmarkCircle,
+                    imageVector = rememberAppCheckCircleIcon(),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier

@@ -4,7 +4,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,9 +18,8 @@ import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.platform.InspectorInfo
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Constraints
-import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.motion.EntranceMotionSpec
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
@@ -69,13 +67,11 @@ internal val LocalAppEntrance = staticCompositionLocalOf<AppEntranceController?>
  */
 @Composable
 fun rememberEffectiveEntranceMotionSpec(): EntranceMotionSpec {
-    val context = LocalContext.current
     val widthSizeClass = LocalWindowSizeClass.current.widthSizeClass
     val deviceTier = remember(widthSizeClass) {
         resolveDeviceUiProfile(widthSizeClass).motionTier
     }
-    val appEnabled by SettingsManager.getUiEntranceAnimationEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+    val appEnabled = LocalAppThemeConfig.current.uiEntranceAnimationEnabled
     val reduceMotion = rememberSystemReduceMotion()
     return remember(deviceTier, appEnabled, reduceMotion) {
         resolveEffectiveEntranceMotionSpec(

@@ -1,6 +1,5 @@
 package com.android.purebilibili.feature.search
 
-import com.android.purebilibili.core.theme.UiPreset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -33,7 +32,7 @@ class SearchResultCardAppearancePolicyTest {
     @Test
     fun videoSearchAppearance_usesFlatCoverStatsForDenseGrid() {
         val appearance = resolveSearchVideoCardAppearance(
-            liquidGlassEnabled = false,
+            effectiveLiquidGlassEnabled = false,
             blurEnabled = true,
             showHomeCoverGlassBadges = true,
             showHomeInfoGlassBadges = true
@@ -48,12 +47,14 @@ class SearchResultCardAppearancePolicyTest {
     @Test
     fun genericSearchResultCard_switchesBetweenGlassAndPlainStyles() {
         val glass = resolveSearchResultCardAppearance(
-            liquidGlassEnabled = true,
-            uiPreset = UiPreset.IOS
+            effectiveLiquidGlassEnabled = true,
+            supportsIndependentLiquidGlass = true,
+            tonalElevationDp = 0,
         )
         val plain = resolveSearchResultCardAppearance(
-            liquidGlassEnabled = false,
-            uiPreset = UiPreset.IOS
+            effectiveLiquidGlassEnabled = false,
+            supportsIndependentLiquidGlass = true,
+            tonalElevationDp = 0,
         )
 
         assertEquals(SearchResultCardSurfaceStyle.GLASS, glass.surfaceStyle)
@@ -70,9 +71,9 @@ class SearchResultCardAppearancePolicyTest {
     @Test
     fun md3SearchResultCard_staysPlainUnlessAndroidNativeLiquidGlassIsEnabled() {
         val md3RequestedGlass = resolveSearchResultCardAppearance(
-            liquidGlassEnabled = true,
-            uiPreset = UiPreset.MD3,
-            androidNativeLiquidGlassEnabled = false
+            effectiveLiquidGlassEnabled = false,
+            supportsIndependentLiquidGlass = false,
+            tonalElevationDp = 3,
         )
 
         assertEquals(SearchResultCardSurfaceStyle.PLAIN, md3RequestedGlass.surfaceStyle)
@@ -84,9 +85,9 @@ class SearchResultCardAppearancePolicyTest {
     @Test
     fun md3SearchResultCard_usesMoreMaterialSurfaceTuningWhenNativeLiquidGlassIsEnabled() {
         val md3Glass = resolveSearchResultCardAppearance(
-            liquidGlassEnabled = true,
-            uiPreset = UiPreset.MD3,
-            androidNativeLiquidGlassEnabled = true
+            effectiveLiquidGlassEnabled = true,
+            supportsIndependentLiquidGlass = false,
+            tonalElevationDp = 3,
         )
 
         assertEquals(SearchResultCardSurfaceStyle.GLASS, md3Glass.surfaceStyle)
@@ -99,20 +100,16 @@ class SearchResultCardAppearancePolicyTest {
     @Test
     fun md3VideoSearchAppearance_respectsEffectiveLiquidGlassGate() {
         val gatedOff = resolveSearchVideoCardAppearance(
-            liquidGlassEnabled = true,
+            effectiveLiquidGlassEnabled = false,
             blurEnabled = true,
             showHomeCoverGlassBadges = true,
             showHomeInfoGlassBadges = true,
-            uiPreset = UiPreset.MD3,
-            androidNativeLiquidGlassEnabled = false
         )
         val gatedOn = resolveSearchVideoCardAppearance(
-            liquidGlassEnabled = true,
+            effectiveLiquidGlassEnabled = true,
             blurEnabled = true,
             showHomeCoverGlassBadges = true,
             showHomeInfoGlassBadges = true,
-            uiPreset = UiPreset.MD3,
-            androidNativeLiquidGlassEnabled = true
         )
 
         assertFalse(gatedOff.glassEnabled)
@@ -122,8 +119,9 @@ class SearchResultCardAppearancePolicyTest {
     @Test
     fun md3PlainSearchResultCard_staysFlatAndMaterialWhenGlassIsDisabled() {
         val md3Plain = resolveSearchResultCardAppearance(
-            liquidGlassEnabled = false,
-            uiPreset = UiPreset.MD3
+            effectiveLiquidGlassEnabled = false,
+            supportsIndependentLiquidGlass = false,
+            tonalElevationDp = 3,
         )
 
         assertEquals(SearchResultCardSurfaceStyle.PLAIN, md3Plain.surfaceStyle)

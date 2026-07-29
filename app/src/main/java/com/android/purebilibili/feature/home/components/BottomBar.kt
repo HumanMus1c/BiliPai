@@ -1,15 +1,19 @@
 // 文件路径: feature/home/components/BottomBar.kt
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
+import com.android.purebilibili.core.ui.AppBottomNavigationHost
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.OpticalContrastPalette
+
 import android.os.Build
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
@@ -115,10 +120,6 @@ import com.android.purebilibili.core.theme.iOSRed
 import com.android.purebilibili.core.theme.BottomBarColors  // 统一底栏颜色配置
 import com.android.purebilibili.core.theme.BottomBarColorPalette  // 调色板
 import com.android.purebilibili.core.theme.LocalCornerRadiusScale
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
 import com.android.purebilibili.core.theme.iOSCornerRadius
 import kotlinx.coroutines.launch  //  延迟导航
 //  Cupertino Icons - iOS SF Symbols 风格图标
@@ -129,6 +130,7 @@ import com.android.purebilibili.core.ui.animation.DampedDragAnimationState
 import com.android.purebilibili.core.ui.animation.rememberDampedDragAnimationState
 import com.android.purebilibili.core.ui.animation.horizontalDragGesture
 import com.android.purebilibili.feature.home.LocalHomeScrollOffset
+import com.android.purebilibili.feature.home.HomeVisualPalette
 import com.android.purebilibili.core.ui.motion.BottomBarMotionProfile
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.core.ui.motion.resolveBottomBarMotionSpec
@@ -166,7 +168,6 @@ import com.android.purebilibili.core.store.BottomBarSearchAutoExpandMode
 import com.android.purebilibili.core.store.BottomBarSearchLayoutMode
 import com.android.purebilibili.core.store.LiquidGlassStyle // [New] Top-level enum
 import com.android.purebilibili.core.store.LiquidGlassMode
-import com.android.purebilibili.core.store.resolveSharedLiquidGlassChromeEnabled
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import kotlin.math.sign
@@ -188,19 +189,19 @@ import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBac
 import top.yukonga.miuix.kmp.blur.sensor.rememberDeviceTilt
 
 private val iosIndicatorSpecular: MiuixHighlight = MiuixHighlight(
-    width = 1.dp,
+    width = AppSpacingTokens.Micro / 2,
     alpha = 1f,
     style = BloomStroke(
-        color = Color.White.copy(alpha = 0.12f),
-        innerBlurRadius = 2.0.dp,
+        color = OpticalContrastPalette.Highlight.copy(alpha = 0.12f),
+        innerBlurRadius = AppSpacingTokens.Micro,
         primaryLight = LightSource(
             position = LightPosition(0.5f, -0.3f, -0.05f),
-            color = Color.White,
+            color = OpticalContrastPalette.Highlight,
             intensity = 1f
         ),
         secondaryLight = LightSource(
             position = LightPosition(0.5f, 0.8f, -0.5f),
-            color = Color.White,
+            color = OpticalContrastPalette.Highlight,
             intensity = 0.4f
         ),
         dualPeak = true
@@ -300,8 +301,18 @@ enum class BottomNavItem(
         R.string.bottom_nav_listen_video,
         R.string.bottom_nav_listen_video_desc,
         listOf("音乐"),
-        { Icon(CupertinoIcons.Default.MusicNote, contentDescription = null) },
-        { Icon(CupertinoIcons.Outlined.MusicNote, contentDescription = null) },
+        {
+            Icon(
+                painter = painterResource(R.drawable.ic_bottom_nav_listen_video_selected),
+                contentDescription = null
+            )
+        },
+        {
+            Icon(
+                painter = painterResource(R.drawable.ic_bottom_nav_listen_video),
+                contentDescription = null
+            )
+        },
         ScreenRoutes.ListenVideo.route
     ),
     PROFILE(
@@ -477,9 +488,13 @@ internal fun resolveKernelSuFloatingBottomBarWidth(
     minEdgePadding: Dp
 ): Dp {
     val safeItemCount = itemCount.coerceAtLeast(1)
-    val contentPadding = 4.dp
-    val preferredWidth = (76.dp * safeItemCount) + (contentPadding * 2)
-    val minimumWidth = (52.dp * safeItemCount) + (contentPadding * 2)
+    val contentPadding = AppSpacingTokens.ExtraSmall
+    val preferredItemWidth = AppSpacingTokens.TripleExtraLarge +
+        AppSpacingTokens.ExtraLarge +
+        AppSpacingTokens.ExtraSmall
+    val minimumItemWidth = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.ExtraSmall
+    val preferredWidth = (preferredItemWidth * safeItemCount) + (contentPadding * 2)
+    val minimumWidth = (minimumItemWidth * safeItemCount) + (contentPadding * 2)
     val widthCap = (containerWidth - (minEdgePadding * 2)).coerceAtLeast(minimumWidth)
     return minOf(preferredWidth, widthCap).coerceAtMost(containerWidth)
 }
@@ -491,7 +506,7 @@ internal fun resolveKernelSuBottomBarItemSlotWidth(
 ): Dp {
     val safeItemCount = itemCount.coerceAtLeast(1)
     return ((dockWidth - (horizontalPadding * 2)) / safeItemCount)
-        .coerceAtLeast(0.dp)
+        .coerceAtLeast(AppSpacingTokens.None)
 }
 
 internal fun resolveKernelSuBottomBarItemCenterX(
@@ -509,9 +524,9 @@ internal data class KernelSuBottomBarSearchLayout(
     val gap: Dp
 )
 
-internal fun resolveKernelSuBottomBarSearchCircleSize(): Dp = 64.dp
+internal fun resolveKernelSuBottomBarSearchCircleSize(): Dp = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large
 
-internal fun resolveKernelSuExpandedHomeIconSize(): Dp = 28.dp
+internal fun resolveKernelSuExpandedHomeIconSize(): Dp = AppSpacingTokens.ExtraLarge + AppSpacingTokens.ExtraSmall
 
 internal fun resolveKernelSuExpandedHomeIconScale(): Float = 0.92f
 
@@ -538,20 +553,20 @@ internal fun resolveKernelSuBottomBarSearchLayout(
     if (!searchEnabled) {
         return KernelSuBottomBarSearchLayout(
             dockWidth = baseDockWidth,
-            searchWidth = 0.dp,
-            gap = 0.dp
+            searchWidth = AppSpacingTokens.None,
+            gap = AppSpacingTokens.None
         )
     }
 
-    val gap = 10.dp
-    val availableWidth = (containerWidth - (minEdgePadding * 2)).coerceAtLeast(0.dp)
+    val gap = AppSpacingTokens.Small + AppSpacingTokens.Micro
+    val availableWidth = (containerWidth - (minEdgePadding * 2)).coerceAtLeast(AppSpacingTokens.None)
     val searchCircleSize = resolveKernelSuBottomBarSearchCircleSize()
     val minimumDockWidth = searchCircleSize
     val collapsedSearchWidth = searchCircleSize
     val compactHomeDockSize = searchCircleSize
     val expandedSearchWidth = minOf(
-        280.dp,
-        (availableWidth - compactHomeDockSize - gap).coerceAtLeast(176.dp)
+        AppSpacingTokens.TripleExtraLarge * 6 - AppSpacingTokens.Small,
+        (availableWidth - compactHomeDockSize - gap).coerceAtLeast(AppSpacingTokens.TripleExtraLarge * 3 + AppSpacingTokens.DoubleExtraLarge)
     )
     val useCompactLayout = searchLayoutMode == BottomBarSearchLayoutMode.HOME_AND_SEARCH
     val targetSearchWidth = if (useCompactLayout && searchExpanded) {
@@ -580,12 +595,12 @@ internal fun resolveKernelSuBottomBarDockHeight(
     } else if (hasUiSkinDecoration) {
         resolveBottomBarSkinDockHeight()
     } else {
-        64.dp
+        AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large
     }
 }
 
 internal fun resolveKernelSuBottomBarSearchHeight(searchExpanded: Boolean): Dp {
-    return 64.dp
+    return AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large
 }
 
 internal fun resolveBottomBarRefractionCaptureWidth(
@@ -632,10 +647,7 @@ private fun rememberKernelSuBottomBarSearchLayoutState(
     if (!searchEnabled) {
         val dockWidth by animateDpAsState(
             targetValue = targetSearchLayout.dockWidth,
-            animationSpec = tween(
-                durationMillis = 260,
-                easing = AppMotionEasing.Continuity
-            ),
+            animationSpec = bottomBarDockWidthMotionSpec(),
             label = "bottomBarDockWidth"
         )
         val dockHeight by animateDpAsState(
@@ -643,45 +655,33 @@ private fun rememberKernelSuBottomBarSearchLayoutState(
                 searchExpanded = false,
                 hasUiSkinDecoration = hasUiSkinDecoration
             ),
-            animationSpec = tween(
-                durationMillis = 220,
-                easing = AppMotionEasing.Continuity
-            ),
+            animationSpec = bottomBarChromeHeightMotionSpec(),
             label = "bottomBarDockHeight"
         )
         return KernelSuBottomBarSearchLayoutState(
             dockWidth = dockWidth,
             dockHeight = dockHeight,
-            searchWidth = 0.dp,
-            searchHeight = 0.dp,
-            searchGap = 0.dp,
-            launchAdjustedSearchGap = 0.dp,
+            searchWidth = AppSpacingTokens.None,
+            searchHeight = AppSpacingTokens.None,
+            searchGap = AppSpacingTokens.None,
+            launchAdjustedSearchGap = AppSpacingTokens.None,
             shellHeight = dockHeight
         )
     }
 
     val dockWidth by animateDpAsState(
         targetValue = targetSearchLayout.dockWidth,
-        animationSpec = tween(
-            durationMillis = 260,
-            easing = AppMotionEasing.Continuity
-        ),
+        animationSpec = bottomBarDockWidthMotionSpec(),
         label = "bottomBarDockWidth"
     )
     val searchWidth by animateDpAsState(
         targetValue = targetSearchLayout.searchWidth,
-        animationSpec = tween(
-            durationMillis = 260,
-            easing = AppMotionEasing.Continuity
-        ),
+        animationSpec = bottomBarDockWidthMotionSpec(),
         label = "bottomBarSearchWidth"
     )
     val searchGap by animateDpAsState(
         targetValue = targetSearchLayout.gap,
-        animationSpec = tween(
-            durationMillis = 240,
-            easing = AppMotionEasing.Continuity
-        ),
+        animationSpec = bottomBarSearchGapMotionSpec(),
         label = "bottomBarSearchGap"
     )
     val dockHeight by animateDpAsState(
@@ -689,20 +689,14 @@ private fun rememberKernelSuBottomBarSearchLayoutState(
             searchExpanded = searchExpanded,
             hasUiSkinDecoration = hasUiSkinDecoration
         ),
-        animationSpec = tween(
-            durationMillis = 220,
-            easing = AppMotionEasing.Continuity
-        ),
+        animationSpec = bottomBarChromeHeightMotionSpec(),
         label = "bottomBarDockHeight"
     )
     val searchHeight by animateDpAsState(
         targetValue = resolveKernelSuBottomBarSearchHeight(
             searchExpanded = searchExpanded
         ),
-        animationSpec = tween(
-            durationMillis = 220,
-            easing = AppMotionEasing.Continuity
-        ),
+        animationSpec = bottomBarChromeHeightMotionSpec(),
         label = "bottomBarSearchHeight"
     )
     val shellHeight = if (dockHeight > searchHeight) dockHeight else searchHeight
@@ -905,7 +899,6 @@ internal fun shouldComposeBottomBarDockContent(
 internal fun resolveAndroidNativeBottomBarTuning(
     blurEnabled: Boolean,
     darkTheme: Boolean,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
 ): AndroidNativeBottomBarTuning {
     return AndroidNativeBottomBarTuning(
         cornerRadiusDp = 32f,
@@ -1006,6 +999,11 @@ internal fun shouldUseAndroidNativeFloatingHazeBlur(
     hasHazeState &&
     shouldAllowRenderEffectBackedHazeEffect(sdkInt)
 
+internal fun shouldRenderBottomBarLiquidGlassEffects(
+    glassEnabled: Boolean,
+    forceLowBlurBudget: Boolean,
+): Boolean = glassEnabled && !forceLowBlurBudget
+
 internal fun Modifier.kernelSuFloatingDockSurface(
     shape: androidx.compose.ui.graphics.Shape,
     backdrop: Backdrop?,
@@ -1025,18 +1023,22 @@ internal fun Modifier.kernelSuFloatingDockSurface(
     materialPressProgress: Float = 0f
 ): Modifier = composed {
     val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.chromeBackground())
+    val renderGlassEffects = shouldRenderBottomBarLiquidGlassEffects(
+        glassEnabled = glassEnabled,
+        forceLowBlurBudget = forceLowBlurBudget,
+    )
     val materialSpec: BottomBarGlassMaterialSpec = resolveBottomBarGlassMaterialSpec(
         preset = liquidGlassPreset,
         isDarkTheme = isDarkTheme,
         isScrolling = isScrolling,
         scrollProgress = materialScrollProgress,
-        glassEnabled = glassEnabled,
+        glassEnabled = renderGlassEffects,
         motionProgress = materialMotionProgress,
         pressProgress = materialPressProgress
     )
     val useHazeBlur = shouldUseAndroidNativeFloatingHazeBlur(
         blurEnabled = blurEnabled,
-        glassEnabled = glassEnabled,
+        glassEnabled = renderGlassEffects,
         hasHazeState = hazeState != null
     )
     this
@@ -1060,14 +1062,14 @@ internal fun Modifier.kernelSuFloatingDockSurface(
                 val innerRimGlowProvider: (() -> InnerShadow)? = remember(
                     materialSpec.innerRimGlow,
                     isDarkTheme,
-                    glassEnabled
+                    renderGlassEffects
                 ) {
                     val innerRimGlow = materialSpec.innerRimGlow
-                    if (glassEnabled && innerRimGlow != null) {
+                    if (renderGlassEffects && innerRimGlow != null) {
                         val cached = InnerShadow(
                             radius = innerRimGlow.radiusDp.dp,
                             alpha = innerRimGlow.alpha,
-                            color = if (isDarkTheme) Color.White else Color.Black
+                            color = if (isDarkTheme) OpticalContrastPalette.Highlight else OpticalContrastPalette.Shadow
                         )
                         val provider: () -> InnerShadow = { cached }
                         provider
@@ -1079,13 +1081,13 @@ internal fun Modifier.kernelSuFloatingDockSurface(
                     backdrop = backdrop,
                     shape = { shape },
                     effects = {
-                        if (glassEnabled || (blurEnabled && !useHazeBlur)) {
+                        if (renderGlassEffects || (blurEnabled && !useHazeBlur)) {
                             if (materialSpec.vibrancy) {
                                 vibrancy()
                             }
                             blur((materialSpec.blurRadiusDp?.dp ?: blurRadius).toPx())
                             if (
-                                glassEnabled &&
+                                renderGlassEffects &&
                                 drawShellLens &&
                                 materialSpec.shellRefractionHeightDp > 0f &&
                                 materialSpec.shellRefractionAmountDp > 0f
@@ -1096,7 +1098,7 @@ internal fun Modifier.kernelSuFloatingDockSurface(
                                 )
                             }
                             val shellShader = materialSpec.shellShader
-                            if (glassEnabled && drawShellLens && shellShader != null) {
+                            if (renderGlassEffects && drawShellLens && shellShader != null) {
                                 val cornerPx = (size.height.coerceAtMost(size.width)) / 2f
                                 val u = resolveLiquidGlassShaderUniforms(
                                     widthPx = size.width,
@@ -1134,22 +1136,22 @@ internal fun Modifier.kernelSuFloatingDockSurface(
                     },
                     highlight = {
                         Highlight(
-                            width = 1.dp,
-                            alpha = if (glassEnabled) 0.75f else 0f
+                            width = AppSpacingTokens.Micro / 2,
+                            alpha = if (renderGlassEffects) 0.75f else 0f
                         )
                     },
                     shadow = {
                         Shadow.Default.copy(
-                            color = Color.Black.copy(
+                            color = OpticalContrastPalette.Shadow.copy(
                                 alpha = if (isDarkTheme) 0.2f else 0.1f
                             )
                         )
                     },
                     innerShadow = innerRimGlowProvider,
-                    layerBlock = if (glassEnabled) {
+                    layerBlock = if (renderGlassEffects) {
                         {
                             val width = size.width.coerceAtLeast(1f)
-                            val s = lerp(1f, 1f + 16.dp.toPx() / width, materialPressProgress)
+                            val s = lerp(1f, 1f + AppSpacingTokens.Large.toPx() / width, materialPressProgress)
                             scaleX = s
                             scaleY = s
                         }
@@ -1188,8 +1190,12 @@ internal fun Modifier.kernelSuMiuixFloatingDockSurface(
     materialPressProgress: Float = 0f
 ): Modifier = composed {
     val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background())
-    val useHazeBlur = shouldUseAndroidNativeFloatingHazeBlur(
+    val renderGlassEffects = shouldRenderBottomBarLiquidGlassEffects(
         glassEnabled = glassEnabled,
+        forceLowBlurBudget = forceLowBlurBudget,
+    )
+    val useHazeBlur = shouldUseAndroidNativeFloatingHazeBlur(
+        glassEnabled = renderGlassEffects,
         blurEnabled = blurEnabled,
         hasHazeState = hazeState != null
     )
@@ -1217,8 +1223,8 @@ internal fun Modifier.kernelSuMiuixFloatingDockSurface(
                     .dropShadow(
                         shape = shape,
                         shadow = ComposeShadow(
-                            radius = 10.dp,
-                            color = Color.Black,
+                            radius = AppSpacingTokens.Small + AppSpacingTokens.Micro,
+                            color = OpticalContrastPalette.Shadow,
                             alpha = if (isDarkTheme) 0.2f else 0.1f
                         )
                     )
@@ -1226,13 +1232,13 @@ internal fun Modifier.kernelSuMiuixFloatingDockSurface(
                         backdrop = backdrop,
                         shape = { shape },
                         effects = {
-                            if (glassEnabled) {
+                            if (renderGlassEffects) {
                                 miuixVibrancy()
-                                miuixBlur(4.dp.toPx(), 4.dp.toPx())
+                                miuixBlur(AppSpacingTokens.ExtraSmall.toPx(), AppSpacingTokens.ExtraSmall.toPx())
                                 if (drawShellLens) {
                                     miuixLens(
-                                        refractionHeight = 24.dp.toPx(),
-                                        refractionAmount = 24.dp.toPx()
+                                        refractionHeight = AppSpacingTokens.ExtraLarge.toPx(),
+                                        refractionAmount = AppSpacingTokens.ExtraLarge.toPx()
                                     )
                                 }
                             } else if (blurEnabled && !useHazeBlur) {
@@ -1241,12 +1247,12 @@ internal fun Modifier.kernelSuMiuixFloatingDockSurface(
                             }
                         },
                         highlight = {
-                            baseHighlight.copy(alpha = if (glassEnabled) 0.75f else 0f)
+                            baseHighlight.copy(alpha = if (renderGlassEffects) 0.75f else 0f)
                         },
-                        layerBlock = if (glassEnabled) {
+                        layerBlock = if (renderGlassEffects) {
                             {
                                 val width = size.width.coerceAtLeast(1f)
-                                val s = lerp(1f, 1f + 16.dp.toPx() / width, materialPressProgress)
+                                val s = lerp(1f, 1f + AppSpacingTokens.Large.toPx() / width, materialPressProgress)
                                 scaleX = s
                                 scaleY = s
                             }
@@ -1277,7 +1283,7 @@ internal fun resolveAndroidNativeIndicatorColor(
 ): Color {
     val softened = androidx.compose.ui.graphics.lerp(
         start = themeColor,
-        stop = Color.White,
+        stop = OpticalContrastPalette.Highlight,
         fraction = if (darkTheme) 0.58f else 0.82f
     )
     return softened.copy(alpha = if (darkTheme) 0.42f else 0.82f)
@@ -1307,8 +1313,8 @@ internal fun resolveBottomBarSkinContentColors(
     val readableBackgroundIsLight = skinTrimTint?.luminance()?.let { it >= 0.45f } == true
     val labelScrimColor = when {
         skinTrimTint == null -> Color.Transparent
-        readableBackgroundIsLight -> Color.White
-        else -> Color.Black
+        readableBackgroundIsLight -> OpticalContrastPalette.Highlight
+        else -> OpticalContrastPalette.Shadow
     }
     val labelScrimAlpha = 0f
     return BottomBarSkinContentColors(
@@ -1328,24 +1334,24 @@ private fun Modifier.bottomBarSkinLabelScrim(
     return this
         .clip(AppShapes.container(ContainerLevel.Chip))
         .background(color.copy(alpha = alpha.coerceIn(0f, 1f)))
-        .padding(horizontal = 4.dp, vertical = 1.dp)
+        .padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Micro / 2)
 }
 
 internal fun resolveAndroidNativeIdleIndicatorSurfaceColor(
     darkTheme: Boolean
 ): Color {
     return if (darkTheme) {
-        Color.White.copy(alpha = 0.1f)
+        OpticalContrastPalette.Highlight.copy(alpha = 0.1f)
     } else {
-        Color.Black.copy(alpha = 0.1f)
+        OpticalContrastPalette.Shadow.copy(alpha = 0.1f)
     }
 }
 
 internal fun resolveKernelSuBottomBarContainerColor(darkTheme: Boolean): Color {
     val surfaceContainer = if (darkTheme) {
-        Color(36, 36, 36)
+        HomeVisualPalette.KernelSuDarkSurface
     } else {
-        Color.White
+        OpticalContrastPalette.Highlight
     }
     return surfaceContainer.copy(alpha = 0.4f)
 }
@@ -1635,13 +1641,13 @@ private fun Modifier.bottomBarInteractiveHighlight(
             y = size.height * 0.5f
         )
         drawRect(
-            color = Color.White.copy(alpha = 0.06f * clampedAlpha),
+            color = OpticalContrastPalette.Highlight.copy(alpha = 0.06f * clampedAlpha),
             blendMode = BlendMode.Plus
         )
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color.White.copy(alpha = 0.17f * clampedAlpha),
+                    OpticalContrastPalette.Highlight.copy(alpha = 0.17f * clampedAlpha),
                     Color.Transparent
                 ),
                 center = center,
@@ -1820,10 +1826,7 @@ internal fun rememberBottomBarClickPulseTransform(
         progress.snapTo(0f)
         progress.animateTo(
             targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = 240,
-                easing = LinearEasing
-            )
+            animationSpec = bottomBarClickPulseMotionSpec()
         )
     }
     return resolveBottomBarClickPulseTransform(progress.value)
@@ -1839,10 +1842,7 @@ private fun rememberBottomBarTapSwitchPressProgress(
         progress.snapTo(1f)
         progress.animateTo(
             targetValue = 0f,
-            animationSpec = tween(
-                durationMillis = 240,
-                easing = FastOutSlowInEasing
-            )
+            animationSpec = bottomBarTapReleaseMotionSpec()
         )
     }
     return progress.value
@@ -1858,10 +1858,7 @@ internal fun rememberBottomBarSettleReboundTransform(
         progress.snapTo(0f)
         progress.animateTo(
             targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = 260,
-                easing = LinearEasing
-            )
+            animationSpec = bottomBarSettleReboundMotionSpec()
         )
     }
     return resolveBottomBarSettleReboundTransform(progress.value)
@@ -2036,7 +2033,7 @@ internal fun resolveBottomBarMovingIndicatorSurfaceColor(isDarkTheme: Boolean): 
     return if (isDarkTheme) {
         iOSSystemGray6
     } else {
-        Color.White
+        OpticalContrastPalette.Highlight
     }
 }
 
@@ -2142,32 +2139,32 @@ internal fun resolveBottomBarLayoutPolicy(
 ): BottomBarLayoutPolicy {
     if (!isFloating) {
         return BottomBarLayoutPolicy(
-            horizontalPadding = 0.dp,
-            rowPadding = 20.dp,
+            horizontalPadding = AppSpacingTokens.None,
+            rowPadding = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall,
             maxBarWidth = containerWidth
         )
     }
 
     val safeItemCount = itemCount.coerceAtLeast(1)
     val rowPadding = when {
-        isTablet && safeItemCount >= 6 -> 16.dp
-        isTablet -> 18.dp
-        safeItemCount >= 5 -> 12.dp
-        else -> 16.dp
+        isTablet && safeItemCount >= 6 -> AppSpacingTokens.Large
+        isTablet -> AppSpacingTokens.Large + AppSpacingTokens.Micro
+        safeItemCount >= 5 -> AppSpacingTokens.Medium
+        else -> AppSpacingTokens.Large
     }
     val normalizedLabelMode = when (labelMode) {
         0, 1, 2 -> labelMode
         else -> 0
     }
     val minItemWidth = when (normalizedLabelMode) {
-        0 -> if (isTablet) 62.dp else 52.dp
-        2 -> if (isTablet) 60.dp else 52.dp
-        else -> if (isTablet) 58.dp else 50.dp
+        0 -> if (isTablet) AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Medium + AppSpacingTokens.Micro else AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.ExtraSmall
+        2 -> if (isTablet) AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Medium else AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.ExtraSmall
+        else -> if (isTablet) AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small + AppSpacingTokens.Micro else AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Micro
     }
     val preferredItemWidth = when (normalizedLabelMode) {
-        0 -> if (isTablet) 84.dp else 80.dp
-        2 -> if (isTablet) 80.dp else 74.dp
-        else -> if (isTablet) 76.dp else 72.dp
+        0 -> if (isTablet) AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall else AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.DoubleExtraLarge
+        2 -> if (isTablet) AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.DoubleExtraLarge else AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.ExtraLarge + AppSpacingTokens.Micro
+        else -> if (isTablet) AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.ExtraLarge + AppSpacingTokens.ExtraSmall else AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.ExtraLarge
     }
     val minBarWidth = (rowPadding * 2) + (minItemWidth * safeItemCount)
     val preferredBarWidth = (rowPadding * 2) + (preferredItemWidth * safeItemCount)
@@ -2180,9 +2177,9 @@ internal fun resolveBottomBarLayoutPolicy(
     }
     val widthRatio = if (isTablet) 0.86f else phoneRatio
     val visualCap = containerWidth * widthRatio
-    val hardCap = if (isTablet) 640.dp else 432.dp
-    val minEdgePadding = if (isTablet) 16.dp else 10.dp
-    val containerCap = (containerWidth - (minEdgePadding * 2)).coerceAtLeast(0.dp)
+    val hardCap = if (isTablet) AppSpacingTokens.TripleExtraLarge * 13 + AppSpacingTokens.Large else AppSpacingTokens.TripleExtraLarge * 9
+    val minEdgePadding = if (isTablet) AppSpacingTokens.Large else AppSpacingTokens.Small + AppSpacingTokens.Micro
+    val containerCap = (containerWidth - (minEdgePadding * 2)).coerceAtLeast(AppSpacingTokens.None)
     val maxAllowed = minOf(hardCap, visualCap, containerCap)
 
     val resolvedBarWidth = maxOf(
@@ -2190,7 +2187,7 @@ internal fun resolveBottomBarLayoutPolicy(
         minOf(preferredBarWidth, maxAllowed)
     ).coerceAtMost(containerWidth)
 
-    val horizontalPadding = ((containerWidth - resolvedBarWidth) / 2).coerceAtLeast(0.dp)
+    val horizontalPadding = ((containerWidth - resolvedBarWidth) / 2).coerceAtLeast(AppSpacingTokens.None)
     return BottomBarLayoutPolicy(
         horizontalPadding = horizontalPadding,
         rowPadding = rowPadding,
@@ -2242,9 +2239,65 @@ fun FrostedBottomBar(
     isFeedScrollInProgress: Boolean = false,
     uiSkinDecoration: BottomBarUiSkinDecoration? = null
 ) {
-    if (LocalUiPreset.current == UiPreset.MD3) {
-        val androidNativeVariant = LocalAndroidNativeVariant.current
-        if (androidNativeVariant == AndroidNativeVariant.MIUIX) {
+    val isTablet = com.android.purebilibili.core.util.LocalWindowSizeClass.current.isTablet
+    AppBottomNavigationHost(
+        individualLiquidGlassEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
+        androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+        cupertinoContent = { policy ->
+            CupertinoBottomBar(
+                currentItem = currentItem,
+                onItemClick = onItemClick,
+                modifier = modifier,
+                hazeState = hazeState,
+                isFloating = isFloating,
+                labelMode = labelMode,
+                homeSettings = homeSettings,
+                onSearchClick = onSearchClick,
+                onSearchKeywordSubmit = onSearchKeywordSubmit,
+                searchLaunchKey = searchLaunchKey,
+                onSearchLaunchTransitionFinished = onSearchLaunchTransitionFinished,
+                visibleItems = visibleItems,
+                itemColorIndices = itemColorIndices,
+                dynamicUnreadCount = dynamicUnreadCount,
+                onToggleSidebar = onToggleSidebar,
+                backdrop = backdrop,
+                miuixBackdrop = miuixBackdrop,
+                motionTier = motionTier,
+                isTransitionRunning = isTransitionRunning,
+                forceLowBlurBudget = forceLowBlurBudget,
+                isFeedScrollInProgress = isFeedScrollInProgress,
+                uiSkinDecoration = uiSkinDecoration,
+                isTablet = isTablet,
+                sharedLiquidGlassEnabled = policy.liquidGlassEnabled,
+            )
+        },
+        materialContent = { policy ->
+            MaterialBottomBar(
+                currentItem = currentItem,
+                onItemClick = onItemClick,
+                modifier = modifier,
+                visibleItems = visibleItems,
+                onToggleSidebar = onToggleSidebar,
+                dynamicUnreadCount = dynamicUnreadCount,
+                isFloating = isFloating,
+                isTablet = isTablet,
+                labelMode = labelMode,
+                blurEnabled = hazeState != null,
+                hazeState = hazeState,
+                backdrop = backdrop,
+                miuixBackdrop = miuixBackdrop,
+                homeSettings = homeSettings,
+                onSearchClick = onSearchClick,
+                onSearchKeywordSubmit = onSearchKeywordSubmit,
+                motionTier = motionTier,
+                isTransitionRunning = isTransitionRunning,
+                forceLowBlurBudget = forceLowBlurBudget,
+                isFeedScrollInProgress = isFeedScrollInProgress,
+                uiSkinDecoration = uiSkinDecoration,
+                sharedLiquidGlassEnabled = policy.liquidGlassEnabled,
+            )
+        },
+        platformContent = { policy ->
             MiuixBottomBar(
                 currentItem = currentItem,
                 onItemClick = onItemClick,
@@ -2253,7 +2306,7 @@ fun FrostedBottomBar(
                 onToggleSidebar = onToggleSidebar,
                 dynamicUnreadCount = dynamicUnreadCount,
                 isFloating = isFloating,
-                isTablet = com.android.purebilibili.core.util.LocalWindowSizeClass.current.isTablet,
+                isTablet = isTablet,
                 labelMode = labelMode,
                 blurEnabled = hazeState != null,
                 hazeState = hazeState,
@@ -2263,39 +2316,45 @@ fun FrostedBottomBar(
                 onSearchClick = onSearchClick,
                 onSearchKeywordSubmit = onSearchKeywordSubmit,
                 searchLaunchKey = searchLaunchKey,
-                onSearchLaunchTransitionFinished = onSearchLaunchTransitionFinished,                motionTier = motionTier,
+                onSearchLaunchTransitionFinished = onSearchLaunchTransitionFinished,
+                motionTier = motionTier,
                 isTransitionRunning = isTransitionRunning,
                 forceLowBlurBudget = forceLowBlurBudget,
                 isFeedScrollInProgress = isFeedScrollInProgress,
-                uiSkinDecoration = uiSkinDecoration
+                uiSkinDecoration = uiSkinDecoration,
+                sharedLiquidGlassEnabled = policy.liquidGlassEnabled,
             )
-        } else {
-            MaterialBottomBar(
-                currentItem = currentItem,
-                onItemClick = onItemClick,
-                modifier = modifier,
-                visibleItems = visibleItems,
-                onToggleSidebar = onToggleSidebar,
-                dynamicUnreadCount = dynamicUnreadCount,
-                isFloating = isFloating,
-                isTablet = com.android.purebilibili.core.util.LocalWindowSizeClass.current.isTablet,
-                labelMode = labelMode,
-                blurEnabled = hazeState != null,
-                hazeState = hazeState,
-                backdrop = backdrop,
-                miuixBackdrop = miuixBackdrop,
-                homeSettings = homeSettings,
-                onSearchClick = onSearchClick,
-                onSearchKeywordSubmit = onSearchKeywordSubmit,                motionTier = motionTier,
-                isTransitionRunning = isTransitionRunning,
-                forceLowBlurBudget = forceLowBlurBudget,
-                isFeedScrollInProgress = isFeedScrollInProgress,
-                uiSkinDecoration = uiSkinDecoration
-            )
-        }
-        return
-    }
+        },
+    )
+}
 
+@Composable
+private fun CupertinoBottomBar(
+    currentItem: BottomNavItem,
+    onItemClick: (BottomNavItem) -> Unit,
+    modifier: Modifier,
+    hazeState: HazeState?,
+    isFloating: Boolean,
+    labelMode: Int,
+    homeSettings: com.android.purebilibili.core.store.HomeSettings,
+    onSearchClick: () -> Unit,
+    onSearchKeywordSubmit: (String) -> Unit,
+    searchLaunchKey: Int,
+    onSearchLaunchTransitionFinished: (Int) -> Unit,
+    visibleItems: List<BottomNavItem>,
+    itemColorIndices: Map<String, Int>,
+    dynamicUnreadCount: Int,
+    onToggleSidebar: (() -> Unit)?,
+    backdrop: LayerBackdrop?,
+    miuixBackdrop: MiuixLayerBackdrop?,
+    motionTier: MotionTier,
+    isTransitionRunning: Boolean,
+    forceLowBlurBudget: Boolean,
+    isFeedScrollInProgress: Boolean,
+    uiSkinDecoration: BottomBarUiSkinDecoration?,
+    isTablet: Boolean,
+    sharedLiquidGlassEnabled: Boolean,
+) {
     val isDarkTheme = AppSurfaceTokens.chromeBackground().red < 0.5f // Simple darkness check
     val haptic = rememberHapticFeedback()
     val normalizedLabelMode = normalizeBottomBarLabelMode(labelMode)
@@ -2312,15 +2371,7 @@ fun FrostedBottomBar(
             searchLayoutMode = homeSettings.bottomBarSearchLayoutMode
         )
     }
-    val windowSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current
-    val isTablet = windowSizeClass.isTablet
     val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
-    val uiPreset = LocalUiPreset.current
-    val sharedLiquidGlassEnabled = resolveSharedLiquidGlassChromeEnabled(
-        individualEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
-        uiPreset = uiPreset,
-        androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
-    )
     if (isFloating) {
         val glassEnabled = resolveAndroidNativeBottomBarGlassEnabled(
             liquidGlassEnabled = sharedLiquidGlassEnabled,
@@ -2396,7 +2447,8 @@ fun FrostedBottomBar(
         motionTier = motionTier,
         isTransitionRunning = isTransitionRunning,
         forceLowBlurBudget = forceLowBlurBudget,
-        uiSkinDecoration = uiSkinDecoration
+        uiSkinDecoration = uiSkinDecoration,
+        sharedLiquidGlassEnabled = sharedLiquidGlassEnabled,
     )
 }
 
@@ -2423,7 +2475,8 @@ private fun MaterialBottomBar(
     isTransitionRunning: Boolean,
     forceLowBlurBudget: Boolean,
     isFeedScrollInProgress: Boolean = false,
-    uiSkinDecoration: BottomBarUiSkinDecoration? = null
+    uiSkinDecoration: BottomBarUiSkinDecoration? = null,
+    sharedLiquidGlassEnabled: Boolean,
 ) {
     val haptic = rememberHapticFeedback()
     val normalizedLabelMode = normalizeBottomBarLabelMode(labelMode)
@@ -2441,17 +2494,12 @@ private fun MaterialBottomBar(
         )
     }
     val glassEnabled = resolveAndroidNativeBottomBarGlassEnabled(
-        liquidGlassEnabled = resolveSharedLiquidGlassChromeEnabled(
-            individualEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
-            uiPreset = LocalUiPreset.current,
-            androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
-        ),
+        liquidGlassEnabled = sharedLiquidGlassEnabled,
         blurEnabled = blurEnabled
     )
     val androidNativeTuning = resolveAndroidNativeBottomBarTuning(
         blurEnabled = glassEnabled || blurEnabled,
         darkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.chromeBackground()),
-        androidNativeVariant = LocalAndroidNativeVariant.current
     )
     val blurIntensity = currentUnifiedBlurIntensity()
     val baseSurfaceColor = if (isFloating) {
@@ -2537,8 +2585,8 @@ private fun MaterialBottomBar(
                     Modifier
                 }
             ),
-        tonalElevation = if (blurEnabled) 0.dp else 3.dp,
-        shadowElevation = 0.dp,
+        tonalElevation = if (blurEnabled) AppSpacingTokens.None else AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
+        shadowElevation = AppSpacingTokens.None,
         color = containerColor
     ) {
         DockedBottomBarSkinContainer(
@@ -2546,7 +2594,7 @@ private fun MaterialBottomBar(
         ) {
             NavigationBar(
                 containerColor = Color.Transparent,
-                tonalElevation = 0.dp,
+                tonalElevation = AppSpacingTokens.None,
                 modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
             ) {
                 bottomBarVisibleItems.forEach { item ->
@@ -2580,7 +2628,7 @@ private fun MaterialBottomBar(
                                     }
                                 }
                             } else {
-                                Spacer(modifier = Modifier.size(0.dp))
+                                Spacer(modifier = Modifier.size(AppSpacingTokens.None))
                             }
                         },
                         label = if (showText) {
@@ -2624,7 +2672,7 @@ private fun MaterialBottomBar(
                                     contentDescription = sidebarLabel
                                 )
                             } else {
-                                Spacer(modifier = Modifier.size(0.dp))
+                                Spacer(modifier = Modifier.size(AppSpacingTokens.None))
                             }
                         },
                         label = if (showText) {
@@ -2678,7 +2726,8 @@ private fun MiuixBottomBar(
     isTransitionRunning: Boolean,
     forceLowBlurBudget: Boolean,
     isFeedScrollInProgress: Boolean = false,
-    uiSkinDecoration: BottomBarUiSkinDecoration? = null
+    uiSkinDecoration: BottomBarUiSkinDecoration? = null,
+    sharedLiquidGlassEnabled: Boolean,
 ) {
     val haptic = rememberHapticFeedback()
     val normalizedLabelMode = normalizeBottomBarLabelMode(labelMode)
@@ -2697,17 +2746,12 @@ private fun MiuixBottomBar(
     }
     val displayMode = resolveMd3BottomBarDisplayMode(labelMode).toMiuixNavigationDisplayMode()
     val glassEnabled = resolveAndroidNativeBottomBarGlassEnabled(
-        liquidGlassEnabled = resolveSharedLiquidGlassChromeEnabled(
-            individualEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
-            uiPreset = LocalUiPreset.current,
-            androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
-        ),
+        liquidGlassEnabled = sharedLiquidGlassEnabled,
         blurEnabled = blurEnabled
     )
     val tuning = resolveAndroidNativeBottomBarTuning(
         blurEnabled = glassEnabled || blurEnabled,
         darkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background()),
-        androidNativeVariant = AndroidNativeVariant.MIUIX
     )
     val blurIntensity = currentUnifiedBlurIntensity()
     val baseSurfaceColor = if (isFloating) {
@@ -2962,7 +3006,7 @@ private fun RowScope.MiuixDockedBottomBarItem(
         if (showIcon) {
             BottomBarReminderBadgeAnchor(
                 badgeText = reminderBadgeText,
-                modifier = Modifier.then(if (iconAndText) Modifier.padding(top = 8.dp) else Modifier)
+                modifier = Modifier.then(if (iconAndText) Modifier.padding(top = AppSpacingTokens.Small) else Modifier)
             ) {
                 if (skinIconPath != null) {
                     BottomBarSkinIcon(
@@ -2975,7 +3019,7 @@ private fun RowScope.MiuixDockedBottomBarItem(
                         imageVector = icon,
                         contentDescription = label,
                         tint = contentColor,
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(AppSpacingTokens.ExtraLarge + AppSpacingTokens.Micro)
                     )
                 }
             }
@@ -2985,14 +3029,18 @@ private fun RowScope.MiuixDockedBottomBarItem(
                 text = label,
                 color = contentColor,
                 textAlign = TextAlign.Center,
-                fontSize = if (textOnly) 14.sp else 12.sp,
+                fontSize = if (textOnly) {
+                    MaterialTheme.typography.labelMedium.fontSize
+                } else {
+                    MaterialTheme.typography.labelSmall.fontSize
+                },
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1,
                 modifier = Modifier.then(
                     if (iconAndText) {
-                        Modifier.padding(bottom = 8.dp)
+                        Modifier.padding(bottom = AppSpacingTokens.Small)
                     } else {
-                        Modifier.padding(vertical = 8.dp)
+                        Modifier.padding(vertical = AppSpacingTokens.Small)
                     }
                 ).bottomBarSkinLabelScrim(
                     color = labelScrimColor,
@@ -3044,16 +3092,20 @@ private fun KernelSuAlignedBottomBar(
     val shellShape = resolveSharedBottomBarCapsuleShape()
     val tabsBackdrop = rememberMiuixLayerBackdrop()
     val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background())
+    val effectiveGlassEnabled = shouldRenderBottomBarLiquidGlassEffects(
+        glassEnabled = glassEnabled,
+        forceLowBlurBudget = forceLowBlurBudget,
+    )
     val ksuContainerColor = resolveKernelSuBottomBarShellColor(
         containerColor = containerColor,
-        liquidGlassEnabled = glassEnabled,
+        liquidGlassEnabled = effectiveGlassEnabled,
         darkTheme = isDarkTheme
     )
     val shellBlurEnabled = shouldBlurKernelSuBottomBarShell(
         blurEnabled = blurEnabled
     )
     val indicatorEffectsEnabled = resolveBottomBarIndicatorEffectsEnabled(
-        liquidGlassEnabled = glassEnabled,
+        liquidGlassEnabled = effectiveGlassEnabled,
         blurEnabled = blurEnabled
     )
     val density = LocalDensity.current
@@ -3221,9 +3273,9 @@ private fun KernelSuAlignedBottomBar(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                .padding(bottom = AppSpacingTokens.Medium + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
         ) {
-            val dockHorizontalPadding = 4.dp
+            val dockHorizontalPadding = AppSpacingTokens.ExtraSmall
             val dockContentPadding = if (uiSkinDecoration != null) {
                 resolveBottomBarSkinDockContentPadding()
             } else {
@@ -3252,18 +3304,12 @@ private fun KernelSuAlignedBottomBar(
             )
             val dockContentAlpha by animateFloatAsState(
                 targetValue = if (compactSearchLayout && effectiveSearchExpanded) 0f else 1f,
-                animationSpec = tween(
-                    durationMillis = 180,
-                    easing = AppMotionEasing.Continuity
-                ),
+                animationSpec = bottomBarContentVisibilityMotionSpec(),
                 label = "bottomBarDockContentAlpha"
             )
             val compactHomeAlpha by animateFloatAsState(
                 targetValue = if (compactSearchLayout && effectiveSearchExpanded) 1f else 0f,
-                animationSpec = tween(
-                    durationMillis = 180,
-                    easing = AppMotionEasing.Continuity
-                ),
+                animationSpec = bottomBarContentVisibilityMotionSpec(),
                 label = "bottomBarCompactHomeAlpha"
             )
             val shouldComposeDockContent = shouldComposeBottomBarDockContent(
@@ -3283,7 +3329,7 @@ private fun KernelSuAlignedBottomBar(
                 derivedStateOf {
                     val fraction = (dampedDragState.dragOffset / dockWidthPx).coerceIn(-1f, 1f)
                     with(density) {
-                        4.dp.toPx() *
+                        AppSpacingTokens.ExtraSmall.toPx() *
                             fraction.sign *
                             EaseOut.transform(abs(fraction))
                     }
@@ -3362,7 +3408,7 @@ private fun KernelSuAlignedBottomBar(
                 darkTheme = isDarkTheme
             )
             val shellHighlightAlpha = resolveBottomBarShellHighlightAlpha(
-                glassEnabled = glassEnabled,
+                glassEnabled = effectiveGlassEnabled,
                 pressProgress = effectivePressProgress,
                 motionProgress = effectiveIndicatorEffectProgress,
                 isDragging = dampedDragState.isDragging
@@ -3371,7 +3417,7 @@ private fun KernelSuAlignedBottomBar(
                 dampedDragState.isRunning ||
                 dampedDragState.pressProgress > BottomBarTransientAlphaThreshold
             val shouldRenderRefractionCaptureRaw = shouldRenderBottomBarRefractionCapture(
-                glassEnabled = glassEnabled,
+                glassEnabled = effectiveGlassEnabled,
                 hasBackdrop = miuixBackdrop != null,
                 captureProgress = effectiveCaptureProgress,
                 isTransitionRunning = isTransitionRunning,
@@ -3379,7 +3425,7 @@ private fun KernelSuAlignedBottomBar(
                 isBottomBarInteractionActive = isBottomBarInteractionActive
             )
             val shouldRenderIndicatorBackdropRaw = shouldRenderBottomBarIndicatorBackdrop(
-                glassEnabled = glassEnabled,
+                glassEnabled = effectiveGlassEnabled,
                 hasContentBackdrop = miuixBackdrop != null,
                 indicatorProgress = effectiveIndicatorEffectProgress,
                 isTransitionRunning = isTransitionRunning,
@@ -3393,16 +3439,17 @@ private fun KernelSuAlignedBottomBar(
             // 交互状态增删这些层,切换瞬间 tabsBackdrop 为空,指示器会直接采样到
             // 原始内容(首页视频画面)。常驻后 tabsBackdrop 始终有录制内容,
             // 由 progress 连续驱动 effects/surface,彻底消除该瞬态。
-            val glassLayersAlwaysOn = glassEnabled && miuixBackdrop != null
+            val glassLayersAlwaysOn = effectiveGlassEnabled && miuixBackdrop != null
             val shouldRenderRefractionCapture =
                 glassLayersAlwaysOn || shouldRenderRefractionCaptureRaw
             val shouldRenderIndicatorBackdrop =
                 glassLayersAlwaysOn || shouldRenderIndicatorBackdropRaw
             val shouldRenderIndicatorContentCapture =
-                shouldComposeDockContent &&
+                effectiveGlassEnabled &&
+                    shouldComposeDockContent &&
                     (shouldRenderRefractionCapture || isBottomBarPressActive)
             // InstallerX FloatingBottomBar: CombinedBackdrop(page, tabsCapture).
-            // tabsCapture also draws the page backdrop + container tint + icons (56.dp).
+            // tabsCapture also draws the page backdrop + container tint + icons (AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small).
             // Indicator samples the combined source so scaled edges keep page+frost, not black.
             val contentBackdrop = if (shouldRenderIndicatorBackdrop && miuixBackdrop != null) {
                 rememberMiuixCombinedBackdrop(miuixBackdrop, tabsBackdrop)
@@ -3438,7 +3485,7 @@ private fun KernelSuAlignedBottomBar(
                     unselectedColor = unselectedColor,
                     selectedColor = itemSelectedColor,
                     themeWeight = coverage,
-                    glassEnabled = glassEnabled,
+                    glassEnabled = effectiveGlassEnabled,
                     indicatorProgress = effectiveIndicatorEffectProgress,
                     indicatorBackdropEnabled = shouldRenderIndicatorBackdrop
                 )
@@ -3455,11 +3502,11 @@ private fun KernelSuAlignedBottomBar(
                     unselectedColor = unselectedColor,
                     selectedColor = selectedContentColor(item),
                     themeWeight = coverage,
-                    glassEnabled = glassEnabled
+                    glassEnabled = effectiveGlassEnabled
                 )
             }
 
-            fun sampledItemScale(): Float = if (glassEnabled) {
+            fun sampledItemScale(): Float = if (effectiveGlassEnabled) {
                 resolveBottomBarItemMotionScale(
                     coverage = 1f,
                     motionProgress = effectivePressProgress
@@ -3513,7 +3560,7 @@ private fun KernelSuAlignedBottomBar(
                     miuixBackdrop = miuixBackdrop,
                     containerColor = ksuContainerColor,
                     blurEnabled = shellBlurEnabled,
-                    glassEnabled = glassEnabled,
+                    glassEnabled = effectiveGlassEnabled,
                     blurRadius = tuning.shellBlurRadiusDp.dp,
                     hazeState = hazeState,
                     motionTier = motionTier,
@@ -3598,7 +3645,7 @@ private fun KernelSuAlignedBottomBar(
 
                 if (shouldRenderIndicatorContentCapture && miuixBackdrop != null) {
                     // InstallerX-aligned export capture: record page backdrop + container tint +
-                    // tinted icons into tabsBackdrop. Height stays dock band (56.dp).
+                    // tinted icons into tabsBackdrop. Height stays dock band (AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small).
                     Box(
                         modifier = Modifier
                             .width(dockWidth)
@@ -3614,14 +3661,14 @@ private fun KernelSuAlignedBottomBar(
                                 backdrop = miuixBackdrop,
                                 shape = { shellShape },
                                 effects = {
-                                    if (shouldUseBottomBarCaptureLens(glassEnabled)) {
+                                    if (shouldUseBottomBarCaptureLens(effectiveGlassEnabled)) {
                                         miuixVibrancy()
                                     }
-                                    miuixBlur(4.dp.toPx(), 4.dp.toPx())
-                                    if (shouldUseBottomBarCaptureLens(glassEnabled)) {
+                                    miuixBlur(AppSpacingTokens.ExtraSmall.toPx(), AppSpacingTokens.ExtraSmall.toPx())
+                                    if (shouldUseBottomBarCaptureLens(effectiveGlassEnabled)) {
                                         miuixLens(
-                                            refractionHeight = 24.dp.toPx(),
-                                            refractionAmount = 24.dp.toPx()
+                                            refractionHeight = AppSpacingTokens.ExtraLarge.toPx(),
+                                            refractionAmount = AppSpacingTokens.ExtraLarge.toPx()
                                         )
                                     }
                                 },
@@ -3708,10 +3755,14 @@ private fun KernelSuAlignedBottomBar(
                                                     dynamicUnreadCount
                                                 ),
                                                 modifier = Modifier.offset(
-                                                    y = if (showText) (-7).dp else 0.dp
+                                                    y = if (showText) {
+                                                        -(AppSpacingTokens.Small - AppSpacingTokens.Micro / 2)
+                                                    } else {
+                                                        AppSpacingTokens.None
+                                                    }
                                                 )
                                             ) {
-                                                Spacer(modifier = Modifier.size(24.dp))
+                                                Spacer(modifier = Modifier.size(AppSpacingTokens.ExtraLarge))
                                             }
                                         }
                                     }
@@ -3742,7 +3793,7 @@ private fun KernelSuAlignedBottomBar(
                     indicatorLensSpec = indicatorLensSpec,
                     effectivePressProgress = effectivePressProgress,
                     indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
-                    glassEnabled = glassEnabled,
+                    glassEnabled = effectiveGlassEnabled,
                     indicatorEffectsEnabled = indicatorEffectsEnabled,
                     motionProgress = motionProgress,
                     velocityItemsPerSecond = dampedDragState.deformationVelocityItemsPerSecond,
@@ -3870,7 +3921,7 @@ private fun KernelSuAlignedBottomBar(
                     miuixBackdrop = miuixBackdrop,
                     containerColor = ksuContainerColor,
                     blurEnabled = blurEnabled,
-                    glassEnabled = glassEnabled,
+                    glassEnabled = effectiveGlassEnabled,
                     blurRadius = tuning.shellBlurRadiusDp.dp,
                     hazeState = hazeState,
                     motionTier = motionTier,
@@ -3924,7 +3975,7 @@ private fun KernelSuBottomBarShell(
                 .graphicsLayer {
                     translationX = visiblePanelOffsetPx
                     val bumpScale = if (glassEnabled && size.width > 0f) {
-                        lerp(1f, 1f + 16.dp.toPx() / size.width, shellProgress)
+                        lerp(1f, 1f + AppSpacingTokens.Large.toPx() / size.width, shellProgress)
                     } else {
                         1f
                     }
@@ -3974,7 +4025,7 @@ internal fun BoxScope.KernelSuMiuixBottomBarIndicatorLayer(
     indicatorPanelOffsetPx: Float,
     indicatorPanelOffsetYPx: Float = 0f,
     indicatorWidth: Dp,
-    indicatorHeight: Dp = 56.dp,
+    indicatorHeight: Dp = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small,
     shellShape: androidx.compose.ui.graphics.Shape,
     liquidGlassPreset: BottomBarLiquidGlassPreset,
     contentBackdrop: MiuixBackdrop?,
@@ -4016,7 +4067,9 @@ internal fun BoxScope.KernelSuMiuixBottomBarIndicatorLayer(
         rawIndicatorLayerTransform
     }
     val pillHighlight = rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = 90f)
-    val indicatorBackdrop = if (shouldUseBottomBarCombinedIndicatorBackdrop(liquidGlassPreset)) {
+    val indicatorBackdrop = if (!glassEnabled) {
+        null
+    } else if (shouldUseBottomBarCombinedIndicatorBackdrop(liquidGlassPreset)) {
         contentBackdrop
     } else {
         backdrop
@@ -4064,7 +4117,7 @@ internal fun BoxScope.KernelSuMiuixBottomBarIndicatorLayer(
                             }
                             if (effectivePressProgress > 0f) {
                                 drawRect(
-                                    Color.Black.copy(alpha = 0.03f * effectivePressProgress)
+                                    OpticalContrastPalette.Shadow.copy(alpha = 0.03f * effectivePressProgress)
                                 )
                             }
                         },
@@ -4076,8 +4129,8 @@ internal fun BoxScope.KernelSuMiuixBottomBarIndicatorLayer(
                         }
                     ).miuixInnerShadow(shape = shellShape) {
                         MiuixInnerShadow(
-                            radius = 8.dp * effectivePressProgress,
-                            color = Color.Black.copy(alpha = 0.15f),
+                            radius = AppSpacingTokens.Small * effectivePressProgress,
+                            color = OpticalContrastPalette.Shadow.copy(alpha = 0.15f),
                             alpha = effectivePressProgress
                         )
                     }
@@ -4103,7 +4156,7 @@ internal fun BoxScope.KernelSuBottomBarIndicatorLayer(
     indicatorPanelOffsetYPx: Float = 0f,
     indicatorSettleReboundTransform: BottomBarClickPulseTransform,
     indicatorWidth: Dp,
-    indicatorHeight: Dp = 56.dp,
+    indicatorHeight: Dp = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small,
     shellShape: androidx.compose.ui.graphics.Shape,
     liquidGlassPreset: BottomBarLiquidGlassPreset,
     contentBackdrop: Backdrop?,
@@ -4182,7 +4235,7 @@ internal fun BoxScope.KernelSuBottomBarIndicatorLayer(
                         },
                         highlight = {
                             Highlight(
-                                width = 1.dp,
+                                width = AppSpacingTokens.Micro / 2,
                                 alpha = effectivePressProgress
                             )
                         },
@@ -4196,14 +4249,14 @@ internal fun BoxScope.KernelSuBottomBarIndicatorLayer(
                             }
                             if (effectivePressProgress > 0f) {
                                 drawRect(
-                                    Color.Black.copy(alpha = 0.03f * effectivePressProgress)
+                                    OpticalContrastPalette.Shadow.copy(alpha = 0.03f * effectivePressProgress)
                                 )
                             }
                         },
                         innerShadow = {
                             InnerShadow(
-                                radius = 8.dp * effectivePressProgress,
-                                color = Color.Black.copy(alpha = 0.15f),
+                                radius = AppSpacingTokens.Small * effectivePressProgress,
+                                color = OpticalContrastPalette.Shadow.copy(alpha = 0.15f),
                                 alpha = effectivePressProgress
                             )
                         },
@@ -4375,10 +4428,7 @@ private fun KernelSuBottomBarSearchCapsule(
     val launchSearchFromExpandedBlankQuery = expanded && query.isBlank()
     val longPressHorizontalScale by animateFloatAsState(
         targetValue = if (searchLongPressHeld) 0.94f else 1f,
-        animationSpec = spring(
-            dampingRatio = 0.62f,
-            stiffness = 560f
-        ),
+        animationSpec = bottomBarSearchHoldMotionSpec(),
         label = "bottomBarSearchLongPressHorizontalScale"
     )
     LaunchedEffect(searchLongPressHeld) {
@@ -4391,18 +4441,12 @@ private fun KernelSuBottomBarSearchCapsule(
     }
     val fieldAlpha by animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = 180,
-            easing = AppMotionEasing.Continuity
-        ),
+        animationSpec = bottomBarContentVisibilityMotionSpec(),
         label = "bottomBarSearchFieldAlpha"
     )
     val iconScale by animateFloatAsState(
         targetValue = if (expanded) 0.92f else 1f,
-        animationSpec = tween(
-            durationMillis = 180,
-            easing = AppMotionEasing.Continuity
-        ),
+        animationSpec = bottomBarContentVisibilityMotionSpec(),
         label = "bottomBarSearchIconScale"
     )
 
@@ -4503,16 +4547,13 @@ private fun KernelSuBottomBarSearchVisualContent(
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = if (expanded) 16.dp else 0.dp),
+            .padding(horizontal = if (expanded) AppSpacingTokens.Large else AppSpacingTokens.None),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center
     ) {
-        Icon(
-            imageVector = CupertinoIcons.Default.MagnifyingGlass,
-            contentDescription = "搜索",
-            tint = contentColor,
+        Box(
             modifier = Modifier
-                .size(24.dp)
+                .size(AppChromeSizeTokens.MinimumTouchTarget)
                 .then(
                     if (expanded && interactive) {
                         Modifier.clickable(
@@ -4523,14 +4564,23 @@ private fun KernelSuBottomBarSearchVisualContent(
                     } else {
                         Modifier
                     }
-                )
-                .graphicsLayer {
-                    scaleX = iconScale
-                    scaleY = iconScale
-                }
-        )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = CupertinoIcons.Default.MagnifyingGlass,
+                contentDescription = "搜索",
+                tint = contentColor,
+                modifier = Modifier
+                    .size(AppSpacingTokens.ExtraLarge)
+                    .graphicsLayer {
+                        scaleX = iconScale
+                        scaleY = iconScale
+                    }
+            )
+        }
         if (expanded) {
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Small + AppSpacingTokens.Micro))
             if (interactive) {
                 BasicTextField(
                     value = query,
@@ -4652,7 +4702,7 @@ private fun RowScope.AndroidNativeBottomBarItem(
     val iconLabelGap = if (shouldUseSkinItemLayout) {
         resolveBottomBarSkinIconLabelGap()
     } else {
-        0.dp
+        AppSpacingTokens.None
     }
 
     LaunchedEffect(isPressed, interactive) {
@@ -4713,8 +4763,8 @@ private fun RowScope.AndroidNativeBottomBarItem(
                             alpha = labelScrimAlpha
                         )
                         .padding(
-                            start = 2.dp,
-                            end = 2.dp,
+                            start = AppSpacingTokens.Micro,
+                            end = AppSpacingTokens.Micro,
                             bottom = resolveBottomBarSkinDockLabelBottomPadding()
                         )
                 )
@@ -4771,7 +4821,7 @@ private fun RowScope.AndroidNativeBottomBarItem(
                     }
                 }
             }
-            if (showIcon && showText && iconLabelGap > 0.dp) {
+            if (showIcon && showText && iconLabelGap > AppSpacingTokens.None) {
                 Spacer(modifier = Modifier.height(iconLabelGap))
             }
             if (showText) {
@@ -4781,12 +4831,12 @@ private fun RowScope.AndroidNativeBottomBarItem(
                     fontSize = if (shouldUseSkinItemLayout) {
                         resolveBottomBarSkinDockLabelFontSize()
                     } else {
-                        11.sp
+                        MaterialTheme.typography.labelSmall.fontSize
                     },
                     lineHeight = if (shouldUseSkinItemLayout) {
                         resolveBottomBarSkinDockLabelLineHeight()
                     } else {
-                        14.sp
+                        MaterialTheme.typography.labelMedium.lineHeight
                     },
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -4909,22 +4959,22 @@ private fun BottomBarReminderBadgeAnchor(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(x = 12.dp, y = (-8).dp)
-                    .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
+                    .offset(x = AppSpacingTokens.Medium, y = -AppSpacingTokens.Small)
+                    .defaultMinSize(minWidth = AppSpacingTokens.Large + AppSpacingTokens.Micro, minHeight = AppSpacingTokens.Large + AppSpacingTokens.Micro)
                     .background(iOSRed, CircleShape)
                     .border(
-                        width = 1.dp,
+                        width = AppSpacingTokens.Micro / 2,
                         color = AppSurfaceTokens.cardContainer(),
                         shape = CircleShape
                     )
-                    .padding(horizontal = 5.dp, vertical = 1.dp),
+                    .padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro / 2, vertical = AppSpacingTokens.Micro / 2),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = badgeText,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    lineHeight = 12.sp,
+                    color = OpticalContrastPalette.Highlight,
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                    lineHeight = MaterialTheme.typography.labelSmall.lineHeight,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1
                 )
@@ -5073,13 +5123,13 @@ internal fun resolveBottomBarReadableContentColor(
     contentLuminance: Float
 ): Color {
     if (isLightMode) {
-        return Color.Black
+        return OpticalContrastPalette.Shadow
     }
     val shouldUseDarkForeground = liquidGlassProgress >= 0.62f && contentLuminance > 0.6f
     return if (shouldUseDarkForeground) {
-        Color.Black.copy(alpha = 0.82f)
+        OpticalContrastPalette.Shadow.copy(alpha = 0.82f)
     } else {
-        Color.White.copy(
+        OpticalContrastPalette.Highlight.copy(
             alpha = if (liquidGlassProgress < 0.35f) 0.97f else 0.95f
         )
     }

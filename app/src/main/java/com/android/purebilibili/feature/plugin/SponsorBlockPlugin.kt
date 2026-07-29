@@ -1,6 +1,7 @@
 // 文件路径: feature/plugin/SponsorBlockPlugin.kt
 package com.android.purebilibili.feature.plugin
 
+import com.android.purebilibili.core.ui.components.AppSegmentOption
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -17,12 +18,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import io.github.alexzhirkevich.cupertino.icons.filled.*
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,8 +54,7 @@ import com.android.purebilibili.data.model.response.SponsorBlockMarkerMode
 import com.android.purebilibili.data.model.response.SponsorSegment
 import com.android.purebilibili.data.model.response.SponsorProgressMarker
 import com.android.purebilibili.data.repository.SponsorBlockRepository
-import com.android.purebilibili.feature.settings.IOSSlidingSegmentedSetting
-import com.android.purebilibili.feature.settings.PlaybackSegmentOption
+import com.android.purebilibili.feature.settings.AppSegmentedPreference
 import io.github.alexzhirkevich.cupertino.CupertinoSwitch
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -378,7 +378,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
         val aboutItem = remember { resolveSponsorBlockAboutItemModel() }
         val markerOptions = remember {
             SponsorBlockMarkerMode.entries.map { mode ->
-                PlaybackSegmentOption(
+                AppSegmentOption(
                     value = mode,
                     label = mode.label
                 )
@@ -437,7 +437,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
             Spacer(modifier = Modifier.height(12.dp))
 
             // 使用原设置组件 - 自动跳过
-            IOSSwitchItem(
+            AppSwitchPreference(
                 icon = CupertinoIcons.Default.Bolt,
                 title = "自动跳过",
                 subtitle = "关闭后将显示手动跳过按钮而非自动跳过",
@@ -454,7 +454,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
 
-            IOSSlidingSegmentedSetting(
+            AppSegmentedPreference(
                 title = "进度条提示：${markerMode.label}",
                 subtitle = "可选关闭、仅提示恰饭，或显示全部可跳过片段",
                 options = markerOptions,
@@ -474,7 +474,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
 
-            IOSSwitchItem(
+            AppSwitchPreference(
                 icon = CupertinoIcons.Default.Bell,
                 title = "每日汇总通知",
                 subtitle = "当天有跳过记录时，汇总跳过次数和节省时间",
@@ -487,7 +487,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
             )
 
             if (dailySummaryNotificationEnabled) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = dailySummaryNotificationPrefix,
                     onValueChange = { nextValue ->
                         dailySummaryNotificationPrefix = nextValue
@@ -502,7 +502,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                 )
             }
 
-            IOSClickableItem(
+            AppPreference(
                 icon = CupertinoIcons.Default.Bell,
                 title = "发送测试通知",
                 subtitle = "确认空降助手通知权限和展示效果，不写入跳过记录",
@@ -520,7 +520,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
             )
             
             // 使用原设置组件 - 关于空降助手
-            IOSClickableItem(
+            AppPreference(
                 icon = CupertinoIcons.Default.InfoCircle,
                 title = aboutItem.title,
                 subtitle = aboutItem.subtitle,
@@ -569,7 +569,7 @@ private fun SponsorBlockInsightPanel(
                 SponsorBlockCompactStats(summary = summary)
                 SponsorBlockPeriodStats(summary = summary)
                 SponsorBlockFavoriteSection(summary = summary)
-                Button(
+                AppButton(
                     onClick = onShareClick,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -616,7 +616,7 @@ private fun SponsorBlockSummaryRail(
         }
         SponsorBlockPeriodStats(summary = summary)
         SponsorBlockFavoriteSection(summary = summary)
-        Button(
+        AppButton(
             onClick = onShareClick,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -968,7 +968,7 @@ private fun SponsorBlockRecordDetailDialog(
     record: SponsorBlockSkipRecord,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("跳过详情") },
         text = {
@@ -986,7 +986,7 @@ private fun SponsorBlockRecordDetailDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            AppTextButton(onClick = onDismiss) {
                 Text("知道了")
             }
         }

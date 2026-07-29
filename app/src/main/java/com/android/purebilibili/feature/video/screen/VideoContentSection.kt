@@ -50,7 +50,9 @@ import com.android.purebilibili.core.ui.rememberAppCommentIcon
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberAppPlayIcon
 import com.android.purebilibili.core.ui.rememberAppSettingsIcon
-import com.android.purebilibili.core.ui.resolveCompactCapsuleChromeSpec
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
+import com.android.purebilibili.core.ui.AppTopTabPresentation
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.performance.TrackJankStateFlag
 import com.android.purebilibili.core.ui.performance.TrackScrollJank
 import com.android.purebilibili.core.store.DanmakuSettings
@@ -60,9 +62,6 @@ import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.model.response.VideoTag
@@ -94,7 +93,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSo
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
-import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.*
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
@@ -233,7 +232,6 @@ internal data class VideoContentTabBarDanmakuActionLayoutPolicy(
 )
 
 internal fun resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp: Int): VideoContentTabBarDanmakuActionLayoutPolicy {
-    val compactChrome = resolveCompactCapsuleChromeSpec(UiPreset.IOS, AndroidNativeVariant.MATERIAL3)
     return if (widthDp < 400) {
         VideoContentTabBarDanmakuActionLayoutPolicy(
             toggleIconSizeDp = 14,
@@ -246,7 +244,7 @@ internal fun resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp: Int): V
             sendTextSizeSp = 11,
             sendLabel = "发弹幕",
             secondaryControlHeightDp = 36,
-            secondaryControlCornerRadiusDp = compactChrome.secondaryButtonCornerRadiusDp,
+            secondaryControlCornerRadiusDp = AppChromeSizeTokens.CompactControlCornerRadiusDp,
             settingsButtonSizeDp = 36,
             settingsIconSizeDp = 18,
             settingsLeadingPaddingDp = 4
@@ -263,7 +261,7 @@ internal fun resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp: Int): V
             sendTextSizeSp = 12,
             sendLabel = "发弹幕",
             secondaryControlHeightDp = 36,
-            secondaryControlCornerRadiusDp = compactChrome.secondaryButtonCornerRadiusDp,
+            secondaryControlCornerRadiusDp = AppChromeSizeTokens.CompactControlCornerRadiusDp,
             settingsButtonSizeDp = 36,
             settingsIconSizeDp = 18,
             settingsLeadingPaddingDp = 6
@@ -276,11 +274,12 @@ internal data class VideoContentTabSwitchAnimationSpec(
 )
 
 internal fun resolveVideoContentTabSwitchAnimationSpec(
-    uiPreset: UiPreset
+    presentation: AppTopTabPresentation,
 ): VideoContentTabSwitchAnimationSpec {
-    return when (uiPreset) {
-        UiPreset.IOS -> VideoContentTabSwitchAnimationSpec(durationMs = 360)
-        UiPreset.MD3 -> VideoContentTabSwitchAnimationSpec(durationMs = 240)
+    return when (presentation) {
+        AppTopTabPresentation.MOVING_CAPSULE -> VideoContentTabSwitchAnimationSpec(durationMs = 360)
+        AppTopTabPresentation.MATERIAL_UNDERLINE,
+        AppTopTabPresentation.TONAL_CAPSULE -> VideoContentTabSwitchAnimationSpec(durationMs = 240)
     }
 }
 
@@ -467,9 +466,9 @@ fun VideoContentSection(
             chooserTitle = "分享视频笔记"
         )
     }
-    val uiPreset = LocalUiPreset.current
-    val tabSwitchAnimationSpec = remember(uiPreset) {
-        resolveVideoContentTabSwitchAnimationSpec(uiPreset)
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val tabSwitchAnimationSpec = remember(playerChromeProfile.tabPresentation) {
+        resolveVideoContentTabSwitchAnimationSpec(playerChromeProfile.tabPresentation)
     }
     val latestOnSelectedTabChange by rememberUpdatedState(onSelectedTabChange)
 
@@ -1003,7 +1002,7 @@ private fun VideoCommentTab(
             if (isRepliesLoading && replies.isEmpty()) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                        CupertinoActivityIndicator()
+                        AdaptiveLoadingIndicator()
                     }
                 }
             } else if (replies.isEmpty()) {
@@ -1074,12 +1073,12 @@ private fun VideoCommentTab(
                         contentAlignment = Alignment.Center
                     ) {
                         when {
-                            isRepliesLoading -> CupertinoActivityIndicator()
+                            isRepliesLoading -> AdaptiveLoadingIndicator()
                             isRepliesEnd || replies.size >= replyCount -> {
                                 Text("—— end ——", color = commentAppearance.secondaryTextColor, fontSize = 12.sp)
                             }
                             // 当 shouldLoadMore 为 true 时才显示加载指示器
-                            shouldLoadMore -> CupertinoActivityIndicator()
+                            shouldLoadMore -> AdaptiveLoadingIndicator()
                         }
                     }
                 }
@@ -1306,10 +1305,10 @@ private fun VideoDetailDanmakuSettingsPanel(
     var localDisplayArea by remember(danmakuSettings.displayArea) { mutableFloatStateOf(danmakuSettings.displayArea) }
     var localMergeDuplicates by remember(danmakuSettings.mergeDuplicates) { mutableStateOf(danmakuSettings.mergeDuplicates) }
     var localDuplicateMergeWindowMs by remember(danmakuSettings.duplicateMergeWindowMs) {
-        mutableStateOf(danmakuSettings.duplicateMergeWindowMs)
+        mutableIntStateOf(danmakuSettings.duplicateMergeWindowMs)
     }
     var localDuplicateMergeCountThreshold by remember(danmakuSettings.duplicateMergeCountThreshold) {
-        mutableStateOf(danmakuSettings.duplicateMergeCountThreshold)
+        mutableIntStateOf(danmakuSettings.duplicateMergeCountThreshold)
     }
     var localAllowScroll by remember(danmakuSettings.allowScroll) { mutableStateOf(danmakuSettings.allowScroll) }
     var localAllowTop by remember(danmakuSettings.allowTop) { mutableStateOf(danmakuSettings.allowTop) }

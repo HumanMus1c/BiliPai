@@ -24,12 +24,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.ui.AdaptiveScaffold
-import com.android.purebilibili.core.ui.AdaptiveTopAppBar
+import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.AppTopBar
+import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 import coil.compose.AsyncImage
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
 import com.android.purebilibili.core.ui.rememberAppBackIcon
@@ -60,9 +57,9 @@ fun InboxScreen(
         }
     }
 
-    AdaptiveScaffold(
+    AppScaffold(
         topBar = {
-            AdaptiveTopAppBar(
+            AppTopBar(
                 title = "消息",
                 subtitle = uiState.unreadData?.let { unread ->
                     totalPrivateUnreadCount(unread).takeIf { it > 0 }?.let { "私信 $it 条未读" }
@@ -343,16 +340,14 @@ private fun MessageCenterShortcutCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val isMiuix = uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX
+    val useGroupedListCards = rememberAppSemanticVisualPolicy().prefersGroupedListCards
     Surface(
         modifier = modifier
-            .height(if (isMiuix) 88.dp else 96.dp)
+            .height(if (useGroupedListCards) 88.dp else 96.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(if (isMiuix) 18.dp else 20.dp),
-        color = if (isMiuix) AppSurfaceTokens.surfaceContainer() else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        border = if (isMiuix) {
+        shape = RoundedCornerShape(if (useGroupedListCards) 18.dp else 20.dp),
+        color = if (useGroupedListCards) AppSurfaceTokens.surfaceContainer() else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        border = if (useGroupedListCards) {
             androidx.compose.foundation.BorderStroke(
                 0.8.dp,
                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f)
@@ -520,9 +515,7 @@ fun SessionListItem(
     onToggleIntercept: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val isMiuix = uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX
+    val useGroupedListCards = rememberAppSemanticVisualPolicy().prefersGroupedListCards
 
     val displayName = InboxUserInfoResolver.resolveDisplayName(
         cached = userInfo,
@@ -537,11 +530,11 @@ fun SessionListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = if (isMiuix) 12.dp else 0.dp, vertical = if (isMiuix) 3.dp else 0.dp),
-        shape = RoundedCornerShape(if (isMiuix) 16.dp else 0.dp),
+            .padding(horizontal = if (useGroupedListCards) 12.dp else 0.dp, vertical = if (useGroupedListCards) 3.dp else 0.dp),
+        shape = RoundedCornerShape(if (useGroupedListCards) 16.dp else 0.dp),
         color = when {
-            isMiuix && session.top_ts > 0 -> AppSurfaceTokens.secondaryContainer().copy(alpha = 0.55f)
-            isMiuix -> AppSurfaceTokens.surfaceContainer()
+            useGroupedListCards && session.top_ts > 0 -> AppSurfaceTokens.secondaryContainer().copy(alpha = 0.55f)
+            useGroupedListCards -> AppSurfaceTokens.surfaceContainer()
             session.top_ts > 0 -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             else -> Color.Transparent
         }
@@ -549,7 +542,7 @@ fun SessionListItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = if (isMiuix) 10.dp else 12.dp),
+            .padding(horizontal = 16.dp, vertical = if (useGroupedListCards) 10.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box {

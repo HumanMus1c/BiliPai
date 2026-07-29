@@ -1,6 +1,8 @@
 // 文件路径: feature/video/ui/components/CommentInputDialog.kt
 package com.android.purebilibili.feature.video.ui.components
 
+import com.android.purebilibili.core.ui.components.AppTab
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -32,6 +34,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.*
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -161,7 +164,7 @@ fun CommentInputDialog(
     var showEmojiPanel by remember { mutableStateOf(false) }    // 表情面板
     var showMentionPanel by remember { mutableStateOf(false) }
     var mentionSearchText by remember { mutableStateOf("") }
-    var currentTab by remember { mutableStateOf(0) } // 0=Kaomoji, 1=Emoji, 2+=API Packages
+    var currentTab by remember { mutableIntStateOf(0) } // 0=Kaomoji, 1=Emoji, 2+=API Packages
     var selectedImageUris by remember { mutableStateOf(initialImageUris) }
     val text = textFieldValue.text
     
@@ -648,20 +651,20 @@ fun CommentInputDialog(
                                     modifier = Modifier.height(48.dp)
                                 ) {
                                     // Tab 0: 颜文字
-                                    Tab(
+                                    AppTab(
                                         selected = currentTab == 0,
                                         onClick = { currentTab = 0 },
                                         text = { Text("颜文字") }
                                     )
                                     // Tab 1: Emoji
-                                    Tab(
+                                    AppTab(
                                         selected = currentTab == 1,
                                         onClick = { currentTab = 1 },
                                         text = { Text("Emoji") }
                                     )
                                     // API Packages (Tab 2+)
                                     emotePackages.forEachIndexed { index, pkg ->
-                                        Tab(
+                                        AppTab(
                                             selected = currentTab == index + 2,
                                             onClick = { currentTab = index + 2 },
                                             text = { 

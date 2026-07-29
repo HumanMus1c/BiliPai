@@ -1,6 +1,6 @@
 package com.android.purebilibili.feature.video.screen
 
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppTopTabPresentation
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -123,9 +123,9 @@ class VideoContentTabBarPolicyTest {
     }
 
     @Test
-    fun `ios preset uses calmer intro comment tab switch motion`() {
-        val iosSpec = resolveVideoContentTabSwitchAnimationSpec(UiPreset.IOS)
-        val md3Spec = resolveVideoContentTabSwitchAnimationSpec(UiPreset.MD3)
+    fun `moving capsule uses calmer intro comment tab switch motion`() {
+        val iosSpec = resolveVideoContentTabSwitchAnimationSpec(AppTopTabPresentation.MOVING_CAPSULE)
+        val md3Spec = resolveVideoContentTabSwitchAnimationSpec(AppTopTabPresentation.MATERIAL_UNDERLINE)
 
         assertEquals(360, iosSpec.durationMs)
         assertEquals(240, md3Spec.durationMs)

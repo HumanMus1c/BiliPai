@@ -655,8 +655,9 @@ class BottomBarIndicatorPolicyTest {
             .substringAfter("private fun KernelSuAlignedBottomBar(")
             .substringBefore("@Composable\nprivate fun KernelSuBottomBarShell(")
 
-        assertTrue(rendererSource.contains("glassEnabled = glassEnabled"))
-        assertTrue(rendererSource.contains("val glassLayersAlwaysOn = glassEnabled"))
+        // 渲染器统一走 effectiveGlassEnabled：运行时低模糊预算要能整体关掉液态玻璃层。
+        assertTrue(rendererSource.contains("glassEnabled = effectiveGlassEnabled"))
+        assertTrue(rendererSource.contains("val glassLayersAlwaysOn = effectiveGlassEnabled"))
         assertTrue(rendererSource.contains("indicatorEffectsEnabled = indicatorEffectsEnabled"))
         assertTrue(rendererSource.contains("blurEnabled = shellBlurEnabled"))
     }
@@ -680,8 +681,12 @@ class BottomBarIndicatorPolicyTest {
             .substringAfter("if (shouldRenderIndicatorContentCapture && miuixBackdrop != null) {")
             .substringBefore("KernelSuMiuixBottomBarIndicatorLayer(")
 
-        assertTrue(captureSource.contains("if (shouldUseBottomBarCaptureLens(glassEnabled))"))
-        assertTrue(captureSource.contains("miuixBlur(4.dp.toPx(), 4.dp.toPx())"))
+        assertTrue(captureSource.contains("if (shouldUseBottomBarCaptureLens(effectiveGlassEnabled))"))
+        assertTrue(
+            captureSource.contains(
+                "miuixBlur(AppSpacingTokens.ExtraSmall.toPx(), AppSpacingTokens.ExtraSmall.toPx())"
+            )
+        )
         assertTrue(captureSource.contains("miuixLens("))
     }
 
@@ -839,8 +844,8 @@ class BottomBarIndicatorPolicyTest {
     @Test
     fun `shared indicator drag scale uses KernelSU separate axis springs`() {
         val source = listOf(
-            java.io.File("app/src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
-            java.io.File("src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt")
+            java.io.File("design-system/src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
+            java.io.File("src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
         ).first { it.exists() }.readText()
 
         assertTrue(source.contains("private const val KERNEL_SU_PRESSED_SCALE = 78f / 56f"))

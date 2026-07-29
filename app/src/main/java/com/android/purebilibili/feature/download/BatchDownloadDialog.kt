@@ -18,14 +18,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppCard
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilterChip
+import com.android.purebilibili.core.ui.components.AppCheckbox
+import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppRadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -67,7 +67,7 @@ internal fun BatchDownloadDialog(
                 qualityOptionCount = qualityOptions.size
             ).dp
 
-            Card(
+            AppCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = dialogMaxHeight),
@@ -102,21 +102,21 @@ internal fun BatchDownloadDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        FilterChip(
+                        AppFilterChip(
                             selected = false,
                             onClick = {
                                 workingCandidates = selectAllBatchDownloadCandidates(workingCandidates)
                             },
                             label = { Text("全选") }
                         )
-                        FilterChip(
+                        AppFilterChip(
                             selected = false,
                             onClick = {
                                 workingCandidates = invertBatchDownloadCandidateSelection(workingCandidates)
                             },
                             label = { Text("反选") }
                         )
-                        FilterChip(
+                        AppFilterChip(
                             selected = false,
                             onClick = {
                                 workingCandidates = selectOnlyUndownloadedBatchCandidates(
@@ -154,7 +154,7 @@ internal fun BatchDownloadDialog(
                                     .padding(vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Checkbox(
+                                AppCheckbox(
                                     checked = candidate.selected,
                                     onCheckedChange = { checked ->
                                         workingCandidates = workingCandidates.map {
@@ -208,7 +208,7 @@ internal fun BatchDownloadDialog(
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Checkbox(
+                        AppCheckbox(
                             checked = includeDanmaku,
                             onCheckedChange = { includeDanmaku = it }
                         )
@@ -235,7 +235,7 @@ internal fun BatchDownloadDialog(
                                 .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            RadioButton(
+                            AppRadioButton(
                                 selected = selectedQuality == qualityId,
                                 onClick = { selectedQuality = qualityId }
                             )
@@ -252,13 +252,13 @@ internal fun BatchDownloadDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        OutlinedButton(
+                        AppOutlinedButton(
                             onClick = onDismiss,
                             modifier = Modifier.weight(1f)
                         ) {
                             Text("取消")
                         }
-                        Button(
+                        AppButton(
                             onClick = {
                                 onConfirm(
                                     selectedQuality,

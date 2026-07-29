@@ -1,7 +1,6 @@
 package com.android.purebilibili.feature.settings
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppThemeSelection
 
 data class AppearanceUiPresetDescription(
     val title: String,
@@ -9,8 +8,7 @@ data class AppearanceUiPresetDescription(
 )
 
 internal fun resolveAppearanceUiPresetDescription(
-    preset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant,
+    selection: AppThemeSelection,
     iosTitle: String,
     iosSummary: String,
     materialTitle: String,
@@ -18,22 +16,20 @@ internal fun resolveAppearanceUiPresetDescription(
     miuixTitle: String,
     miuixSummary: String
 ): AppearanceUiPresetDescription {
-    return when (preset) {
-        UiPreset.IOS -> AppearanceUiPresetDescription(
+    return when (selection) {
+        AppThemeSelection.IOS -> AppearanceUiPresetDescription(
             title = iosTitle,
             summary = iosSummary
         )
 
-        UiPreset.MD3 -> when (androidNativeVariant) {
-            AndroidNativeVariant.MATERIAL3 -> AppearanceUiPresetDescription(
-                title = materialTitle,
-                summary = materialSummary
-            )
+        AppThemeSelection.MATERIAL3 -> AppearanceUiPresetDescription(
+            title = materialTitle,
+            summary = materialSummary
+        )
 
-            AndroidNativeVariant.MIUIX -> AppearanceUiPresetDescription(
-                title = miuixTitle,
-                summary = miuixSummary
-            )
-        }
+        AppThemeSelection.MIUIX -> AppearanceUiPresetDescription(
+            title = miuixTitle,
+            summary = miuixSummary
+        )
     }
 }

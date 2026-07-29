@@ -97,7 +97,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.store.PortraitPlayerCollapseMode
-import com.android.purebilibili.core.theme.LocalUiPreset
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 //  已改用 MaterialTheme.colorScheme.primary
 
 import com.android.purebilibili.data.model.response.RelatedVideo
@@ -157,8 +157,10 @@ import com.android.purebilibili.feature.video.policy.reduceVideoDetailPostScroll
 import com.android.purebilibili.feature.video.policy.reduceVideoDetailPreScroll
 import com.android.purebilibili.feature.video.policy.resolveVideoDetailCollapseProgress
 import com.android.purebilibili.feature.video.policy.shouldSkipGesturePlayerCollapseForLayout
+import com.android.purebilibili.feature.video.policy.shouldTrackVideoDetailCollapseMotion
 import com.android.purebilibili.feature.video.subtitle.resolveSubtitlePreferenceSession
-import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.components.AppButton
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import kotlinx.coroutines.Dispatchers
@@ -208,7 +210,6 @@ import com.android.purebilibili.feature.video.ui.overlay.PlayerProgress
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.core.ui.blur.shouldAllowRuntimeShaderBackedHazeEffect
 import com.android.purebilibili.core.ui.blur.unifiedBlur
-import com.android.purebilibili.core.ui.IOSModalBottomSheet
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import coil.compose.AsyncImage
@@ -233,6 +234,8 @@ import com.android.purebilibili.feature.video.share.VideoShareSheet
 import com.android.purebilibili.feature.video.viewmodel.PlayerToastPresentation
 import kotlin.math.abs
 import kotlin.math.roundToInt
+
+private const val VIDEO_DETAIL_COLLAPSE_SIGNAL_IDLE_TIMEOUT_MS = 120L
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @OptIn(
@@ -2572,9 +2575,9 @@ internal fun VideoDetailScreenStateHolder(
                         val screenWidthDp = configuration.screenWidthDp.dp
                         val screenHeightDp = configuration.screenHeightDp.dp
                         val videoHeight = screenWidthDp * 9f / 16f  // 16:9 比例
-                        val uiPreset = LocalUiPreset.current
-                        val videoContentTabSwitchAnimationSpec = remember(uiPreset) {
-                            resolveVideoContentTabSwitchAnimationSpec(uiPreset)
+                        val playerChromeProfile = rememberAppPlayerChromeProfile()
+                        val videoContentTabSwitchAnimationSpec = remember(playerChromeProfile.tabPresentation) {
+                            resolveVideoContentTabSwitchAnimationSpec(playerChromeProfile.tabPresentation)
                         }
 
                         //  读取竖屏播放器滚动缩小模式
@@ -2654,10 +2657,29 @@ internal fun VideoDetailScreenStateHolder(
                                 inlinePlayerCollapseState.reset()
                             }
                         }
+                        var previousTrackedCollapseOffsetPx by remember(currentBvid) {
+                            mutableFloatStateOf(inlinePlayerCollapseState.offsetPx)
+                        }
+                        var collapseMotionSignalActive by remember(currentBvid) {
+                            mutableStateOf(false)
+                        }
+                        LaunchedEffect(inlinePortraitScrollEnabled, inlinePlayerCollapseState.offsetPx) {
+                            val currentOffsetPx = inlinePlayerCollapseState.offsetPx
+                            val offsetMoved = shouldTrackVideoDetailCollapseMotion(
+                                inlinePortraitScrollEnabled = inlinePortraitScrollEnabled,
+                                previousOffsetPx = previousTrackedCollapseOffsetPx,
+                                currentOffsetPx = currentOffsetPx,
+                            )
+                            previousTrackedCollapseOffsetPx = currentOffsetPx
+                            collapseMotionSignalActive = offsetMoved
+                            if (offsetMoved) {
+                                kotlinx.coroutines.delay(VIDEO_DETAIL_COLLAPSE_SIGNAL_IDLE_TIMEOUT_MS)
+                                collapseMotionSignalActive = false
+                            }
+                        }
                         TrackJankStateFlag(
                             stateName = "video_detail:player_swipe_collapse",
-                            isActive = inlinePortraitScrollEnabled &&
-                                abs(inlinePlayerCollapseState.offsetPx) > 0.5f
+                            isActive = collapseMotionSignalActive,
                         )
                         val isPlayerCollapsed by remember(inlinePortraitScrollEnabled, collapseRangePx) {
                             derivedStateOf {
@@ -3078,8 +3100,7 @@ internal fun VideoDetailScreenStateHolder(
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    //  iOS 风格加载
-                                                    CupertinoActivityIndicator()
+                                                    AdaptiveLoadingIndicator()
                                                     Spacer(Modifier.height(16.dp))
                                                     Text(
                                                         text = "正在重试 ${loadingState.retryAttempt}/${loadingState.maxAttempts}...",
@@ -3221,7 +3242,7 @@ internal fun VideoDetailScreenStateHolder(
                                                 errorState.error is com.android.purebilibili.data.model.VideoLoadError.PlayUrlEmpty
                                             if (showRetryButton) {
                                                 Spacer(Modifier.height(24.dp))
-                                                Button(
+                                                AppButton(
                                                     onClick = { viewModel.retry() },
                                                     colors = ButtonDefaults.buttonColors(
                                                         containerColor = MaterialTheme.colorScheme.primary

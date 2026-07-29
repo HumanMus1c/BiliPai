@@ -10,7 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.MaterialTheme
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 
 /**
@@ -64,7 +64,7 @@ fun AspectRatioPanel(
                 .clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { onDismiss() }
         ) {
             // 左侧面板
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .padding(start = 16.dp)
@@ -116,7 +116,7 @@ fun AspectRatioPanel(
                     ratioOptions.forEach { option ->
                         val isSelected = currentRatio == option.ratio
                         
-                        Surface(
+                        AppSurface(
                             onClick = { 
                                 onRatioChange(option.ratio)
                                 onDismiss()

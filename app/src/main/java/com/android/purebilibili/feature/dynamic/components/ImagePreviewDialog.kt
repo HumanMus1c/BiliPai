@@ -1,6 +1,14 @@
 // 文件路径: feature/dynamic/components/ImagePreviewDialog.kt
 package com.android.purebilibili.feature.dynamic.components
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
+
+import com.android.purebilibili.core.ui.MediaContrastPalette
+
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
+
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -28,9 +36,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 //  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,6 +77,11 @@ import com.android.purebilibili.core.ui.LocalPredictiveBackGestureEnabled
 import com.android.purebilibili.core.ui.rememberAppShareIcon
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
+import com.android.purebilibili.core.ui.rememberAppClearIcon
+import com.android.purebilibili.core.ui.rememberAppDownloadIcon
+import com.android.purebilibili.core.ui.rememberAppVisibilityOffIcon
+import com.android.purebilibili.core.ui.rememberAppVisibilityOnIcon
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.motion.continuityTween
 import com.android.purebilibili.core.ui.motion.emphasizedEnterTween
 import com.android.purebilibili.core.ui.motion.emphasizedExitTween
@@ -370,7 +380,9 @@ private fun ImagePreviewOverlayContent(
             val fullHeight = constraints.maxHeight
             val fullWidthPx = with(density) { fullWidth.toPx() }
             val fullHeightPx = with(density) { fullHeight.toPx() }
-            val maxBlurRadiusPx = with(density) { 18.dp.toPx() }
+            val maxBlurRadiusPx = with(density) {
+                (AppSpacingTokens.Large + AppSpacingTokens.Micro).toPx()
+            }
             
             val rawProgress = animateTrigger.value
             val verticalDragFrame = resolveImagePreviewVerticalDragFrame(
@@ -409,8 +421,8 @@ private fun ImagePreviewOverlayContent(
                 displayedImageRect = if (shouldUseRectAnim && isDismissing) dismissImageDisplayRect else null
             )
             
-            val targetLeft = 0.dp
-            val targetTop = 0.dp
+            val targetLeft = AppSpacingTokens.None
+            val targetTop = AppSpacingTokens.None
             val targetWidth = fullWidth
             val targetHeight = fullHeight
             val previewSurfaceRect = remember(constraints.maxWidth, constraints.maxHeight) {
@@ -511,7 +523,7 @@ private fun ImagePreviewOverlayContent(
                 
                 Quad(l, t, w, h)
             } else {
-                Quad(0.dp, 0.dp, fullWidth, fullHeight)
+                Quad(AppSpacingTokens.None, AppSpacingTokens.None, fullWidth, fullHeight)
             }
             
             // 1. 背景层 (淡入淡出)
@@ -519,7 +531,7 @@ private fun ImagePreviewOverlayContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .testTag(IMAGE_PREVIEW_BACKDROP_TAG)
-                    .background(Color.Black.copy(alpha = backdropAlpha))
+                    .background(MediaContrastPalette.Scrim.copy(alpha = backdropAlpha))
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onTap = { triggerDismiss() }
@@ -588,18 +600,21 @@ private fun ImagePreviewOverlayContent(
                         activeZoomScale <= 1.01f,
                     key = { images.getOrElse(it) { "" } }
                 ) { page ->
-                    // 计算当前页面的偏移量（0 = 居中，-1 = 左边，1 = 右边）
-                    val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                    
                     // 🎭 3D 立体旋转动画 - Cube 效果
                     // 仅当完全打开时才应用复杂变换，避免动画冲突
                     val apply3D = transitionFrame.visualProgress > 0.92f
-                    
+
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .testTag(IMAGE_PREVIEW_PAGE_TAG)
                             .graphicsLayer {
+                                // 页面偏移（0 = 居中，-1 = 左边，1 = 右边）在这里读取而不是
+                                // 组合期。currentPageOffsetFraction 横滑时每帧都变，
+                                // 在组合期读取等于把每一帧都升级成一次重组；
+                                // 放进 graphicsLayer lambda 后只触发重绘，不触发重组。
+                                val pageOffset =
+                                    (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
                                 if (apply3D) {
                                     if (useCommentPreviewChrome) {
                                         val transform = resolveCommentImagePreviewPageTransform(
@@ -771,9 +786,6 @@ private fun ImagePreviewOverlayContent(
                     safeInsetEnd = safeDrawingPadding.calculateEndPadding(layoutDirection),
                     safeInsetBottom = safeDrawingPadding.calculateBottomPadding()
                 )
-                val textTransform = resolveImagePreviewTextTransform(
-                    pageOffsetFraction = pagerState.currentPageOffsetFraction
-                )
                 val resolvedText = resolveImagePreviewText(
                     textContent = textContent,
                     currentPage = pagerState.currentPage,
@@ -795,15 +807,20 @@ private fun ImagePreviewOverlayContent(
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .padding(
-                                start = overlayPadding.start + 8.dp,
-                                end = overlayPadding.end + 8.dp,
-                                bottom = overlayPadding.bottom + 66.dp
+                                start = overlayPadding.start + AppSpacingTokens.Small,
+                                end = overlayPadding.end + AppSpacingTokens.Small,
+                                bottom = overlayPadding.bottom + AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large + AppSpacingTokens.Micro
                             )
                             .graphicsLayer {
+                                // transform 在这里就地求值：它只依赖 currentPageOffsetFraction，
+                                // 而那个值横滑时每帧都变，放在组合期会拖着整段文字浮层一起重组。
+                                val textTransform = resolveImagePreviewTextTransform(
+                                    pageOffsetFraction = pagerState.currentPageOffsetFraction
+                                )
                                 alpha = textTransform.alpha
                                 rotationX = textTransform.rotationX
-                                translationY = with(density) { textTransform.translateYDp.dp.toPx() }
-                                cameraDistance = 10f * density.density
+                                translationY = textTransform.translateYDp.dp.toPx()
+                                cameraDistance = 10f * this.density
                                 transformOrigin = TransformOrigin(0.5f, 1f)
                             }
                             .clickable {
@@ -814,17 +831,17 @@ private fun ImagePreviewOverlayContent(
                         Box(
                             modifier = Modifier
                                 .align(Alignment.Center)
-                                .widthIn(max = 560.dp)
-                                .clip(RoundedCornerShape(20.dp))
+                                .widthIn(max = AppSpacingTokens.TripleExtraLarge * 11 + AppSpacingTokens.DoubleExtraLarge)
+                                .clip(AppShapes.container(ContainerLevel.Sheet))
                                 .background(
                                     androidx.compose.ui.graphics.Brush.verticalGradient(
                                         colors = listOf(
-                                            Color.Black.copy(alpha = 0.72f),
-                                            Color.Black.copy(alpha = 0.56f)
+                                            MediaContrastPalette.Scrim.copy(alpha = 0.72f),
+                                            MediaContrastPalette.Scrim.copy(alpha = 0.56f)
                                         )
                                     )
                                 )
-                                .padding(horizontal = 16.dp, vertical = 13.dp)
+                                .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Medium + AppSpacingTokens.Micro / 2)
                         ) {
                             AnimatedContent(
                                 targetState = pagerState.currentPage,
@@ -845,19 +862,19 @@ private fun ImagePreviewOverlayContent(
                                 ) ?: resolvedText
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
                                 ) {
                                     if (currentText.headline.isNotBlank() || currentText.pageIndicator.isNotBlank()) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             if (currentText.headline.isNotBlank()) {
                                                 Text(
                                                     text = currentText.headline,
-                                                    color = Color.White.copy(alpha = 0.9f),
-                                                    fontSize = 13.sp,
+                                                    color = MediaContrastPalette.Foreground.copy(alpha = 0.9f),
+                                                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                                     maxLines = 1,
                                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                                     modifier = Modifier.weight(1f, fill = false)
@@ -866,8 +883,8 @@ private fun ImagePreviewOverlayContent(
                                             if (currentText.pageIndicator.isNotBlank()) {
                                                 Text(
                                                     text = currentText.pageIndicator,
-                                                    color = Color.White.copy(alpha = 0.64f),
-                                                    fontSize = 12.sp
+                                                    color = MediaContrastPalette.Foreground.copy(alpha = 0.64f),
+                                                    fontSize = MaterialTheme.typography.labelSmall.fontSize
                                                 )
                                             }
                                         }
@@ -875,9 +892,9 @@ private fun ImagePreviewOverlayContent(
                                     if (currentText.body.isNotBlank()) {
                                         Text(
                                             text = currentText.body,
-                                            color = Color.White.copy(alpha = 0.94f),
-                                            fontSize = 16.sp,
-                                            lineHeight = 22.sp,
+                                            color = MediaContrastPalette.Foreground.copy(alpha = 0.94f),
+                                            fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                                            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
                                             maxLines = 4,
                                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                         )
@@ -894,9 +911,9 @@ private fun ImagePreviewOverlayContent(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .padding(bottom = overlayPadding.bottom)
-                            .background(Color.Black.copy(0.5f), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            .background(MediaContrastPalette.Scrim.copy(0.5f), AppShapes.container(ContainerLevel.Dialog))
+                            .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small),
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         images.forEachIndexed { index, _ ->
@@ -917,7 +934,7 @@ private fun ImagePreviewOverlayContent(
                                 modifier = Modifier
                                     .size(dotSize.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = dotAlpha))
+                                    .background(MediaContrastPalette.Foreground.copy(alpha = dotAlpha))
                                     .clickable {
                                         scope.launch {
                                             pagerState.animateScrollToPage(index)
@@ -928,10 +945,13 @@ private fun ImagePreviewOverlayContent(
                     }
                 }
                 
-                val chromeOffset = pagerState.currentPageOffsetFraction.coerceIn(-1f, 1f)
                 val chromeModifier = Modifier.graphicsLayer {
+                    // 同上：横滑期间 currentPageOffsetFraction 每帧变化，
+                    // 原先在组合期读取会让整个 chrome（顶栏 + 底栏 + 页码）每帧重组。
+                    // graphicsLayer 的 lambda 本身就是 Density，不需要外部的 with(density)。
+                    val chromeOffset = pagerState.currentPageOffsetFraction.coerceIn(-1f, 1f)
                     rotationZ = -chromeOffset * 2.8f
-                    translationX = with(density) { (-chromeOffset * 10f).dp.toPx() }
+                    translationX = (-chromeOffset * 10f).dp.toPx()
                     transformOrigin = TransformOrigin.Center
                 }
 
@@ -971,28 +991,31 @@ private fun ImagePreviewOverlayContent(
                     FilledIconButton(
                         onClick = { triggerDismiss() },
                         colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = Color.Black.copy(0.5f)
+                            containerColor = MediaContrastPalette.Scrim.copy(0.5f)
                         )
                     ) {
                         Icon(
-                            imageVector = CupertinoIcons.Default.Xmark,
+                            imageVector = rememberAppClearIcon(),
                             contentDescription = "关闭",
-                            tint = Color.White
+                            tint = MediaContrastPalette.Foreground
                         )
                     }
 
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .padding(horizontal = 12.dp),
+                            .padding(horizontal = AppSpacingTokens.Medium),
                         contentAlignment = Alignment.Center
                     ) {
                         when {
                             resolvedText != null && shouldShowResolvedText && textPlacement == ImagePreviewTextPlacement.TOP_BAR -> {
                                 Box(
                                     modifier = Modifier.graphicsLayer {
+                                        val textTransform = resolveImagePreviewTextTransform(
+                                            pageOffsetFraction = pagerState.currentPageOffsetFraction
+                                        )
                                         alpha = textTransform.alpha
-                                        translationY = with(density) { (textTransform.translateYDp * 0.45f).dp.toPx() }
+                                        translationY = (textTransform.translateYDp * 0.45f).dp.toPx()
                                     }
                                 ) {
                                     AnimatedContent(
@@ -1026,13 +1049,13 @@ private fun ImagePreviewOverlayContent(
                                         }
                                         Column(
                                             horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
                                         ) {
                                             if (secondaryText.isNotBlank()) {
                                                 Text(
                                                     text = secondaryText,
-                                                    color = Color.White.copy(alpha = 0.82f),
-                                                    fontSize = 11.sp,
+                                                    color = MediaContrastPalette.Foreground.copy(alpha = 0.82f),
+                                                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                                     maxLines = 1,
                                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                                 )
@@ -1040,20 +1063,20 @@ private fun ImagePreviewOverlayContent(
                                             if (primaryText.isNotBlank()) {
                                                 Text(
                                                     text = primaryText,
-                                                    color = Color.White,
-                                                    fontSize = 14.sp,
+                                                    color = MediaContrastPalette.Foreground,
+                                                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                                     maxLines = 2,
                                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                                     modifier = Modifier
-                                                        .background(Color.Black.copy(0.5f), RoundedCornerShape(12.dp))
-                                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                                        .background(MediaContrastPalette.Scrim.copy(0.5f), AppShapes.container(ContainerLevel.Card))
+                                                        .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
                                                 )
                                             }
                                             if (images.size > 1) {
                                                 Text(
                                                     text = "${page + 1} / ${images.size}",
-                                                    color = Color.White.copy(alpha = 0.8f),
-                                                    fontSize = 12.sp
+                                                    color = MediaContrastPalette.Foreground.copy(alpha = 0.8f),
+                                                    fontSize = MaterialTheme.typography.labelSmall.fontSize
                                                 )
                                             }
                                         }
@@ -1063,11 +1086,11 @@ private fun ImagePreviewOverlayContent(
                             images.size > 1 -> {
                                 Text(
                                     "${pagerState.currentPage + 1} / ${images.size}",
-                                    color = Color.White,
-                                    fontSize = 15.sp,
+                                    color = MediaContrastPalette.Foreground,
+                                    fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                                     modifier = Modifier
-                                        .background(Color.Black.copy(0.5f), RoundedCornerShape(12.dp))
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        .background(MediaContrastPalette.Scrim.copy(0.5f), AppShapes.container(ContainerLevel.Card))
+                                        .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
                                 )
                             }
                         }
@@ -1080,20 +1103,20 @@ private fun ImagePreviewOverlayContent(
                                     resolveImagePreviewTextVisibilityAfterToggle(imagePreviewTextVisible)
                             },
                             colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = Color.Black.copy(0.5f)
+                                containerColor = MediaContrastPalette.Scrim.copy(0.5f)
                             )
                         ) {
                             Icon(
                                 imageVector = if (imagePreviewTextVisible) {
-                                    CupertinoIcons.Outlined.EyeSlash
+                                    rememberAppVisibilityOffIcon()
                                 } else {
-                                    CupertinoIcons.Outlined.Eye
+                                    rememberAppVisibilityOnIcon()
                                 },
                                 contentDescription = if (imagePreviewTextVisible) "隐藏图片文字" else "显示图片文字",
-                                tint = Color.White
+                                tint = MediaContrastPalette.Foreground
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                     }
                     
                     // 分享按钮
@@ -1103,25 +1126,25 @@ private fun ImagePreviewOverlayContent(
                         },
                         enabled = !isSharing && !isSaving,
                         colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = Color.Black.copy(0.5f)
+                            containerColor = MediaContrastPalette.Scrim.copy(0.5f)
                         )
                     ) {
                         if (isSharing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
+                            AdaptiveLoadingIndicator(
+                                size = AppSpacingTokens.ExtraLarge,
+                                color = MediaContrastPalette.Foreground,
+                                strokeWidth = AppSpacingTokens.Micro
                             )
                         } else {
                             Icon(
                                 imageVector = shareIcon,
                                 contentDescription = "分享图片",
-                                tint = Color.White
+                                tint = MediaContrastPalette.Foreground
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
 
                     //  下载按钮
                     FilledIconButton(
@@ -1130,20 +1153,20 @@ private fun ImagePreviewOverlayContent(
                         },
                         enabled = !isSaving && !isSharing,
                         colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = Color.Black.copy(0.5f)
+                            containerColor = MediaContrastPalette.Scrim.copy(0.5f)
                         )
                     ) {
                         if (isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
+                            AdaptiveLoadingIndicator(
+                                size = AppSpacingTokens.ExtraLarge,
+                                color = MediaContrastPalette.Foreground,
+                                strokeWidth = AppSpacingTokens.Micro
                             )
                         } else {
                             Icon(
-                                imageVector = CupertinoIcons.Default.ArrowDownCircle,
+                                imageVector = rememberAppDownloadIcon(),
                                 contentDescription = "保存图片",
-                                tint = Color.White
+                                tint = MediaContrastPalette.Foreground
                             )
                         }
                     }
@@ -1169,7 +1192,7 @@ private fun ImagePreviewOverlayContent(
                             .padding(
                                 start = overlayPadding.start,
                                 end = overlayPadding.end,
-                                bottom = overlayPadding.bottom + 12.dp
+                                bottom = overlayPadding.bottom + AppSpacingTokens.Medium
                             )
                             .then(chromeModifier)
                     )
@@ -1194,13 +1217,13 @@ private fun ImagePreviewCommentTopBar(
     ) {
         IconButton(
             onClick = onDismiss,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)
         ) {
             Icon(
-                imageVector = CupertinoIcons.Default.Xmark,
+                imageVector = rememberAppClearIcon(),
                 contentDescription = "关闭",
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
+                tint = MediaContrastPalette.Foreground,
+                modifier = Modifier.size(AppSpacingTokens.ExtraLarge)
             )
         }
         Box(
@@ -1209,34 +1232,34 @@ private fun ImagePreviewCommentTopBar(
         ) {
             Text(
                 text = label,
-                color = Color.White.copy(alpha = 0.9f),
-                fontSize = 14.sp,
+                color = MediaContrastPalette.Foreground.copy(alpha = 0.9f),
+                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 modifier = Modifier
                     .testTag(IMAGE_PREVIEW_ORIGINAL_CHIP_TAG)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(Color.White.copy(alpha = 0.16f))
-                    .padding(horizontal = 18.dp, vertical = 7.dp)
+                    .clip(AppShapes.container(ContainerLevel.Floating))
+                    .background(MediaContrastPalette.Foreground.copy(alpha = 0.16f))
+                    .padding(horizontal = AppSpacingTokens.Large + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Small - AppSpacingTokens.Micro / 2)
             )
         }
         IconButton(
             onClick = onShare,
             enabled = enabled,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)
         ) {
             if (isSharing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    color = Color.White,
-                    strokeWidth = 2.dp
+                AdaptiveLoadingIndicator(
+                    size = AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro,
+                    color = MediaContrastPalette.Foreground,
+                    strokeWidth = AppSpacingTokens.Micro
                 )
             } else {
                 Icon(
                     imageVector = shareIcon,
                     contentDescription = "分享图片",
-                    tint = Color.White,
-                    modifier = Modifier.size(23.dp)
+                    tint = MediaContrastPalette.Foreground,
+                    modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro / 2)
                 )
             }
         }
@@ -1263,7 +1286,7 @@ private fun ImagePreviewCommentPanel(
 
     Column(
         modifier = modifier.testTag(IMAGE_PREVIEW_COMMENT_PANEL_TAG),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1274,24 +1297,24 @@ private fun ImagePreviewCommentPanel(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.16f))
+                    .background(MediaContrastPalette.Foreground.copy(alpha = 0.16f))
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Small + AppSpacingTokens.Micro))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = context.authorName,
-                    color = Color.White,
-                    fontSize = 15.sp,
+                    color = MediaContrastPalette.Foreground,
+                    fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
                 if (context.timeText.isNotBlank()) {
                     Text(
                         text = context.timeText,
-                        color = Color.White.copy(alpha = 0.58f),
-                        fontSize = 12.sp,
+                        color = MediaContrastPalette.Foreground.copy(alpha = 0.58f),
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         maxLines = 1
                     )
                 }
@@ -1301,9 +1324,9 @@ private fun ImagePreviewCommentPanel(
         if (context.body.isNotBlank()) {
             Text(
                 text = context.body,
-                color = Color.White.copy(alpha = 0.94f),
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
+                color = MediaContrastPalette.Foreground.copy(alpha = 0.94f),
+                fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
                 maxLines = 3,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
@@ -1316,22 +1339,22 @@ private fun ImagePreviewCommentPanel(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(38.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(Color.White.copy(alpha = 0.12f))
+                    .height(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
+                    .clip(AppShapes.container(ContainerLevel.Floating))
+                    .background(MediaContrastPalette.Foreground.copy(alpha = 0.12f))
                     .clickable(enabled = context.onReplyClick != null, onClick = onReply)
-                    .padding(horizontal = 14.dp),
+                    .padding(horizontal = AppSpacingTokens.Medium + AppSpacingTokens.Micro),
                 contentAlignment = Alignment.CenterStart
             ) {
                 Text(
                     text = "回复 ${context.authorName}",
-                    color = Color.White.copy(alpha = 0.56f),
-                    fontSize = 14.sp,
+                    color = MediaContrastPalette.Foreground.copy(alpha = 0.56f),
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Large))
             ImagePreviewCommentActionButton(
                 icon = if (localLiked) likeFilledIcon else likeIcon,
                 label = displayLikeCount,
@@ -1348,7 +1371,7 @@ private fun ImagePreviewCommentPanel(
                     }
                 }
             )
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium + AppSpacingTokens.Micro))
             ImagePreviewCommentActionButton(
                 icon = shareIcon,
                 label = "转发",
@@ -1372,29 +1395,29 @@ private fun ImagePreviewCommentActionButton(
 ) {
     Column(
         modifier = Modifier
-            .size(width = 46.dp, height = 48.dp)
+            .size(width = AppSpacingTokens.TripleExtraLarge - AppSpacingTokens.Micro, height = AppSpacingTokens.TripleExtraLarge)
             .clickable(enabled = enabled && !busy, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         if (busy) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(22.dp),
-                color = Color.White,
-                strokeWidth = 2.dp
+            AdaptiveLoadingIndicator(
+                size = AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro,
+                color = MediaContrastPalette.Foreground,
+                strokeWidth = AppSpacingTokens.Micro
             )
         } else {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (selected) MaterialTheme.colorScheme.primary else Color.White,
-                modifier = Modifier.size(24.dp)
+                tint = if (selected) MaterialTheme.colorScheme.primary else MediaContrastPalette.Foreground,
+                modifier = Modifier.size(AppSpacingTokens.ExtraLarge)
             )
         }
         Text(
             text = label,
-            color = Color.White.copy(alpha = if (enabled) 0.88f else 0.38f),
-            fontSize = 11.sp,
+            color = MediaContrastPalette.Foreground.copy(alpha = if (enabled) 0.88f else 0.38f),
+            fontSize = MaterialTheme.typography.labelSmall.fontSize,
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
         )

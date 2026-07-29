@@ -28,6 +28,7 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.compose.animation.SharedTransitionScope
 import androidx.navigation3.runtime.NavEntryDecorator
@@ -46,6 +47,9 @@ import androidx.navigationevent.NavigationEventTransitionState
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ProvideAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.adaptive.MotionTier
+import com.android.purebilibili.core.ui.performance.AppRuntimeVisualGuardTracker
+import com.android.purebilibili.core.ui.performance.TrackJankStateValue
+import com.android.purebilibili.core.ui.performance.VIDEO_CARD_TRANSITION_JANK_STATE
 import com.android.purebilibili.core.ui.transition.LocalPredictiveBackBackgroundState
 import com.android.purebilibili.core.ui.transition.LocalVideoCardMorphProgressReporter
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
@@ -103,6 +107,7 @@ internal class BiliPaiProgrammaticBackDispatcher {
 internal fun BiliPaiNavDisplayHost(
     backStack: List<BiliPaiNavKey>,
     cardTransitionEnabled: Boolean = true,
+    videoDetailTransitionsEnabled: Boolean = true,
     videoCardDepthEffectEnabled: Boolean = cardTransitionEnabled,
     reduceMotion: Boolean = false,
     videoSharedTransitionDurationMillis: Int,
@@ -177,9 +182,26 @@ internal fun BiliPaiNavDisplayHost(
     val videoCardBackgroundProgressProvider = remember(videoCardClock) {
         { videoCardClock.depthProgress() }
     }
-    // 仅系统减弱动画时降为 scrim-only；不按机型降级，保证完整 12dp 景深观感。
+    val runtimeGuardDecision by
+        AppRuntimeVisualGuardTracker.decision.collectAsStateWithLifecycle()
+    val videoCardTransitionJankState = if (!videoCardDepthEffectEnabled) {
+        null
+    } else {
+        when {
+            videoCardReturnGestureInProgress -> "PredictiveReturn"
+            videoCardClock.gestureRestoreInProgress -> "GestureRestore"
+            videoCardClock.phase == VideoCardTransitionBackgroundPhase.OPENING -> "Opening"
+            videoCardClock.phase == VideoCardTransitionBackgroundPhase.RETURNING -> "Returning"
+            else -> null
+        }
+    }
+    TrackJankStateValue(
+        stateName = VIDEO_CARD_TRANSITION_JANK_STATE,
+        stateValue = videoCardTransitionJankState,
+    )
+    // 默认保留完整 12dp 景深；系统减弱动画或连续转场掉帧时降为 scrim-only。
     val transitionBackgroundMotionTier =
-        if (reduceMotion) MotionTier.Reduced else MotionTier.Normal
+        if (reduceMotion) MotionTier.Reduced else runtimeGuardDecision.effectiveMotionTier
     var previousVideoCardTransitionBackStack by remember {
         mutableStateOf(safeBackStack)
     }
@@ -299,16 +321,20 @@ internal fun BiliPaiNavDisplayHost(
     }
     val popRouteTransition = remember(
         cardTransitionEnabled,
+        videoDetailTransitionsEnabled,
         reduceMotion,
         sourceMetadata,
         safeBackStack,
         activeMainHostRoute,
     ) {
-        if (reduceMotion) {
+        if (!videoDetailTransitionsEnabled && safeBackStack.lastOrNull() is BiliPaiNavKey.VideoDetail) {
+            BiliPaiNavRouteTransition.VIDEO_DETAIL_NO_ANIMATION
+        } else if (reduceMotion) {
             BiliPaiNavRouteTransition.REDUCED_MOTION_FADE
         } else {
             resolveBiliPaiNavDisplayPopRouteTransition(
                 cardTransitionEnabled = cardTransitionEnabled,
+                videoDetailTransitionsEnabled = videoDetailTransitionsEnabled,
                 sourceMetadata = sourceMetadata,
                 fromKey = safeBackStack.lastOrNull(),
                 toKey = safeBackStack.getOrNull(safeBackStack.lastIndex - 1),
@@ -562,6 +588,7 @@ internal fun BiliPaiNavDisplayHost(
     val entryProvider = remember(
         sourceMetadata,
         cardTransitionEnabled,
+        videoDetailTransitionsEnabled,
         reduceMotion,
         visibleBottomBarRoutes,
         activeMainHostRoute,
@@ -570,6 +597,7 @@ internal fun BiliPaiNavDisplayHost(
         biliPaiNavEntryProvider(
             sourceMetadata = sourceMetadata,
             cardTransitionEnabled = cardTransitionEnabled,
+            videoDetailTransitionsEnabled = videoDetailTransitionsEnabled,
             reduceMotion = reduceMotion,
             visibleBottomBarRoutes = visibleBottomBarRoutes,
             activeMainHostRoute = activeMainHostRoute,
@@ -717,7 +745,13 @@ internal fun BiliPaiNavDisplayHost(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopStart,
             sizeTransform = null,
-            transitionEffects = NavDisplayTransitionEffects(blockInputDuringTransition = false),
+            // 页面自身已经提供了方向、淡入和预测返回效果。关闭 Navigation3 默认的
+            // 圆角裁剪与 dim，可避免转场期间额外的离屏层和整页重绘。
+            transitionEffects = NavDisplayTransitionEffects(
+                enableCornerClip = false,
+                dimAmount = 0f,
+                blockInputDuringTransition = false,
+            ),
             transitionSpec = {
                 with(predictiveBackHandler) {
                     onTransitionSpec()

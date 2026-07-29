@@ -7,12 +7,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,7 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.data.repository.LiveDanmakuPermission
 import com.android.purebilibili.feature.live.LiveDanmakuItem
 
@@ -37,30 +40,33 @@ fun LiveSendDanmakuSheet(
 ) {
     var message by remember { mutableStateOf("") }
     val maxLength = permission.maxLength.takeIf { it > 0 } ?: 40
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AppModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(
+                    horizontal = AppSpacingTokens.ExtraLarge,
+                    vertical = AppSpacingTokens.Small,
+                ),
+            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)
         ) {
             Text(
                 text = if (replyTarget == null) "发弹幕" else "回复 @${replyTarget.uname.ifBlank { replyTarget.uid.toString() }}",
                 color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 22.sp,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
+            AppSurface(
+                color = AppSurfaceTokens.cardContainer(),
+                shape = AppShapes.container(ContainerLevel.Card)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(AppSpacingTokens.Large),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
                 ) {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = message,
                         onValueChange = { message = it.take(maxLength) },
                         modifier = Modifier.fillMaxWidth(),
@@ -90,14 +96,13 @@ fun LiveSendDanmakuSheet(
                             }
                         },
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp,
-                        lineHeight = 18.sp
+                        style = MaterialTheme.typography.bodySmall,
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        Button(
+                        AppButton(
                             enabled = permission.canSend && message.trim().isNotEmpty(),
                             onClick = { onSend(message.trim()) }
                         ) {

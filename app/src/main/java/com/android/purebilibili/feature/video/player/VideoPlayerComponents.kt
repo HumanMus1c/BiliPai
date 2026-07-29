@@ -40,6 +40,7 @@ import com.android.purebilibili.core.theme.ActionFavoriteDark
 import com.android.purebilibili.core.theme.ActionShareDark
 import com.android.purebilibili.core.theme.ActionCommentDark
 import com.android.purebilibili.core.ui.components.UserUpBadge
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.rememberAppBookmarkIcon
 import com.android.purebilibili.core.ui.rememberAppCoinIcon
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
@@ -222,7 +223,7 @@ fun UpInfoSection(
         }
         
         // 关注按钮
-        Surface(
+        AppSurface(
             onClick = onFollowClick,
             color = if (isFollowing) MaterialTheme.colorScheme.surfaceVariant else BiliPink,
             shape = RoundedCornerShape(16.dp),
@@ -489,7 +490,7 @@ fun DescriptionSection(desc: String) {
 
     if (desc.isBlank()) return
 
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.background
     ) {
@@ -541,7 +542,7 @@ fun DescriptionSection(desc: String) {
 //  4. 推荐视频列表头部
 @Composable
 fun RelatedVideosHeader() {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.background
     ) {
@@ -579,7 +580,7 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
         label = "cardScale"
     )
     
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
@@ -615,7 +616,7 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                     modifier = Modifier.fillMaxSize()
                 )
                 // 时长标签
-                Surface(
+                AppSurface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(6.dp),
@@ -829,7 +830,7 @@ fun PagesSelector(
                             val actualIndex = rowIndex * columns + colIndex
                             val isSelected = actualIndex == currentPageIndex
                             
-                            Surface(
+                            AppSurface(
                                 onClick = { onPageSelect(actualIndex) },
                                 color = if (isSelected) selectedColors.backgroundColor else MaterialTheme.colorScheme.surfaceVariant,
                                 shape = RoundedCornerShape(8.dp),
@@ -873,7 +874,7 @@ fun PagesSelector(
                     val page = pages[index]
                     val isSelected = index == currentPageIndex
                     
-                    Surface(
+                    AppSurface(
                         onClick = { onPageSelect(index) },
                         color = if (isSelected) selectedColors.backgroundColor else MaterialTheme.colorScheme.surfaceVariant,
                         shape = RoundedCornerShape(8.dp),

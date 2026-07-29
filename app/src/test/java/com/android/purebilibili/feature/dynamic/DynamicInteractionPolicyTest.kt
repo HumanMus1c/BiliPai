@@ -18,6 +18,7 @@ import com.android.purebilibili.feature.dynamic.components.DynamicCardMediaActio
 import com.android.purebilibili.feature.dynamic.components.DynamicCardPrimaryAction
 import com.android.purebilibili.feature.dynamic.components.resolveDynamicCardMediaAction
 import com.android.purebilibili.feature.dynamic.components.resolveDynamicCardPrimaryAction
+import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -26,6 +27,32 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 class DynamicInteractionPolicyTest {
+
+    @Test
+    fun `comment page result is rejected after reopening the same target`() {
+        val target = DynamicCommentTarget(oid = 42L, type = 17)
+
+        assertTrue(
+            shouldApplyDynamicCommentPageResult(
+                activeRequestId = 2L,
+                requestId = 2L,
+                activeTarget = target,
+                requestTarget = target,
+                activeSortMode = CommentSortMode.HOT,
+                requestSortMode = CommentSortMode.HOT,
+            )
+        )
+        assertFalse(
+            shouldApplyDynamicCommentPageResult(
+                activeRequestId = 3L,
+                requestId = 2L,
+                activeTarget = target,
+                requestTarget = target,
+                activeSortMode = CommentSortMode.HOT,
+                requestSortMode = CommentSortMode.HOT,
+            )
+        )
+    }
 
     @Test
     fun `video tab includes ugc season dynamics`() {

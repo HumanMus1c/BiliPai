@@ -1,9 +1,7 @@
 package com.android.purebilibili.feature.space
 
 import com.android.purebilibili.data.model.response.VideoSortOrder
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.ui.resolveCompactCapsuleChromeSpec
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import kotlin.math.roundToInt
 
 internal data class SpaceSegmentedTabChromeSpec(
@@ -43,10 +41,9 @@ internal fun resolveSpaceMainTabChromeSpec(
     selectedTab: SpaceMainTab
 ): SpaceSegmentedTabChromeSpec {
     val selectedIndex = tabs.indexOfFirst { it.tab == selectedTab }.coerceAtLeast(0)
-    val compactChrome = resolveCompactCapsuleChromeSpec(UiPreset.IOS, AndroidNativeVariant.MATERIAL3)
     return SpaceSegmentedTabChromeSpec(
         selectedIndex = selectedIndex,
-        heightDp = compactChrome.primaryHeightDp,
+        heightDp = AppChromeSizeTokens.CompactControlHeightDp,
         indicatorHeightDp = 30,
         horizontalPaddingDp = SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP,
         itemWidthDp = null,
@@ -65,10 +62,9 @@ internal fun resolveSpaceContributionTabChromeSpec(
         .takeIf { it >= 0 }
         ?: tabs.indexOfFirst { it.subTab == selectedSubTab }.coerceAtLeast(0)
     val scrollable = shouldScrollSpaceContributionTabs(tabs)
-    val compactChrome = resolveCompactCapsuleChromeSpec(UiPreset.IOS, AndroidNativeVariant.MATERIAL3)
     return SpaceSegmentedTabChromeSpec(
         selectedIndex = selectedIndex,
-        heightDp = compactChrome.primaryHeightDp,
+        heightDp = AppChromeSizeTokens.CompactControlHeightDp,
         indicatorHeightDp = 30,
         horizontalPaddingDp = SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP,
         itemWidthDp = resolveSpaceContributionTabItemWidthDp(tabs),

@@ -1,11 +1,11 @@
 package com.android.purebilibili.feature.list
 
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import dev.chrisbanes.haze.hazeEffect
@@ -33,6 +33,12 @@ import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.adaptive.resolveEffectiveMotionTier
+import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.motion.AppMotionTokens
+import com.android.purebilibili.core.util.responsiveContentWidth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -56,9 +62,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.DisposableEffect // [Fix] Missing import
 import kotlinx.coroutines.launch // [Fix] Import
 //  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -88,15 +91,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.android.purebilibili.core.ui.AdaptiveScaffold
-import com.android.purebilibili.core.ui.AdaptiveTopAppBar
+import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.feature.home.LocalHomeScrollOffset
 import com.android.purebilibili.feature.home.policy.resolveBottomBarChromeScrollOffset
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperChromeColor
 import com.android.purebilibili.core.theme.BiliPink
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
+import com.android.purebilibili.core.ui.rememberAppChromeLiquidGlassEnabled
+import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
+import com.android.purebilibili.core.ui.components.AppSearchField
 import com.android.purebilibili.core.ui.animation.DissolveAnimationPreset
 import com.android.purebilibili.core.ui.animation.DissolvableVideoCard
 import com.android.purebilibili.core.ui.animation.jiggleOnDissolve
@@ -104,31 +109,29 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.rememberAppFolderIcon
+import com.android.purebilibili.core.ui.rememberAppHeadphonesIcon
 import com.android.purebilibili.core.ui.transition.BiliPaiSharedElementKey
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.VideoGridItemSkeleton
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard
-import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.rememberAdaptiveGridColumns
 import com.android.purebilibili.core.util.rememberResponsiveSpacing
-import com.android.purebilibili.core.util.rememberResponsiveValue
-import com.android.purebilibili.core.theme.LocalUiPreset
 import com.android.purebilibili.data.model.response.HistoryBusiness
 import com.android.purebilibili.data.model.response.HistoryItem
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.feature.article.ArticleSharedElementSlot
 import com.android.purebilibili.feature.article.resolveHistoryArticleCoverAspectRatio
 import com.android.purebilibili.feature.article.resolveArticleSharedTransitionKey
-import com.android.purebilibili.feature.settings.IOSSlidingSegmentedControl
-import com.android.purebilibili.feature.settings.PlaybackSegmentOption
+import com.android.purebilibili.feature.settings.AppSegmentedControl
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.space.SeasonSeriesDetailViewModel
 import com.android.purebilibili.feature.video.player.ExternalPlaylistSource
 import com.android.purebilibili.feature.video.player.PlayMode
 import com.android.purebilibili.feature.video.player.PlaylistManager
-import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
+import com.android.purebilibili.feature.video.player.PlaylistSession
 import com.android.purebilibili.core.util.resolveScrollToTopPlan
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -200,8 +203,11 @@ fun CommonListScreen(
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeSettings(),
         context = kotlin.coroutines.EmptyCoroutineContext
     )
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
+    val topChromePolicy = rememberAppTopChromePolicy()
+    val liquidGlassEnabled = rememberAppChromeLiquidGlassEnabled(
+        individualEnabled = homeSettings.isLiquidGlassEnabled,
+        androidNativeEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+    )
     val windowSizeClass = LocalWindowSizeClass.current
     val deviceUiProfile = remember(windowSizeClass.widthSizeClass) {
         resolveDeviceUiProfile(
@@ -215,7 +221,9 @@ fun CommonListScreen(
     val favoriteCollectionSharedTransitionEnabled =
         homeSettings.cardTransitionEnabled && LocalSharedTransitionEnabled.current
 
-    val minColWidth = rememberResponsiveValue(compact = 170.dp, medium = 170.dp, expanded = 240.dp)
+    val minColWidth = remember(windowSizeClass.isExpandedScreen) {
+        resolveCommonListGridMinColumnWidth(windowSizeClass.isExpandedScreen)
+    }
     val adaptiveColumns = rememberAdaptiveGridColumns(minColumnWidth = minColWidth)
 
     // [新增] 优先使用用户设置的列数
@@ -315,6 +323,7 @@ fun CommonListScreen(
 
     // [Fix] Import for launch
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val headerSettleMotionSpec = AppMotionTokens.standardSpec<Float>()
 
     // 📁 [新增] 收藏夹切换 Tab
     val foldersState by favoriteViewModel?.folders?.collectAsStateWithLifecycle()
@@ -403,10 +412,7 @@ fun CommonListScreen(
         if (favoriteViewModel != null && foldersState.size > 1) foldersState.size else 0
     }
 
-    val commonListBottomPadding = resolveBottomSafeAreaPadding(
-        navigationBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
-        extraBottomPadding = 120.dp
-    )
+    val commonListBottomPadding = LocalBottomBarContentPadding.current
     val activeCommonListScrollState = remember(
         favoriteViewModel,
         favoriteContentMode,
@@ -526,8 +532,8 @@ fun CommonListScreen(
     var searchQuery by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
     val favoriteBrowseOptions = remember {
         listOf(
-            PlaybackSegmentOption(FavoriteBrowseSection.OWNED, "收藏夹"),
-            PlaybackSegmentOption(FavoriteBrowseSection.SUBSCRIBED, "追更")
+            AppSegmentOption(FavoriteBrowseSection.OWNED, "收藏夹"),
+            AppSegmentOption(FavoriteBrowseSection.SUBSCRIBED, "追更")
         )
     }
 
@@ -552,7 +558,7 @@ fun CommonListScreen(
             animate(
                 initialValue = commonListHeaderOffsetPx,
                 targetValue = targetOffsetPx,
-                animationSpec = tween(durationMillis = 180, easing = LinearOutSlowInEasing)
+                animationSpec = headerSettleMotionSpec
             ) { value, _ ->
                 commonListHeaderOffsetPx = value
             }
@@ -662,29 +668,26 @@ fun CommonListScreen(
     }
 
     // [Feature] Header Blur Optimization
-    val isHeaderBlurEnabled = remember(homeSettings, uiPreset) {
+    val isHeaderBlurEnabled = remember(homeSettings) {
         resolveCommonListHeaderBlurEnabled(
             homeSettings = homeSettings,
-            uiPreset = uiPreset
         )
     }
-    val videoCardAppearance = remember(homeSettings, uiPreset) {
+    val videoCardAppearance = remember(homeSettings, liquidGlassEnabled) {
         resolveCommonListVideoCardAppearance(
             homeSettings = homeSettings,
-            uiPreset = uiPreset
+            liquidGlassEnabled = liquidGlassEnabled,
         )
     }
-    val favoriteHeaderLayout = remember(uiPreset, androidNativeVariant) {
+    val favoriteHeaderLayout = remember(topChromePolicy) {
         resolveCommonListFavoriteHeaderLayout(
-            uiPreset = uiPreset,
-            androidNativeVariant = androidNativeVariant
+            topChromePolicy = topChromePolicy,
         )
     }
-    val historyFilterChrome = remember(homeSettings, uiPreset, androidNativeVariant) {
+    val historyFilterChrome = remember(homeSettings, topChromePolicy) {
         resolveHistoryFilterTabChromeSpec(
             homeSettings = homeSettings,
-            uiPreset = uiPreset,
-            androidNativeVariant = androidNativeVariant
+            topChromePolicy = topChromePolicy,
         )
     }
     val blurIntensity = currentUnifiedBlurIntensity()
@@ -700,11 +703,11 @@ fun CommonListScreen(
         globalWallpaperVisible = globalWallpaperVisible
     )
     val headerBackgroundColor = resolveGlobalWallpaperChromeColor(
-        requestedColor = MaterialTheme.colorScheme.surface.copy(
+        requestedColor = AppSurfaceTokens.surface().copy(
             alpha = if (isHeaderBlurEnabled) headerBackgroundAlpha else 1f
         ),
-        defaultBackgroundColor = MaterialTheme.colorScheme.background,
-        defaultSurfaceColor = MaterialTheme.colorScheme.surface,
+        defaultBackgroundColor = AppSurfaceTokens.background(),
+        defaultSurfaceColor = AppSurfaceTokens.surface(),
         globalWallpaperVisible = globalWallpaperVisible
     )
 
@@ -725,32 +728,37 @@ fun CommonListScreen(
 
     val playFavoriteVideo: (List<VideoItem>, String, Long, String, Int?, Boolean) -> Unit =
         { items, bvid, cid, coverUrl, folderIndex, playAllAudio ->
-            fun startPlayback(playlistItems: List<VideoItem>) {
-            val externalPlaylist = buildExternalPlaylistFromFavorite(
-                items = playlistItems,
-                clickedBvid = bvid
-            )
-            if (externalPlaylist != null) {
-                PlaylistManager.setExternalPlaylist(
-                    externalPlaylist.playlistItems,
-                    externalPlaylist.startIndex,
-                    source = ExternalPlaylistSource.FAVORITE
+            fun startPlayback(playlistItems: List<VideoItem>): PlaylistSession? {
+                val externalPlaylist = buildExternalPlaylistFromFavorite(
+                    items = playlistItems,
+                    clickedBvid = bvid
                 )
-                PlaylistManager.setPlayMode(PlayMode.SEQUENTIAL)
-            }
-            val isVertical = playlistItems.firstOrNull { it.bvid == bvid }?.isVertical ?: false
-            if (playAllAudio) {
-                onPlayAllAudioClick?.invoke(bvid, cid)
-                    ?: onVideoClick(bvid, cid, coverUrl, isVertical)
-            } else {
-                onVideoClick(bvid, cid, coverUrl, isVertical)
-            }
+                val playlistSession = externalPlaylist?.let { playlist ->
+                    PlaylistManager.setExternalPlaylist(
+                        playlist.playlistItems,
+                        playlist.startIndex,
+                        source = ExternalPlaylistSource.FAVORITE
+                    ).also { PlaylistManager.setPlayMode(PlayMode.SEQUENTIAL) }
+                }
+                val isVertical = playlistItems.firstOrNull { it.bvid == bvid }?.isVertical ?: false
+                if (playAllAudio) {
+                    onPlayAllAudioClick?.invoke(bvid, cid)
+                        ?: onVideoClick(bvid, cid, coverUrl, isVertical)
+                } else {
+                    onVideoClick(bvid, cid, coverUrl, isVertical)
+                }
+                return playlistSession
             }
             if (favoriteViewModel != null && folderIndex != null) {
-                startPlayback(items)
-                favoriteViewModel.loadAllForPlayback(folderIndex) { allItems ->
-                    buildExternalPlaylistFromFavorite(allItems)?.let { playlist ->
-                        PlaylistManager.addAllToPlaylist(playlist.playlistItems)
+                val playlistSession = startPlayback(items)
+                if (playlistSession != null) {
+                    favoriteViewModel.loadAllForPlayback(folderIndex) { allItems ->
+                        buildExternalPlaylistFromFavorite(allItems)?.let { playlist ->
+                            PlaylistManager.addAllToPlaylistIfCurrent(
+                                items = playlist.playlistItems,
+                                session = playlistSession,
+                            )
+                        }
                     }
                 }
             } else {
@@ -758,11 +766,11 @@ fun CommonListScreen(
             }
         }
 
-    AdaptiveScaffold(
+    AppScaffold(
         modifier = Modifier
             .nestedScroll(commonListHeaderScrollConnection)
             .nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = AppSurfaceTokens.groupedListContainer()
     ) { scaffoldPadding ->
         Box(
             modifier = Modifier.fillMaxSize()
@@ -782,7 +790,7 @@ fun CommonListScreen(
                         searchQuery = searchQuery,
                         padding = PaddingValues(
                             top = headerHeightDp,
-                            bottom = scaffoldPadding.calculateBottomPadding()
+                            bottom = commonListBottomPadding
                         ),
                         listState = subscribedFolderListState,
                         spacing = spacing.medium,
@@ -857,7 +865,7 @@ fun CommonListScreen(
                                 searchQuery = searchQuery,
                                 columns = columns,
                                 spacing = spacing.medium,
-                                padding = PaddingValues(top = headerHeightDp, bottom = scaffoldPadding.calculateBottomPadding()),
+                                padding = PaddingValues(top = headerHeightDp, bottom = commonListBottomPadding),
                                 scrollUnderHeader = commonListHeaderCollapseEnabled,
                                 cardAnimationEnabled = homeSettings.cardAnimationEnabled,
                                 cardTransitionEnabled = homeSettings.cardTransitionEnabled,
@@ -896,7 +904,7 @@ fun CommonListScreen(
                             searchQuery = searchQuery,
                             columns = columns,
                             spacing = spacing.medium,
-                            padding = PaddingValues(top = headerHeightDp, bottom = scaffoldPadding.calculateBottomPadding()),
+                            padding = PaddingValues(top = headerHeightDp, bottom = commonListBottomPadding),
                             scrollUnderHeader = commonListHeaderCollapseEnabled,
                             cardAnimationEnabled = homeSettings.cardAnimationEnabled,
                             cardTransitionEnabled = homeSettings.cardTransitionEnabled,
@@ -926,7 +934,7 @@ fun CommonListScreen(
                         searchQuery = searchQuery,
                         columns = columns,
                         spacing = spacing.medium,
-                        padding = PaddingValues(top = headerHeightDp, bottom = scaffoldPadding.calculateBottomPadding()),
+                        padding = PaddingValues(top = headerHeightDp, bottom = commonListBottomPadding),
                         scrollUnderHeader = commonListHeaderCollapseEnabled,
                         cardAnimationEnabled = homeSettings.cardAnimationEnabled,
                         cardTransitionEnabled = homeSettings.cardTransitionEnabled,
@@ -1008,7 +1016,7 @@ fun CommonListScreen(
                 FavoriteProgressBadgeCapsule(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .padding(end = 12.dp)
+                        .padding(end = AppSpacingTokens.Medium)
                         .zIndex(2f),
                     title = "进度",
                     badge = badge
@@ -1029,7 +1037,7 @@ fun CommonListScreen(
                     }
             ) {
                 Column {
-                    AdaptiveTopAppBar(
+                    AppTopBar(
                         title = state.title,
                         modifier = Modifier.favoriteCollectionSharedBounds(
                             route = favoriteCollectionSharedElementRoute,
@@ -1060,7 +1068,7 @@ fun CommonListScreen(
                                     }
                                 ) {
                                     Icon(
-                                        imageVector = CupertinoIcons.Outlined.Headphones,
+                                        imageVector = rememberAppHeadphonesIcon(),
                                         contentDescription = "全部听"
                                     )
                                 }
@@ -1208,7 +1216,7 @@ fun CommonListScreen(
                                 vertical = favoriteHeaderLayout.searchBarVerticalPaddingDp.dp
                             )
                     ) {
-                        com.android.purebilibili.core.ui.components.IOSSearchBar(
+                        AppSearchField(
                             query = searchQuery,
                             onQueryChange = { searchQuery = it },
                             placeholder = when {
@@ -1265,7 +1273,7 @@ fun CommonListScreen(
                             } else {
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(
-                                        space = 8.dp,
+                                        space = AppSpacingTokens.Small,
                                         alignment = Alignment.CenterHorizontally
                                     ),
                                     verticalAlignment = Alignment.CenterVertically
@@ -1284,7 +1292,7 @@ fun CommonListScreen(
                                                 )
                                             },
                                             colors = FilterChipDefaults.filterChipColors(
-                                                containerColor = MaterialTheme.colorScheme.surface,
+                                                containerColor = AppSurfaceTokens.cardContainer(),
                                                 labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -1294,11 +1302,11 @@ fun CommonListScreen(
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                     }
 
                     if (favoriteViewModel != null && subscribedFoldersState.isNotEmpty()) {
-                        IOSSlidingSegmentedControl(
+                        AppSegmentedControl(
                             options = favoriteBrowseOptions,
                             selectedValue = favoriteBrowseSection,
                             modifier = Modifier.padding(
@@ -1347,10 +1355,10 @@ fun CommonListScreen(
                 visible = shouldShowBackToTop,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = commonListBottomPadding + 12.dp),
-                enter = androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(180)) +
+                    .padding(end = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, bottom = commonListBottomPadding + AppSpacingTokens.Medium),
+                enter = androidx.compose.animation.fadeIn(animationSpec = AppMotionTokens.standardSpec()) +
                     androidx.compose.animation.scaleIn(initialScale = 0.92f),
-                exit = androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(140)) +
+                exit = androidx.compose.animation.fadeOut(animationSpec = AppMotionTokens.standardSpec()) +
                     androidx.compose.animation.scaleOut(targetScale = 0.92f)
             ) {
                 SmallFloatingActionButton(
@@ -1359,7 +1367,7 @@ fun CommonListScreen(
                             scrollCommonListToTop()
                         }
                     },
-                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2),
                     contentColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(
@@ -1518,7 +1526,7 @@ private fun FavoriteFolderChipRow(
                 } else {
                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f)
                 },
-                tonalElevation = if (isSelected) 1.dp else 0.dp
+                tonalElevation = if (isSelected) AppSpacingTokens.Micro / 2 else AppSpacingTokens.None
             ) {
                 Box(
                     modifier = Modifier
@@ -1528,7 +1536,7 @@ private fun FavoriteFolderChipRow(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
                     ) {
                         FavoriteFolderChipPreview(
                             coverUrl = previewCover,
@@ -1540,7 +1548,7 @@ private fun FavoriteFolderChipRow(
                             overflow = TextOverflow.Ellipsis,
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.labelLarge.copy(
-                                fontSize = 13.sp,
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                             ),
                             color = if (isSelected) {
@@ -1563,8 +1571,8 @@ private fun FavoriteFolderChipPreview(
 ) {
     Box(
         modifier = Modifier
-            .size(24.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .size(AppSpacingTokens.ExtraLarge)
+            .clip(AppShapes.container(ContainerLevel.Chip))
             .background(
                 if (selected) {
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
@@ -1583,9 +1591,9 @@ private fun FavoriteFolderChipPreview(
             )
         } else {
             Icon(
-                imageVector = CupertinoIcons.Default.Folder,
+                imageVector = rememberAppFolderIcon(),
                 contentDescription = null,
-                modifier = Modifier.size(15.dp),
+                modifier = Modifier.size(AppSpacingTokens.Large - AppSpacingTokens.Micro / 2),
                 tint = if (selected) {
                     MaterialTheme.colorScheme.primary
                 } else {
@@ -1644,10 +1652,10 @@ private fun CommonListContent(
     }
     val resolvedGridState = gridState ?: rememberLazyGridState()
     val fixedHeaderInset = resolveCommonListViewportTopPadding(padding.calculateTopPadding())
-    val scrollableHeaderInset = if (scrollUnderHeader) fixedHeaderInset else 0.dp
+    val scrollableHeaderInset = if (scrollUnderHeader) fixedHeaderInset else AppSpacingTokens.None
     val viewportModifier = Modifier
         .fillMaxSize()
-        .padding(top = if (scrollUnderHeader) 0.dp else fixedHeaderInset)
+        .padding(top = if (scrollUnderHeader) AppSpacingTokens.None else fixedHeaderInset)
     val emptyViewportModifier = Modifier
         .fillMaxSize()
         .padding(top = fixedHeaderInset)
@@ -1678,7 +1686,7 @@ private fun CommonListContent(
                 style = MaterialTheme.typography.bodyMedium
             )
             if (onRetry != null) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
                 Button(onClick = onRetry) {
                     Text("重试")
                 }
@@ -1686,7 +1694,7 @@ private fun CommonListContent(
         }
     } else if (items.isEmpty()) {
         Box(modifier = emptyViewportModifier, contentAlignment = Alignment.Center) {
-             Text("暂无数据", color = Color.Gray)
+             Text("暂无数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     } else {
         val filteredItems = androidx.compose.runtime.remember(items, searchQuery) {
@@ -1715,7 +1723,7 @@ private fun CommonListContent(
 
         if (filteredItems.isEmpty() && searchQuery.isNotEmpty()) {
              Box(emptyViewportModifier, contentAlignment = Alignment.Center) {
-                Text("没有找到相关视频", color = Color.Gray)
+                Text("没有找到相关视频", color = MaterialTheme.colorScheme.onSurfaceVariant)
              }
         } else {
             // 自动加载更多
@@ -1738,7 +1746,7 @@ private fun CommonListContent(
                     start = cardLayout.outerPaddingDp.dp,
                     end = cardLayout.outerPaddingDp.dp,
                     top = scrollableHeaderInset + cardLayout.outerPaddingDp.dp,
-                    bottom = padding.calculateBottomPadding() + cardLayout.outerPaddingDp.dp + 80.dp
+                    bottom = padding.calculateBottomPadding() + cardLayout.outerPaddingDp.dp
                 ),
                 horizontalArrangement = Arrangement.spacedBy(cardLayout.itemSpacingDp.dp),
                 verticalArrangement = Arrangement.spacedBy(cardLayout.itemSpacingDp.dp),
@@ -1766,9 +1774,9 @@ private fun CommonListContent(
                     val historyDeleteAnimationMode = historyDeleteSession?.animationMode
                         ?: HistoryDeleteAnimationMode.SINGLE_DISSOLVE
                     val historySelectionShape = if (historyItem?.business == HistoryBusiness.ARTICLE) {
-                        RoundedCornerShape(20.dp)
+                        AppShapes.container(ContainerLevel.Sheet)
                     } else {
-                        RoundedCornerShape(12.dp)
+                        AppShapes.container(ContainerLevel.Card)
                     }
 
                     val cardContent: @Composable () -> Unit = {
@@ -1855,7 +1863,7 @@ private fun CommonListContent(
                                     modifier = Modifier
                                         .matchParentSize()
                                         .border(
-                                            width = if (isSelected) 2.dp else 1.dp,
+                                            width = if (isSelected) AppSpacingTokens.Micro else AppSpacingTokens.Micro / 2,
                                             color = if (isSelected) {
                                                 MaterialTheme.colorScheme.primary
                                             } else {
@@ -1882,7 +1890,7 @@ private fun CommonListContent(
                                     },
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .padding(8.dp)
+                                        .padding(AppSpacingTokens.Small)
                                 )
                             }
                         }
@@ -1954,8 +1962,8 @@ private fun HistoryArticleCard(
             baseCoverModifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = coverTransitionKey),
                 animatedVisibilityScope = animatedVisibilityScope,
-                boundsTransform = { _, _ -> spring(dampingRatio = 0.82f, stiffness = 260f) },
-                clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(20.dp))
+                boundsTransform = { _, _ -> commonListSharedBoundsMotionSpec() },
+                clipInOverlayDuringTransition = OverlayClip(AppShapes.container(ContainerLevel.Sheet))
             )
         }
     } else {
@@ -1971,16 +1979,16 @@ private fun HistoryArticleCard(
                 onClick = triggerArticleClick,
                 onLongClick = onLongClick
             ),
-        shape = RoundedCornerShape(20.dp),
+        shape = AppShapes.container(ContainerLevel.Sheet),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = AppSurfaceTokens.cardContainer()
         )
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .clip(RoundedCornerShape(topStart = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, topEnd = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall))
             ) {
                 AsyncImage(
                     model = article.pic,
@@ -1990,18 +1998,18 @@ private fun HistoryArticleCard(
                 )
             }
             Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Medium),
+                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
             ) {
                 Surface(
-                    shape = RoundedCornerShape(999.dp),
+                    shape = AppShapes.container(ContainerLevel.Pill),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ) {
                     Text(
                         text = "专栏",
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro, vertical = AppSpacingTokens.ExtraSmall)
                     )
                 }
                 Text(
@@ -2039,7 +2047,7 @@ private fun FavoriteSubscribedFolderList(
     if (folders.isEmpty()) {
         val message = if (searchQuery.isNotBlank()) "没有找到相关追更" else "暂无追更合集"
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = message, color = Color.Gray)
+            Text(text = message, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }
@@ -2059,13 +2067,15 @@ private fun FavoriteSubscribedFolderList(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .responsiveContentWidth(resolveCommonListSingleColumnMaxWidth())
+            .fillMaxSize(),
         state = listState,
         contentPadding = PaddingValues(
             start = spacing,
             end = spacing,
             top = padding.calculateTopPadding() + spacing,
-            bottom = padding.calculateBottomPadding() + spacing + 24.dp
+            bottom = padding.calculateBottomPadding() + spacing + AppSpacingTokens.ExtraLarge
         ),
         verticalArrangement = Arrangement.spacedBy(spacing)
     ) {
@@ -2105,19 +2115,19 @@ private fun FavoriteSubscribedFolderRow(
             )
             .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
-        shape = RoundedCornerShape(14.dp)
+        shape = AppShapes.container(ContainerLevel.Dialog)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(AppSpacingTokens.Medium),
             verticalAlignment = Alignment.CenterVertically
         ) {
             FavoriteSubscribedFolderPreview(
                 coverUrl = previewCover,
                 title = folder.title
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = folder.title,
@@ -2125,14 +2135,14 @@ private fun FavoriteSubscribedFolderRow(
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                 Text(
                     text = "${folder.media_count} 个内容",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
             AssistChip(
                 onClick = onClick,
                 label = { Text("订阅") }
@@ -2146,10 +2156,10 @@ private fun FavoriteSubscribedFolderPreview(
     coverUrl: String?,
     title: String
 ) {
-    val shape = RoundedCornerShape(10.dp)
+    val shape = AppShapes.container(ContainerLevel.Field)
     Box(
         modifier = Modifier
-            .width(112.dp)
+            .width(resolveFavoriteSubscribedFolderPreviewWidth())
             .aspectRatio(16f / 9f)
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -2164,7 +2174,7 @@ private fun FavoriteSubscribedFolderPreview(
             )
         } else {
             Icon(
-                imageVector = CupertinoIcons.Default.Folder,
+                imageVector = rememberAppFolderIcon(),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary
             )
@@ -2202,8 +2212,8 @@ private fun Modifier.favoriteCollectionSharedBounds(
         this@favoriteCollectionSharedBounds.sharedBounds(
             sharedContentState = rememberSharedContentState(key = sharedElementKey),
             animatedVisibilityScope = animatedVisibilityScope,
-            boundsTransform = { _, _ -> spring(dampingRatio = 0.82f, stiffness = 260f) },
-            clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(14.dp))
+            boundsTransform = { _, _ -> commonListSharedBoundsMotionSpec() },
+            clipInOverlayDuringTransition = OverlayClip(AppShapes.container(ContainerLevel.Dialog))
         )
     }
 }
@@ -2214,16 +2224,17 @@ private fun FavoriteProgressBadgeCapsule(
     title: String,
     badge: FavoriteProgressBadge
 ) {
+    val widthSpec = resolveFavoriteProgressBadgeWidthSpec()
     Surface(
-        modifier = modifier.widthIn(min = 104.dp, max = 150.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-        tonalElevation = 3.dp,
-        shadowElevation = 8.dp
+        modifier = modifier.widthIn(min = widthSpec.minWidth, max = widthSpec.maxWidth),
+        shape = AppShapes.container(ContainerLevel.Floating),
+        color = AppSurfaceTokens.cardContainer().copy(alpha = 0.9f),
+        tonalElevation = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
+        shadowElevation = AppSpacingTokens.Small
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small + AppSpacingTokens.Micro),
+            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
         ) {
             Text(
                 text = title,
@@ -2242,9 +2253,9 @@ private fun FavoriteProgressBadgeCapsule(
             )
             badge.footnoteText?.let { footnote ->
                 HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 2.dp),
+                    modifier = Modifier.padding(vertical = AppSpacingTokens.Micro),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-                    thickness = 0.5.dp
+                    thickness = AppSpacingTokens.Micro / 4
                 )
                 Text(
                     text = footnote,
@@ -2275,20 +2286,20 @@ private fun FavoriteCollectionRow(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        shape = RoundedCornerShape(12.dp)
+        shape = AppShapes.container(ContainerLevel.Card)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+                .padding(horizontal = AppSpacingTokens.Medium + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Medium + AppSpacingTokens.Micro),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = CupertinoIcons.Default.Folder,
+                imageVector = rememberAppFolderIcon(),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.title,
@@ -2297,7 +2308,7 @@ private fun FavoriteCollectionRow(
                     maxLines = 1
                 )
                 if (subtitle.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
@@ -2306,7 +2317,7 @@ private fun FavoriteCollectionRow(
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
             AssistChip(
                 onClick = onClick,
                 label = { Text("合集") }

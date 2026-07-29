@@ -6,8 +6,8 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppSemanticIconFamily
+import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 
@@ -133,9 +133,11 @@ internal enum class SettingsIconRole {
 @Composable
 internal fun rememberSettingsSemanticIcon(
     role: SettingsIconRole,
-    uiPreset: UiPreset = LocalUiPreset.current
-): ImageVector = remember(role, uiPreset) {
-    resolveSettingsSemanticIcon(role, uiPreset)
+): ImageVector {
+    val iconFamily = rememberAppSemanticVisualPolicy().iconFamily
+    return remember(role, iconFamily) {
+        resolveSettingsSemanticIcon(role, iconFamily)
+    }
 }
 
 internal fun resolveSettingsSearchTargetIconRole(
@@ -179,11 +181,10 @@ internal fun resolveSettingsSearchTargetIconRole(
 
 internal fun resolveSettingsSemanticIcon(
     role: SettingsIconRole,
-    uiPreset: UiPreset = UiPreset.IOS
-): ImageVector = if (uiPreset == UiPreset.MD3) {
-    resolveMd3SettingsSemanticIcon(role)
-} else {
-    resolveIosSettingsSemanticIcon(role)
+    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
+): ImageVector = when (iconFamily) {
+    AppSemanticIconFamily.CUPERTINO -> resolveIosSettingsSemanticIcon(role)
+    AppSemanticIconFamily.MATERIAL -> resolveMd3SettingsSemanticIcon(role)
 }
 
 private fun resolveMd3SettingsSemanticIcon(role: SettingsIconRole): ImageVector = when (role) {

@@ -23,12 +23,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ForwardToInbox
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CardGiftcard
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.Share
@@ -39,11 +39,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -94,10 +96,6 @@ import com.android.purebilibili.feature.video.ui.section.shouldKickPlaybackAfter
 import com.android.purebilibili.feature.video.ui.overlay.LiveDanmakuOverlay
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.resolveVideoViewportLayout
-import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.Checkmark
-import io.github.alexzhirkevich.cupertino.icons.outlined.ChevronBackward
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import dev.chrisbanes.haze.hazeEffect
@@ -106,6 +104,13 @@ import dev.chrisbanes.haze.materials.HazeMaterials
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -688,7 +693,7 @@ fun LivePlayerScreen(
         Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black)
+                    .background(roomColorTokens.baseBackgroundColor)
                     .hazeSourceCompat(state = hazeState)
                 .then(
                     if (sharedTransitionScope != null && animatedVisibilityScope != null) {
@@ -820,7 +825,7 @@ fun LivePlayerScreen(
                 bottomControlsBottomPadding = if (reservedBottomOverlayDp > 0) {
                     (reservedBottomOverlayDp + portraitOverlayMetrics.playerControlsGapDp).dp
                 } else {
-                    0.dp
+                    AppSpacingTokens.None
                 }
             )
 
@@ -828,13 +833,16 @@ fun LivePlayerScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(Color.Black.copy(alpha = 0.46f))
-                        .padding(horizontal = 18.dp, vertical = 12.dp)
+                        .clip(AppShapes.container(ContainerLevel.Pill))
+                        .background(roomColorTokens.baseBackgroundColor.copy(alpha = 0.46f))
+                        .padding(
+                            horizontal = AppSpacingTokens.Large,
+                            vertical = AppSpacingTokens.Medium
+                        )
                 ) {
                     Text(
                         text = "仅播放音频",
-                        color = Color.White,
+                        color = roomColorTokens.inputOverlayColor,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -843,12 +851,15 @@ fun LivePlayerScreen(
             
             // Loading/Error Indicator
             if (uiState is LivePlayerState.Loading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CupertinoActivityIndicator() }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { AdaptiveLoadingIndicator() }
             }
             if (uiState is LivePlayerState.Error) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text((uiState as LivePlayerState.Error).message, color = Color.White)
+                        Text(
+                            (uiState as LivePlayerState.Error).message,
+                            color = roomColorTokens.inputOverlayColor
+                        )
                         Button(onClick = { viewModel.retry() }) { Text("重试") }
                     }
                 }
@@ -909,7 +920,7 @@ fun LivePlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black)
+                    .background(roomColorTokens.baseBackgroundColor)
             ) {
                 Column(Modifier.fillMaxSize()) {
                     LivePortraitOverlayAppBar(
@@ -940,15 +951,19 @@ fun LivePlayerScreen(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp)
+                            .padding(horizontal = AppSpacingTokens.Medium)
                     ) {
                         Box(
                             modifier = Modifier
                                 .weight(if (showSplitChatPanel) 1.25f else 1f)
                                 .fillMaxHeight()
                                 .padding(
-                                    bottom = 12.dp,
-                                    end = if (showSplitChatPanel) 10.dp else 0.dp
+                                    bottom = AppSpacingTokens.Medium,
+                                    end = if (showSplitChatPanel) {
+                                        AppSpacingTokens.Small
+                                    } else {
+                                        AppSpacingTokens.None
+                                    }
                                 )
                         ) {
                             playerContent()
@@ -958,7 +973,7 @@ fun LivePlayerScreen(
                                 modifier = Modifier
                                     .weight(0.95f)
                                     .fillMaxHeight()
-                                    .padding(bottom = 12.dp)
+                                    .padding(bottom = AppSpacingTokens.Medium)
                             ) {
                                 interactionContent(false)
                             }
@@ -971,7 +986,7 @@ fun LivePlayerScreen(
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black)
+                    .background(roomColorTokens.baseBackgroundColor)
             ) {
                 playerContent()
                 successState?.redPocketInfo?.let { redPocket ->
@@ -981,8 +996,11 @@ fun LivePlayerScreen(
                         compact = false,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 88.dp, end = 16.dp)
-                            .widthIn(max = 220.dp)
+                            .padding(
+                                top = portraitOverlayMetrics.topChromeReserveDp.dp,
+                                end = AppSpacingTokens.Large
+                            )
+                            .widthIn(max = (configuration.screenWidthDp / 2).dp)
                     )
                 }
                 if (showLandscapeChatOverlay) {
@@ -1015,11 +1033,11 @@ fun LivePlayerScreen(
                             )
                             .width(overlayWidthDp.dp)
                             .height(overlayHeightDp.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        color = Color.Black.copy(alpha = 0.18f),
+                        shape = AppShapes.borderedContainer(ContainerLevel.Floating),
+                        color = roomColorTokens.baseBackgroundColor.copy(alpha = 0.18f),
                         border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            Color.White.copy(alpha = 0.12f)
+                            AppSpacingTokens.Micro / 2f,
+                            roomColorTokens.inputOverlayColor.copy(alpha = 0.12f)
                         )
                     ) {
                         LandscapeChatOverlay(
@@ -1315,6 +1333,13 @@ private fun LivePortraitOverlayAppBar(
     modifier: Modifier = Modifier
 ) {
     val palette = rememberLiveChromePalette()
+    val roomColorTokens = resolveLivePiliPlusRoomColorTokens()
+    val backIcon = rememberAppBackIcon()
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val liveVisualSpec = remember(playerChromeProfile.tabPresentation) {
+        resolveLiveVisualSpec(playerChromeProfile.tabPresentation)
+    }
+    val compactChrome = playerChromeProfile.compactChromeSpec
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -1323,48 +1348,72 @@ private fun LivePortraitOverlayAppBar(
                     listOf(
                         palette.scrim.copy(alpha = 0.92f),
                         palette.scrim.copy(alpha = 0.42f),
-                        Color.Transparent
+                        palette.scrim.copy(alpha = 0f)
                     )
                 )
             )
             .statusBarsPadding()
-            .padding(horizontal = 10.dp, vertical = 10.dp),
+            .padding(
+                horizontal = AppSpacingTokens.Medium,
+                vertical = AppSpacingTokens.Medium
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
-            Icon(CupertinoIcons.Outlined.ChevronBackward, contentDescription = "返回", tint = Color.White)
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier.size(liveVisualSpec.playerButtonTouchTargetDp.dp)
+        ) {
+            Icon(
+                backIcon,
+                contentDescription = "返回",
+                tint = roomColorTokens.inputOverlayColor
+            )
         }
-        AsyncImage(
-            model = anchorInfo.face,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
+        Box(
             modifier = Modifier
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.18f))
-                .clickable(enabled = anchorInfo.uid > 0L) { onUserClick(anchorInfo.uid) }
-        )
-        Spacer(Modifier.width(10.dp))
+                .size(liveVisualSpec.playerButtonTouchTargetDp.dp)
+                .clickable(
+                    enabled = anchorInfo.uid > 0L,
+                    role = Role.Button,
+                    onClickLabel = "查看主播${anchorInfo.uname}",
+                    onClick = { onUserClick(anchorInfo.uid) }
+                )
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "查看主播${anchorInfo.uname}"
+                }
+        ) {
+            AsyncImage(
+                model = anchorInfo.face,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(compactChrome.chipHeightDp.dp)
+                    .clip(CircleShape)
+                    .background(roomColorTokens.inputOverlayColor.copy(alpha = 0.18f))
+            )
+        }
+        Spacer(Modifier.width(AppSpacingTokens.Medium))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = anchorInfo.uname.ifBlank { roomTitle },
-                color = Color.White,
-                fontSize = 16.sp,
+                color = roomColorTokens.inputOverlayColor,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(AppSpacingTokens.Micro))
             Text(
                 text = subtitle.ifBlank { roomTitle },
-                color = Color.White.copy(alpha = 0.72f),
-                fontSize = 12.sp,
+                color = roomColorTokens.inputOverlayColor.copy(alpha = 0.72f),
+                style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
         if (redPocketInfo != null) {
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(AppSpacingTokens.Small))
             LiveRedPocketChip(
                 info = redPocketInfo,
                 onClick = onRedPocketClick,
@@ -1372,8 +1421,15 @@ private fun LivePortraitOverlayAppBar(
             )
         }
         Box {
-            IconButton(onClick = { onExpandedChange(true) }, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Filled.MoreVert, contentDescription = "更多", tint = Color.White)
+            IconButton(
+                onClick = { onExpandedChange(true) },
+                modifier = Modifier.size(liveVisualSpec.playerButtonTouchTargetDp.dp)
+            ) {
+                Icon(
+                    Icons.Filled.MoreVert,
+                    contentDescription = "更多直播间操作",
+                    tint = roomColorTokens.inputOverlayColor
+                )
             }
             LiveRoomOverflowMenu(
                 expanded = expanded,
@@ -1401,6 +1457,7 @@ private fun LiveRedPocketChip(
     compact: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val compactChrome = rememberAppPlayerChromeProfile().compactChromeSpec
     val label = if (compact) {
         "红包"
     } else {
@@ -1408,29 +1465,32 @@ private fun LiveRedPocketChip(
     }
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 36.dp),
-        shape = RoundedCornerShape(999.dp),
-        color = Color(0xFFFFE1D6).copy(alpha = 0.94f),
+        modifier = modifier.heightIn(min = AppSpacingTokens.TripleExtraLarge),
+        shape = AppShapes.borderedContainer(ContainerLevel.Pill),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.94f),
         border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            Color.White.copy(alpha = 0.40f)
+            AppSpacingTokens.Micro / 2f,
+            MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.40f)
         )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = if (compact) 9.dp else 12.dp, vertical = 7.dp),
+            modifier = Modifier.padding(
+                horizontal = if (compact) AppSpacingTokens.Small else AppSpacingTokens.Medium,
+                vertical = AppSpacingTokens.Small
+            ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Outlined.CardGiftcard,
-                contentDescription = "直播红包",
-                tint = Color(0xFFB3261E),
-                modifier = Modifier.size(17.dp)
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.size(compactChrome.smallIconSizeDp.dp)
             )
-            Spacer(Modifier.width(5.dp))
+            Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
             Text(
                 text = label,
-                color = Color(0xFF7A271A),
-                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -1537,10 +1597,10 @@ private fun LivePortraitInfoPanel(
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        shadowElevation = 0.dp
+        shape = AppShapes.container(ContainerLevel.Sheet),
+        color = AppSurfaceTokens.surface(),
+        tonalElevation = AppSpacingTokens.Micro,
+        shadowElevation = AppSpacingTokens.None
     ) {
         Column(
             modifier = Modifier
@@ -1548,15 +1608,15 @@ private fun LivePortraitInfoPanel(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            MaterialTheme.colorScheme.surface,
-                            MaterialTheme.colorScheme.surfaceContainerLow
+                            AppSurfaceTokens.surface(),
+                            AppSurfaceTokens.surfaceContainer()
                         )
                     )
                 )
         ) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(AppSpacingTokens.Small))
             anchorInfoBar()
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+            HorizontalDivider(color = AppSurfaceTokens.divider().copy(alpha = 0.45f))
             Box(modifier = Modifier.weight(1f)) {
                 bodyContent()
             }
@@ -1571,7 +1631,10 @@ private fun LivePrimaryInteractionPanel(
     chatContent: @Composable () -> Unit,
     superChatContent: @Composable () -> Unit
 ) {
-    val segmentedSpec = remember { resolveLiveInteractionSegmentedControlSpec() }
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val segmentedSpec = remember(playerChromeProfile.compactChromeSpec) {
+        resolveLiveInteractionSegmentedControlSpec(playerChromeProfile.compactChromeSpec)
+    }
     val tabs = remember { listOf("聊天", "SC") }
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
@@ -1609,6 +1672,8 @@ private fun LivePrimaryInteractionPanel(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
+                height = segmentedSpec.heightDp.dp,
+                indicatorHeight = segmentedSpec.indicatorHeightDp.dp,
                 labelFontSize = segmentedSpec.labelFontSizeSp.sp,
                 backdrop = selectionBackdrop
             )
@@ -1633,16 +1698,17 @@ private fun LiveLandscapeChatPanel(
     content: @Composable () -> Unit
 ) {
     val palette = rememberLiveChromePalette()
+    val roomColorTokens = resolveLivePiliPlusRoomColorTokens()
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
+        shape = AppShapes.borderedContainer(ContainerLevel.Floating),
         color = palette.surface.copy(alpha = if (palette.isDark) 0.72f else 0.90f),
         border = androidx.compose.foundation.BorderStroke(
-            1.dp,
+            AppSpacingTokens.Micro / 2f,
             palette.border
         ),
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp
+        tonalElevation = AppSpacingTokens.None,
+        shadowElevation = AppSpacingTokens.None
     ) {
         Box(
             modifier = Modifier
@@ -1650,7 +1716,9 @@ private fun LiveLandscapeChatPanel(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            if (palette.isDark) Color.White.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.16f),
+                            roomColorTokens.inputOverlayColor.copy(
+                                alpha = if (palette.isDark) 0.04f else 0.16f
+                            ),
                             palette.surfaceMuted.copy(alpha = if (palette.isDark) 0.22f else 0.70f),
                             palette.surface.copy(alpha = if (palette.isDark) 0.42f else 0.94f)
                         )
@@ -1670,6 +1738,10 @@ private fun LiveQualityMenu(
     onDismiss: () -> Unit
 ) {
     val palette = rememberLiveChromePalette()
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val visualSpec = remember(playerChromeProfile.tabPresentation) {
+        resolveLiveVisualSpec(playerChromeProfile.tabPresentation)
+    }
     Box(
         modifier = Modifier.fillMaxSize().background(palette.scrim.copy(alpha = 0.56f)).clickable(
             interactionSource = remember { MutableInteractionSource() }, indication = null
@@ -1677,25 +1749,33 @@ private fun LiveQualityMenu(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            modifier = Modifier.width(280.dp).clip(RoundedCornerShape(12.dp)),
+            modifier = Modifier.width(visualSpec.playerQualityDialogWidthDp.dp),
+            shape = AppShapes.borderedContainer(ContainerLevel.Dialog),
             color = palette.surfaceElevated,
-            border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)
+            border = androidx.compose.foundation.BorderStroke(
+                AppSpacingTokens.Micro / 2f,
+                palette.border
+            )
         ) {
-            Column(Modifier.padding(vertical = 8.dp)) {
+            Column(Modifier.padding(vertical = AppSpacingTokens.Small)) {
                 Text(
                     "画质选择",
                     color = palette.primaryText,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(AppSpacingTokens.Large)
                 )
                 qualityList.forEach { q ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().clickable { onQualitySelected(q.qn) }.padding(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onQualitySelected(q.qn) }
+                            .padding(AppSpacingTokens.Large),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(q.desc, color = if (q.qn == currentQuality) palette.accent else palette.primaryText)
                         Spacer(Modifier.weight(1f))
-                        if (q.qn == currentQuality) Icon(CupertinoIcons.Default.Checkmark, null, tint = palette.accent)
+                        if (q.qn == currentQuality) Icon(Icons.Outlined.Check, null, tint = palette.accent)
                     }
                 }
             }
@@ -1710,6 +1790,10 @@ private fun LiveVideoFitMenu(
     onDismiss: () -> Unit
 ) {
     val palette = rememberLiveChromePalette()
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val visualSpec = remember(playerChromeProfile.tabPresentation) {
+        resolveLiveVisualSpec(playerChromeProfile.tabPresentation)
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1721,29 +1805,37 @@ private fun LiveVideoFitMenu(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            modifier = Modifier.width(280.dp).clip(RoundedCornerShape(12.dp)),
+            modifier = Modifier.width(visualSpec.playerQualityDialogWidthDp.dp),
+            shape = AppShapes.borderedContainer(ContainerLevel.Dialog),
             color = palette.surfaceElevated,
-            border = androidx.compose.foundation.BorderStroke(1.dp, palette.border)
+            border = androidx.compose.foundation.BorderStroke(
+                AppSpacingTokens.Micro / 2f,
+                palette.border
+            )
         ) {
-            Column(Modifier.padding(vertical = 8.dp)) {
+            Column(Modifier.padding(vertical = AppSpacingTokens.Small)) {
                 Text(
                     "画面比例",
                     color = palette.primaryText,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(AppSpacingTokens.Large)
                 )
                 VideoAspectRatio.entries.forEach { mode ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onSelected(mode) }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                            .padding(
+                                horizontal = AppSpacingTokens.Large,
+                                vertical = AppSpacingTokens.Medium
+                            ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(mode.displayName, color = if (mode == current) palette.accent else palette.primaryText)
                         Spacer(Modifier.weight(1f))
                         if (mode == current) {
-                            Icon(CupertinoIcons.Default.Checkmark, null, tint = palette.accent)
+                            Icon(Icons.Outlined.Check, null, tint = palette.accent)
                         }
                     }
                 }
@@ -1767,7 +1859,7 @@ private fun LiveDanmakuSettingsDialog(
         onDismissRequest = onDismiss,
         title = { Text("弹幕设置") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)) {
                 LiveSettingSwitchRow(
                     title = "弹幕显示",
                     checked = danmakuEnabled,
@@ -1784,16 +1876,19 @@ private fun LiveDanmakuSettingsDialog(
                 )
                 Surface(
                     onClick = onOpenBlock,
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.72f),
+                    shape = AppShapes.container(ContainerLevel.Card),
+                    color = AppSurfaceTokens.surfaceContainerHigh().copy(alpha = 0.72f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(
+                            horizontal = AppSpacingTokens.Medium,
+                            vertical = AppSpacingTokens.Medium
+                        ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Outlined.Block, contentDescription = null)
-                        Spacer(Modifier.width(12.dp))
+                        Spacer(Modifier.width(AppSpacingTokens.Medium))
                         Text("屏蔽管理", modifier = Modifier.weight(1f))
                     }
                 }
@@ -1827,33 +1922,38 @@ private fun LiveDanmakuAreaSelector(
     }
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.72f),
+        shape = AppShapes.container(ContainerLevel.Card),
+        color = AppSurfaceTokens.surfaceContainerHigh().copy(alpha = 0.72f),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
+        Column(
+            Modifier.padding(
+                horizontal = AppSpacingTokens.Medium,
+                vertical = AppSpacingTokens.Medium
+            )
+        ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(AppSpacingTokens.Medium))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
             ) {
                 options.forEach { option ->
                     val selected = kotlin.math.abs(currentArea - option.value) < 0.05f
                     Surface(
                         onClick = { onAreaSelected(option.value) },
-                        shape = RoundedCornerShape(8.dp),
+                        shape = AppShapes.borderedContainer(ContainerLevel.Card),
                         color = if (selected) {
                             MaterialTheme.colorScheme.primaryContainer
                         } else {
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                            AppSurfaceTokens.surface().copy(alpha = 0.72f)
                         },
                         border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
+                            AppSpacingTokens.Micro / 2f,
                             if (selected) {
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.62f)
                             } else {
@@ -1863,7 +1963,7 @@ private fun LiveDanmakuAreaSelector(
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(
-                            modifier = Modifier.padding(vertical = 8.dp),
+                            modifier = Modifier.padding(vertical = AppSpacingTokens.Small),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
@@ -1901,7 +2001,7 @@ private fun LiveSettingSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp),
+            .heightIn(min = AppSpacingTokens.TripleExtraLarge),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(title, modifier = Modifier.weight(1f))
@@ -1956,7 +2056,7 @@ private fun LivePlayerInfoDialog(
         onDismissRequest = onDismiss,
         title = { Text("播放信息") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
                 LiveInfoLine("房间", roomId.toString())
                 LiveInfoLine("标题", roomTitle.ifBlank { "-" })
                 LiveInfoLine("画质", currentQuality)
@@ -1981,7 +2081,9 @@ private fun LiveInfoLine(
         Text(
             text = label,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(72.dp)
+            modifier = Modifier.width(
+                AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.ExtraLarge
+            )
         )
         Text(
             text = value,
@@ -2003,7 +2105,7 @@ private fun LiveShutdownTimerDialog(
         onDismissRequest = onDismiss,
         title = { Text("定时关闭") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
                 val remainingText = activeTargetMillis
                     ?.let { ((it - System.currentTimeMillis()) / 60_000L).coerceAtLeast(0L) }
                     ?.let { "剩余约${it}分钟" }
@@ -2013,13 +2115,16 @@ private fun LiveShutdownTimerDialog(
                 listOf(15L, 30L, 60L).forEach { minutes ->
                     Surface(
                         onClick = { onSetMinutes(minutes) },
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.72f),
+                        shape = AppShapes.container(ContainerLevel.Card),
+                        color = AppSurfaceTokens.surfaceContainerHigh().copy(alpha = 0.72f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = "${minutes}分钟后关闭",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
+                            modifier = Modifier.padding(
+                                horizontal = AppSpacingTokens.Medium,
+                                vertical = AppSpacingTokens.Medium
+                            )
                         )
                     }
                 }

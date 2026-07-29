@@ -37,7 +37,7 @@ fun SubReplySheet(
 ) {
     if (state.visible && state.rootReply != null) {
         val rootReply = state.rootReply
-        com.android.purebilibili.core.ui.IOSModalBottomSheet(
+        com.android.purebilibili.core.ui.AppModalBottomSheet(
             onDismissRequest = onDismiss,
             modifier = Modifier.fillMaxHeight(maxHeightFraction),
             scrimColor = Color.Black.copy(alpha = scrimAlpha)

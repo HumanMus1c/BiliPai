@@ -35,15 +35,15 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -223,7 +223,7 @@ internal fun ListenVideoScreen(
     }
 
     if (state.selectedTitle.isNotBlank()) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = onCloseDetail,
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)
         ) {
@@ -262,12 +262,12 @@ private fun ListenVideoHeader(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            IconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
+            AppIconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.Filled.Refresh, contentDescription = "刷新音乐资料")
             }
         }
         nowPlaying?.let { item ->
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onNowPlayingClick(item.bvid, item.coverUrl) },
@@ -568,7 +568,7 @@ private fun ListenVideoIndexProgress(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+        AppCircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
         Text(
             text = "正在整理收藏夹 $indexedCount/$totalCount",
             style = MaterialTheme.typography.bodySmall,
@@ -587,7 +587,7 @@ private fun MusicEntityCard(
     modifier: Modifier = Modifier,
     circularCover: Boolean = false
 ) {
-    Surface(
+    AppSurface(
         modifier = modifier
             .height(92.dp)
             .clickable(onClick = onClick),
@@ -669,7 +669,7 @@ private fun ListenVideoMessage(
         Text(title, style = MaterialTheme.typography.titleMedium)
         actionLabel?.let { label ->
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onAction, modifier = Modifier.height(48.dp)) {
+            AppButton(onClick = onAction, modifier = Modifier.height(48.dp)) {
                 Text(label)
             }
         }
@@ -702,7 +702,7 @@ private fun ListenVideoTrackSheet(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            IconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
+            AppIconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.Filled.Close, contentDescription = "关闭曲目列表")
             }
         }

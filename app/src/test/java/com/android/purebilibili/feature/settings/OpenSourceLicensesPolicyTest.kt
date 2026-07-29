@@ -19,12 +19,16 @@ class OpenSourceLicensesPolicyTest {
             "Retrofit",
             "Coil",
             "Haze",
-            "Compose Shimmer",
+            // "Compose Shimmer" 已移除：依赖本身已从 app/build.gradle.kts 删掉
+            // （全仓 0 处 import，骨架屏用的是自研实现），不再随包分发，
+            // 因此也不应继续出现在致谢列表里。
             "Cupertino",
             "Backdrop",
             "BBPlayer",
             "DanmakuRenderEngine",
-            "Cling",
+            // "Cling" 已移除：193325e7「refactor: simplify dlna casting stack」删掉了
+            // 依赖与致谢条目却没同步这份清单，这条测试自那时起一直是红的。
+            // 现在全仓已无任何 Cling 引用，只在打包排除规则的注释里提过一次。
             "NanoHTTPD",
             "Turbine",
             "KernelSU"

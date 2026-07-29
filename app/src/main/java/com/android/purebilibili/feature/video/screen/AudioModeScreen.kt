@@ -20,12 +20,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
+import com.android.purebilibili.core.ui.AppAlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -46,7 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.feature.video.player.PlayMode
 import com.android.purebilibili.feature.video.state.rememberVideoPlayerState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
@@ -62,9 +62,9 @@ internal fun resolveAudioPlayModeLabel(mode: PlayMode): String = when (mode) {
 }
 
 internal fun shouldUseAudioModeLiquidPlayModeControl(
-    uiPreset: UiPreset,
+    supportsIndependentLiquidGlass: Boolean,
     androidNativeLiquidGlassEnabled: Boolean
-): Boolean = uiPreset != UiPreset.MD3 || androidNativeLiquidGlassEnabled
+): Boolean = supportsIndependentLiquidGlass || androidNativeLiquidGlassEnabled
 
 internal enum class AudioModePlayPauseAction {
     PAUSE,
@@ -214,6 +214,12 @@ fun AudioModeScreen(
         initialValue = HomeSettings(),
         context = kotlin.coroutines.EmptyCoroutineContext
     )
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val liquidPlayModeControlEnabled = shouldUseAudioModeLiquidPlayModeControl(
+        supportsIndependentLiquidGlass =
+            playerChromeProfile.effects.supportsIndependentLiquidGlass,
+        androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+    )
     var cachedSuccessState by remember { mutableStateOf<VideoPlaybackUiState.Success?>(null) }
 
     LaunchedEffect(subjectSnapshot, uiState) {
@@ -290,7 +296,7 @@ fun AudioModeScreen(
         onEnterPip = enterPip,
         sleepTimerMinutes = sleepTimerMinutes,
         titleOverride = titleOverride,
-        liquidGlassEffectsEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+        liquidGlassEffectsEnabled = liquidPlayModeControlEnabled,
         onToggleOrientation = {
             activity?.requestedOrientation = resolveAudioModeRequestedOrientation(isLandscape)
         },
@@ -306,7 +312,7 @@ private fun AudioModeInitialState(
     onRetry: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
-        TextButton(
+        AppTextButton(
             onClick = onBack,
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -325,7 +331,7 @@ private fun AudioModeInitialState(
                     Text("音频加载失败", style = MaterialTheme.typography.headlineSmall)
                     Text(state.msg, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (state.canRetry) {
-                        TextButton(onClick = onRetry, modifier = Modifier.height(48.dp)) { Text("重试") }
+                        AppTextButton(onClick = onRetry, modifier = Modifier.height(48.dp)) { Text("重试") }
                     }
                 }
                 else -> {
@@ -354,7 +360,7 @@ internal fun AudioModeSleepTimerDialog(
     val showCustomError = customInput.isNotBlank() && parsedCustomMinutes == null
     val presetOptions = listOf<Int?>(null, 15, 30, 60, 90)
 
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("定时关闭") },
         text = {
@@ -370,7 +376,7 @@ internal fun AudioModeSleepTimerDialog(
                 ) {
                     presetOptions.forEach { minutes ->
                         val isSelected = currentMinutes == minutes
-                        Surface(
+                        AppSurface(
                             onClick = { onSelectPreset(minutes) },
                             shape = RoundedCornerShape(16.dp),
                             color = if (isSelected) {
@@ -396,7 +402,7 @@ internal fun AudioModeSleepTimerDialog(
                         }
                     }
                 }
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = customInput,
                     onValueChange = { customInput = it.take(8) },
                     singleLine = true,
@@ -419,11 +425,11 @@ internal fun AudioModeSleepTimerDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            AppTextButton(
                 onClick = { parsedCustomMinutes?.let(onConfirmCustom) },
                 enabled = parsedCustomMinutes != null
             ) { Text("应用") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+        dismissButton = { AppTextButton(onClick = onDismiss) { Text("取消") } }
     )
 }

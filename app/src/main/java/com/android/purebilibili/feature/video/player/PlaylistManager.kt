@@ -61,6 +61,9 @@ data class PlaylistUiState(
     val externalPlaylistSource: ExternalPlaylistSource = ExternalPlaylistSource.NONE
 )
 
+@JvmInline
+value class PlaylistSession internal constructor(internal val generation: Long)
+
 internal data class ShuffleProgress(
     val history: List<Int> = emptyList(),
     val historyIndex: Int = -1,
@@ -226,6 +229,8 @@ object PlaylistManager {
     private val _externalPlaylistSource = MutableStateFlow(ExternalPlaylistSource.NONE)
     val externalPlaylistSource = _externalPlaylistSource.asStateFlow()
 
+    private var activePlaylistSession = PlaylistSession(0L)
+
     val uiState = combine(
         playMode,
         playlist,
@@ -264,6 +269,7 @@ object PlaylistManager {
      * 注意：此方法会重置外部播放列表标志
      */
     fun setPlaylist(items: List<PlaylistItem>, startIndex: Int = 0) {
+        beginPlaylistSession()
         val previousPlaylist = _playlist.value
         val previousShuffleProgress = snapshotShuffleProgress()
         Logger.d(TAG, "🎵 设置播放列表: ${items.size} 项, 从索引 $startIndex 开始")
@@ -291,7 +297,8 @@ object PlaylistManager {
         items: List<PlaylistItem>,
         startIndex: Int = 0,
         source: ExternalPlaylistSource = ExternalPlaylistSource.UNKNOWN
-    ) {
+    ): PlaylistSession {
+        val session = beginPlaylistSession()
         val previousPlaylist = _playlist.value
         val previousShuffleProgress = snapshotShuffleProgress()
         Logger.d(TAG, "🔒 设置外部播放列表: ${items.size} 项, 从索引 $startIndex 开始, source=$source")
@@ -307,6 +314,7 @@ object PlaylistManager {
             previousProgress = previousShuffleProgress
         )
         persistState()
+        return session
     }
     
     /**
@@ -326,6 +334,16 @@ object PlaylistManager {
      * 添加多个到播放列表
      */
     fun addAllToPlaylist(items: List<PlaylistItem>) {
+        addAllToCurrentPlaylist(items)
+    }
+
+    fun addAllToPlaylistIfCurrent(items: List<PlaylistItem>, session: PlaylistSession): Boolean {
+        if (session != activePlaylistSession) return false
+        addAllToCurrentPlaylist(items)
+        return true
+    }
+
+    private fun addAllToCurrentPlaylist(items: List<PlaylistItem>) {
         val existingBvids = _playlist.value.map { it.bvid }.toSet()
         val newItems = items.filter { it.bvid !in existingBvids }
         if (newItems.isNotEmpty()) {
@@ -357,6 +375,7 @@ object PlaylistManager {
      * 清空播放列表
      */
     fun clearPlaylist() {
+        beginPlaylistSession()
         _playlist.value = emptyList()
         _currentIndex.value = -1
         _isExternalPlaylist.value = false
@@ -580,6 +599,11 @@ object PlaylistManager {
         return requested.coerceIn(0, items.lastIndex)
     }
 
+    private fun beginPlaylistSession(): PlaylistSession {
+        activePlaylistSession = PlaylistSession(activePlaylistSession.generation + 1L)
+        return activePlaylistSession
+    }
+
     private fun resetShuffleHistoryForCurrentIndex() {
         applyShuffleProgress(
             initialShuffleProgress(
@@ -671,6 +695,7 @@ object PlaylistManager {
         runCatching {
             json.decodeFromString<PlaylistSnapshot>(raw)
         }.onSuccess { snapshot ->
+            beginPlaylistSession()
             _playlist.value = snapshot.playlist
             _playMode.value = snapshot.playMode
             _isExternalPlaylist.value = snapshot.isExternalPlaylist

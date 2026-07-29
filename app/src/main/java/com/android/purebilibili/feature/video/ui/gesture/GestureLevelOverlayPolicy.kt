@@ -15,9 +15,7 @@ import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.ui.isNativeMiuixEnabled
+import com.android.purebilibili.core.ui.AppTopTabPresentation
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.Speaker
@@ -69,13 +67,12 @@ data class GestureLevelOverlaySpec(
 )
 
 fun resolveGestureLevelOverlayStyle(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+    presentation: AppTopTabPresentation,
 ): GestureLevelOverlayStyle {
-    return when {
-        isNativeMiuixEnabled(uiPreset, androidNativeVariant) -> GestureLevelOverlayStyle.Miuix
-        uiPreset == UiPreset.IOS -> GestureLevelOverlayStyle.Ios
-        else -> GestureLevelOverlayStyle.Md3
+    return when (presentation) {
+        AppTopTabPresentation.TONAL_CAPSULE -> GestureLevelOverlayStyle.Miuix
+        AppTopTabPresentation.MOVING_CAPSULE -> GestureLevelOverlayStyle.Ios
+        AppTopTabPresentation.MATERIAL_UNDERLINE -> GestureLevelOverlayStyle.Md3
     }
 }
 

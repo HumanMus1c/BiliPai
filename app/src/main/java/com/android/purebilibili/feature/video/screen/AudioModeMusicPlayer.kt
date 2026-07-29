@@ -3,9 +3,9 @@ package com.android.purebilibili.feature.video.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
+import com.android.purebilibili.core.ui.AppModalBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -96,7 +96,7 @@ internal fun AudioModeMusicPlayer(
                 .background(Color.Black),
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator(color = Color.White)
+            AppCircularProgressIndicator(color = Color.White)
         }
         return
     }
@@ -223,7 +223,7 @@ internal fun AudioModeMusicPlayer(
     )
 
     if (showPageSelector && info.pages.size > 1) {
-        ModalBottomSheet(onDismissRequest = { showPageSelector = false }) {
+        AppModalBottomSheet(onDismissRequest = { showPageSelector = false }) {
             PagesSelector(
                 pages = info.pages,
                 currentPageIndex = info.pages.indexOfFirst { it.cid == info.cid }.coerceAtLeast(0),

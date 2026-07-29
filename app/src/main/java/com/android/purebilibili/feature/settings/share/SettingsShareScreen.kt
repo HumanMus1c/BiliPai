@@ -25,7 +25,7 @@ import androidx.compose.material.icons.filled.UploadFile
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 
@@ -52,12 +52,12 @@ import com.android.purebilibili.core.theme.iOSPink
 import com.android.purebilibili.core.theme.iOSPurple
 import com.android.purebilibili.feature.settings.SettingsPageScrollHost
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
-import com.android.purebilibili.core.ui.IOSAlertDialog
-import com.android.purebilibili.core.ui.IOSDialogAction
-import com.android.purebilibili.core.ui.components.IOSClickableItem
-import com.android.purebilibili.core.ui.components.IOSDivider
-import com.android.purebilibili.core.ui.components.IOSGroup
-import com.android.purebilibili.core.ui.components.IOSSectionTitle
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppDialogAction
+import com.android.purebilibili.core.ui.components.AppPreference
+import com.android.purebilibili.core.ui.components.AppPreferenceDivider
+import com.android.purebilibili.core.ui.components.AppPreferenceGroup
+import com.android.purebilibili.core.ui.components.AppPreferenceSectionTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,9 +124,9 @@ fun SettingsShareScreen(
                 contentPadding = PaddingValues(bottom = 24.dp),
             ) {
             item {
-                IOSSectionTitle("执行状态")
-                IOSGroup {
-                    IOSClickableItem(
+                AppPreferenceSectionTitle("执行状态")
+                AppPreferenceGroup {
+                    AppPreference(
                         icon = if (uiState.isBusy) Icons.Filled.Info else Icons.Filled.CheckCircle,
                         title = if (uiState.isBusy) "正在处理" else "最近状态",
                         value = uiState.statusMessage ?: "尚未执行导入导出操作",
@@ -138,9 +138,9 @@ fun SettingsShareScreen(
             }
 
             item {
-                IOSSectionTitle("说明")
-                IOSGroup {
-                    IOSClickableItem(
+                AppPreferenceSectionTitle("说明")
+                AppPreferenceGroup {
+                    AppPreference(
                         icon = Icons.Filled.CheckCircle,
                         title = "会一起分享的内容",
                         subtitle = "外观、播放、手势、弹幕、导航等可交流设置",
@@ -148,8 +148,8 @@ fun SettingsShareScreen(
                         iconTint = iOSGreen,
                         showChevron = false
                     )
-                    IOSDivider(startIndent = 66.dp)
-                    IOSClickableItem(
+                    AppPreferenceDivider(startIndent = 66.dp)
+                    AppPreference(
                         icon = Icons.Filled.Lock,
                         title = "会自动跳过的内容",
                         subtitle = "账号、下载路径、WebDAV、隐私与设备相关配置",
@@ -161,9 +161,9 @@ fun SettingsShareScreen(
             }
 
             item {
-                IOSSectionTitle("操作")
-                IOSGroup {
-                    IOSClickableItem(
+                AppPreferenceSectionTitle("操作")
+                AppPreferenceGroup {
+                    AppPreference(
                         icon = Icons.Filled.Download,
                         title = "导出到文件",
                         subtitle = "生成可分享的设置文件（JSON）",
@@ -177,16 +177,16 @@ fun SettingsShareScreen(
                         },
                         iconTint = iOSBlue
                     )
-                    IOSDivider(startIndent = 66.dp)
-                    IOSClickableItem(
+                    AppPreferenceDivider(startIndent = 66.dp)
+                    AppPreference(
                         icon = Icons.Filled.Share,
                         title = "分享导出文件",
                         subtitle = "导出后直接调起系统分享",
                         onClick = { viewModel.prepareShare() },
                         iconTint = iOSGreen
                     )
-                    IOSDivider(startIndent = 66.dp)
-                    IOSClickableItem(
+                    AppPreferenceDivider(startIndent = 66.dp)
+                    AppPreference(
                         icon = Icons.Filled.UploadFile,
                         title = "从文件导入",
                         subtitle = "预览可导入内容后再一键应用",
@@ -197,9 +197,9 @@ fun SettingsShareScreen(
             }
 
             item {
-                IOSSectionTitle("文件格式")
-                IOSGroup {
-                    IOSClickableItem(
+                AppPreferenceSectionTitle("文件格式")
+                AppPreferenceGroup {
+                    AppPreference(
                         icon = Icons.Filled.Info,
                         title = "设置包（JSON）",
                         subtitle = "支持用户查看，也支持应用内一键导入",
@@ -226,7 +226,7 @@ fun SettingsShareScreen(
     val pendingImportSession = uiState.pendingImportSession
     if (pendingImportSession != null) {
         var showRawKeys by remember(pendingImportSession) { mutableStateOf(false) }
-        IOSAlertDialog(
+        AppAlertDialog(
             onDismissRequest = { viewModel.dismissImportPreview() },
             title = {
                 Text(
@@ -250,12 +250,12 @@ fun SettingsShareScreen(
                 }
             },
             confirmButton = {
-                IOSDialogAction(onClick = { viewModel.confirmImport() }) {
+                AppDialogAction(onClick = { viewModel.confirmImport() }) {
                     Text(importConfirmLabel)
                 }
             },
             dismissButton = {
-                IOSDialogAction(
+                AppDialogAction(
                     onClick = {
                         if (pendingImportSession.preview.skippedKeys.isNotEmpty() && !showRawKeys) {
                             showRawKeys = true

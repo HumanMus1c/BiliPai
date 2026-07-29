@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -23,8 +22,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.android.purebilibili.core.ui.AdaptiveScaffold
-import com.android.purebilibili.core.ui.AdaptiveTopAppBar
+import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.core.ui.TopReadabilityChrome
@@ -33,6 +32,7 @@ import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.feature.settings.SettingsPageScrollHost
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +62,7 @@ internal fun SettingsPageScaffold(
 
     // InstallerX：设置页用不透明 grouped 底色，避免全局壁纸半透明与多页叠色闪烁。
     CompositionLocalProvider(LocalGlobalWallpaperBackdropVisible provides false) {
-        AdaptiveScaffold(
+        AppScaffold(
             modifier = modifier,
             topBar = {
                 Box {
@@ -73,10 +73,10 @@ internal fun SettingsPageScaffold(
                         hazeState = hazeState,
                         hazeEnabled = topBarBlurEnabled,
                     )
-                    AdaptiveTopAppBar(
+                    AppTopBar(
                         title = title,
                         navigationIcon = {
-                            IconButton(onClick = onBack) {
+                            AppIconButton(onClick = onBack) {
                                 Icon(
                                     imageVector = rememberAppBackIcon(),
                                     contentDescription = backContentDescription,

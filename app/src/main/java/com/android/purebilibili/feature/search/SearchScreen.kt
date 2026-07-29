@@ -1,6 +1,8 @@
 // 文件路径: feature/search/SearchScreen.kt
 package com.android.purebilibili.feature.search
 
+import com.android.purebilibili.core.ui.components.AppTab
+
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -46,9 +48,6 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 //  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -77,10 +76,10 @@ import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.R
-import com.android.purebilibili.core.ui.AdaptiveScaffold
+import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
-import com.android.purebilibili.core.ui.resolveContentCardSurfaceSpec
+import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
 import com.android.purebilibili.core.database.entity.SearchHistory
 import com.android.purebilibili.core.ui.LoadingAnimation
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
@@ -88,7 +87,11 @@ import com.android.purebilibili.core.ui.OfficialVerifyBadge
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperProtectiveColor
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
-import com.android.purebilibili.core.ui.resolveCompactCapsuleChromeSpec
+import com.android.purebilibili.core.ui.AppTopChromePolicy
+import com.android.purebilibili.core.ui.AppTopTabPresentation
+import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
+import com.android.purebilibili.core.ui.rememberAppChromeLiquidGlassEnabled
+import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.rememberAppChevronDownIcon
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
@@ -97,8 +100,8 @@ import com.android.purebilibili.core.ui.rememberAppHistoryIcon
 import com.android.purebilibili.core.ui.rememberAppSearchIcon
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
 import com.android.purebilibili.core.ui.components.UpBadgeName
-import com.android.purebilibili.core.ui.components.shouldUseNativeMiuixSearchBar
-import top.yukonga.miuix.kmp.basic.InputField
+import com.android.purebilibili.core.ui.components.AppSearchField
+import com.android.purebilibili.core.ui.components.AppSearchFieldPresentation
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard  //  使用首页卡片
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.home.resolveReturnAnimationSuppressionDurationMs
@@ -127,10 +130,6 @@ import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.data.model.response.HotItem
 import com.android.purebilibili.data.model.response.SearchArticleItem
@@ -173,9 +172,8 @@ internal fun resolveSearchTopBarRowMinHeightDp(
 ): Int = maxOf(64, inputHeightDp + verticalPaddingDp)
 
 internal fun shouldOmitSearchInputLeadingIcon(
-    uiPreset: UiPreset,
-    usesMiuixSearchInput: Boolean
-): Boolean = uiPreset == UiPreset.MD3 && !usesMiuixSearchInput
+    tabPresentation: AppTopTabPresentation,
+): Boolean = tabPresentation == AppTopTabPresentation.MATERIAL_UNDERLINE
 
 internal fun resolveSearchTopBarHeaderColor(
     surfaceColor: Color,
@@ -216,11 +214,10 @@ internal data class SearchChromeVisualSpec(
 )
 
 internal fun resolveSearchChromeVisualSpec(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+    chromePolicy: AppTopChromePolicy,
 ): SearchChromeVisualSpec {
-    val compactChrome = resolveCompactCapsuleChromeSpec(uiPreset, androidNativeVariant)
-    return if (uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX) {
+    val compactChrome = chromePolicy.compactChromeSpec
+    return if (chromePolicy.tabPresentation == AppTopTabPresentation.TONAL_CAPSULE) {
         SearchChromeVisualSpec(
             inputHeightDp = compactChrome.primaryHeightDp,
             inputCornerRadiusDp = compactChrome.primaryCornerRadiusDp,
@@ -237,7 +234,7 @@ internal fun resolveSearchChromeVisualSpec(
             chipCornerRadiusDp = compactChrome.chipCornerRadiusDp,
             chipHorizontalPaddingDp = compactChrome.chipHorizontalPaddingDp
         )
-    } else if (uiPreset == UiPreset.MD3) {
+    } else if (chromePolicy.tabPresentation == AppTopTabPresentation.MATERIAL_UNDERLINE) {
         SearchChromeVisualSpec(
             inputHeightDp = compactChrome.primaryHeightDp,
             inputCornerRadiusDp = compactChrome.primaryCornerRadiusDp,
@@ -537,11 +534,10 @@ fun SearchScreen(
     isQuickReturningFromVideoDetail: Boolean = false,
     onVideoDetailReturnAnimationConsumed: () -> Unit = {}
 ) {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val searchChromeSpec = remember(uiPreset, androidNativeVariant) {
-        resolveSearchChromeVisualSpec(uiPreset, androidNativeVariant)
-    }
+    val topChromePolicy = rememberAppTopChromePolicy()
+    val semanticVisualPolicy = rememberAppSemanticVisualPolicy()
+    val contentCardSurfaceSpec = rememberContentCardSurfaceSpec()
+    val searchChromeSpec = remember(topChromePolicy) { resolveSearchChromeVisualSpec(topChromePolicy) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val keyboardController = LocalSoftwareKeyboardController.current
     val configuration = LocalConfiguration.current
@@ -640,6 +636,10 @@ fun SearchScreen(
     val androidNativeLiquidGlassEnabled by SettingsManager
         .getAndroidNativeLiquidGlassEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    val effectiveLiquidGlassEnabled = rememberAppChromeLiquidGlassEnabled(
+        individualEnabled = liquidGlassEnabled,
+        androidNativeEnabled = androidNativeLiquidGlassEnabled,
+    )
     val headerBlurEnabled by SettingsManager.getHeaderBlurEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val bottomBarBlurEnabled by SettingsManager.getBottomBarBlurEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val cardMotionTier = resolveEffectiveMotionTier(
@@ -653,31 +653,25 @@ fun SearchScreen(
         )
     }
     val videoCardAppearance = remember(
-        liquidGlassEnabled,
+        effectiveLiquidGlassEnabled,
         searchCardBlurEnabled,
-        uiPreset,
-        androidNativeLiquidGlassEnabled
     ) {
         resolveSearchVideoCardAppearance(
-            liquidGlassEnabled = liquidGlassEnabled,
+            effectiveLiquidGlassEnabled = effectiveLiquidGlassEnabled,
             blurEnabled = searchCardBlurEnabled,
             showHomeCoverGlassBadges = false,
             showHomeInfoGlassBadges = false,
-            uiPreset = uiPreset,
-            androidNativeLiquidGlassEnabled = androidNativeLiquidGlassEnabled
         )
     }
     val genericResultCardAppearance = remember(
-        liquidGlassEnabled,
-        uiPreset,
-        androidNativeLiquidGlassEnabled,
-        androidNativeVariant
+        effectiveLiquidGlassEnabled,
+        semanticVisualPolicy.supportsIndependentLiquidGlass,
+        contentCardSurfaceSpec.tonalElevationDp,
     ) {
         resolveSearchResultCardAppearance(
-            liquidGlassEnabled = liquidGlassEnabled,
-            uiPreset = uiPreset,
-            androidNativeLiquidGlassEnabled = androidNativeLiquidGlassEnabled,
-            androidNativeVariant = androidNativeVariant
+            effectiveLiquidGlassEnabled = effectiveLiquidGlassEnabled,
+            supportsIndependentLiquidGlass = semanticVisualPolicy.supportsIndependentLiquidGlass,
+            tonalElevationDp = contentCardSurfaceSpec.tonalElevationDp.toInt(),
         )
     }
     val cardTransitionEnabled by SettingsManager.getCardTransitionEnabled(context).collectAsStateWithLifecycle(initialValue = false)
@@ -815,7 +809,7 @@ fun SearchScreen(
         extraBottomPadding = 16.dp
     )
 
-    AdaptiveScaffold(
+    AppScaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Color.Transparent,
         //  移除 bottomBar，搜索栏现在位于顶部 Box 中
@@ -1688,17 +1682,8 @@ fun SearchTopBar(
     onEntryMotionFinished: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val layoutSpec = remember { resolveSearchTopBarLayoutSpec() }
-    val chromeSpec = remember(uiPreset, androidNativeVariant) {
-        resolveSearchChromeVisualSpec(uiPreset, androidNativeVariant)
-    }
-    val usesMiuixSearchInput = shouldUseNativeMiuixSearchBar(uiPreset, androidNativeVariant)
-    val omitSearchInputLeadingIcon = shouldOmitSearchInputLeadingIcon(
-        uiPreset = uiPreset,
-        usesMiuixSearchInput = usesMiuixSearchInput
-    )
+    val topChromePolicy = rememberAppTopChromePolicy()
+    val chromeSpec = remember(topChromePolicy) { resolveSearchChromeVisualSpec(topChromePolicy) }
     val topBarRowMinHeightDp = remember(chromeSpec.inputHeightDp) {
         resolveSearchTopBarRowMinHeightDp(chromeSpec.inputHeightDp)
     }
@@ -1709,29 +1694,9 @@ fun SearchTopBar(
     val clearIcon = rememberAppClearIcon()
     val density = LocalDensity.current
     val entryMotionProgress = remember { Animatable(1f) }
-    //  Focus 状态追踪
-    var isFocused by remember { mutableStateOf(false) }
-    
-    //  自动聚焦并弹出键盘（Miuix InputField 在 expanded=true 时自行 requestFocus）
-    LaunchedEffect(autoFocusEnabled, query, usesMiuixSearchInput) {
-        if (!usesMiuixSearchInput && autoFocusEnabled && query.isEmpty()) {
-            kotlinx.coroutines.delay(60)
-            runCatching {
-                focusRequester.requestFocus()
-            }.onFailure { e ->
-                com.android.purebilibili.core.util.Logger.e("SearchScreen", "Failed to auto focus search field", e)
-            }
-        }
-    }
-    SideEffect {
-        if (usesMiuixSearchInput) {
-            isFocused = isSearchFieldFocused
-        }
-    }
-    
     //  搜索图标颜色动画
     val searchIconColor by animateColorAsState(
-        targetValue = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+        targetValue = if (isSearchFieldFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
         animationSpec = if (reducedMotionBudget) snap() else tween(durationMillis = 200),
         label = "iconColor"
     )
@@ -1811,101 +1776,44 @@ fun SearchTopBar(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                if (usesMiuixSearchInput) {
-                    InputField(
-                        query = query,
-                        onQueryChange = onQueryChange,
-                        onSearch = {
-                            if (canSubmit) {
-                                onSearch(resolvedSubmitKeyword)
-                            }
-                        },
-                        expanded = true,
-                        onExpandedChange = {},
-                        modifier = Modifier
-                            .weight(1f)
-                            .defaultMinSize(minHeight = chromeSpec.inputHeightDp.dp),
-                        label = placeholder,
-                        interactionSource = searchInteractionSource,
-                    )
-                } else {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = onQueryChange,
-                        modifier = Modifier
-                            .weight(1f)
-                            .defaultMinSize(minHeight = chromeSpec.inputHeightDp.dp)
-                            .focusRequester(focusRequester)
-                            .onFocusChanged { isFocused = it.isFocused },
-                        placeholder = {
-                            Text(
-                                text = placeholder,
-                                maxLines = layoutSpec.placeholderMaxLines,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        },
-                        leadingIcon = if (omitSearchInputLeadingIcon) {
-                            null
-                        } else {
-                            {
-                                Icon(
-                                    searchIcon,
-                                    contentDescription = searchLabel,
-                                    tint = searchIconColor,
-                                    modifier = Modifier.size(chromeSpec.actionIconSizeDp.dp)
-                                )
-                            }
-                        },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        shape = RoundedCornerShape(chromeSpec.inputCornerRadiusDp.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = if (uiPreset == UiPreset.MD3) {
-                                AppSurfaceTokens.surfaceContainerHigh()
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                            },
-                            unfocusedContainerColor = if (uiPreset == UiPreset.MD3) {
-                                AppSurfaceTokens.surfaceContainerHigh()
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                            }
-                        ),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(
-                            onSearch = {
-                                if (canSubmit) {
-                                    onSearch(resolvedSubmitKeyword)
-                                }
-                            }
-                        )
-                    )
-                }
+                AppSearchField(
+                    query = query,
+                    onQueryChange = onQueryChange,
+                    onSearch = { if (canSubmit) onSearch(resolvedSubmitKeyword) },
+                    onClear = onClearQuery,
+                    presentation = AppSearchFieldPresentation.TOP_BAR,
+                    autoFocusEnabled = autoFocusEnabled && query.isEmpty(),
+                    focusRequester = focusRequester,
+                    modifier = Modifier
+                        .weight(1f)
+                        .defaultMinSize(minHeight = chromeSpec.inputHeightDp.dp),
+                    placeholder = placeholder,
+                    containerColor = if (chromeSpec.useFilledSearchAction) {
+                        AppSurfaceTokens.surfaceContainerHigh()
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                    },
+                    heightOverride = chromeSpec.inputHeightDp.dp,
+                    interactionSource = searchInteractionSource,
+                )
 
                 Spacer(modifier = Modifier.width(chromeSpec.horizontalGapDp.dp))
 
-                if (!usesMiuixSearchInput) {
-                    IconButton(
-                        onClick = onClearQuery,
-                        enabled = query.isNotEmpty(),
-                        modifier = Modifier.size(chromeSpec.clearActionSizeDp.dp)
-                    ) {
-                        Icon(
-                            clearIcon,
-                            contentDescription = stringResource(R.string.common_clear),
-                            tint = if (query.isNotEmpty()) {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                            },
-                            modifier = Modifier.size(chromeSpec.actionIconSizeDp.dp)
-                        )
-                    }
+                IconButton(
+                    onClick = onClearQuery,
+                    enabled = query.isNotEmpty(),
+                    modifier = Modifier.size(chromeSpec.clearActionSizeDp.dp)
+                ) {
+                    Icon(
+                        clearIcon,
+                        contentDescription = stringResource(R.string.common_clear),
+                        tint = if (query.isNotEmpty()) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                        },
+                        modifier = Modifier.size(chromeSpec.actionIconSizeDp.dp)
+                    )
                 }
 
                 IconButton(
@@ -2298,7 +2206,7 @@ private fun SearchResultTypeTabRow(
     ) {
         tabs.forEachIndexed { index, type ->
             val selected = selectedPage == index
-            Tab(
+            AppTab(
                 selected = selected,
                 onClick = { onTabClick(index, type) },
                 interactionSource = remember { MutableInteractionSource() },
@@ -2625,17 +2533,15 @@ private fun SearchResultCardSurface(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val surfaceSpec = resolveContentCardSurfaceSpec(uiPreset, androidNativeVariant)
+    val surfaceSpec = rememberContentCardSurfaceSpec()
     val shape = AppShapes.borderedContainer(surfaceSpec.cornerLevel)
-    val color = if (surfaceSpec.useMiuixTokens) {
+    val color = if (surfaceSpec.usesTonalContainerTreatment) {
         AppSurfaceTokens.surfaceContainer()
     } else {
         MaterialTheme.colorScheme.surface.copy(alpha = appearance.containerAlpha)
     }
     val border = when {
-        surfaceSpec.useMiuixTokens -> {
+        surfaceSpec.usesTonalContainerTreatment -> {
             androidx.compose.foundation.BorderStroke(
                 surfaceSpec.borderWidthDp.dp,
                 AppSurfaceTokens.divider().copy(alpha = surfaceSpec.borderAlpha)
@@ -2655,12 +2561,12 @@ private fun SearchResultCardSurface(
             onClick = onClick,
             color = color,
             shape = shape,
-            tonalElevation = if (surfaceSpec.useMiuixTokens) {
+            tonalElevation = if (surfaceSpec.usesTonalContainerTreatment) {
                 surfaceSpec.tonalElevationDp.dp
             } else {
                 appearance.tonalElevationDp.dp
             },
-            shadowElevation = if (surfaceSpec.useMiuixTokens) {
+            shadowElevation = if (surfaceSpec.usesTonalContainerTreatment) {
                 surfaceSpec.shadowElevationDp.dp
             } else {
                 appearance.shadowElevationDp.dp
@@ -2674,12 +2580,12 @@ private fun SearchResultCardSurface(
             modifier = modifier.fillMaxWidth(),
             color = color,
             shape = shape,
-            tonalElevation = if (surfaceSpec.useMiuixTokens) {
+            tonalElevation = if (surfaceSpec.usesTonalContainerTreatment) {
                 surfaceSpec.tonalElevationDp.dp
             } else {
                 appearance.tonalElevationDp.dp
             },
-            shadowElevation = if (surfaceSpec.useMiuixTokens) {
+            shadowElevation = if (surfaceSpec.usesTonalContainerTreatment) {
                 surfaceSpec.shadowElevationDp.dp
             } else {
                 appearance.shadowElevationDp.dp

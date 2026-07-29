@@ -1,5 +1,10 @@
 package com.android.purebilibili.feature.home.components.cards
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
+
+import com.android.purebilibili.core.ui.MediaContrastPalette
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -37,6 +42,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,6 +72,7 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.feedContentTypography
 import com.android.purebilibili.feature.home.LocalHomeLayerBackdrop
 import com.android.purebilibili.feature.home.HomeCoverRequestSpec
 import com.kyant.backdrop.drawBackdrop
@@ -198,15 +205,16 @@ internal fun VideoCardDurationPublishRow(
     publishTimeText: String,
     emphasizePublishTime: Boolean,
     publishTimeColor: Color,
-    topSpacingDp: Int
+    topSpacing: Dp
 ) {
     if (durationText.isBlank() && publishTimeText.isBlank()) return
+    val contentTypography = feedContentTypography()
 
-    Spacer(modifier = Modifier.height(topSpacingDp.dp))
+    Spacer(modifier = Modifier.height(topSpacing))
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
     ) {
         if (publishTimeText.isNotBlank()) {
             VideoCardPublishTime(
@@ -223,8 +231,7 @@ internal fun VideoCardDurationPublishRow(
             Text(
                 text = durationText,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
+                style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
                 maxLines = 1
             )
         }
@@ -238,6 +245,7 @@ private fun VideoCardPublishTime(
     color: Color,
     modifier: Modifier
 ) {
+    val contentTypography = feedContentTypography()
     if (emphasized) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
@@ -246,18 +254,17 @@ private fun VideoCardPublishTime(
         ) {
             Text(
                 text = text,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
+                style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
                 color = color.copy(alpha = 0.92f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                modifier = Modifier.padding(horizontal = AppSpacingTokens.Small, vertical = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2)
             )
         }
     } else {
         Text(
             text = text,
-            fontSize = 11.sp,
+            style = contentTypography.statistic,
             color = color,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -306,8 +313,8 @@ private fun resolveVideoCardPillColors(
 ): HomeGlassResolvedColors {
     return HomeGlassResolvedColors(
         containerColor = baseColor.copy(alpha = style.containerAlpha),
-        borderColor = Color.White.copy(alpha = style.borderAlpha),
-        highlightColor = Color.White.copy(alpha = style.highlightAlpha)
+        borderColor = MediaContrastPalette.Foreground.copy(alpha = style.borderAlpha),
+        highlightColor = MediaContrastPalette.Foreground.copy(alpha = style.highlightAlpha)
     )
 }
 
@@ -367,6 +374,7 @@ internal fun ElegantVideoCard(
     onClick: (String, Long) -> Unit
 ) {
     val haptic = rememberHapticFeedback()
+    val contentTypography = feedContentTypography()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val playbackProgressManager = remember(context) {
@@ -375,8 +383,8 @@ internal fun ElegantVideoCard(
     
     //  [HIG] 动态圆角 - 12dp 标准
     val cornerRadiusScale = LocalCornerRadiusScale.current
-    val cardCornerRadius = 12.dp * cornerRadiusScale  // HIG 标准圆角
-    val smallCornerRadius = iOSCornerRadius.Tiny * cornerRadiusScale  // 4.dp * scale
+    val cardCornerRadius = AppSpacingTokens.Medium * cornerRadiusScale  // HIG 标准圆角
+    val smallCornerRadius = iOSCornerRadius.Tiny * cornerRadiusScale  // AppSpacingTokens.ExtraSmall * scale
     val durationBadgeStyle = remember { resolveVideoCardDurationBadgeVisualStyle() }
     val cardTexts = remember(video.duration, video.stat.view, video.stat.reply, video.stat.danmaku, video.progress) {
         val durationText = FormatUtils.formatDuration(video.duration)
@@ -620,7 +628,7 @@ internal fun ElegantVideoCard(
             .onGloballyPositioned { coordinates ->
                 cardCoordsRef.value = coordinates
             }
-            .padding(bottom = 12.dp)
+            .padding(bottom = AppSpacingTokens.Medium)
     ) {
         //  尝试获取共享元素作用域。首页点击视频时，由卡片主容器承载整体放大/回收。
         val sharedTransitionScope = LocalSharedTransitionScope.current
@@ -728,8 +736,8 @@ internal fun ElegantVideoCard(
                 RoundedCornerShape(
                     topStart = cardCornerRadius,
                     topEnd = cardCornerRadius,
-                    bottomStart = 0.dp,
-                    bottomEnd = 0.dp
+                    bottomStart = AppSpacingTokens.None,
+                    bottomEnd = AppSpacingTokens.None
                 )
             } else {
                 RoundedCornerShape(homeSharedTransitionVisualSpec.sourceCornerDp.dp)
@@ -807,15 +815,15 @@ internal fun ElegantVideoCard(
                     useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
                     shape = RoundedCornerShape(smallCornerRadius),
                     containerColor = BiliPink.copy(alpha = if (badgeStylePolicy.coverStyle == HomeVideoBadgeStyle.GLASS) 0.78f else 1f),
-                    borderColor = Color.White.copy(alpha = 0.24f),
+                    borderColor = MediaContrastPalette.Foreground.copy(alpha = 0.24f),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(8.dp)
+                        .padding(AppSpacingTokens.Small)
                 ) {
                     Text(
                         text = premiumBadgeLabel,
-                        color = Color.White,
-                        fontSize = 10.sp,
+                        color = MediaContrastPalette.Foreground,
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1
                     )
@@ -828,13 +836,13 @@ internal fun ElegantVideoCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small)
                         .align(Alignment.BottomCenter)
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
                                     Color.Transparent,
-                                    Color.Black.copy(alpha = 0.6f)
+                                    MediaContrastPalette.Scrim.copy(alpha = 0.6f)
                                 )
                             )
                         )
@@ -847,7 +855,7 @@ internal fun ElegantVideoCard(
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
                         .height(coverOverlayBottomLayout.historyProgressBarHeightDp.dp)
-                        .background(Color.White.copy(alpha = 0.24f))
+                        .background(MediaContrastPalette.Foreground.copy(alpha = 0.24f))
                 )
                 if (historyProgressFraction > 0f) {
                     Box(
@@ -866,9 +874,9 @@ internal fun ElegantVideoCard(
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
                         .padding(
-                            start = 8.dp,
-                            top = 6.dp,
-                            end = 8.dp,
+                            start = AppSpacingTokens.Small,
+                            top = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro,
+                            end = AppSpacingTokens.Small,
                             bottom = coverOverlayBottomLayout.compactStatsBottomPaddingDp.dp
                         )
                 ) {
@@ -897,7 +905,7 @@ internal fun ElegantVideoCard(
                             .fillMaxWidth()
                             .padding(end = compactStatsLayout.statsEndPaddingDp.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
                     ) {
                         val compactViewsModifier = Modifier.widthIn(min = compactStatsLayout.primaryMinWidthDp.dp)
                         HomeVideoBadgePill(
@@ -911,13 +919,13 @@ internal fun ElegantVideoCard(
                             Icon(
                                 imageVector = CupertinoIcons.Outlined.PlayCircle,
                                 contentDescription = null,
-                                modifier = Modifier.size(10.dp),
-                                tint = Color.White.copy(alpha = 0.94f)
+                                modifier = Modifier.size(AppSpacingTokens.Small + AppSpacingTokens.Micro),
+                                tint = MediaContrastPalette.Foreground.copy(alpha = 0.94f)
                             )
                             Text(
                                 text = primaryStatText,
-                                color = Color.White.copy(alpha = 0.94f),
-                                fontSize = 11.sp,
+                                color = MediaContrastPalette.Foreground.copy(alpha = 0.94f),
+                                fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                 fontWeight = FontWeight.Medium,
                                 style = coverOverlayTextStyle,
                                 maxLines = 1,
@@ -939,13 +947,13 @@ internal fun ElegantVideoCard(
                                 Icon(
                                     imageVector = CupertinoIcons.Outlined.BubbleLeft,
                                     contentDescription = null,
-                                    modifier = Modifier.size(10.dp),
-                                    tint = Color.White.copy(alpha = 0.90f)
+                                    modifier = Modifier.size(AppSpacingTokens.Small + AppSpacingTokens.Micro),
+                                    tint = MediaContrastPalette.Foreground.copy(alpha = 0.90f)
                                 )
                                 Text(
                                     text = secondaryStatText,
-                                    color = Color.White.copy(alpha = 0.90f),
-                                    fontSize = 11.sp,
+                                    color = MediaContrastPalette.Foreground.copy(alpha = 0.90f),
+                                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                     fontWeight = FontWeight.Medium,
                                     style = coverOverlayTextStyle,
                                     maxLines = 1,
@@ -967,13 +975,13 @@ internal fun ElegantVideoCard(
                                 Icon(
                                     imageVector = CupertinoIcons.Outlined.Eye,
                                     contentDescription = null,
-                                    modifier = Modifier.size(10.dp),
-                                    tint = Color.White.copy(alpha = 0.90f)
+                                    modifier = Modifier.size(AppSpacingTokens.Small + AppSpacingTokens.Micro),
+                                    tint = MediaContrastPalette.Foreground.copy(alpha = 0.90f)
                                 )
                                 Text(
                                     text = onlineCount,
-                                    color = Color.White.copy(alpha = 0.90f),
-                                    fontSize = 11.sp,
+                                    color = MediaContrastPalette.Foreground.copy(alpha = 0.90f),
+                                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                     fontWeight = FontWeight.Medium,
                                     style = coverOverlayTextStyle,
                                     maxLines = 1,
@@ -988,8 +996,8 @@ internal fun ElegantVideoCard(
                     if (showDurationOnCover) {
                         Text(
                             text = durationText,
-                            color = Color.White,
-                            fontSize = 11.sp,
+                            color = MediaContrastPalette.Foreground,
+                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
                             fontWeight = FontWeight.Medium,
                             style = coverOverlayTextStyle,
                             maxLines = 1,
@@ -1004,8 +1012,8 @@ internal fun ElegantVideoCard(
                 if (showDurationOnCover) {
                     Text(
                         text = durationText,
-                        color = Color.White,
-                        fontSize = 11.sp,
+                        color = MediaContrastPalette.Foreground,
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         fontWeight = FontWeight.Medium,
                         style = coverOverlayTextStyle,
                         maxLines = 1,
@@ -1014,7 +1022,7 @@ internal fun ElegantVideoCard(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(
-                                end = 10.dp,
+                                end = AppSpacingTokens.Small + AppSpacingTokens.Micro,
                                 bottom = coverOverlayBottomLayout.floatingDurationBottomPaddingDp.dp
                             )
                     )
@@ -1025,8 +1033,8 @@ internal fun ElegantVideoCard(
         
         val infoSurfaceShape = remember(cardCornerRadius) {
             RoundedCornerShape(
-                topStart = 0.dp,
-                topEnd = 0.dp,
+                topStart = AppSpacingTokens.None,
+                topEnd = AppSpacingTokens.None,
                 bottomStart = cardCornerRadius,
                 bottomEnd = cardCornerRadius
             )
@@ -1056,10 +1064,10 @@ internal fun ElegantVideoCard(
                     shape = { infoSurfaceShape },
                     effects = {
                         vibrancy()
-                        blur(22.dp.toPx())
+                        blur((AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro).toPx())
                         lens(
-                            refractionHeight = 8.dp.toPx(),
-                            refractionAmount = 14.dp.toPx()
+                            refractionHeight = AppSpacingTokens.Small.toPx(),
+                            refractionAmount = (AppSpacingTokens.Medium + AppSpacingTokens.Micro).toPx()
                         )
                     }
                 )
@@ -1076,13 +1084,13 @@ internal fun ElegantVideoCard(
                     shape = infoSurfaceShape
                 )
                 .border(
-                    width = 0.8.dp,
-                    color = Color.White.copy(alpha = infoSurfaceAppearance.borderAlpha),
+                    width = AppSpacingTokens.Micro * 0.4f,
+                    color = MediaContrastPalette.Foreground.copy(alpha = infoSurfaceAppearance.borderAlpha),
                     shape = infoSurfaceShape
                 )
                 .padding(
-                    horizontal = 10.dp,
-                    vertical = if (compactMetadata) 6.dp else 8.dp
+                    horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro,
+                    vertical = if (compactMetadata) AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro else AppSpacingTokens.Small
                 )
         } else {
             Modifier.fillMaxWidth()
@@ -1098,7 +1106,7 @@ internal fun ElegantVideoCard(
             )
         ) {
         if (!infoSurfaceAppearance.useTintedSurface) {
-            Spacer(modifier = Modifier.height(if (compactMetadata) 6.dp else 8.dp))
+            Spacer(modifier = Modifier.height(if (compactMetadata) AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro else AppSpacingTokens.Small))
         }
         
         // 标题行：标题 + 更多按钮
@@ -1118,10 +1126,7 @@ internal fun ElegantVideoCard(
                 maxLines = 2,
                 minLines = titleMinLines,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.Medium,
-                    fontSize = if (compactMetadata) 14.sp else 15.sp,
-                    lineHeight = if (compactMetadata) 18.sp else 20.sp,
+                style = contentTypography.title.copy(
                     color = MaterialTheme.colorScheme.onSurface
                 ),
                 modifier = titleModifier
@@ -1161,8 +1166,8 @@ internal fun ElegantVideoCard(
                 if (onUnfavorite != null) {
                     Box(
                         modifier = Modifier
-                            .padding(end = 4.dp, top = 2.dp)
-                            .size(24.dp)
+                            .padding(end = AppSpacingTokens.ExtraSmall, top = AppSpacingTokens.Micro)
+                            .size(AppChromeSizeTokens.MinimumTouchTarget)
                             .clickable { 
                                 haptic(HapticType.MEDIUM)
                                 // onUnfavorite.invoke() -> 改为弹窗确认
@@ -1173,7 +1178,7 @@ internal fun ElegantVideoCard(
                         Icon(
                             imageVector = CupertinoIcons.Filled.HandThumbsup,
                             contentDescription = "取消收藏",
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(AppSpacingTokens.Large),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                     }
@@ -1183,8 +1188,9 @@ internal fun ElegantVideoCard(
                 if (hasMenu) {
                     Box(
                         modifier = Modifier
-                            .padding(start = 4.dp, top = 2.dp) // 微调位置对齐第一行文字
-                            .size(20.dp)
+                            .padding(start = AppSpacingTokens.ExtraSmall, top = AppSpacingTokens.Micro) // 微调位置对齐第一行文字
+                            .size(AppChromeSizeTokens.MinimumTouchTarget)
+                            .semantics { contentDescription = "更多操作" }
                             .onGloballyPositioned { coordinates ->
                                 menuButtonCoordsRef.value = coordinates
                             }
@@ -1197,7 +1203,7 @@ internal fun ElegantVideoCard(
                         Text(
                             text = "⋮",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 14.sp,
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1205,7 +1211,7 @@ internal fun ElegantVideoCard(
             }
         }
         
-        Spacer(modifier = Modifier.height(if (compactMetadata) 4.dp else 6.dp))
+        Spacer(modifier = Modifier.height(if (compactMetadata) AppSpacingTokens.ExtraSmall else AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
         
         val metadataColors = resolveHomeVideoCardMetadataColors(
             onSurfaceColor = MaterialTheme.colorScheme.onSurface
@@ -1214,7 +1220,7 @@ internal fun ElegantVideoCard(
         //  底部信息行 - 官方 B 站风格
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall)
         ) {
             //  [HIG] UP主名称 - 13sp footnote 标准
             //  共享元素过渡 - UP主名称
@@ -1239,22 +1245,20 @@ internal fun ElegantVideoCard(
                                 modifier = followBadgeModifier,
                                 shape = AppShapes.container(ContainerLevel.Pill),
                                 color = inlinePillColors.containerColor,
-                                border = BorderStroke(0.8.dp, inlinePillColors.borderColor)
+                                border = BorderStroke(AppSpacingTokens.Micro * 0.4f, inlinePillColors.borderColor)
                             ) {
                                 Text(
                                     text = "已关注",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium,
+                                    style = contentTypography.coverBadge,
                                     color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Micro)
                                 )
                             }
                         } else {
                             Text(
                                 text = "已关注",
                                 modifier = followBadgeModifier,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
+                                style = contentTypography.coverBadge,
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -1263,7 +1267,7 @@ internal fun ElegantVideoCard(
                 leadingContent = if (video.owner.face.isNotEmpty()) {
                     {
                         val avatarModifier = Modifier
-                            .size(14.dp)
+                            .size(AppSpacingTokens.Medium + AppSpacingTokens.Micro)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
 
@@ -1280,16 +1284,13 @@ internal fun ElegantVideoCard(
                         )
                     }
                 } else null,
-                nameStyle = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Normal
-                ),
+                nameStyle = contentTypography.author,
                 nameColor = metadataColors.upNameColor,
                 metaColor = metadataColors.upMetaColor,
                 badgeTextColor = metadataColors.upBadgeTextColor,
                 badgeBackgroundColor = metadataColors.upBadgeBackgroundColor,
                 reserveTrailingSlot = true,
-                trailingSlotMinHeight = 20.dp,
+                trailingSlotMinHeight = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall,
                 showUpBadge = showUpBadge,
                 modifier = upNameModifier
             )
@@ -1301,14 +1302,18 @@ internal fun ElegantVideoCard(
             publishTimeText = publishTimeRowText,
             emphasizePublishTime = emphasizePublishTime,
             publishTimeColor = metadataColors.publishTimeColor,
-            topSpacingDp = if (compactMetadata) 4 else 6
+            topSpacing = if (compactMetadata) {
+                AppSpacingTokens.ExtraSmall
+            } else {
+                AppSpacingTokens.Small - AppSpacingTokens.Micro
+            }
         )
 
         if (scrollLitePolicy.showSecondaryStatsRow) {
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro)
             ) {
                 val viewsRowModifier = Modifier.wrapContentSize()
                 Box(modifier = viewsRowModifier) {
@@ -1322,14 +1327,13 @@ internal fun ElegantVideoCard(
                         Icon(
                             imageVector = CupertinoIcons.Outlined.PlayCircle,
                             contentDescription = null,
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(AppSpacingTokens.Medium),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = primaryStatText,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
+                            style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
                         )
                     }
                 }
@@ -1347,14 +1351,13 @@ internal fun ElegantVideoCard(
                         Icon(
                             imageVector = CupertinoIcons.Outlined.BubbleLeft,
                             contentDescription = null,
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(AppSpacingTokens.Medium),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = secondaryStatText,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
+                            style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
                         )
                     }
                 }
@@ -1370,14 +1373,13 @@ internal fun ElegantVideoCard(
                         Icon(
                             imageVector = CupertinoIcons.Outlined.Eye,
                             contentDescription = null,
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(AppSpacingTokens.Medium),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = onlineCount,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
+                            style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
                         )
                     }
                 }
@@ -1388,10 +1390,16 @@ internal fun ElegantVideoCard(
     }
         
         // 菜单需要挂在一个本地小锚点上，避免 DropdownMenu 在整张卡片根节点右侧 fallback 时反向偏移。
+        //
+        // 这里保留非 lambda 版 offset（lint 的 UseOfNonLambdaOffsetOverload 会报）：
+        // menuOffset 只在每次长按时变一次，不是逐帧动画值，lambda 版没有实际收益；
+        // 而改写形式会打断 VideoCardLongPressPolicyTest 对上面那次回归修复的字面守卫。
+        // 为零收益去动别人的回归守卫不划算。
+        @Suppress("UseOfNonLambdaOffsetOverload")
         Box(
             modifier = Modifier
                 .offset(x = menuOffset.x, y = menuOffset.y)
-                .size(1.dp)
+                .size(AppSpacingTokens.Micro / 2)
         ) {
             DropdownMenu(
                 expanded = showDismissMenu,
@@ -1515,12 +1523,12 @@ internal fun HomeVideoBadgePill(
             modifier = glassModifier,
             shape = shape,
             color = surfaceColor,
-            border = BorderStroke(0.8.dp, borderColor)
+            border = BorderStroke(AppSpacingTokens.Micro * 0.4f, borderColor)
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                modifier = Modifier.padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro),
                 content = content
             )
         }
@@ -1528,7 +1536,7 @@ internal fun HomeVideoBadgePill(
         Row(
             modifier = modifier,
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro),
             content = content
         )
     }

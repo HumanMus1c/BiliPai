@@ -1,6 +1,7 @@
 // 文件路径: feature/settings/AnimationSettingsScreen.kt
 package com.android.purebilibili.feature.settings
 
+import com.android.purebilibili.core.ui.components.AppSegmentOption
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.lazy.LazyColumn
@@ -135,14 +136,14 @@ fun AnimationSettingsContent(
     val entranceDowngradedBySystem = uiEntranceAnimationEnabled && !effectiveEntranceSpec.animate
     val sharedTransitionSpeedOptions = remember {
         listOf(
-            PlaybackSegmentOption(VideoSharedTransitionSpeed.FAST, "快速"),
-            PlaybackSegmentOption(VideoSharedTransitionSpeed.STANDARD, "标准"),
-            PlaybackSegmentOption(VideoSharedTransitionSpeed.SLOW, "慢速"),
-            PlaybackSegmentOption(VideoSharedTransitionSpeed.CUSTOM, "自定")
+            AppSegmentOption(VideoSharedTransitionSpeed.FAST, "快速"),
+            AppSegmentOption(VideoSharedTransitionSpeed.STANDARD, "标准"),
+            AppSegmentOption(VideoSharedTransitionSpeed.SLOW, "慢速"),
+            AppSegmentOption(VideoSharedTransitionSpeed.CUSTOM, "自定")
         )
     }
     var customTransitionDurationMillis by remember(state.videoSharedTransitionCustomDurationMillis) {
-        mutableStateOf(state.videoSharedTransitionCustomDurationMillis)
+        mutableIntStateOf(state.videoSharedTransitionCustomDurationMillis)
     }
     fun snapCustomTransitionDuration(value: Float): Int {
         val stepMillis = 20
@@ -168,13 +169,13 @@ fun AnimationSettingsContent(
             //  界面动效（全 App 入场）
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("界面动效")
+                    AppPreferenceSectionTitle("界面动效")
                 }
             }
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSGroup {
-                        IOSSwitchItem(
+                    AppPreferenceGroup {
+                        AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_ENTRANCE_ANIMATION),
                             title = "界面入场动画",
                             subtitle = "设置等页面进入时内容逐条淡入；等导航转场落定后播放，不抢过渡",
@@ -187,7 +188,7 @@ fun AnimationSettingsContent(
                             iconTint = iOSGreen
                         )
                         if (entranceDowngradedBySystem) {
-                            IOSDivider()
+                            AppPreferenceDivider()
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -207,13 +208,13 @@ fun AnimationSettingsContent(
             //  卡片动画
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("卡片动画")
+                    AppPreferenceSectionTitle("卡片动画")
                 }
             }
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSGroup {
-	                        IOSSwitchItem(
+                    AppPreferenceGroup {
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_ENTRANCE_ANIMATION),
                             title = "进场动画",
                             subtitle = "首页首屏卡片淡入；滚动复用不播，与过渡动画并存时仅淡入不改几何",
@@ -221,8 +222,8 @@ fun AnimationSettingsContent(
                             onCheckedChange = { viewModel.toggleCardAnimation(it) },
                             iconTint = iOSPink
                         )
-                        IOSDivider()
-                        IOSSwitchItem(
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
                             title = "过渡动画",
                             subtitle = "全局视频卡片与详情页的共享元素过渡效果",
@@ -230,18 +231,18 @@ fun AnimationSettingsContent(
                             onCheckedChange = { viewModel.toggleCardTransition(it) },
                             iconTint = iOSTeal
                         )
-                        IOSDivider()
-                        IOSSwitchItem(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.WALLPAPER_EFFECT),
                             title = "过渡动画实时模糊",
                             subtitle = "过渡期间对背景使用实时模糊效果，关闭可降低 GPU 负载",
                             checked = videoTransitionRealtimeBlurEnabled,
                             onCheckedChange = { viewModel.toggleVideoTransitionRealtimeBlur(it) },
                             iconTint = iOSTeal
                         )
-                        IOSDivider()
-                        IOSSwitchItem(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PREDICTIVE_BACK),
                             title = "预测性返回手势",
                             subtitle = "关闭后仍可边缘返回，但不显示跟手预览，松手后执行普通返回动画",
                             checked = appNavigationSettings.predictiveBackEnabled,
@@ -252,8 +253,8 @@ fun AnimationSettingsContent(
                             },
                             iconTint = iOSTeal
                         )
-                        IOSDivider()
-                        IOSSlidingSegmentedSetting(
+                        AppPreferenceDivider()
+                        AppSegmentedPreference(
                             title = "共享元素速度：${state.videoSharedTransitionSpeed.label}",
                             subtitle = "连续性缓出 + 柔和回弹；自定义只调整时长",
                             options = sharedTransitionSpeedOptions,
@@ -302,7 +303,7 @@ fun AnimationSettingsContent(
                                 )
                             }
                         }
-                        IOSDivider()
+                        AppPreferenceDivider()
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -340,14 +341,14 @@ fun AnimationSettingsContent(
             // ✨ 视觉效果
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("玻璃效果")
+                    AppPreferenceSectionTitle("玻璃效果")
                 }
             }
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSGroup {
+                    AppPreferenceGroup {
                         if (isLiquidGlassAvailable) {
-                            IOSSwitchItem(
+                            AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_DOCK_GLASS),
                                 title = "顶部 Dock 液态玻璃",
                                 subtitle = "首页顶部 dock 栏的独立液态玻璃效果",
@@ -355,8 +356,8 @@ fun AnimationSettingsContent(
                                 onCheckedChange = { viewModel.toggleTopBarLiquidGlass(it) },
                                 iconTint = iOSBlue
                             )
-                            IOSDivider()
-                            IOSSwitchItem(
+                            AppPreferenceDivider()
+                            AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_SEARCH_GLASS),
                                 title = "首页搜索框液态玻璃",
                                 subtitle = "首页搜索框上下滑动时的液态玻璃折射效果",
@@ -364,8 +365,8 @@ fun AnimationSettingsContent(
                                 onCheckedChange = { viewModel.toggleHomeSearchLiquidGlass(it) },
                                 iconTint = iOSBlue
                             )
-                            IOSDivider()
-                            IOSSwitchItem(
+                            AppPreferenceDivider()
+                            AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_GLASS),
                                 title = "底栏液态玻璃",
                                 subtitle = "底部导航栏的液态玻璃折射效果",
@@ -379,7 +380,7 @@ fun AnimationSettingsContent(
                                 exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
                             ) {
                                 Column {
-                                    IOSDivider()
+                                    AppPreferenceDivider()
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Text(
                                             "当前使用固定材质策略",
@@ -394,10 +395,10 @@ fun AnimationSettingsContent(
                                     }
                                 }
                             }
-                            IOSDivider()
+                            AppPreferenceDivider()
                         }
                         // 磨砂效果 (始终显示)
-	                        IOSSwitchItem(
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
                             title = "顶部栏磨砂",
                             subtitle = "顶部导航栏的毛玻璃模糊效果",
@@ -405,8 +406,8 @@ fun AnimationSettingsContent(
                             onCheckedChange = { viewModel.toggleHeaderBlur(it) },
                             iconTint = iOSBlue
                         )
-                        IOSDivider()
-	                        IOSSwitchItem(
+                        AppPreferenceDivider()
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_BLUR),
                             title = "底栏磨砂",
                             subtitle = "底部导航栏的毛玻璃模糊效果",
@@ -417,7 +418,7 @@ fun AnimationSettingsContent(
                         
                         // 模糊强度（仅在任意模糊开启时显示）
                         if (state.headerBlurEnabled || state.bottomBarBlurEnabled) {
-                            IOSDivider()
+                            AppPreferenceDivider()
                             BlurIntensitySelector(
                                 selectedIntensity = state.blurIntensity,
                                 onIntensityChange = { viewModel.setBlurIntensity(it) }
@@ -430,13 +431,13 @@ fun AnimationSettingsContent(
             // 📐 底栏样式
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("底栏入口")
+                    AppPreferenceSectionTitle("底栏入口")
                 }
             }
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSGroup {
-	                        IOSSwitchItem(
+                    AppPreferenceGroup {
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.FLOATING_BOTTOM_BAR),
                             title = "悬浮底栏",
                             subtitle = "关闭后底栏将沉浸式贴底显示",

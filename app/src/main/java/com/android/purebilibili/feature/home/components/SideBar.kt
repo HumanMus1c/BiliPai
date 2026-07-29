@@ -1,9 +1,10 @@
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
 import android.os.SystemClock
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -27,7 +28,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -50,14 +51,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.R
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.core.ui.blur.unifiedBlur
+import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperProtectiveColor
+import com.android.purebilibili.core.ui.rememberAppNavigationCapabilities
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.WindowWidthSizeClass
@@ -101,13 +103,7 @@ fun FrostedSideBar(
     uiSkinDecoration: BottomBarUiSkinDecoration? = null,
     onToggleSidebar: (() -> Unit)? = null
 ) {
-    when (
-        resolveSideBarRenderer(
-            uiPreset = LocalUiPreset.current,
-            androidNativeVariant = LocalAndroidNativeVariant.current
-        )
-    ) {
-        SideBarRenderer.MIUIX_NAVIGATION_RAIL -> {
+    if (rememberAppNavigationCapabilities().usePlatformSideRail) {
             MiuixSideBar(
                 currentItem = currentItem,
                 onItemClick = onItemClick,
@@ -119,8 +115,7 @@ fun FrostedSideBar(
                 uiSkinDecoration = uiSkinDecoration,
                 onToggleSidebar = onToggleSidebar
             )
-        }
-        SideBarRenderer.FROSTED -> {
+    } else {
             FrostedSideBarContent(
                 currentItem = currentItem,
                 onItemClick = onItemClick,
@@ -132,7 +127,6 @@ fun FrostedSideBar(
                 uiSkinDecoration = uiSkinDecoration,
                 onToggleSidebar = onToggleSidebar
             )
-        }
     }
 }
 
@@ -244,11 +238,11 @@ private fun MiuixSideBar(
         }
 
         if (onToggleSidebar != null) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
             val sidebarLabel = stringResource(R.string.sidebar_toggle)
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(AppChromeSizeTokens.MinimumTouchTarget)
                     .clip(AppShapes.container(ContainerLevel.Card))
                     .clickable {
                         haptic(HapticType.LIGHT)
@@ -260,7 +254,7 @@ private fun MiuixSideBar(
                     CupertinoIcons.Outlined.SidebarRight,
                     contentDescription = sidebarLabel,
                     tint = AppSurfaceTokens.onSurfaceVariantSummary(),
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
                 )
             }
         }
@@ -280,8 +274,8 @@ private fun ColumnScope.MiuixSideBarSkinItem(
     val iconColor = if (selected) primaryColor else unselectedColor
     Column(
         modifier = modifier
-            .padding(vertical = 12.dp)
-            .size(64.dp)
+            .padding(vertical = AppSpacingTokens.Medium)
+            .size(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -299,11 +293,11 @@ private fun ColumnScope.MiuixSideBarSkinItem(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            fontSize = 10.sp,
+            fontSize = MaterialTheme.typography.labelSmall.fontSize,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             color = iconColor
         )
@@ -345,9 +339,9 @@ private fun FrostedSideBarContent(
         chromeBackground.copy(alpha = 0.95f)
     }
 
-    val sideBarWidth = 80.dp
+    val sideBarWidth = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.DoubleExtraLarge
 
-    Surface(
+    AppSurface(
         modifier = modifier
             .width(sideBarWidth)
             .fillMaxHeight()
@@ -362,7 +356,7 @@ private fun FrostedSideBarContent(
         color = sideBarContainerColor,
         border = if (hazeState != null) {
             androidx.compose.foundation.BorderStroke(
-                width = 0.5.dp,
+                width = AppSpacingTokens.Micro / 4,
                 brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
                     colors = listOf(
                         Color.Transparent,
@@ -372,7 +366,7 @@ private fun FrostedSideBarContent(
             )
         } else {
             androidx.compose.foundation.BorderStroke(
-                width = 0.5.dp,
+                width = AppSpacingTokens.Micro / 4,
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
             )
         }
@@ -381,7 +375,7 @@ private fun FrostedSideBarContent(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical))
-                .padding(vertical = 24.dp),
+                .padding(vertical = AppSpacingTokens.ExtraLarge),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
@@ -398,19 +392,19 @@ private fun FrostedSideBarContent(
 
                 val iconColor by animateColorAsState(
                     targetValue = if (isSelected || isPending) primaryColor else unselectedColor,
-                    animationSpec = spring(),
+                    animationSpec = AppMotionTokens.standardSpec(),
                     label = "iconColor"
                 )
 
                 val scale by animateFloatAsState(
                     targetValue = if (isSelected) 1.15f else 1.0f,
-                    animationSpec = spring(dampingRatio = 0.35f, stiffness = 300f),
+                    animationSpec = sideBarSelectionScaleMotionSpec(),
                     label = "scale"
                 )
 
                 val animatedWobble by animateFloatAsState(
                     targetValue = wobbleAngle,
-                    animationSpec = spring(dampingRatio = 0.2f, stiffness = 600f),
+                    animationSpec = sideBarWobbleMotionSpec(),
                     label = "wobble"
                 )
 
@@ -435,7 +429,7 @@ private fun FrostedSideBarContent(
 
                 Column(
                     modifier = Modifier
-                        .size(64.dp)
+                        .size(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large)
                         .then(if (itemIndex == 0) firstItemModifier else Modifier)
                         .then(
                             if (item == BottomNavItem.HOME) {
@@ -485,18 +479,18 @@ private fun FrostedSideBarContent(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
 
                     Text(
                         text = itemLabel,
                         style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                         color = iconColor
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -505,7 +499,7 @@ private fun FrostedSideBarContent(
                 val sidebarLabel = stringResource(R.string.sidebar_toggle)
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(AppChromeSizeTokens.MinimumTouchTarget)
                         .clip(AppShapes.container(ContainerLevel.Card))
                         .clickable {
                             haptic(HapticType.LIGHT)
@@ -517,10 +511,10 @@ private fun FrostedSideBarContent(
                         CupertinoIcons.Outlined.SidebarRight,
                         contentDescription = sidebarLabel,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
                     )
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraLarge))
             }
         }
     }

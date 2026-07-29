@@ -4,6 +4,7 @@ package com.android.purebilibili.feature.video.ui.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,7 +32,7 @@ fun CoinDialog(
 ) {
     if (!visible) return
     
-    var selectedCount by remember { mutableStateOf(1) }
+    var selectedCount by remember { mutableIntStateOf(1) }
     var alsoLike by remember { mutableStateOf(true) }
     
     val maxCoins = 2 - currentCoinCount  // Remaining coins that can be given

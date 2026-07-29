@@ -1,5 +1,9 @@
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.OpticalContrastPalette
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Row
@@ -62,7 +66,7 @@ internal fun HomeTopAvatarContent(
         ) {
             Text(
                 text = "未",
-                fontSize = 11.sp,
+                fontSize = MaterialTheme.typography.labelSmall.fontSize,
                 fontWeight = FontWeight.Bold,
                 color = fallbackTextColor
             )
@@ -86,7 +90,7 @@ internal fun HomeTopSearchPillContent(
             imageVector = searchIcon,
             contentDescription = "搜索",
             tint = contentColor,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
         )
         Spacer(modifier = Modifier.width(iconTextGap))
         Text(
@@ -114,7 +118,7 @@ internal fun HomeTopUnreadBadge(
                 minHeight = layout.minHeight
             )
             .background(com.android.purebilibili.core.theme.iOSRed, CircleShape)
-            .border(width = 1.dp, color = borderColor, shape = CircleShape)
+            .border(width = AppSpacingTokens.Micro / 2, color = borderColor, shape = CircleShape)
             .padding(
                 horizontal = layout.horizontalPadding,
                 vertical = layout.verticalPadding
@@ -123,9 +127,9 @@ internal fun HomeTopUnreadBadge(
     ) {
         Text(
             text = text,
-            color = Color.White,
-            fontSize = 11.sp,
-            lineHeight = 12.sp,
+            color = OpticalContrastPalette.Highlight,
+            fontSize = MaterialTheme.typography.labelSmall.fontSize,
+            lineHeight = MaterialTheme.typography.labelSmall.lineHeight,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1
         )

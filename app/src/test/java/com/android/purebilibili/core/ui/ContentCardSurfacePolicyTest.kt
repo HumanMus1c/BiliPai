@@ -13,7 +13,7 @@ class ContentCardSurfacePolicyTest {
     @Test
     fun miuixContentCardsUseTokenSurfaceAndFlatElevation() {
         val spec = resolveContentCardSurfaceSpec(UiPreset.MD3, AndroidNativeVariant.MIUIX)
-        assertTrue(spec.useMiuixTokens)
+        assertTrue(spec.usesTonalContainerTreatment)
         assertEquals(ContainerLevel.Card, spec.cornerLevel)
         assertEquals(0.8f, spec.borderWidthDp)
         assertEquals(0.22f, spec.borderAlpha)
@@ -24,7 +24,7 @@ class ContentCardSurfacePolicyTest {
     @Test
     fun materialContentCardsKeepLegacyGlassShellDefaults() {
         val spec = resolveContentCardSurfaceSpec(UiPreset.MD3, AndroidNativeVariant.MATERIAL3)
-        assertFalse(spec.useMiuixTokens)
+        assertFalse(spec.usesTonalContainerTreatment)
         assertEquals(0f, spec.borderWidthDp)
     }
 
@@ -36,11 +36,11 @@ class ContentCardSurfacePolicyTest {
             "app/src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicComponents.kt"
         )
 
-        assertTrue(messageSource.contains("resolveContentCardSurfaceSpec("))
+        assertTrue(messageSource.contains("rememberContentCardSurfaceSpec("))
         assertTrue(messageSource.contains("AppShapes.borderedContainer("))
-        assertTrue(searchSource.contains("resolveContentCardSurfaceSpec("))
+        assertTrue(searchSource.contains("rememberContentCardSurfaceSpec("))
         assertTrue(searchSource.contains("AppShapes.borderedContainer("))
-        assertTrue(dynamicSource.contains("resolveContentCardSurfaceSpec("))
+        assertTrue(dynamicSource.contains("rememberContentCardSurfaceSpec("))
         assertTrue(dynamicSource.contains("AppShapes.borderedContainer("))
     }
 

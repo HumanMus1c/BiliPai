@@ -22,7 +22,7 @@ class HomeFeedScrollStatePersistenceStructureTest {
     fun `home skin atmosphere is fixed in header instead of pager backdrop`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
         val headerCallSource = source
-            .substringAfter("iOSHomeHeader(")
+            .substringAfter("HomeHeader(")
             .substringBefore("AnimatedVisibility(")
 
         assertTrue(source.contains("val uiSkinState by rememberUiSkinState(context)"))

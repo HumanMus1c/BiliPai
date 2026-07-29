@@ -22,9 +22,10 @@ import com.android.purebilibili.core.store.resolveAppIconLauncherAlias
 import com.android.purebilibili.core.store.supportsAppIconAppearance
 import com.android.purebilibili.core.theme.AppFontSizePreset
 import com.android.purebilibili.core.theme.AppUiScalePreset
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
 import com.android.purebilibili.core.theme.syncThemeRoleControlAccent
+import com.android.purebilibili.core.ui.AppThemeSelection
+import com.android.purebilibili.core.ui.toAppThemeSelection
+import com.android.purebilibili.core.ui.toUiStyle
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_TRANSITION_CUSTOM_DEFAULT_MILLIS
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionSpeed
@@ -59,8 +60,7 @@ internal fun shouldStartSettingsDiagnostics(
 ): Boolean = loadState != SettingsDiagnosticsLoadState.LOADED && !jobActive
 
 data class SettingsUiState(
-    val uiPreset: UiPreset = UiPreset.IOS,
-    val androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3,
+    val themeSelection: AppThemeSelection = AppThemeSelection.IOS,
     val hwDecode: Boolean = true,
     val themeMode: AppThemeMode = AppThemeMode.FOLLOW_SYSTEM,
     val darkThemeStyle: DarkThemeStyle = DarkThemeStyle.DEFAULT,
@@ -133,8 +133,7 @@ data class SettingsUiState(
 
 // 内部数据类，用于分批合并流
 private data class CoreSettings(
-    val uiPreset: UiPreset,
-    val androidNativeVariant: AndroidNativeVariant,
+    val themeSelection: AppThemeSelection,
     val hwDecode: Boolean,
     val themeMode: AppThemeMode,
     val darkThemeStyle: DarkThemeStyle,
@@ -200,8 +199,7 @@ data class ExperimentalSettings(
 )
 
 private data class BaseSettings(
-    val uiPreset: UiPreset,
-    val androidNativeVariant: AndroidNativeVariant,
+    val themeSelection: AppThemeSelection,
     val hwDecode: Boolean,
     val themeMode: AppThemeMode,
     val darkThemeStyle: DarkThemeStyle,
@@ -281,8 +279,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     //  [核心修复] 分步合并，解决 combine 参数限制报错
     // 第 1 步：合并前 4 个设置
     private val coreSettingsFlow = combine(
-        SettingsManager.getUiPreset(context).asAnyFlow(),
-        SettingsManager.getAndroidNativeVariant(context).asAnyFlow(),
+        SettingsManager.getUiStyle(context).map { it.toAppThemeSelection() }.asAnyFlow(),
         SettingsManager.getHwDecode(context).asAnyFlow(),
         SettingsManager.getThemeMode(context).asAnyFlow(),
         SettingsManager.getDarkThemeStyle(context).asAnyFlow(),
@@ -297,18 +294,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             .asAnyFlow()
     ) { values ->
         CoreSettings(
-            uiPreset = values[0] as UiPreset,
-            androidNativeVariant = values[1] as AndroidNativeVariant,
-            hwDecode = values[2] as Boolean,
-            themeMode = values[3] as AppThemeMode,
-            darkThemeStyle = values[4] as DarkThemeStyle,
-            appLanguage = values[5] as AppLanguage,
-            dynamicColor = values[6] as Boolean,
-            md3ColorSource = values[7] as Md3ColorSource,
-            md3CustomColorHex = values[8] as String,
-            colorStyle = values[9] as PaletteStyle,
-            colorSpec = values[10] as ColorSpec.SpecVersion,
-            bgPlay = values[11] as Boolean
+            themeSelection = values[0] as AppThemeSelection,
+            hwDecode = values[1] as Boolean,
+            themeMode = values[2] as AppThemeMode,
+            darkThemeStyle = values[3] as DarkThemeStyle,
+            appLanguage = values[4] as AppLanguage,
+            dynamicColor = values[5] as Boolean,
+            md3ColorSource = values[6] as Md3ColorSource,
+            md3CustomColorHex = values[7] as String,
+            colorStyle = values[8] as PaletteStyle,
+            colorSpec = values[9] as ColorSpec.SpecVersion,
+            bgPlay = values[10] as Boolean
         )
     }
     
@@ -522,8 +518,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     // 第 5 步：合并两组设置
     private val baseSettingsFlow = combine(coreSettingsFlow, extraSettingsFlow) { core, extra ->
         BaseSettings(
-            uiPreset = core.uiPreset,
-            androidNativeVariant = core.androidNativeVariant,
+            themeSelection = core.themeSelection,
             hwDecode = core.hwDecode,
             themeMode = core.themeMode,
             darkThemeStyle = core.darkThemeStyle,
@@ -586,8 +581,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _diagnosticsState,
     ) { settings, cache, experimental, diagnostics ->
         SettingsUiState(
-            uiPreset = settings.uiPreset,
-            androidNativeVariant = settings.androidNativeVariant,
+            themeSelection = settings.themeSelection,
             hwDecode = settings.hwDecode,
             themeMode = settings.themeMode,
             darkThemeStyle = settings.darkThemeStyle,
@@ -723,14 +717,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun toggleHwDecode(value: Boolean) { viewModelScope.launch { SettingsManager.setHwDecode(context, value) } }
-    fun setUiPreset(preset: UiPreset) {
+    fun setThemeSelection(selection: AppThemeSelection) {
         viewModelScope.launch {
-            SettingsManager.setUiPreset(context, preset)
-        }
-    }
-    fun setAndroidNativeVariant(variant: AndroidNativeVariant) {
-        viewModelScope.launch {
-            SettingsManager.setAndroidNativeVariant(context, variant)
+            SettingsManager.setUiStyle(context, selection.toUiStyle())
         }
     }
     fun setThemeMode(mode: AppThemeMode) { 

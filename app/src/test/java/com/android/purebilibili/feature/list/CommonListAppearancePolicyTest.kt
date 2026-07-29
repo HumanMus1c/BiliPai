@@ -3,8 +3,10 @@ package com.android.purebilibili.feature.list
 import java.io.File
 import com.android.purebilibili.core.store.HomeHeaderBlurMode
 import com.android.purebilibili.core.store.HomeSettings
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppSemanticIconFamily
+import com.android.purebilibili.core.ui.AppTopChromePolicy
+import com.android.purebilibili.core.ui.AppTopTabPresentation
+import com.android.purebilibili.core.ui.CompactCapsuleChromeSpec
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,27 +16,40 @@ import kotlin.test.assertTrue
 class CommonListAppearancePolicyTest {
 
     @Test
-    fun md3FollowPreset_keepsHeaderBlurForCommonList() {
+    fun commonListGridWidth_preservesPhoneDensityAndTabletReadability() {
+        assertEquals(170.dp, resolveCommonListGridMinColumnWidth(isExpandedScreen = false))
+        assertEquals(240.dp, resolveCommonListGridMinColumnWidth(isExpandedScreen = true))
+    }
+
+    @Test
+    fun favoritePreviewAndProgressBadgeWidths_areOwnedByLayoutPolicy() {
+        assertEquals(112.dp, resolveFavoriteSubscribedFolderPreviewWidth())
+        assertEquals(
+            FavoriteProgressBadgeWidthSpec(minWidth = 104.dp, maxWidth = 150.dp),
+            resolveFavoriteProgressBadgeWidthSpec(),
+        )
+    }
+
+    @Test
+    fun followPreset_keepsHeaderBlurForCommonList() {
         val enabled = resolveCommonListHeaderBlurEnabled(
             homeSettings = HomeSettings(
                 headerBlurMode = HomeHeaderBlurMode.FOLLOW_PRESET
             ),
-            uiPreset = UiPreset.MD3
         )
 
         assertTrue(enabled)
     }
 
     @Test
-    fun iosFollowPreset_keepsHeaderBlurForCommonList() {
+    fun alwaysOff_disablesHeaderBlurForCommonList() {
         val enabled = resolveCommonListHeaderBlurEnabled(
             homeSettings = HomeSettings(
-                headerBlurMode = HomeHeaderBlurMode.FOLLOW_PRESET
+                headerBlurMode = HomeHeaderBlurMode.ALWAYS_OFF
             ),
-            uiPreset = UiPreset.IOS
         )
 
-        assertTrue(enabled)
+        assertFalse(enabled)
     }
 
     @Test
@@ -48,7 +63,7 @@ class CommonListAppearancePolicyTest {
                 showHomeCoverGlassBadges = true,
                 showHomeInfoGlassBadges = true
             ),
-            uiPreset = UiPreset.MD3
+            liquidGlassEnabled = false,
         )
 
         assertFalse(appearance.glassEnabled)
@@ -107,9 +122,14 @@ class CommonListAppearancePolicyTest {
     }
 
     @Test
-    fun iosFavoriteHeaderLayout_prefersCompactSearchAndChips() {
+    fun movingCapsuleFavoriteHeaderLayout_prefersCompactSearchAndChips() {
         val layout = resolveCommonListFavoriteHeaderLayout(
-            uiPreset = UiPreset.IOS
+            topChromePolicy = testTopChromePolicy(
+                presentation = AppTopTabPresentation.MOVING_CAPSULE,
+                primaryHeightDp = 44,
+                chipHeightDp = 36,
+                compactChipHeightDp = 32,
+            ),
         )
 
         assertEquals(44, layout.searchBarHeightDp)
@@ -121,10 +141,14 @@ class CommonListAppearancePolicyTest {
     }
 
     @Test
-    fun md3FavoriteHeaderLayout_staysCompactWithoutBecomingTiny() {
+    fun materialUnderlineFavoriteHeaderLayout_staysCompactWithoutBecomingTiny() {
         val layout = resolveCommonListFavoriteHeaderLayout(
-            uiPreset = UiPreset.MD3,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
+            topChromePolicy = testTopChromePolicy(
+                presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+                primaryHeightDp = 56,
+                chipHeightDp = 32,
+                compactChipHeightDp = 28,
+            ),
         )
 
         assertEquals(56, layout.searchBarHeightDp)
@@ -133,5 +157,31 @@ class CommonListAppearancePolicyTest {
         assertEquals(32, layout.folderChipMinHeightDp)
         assertTrue(layout.headerBackgroundAlphaMultiplier < 1f)
     }
+
+    private fun testTopChromePolicy(
+        presentation: AppTopTabPresentation,
+        primaryHeightDp: Int,
+        chipHeightDp: Int,
+        compactChipHeightDp: Int,
+    ) = AppTopChromePolicy(
+        tabPresentation = presentation,
+        iconFamily = AppSemanticIconFamily.MATERIAL,
+        compactChromeSpec = CompactCapsuleChromeSpec(
+            primaryHeightDp = primaryHeightDp,
+            secondaryButtonSizeDp = 48,
+            chipHeightDp = chipHeightDp,
+            compactChipHeightDp = compactChipHeightDp,
+            primaryCornerRadiusDp = primaryHeightDp / 2,
+            secondaryButtonCornerRadiusDp = 24,
+            chipCornerRadiusDp = chipHeightDp / 2,
+            compactChipCornerRadiusDp = compactChipHeightDp / 2,
+            iconSizeDp = 20,
+            smallIconSizeDp = 16,
+            inputHorizontalPaddingDp = 12,
+            chipHorizontalPaddingDp = 12,
+            compactChipHorizontalPaddingDp = 10,
+            standardGapDp = 8,
+        ),
+    )
 
 }

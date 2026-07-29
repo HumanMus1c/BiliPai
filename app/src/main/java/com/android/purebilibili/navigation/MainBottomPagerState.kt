@@ -1,8 +1,7 @@
 package com.android.purebilibili.navigation
 
-import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,6 +14,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
@@ -35,42 +35,38 @@ internal class MainBottomPagerState(
 
     private var navJob: Job? = null
 
-    fun animateToPage(targetIndex: Int) {
-        if (targetIndex == selectedPage) return
+    fun switchToPage(targetIndex: Int) {
+        val lastPage = pagerState.pageCount - 1
+        if (lastPage < 0) return
+        val safeTargetIndex = targetIndex.coerceIn(0, lastPage)
+        if (safeTargetIndex == selectedPage) return
 
         val previousJob = navJob
         navJob = null
         previousJob?.cancel()
 
         navigationStartPage = pagerState.currentPage
-        selectedPage = targetIndex
+        selectedPage = safeTargetIndex
         isNavigating = true
-
-        val layoutInfo = pagerState.layoutInfo
-        val pageSize = layoutInfo.pageSize + layoutInfo.pageSpacing
-        val scrollPixels =
-            (targetIndex - pagerState.currentPage - pagerState.currentPageOffsetFraction) * pageSize
-        val duration = resolveBottomPagerNavigationDurationMillis(
-            pageDistance = abs(targetIndex - pagerState.currentPage)
-        )
 
         navJob = coroutineScope.launch {
             val myJob = coroutineContext.job
             try {
                 previousJob?.join()
-                if (pageSize > 0) {
-                    pagerState.animateScrollBy(
-                        value = scrollPixels,
-                        animationSpec = tween(easing = EaseInOut, durationMillis = duration)
-                    )
+                awaitScrollIdle()
+                awaitNextFrame()
+                if (!animatePageChange(safeTargetIndex)) {
+                    pagerState.scrollToPage(safeTargetIndex)
                 }
+                delay(BOTTOM_TAB_RENDER_BUDGET_HOLD_MILLIS)
             } catch (_: IllegalStateException) {
-                // Pager 在测量竞争期间可能拒绝强制滚动，避免底栏快速切换直接闪退。
+                // Pager 在测量竞争期间可能拒绝切页，保持当前页并避免快速点击闪退。
             } finally {
                 if (navJob == myJob) {
                     isNavigating = false
-                    selectedPage = targetIndex
-                    navigationStartPage = targetIndex
+                    selectedPage = pagerState.currentPage
+                    navigationStartPage = pagerState.currentPage
+                    navJob = null
                 }
             }
         }
@@ -82,37 +78,28 @@ internal class MainBottomPagerState(
         }
     }
 
-    /**
-     * 立即跳到目标页，不播放横向滚动动画。
-     * 用于「返回首页」按钮：在视频详情把 MainHost 完全遮挡时静默切到 HOME，
-     * 待 [popBiliPaiNavKeyToRoot] 触发的横向过渡播放时背后已经是首页。
-     */
-    fun snapToPage(targetIndex: Int) {
-        if (targetIndex == pagerState.currentPage && targetIndex == selectedPage) {
-            return
-        }
-        val previousJob = navJob
-        navJob = null
-        previousJob?.cancel()
-        navigationStartPage = targetIndex
-        selectedPage = targetIndex
-        isNavigating = false
-        navJob = coroutineScope.launch {
-            try {
-                previousJob?.join()
-                awaitScrollIdle()
-                awaitNextFrame()
+    private suspend fun animatePageChange(targetIndex: Int): Boolean {
+        val layoutInfo = pagerState.layoutInfo
+        if (layoutInfo.pageSize <= 0) return false
 
-                pagerState.scrollToPage(targetIndex)
-            } catch (_: IllegalStateException) {
-                // 同 animateToPage：取消旧滚动后的测量竞争不应导致闪退。
-            } finally {
-                if (pagerState.currentPage == targetIndex) {
-                    selectedPage = targetIndex
-                    navigationStartPage = targetIndex
-                }
-            }
+        val currentPage = pagerState.currentPage
+        if (targetIndex == currentPage && abs(pagerState.currentPageOffsetFraction) < 0.001f) {
+            return false
         }
+
+        val durationMillis = resolveBottomPagerNavigationDurationMillis(
+            pageDistance = abs(targetIndex - currentPage)
+        ).coerceAtMost(BOTTOM_PAGER_ANIMATED_SCROLL_MAX_MILLIS)
+        pagerState.run {
+            animateScrollToPage(
+                page = targetIndex,
+                animationSpec = tween(
+                    durationMillis = durationMillis,
+                    easing = LinearOutSlowInEasing,
+                ),
+            )
+        }
+        return true
     }
 
     private suspend fun awaitScrollIdle() {
@@ -125,6 +112,8 @@ internal class MainBottomPagerState(
         withFrameNanos { }
     }
 }
+
+private const val BOTTOM_PAGER_ANIMATED_SCROLL_MAX_MILLIS = 280
 
 @Composable
 internal fun rememberMainBottomPagerState(

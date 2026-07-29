@@ -22,16 +22,20 @@ class HomeFeedSkeletonCardStructureTest {
     }
 
     @Test
-    fun featureSkeletonMatchesHomeVideoCardGeometryAndUsesReversePulse() {
+    fun featureSkeletonUsesSharedHomeGeometryAndReversePulse() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeFeedSkeletonCard.kt")
 
         assertTrue(source.contains("RepeatMode.Reverse"))
         assertTrue(source.contains("durationMillis = HOME_FEED_SKELETON_PULSE_DURATION_MILLIS"))
         assertTrue(source.contains("VIDEO_SHARED_COVER_ASPECT_RATIO"))
-        assertTrue(source.contains("LocalCornerRadiusScale.current"))
-        assertTrue(source.contains("val cardCornerRadius = 12.dp * cornerRadiusScale"))
-        assertTrue(source.contains(".padding(bottom = 12.dp)"))
-        assertTrue(source.contains(".padding(horizontal = 10.dp, vertical = 8.dp)"))
+        assertTrue(source.contains("AppShapes.containerCornerDp(ContainerLevel.Card)"))
+        assertTrue(source.contains("AppShapes.container(ContainerLevel.Card)"))
+        assertTrue(source.contains(".padding(bottom = AppSpacingTokens.Medium)"))
+        assertTrue(
+            source.contains(
+                ".padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Small)"
+            )
+        )
     }
 
     private fun loadSource(path: String): String {

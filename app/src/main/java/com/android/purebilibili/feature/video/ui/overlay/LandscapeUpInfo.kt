@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,6 +17,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.android.purebilibili.core.ui.components.AppSurface
 
 /**
  *  横屏 UP 主信息组件
@@ -32,7 +32,7 @@ fun LandscapeUpInfo(
     upName: String,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppSurface(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
         color = Color.Black.copy(alpha = 0.5f)
@@ -79,7 +79,7 @@ fun LandscapeViewerCount(
 ) {
     if (count.isEmpty()) return
     
-    Surface(
+    AppSurface(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         color = Color.Black.copy(alpha = 0.5f)

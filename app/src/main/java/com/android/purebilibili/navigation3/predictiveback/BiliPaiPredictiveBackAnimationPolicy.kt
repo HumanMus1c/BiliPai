@@ -13,6 +13,9 @@ internal fun resolveBiliPaiPredictiveBackAnimationHandler(
     if (!predictiveBackEnabled) {
         return BiliPaiDisabledPredictiveBackAnimation()
     }
+    if (routeTransition == BiliPaiNavRouteTransition.VIDEO_DETAIL_NO_ANIMATION) {
+        return BiliPaiDisabledPredictiveBackAnimation()
+    }
     if (routeTransition == BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT) {
         return BiliPaiSharedElementPredictiveBackAnimation()
     }

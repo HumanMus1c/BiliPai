@@ -1,6 +1,8 @@
 package com.android.purebilibili.feature.live
 
 import androidx.compose.ui.graphics.Color
+import com.android.purebilibili.core.ui.AppTopTabPresentation
+import com.android.purebilibili.core.ui.CompactCapsuleChromeSpec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -19,10 +21,35 @@ class LivePiliPlusVisualPolicyTest {
     }
 
     @Test
-    fun `mobile grid keeps two columns and expanded grid follows PiliPlus max extent`() {
-        assertEquals(2, resolveLivePiliPlusGridColumns(widthDp = 390, isExpandedScreen = false))
-        assertEquals(3, resolveLivePiliPlusGridColumns(widthDp = 720, isExpandedScreen = true))
-        assertEquals(4, resolveLivePiliPlusGridColumns(widthDp = 1100, isExpandedScreen = true))
+    fun `live visual spec preserves chrome presentation density`() {
+        val ios = resolveLiveVisualSpec(AppTopTabPresentation.MOVING_CAPSULE)
+        val md3 = resolveLiveVisualSpec(AppTopTabPresentation.MATERIAL_UNDERLINE)
+        val miuix = resolveLiveVisualSpec(AppTopTabPresentation.TONAL_CAPSULE)
+
+        assertEquals(12, ios.homeMetrics.safeSpaceDp)
+        assertEquals(18, md3.homeMetrics.safeSpaceDp)
+        assertEquals(16, miuix.homeMetrics.safeSpaceDp)
+        assertEquals(8, ios.homeMetrics.cardSpaceDp)
+        assertEquals(12, md3.homeMetrics.cardSpaceDp)
+        assertEquals(10, miuix.homeMetrics.cardSpaceDp)
+        assertEquals(90, ios.roomCardDetailsMinHeightDp)
+        assertEquals(88, md3.roomCardDetailsMinHeightDp)
+        assertEquals(95, miuix.roomCardDetailsMinHeightDp)
+        assertEquals(48, ios.playerButtonTouchTargetDp)
+        assertEquals(48, md3.playerButtonTouchTargetDp)
+        assertEquals(48, miuix.playerButtonTouchTargetDp)
+        assertEquals(38, ios.playerButtonVisualSizeDp)
+        assertEquals(40, md3.playerButtonVisualSizeDp)
+        assertEquals(38, miuix.playerButtonVisualSizeDp)
+        assertEquals(1200, ios.maxContentWidthDp)
+    }
+
+    @Test
+    fun `mobile and tablet grids follow layout class`() {
+        assertEquals(2, resolveLivePiliPlusGridColumns(widthDp = 390, isTabletLayout = false))
+        assertEquals(3, resolveLivePiliPlusGridColumns(widthDp = 720, isTabletLayout = true))
+        assertEquals(4, resolveLivePiliPlusGridColumns(widthDp = 1100, isTabletLayout = true))
+        assertEquals(5, resolveLivePiliPlusGridColumns(widthDp = 1200, isTabletLayout = true))
     }
 
     @Test
@@ -72,13 +99,58 @@ class LivePiliPlusVisualPolicyTest {
 
     @Test
     fun `interaction segmented control keeps liquid glass touch target dimensions`() {
-        val spec = resolveLiveInteractionSegmentedControlSpec()
+        val spec = resolveLiveInteractionSegmentedControlSpec(
+            compactChrome(
+                primaryHeightDp = 44,
+                compactChipHeightDp = 32,
+                chipHorizontalPaddingDp = 12,
+                standardGapDp = 8,
+            ),
+        )
 
-        assertEquals(14, spec.horizontalPaddingDp)
+        assertEquals(12, spec.horizontalPaddingDp)
         assertEquals(8, spec.verticalPaddingDp)
         assertEquals(44, spec.heightDp)
-        assertEquals(30, spec.indicatorHeightDp)
+        assertEquals(32, spec.indicatorHeightDp)
         assertEquals(14, spec.labelFontSizeSp)
+    }
+
+    @Test
+    fun `interaction segmented control follows android native variants`() {
+        val md3 = resolveLiveInteractionSegmentedControlSpec(
+            compactChrome(
+                primaryHeightDp = 56,
+                compactChipHeightDp = 28,
+                chipHorizontalPaddingDp = 16,
+                standardGapDp = 12,
+            ),
+        )
+        val miuix = resolveLiveInteractionSegmentedControlSpec(
+            compactChrome(
+                primaryHeightDp = 48,
+                compactChipHeightDp = 28,
+                chipHorizontalPaddingDp = 12,
+                standardGapDp = 8,
+            ),
+        )
+
+        assertEquals(56, md3.heightDp)
+        assertEquals(16, md3.horizontalPaddingDp)
+        assertEquals(48, miuix.heightDp)
+        assertEquals(12, miuix.horizontalPaddingDp)
+    }
+
+    @Test
+    fun `live overlay controls keep named density and accessible touch targets`() {
+        val chatInput = resolveLiveChatInputVisualSpec()
+        val playerControl = resolveLivePlayerControlVisualSpec()
+        val sheet = resolveLiveSheetVisualSpec()
+
+        assertEquals(48, chatInput.controlSizeDp)
+        assertEquals(48, chatInput.sendButtonSizeDp)
+        assertEquals(48, playerControl.rowHeightDp)
+        assertEquals(420, sheet.emoticonListMaxHeightDp)
+        assertEquals(360, sheet.contributionListMaxHeightDp)
     }
 
     @Test
@@ -94,4 +166,26 @@ class LivePiliPlusVisualPolicyTest {
         assertEquals(Color(0xFFDDE1E6), tokens.inputOverlayColor)
         assertEquals(Color(0xFFE6E1E5), tokens.inputContentColor)
     }
+
+    private fun compactChrome(
+        primaryHeightDp: Int,
+        compactChipHeightDp: Int,
+        chipHorizontalPaddingDp: Int,
+        standardGapDp: Int,
+    ) = CompactCapsuleChromeSpec(
+        primaryHeightDp = primaryHeightDp,
+        secondaryButtonSizeDp = 48,
+        chipHeightDp = 32,
+        compactChipHeightDp = compactChipHeightDp,
+        primaryCornerRadiusDp = 16,
+        secondaryButtonCornerRadiusDp = 16,
+        chipCornerRadiusDp = 16,
+        compactChipCornerRadiusDp = 14,
+        iconSizeDp = 20,
+        smallIconSizeDp = 16,
+        inputHorizontalPaddingDp = 12,
+        chipHorizontalPaddingDp = chipHorizontalPaddingDp,
+        compactChipHorizontalPaddingDp = 10,
+        standardGapDp = standardGapDp,
+    )
 }

@@ -48,7 +48,7 @@ internal fun hasCommentSortIndicatorScaleClearance(
 }
 
 /**
- *  评论排序筛选栏 (iOS Style)
+ *  评论排序筛选栏
  *  Header: "评论 (123)"
  *  Controls: Segmented Control [按热度 | 按时间]
  */
@@ -97,14 +97,14 @@ fun CommentSortFilterBar(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Only UP Toggle
-            iOSToggleButton(
+            CommentToggleButton(
                 isChecked = upOnly,
                 onToggle = onUpOnlyToggle,
                 icon = CupertinoIcons.Filled.Person
             )
 
             // Segmented Control
-            iOSSegmentedControl(
+            CommentSegmentedControl(
                 items = sortModes.map { it.label },
                 selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
                 onScaleChange = { index ->
@@ -120,7 +120,7 @@ fun CommentSortFilterBar(
  * Bottom-bar matched segmented control.
  */
 @Composable
-fun iOSSegmentedControl(
+fun CommentSegmentedControl(
     items: List<String>,
     selectedIndex: Int,
     onScaleChange: (Int) -> Unit,
@@ -149,10 +149,10 @@ fun iOSSegmentedControl(
 }
 
 /**
- * iOS Style Toggle Button (Optional usage)
+ * 评论筛选切换按钮
  */
 @Composable
-fun iOSToggleButton(
+fun CommentToggleButton(
     isChecked: Boolean,
     onToggle: () -> Unit,
     icon: androidx.compose.ui.graphics.vector.ImageVector

@@ -1,5 +1,9 @@
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.OpticalContrastPalette
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -83,10 +87,12 @@ internal fun HomeTopTabChrome(
     content: @Composable () -> Unit
 ) {
     val density = LocalDensity.current
-    val gestureThresholdPx = with(density) { 40.dp.toPx() }
+    val gestureThresholdPx = with(density) {
+        (AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small).toPx()
+    }
     val showCollapsedHandle = gestureEnabled && isTabsCollapsed
-    val safeTabHorizontalPadding = tabHorizontalPadding.coerceAtLeast(0.dp)
-    val safeTabVerticalPadding = tabVerticalPadding.coerceAtLeast(0.dp)
+    val safeTabHorizontalPadding = tabHorizontalPadding.coerceAtLeast(AppSpacingTokens.None)
+    val safeTabVerticalPadding = tabVerticalPadding.coerceAtLeast(AppSpacingTokens.None)
     val containerAlpha = if (showCollapsedHandle) {
         tabAlpha
     } else {
@@ -140,7 +146,7 @@ internal fun HomeTopTabChrome(
         ) {
             val shouldWrap = wrapDockWidth &&
                 dockCategoryCount > 0 &&
-                maxWidth > 0.dp
+                maxWidth > AppSpacingTokens.None
             val dockWidth = if (shouldWrap) {
                 val preferredItem = resolveTopTabWrapItemWidthDp(
                     labelMode = dockLabelMode,
@@ -218,8 +224,8 @@ internal fun HomeTopTabChrome(
                     .then(
                         if (drawChromeSurface && isTabFloating) {
                             Modifier.border(
-                                width = 0.8.dp,
-                                color = Color.White.copy(alpha = tabBorderAlpha),
+                                width = AppSpacingTokens.Micro * 0.4f,
+                                color = OpticalContrastPalette.Highlight.copy(alpha = tabBorderAlpha),
                                 shape = tabShape
                             )
                         } else {
@@ -238,7 +244,7 @@ internal fun HomeTopTabChrome(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(16.dp)
+                                .height(AppSpacingTokens.Large)
                                 .background(
                                     brush = Brush.verticalGradient(
                                         colors = listOf(
@@ -277,7 +283,7 @@ private fun BoxScope.CollapsedTopTabHandle() {
     Box(
         modifier = Modifier
             .align(Alignment.Center)
-            .size(width = 34.dp, height = 4.dp)
+            .size(width = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Micro, height = AppSpacingTokens.ExtraSmall)
             .clip(AppShapes.container(ContainerLevel.Pill))
             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f))
     )

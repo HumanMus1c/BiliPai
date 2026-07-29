@@ -15,7 +15,7 @@ class AnimationSettingsScreenStructureTest {
         assertTrue(source.contains("SettingsManager.setPredictiveBackEnabled(context, enabled)"))
         val predictiveItem = source
             .substringAfter("title = \"预测性返回手势\"")
-            .substringBefore("IOSDivider()")
+            .substringBefore("AppPreferenceDivider()")
         assertFalse(predictiveItem.contains("enabled = state.cardTransitionEnabled"))
         assertFalse(source.contains("setPredictiveBackAnimationStyle"))
         assertFalse(source.contains("setPredictiveBackExitDirection"))

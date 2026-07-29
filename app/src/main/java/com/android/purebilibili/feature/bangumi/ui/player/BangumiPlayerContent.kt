@@ -10,10 +10,8 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import com.android.purebilibili.core.ui.rememberAppCheckCircleIcon
+import com.android.purebilibili.core.ui.rememberAppProfileAddIcon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -52,6 +50,8 @@ fun BangumiPlayerContent(
     onFollowStatusSelect: (Int) -> Unit
 ) {
     val isFollowing = isBangumiFollowed(detail.userStatus)
+    val followedIcon = rememberAppCheckCircleIcon()
+    val followIcon = rememberAppProfileAddIcon()
     var showFollowStatusDialog by remember { mutableStateOf(false) }
     val tabs = listOf("简介", "评论 ${detail.stat?.reply?.takeIf { it > 0L } ?: ""}".trim())
     val pagerState = rememberPagerState(pageCount = { tabs.size })
@@ -149,7 +149,7 @@ fun BangumiPlayerContent(
                     }
                 ) {
                     Icon(
-                        if (isFollowing) CupertinoIcons.Default.Checkmark else CupertinoIcons.Default.Plus,
+                        if (isFollowing) followedIcon else followIcon,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )

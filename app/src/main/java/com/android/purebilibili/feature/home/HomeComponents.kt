@@ -3,6 +3,8 @@
 // UserState 定义在 HomeViewModel.kt 中
 package com.android.purebilibili.feature.home
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,7 +33,7 @@ fun WelcomeDialog(githubUrl: String, onConfirm: () -> Unit) {
             Column {
                 Text("本应用仅供学习使用。")
                 TextButton(onClick = { uriHandler.openUri(githubUrl) }) {
-                    Text("开源地址: $githubUrl", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                    Text("开源地址: $githubUrl", fontSize = MaterialTheme.typography.labelSmall.fontSize, color = MaterialTheme.colorScheme.primary)
                 }
             }
         },
@@ -55,7 +57,7 @@ fun ErrorState(message: String, onRetry: () -> Unit) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = message, color = MaterialTheme.colorScheme.error)
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
             Button(
                 onClick = onRetry,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
@@ -81,8 +83,8 @@ fun LiveSubCategoryRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(vertical = AppSpacingTokens.Small),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
     ) {
         LiveSubCategory.entries.forEach { subCategory ->
             val isSelected = selectedSubCategory == subCategory

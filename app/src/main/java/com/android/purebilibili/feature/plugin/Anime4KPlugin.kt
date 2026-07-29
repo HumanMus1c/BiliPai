@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FilterChip
+import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -127,7 +127,7 @@ class Anime4KPlugin : Plugin {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             options.forEach { preset ->
-                FilterChip(
+                AppFilterChip(
                     selected = configSnapshot.preset == preset,
                     onClick = { setPreset(preset) },
                     label = { Text(resolveAnime4KPresetLabel(preset)) }

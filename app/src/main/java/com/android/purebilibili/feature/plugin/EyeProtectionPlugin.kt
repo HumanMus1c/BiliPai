@@ -12,15 +12,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.FilterChip
+import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Slider
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppSlider
 import androidx.compose.material3.Text
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.plugin.Plugin
 import com.android.purebilibili.core.plugin.PluginManager
 import com.android.purebilibili.core.plugin.PluginStore
-import com.android.purebilibili.core.ui.components.IOSSwitchItem
+import com.android.purebilibili.core.ui.components.AppSwitchPreference
 import com.android.purebilibili.core.util.Logger
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.Moon
@@ -388,7 +388,7 @@ class EyeProtectionPlugin : Plugin {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            IOSSwitchItem(
+            AppSwitchPreference(
                 icon = CupertinoIcons.Outlined.Lightbulb,
                 title = "立即开启护眼",
                 subtitle = "手动强制开启，不受时间段限制",
@@ -404,7 +404,7 @@ class EyeProtectionPlugin : Plugin {
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
 
-            IOSSwitchItem(
+            AppSwitchPreference(
                 icon = CupertinoIcons.Outlined.Moon,
                 title = "定时护眼模式",
                 subtitle = "${uiConfig.nightModeStartHour}:00 - ${uiConfig.nightModeEndHour}:00 自动开启",
@@ -448,7 +448,7 @@ class EyeProtectionPlugin : Plugin {
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
 
-            IOSSwitchItem(
+            AppSwitchPreference(
                 icon = CupertinoIcons.Outlined.Clock,
                 title = "关怀提醒",
                 subtitle = "定时提醒休息、看远处、放松肩颈",
@@ -462,7 +462,7 @@ class EyeProtectionPlugin : Plugin {
             if (uiConfig.usageReminderEnabled) {
                 Spacer(modifier = Modifier.height(10.dp))
 
-                IOSSwitchItem(
+                AppSwitchPreference(
                     icon = CupertinoIcons.Outlined.Sparkles,
                     title = "仅夜间提醒",
                     subtitle = "白天减少打扰，夜间更积极守护",
@@ -488,7 +488,7 @@ class EyeProtectionPlugin : Plugin {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(20, 30, 45, 60).forEach { minutes ->
-                        FilterChip(
+                        AppFilterChip(
                             selected = uiConfig.usageDurationMinutes == minutes,
                             onClick = {
                                 val changed = uiConfig.copy(usageDurationMinutes = minutes)
@@ -522,7 +522,7 @@ class EyeProtectionPlugin : Plugin {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(5, 10, 15, 20).forEach { minutes ->
-                        FilterChip(
+                        AppFilterChip(
                             selected = uiConfig.reminderSnoozeMinutes == minutes,
                             onClick = {
                                 val changed = uiConfig.copy(reminderSnoozeMinutes = minutes)
@@ -561,7 +561,7 @@ class EyeProtectionPlugin : Plugin {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 presets.forEach { (preset, label) ->
-                    FilterChip(
+                    AppFilterChip(
                         selected = uiConfig.carePreset == preset,
                         onClick = {
                             val changed = applyPresetConfig(uiConfig, preset)
@@ -614,7 +614,7 @@ class EyeProtectionPlugin : Plugin {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Slider(
+            AppSlider(
                 value = uiConfig.brightnessLevel,
                 onValueChange = { value ->
                     val newConfig = persistCurrentValuesToSelectedPreset(
@@ -653,7 +653,7 @@ class EyeProtectionPlugin : Plugin {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Slider(
+            AppSlider(
                 value = uiConfig.warmFilterStrength,
                 onValueChange = { value ->
                     val newConfig = persistCurrentValuesToSelectedPreset(
@@ -719,7 +719,7 @@ private fun TimePickerDropdown(
             .then(modifier)
             .fillMaxWidth()
     ) {
-        OutlinedButton(
+        AppOutlinedButton(
             onClick = { expanded = true },
             modifier = Modifier
                 .fillMaxWidth()
@@ -749,13 +749,13 @@ private fun TimePickerDropdown(
             }
         }
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             modifier = Modifier.fillMaxWidth()
         ) {
             (0..23).forEach { hour ->
-                DropdownMenuItem(
+                AppDropdownMenuItem(
                     text = { Text(String.format("%02d:00", hour)) },
                     trailingIcon = {
                         if (hour == selectedHour) {

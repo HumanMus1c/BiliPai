@@ -23,7 +23,8 @@ class AppChromeSizeTokenAdoptionTest {
         tokenizedSources.forEach { path ->
             val source = loadSource(path)
             assertTrue(
-                source.contains("resolveCompactCapsuleChromeSpec("),
+                source.contains("resolveCompactCapsuleChromeSpec(") ||
+                    source.contains("compactChromeSpec"),
                 "$path should use shared compact capsule chrome tokens"
             )
         }

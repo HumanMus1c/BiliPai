@@ -23,11 +23,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.ui.draw.scale
 import android.widget.Toast
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.rememberAppClearIcon
+import com.android.purebilibili.core.ui.rememberAppCheckCircleIcon
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 
 /**
@@ -53,6 +54,7 @@ fun OfficialWallpaperSheet(
     viewModel: ProfileViewModel,
     onDismiss: () -> Unit
 ) {
+    val clearIcon = rememberAppClearIcon()
     val officialWallpapers by viewModel.officialWallpapers.collectAsStateWithLifecycle()
     val isLoading by viewModel.officialWallpapersLoading.collectAsStateWithLifecycle()
     val error by viewModel.officialWallpapersError.collectAsStateWithLifecycle()
@@ -90,7 +92,7 @@ fun OfficialWallpaperSheet(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     IconButton(onClick = onDismiss) {
-                        Icon(CupertinoIcons.Default.Xmark, contentDescription = "Close")
+                        Icon(clearIcon, contentDescription = "关闭")
                     }
                     
                     Text(
@@ -169,7 +171,7 @@ fun OfficialWallpaperSheet(
                                     // 选中标记 (右上角)
                                     if (isSelected) {
                                         Icon(
-                                            imageVector = CupertinoIcons.Default.CheckmarkCircle,
+                                            imageVector = rememberAppCheckCircleIcon(),
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier

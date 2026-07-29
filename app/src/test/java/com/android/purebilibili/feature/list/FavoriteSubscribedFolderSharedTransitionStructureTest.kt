@@ -37,7 +37,7 @@ class FavoriteSubscribedFolderSharedTransitionStructureTest {
         assertTrue(commonListSource.contains("transitionEnabled = cardTransitionEnabled"))
         assertTrue(navigationSource.contains("LocalVideoCardSharedElementSourceRoute provides"))
         assertTrue(navigationSource.contains("normalizeBiliPaiVideoSourceRoute("))
-        assertTrue(navigationSource.contains("sourceRoute = seasonSeriesKey.toLegacyRoute()"))
+        assertTrue(navigationSource.contains("sourceRoute = seasonSeriesSourceRoute"))
     }
 
     private fun loadSource(): String {

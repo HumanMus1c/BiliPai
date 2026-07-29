@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.android.purebilibili.core.ui.components.AppSurface
 
 /**
  * Quality Selection Menu
@@ -76,7 +77,7 @@ fun QualitySelectionMenu(
                 ) { onDismiss() },
             contentAlignment = Alignment.Center
         ) {
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .widthIn(min = 200.dp, max = 280.dp)
                     .heightIn(max = 400.dp)  //  [修复] 限制最大高度，允许滚动
@@ -132,7 +133,7 @@ fun QualitySelectionMenu(
                             
                             if (tag != null) {
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Surface(
+                                AppSurface(
                                     color = if (tag == "大会员") MaterialTheme.colorScheme.primary else Color(0xFF666666),
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
@@ -208,7 +209,7 @@ fun SpeedSelectionMenu(
                 ) { onDismiss() },
             contentAlignment = contentAlignment
         ) {
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .then(
                         if (placement == SpeedSelectionMenuPlacement.RIGHT_SIDE) {

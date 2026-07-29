@@ -6,9 +6,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
+import com.android.purebilibili.core.ui.AppAlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -117,7 +117,7 @@ internal fun BoxScope.VideoDetailFeedbackOverlayAdapter(
 
     val resumePlaybackSuggestion by playbackViewModel.resumePlaybackSuggestion.collectAsStateWithLifecycle()
     resumePlaybackSuggestion?.let { suggestion ->
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = playbackViewModel::dismissResumePlaybackSuggestion,
             title = { Text("继续播放") },
             text = {
@@ -126,12 +126,12 @@ internal fun BoxScope.VideoDetailFeedbackOverlayAdapter(
                 )
             },
             confirmButton = {
-                TextButton(onClick = playbackViewModel::continueResumePlaybackSuggestion) {
+                AppTextButton(onClick = playbackViewModel::continueResumePlaybackSuggestion) {
                     Text("跳转")
                 }
             },
             dismissButton = {
-                TextButton(onClick = playbackViewModel::dismissResumePlaybackSuggestion) {
+                AppTextButton(onClick = playbackViewModel::dismissResumePlaybackSuggestion) {
                     Text("稍后")
                 }
             },

@@ -1,6 +1,8 @@
 // 文件路径: feature/settings/PlaybackSettingsScreen.kt
 package com.android.purebilibili.feature.settings
 
+import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.core.ui.components.AppRadioButton
 import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
@@ -203,12 +205,12 @@ fun PlaybackSettingsContent(
 
     // 权限弹窗逻辑
     if (showPipPermissionDialog) {
-        com.android.purebilibili.core.ui.IOSAlertDialog(
+        com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showPipPermissionDialog = false },
             title = { Text("权限申请", color = MaterialTheme.colorScheme.onSurface) },
             text = { Text("检测到未开启「画中画」权限。请在设置中开启该权限，否则无法使用小窗播放。", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             confirmButton = {
-                com.android.purebilibili.core.ui.IOSDialogAction(
+                com.android.purebilibili.core.ui.AppDialogAction(
                     onClick = {
                         gotoPipSettings()
                         showPipPermissionDialog = false
@@ -216,7 +218,7 @@ fun PlaybackSettingsContent(
                 ) { Text("去设置") }
             },
             dismissButton = {
-                com.android.purebilibili.core.ui.IOSDialogAction(onClick = { showPipPermissionDialog = false }) {
+                com.android.purebilibili.core.ui.AppDialogAction(onClick = { showPipPermissionDialog = false }) {
                     Text("暂不开启", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -224,7 +226,7 @@ fun PlaybackSettingsContent(
     }
 
     if (showPlayerInsightModeDialog) {
-        com.android.purebilibili.core.ui.IOSAlertDialog(
+        com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showPlayerInsightModeDialog = false },
             title = { Text("播放器洞察") },
             text = {
@@ -246,7 +248,7 @@ fun PlaybackSettingsContent(
                                 },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            RadioButton(
+                            AppRadioButton(
                                 selected = playerInsightMode == mode,
                                 onClick = null
                             )
@@ -269,16 +271,16 @@ fun PlaybackSettingsContent(
             //  解码设置
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("解码")
+                    AppPreferenceSectionTitle("解码")
                 }
             }
             item {
                 Box(modifier = Modifier.entrance()) {
                     val scope = rememberCoroutineScope()
                     val codecOptions = listOf(
-                        PlaybackSegmentOption("avc1", "AVC"),
-                        PlaybackSegmentOption("hev1", "HEVC"),
-                        PlaybackSegmentOption("av01", "AV1")
+                        AppSegmentOption("avc1", "AVC"),
+                        AppSegmentOption("hev1", "HEVC"),
+                        AppSegmentOption("av01", "AV1")
                     )
                     fun codecDescription(codec: String): String = when (codec) {
                         "avc1" -> "兼容性最佳"
@@ -286,8 +288,8 @@ fun PlaybackSettingsContent(
                         "av01" -> "高压缩，设备要求更高"
                         else -> "未知"
                     }
-                    IOSGroup {
-                        IOSSwitchItem(
+                    AppPreferenceGroup {
+                        AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.HARDWARE_DECODER),
                             title = "启用硬件解码",
                             subtitle = "关闭后可尝试规避模拟器或特定设备绿屏，但可能更耗电/更卡顿",
@@ -299,8 +301,8 @@ fun PlaybackSettingsContent(
                             },
                             iconTint = iOSGreen
                         )
-                        IOSDivider()
-                        IOSSlidingSegmentedSetting(
+                        AppPreferenceDivider()
+                        AppSegmentedPreference(
                             title = "首选编码：${resolveSelectionLabel(codecOptions, videoCodecPreference, fallbackLabel = "AVC")}",
                             subtitle = codecDescription(videoCodecPreference),
                             options = codecOptions,
@@ -312,8 +314,8 @@ fun PlaybackSettingsContent(
                                 }
                             }
                         )
-                        IOSDivider()
-                        IOSSlidingSegmentedSetting(
+                        AppPreferenceDivider()
+                        AppSegmentedPreference(
                             title = "次选编码：${resolveSelectionLabel(codecOptions, videoSecondCodecPreference, fallbackLabel = "HEVC")}",
                             subtitle = codecDescription(videoSecondCodecPreference),
                             options = codecOptions,
@@ -331,14 +333,14 @@ fun PlaybackSettingsContent(
 
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("播放速度")
+                    AppPreferenceSectionTitle("播放速度")
                 }
             }
             item {
                 Box(modifier = Modifier.entrance()) {
                     val scope = rememberCoroutineScope()
-                    IOSGroup {
-	                        IOSSwitchItem(
+                    AppPreferenceGroup {
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYBACK_SPEED),
                             title = "记忆上次播放速度",
                             subtitle = if (rememberLastPlaybackSpeed) {
@@ -355,7 +357,7 @@ fun PlaybackSettingsContent(
                             },
                             iconTint = com.android.purebilibili.core.theme.iOSBlue
                         )
-                        IOSDivider()
+                        AppPreferenceDivider()
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -382,7 +384,7 @@ fun PlaybackSettingsContent(
             //  小窗播放
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("小窗与后台")
+                    AppPreferenceSectionTitle("小窗与后台")
                 }
             }
             item {
@@ -403,14 +405,14 @@ fun PlaybackSettingsContent(
                             miniPlayerMode != com.android.purebilibili.core.store.SettingsManager.MiniPlayerMode.OFF
                     }
                     val miniPlayerOptions = listOf(
-                        PlaybackSegmentOption(com.android.purebilibili.core.store.SettingsManager.MiniPlayerMode.OFF, "默认"),
-                        PlaybackSegmentOption(com.android.purebilibili.core.store.SettingsManager.MiniPlayerMode.IN_APP_ONLY, "小窗"),
-                        PlaybackSegmentOption(com.android.purebilibili.core.store.SettingsManager.MiniPlayerMode.SYSTEM_PIP, "画中画"),
-                        PlaybackSegmentOption(com.android.purebilibili.core.store.SettingsManager.MiniPlayerMode.IN_APP_AND_SYSTEM_PIP, "小窗+PiP")
+                        AppSegmentOption(com.android.purebilibili.core.store.SettingsManager.MiniPlayerMode.OFF, "默认"),
+                        AppSegmentOption(com.android.purebilibili.core.store.SettingsManager.MiniPlayerMode.IN_APP_ONLY, "小窗"),
+                        AppSegmentOption(com.android.purebilibili.core.store.SettingsManager.MiniPlayerMode.SYSTEM_PIP, "画中画"),
+                        AppSegmentOption(com.android.purebilibili.core.store.SettingsManager.MiniPlayerMode.IN_APP_AND_SYSTEM_PIP, "小窗+PiP")
                     )
 
-                    IOSGroup {
-	                        IOSSwitchItem(
+                    AppPreferenceGroup {
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.STOP_ON_EXIT),
                             title = "离开播放页后停止",
                             subtitle = "不进入小窗/画中画，也不保留后台播放",
@@ -423,8 +425,8 @@ fun PlaybackSettingsContent(
                             },
                             iconTint = iOSOrange
                         )
-                        IOSDivider()
-	                        IOSSwitchItem(
+                        AppPreferenceDivider()
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.BACKGROUND_PLAYBACK),
                             title = "后台播放",
                             subtitle = if (backgroundPlaybackEnabled) {
@@ -441,8 +443,8 @@ fun PlaybackSettingsContent(
                             },
                             iconTint = iOSGreen
                         )
-                        IOSDivider()
-	                        IOSSwitchItem(
+                        AppPreferenceDivider()
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.AUDIO_FOCUS),
                             title = "占用音频焦点",
                             subtitle = if (audioFocusEnabled) {
@@ -459,8 +461,8 @@ fun PlaybackSettingsContent(
                             },
                             iconTint = iOSTeal
                         )
-                        IOSDivider()
-                        IOSSlidingSegmentedSetting(
+                        AppPreferenceDivider()
+                        AppSegmentedPreference(
                             title = "后台播放模式：${if (modeControlsEnabled) miniPlayerMode.label else "已覆盖"}",
                             subtitle = if (stopPlaybackOnExit) {
                                 "已由“离开播放页后停止”覆盖，后台模式暂不生效"
@@ -489,7 +491,7 @@ fun PlaybackSettingsContent(
                         if (modeControlsEnabled &&
                             miniPlayerMode.supportsSystemPip
                             && !checkPipPermission()) {
-                            IOSDivider()
+                            AppPreferenceDivider()
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -524,8 +526,8 @@ fun PlaybackSettingsContent(
                                 )
                             }
                         }
-                        IOSDivider()
-	                        IOSSwitchItem(
+                        AppPreferenceDivider()
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PIP_DANMAKU),
                             title = "小窗/画中画不加载弹幕",
                             subtitle = if (!backgroundPlaybackEnabled) {
@@ -538,7 +540,7 @@ fun PlaybackSettingsContent(
                             checked = pipNoDanmakuEnabled,
                             onCheckedChange = {
                                 if (!pipDanmakuToggleEnabled) {
-                                    return@IOSSwitchItem
+                                    return@AppSwitchPreference
                                 }
                                 scope.launch {
                                     com.android.purebilibili.core.store.SettingsManager
@@ -547,8 +549,8 @@ fun PlaybackSettingsContent(
                             },
                             iconTint = com.android.purebilibili.core.theme.iOSPurple
                         )
-                        IOSDivider()
-	                        IOSSwitchItem(
+                        AppPreferenceDivider()
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.AUDIO_MODE_PIP),
                             title = "听视频离开时自动进入画中画",
                             subtitle = if (audioModeAutoPipToggleEnabled) {
@@ -563,7 +565,7 @@ fun PlaybackSettingsContent(
                             checked = audioModeAutoPipEnabled,
                             onCheckedChange = {
                                 if (!audioModeAutoPipToggleEnabled) {
-                                    return@IOSSwitchItem
+                                    return@AppSwitchPreference
                                 }
                                 scope.launch {
                                     com.android.purebilibili.core.store.SettingsManager
@@ -579,12 +581,12 @@ fun PlaybackSettingsContent(
             //  手势设置
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("手势控制")
+                    AppPreferenceSectionTitle("手势控制")
                 }
             }
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSGroup {
+                    AppPreferenceGroup {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
@@ -646,14 +648,14 @@ fun PlaybackSettingsContent(
             //  调试选项
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("诊断")
+                    AppPreferenceSectionTitle("诊断")
                 }
             }
             item {
                 Box(modifier = Modifier.entrance()) {
                     val scope = rememberCoroutineScope()
-                    IOSGroup {
-	                        IOSClickableItem(
+                    AppPreferenceGroup {
+	                        AppPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYER_STATS),
                             title = "播放器洞察",
                             subtitle = when (playerInsightMode) {
@@ -669,8 +671,8 @@ fun PlaybackSettingsContent(
                             onClick = { showPlayerInsightModeDialog = true },
                             iconTint = iOSSystemGray
                         )
-                        IOSDivider()
-	                        IOSSwitchItem(
+                        AppPreferenceDivider()
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYER_DIAGNOSTIC_LOGS),
                             title = "播放器诊断日志",
                             subtitle = "记录黑屏、卡顿、点击无响应等播放器诊断信息",
@@ -682,8 +684,8 @@ fun PlaybackSettingsContent(
                             },
                             iconTint = iOSOrange
                         )
-                        IOSDivider()
-	                        IOSSwitchItem(
+                        AppPreferenceDivider()
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYER_DIAGNOSTICS),
                             title = "DASH 分段请求（实验性）",
                             subtitle = if (dashSegmentRequestsEnabled) {
@@ -699,8 +701,8 @@ fun PlaybackSettingsContent(
                             },
                             iconTint = iOSTeal
                         )
-                        IOSDivider()
-	                        IOSSwitchItem(
+                        AppPreferenceDivider()
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.QUALITY_WARNING_ONCE),
                             title = "画质降档诊断弹窗",
                             subtitle = "仅在明确切换失败、权限或接口异常时提示；视频本身无更高档不打断播放",
@@ -712,8 +714,8 @@ fun PlaybackSettingsContent(
                             },
                             iconTint = iOSOrange
                         )
-                        IOSDivider()
-	                        IOSSwitchItem(
+                        AppPreferenceDivider()
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.QUALITY_WARNING),
                             title = "降档弹窗仅提示一次",
                             subtitle = if (qualitySwitchFailureDialogEnabled) {
@@ -736,7 +738,7 @@ fun PlaybackSettingsContent(
             //  网络与画质
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("网络与画质")
+                    AppPreferenceSectionTitle("网络与画质")
                 }
             }
             item {
@@ -762,8 +764,8 @@ fun PlaybackSettingsContent(
                         fallbackLabel = "720P"
                     )
 
-                    IOSGroup {
-	                        IOSSwitchItem(
+                    AppPreferenceGroup {
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.DIRECTED_TRAFFIC),
                             title = "B站定向流量支持",
                             subtitle = if (directedTrafficEnabled) {
@@ -781,9 +783,9 @@ fun PlaybackSettingsContent(
                             iconTint = iOSTeal
                         )
 
-                        IOSDivider()
+                        AppPreferenceDivider()
 
-	                        IOSSwitchItem(
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.AUTO_HIGHEST_QUALITY),
                             title = "自动最高画质",
                             subtitle = if (autoHighestQualityEnabled) {
@@ -801,9 +803,9 @@ fun PlaybackSettingsContent(
                             iconTint = iOSOrange
                         )
 
-                        IOSDivider()
+                        AppPreferenceDivider()
 
-                        IOSSlidingSegmentedSetting(
+                        AppSegmentedPreference(
                             title = "无线网络默认画质：${getQualityLabel(wifiQuality)}",
                             subtitle = if (autoHighestQualityEnabled) {
                                 "已被自动最高画质覆盖；仅作为关闭自动最高后的无线网络偏好保留"
@@ -826,7 +828,7 @@ fun PlaybackSettingsContent(
                             }
                         )
 
-                        IOSDivider()
+                        AppPreferenceDivider()
 
                         // 📉 读取省流量模式，用于显示提示
                         val dataSaverModeForHint by com.android.purebilibili.core.store.SettingsManager
@@ -839,7 +841,7 @@ fun PlaybackSettingsContent(
                         )
                         val effectiveQualityLabel = getQualityLabel(effectiveQuality)
 
-                        IOSSlidingSegmentedSetting(
+                        AppSegmentedPreference(
                             title = "流量默认画质：${getQualityLabel(mobileQuality)}",
                             subtitle = when {
                                 autoHighestQualityEnabled ->
@@ -885,7 +887,7 @@ fun PlaybackSettingsContent(
             // 📉 省流量模式
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("省流量")
+                    AppPreferenceSectionTitle("省流量")
                 }
             }
             item {
@@ -898,13 +900,13 @@ fun PlaybackSettingsContent(
                         .getHomeSettings(context).collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeSettings()
                         )
                     val dataSaverModeOptions = listOf(
-                        PlaybackSegmentOption(com.android.purebilibili.core.store.SettingsManager.DataSaverMode.OFF, "关闭"),
-                        PlaybackSegmentOption(com.android.purebilibili.core.store.SettingsManager.DataSaverMode.MOBILE_ONLY, "仅移动数据"),
-                        PlaybackSegmentOption(com.android.purebilibili.core.store.SettingsManager.DataSaverMode.ALWAYS, "始终开启")
+                        AppSegmentOption(com.android.purebilibili.core.store.SettingsManager.DataSaverMode.OFF, "关闭"),
+                        AppSegmentOption(com.android.purebilibili.core.store.SettingsManager.DataSaverMode.MOBILE_ONLY, "仅移动数据"),
+                        AppSegmentOption(com.android.purebilibili.core.store.SettingsManager.DataSaverMode.ALWAYS, "始终开启")
                     )
 
-                    IOSGroup {
-                        IOSSlidingSegmentedSetting(
+                    AppPreferenceGroup {
+                        AppSegmentedPreference(
                             title = "省流量模式：${dataSaverMode.label}",
                             subtitle = dataSaverMode.description,
                             options = dataSaverModeOptions,
@@ -917,9 +919,9 @@ fun PlaybackSettingsContent(
                             }
                         )
 
-                        IOSDivider()
+                        AppPreferenceDivider()
 
-	                        IOSSwitchItem(
+	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_COVER_GLASS),
                             title = "省流量时降低首页封面清晰度",
                             subtitle = if (homeSettings.lowQualityHomeCoverInDataSaver) {
@@ -938,7 +940,7 @@ fun PlaybackSettingsContent(
                         )
 
                         //  功能说明
-                        IOSDivider()
+                        AppPreferenceDivider()
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -966,7 +968,7 @@ fun PlaybackSettingsContent(
             //  交互设置
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("互动与评论")
+                    AppPreferenceSectionTitle("互动与评论")
                 }
             }
             item {
@@ -980,7 +982,7 @@ fun PlaybackSettingsContent(
             }
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("全屏与手势")
+                    AppPreferenceSectionTitle("全屏与手势")
                 }
             }
             item {
@@ -1048,12 +1050,12 @@ private fun PlaybackInteractionSettingsSection(
         SubtitleAutoPreference.AUTO -> "静音时可自动启用 AI 字幕"
     }
 
-    IOSGroup {
+    AppPreferenceGroup {
         // --- Click to Play ---
         val clickToPlayEnabled by com.android.purebilibili.core.store.SettingsManager
             .getClickToPlay(context).collectAsStateWithLifecycle(initialValue = true)
 
-	        IOSSwitchItem(
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.AUTO_PLAY_ON_OPEN),
             title = "进入视频自动播放",
             subtitle = if (clickToPlayEnabled) {
@@ -1070,8 +1072,8 @@ private fun PlaybackInteractionSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSBlue
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYBACK_SPEED),
             title = "续播弹窗提示",
             subtitle = if (resumePlaybackPromptEnabled) {
@@ -1088,9 +1090,9 @@ private fun PlaybackInteractionSettingsSection(
             },
             iconTint = iOSTeal
         )
-        IOSDivider()
+        AppPreferenceDivider()
         //  [新增] 自动播放下一个视频
-	        IOSSwitchItem(
+	        AppSwitchPreference(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.AUTO_PLAY_NEXT),
             title = "自动播放下一个",
             subtitle = "分P/合集自动播放下一集，普通单视频播完暂停",
@@ -1103,8 +1105,8 @@ private fun PlaybackInteractionSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSPurple
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYBACK),
             title = "列表/收藏夹连续播放",
             subtitle = "控制收藏夹、稍后再看、合集等列表播放完后是否继续下一条",
@@ -1117,7 +1119,7 @@ private fun PlaybackInteractionSettingsSection(
             },
             iconTint = iOSTeal
         )
-        IOSDivider()
+        AppPreferenceDivider()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1125,13 +1127,13 @@ private fun PlaybackInteractionSettingsSection(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val playbackOrderOptions = listOf(
-                PlaybackSegmentOption(PlaybackCompletionBehavior.STOP_AFTER_CURRENT, "暂停"),
-                PlaybackSegmentOption(PlaybackCompletionBehavior.PLAY_IN_ORDER, "顺序"),
-                PlaybackSegmentOption(PlaybackCompletionBehavior.REPEAT_ONE, "单循"),
-                PlaybackSegmentOption(PlaybackCompletionBehavior.LOOP_PLAYLIST, "列表循"),
-                PlaybackSegmentOption(PlaybackCompletionBehavior.CONTINUE_CURRENT_LOGIC, "自动")
+                AppSegmentOption(PlaybackCompletionBehavior.STOP_AFTER_CURRENT, "暂停"),
+                AppSegmentOption(PlaybackCompletionBehavior.PLAY_IN_ORDER, "顺序"),
+                AppSegmentOption(PlaybackCompletionBehavior.REPEAT_ONE, "单循"),
+                AppSegmentOption(PlaybackCompletionBehavior.LOOP_PLAYLIST, "列表循"),
+                AppSegmentOption(PlaybackCompletionBehavior.CONTINUE_CURRENT_LOGIC, "自动")
             )
-            IOSSlidingSegmentedSetting(
+            AppSegmentedPreference(
                 title = "选择播放顺序：${playbackCompletionBehavior.label}",
                 subtitle = "自动模式下普通单视频暂停，分P/合集继续下一集",
                 options = playbackOrderOptions,
@@ -1150,8 +1152,8 @@ private fun PlaybackInteractionSettingsSection(
             )
         }
         if (subtitleFeatureEnabled) {
-            IOSDivider()
-            IOSSlidingSegmentedSetting(
+            AppPreferenceDivider()
+            AppSegmentedPreference(
                 title = "自动启用字幕：${
                     when (subtitleAutoPreference) {
                         SubtitleAutoPreference.OFF -> "关闭"
@@ -1162,10 +1164,10 @@ private fun PlaybackInteractionSettingsSection(
                 }",
                 subtitle = subtitlePreferenceDescription,
                 options = listOf(
-                    PlaybackSegmentOption(SubtitleAutoPreference.OFF, "关闭"),
-                    PlaybackSegmentOption(SubtitleAutoPreference.ON, "开启"),
-                    PlaybackSegmentOption(SubtitleAutoPreference.WITHOUT_AI, "无 AI"),
-                    PlaybackSegmentOption(SubtitleAutoPreference.AUTO, "自动")
+                    AppSegmentOption(SubtitleAutoPreference.OFF, "关闭"),
+                    AppSegmentOption(SubtitleAutoPreference.ON, "开启"),
+                    AppSegmentOption(SubtitleAutoPreference.WITHOUT_AI, "无 AI"),
+                    AppSegmentOption(SubtitleAutoPreference.AUTO, "自动")
                 ),
                 selectedValue = subtitleAutoPreference,
                 onSelectionChange = { preference ->
@@ -1175,9 +1177,9 @@ private fun PlaybackInteractionSettingsSection(
                     }
                 }
             )
-            IOSDivider()
+            AppPreferenceDivider()
         }
-	        IOSSwitchItem(
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.VIDEO_DESCRIPTION),
             title = "默认展开视频简介",
             subtitle = if (videoInfoDefaultExpanded) {
@@ -1194,8 +1196,8 @@ private fun PlaybackInteractionSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSBlue
         )
-        IOSDivider()
-        IOSSwitchItem(
+        AppPreferenceDivider()
+        AppSwitchPreference(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.AI_SUMMARY),
             title = "显示 AI 总结入口",
             subtitle = if (videoAiSummaryEntryEnabled) {
@@ -1212,8 +1214,8 @@ private fun PlaybackInteractionSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSPurple
         )
-        IOSDivider()
-        IOSSwitchItem(
+        AppPreferenceDivider()
+        AppSwitchPreference(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.VIDEO_NOTE),
             title = "显示视频笔记",
             subtitle = if (videoNoteEnabled) {
@@ -1231,8 +1233,8 @@ private fun PlaybackInteractionSettingsSection(
             iconTint = iOSTeal
         )
         if (videoNoteEnabled) {
-            IOSDivider()
-            IOSSwitchItem(
+            AppPreferenceDivider()
+            AppSwitchPreference(
                 icon = rememberSettingsSemanticIcon(SettingsIconRole.VIDEO_NOTE_COLLAPSE),
                 title = "默认折叠视频笔记",
                 subtitle = if (videoNoteDefaultCollapsed) {
@@ -1250,8 +1252,8 @@ private fun PlaybackInteractionSettingsSection(
                 iconTint = com.android.purebilibili.core.theme.iOSBlue
             )
         }
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.LIKE_INTERACTION),
             title = "双击点赞",
             subtitle = "双击视频画面快捷点赞",
@@ -1263,15 +1265,15 @@ private fun PlaybackInteractionSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSPink
         )
-        IOSDivider()
-        IOSSlidingSegmentedSetting(
+        AppPreferenceDivider()
+        AppSegmentedPreference(
             title = "评论回复预览：${commentCollapsedReplyPreviewLimit}条",
             subtitle = "收起楼中楼时保留的回复数量",
             options = listOf(
-                PlaybackSegmentOption(3, "3条"),
-                PlaybackSegmentOption(5, "5条"),
-                PlaybackSegmentOption(8, "8条"),
-                PlaybackSegmentOption(10, "10条")
+                AppSegmentOption(3, "3条"),
+                AppSegmentOption(5, "5条"),
+                AppSegmentOption(8, "8条"),
+                AppSegmentOption(10, "10条")
             ),
             selectedValue = commentCollapsedReplyPreviewLimit,
             onSelectionChange = { limit ->
@@ -1281,8 +1283,8 @@ private fun PlaybackInteractionSettingsSection(
                 }
             }
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.INTERACTION_COMMENT),
             title = "评论发送检测",
             subtitle = "发送成功后自动检查评论是否正常显示",
@@ -1295,8 +1297,8 @@ private fun PlaybackInteractionSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSBlue
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.COMMENT_DECORATION),
             title = "评论区个性装扮",
             subtitle = "显示粉丝牌、铭牌和装扮卡片；关闭后评论区更清爽",
@@ -1309,8 +1311,8 @@ private fun PlaybackInteractionSettingsSection(
             },
             iconTint = iOSOrange
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.DOWNLOAD_PATH),
             title = "图片长按保存",
             subtitle = if (imagePreviewLongPressSaveEnabled) {
@@ -1369,7 +1371,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
     val danmakuCloudSyncEnabled by com.android.purebilibili.core.store.SettingsManager
         .getDanmakuCloudSyncEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
-    IOSGroup {
+    AppPreferenceGroup {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1409,13 +1411,13 @@ private fun PlaybackFullscreenGestureSettingsSection(
             }
             if (doubleTapSeekEnabled) {
                 val doubleTapSeekOptions = listOf(
-                    PlaybackSegmentOption(5, "5秒"),
-                    PlaybackSegmentOption(10, "10秒"),
-                    PlaybackSegmentOption(15, "15秒"),
-                    PlaybackSegmentOption(30, "30秒"),
-                    PlaybackSegmentOption(60, "60秒")
+                    AppSegmentOption(5, "5秒"),
+                    AppSegmentOption(10, "10秒"),
+                    AppSegmentOption(15, "15秒"),
+                    AppSegmentOption(30, "30秒"),
+                    AppSegmentOption(60, "60秒")
                 )
-                IOSSlidingSegmentedSetting(
+                AppSegmentedPreference(
                     title = "快进秒数（双击右侧）：${seekForwardSeconds} 秒",
                     subtitle = "调整右侧双击快进幅度",
                     options = doubleTapSeekOptions,
@@ -1427,7 +1429,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
                         }
                     }
                 )
-                IOSSlidingSegmentedSetting(
+                AppSegmentedPreference(
                     title = "后退秒数（双击左侧）：${seekBackwardSeconds} 秒",
                     subtitle = "调整左侧双击后退幅度",
                     options = doubleTapSeekOptions,
@@ -1441,8 +1443,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 )
             }
         }
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.INTERACTIVE_COMMANDS),
             title = "隐藏视频内互动提示",
             subtitle = if (hideInteractiveCommandDanmaku) {
@@ -1459,8 +1461,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSPink
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.PIP_DANMAKU),
             title = "同步弹幕设置到账号",
             subtitle = com.android.purebilibili.feature.video.danmaku
@@ -1474,14 +1476,14 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSPurple
         )
-        IOSDivider()
+        AppPreferenceDivider()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IOSSlidingSegmentedSetting(
+            AppSegmentedPreference(
                 title = "评论上滑缩小播放器：${portraitPlayerCollapseMode.label}",
                 subtitle = portraitPlayerCollapseMode.description,
                 options = resolvePortraitPlayerCollapseModeSegmentOptions(),
@@ -1495,8 +1497,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             )
         }
 
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.PORTRAIT_SWIPE_FULLSCREEN),
             title = "竖屏上滑进入全屏",
             subtitle = if (portraitSwipeToFullscreenEnabled) {
@@ -1514,9 +1516,9 @@ private fun PlaybackFullscreenGestureSettingsSection(
             iconTint = iOSTeal
         )
 
-        IOSDivider()
-        IOSSwitchItem(
-            icon = rememberSettingsSemanticIcon(SettingsIconRole.PORTRAIT_SWIPE_FULLSCREEN),
+        AppPreferenceDivider()
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.DISPLAY_STYLE),
             title = "竖屏视频直达刷视频模式",
             subtitle = if (directPortraitStoryEntry) {
                 "开启：任意入口点竖屏视频直接进竖滑全屏（可经卡片放大动画）；默认关闭时先进详情内联竖屏"
@@ -1533,9 +1535,9 @@ private fun PlaybackFullscreenGestureSettingsSection(
             iconTint = iOSTeal
         )
 
-        IOSDivider()
-        IOSSwitchItem(
-            icon = rememberSettingsSemanticIcon(SettingsIconRole.PORTRAIT_SWIPE_FULLSCREEN),
+        AppPreferenceDivider()
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.AUTO_PLAY_ON_OPEN),
             title = "启动时进入竖屏视频流",
             subtitle = if (launchToPortraitFeedOnStartup) {
                 "打开应用后直接进入竖屏刷视频流（独立于「直达」开关）"
@@ -1552,8 +1554,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             iconTint = iOSTeal
         )
 
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.CENTER_SWIPE_FULLSCREEN),
             title = "中部滑动切换全屏",
             subtitle = if (centerSwipeToFullscreenEnabled) {
@@ -1571,8 +1573,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             iconTint = com.android.purebilibili.core.theme.iOSPurple
         )
 
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.AUDIO_FOCUS),
             title = "左右侧滑动调节亮度/音量",
             subtitle = if (slideVolumeBrightnessEnabled) {
@@ -1589,8 +1591,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = iOSTeal
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.SYSTEM_BRIGHTNESS),
             title = "调节系统亮度",
             subtitle = if (slideVolumeBrightnessEnabled) {
@@ -1600,7 +1602,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             checked = setSystemBrightnessEnabled,
             onCheckedChange = {
-                if (!slideVolumeBrightnessEnabled) return@IOSSwitchItem
+                if (!slideVolumeBrightnessEnabled) return@AppSwitchPreference
                 scope.launch {
                     com.android.purebilibili.core.store.SettingsManager
                         .setSetSystemBrightnessEnabled(context, it)
@@ -1609,7 +1611,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
             iconTint = iOSOrange
         )
 
-        IOSDivider()
+        AppPreferenceDivider()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1627,13 +1629,13 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             val inlineSeekOptions = listOf(
-                PlaybackSegmentOption(5, "5秒"),
-                PlaybackSegmentOption(10, "10秒"),
-                PlaybackSegmentOption(15, "15秒"),
-                PlaybackSegmentOption(30, "30秒"),
-                PlaybackSegmentOption(60, "60秒")
+                AppSegmentOption(5, "5秒"),
+                AppSegmentOption(10, "10秒"),
+                AppSegmentOption(15, "15秒"),
+                AppSegmentOption(30, "30秒"),
+                AppSegmentOption(60, "60秒")
             )
-            IOSSlidingSegmentedControl(
+            AppSegmentedControl(
                 options = inlineSeekOptions,
                 selectedValue = inlineSwipeSeekSeconds,
                 onSelectionChange = { seconds ->
@@ -1645,7 +1647,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
             )
         }
 
-        IOSDivider()
+        AppPreferenceDivider()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1682,17 +1684,17 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             val seekStepOptions = listOf(
-                PlaybackSegmentOption(10, "10秒"),
-                PlaybackSegmentOption(15, "15秒"),
-                PlaybackSegmentOption(20, "20秒"),
-                PlaybackSegmentOption(30, "30秒")
+                AppSegmentOption(10, "10秒"),
+                AppSegmentOption(15, "15秒"),
+                AppSegmentOption(20, "20秒"),
+                AppSegmentOption(30, "30秒")
             )
-            IOSSlidingSegmentedControl(
+            AppSegmentedControl(
                 options = seekStepOptions,
                 selectedValue = fullscreenSwipeSeekSeconds,
                 enabled = fullscreenSwipeSeekEnabled,
                 onSelectionChange = { seconds ->
-                    if (!fullscreenSwipeSeekEnabled) return@IOSSlidingSegmentedControl
+                    if (!fullscreenSwipeSeekEnabled) return@AppSegmentedControl
                     scope.launch {
                         com.android.purebilibili.core.store.SettingsManager
                             .setFullscreenSwipeSeekSeconds(context, seconds)
@@ -1700,7 +1702,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 }
             )
         }
-        IOSDivider()
+        AppPreferenceDivider()
         val autoRotateEnabled by com.android.purebilibili.core.store.SettingsManager
             .getAutoRotateEnabled(context).collectAsStateWithLifecycle(initialValue = false)
         val fullscreenGestureReverse by com.android.purebilibili.core.store.SettingsManager
@@ -1769,7 +1771,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
             "主要用于平板/折叠屏，当前设备触发场景可能较少"
         }
 
-	        IOSSwitchItem(
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_ORIENTATION),
             title = "自动横竖屏切换",
             subtitle = "跟随手机方向自动进入/退出全屏",
@@ -1782,8 +1784,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = iOSTeal
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.HORIZONTAL_ADAPTATION),
             title = "横屏适配",
             subtitle = horizontalAdaptationSubtitle,
@@ -1796,8 +1798,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSBlue
         )
-        IOSDivider()
-        IOSSwitchItem(
+        AppPreferenceDivider()
+        AppSwitchPreference(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.CAST_BUTTON),
             title = "显示投屏按钮",
             subtitle = "同时控制半屏、横屏全屏和竖屏全屏的投屏入口",
@@ -1809,8 +1811,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSBlue
         )
-        IOSDivider()
-        IOSSwitchItem(
+        AppPreferenceDivider()
+        AppSwitchPreference(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.LIKE_INTERACTION),
             title = "显示关注按钮",
             subtitle = "关闭后保留 UP 主头像、名称和主页入口",
@@ -1822,8 +1824,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSPink
         )
-        IOSDivider()
-        IOSSlidingSegmentedSetting(
+        AppPreferenceDivider()
+        AppSegmentedPreference(
             title = "平板评论区宽度：${tabletCommentPanelWidthPreset.label}",
             subtitle = if (horizontalAdaptationEnabled) {
                 "调整横屏适配下右侧评论/推荐栏宽度"
@@ -1839,8 +1841,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 }
             }
         )
-        IOSDivider()
-        IOSSlidingSegmentedSetting(
+        AppPreferenceDivider()
+        AppSegmentedPreference(
             title = "默认全屏方向：${fullscreenMode.label}",
             subtitle = fullscreenModeSubtitle,
             options = resolveFullscreenModeSegmentOptions(),
@@ -1852,8 +1854,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 }
             }
         )
-        IOSDivider()
-        IOSSlidingSegmentedSetting(
+        AppPreferenceDivider()
+        AppSegmentedPreference(
             title = "固定全屏比例：${fullscreenAspectRatio.label}",
             subtitle = fullscreenAspectRatio.description,
             options = resolveFullscreenAspectRatioSegmentOptions(),
@@ -1865,8 +1867,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 }
             }
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_GESTURE_REVERSE),
             title = "全屏手势反向",
             subtitle = "默认上滑进全屏、下滑退全屏；开启后方向反转",
@@ -1879,8 +1881,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSPurple
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.HIDE_STATUS_BAR),
             title = "播放页隐藏状态栏",
             subtitle = if (hideVideoPageStatusBar) {
@@ -1897,8 +1899,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSTeal
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.AUTO_ENTER_FULLSCREEN),
             title = "自动进入全屏",
             subtitle = "视频开始播放后自动切到全屏",
@@ -1911,13 +1913,13 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSGreen
         )
-        IOSDivider()
+        AppPreferenceDivider()
         val autoExitFullscreenMode by com.android.purebilibili.core.store.SettingsManager
             .getAutoExitFullscreenMode(context)
             .collectAsStateWithLifecycle(
                 initialValue = com.android.purebilibili.core.store.AutoExitFullscreenMode.ALL_PARTS
             )
-	        IOSSwitchItem(
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.AUTO_EXIT_FULLSCREEN),
             title = "自动退出全屏",
             subtitle = autoExitFullscreenMode.subtitle,
@@ -1941,16 +1943,16 @@ private fun PlaybackFullscreenGestureSettingsSection(
             autoExitFullscreenMode !=
             com.android.purebilibili.core.store.AutoExitFullscreenMode.OFF
         ) {
-            IOSDivider()
-            IOSSlidingSegmentedSetting(
+            AppPreferenceDivider()
+            AppSegmentedPreference(
                 title = "退出时机：${autoExitFullscreenMode.label}",
                 subtitle = autoExitFullscreenMode.subtitle,
                 options = listOf(
-                    PlaybackSegmentOption(
+                    AppSegmentOption(
                         com.android.purebilibili.core.store.AutoExitFullscreenMode.CURRENT_PART,
                         "当前P",
                     ),
-                    PlaybackSegmentOption(
+                    AppSegmentOption(
                         com.android.purebilibili.core.store.AutoExitFullscreenMode.ALL_PARTS,
                         "全部完",
                     ),
@@ -1964,8 +1966,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 },
             )
         }
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_LOCK),
             title = "全屏显示锁定按钮",
             subtitle = "控制层中显示防误触锁定按钮",
@@ -1978,8 +1980,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = iOSTeal
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_SCREENSHOT),
             title = "全屏显示截图按钮",
             subtitle = "控制层中显示快速截图入口",
@@ -1992,8 +1994,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSBlue
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.CLEAN_SCREENSHOT),
             title = "应用内干净截图",
             subtitle = "在 BiliPai 前台通过应用内手势导出当前窗口 PNG",
@@ -2005,8 +2007,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSPurple
         )
-        IOSDivider()
-        IOSSlidingSegmentedSetting(
+        AppPreferenceDivider()
+        AppSegmentedPreference(
             title = "截图触发方式：${appScreenshotGestureMode.label}",
             subtitle = appScreenshotGestureMode.description,
             options = resolveAppScreenshotGestureModeSegmentOptions(),
@@ -2017,8 +2019,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 }
             }
         )
-        IOSDivider()
-        IOSSlidingSegmentedSetting(
+        AppPreferenceDivider()
+        AppSegmentedPreference(
             title = "截图范围：${appScreenshotCaptureMode.label}",
             subtitle = appScreenshotCaptureMode.description,
             options = resolveAppScreenshotCaptureModeSegmentOptions(),
@@ -2029,8 +2031,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 }
             }
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.BATTERY_STATUS),
             title = "全屏显示电量",
             subtitle = "在横屏左上角展示电池图标和电量百分比",
@@ -2043,8 +2045,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = iOSGreen
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.TIME_STATUS),
             title = "全屏显示时间",
             subtitle = "在横屏左上角单独展示当前时间",
@@ -2057,8 +2059,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = iOSTeal
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYER_ACTIONS),
             title = "全屏显示互动按钮",
             subtitle = if (showFullscreenActionItems) {
@@ -2075,8 +2077,8 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSPink
         )
-        IOSDivider()
-	        IOSSwitchItem(
+        AppPreferenceDivider()
+	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.ONLINE_COUNT),
             title = "卡片与视频页观看人数",
             subtitle = if (showOnlineCount) {
@@ -2093,15 +2095,15 @@ private fun PlaybackFullscreenGestureSettingsSection(
             },
             iconTint = com.android.purebilibili.core.theme.iOSBlue
         )
-        IOSDivider()
-        IOSSlidingSegmentedSetting(
+        AppPreferenceDivider()
+        AppSegmentedPreference(
             title = "底部进度条展示：${bottomProgressBehavior.label}",
             subtitle = bottomProgressBehavior.description,
             options = listOf(
-                PlaybackSegmentOption(BottomProgressBehavior.ALWAYS_SHOW, "始终展示"),
-                PlaybackSegmentOption(BottomProgressBehavior.ALWAYS_HIDE, "始终隐藏"),
-                PlaybackSegmentOption(BottomProgressBehavior.ONLY_SHOW_FULLSCREEN, "仅全屏展示"),
-                PlaybackSegmentOption(BottomProgressBehavior.ONLY_HIDE_FULLSCREEN, "仅全屏隐藏")
+                AppSegmentOption(BottomProgressBehavior.ALWAYS_SHOW, "始终展示"),
+                AppSegmentOption(BottomProgressBehavior.ALWAYS_HIDE, "始终隐藏"),
+                AppSegmentOption(BottomProgressBehavior.ONLY_SHOW_FULLSCREEN, "仅全屏展示"),
+                AppSegmentOption(BottomProgressBehavior.ONLY_HIDE_FULLSCREEN, "仅全屏隐藏")
             ),
             selectedValue = bottomProgressBehavior,
             onSelectionChange = { behavior ->
@@ -2111,16 +2113,16 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 }
             }
         )
-        IOSDivider()
-        IOSSlidingSegmentedSetting(
+        AppPreferenceDivider()
+        AppSegmentedPreference(
             title = "控制栏进度条位置：${playerProgressPlacement.label}",
             subtitle = "可将可拖动进度条放到控制按钮下方的视频最底部",
             options = listOf(
-                PlaybackSegmentOption(
+                AppSegmentOption(
                     com.android.purebilibili.core.store.PlayerProgressPlacement.ABOVE_CONTROLS,
                     "控制栏上方"
                 ),
-                PlaybackSegmentOption(
+                AppSegmentOption(
                     com.android.purebilibili.core.store.PlayerProgressPlacement.BOTTOM_EDGE,
                     "视频最底部"
                 )

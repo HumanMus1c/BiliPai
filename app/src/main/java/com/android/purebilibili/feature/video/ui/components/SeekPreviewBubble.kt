@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -40,6 +39,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.size.Size
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoshotData
 import kotlin.math.roundToInt
@@ -197,7 +197,7 @@ internal fun SeekPreviewBubble(
         videoshotData?.getPreviewInfo(previewAnchorPositionMs, durationMs)
     }
 
-    Surface(
+    AppSurface(
         color = Color.Black.copy(alpha = 0.92f),
         shape = RoundedCornerShape(style.cornerRadiusDp.dp),
         shadowElevation = style.shadowElevationDp.dp,
@@ -404,7 +404,7 @@ internal fun SeekPreviewBubbleSimple(
         )
     }
 
-    Surface(
+    AppSurface(
         color = Color.Black.copy(alpha = 0.9f),
         shape = RoundedCornerShape(style.cornerRadiusDp.dp),
         shadowElevation = style.shadowElevationDp.dp,

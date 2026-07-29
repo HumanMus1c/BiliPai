@@ -20,7 +20,7 @@ import com.android.purebilibili.core.plugin.json.JsonRulePlugin
 import com.android.purebilibili.core.plugin.json.Rule
 import com.android.purebilibili.core.theme.iOSBlue
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
-import com.android.purebilibili.core.ui.components.IOSAdaptiveTextField
+import com.android.purebilibili.core.ui.components.AppTextField
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -106,7 +106,7 @@ fun JsonPluginEditorContent(
                     Text("基本信息", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    IOSAdaptiveTextField(
+                    AppTextField(
                         value = name,
                         onValueChange = onNameChange,
                         label = "插件名称"
@@ -114,7 +114,7 @@ fun JsonPluginEditorContent(
                     
                     Spacer(modifier = Modifier.height(12.dp))
                     
-                    IOSAdaptiveTextField(
+                    AppTextField(
                         value = description,
                         onValueChange = onDescriptionChange,
                         label = "插件描述",
@@ -263,7 +263,7 @@ private fun RuleEditor(
             )
             
             // 值输入
-            IOSAdaptiveTextField(
+            AppTextField(
                 value = value,
                 onValueChange = { 
                     value = it

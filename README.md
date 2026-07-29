@@ -10,12 +10,11 @@
 
 <p>
   <a href="README.md">简体中文</a> ·
-  <a href="README_EN.md">English</a> ·
-  <a href="docs/wiki/README_v8.0.6_legacy.md">旧版 README</a>
+  <a href="README_EN.md">English</a>
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Version-9.9.8.9-007AFF?style=flat-square&labelColor=ffffff" alt="Version 9.9.8.9" />
+  <img src="https://img.shields.io/badge/Release-9.9.8.9-007AFF?style=flat-square&labelColor=ffffff" alt="Release 9.9.8.9" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -23,8 +22,8 @@
   <a href="https://github.com/jay3-yy/BiliPai/releases">
     <img src="https://img.shields.io/github/downloads/jay3-yy/BiliPai/total?style=flat-square&color=34C759&label=%E6%80%BB%E4%B8%8B%E8%BD%BD%E9%87%8F&labelColor=ffffff" alt="总下载量" />
   </a>
-  <a href="https://github.com/jay3-yy/BiliPai/releases/tag/v9.9.8.7">
-    <img src="https://img.shields.io/github/downloads/jay3-yy/BiliPai/v9.9.8.7/total?style=flat-square&color=5AC8FA&label=%E6%9C%80%E6%96%B0%E5%B7%B2%E5%8F%91%E5%B8%83%E7%89%88%E6%9C%AC%E4%B8%8B%E8%BD%BD%E9%87%8F&labelColor=ffffff" alt="最新已发布版本下载量" />
+  <a href="https://github.com/jay3-yy/BiliPai/releases/latest">
+    <img src="https://img.shields.io/github/downloads/jay3-yy/BiliPai/latest/total?style=flat-square&color=5AC8FA&label=%E6%9C%80%E6%96%B0%E5%B7%B2%E5%8F%91%E5%B8%83%E7%89%88%E6%9C%AC%E4%B8%8B%E8%BD%BD%E9%87%8F&labelColor=ffffff" alt="最新已发布版本下载量" />
   </a>
 </p>
 
@@ -43,7 +42,7 @@
   </a>
 </p>
 
-<sub>README 更新：2026-07-26 · 当前构建版本以 app/build.gradle.kts 为准 · 发布记录以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
+<sub>README 更新：2026-07-28 · 当前构建版本以 app/build.gradle.kts 为准 · 已发布版本以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
 
 </div>
 
@@ -118,7 +117,7 @@ BiliPai 的界面围绕“内容优先、控制轻量、动效克制”调整。
 
 | 形态 | 当前状态 | 文档 |
 | --- | --- | --- |
-| 内置插件 | 随主应用稳定分发，覆盖空降助手、去广告、弹幕增强、夜间护眼、今日推荐单、CDN 属地优选、初见推荐 | 应用内插件中心 |
+| 内置插件 | 随主应用分发，当前注册空降助手、去广告、Anime4K、弹幕增强、夜间护眼、今日推荐单、CDN 属地优选、初见推荐、DLNA 与 Google Cast 共 10 个插件 | 应用内插件中心 |
 | JSON / `.bp` 规则插件 | 支持 URL 导入，适合推荐流过滤、弹幕过滤与高亮 | [JSON 插件开发](docs/PLUGIN_DEVELOPMENT.md) |
 | 外部 `.bpplugin` 包 | SDK、包格式、manifest、签名校验已就绪；外部 Dex 执行仍处于预览阶段 | [Plugin SDK](plugins/sdk/README.md) |
 | 源码级原生插件 | 适合复杂播放器、推荐、弹幕能力，需要重新编译 APK | [原生插件开发](docs/NATIVE_PLUGIN_DEVELOPMENT.md) |
@@ -148,8 +147,10 @@ BiliPai 的界面围绕“内容优先、控制轻量、动效克制”调整。
 ```text
 BiliPai/
 ├── app/                 # 主应用、功能 UI、播放器、导航、ViewModel、策略与测试
+├── design-system/       # 三套界面风格共用的主题、组件、图标、动效与视觉策略
 ├── settings-core/       # 可复用设置与偏好存储逻辑
 ├── network-core/        # 网络策略与底层网络支持
+├── plugin-sdk/          # 外部插件可使用的稳定接口与能力声明
 ├── baselineprofile/     # Macrobenchmark 与 Baseline Profile
 ├── docs/                # Wiki、开发文档、截图资源
 ├── plugins/             # 插件 SDK、示例、社区目录
@@ -164,10 +165,10 @@ cd BiliPai
 ./gradlew :app:compileDebugKotlin
 ```
 
-本地开发建议使用 JDK 21+ 与 Android Studio 2024.1+。如需打包 APK，可运行：
+本地开发建议使用 JDK 21+ 与 Android Studio 2024.1+。如需生成可安装的本地测试 APK，可运行：
 
 ```bash
-./gradlew :app:assembleDebug
+./gradlew :app:assembleDev
 ```
 
 `google-services.json` 是可选项：放入 `app/` 后启用 Firebase Crashlytics / Analytics；缺失时构建脚本会跳过相关能力。
@@ -184,11 +185,10 @@ cd BiliPai
 | 用户问答 | [docs/wiki/FAQ.md](docs/wiki/FAQ.md) |
 | 发布流程 | [docs/wiki/RELEASE_WORKFLOW.md](docs/wiki/RELEASE_WORKFLOW.md) |
 | 变更日志 | [CHANGELOG.md](CHANGELOG.md) |
-| 旧版 README | [docs/wiki/README_v8.0.6_legacy.md](docs/wiki/README_v8.0.6_legacy.md) |
 
 ## 最近更新
 
-当前仓库版本号已更新到 `9.9.8.9 / versionCode 264`。公开发布说明请以 [CHANGELOG.md](CHANGELOG.md) 为准；最新完整记录为 `v9.9.8.9`：
+当前开发构建为 `9.9.9.1 / versionCode 266`；最新有完整发布记录的版本为 `v9.9.8.9`。公开发布状态与下载请以 [GitHub Releases](https://github.com/jay3-yy/BiliPai/releases) 和 [CHANGELOG.md](CHANGELOG.md) 为准：
 
 - 新增 Anime4K CNN 视频增强插件，并补齐帧预算、切换、预设与版本升级。
 - 新增严格自定义 CDN 模式；修复 HDR TextureView、HEVC/hvc1 与 DASH 编码选择。
@@ -199,9 +199,9 @@ cd BiliPai
 
 | 状态 | 方向 |
 | --- | --- |
-| 已完成 | 首页推荐、视频播放、番剧、直播、动态、消息、个人中心、离线缓存、插件系统、大屏适配、视频笔记、听视频模式、液态玻璃视觉、预测返回与共享元素过渡 |
+| 已完成 | 首页推荐、视频播放、番剧、直播、动态、消息、个人中心、多账号会话切换、离线缓存、插件系统、大屏适配、视频笔记、听视频模式、液态玻璃视觉、预测返回与共享元素过渡 |
 | 进行中 | 滑动与过渡性能持续优化、iOS/Material 3/Miuix 风格统一、插件 SDK 与外部包能力细化、Wiki 文档站与回归清单完善 |
-| 计划中 | 观看历史云同步、收藏夹管理、多账户切换、英文/繁体中文体验补全、外部 Dex 插件正式化 |
+| 计划中 | 观看历史云同步、收藏夹管理、多账户隔离增强、英文/繁体中文完整覆盖、外部 Dex 插件正式化 |
 
 ## 参与贡献
 

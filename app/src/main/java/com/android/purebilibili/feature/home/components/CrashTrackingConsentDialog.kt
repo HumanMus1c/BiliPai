@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,37 +37,37 @@ fun CrashTrackingConsentDialog(
         Surface(
             shape = AppShapes.container(ContainerLevel.Dialog),
             color = AppSurfaceTokens.cardContainer(),
-            tonalElevation = 6.dp,
-            shadowElevation = 8.dp
+            tonalElevation = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro,
+            shadowElevation = AppSpacingTokens.Small
         ) {
             Column(
                 modifier = Modifier
-                    .padding(24.dp)
+                    .padding(AppSpacingTokens.ExtraLarge)
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // 标题
                 Text(
                     text = "🛡️ 帮助我们改进应用",
-                    fontSize = 20.sp,
+                    fontSize = MaterialTheme.typography.titleLarge.fontSize,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
                 
                 // 说明文字
                 Text(
                     text = "为了快速发现和修复应用问题，BiliPai 会收集崩溃报告和错误日志。\n\n" +
                            "默认仅启用崩溃追踪；使用情况统计默认关闭。播放器诊断日志保持可用，方便排查黑屏、卡顿等播放问题。\n\n" +
                            "这些数据仅用于改善应用稳定性，你也可以随时在「设置」中调整相关开关。",
-                    fontSize = 14.sp,
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Start,
-                    lineHeight = 22.sp
+                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
                 )
                 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall))
                 
                 // 开关选项
                 Row(
@@ -75,7 +77,7 @@ fun CrashTrackingConsentDialog(
                 ) {
                     Text(
                         text = "启用崩溃追踪",
-                        fontSize = 16.sp,
+                        fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -89,7 +91,7 @@ fun CrashTrackingConsentDialog(
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraLarge))
                 
                 // 确认按钮
                 Button(
@@ -108,7 +110,7 @@ fun CrashTrackingConsentDialog(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .height(AppSpacingTokens.TripleExtraLarge),
                     shape = AppShapes.container(ContainerLevel.Card),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = BiliPink
@@ -116,7 +118,7 @@ fun CrashTrackingConsentDialog(
                 ) {
                     Text(
                         text = "确定",
-                        fontSize = 16.sp,
+                        fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                         fontWeight = FontWeight.Medium
                     )
                 }

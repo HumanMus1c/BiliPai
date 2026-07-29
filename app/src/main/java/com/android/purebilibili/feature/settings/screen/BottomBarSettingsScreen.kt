@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.settings
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
+import androidx.compose.material.icons.outlined.DynamicFeed
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.GridView
@@ -11,9 +12,11 @@ import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.LiveTv
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PlayCircleOutline
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.Tv
+import androidx.compose.material.icons.outlined.WatchLater
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -49,6 +52,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.R
 import com.android.purebilibili.core.store.HomeHeaderBlurMode
@@ -62,16 +66,11 @@ import com.android.purebilibili.core.theme.BottomBarColors  //  统一底栏颜�
 import com.android.purebilibili.core.theme.BottomBarColorPalette  //  调色板
 import com.android.purebilibili.core.theme.BottomBarColorNames  //  颜色名称
 import com.android.purebilibili.core.theme.LocalSettingsLiquidGlassEnabled
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppSemanticIconFamily
+import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.adaptive.resolveEffectiveMotionTier
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
-import com.android.purebilibili.core.ui.resolveAppDynamicIcon
-import com.android.purebilibili.core.ui.resolveAppHomeIcon
-import com.android.purebilibili.core.ui.resolveAppSettingsIcon
-import com.android.purebilibili.core.ui.resolveAppTvIcon
-import com.android.purebilibili.core.ui.resolveAppWatchLaterIcon
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.ui.components.*
@@ -98,23 +97,23 @@ data class TopTabConfig(
 
 internal fun resolveBottomBarTabIcon(
     id: String,
-    uiPreset: UiPreset = UiPreset.IOS
+    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
 ): ImageVector {
-    return when (uiPreset) {
-        UiPreset.MD3 -> when (id) {
-            "HOME" -> resolveAppHomeIcon(uiPreset)
-            "DYNAMIC" -> resolveAppDynamicIcon(uiPreset)
+    return when (iconFamily) {
+        AppSemanticIconFamily.MATERIAL -> when (id) {
+            "HOME" -> Icons.Outlined.Home
+            "DYNAMIC" -> Icons.Outlined.DynamicFeed
             "STORY" -> Icons.Outlined.PlayCircleOutline
             "HISTORY" -> Icons.Outlined.History
             "LISTEN_VIDEO" -> Icons.Outlined.LibraryMusic
             "PROFILE" -> Icons.Outlined.Person
             "FAVORITE" -> Icons.Outlined.StarBorder
-            "LIVE" -> resolveAppTvIcon(uiPreset)
-            "WATCHLATER" -> resolveAppWatchLaterIcon(uiPreset)
-            "SETTINGS" -> resolveAppSettingsIcon(uiPreset)
-            else -> resolveAppHomeIcon(uiPreset)
+            "LIVE" -> Icons.Outlined.LiveTv
+            "WATCHLATER" -> Icons.Outlined.WatchLater
+            "SETTINGS" -> Icons.Outlined.Settings
+            else -> Icons.Outlined.Home
         }
-        UiPreset.IOS -> when (id) {
+        AppSemanticIconFamily.CUPERTINO -> when (id) {
             "HOME" -> CupertinoIcons.Default.House
             "DYNAMIC" -> CupertinoIcons.Default.RectangleStack
             "STORY" -> CupertinoIcons.Default.PlayCircle
@@ -123,7 +122,7 @@ internal fun resolveBottomBarTabIcon(
             "PROFILE" -> CupertinoIcons.Default.PersonCircle
             "FAVORITE" -> CupertinoIcons.Default.Star
             "LIVE" -> CupertinoIcons.Default.Video
-            "WATCHLATER" -> resolveAppWatchLaterIcon(uiPreset)
+            "WATCHLATER" -> CupertinoIcons.Outlined.Clock
             "SETTINGS" -> CupertinoIcons.Default.Gearshape
             else -> CupertinoIcons.Default.House
         }
@@ -132,10 +131,10 @@ internal fun resolveBottomBarTabIcon(
 
 internal fun resolveTopTabIcon(
     id: String,
-    uiPreset: UiPreset = UiPreset.IOS
+    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
 ): ImageVector {
-    return when (uiPreset) {
-        UiPreset.MD3 -> when (id) {
+    return when (iconFamily) {
+        AppSemanticIconFamily.MATERIAL -> when (id) {
             "RECOMMEND" -> Icons.Outlined.Home
             "FOLLOW" -> Icons.Outlined.Person
             "POPULAR" -> Icons.AutoMirrored.Outlined.TrendingUp
@@ -147,7 +146,7 @@ internal fun resolveTopTabIcon(
             "TECH" -> Icons.Outlined.SmartToy
             else -> Icons.Outlined.Home
         }
-        UiPreset.IOS -> when (id) {
+        AppSemanticIconFamily.CUPERTINO -> when (id) {
             "RECOMMEND" -> CupertinoIcons.Default.House
             "FOLLOW" -> CupertinoIcons.Default.PersonCropCircleBadgePlus
             "POPULAR" -> CupertinoIcons.Default.ChartBar
@@ -165,31 +164,35 @@ internal fun resolveTopTabIcon(
 /**
  * 所有可用的底栏项目
  */
-internal fun resolveAllBottomBarTabs(uiPreset: UiPreset = UiPreset.IOS): List<BottomBarTabConfig> = listOf(
-    BottomBarTabConfig("HOME", "首页", resolveBottomBarTabIcon("HOME", uiPreset), isDefault = true),
-    BottomBarTabConfig("DYNAMIC", "动态", resolveBottomBarTabIcon("DYNAMIC", uiPreset), isDefault = true),
-    BottomBarTabConfig("STORY", "短视频", resolveBottomBarTabIcon("STORY", uiPreset), isDefault = false),
-    BottomBarTabConfig("HISTORY", "历史", resolveBottomBarTabIcon("HISTORY", uiPreset), isDefault = true),
-    BottomBarTabConfig("LISTEN_VIDEO", "听视频", resolveBottomBarTabIcon("LISTEN_VIDEO", uiPreset), isDefault = true),
-    BottomBarTabConfig("PROFILE", "我的", resolveBottomBarTabIcon("PROFILE", uiPreset), isDefault = true),
-    BottomBarTabConfig("FAVORITE", "收藏", resolveBottomBarTabIcon("FAVORITE", uiPreset), isDefault = false),
-    BottomBarTabConfig("LIVE", "直播", resolveBottomBarTabIcon("LIVE", uiPreset), isDefault = false),
-    BottomBarTabConfig("WATCHLATER", "稍后看", resolveBottomBarTabIcon("WATCHLATER", uiPreset), isDefault = false),
-    BottomBarTabConfig("SETTINGS", "设置", resolveBottomBarTabIcon("SETTINGS", uiPreset), isDefault = false)
+internal fun resolveAllBottomBarTabs(
+    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
+): List<BottomBarTabConfig> = listOf(
+    BottomBarTabConfig("HOME", "首页", resolveBottomBarTabIcon("HOME", iconFamily), isDefault = true),
+    BottomBarTabConfig("DYNAMIC", "动态", resolveBottomBarTabIcon("DYNAMIC", iconFamily), isDefault = true),
+    BottomBarTabConfig("STORY", "短视频", resolveBottomBarTabIcon("STORY", iconFamily), isDefault = false),
+    BottomBarTabConfig("HISTORY", "历史", resolveBottomBarTabIcon("HISTORY", iconFamily), isDefault = true),
+    BottomBarTabConfig("LISTEN_VIDEO", "听视频", resolveBottomBarTabIcon("LISTEN_VIDEO", iconFamily), isDefault = true),
+    BottomBarTabConfig("PROFILE", "我的", resolveBottomBarTabIcon("PROFILE", iconFamily), isDefault = true),
+    BottomBarTabConfig("FAVORITE", "收藏", resolveBottomBarTabIcon("FAVORITE", iconFamily), isDefault = false),
+    BottomBarTabConfig("LIVE", "直播", resolveBottomBarTabIcon("LIVE", iconFamily), isDefault = false),
+    BottomBarTabConfig("WATCHLATER", "稍后看", resolveBottomBarTabIcon("WATCHLATER", iconFamily), isDefault = false),
+    BottomBarTabConfig("SETTINGS", "设置", resolveBottomBarTabIcon("SETTINGS", iconFamily), isDefault = false)
 )
 
 private val defaultTopTabIds = listOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME", "PARTITION")
 
-internal fun resolveAllTopTabs(uiPreset: UiPreset = UiPreset.IOS): List<TopTabConfig> = listOf(
-    TopTabConfig("RECOMMEND", "推荐", resolveTopTabIcon("RECOMMEND", uiPreset)),
-    TopTabConfig("FOLLOW", "关注", resolveTopTabIcon("FOLLOW", uiPreset)),
-    TopTabConfig("POPULAR", "热门", resolveTopTabIcon("POPULAR", uiPreset)),
-    TopTabConfig("LIVE", "直播", resolveTopTabIcon("LIVE", uiPreset)),
-    TopTabConfig("ANIME", "追番", resolveTopTabIcon("ANIME", uiPreset)),
-    TopTabConfig("GAME", "游戏", resolveTopTabIcon("GAME", uiPreset)),
-    TopTabConfig("PARTITION", "分区", resolveTopTabIcon("PARTITION", uiPreset)),
-    TopTabConfig("KNOWLEDGE", "知识", resolveTopTabIcon("KNOWLEDGE", uiPreset)),
-    TopTabConfig("TECH", "科技", resolveTopTabIcon("TECH", uiPreset))
+internal fun resolveAllTopTabs(
+    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
+): List<TopTabConfig> = listOf(
+    TopTabConfig("RECOMMEND", "推荐", resolveTopTabIcon("RECOMMEND", iconFamily)),
+    TopTabConfig("FOLLOW", "关注", resolveTopTabIcon("FOLLOW", iconFamily)),
+    TopTabConfig("POPULAR", "热门", resolveTopTabIcon("POPULAR", iconFamily)),
+    TopTabConfig("LIVE", "直播", resolveTopTabIcon("LIVE", iconFamily)),
+    TopTabConfig("ANIME", "追番", resolveTopTabIcon("ANIME", iconFamily)),
+    TopTabConfig("GAME", "游戏", resolveTopTabIcon("GAME", iconFamily)),
+    TopTabConfig("PARTITION", "分区", resolveTopTabIcon("PARTITION", iconFamily)),
+    TopTabConfig("KNOWLEDGE", "知识", resolveTopTabIcon("KNOWLEDGE", iconFamily)),
+    TopTabConfig("TECH", "科技", resolveTopTabIcon("TECH", iconFamily))
 )
 
 /**
@@ -225,7 +228,7 @@ fun BottomBarSettingsContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val uiPreset = LocalUiPreset.current
+    val iconFamily = rememberAppSemanticVisualPolicy().iconFamily
     val windowSizeClass = LocalWindowSizeClass.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -242,8 +245,8 @@ fun BottomBarSettingsContent(
         listState.animateScrollToItem(index)
         SettingsSearchFocusController.clear(request.token)
     }
-    val allBottomBarTabs = remember(uiPreset) { resolveAllBottomBarTabs(uiPreset) }
-    val allTopTabs = remember(uiPreset) { resolveAllTopTabs(uiPreset) }
+    val allBottomBarTabs = remember(iconFamily) { resolveAllBottomBarTabs(iconFamily) }
+    val allTopTabs = remember(iconFamily) { resolveAllTopTabs(iconFamily) }
 
     
     // 读取当前配置
@@ -365,13 +368,13 @@ fun BottomBarSettingsContent(
             // 底部导航
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("底部导航")
+                    AppPreferenceSectionTitle("底部导航")
                 }
             }
 
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSGroup {
+                    AppPreferenceGroup {
                         val scope = rememberCoroutineScope()
                         val visibilityMode by SettingsManager.getBottomBarVisibilityMode(context).collectAsStateWithLifecycle(initialValue = SettingsManager.BottomBarVisibilityMode.ALWAYS_VISIBLE)
                         val labelMode by SettingsManager.getBottomBarLabelMode(context).collectAsStateWithLifecycle(initialValue = 0)
@@ -471,7 +474,7 @@ fun BottomBarSettingsContent(
                             }
                         }
                         
-                        IOSDivider()
+                        AppPreferenceDivider()
                         
                         //  底栏标签样式（选择器）
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -553,13 +556,13 @@ fun BottomBarSettingsContent(
             // 顶部标签
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("顶部标签")
+                    AppPreferenceSectionTitle("顶部标签")
                 }
             }
 
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSGroup {
+                    AppPreferenceGroup {
                         Column(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -1109,14 +1112,14 @@ fun BottomBarSettingsContent(
             // 平板导航
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("平板导航")
+                    AppPreferenceSectionTitle("平板导航")
                 }
             }
 
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSGroup {
-                        IOSSwitchItem(
+                    AppPreferenceGroup {
+                        AppSwitchPreference(
                             icon = CupertinoIcons.Outlined.SidebarLeft,
                             title = "侧边导航栏",
                             subtitle = "在平板横屏或大屏布局中使用侧边栏代替底部导航",
@@ -1135,7 +1138,7 @@ fun BottomBarSettingsContent(
             // 当前底栏预览
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("当前底栏")
+                    AppPreferenceSectionTitle("当前底栏")
                 }
             }
             
@@ -1155,14 +1158,14 @@ fun BottomBarSettingsContent(
                 Box(modifier = Modifier.entrance()) {
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
-                        IOSSectionTitle("可用项目")
+                        AppPreferenceSectionTitle("可用项目")
                     }
                 }
             }
             
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSGroup {
+                    AppPreferenceGroup {
                         allBottomBarTabs.forEachIndexed { index, tab ->
                             if (index > 0) {
                                 HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
@@ -1345,7 +1348,7 @@ private fun BottomBarPreview(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .width(itemWidth)
-                            .offset(x = animatedX)
+                            .offset { IntOffset(x = animatedX.roundToPx(), y = 0) }
                             .zIndex(zIndex)
                             .scale(scale)
                             // 移除单独的 pointerInput
@@ -1436,7 +1439,7 @@ private fun BottomBarTabItem(
     
     //  颜色选择弹窗
     if (showColorPicker) {
-        com.android.purebilibili.core.ui.IOSAlertDialog(
+        com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showColorPicker = false },
             title = { Text("选择${tab.label}颜色") },
             text = {
@@ -1482,7 +1485,7 @@ private fun BottomBarTabItem(
                 }
             },
             confirmButton = {
-                com.android.purebilibili.core.ui.IOSDialogAction(
+                com.android.purebilibili.core.ui.AppDialogAction(
                     onClick = { showColorPicker = false }
                 ) {
                     Text("取消", color = MaterialTheme.colorScheme.primary)

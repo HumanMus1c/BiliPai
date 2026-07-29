@@ -28,8 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import kotlin.math.abs
@@ -239,10 +238,9 @@ fun GestureIndicator(
             }
         }
         GestureMode.Brightness, GestureMode.Volume -> {
-            val uiPreset = LocalUiPreset.current
-            val androidNativeVariant = LocalAndroidNativeVariant.current
-            val overlayStyle = remember(uiPreset, androidNativeVariant) {
-                resolveGestureLevelOverlayStyle(uiPreset, androidNativeVariant)
+            val playerChromeProfile = rememberAppPlayerChromeProfile()
+            val overlayStyle = remember(playerChromeProfile.tabPresentation) {
+                resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
             }
             val mappedMode = if (mode == GestureMode.Brightness) {
                 VideoGestureMode.Brightness

@@ -1,6 +1,10 @@
 // 文件路径: feature/home/components/cards/GlassVideoCard.kt
 package com.android.purebilibili.feature.home.components.cards
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.MediaContrastPalette
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -52,6 +56,10 @@ import androidx.compose.animation.core.tween
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
+import com.android.purebilibili.core.ui.feedContentTypography
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
@@ -63,6 +71,7 @@ import com.android.purebilibili.feature.home.resolveHomeCardEnterAnimationEnable
 import kotlin.math.roundToInt
 import com.android.purebilibili.feature.home.rememberHomeGlassPillColors
 import com.android.purebilibili.feature.home.resolveHomeGlassCoverPillBaseColor
+import com.android.purebilibili.feature.home.HomeVisualPalette
 
 /**
  *  玻璃拟态卡片 - Vision Pro 风格 (性能优化版)
@@ -95,13 +104,14 @@ fun GlassVideoCard(
     onClick: (String, Long) -> Unit
 ) {
     val haptic = rememberHapticFeedback()
+    val contentTypography = feedContentTypography()
     
     // [新增] 获取圆角缩放比例
     val cornerRadiusScale = LocalCornerRadiusScale.current
-    val cardCornerRadius = iOSCornerRadius.ExtraLarge * cornerRadiusScale  // 20.dp * scale
-    val coverCornerRadius = iOSCornerRadius.Large * cornerRadiusScale + 2.dp  // 16.dp * scale
-    val tagCornerRadius = iOSCornerRadius.Small * cornerRadiusScale  // 10.dp * scale
-    val smallTagRadius = iOSCornerRadius.ExtraSmall * cornerRadiusScale  // 6.dp * scale
+    val cardCornerRadius = iOSCornerRadius.ExtraLarge * cornerRadiusScale  // AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall * scale
+    val coverCornerRadius = iOSCornerRadius.Large * cornerRadiusScale + AppSpacingTokens.Micro  // AppSpacingTokens.Large * scale
+    val tagCornerRadius = iOSCornerRadius.Small * cornerRadiusScale  // AppSpacingTokens.Small + AppSpacingTokens.Micro * scale
+    val smallTagRadius = iOSCornerRadius.ExtraSmall * cornerRadiusScale  // AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro * scale
     val durationBadgeStyle = remember { resolveVideoCardDurationBadgeVisualStyle() }
     val durationText = remember(video.duration) { FormatUtils.formatDuration(video.duration) }
     val durationBadgeMinWidth = remember(durationText, durationBadgeStyle) {
@@ -126,7 +136,7 @@ fun GlassVideoCard(
         glassEnabled = true,
         blurEnabled = true,
         emphasized = false,
-        baseColor = MaterialTheme.colorScheme.surface
+        baseColor = AppSurfaceTokens.cardContainer()
     )
     val badgeStylePolicy = remember(showCoverGlassBadges, showInfoGlassBadges) {
         resolveHomeVideoGlassBadgeStylePolicy(
@@ -150,7 +160,7 @@ fun GlassVideoCard(
     val onSurface = MaterialTheme.colorScheme.onSurface
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
     //  玻璃背景色 - 使用系统主题色自动适配
-    val glassBackground = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+    val glassBackground = AppSurfaceTokens.cardContainer().copy(alpha = 0.92f)
     
     //  获取屏幕尺寸用于计算归一化坐标
     val configuration = LocalConfiguration.current
@@ -222,17 +232,7 @@ fun GlassVideoCard(
         resolveVideoSharedCoverCacheKey(video.bvid, useLowQualityCover)
     }
     // 🌈 彩虹渐变边框色
-    val rainbowColors = remember {
-        listOf(
-            Color(0xFFFF6B6B),  // 珊瑩红
-            Color(0xFFFF8E53),  // 橙色
-            Color(0xFFFFD93D),  // 金黄
-            Color(0xFF6BCB77),  // 翠绿
-            Color(0xFF4D96FF),  // 天蓝
-            Color(0xFF9B59B6),  // 紫色
-            Color(0xFFFF6B6B)   // 循环回红色
-        )
-    }
+    val rainbowColors = HomeVisualPalette.GlassSpectrum
     
     val cardShellShape = remember(cardCornerRadius) { RoundedCornerShape(cardCornerRadius) }
     val enterAnimationEnabledAtMount = remember(video.bvid) {
@@ -259,7 +259,7 @@ fun GlassVideoCard(
                 motionSpec = cardSharedTransitionMotionSpec,
                 clipShape = cardShellShape
             )
-            .padding(6.dp)
+            .padding(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
             .animateEnter(
                 index = index,
                 key = Unit,
@@ -273,7 +273,7 @@ fun GlassVideoCard(
             }
     ) {
         //  [性能优化] 移除 blur() 层，改用静态渐变色
-        // 原：blur(radius = 20.dp) 成本很高
+        // 原：blur(radius = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall) 成本很高
         // 新：单层轻量阴影
         
         //  玻璃卡片主体
@@ -283,7 +283,7 @@ fun GlassVideoCard(
                 .clip(RoundedCornerShape(cardCornerRadius))
                 // 彩虹渐变边框
                 .border(
-                    width = 1.5.dp,
+                    width = AppSpacingTokens.Micro * 0.75f,
                     brush = Brush.sweepGradient(
                         colors = rainbowColors.map { it.copy(alpha = 0.6f) }
                     ),
@@ -325,7 +325,7 @@ fun GlassVideoCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(VIDEO_SHARED_COVER_ASPECT_RATIO)
-                        .padding(10.dp)
+                        .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro)
                 ) {
                     // 封面图片 - 圆角内嵌
                     Box(
@@ -351,13 +351,13 @@ fun GlassVideoCard(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(60.dp)
+                                .height(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Medium)
                                 .align(Alignment.BottomCenter)
                                 .background(
                                     Brush.verticalGradient(
                                         colors = listOf(
                                             Color.Transparent,
-                                            Color.Black.copy(alpha = 0.7f)
+                                            MediaContrastPalette.Scrim.copy(alpha = 0.7f)
                                         )
                                     )
                                 )
@@ -369,43 +369,41 @@ fun GlassVideoCard(
                             Surface(
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
-                                    .padding(10.dp),
+                                    .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                 color = emphasizedCoverPillColors.containerColor,
-                                border = BorderStroke(0.8.dp, emphasizedCoverPillColors.borderColor),
+                                border = BorderStroke(AppSpacingTokens.Micro * 0.4f, emphasizedCoverPillColors.borderColor),
                                 shape = RoundedCornerShape(tagCornerRadius)
                             ) {
                                 Text(
                                     text = durationText,
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    color = MediaContrastPalette.Foreground,
+                                    style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
                                     maxLines = 1,
                                     softWrap = false,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier
                                         .widthIn(min = durationBadgeMinWidth)
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                        .padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro, vertical = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro / 2)
                                 )
                             }
                         } else {
                             Surface(
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
-                                    .padding(20.dp, 0.dp, 20.dp, 16.dp),
-                                color = Color.Black.copy(alpha = durationBadgeStyle.backgroundAlpha),
+                                    .padding(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, AppSpacingTokens.None, AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, AppSpacingTokens.Large),
+                                color = MediaContrastPalette.Scrim.copy(alpha = durationBadgeStyle.backgroundAlpha),
                                 shape = RoundedCornerShape(tagCornerRadius)
                             ) {
                                 Text(
                                     text = durationText,
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    color = MediaContrastPalette.Foreground,
+                                    style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
                                     maxLines = 1,
                                     softWrap = false,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier
                                         .widthIn(min = durationBadgeMinWidth)
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                        .padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro, vertical = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro / 2)
                                 )
                             }
                         }
@@ -415,33 +413,31 @@ fun GlassVideoCard(
                             Surface(
                                 modifier = Modifier
                                     .align(Alignment.TopStart)
-                                    .padding(10.dp),
-                                color = Color(0xFF00D1B2).copy(alpha = 0.82f),
-                                border = BorderStroke(0.8.dp, coverPillColors.borderColor),
+                                    .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro),
+                                color = HomeVisualPalette.VerticalVideoAccent.copy(alpha = 0.82f),
+                                border = BorderStroke(AppSpacingTokens.Micro * 0.4f, coverPillColors.borderColor),
                                 shape = RoundedCornerShape(smallTagRadius)
                             ) {
                                 Text(
                                     text = "竖屏",
-                                    color = Color.White,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                    color = MediaContrastPalette.Foreground,
+                                    style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
+                                    modifier = Modifier.padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2)
                                 )
                             }
                         } else if (video.isVertical) {
                             Surface(
                                 modifier = Modifier
                                     .align(Alignment.TopStart)
-                                    .padding(10.dp),
-                                color = Color(0xFF00D1B2).copy(alpha = 0.82f),
+                                    .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro),
+                                color = HomeVisualPalette.VerticalVideoAccent.copy(alpha = 0.82f),
                                 shape = RoundedCornerShape(smallTagRadius)
                             ) {
                                 Text(
                                     text = "竖屏",
-                                    color = Color.White,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                    color = MediaContrastPalette.Foreground,
+                                    style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
+                                    modifier = Modifier.padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2)
                                 )
                             }
                         }
@@ -452,8 +448,8 @@ fun GlassVideoCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp)
-                        .padding(bottom = 14.dp)
+                        .padding(horizontal = AppSpacingTokens.Medium + AppSpacingTokens.Micro)
+                        .padding(bottom = AppSpacingTokens.Medium + AppSpacingTokens.Micro)
                         .videoCardShellReturnChromeAlpha(
                             enabled = useCardShellSharedBounds,
                             bvid = video.bvid,
@@ -465,14 +461,12 @@ fun GlassVideoCard(
                     Text(
                         text = video.title,
                         color = onSurface,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        style = contentTypography.title,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = 19.sp
+                        overflow = TextOverflow.Ellipsis
                     )
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                     
                     // 数据行
                     Row(
@@ -489,16 +483,13 @@ fun GlassVideoCard(
                                             .build(),
                                         contentDescription = null,
                                         modifier = Modifier
-                                            .size(14.dp)
+                                            .size(AppSpacingTokens.Medium + AppSpacingTokens.Micro)
                                             .clip(CircleShape),
                                         contentScale = ContentScale.Crop
                                     )
                                 }
                             } else null,
-                            nameStyle = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            ),
+                            nameStyle = contentTypography.author,
                             nameColor = MaterialTheme.colorScheme.primary,
                             badgeTextColor = onSurfaceVariant.copy(alpha = 0.85f),
                             badgeBackgroundColor = onSurfaceVariant.copy(alpha = 0.12f),
@@ -506,28 +497,28 @@ fun GlassVideoCard(
                             modifier = Modifier.weight(1f, fill = false)
                         )
                         
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                         
                         // 播放量 -  [修复] 只在有播放量时显示
                         if (video.stat.view > 0) {
                             if (badgeStylePolicy.infoStyle == HomeVideoBadgeStyle.GLASS) {
                                 Surface(
-                                    shape = RoundedCornerShape(999.dp),
+                                    shape = AppShapes.container(ContainerLevel.Pill),
                                     color = inlinePillColors.containerColor,
-                                    border = BorderStroke(0.8.dp, inlinePillColors.borderColor)
+                                    border = BorderStroke(AppSpacingTokens.Micro * 0.4f, inlinePillColors.borderColor)
                                 ) {
                                     Text(
                                         text = "${FormatUtils.formatStat(video.stat.view.toLong())}播放",
                                         color = onSurfaceVariant.copy(alpha = 0.78f),
-                                        fontSize = 11.sp,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                        style = contentTypography.statistic,
+                                        modifier = Modifier.padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2)
                                     )
                                 }
                             } else {
                                 Text(
                                     text = "${FormatUtils.formatStat(video.stat.view.toLong())}播放",
                                     color = onSurfaceVariant.copy(alpha = 0.78f),
-                                    fontSize = 11.sp
+                                    style = contentTypography.statistic
                                 )
                             }
                         }
@@ -539,14 +530,14 @@ fun GlassVideoCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(2.dp)
+                    .height(AppSpacingTokens.Micro)
                     .background(
                         Brush.horizontalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.White.copy(alpha = 0.6f),
-                                Color.White.copy(alpha = 0.8f),
-                                Color.White.copy(alpha = 0.6f),
+                                MediaContrastPalette.Foreground.copy(alpha = 0.6f),
+                                MediaContrastPalette.Foreground.copy(alpha = 0.8f),
+                                MediaContrastPalette.Foreground.copy(alpha = 0.6f),
                                 Color.Transparent
                             )
                         )

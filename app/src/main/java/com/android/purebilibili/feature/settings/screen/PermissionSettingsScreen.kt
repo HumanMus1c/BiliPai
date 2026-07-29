@@ -44,8 +44,6 @@ import com.android.purebilibili.core.theme.iOSGreen
 import com.android.purebilibili.core.theme.iOSOrange
 import com.android.purebilibili.core.theme.iOSPurple
 import com.android.purebilibili.core.theme.iOSTeal
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
 import com.android.purebilibili.feature.settings.SettingsPageScrollHost
 
 /**
@@ -207,10 +205,10 @@ fun PermissionSettingsContent(
             }
 
             Box(modifier = Modifier.entrance()) {
-                IOSSectionTitle("需要授权的权限")
+                AppPreferenceSectionTitle("需要授权的权限")
             }
             Box(modifier = Modifier.entrance()) {
-                IOSGroup {
+                AppPreferenceGroup {
                     permissions.filter { !it.isNormal }.forEachIndexed { index, info ->
                         if (index > 0) HorizontalDivider()
                         PermissionItem(
@@ -223,10 +221,10 @@ fun PermissionSettingsContent(
             }
 
             Box(modifier = Modifier.entrance()) {
-                IOSSectionTitle("自动授予的权限")
+                AppPreferenceSectionTitle("自动授予的权限")
             }
             Box(modifier = Modifier.entrance()) {
-                IOSGroup {
+                AppPreferenceGroup {
                     permissions.filter { it.isNormal }.forEachIndexed { index, info ->
                         if (index > 0) HorizontalDivider()
                         PermissionItem(
@@ -272,14 +270,10 @@ private fun PermissionItem(
     isGranted: Boolean,
     onOpenSettings: (() -> Unit)?
 ) {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val visualSpec = remember(uiPreset, androidNativeVariant) {
-        resolveAdaptiveListComponentVisualSpec(uiPreset, androidNativeVariant)
-    }
-    val effectiveIconTint = rememberAdaptiveSemanticIconTint(info.iconTint, uiPreset)
-    val grantedTint = rememberAdaptiveSemanticIconTint(iOSGreen, uiPreset)
-    val deniedTint = rememberAdaptiveSemanticIconTint(com.android.purebilibili.core.theme.iOSRed, uiPreset)
+    val visualSpec = rememberAdaptiveListVisualCapabilities().componentSpec
+    val effectiveIconTint = rememberAdaptiveSemanticIconTint(info.iconTint)
+    val grantedTint = rememberAdaptiveSemanticIconTint(iOSGreen)
+    val deniedTint = rememberAdaptiveSemanticIconTint(com.android.purebilibili.core.theme.iOSRed)
     Row(
         modifier = Modifier
             .fillMaxWidth()

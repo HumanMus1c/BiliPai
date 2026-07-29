@@ -33,8 +33,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
 import com.android.purebilibili.core.theme.iOSYellow
-import com.android.purebilibili.core.ui.AdaptiveScaffold
-import com.android.purebilibili.core.ui.AdaptiveTopAppBar
+import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.BangumiDetail
@@ -68,9 +68,9 @@ fun BangumiDetailScreen(
         viewModel.loadSeasonDetail(seasonId, epId)
     }
     
-    AdaptiveScaffold(
+    AppScaffold(
         topBar = {
-            AdaptiveTopAppBar(
+            AppTopBar(
                 title = "番剧详情",
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -885,7 +885,7 @@ private fun MobileBangumiDetailContent(
         
         //  快速跳转对话框（在 LazyColumn 外部）
         if (showJumpDialog && !detail.episodes.isNullOrEmpty()) {
-            com.android.purebilibili.core.ui.IOSAlertDialog(
+            com.android.purebilibili.core.ui.AppAlertDialog(
                 onDismissRequest = { showJumpDialog = false },
                 title = { Text("跳转到第几集") },
                 text = {
@@ -912,7 +912,7 @@ private fun MobileBangumiDetailContent(
                     }
                 },
                 confirmButton = {
-                    com.android.purebilibili.core.ui.IOSDialogAction(
+                    com.android.purebilibili.core.ui.AppDialogAction(
                         onClick = {
                             val epNumber = jumpInputText.toIntOrNull()
                             if (epNumber == null || epNumber < 1 || epNumber > detail.episodes.size) {
@@ -930,7 +930,7 @@ private fun MobileBangumiDetailContent(
                     }
                 },
                 dismissButton = {
-                    com.android.purebilibili.core.ui.IOSDialogAction(onClick = { showJumpDialog = false }) {
+                    com.android.purebilibili.core.ui.AppDialogAction(onClick = { showJumpDialog = false }) {
                         Text("取消")
                     }
                 }
@@ -1209,7 +1209,7 @@ private fun EpisodeSelectionSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     
-    com.android.purebilibili.core.ui.IOSModalBottomSheet(
+    com.android.purebilibili.core.ui.AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = null,  // 使用自定义标题栏

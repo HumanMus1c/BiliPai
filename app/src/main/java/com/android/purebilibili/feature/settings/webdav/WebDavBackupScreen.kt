@@ -26,9 +26,9 @@ import androidx.compose.material.icons.filled.Warning
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
+import com.android.purebilibili.core.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,14 +50,14 @@ import com.android.purebilibili.core.theme.iOSOrange
 import com.android.purebilibili.core.theme.iOSPink
 import com.android.purebilibili.feature.settings.SettingsPageScrollHost
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
-import com.android.purebilibili.core.ui.IOSAlertDialog
-import com.android.purebilibili.core.ui.IOSDialogAction
-import com.android.purebilibili.core.ui.components.IOSClickableItem
-import com.android.purebilibili.core.ui.components.IOSDivider
-import com.android.purebilibili.core.ui.components.IOSGroup
-import com.android.purebilibili.core.ui.components.IOSSectionTitle
-import com.android.purebilibili.core.ui.components.IOSAdaptiveTextField
-import com.android.purebilibili.core.ui.components.IOSSwitchItem
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppDialogAction
+import com.android.purebilibili.core.ui.components.AppPreference
+import com.android.purebilibili.core.ui.components.AppPreferenceDivider
+import com.android.purebilibili.core.ui.components.AppPreferenceGroup
+import com.android.purebilibili.core.ui.components.AppPreferenceSectionTitle
+import com.android.purebilibili.core.ui.components.AppTextField
+import com.android.purebilibili.core.ui.components.AppSwitchPreference
 
 private enum class WebDavEditMode {
     SERVER,
@@ -107,7 +107,7 @@ fun WebDavBackupScreen(
         bottomContentPadding = bottomContentPadding,
         scrollHost = SettingsPageScrollHost.External,
         actions = {
-            IconButton(onClick = { viewModel.refreshRemoteBackups() }) {
+            AppIconButton(onClick = { viewModel.refreshRemoteBackups() }) {
                 Icon(
                     imageVector = Icons.Filled.Refresh,
                     contentDescription = refreshLabel,
@@ -121,8 +121,8 @@ fun WebDavBackupScreen(
                 contentPadding = PaddingValues(bottom = 24.dp),
             ) {
             item {
-                IOSSectionTitle("连接状态")
-                IOSGroup {
+                AppPreferenceSectionTitle("连接状态")
+                AppPreferenceGroup {
                     val statusText = when {
                         uiState.isBusy -> uiState.statusMessage ?: "正在处理..."
                         // 恢复会覆盖本地持久化文件，进程重启后才能稳定读取新内容。
@@ -130,7 +130,7 @@ fun WebDavBackupScreen(
                         !uiState.statusMessage.isNullOrBlank() -> uiState.statusMessage ?: ""
                         else -> "尚未执行操作"
                     }
-                    IOSClickableItem(
+                    AppPreference(
                         icon = if (uiState.restoreRequiresRestart) Icons.Filled.Warning else Icons.Filled.Info,
                         title = if (uiState.restoreRequiresRestart) "需要重启应用" else "执行状态",
                         value = statusText,
@@ -142,10 +142,10 @@ fun WebDavBackupScreen(
             }
 
             item {
-                IOSSectionTitle("配置")
-                IOSGroup {
+                AppPreferenceSectionTitle("配置")
+                AppPreferenceGroup {
                     // 配置项图标按“能力/服务器/账号/目录”映射，降低识别成本。
-                    IOSSwitchItem(
+                    AppSwitchPreference(
                         icon = Icons.Filled.Cloud,
                         title = "启用 WebDAV 云备份",
                         subtitle = "开启后每天自动备份，同时保留手动备份能力",
@@ -153,8 +153,8 @@ fun WebDavBackupScreen(
                         onCheckedChange = { viewModel.setEnabled(it) },
                         iconTint = iOSBlue
                     )
-                    IOSDivider(startIndent = 66.dp)
-                    IOSClickableItem(
+                    AppPreferenceDivider(startIndent = 66.dp)
+                    AppPreference(
                         icon = Icons.Filled.Storage,
                         title = "服务器",
                         value = uiState.config.baseUrl.ifBlank { "未配置" },
@@ -164,8 +164,8 @@ fun WebDavBackupScreen(
                         },
                         iconTint = iOSBlue
                     )
-                    IOSDivider(startIndent = 66.dp)
-                    IOSClickableItem(
+                    AppPreferenceDivider(startIndent = 66.dp)
+                    AppPreference(
                         icon = Icons.Filled.Person,
                         title = "用户名",
                         value = uiState.config.username.ifBlank { "未配置" },
@@ -175,8 +175,8 @@ fun WebDavBackupScreen(
                         },
                         iconTint = iOSBlue
                     )
-                    IOSDivider(startIndent = 66.dp)
-                    IOSClickableItem(
+                    AppPreferenceDivider(startIndent = 66.dp)
+                    AppPreference(
                         icon = Icons.Filled.Folder,
                         title = "远端目录",
                         value = uiState.config.remoteDir,
@@ -190,33 +190,33 @@ fun WebDavBackupScreen(
             }
 
             item {
-                IOSSectionTitle("操作")
-                IOSGroup {
-                    IOSClickableItem(
+                AppPreferenceSectionTitle("操作")
+                AppPreferenceGroup {
+                    AppPreference(
                         icon = Icons.Filled.CheckCircle,
                         title = "测试连接",
                         subtitle = "验证账号与目录可用性",
                         onClick = { viewModel.testConnection() },
                         iconTint = iOSGreen
                     )
-                    IOSDivider(startIndent = 66.dp)
-                    IOSClickableItem(
+                    AppPreferenceDivider(startIndent = 66.dp)
+                    AppPreference(
                         icon = Icons.Filled.Backup,
                         title = "立即备份",
                         subtitle = "上传当前设置与插件配置",
                         onClick = { viewModel.backupNow() },
                         iconTint = iOSBlue
                     )
-                    IOSDivider(startIndent = 66.dp)
-                    IOSClickableItem(
+                    AppPreferenceDivider(startIndent = 66.dp)
+                    AppPreference(
                         icon = Icons.Filled.Restore,
                         title = "恢复最新备份",
                         subtitle = "会覆盖本地设置，建议先手动备份",
                         onClick = { showRestoreConfirm = true },
                         iconTint = iOSPink
                     )
-                    IOSDivider(startIndent = 66.dp)
-                    IOSClickableItem(
+                    AppPreferenceDivider(startIndent = 66.dp)
+                    AppPreference(
                         icon = Icons.Filled.Refresh,
                         title = "刷新远端列表",
                         subtitle = "读取 WebDAV 目录中的备份文件",
@@ -227,10 +227,10 @@ fun WebDavBackupScreen(
             }
 
             item {
-                IOSSectionTitle("远端备份")
-                IOSGroup {
+                AppPreferenceSectionTitle("远端备份")
+                AppPreferenceGroup {
                     if (uiState.remoteBackups.isEmpty()) {
-                        IOSClickableItem(
+                        AppPreference(
                             icon = Icons.Filled.Folder,
                             title = "暂无备份",
                             value = "可先点击“立即备份”生成第一份快照",
@@ -240,7 +240,7 @@ fun WebDavBackupScreen(
                         )
                     } else {
                         uiState.remoteBackups.take(10).forEachIndexed { index, entry ->
-                            IOSClickableItem(
+                            AppPreference(
                                 icon = Icons.Filled.Folder,
                                 title = entry.fileName,
                                 value = "${entry.sizeBytes} B",
@@ -249,7 +249,7 @@ fun WebDavBackupScreen(
                                 showChevron = false
                             )
                             if (index != uiState.remoteBackups.take(10).lastIndex) {
-                                IOSDivider(startIndent = 66.dp)
+                                AppPreferenceDivider(startIndent = 66.dp)
                             }
                         }
                     }
@@ -274,14 +274,14 @@ fun WebDavBackupScreen(
             WebDavEditMode.ACCOUNT -> "账号信息"
             WebDavEditMode.REMOTE_DIR -> "远端目录"
         }
-        IOSAlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showEditDialog = false },
             title = { Text(dialogTitle, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     when (editMode) {
                         WebDavEditMode.SERVER -> {
-                            IOSAdaptiveTextField(
+                            AppTextField(
                                 value = draftBaseUrl,
                                 onValueChange = { draftBaseUrl = it },
                                 label = "服务器地址",
@@ -291,13 +291,13 @@ fun WebDavBackupScreen(
                         }
 
                         WebDavEditMode.ACCOUNT -> {
-                            IOSAdaptiveTextField(
+                            AppTextField(
                                 value = draftUsername,
                                 onValueChange = { draftUsername = it },
                                 label = "用户名",
                                 singleLine = true
                             )
-                            IOSAdaptiveTextField(
+                            AppTextField(
                                 value = draftPassword,
                                 onValueChange = { draftPassword = it },
                                 label = "密码",
@@ -306,7 +306,7 @@ fun WebDavBackupScreen(
                         }
 
                         WebDavEditMode.REMOTE_DIR -> {
-                            IOSAdaptiveTextField(
+                            AppTextField(
                                 value = draftRemoteDir,
                                 onValueChange = { draftRemoteDir = it },
                                 label = "远端目录",
@@ -318,7 +318,7 @@ fun WebDavBackupScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("启用备份", modifier = Modifier.weight(1f))
-                                Switch(
+                                AppSwitch(
                                     checked = draftEnabled,
                                     onCheckedChange = { draftEnabled = it }
                                 )
@@ -328,7 +328,7 @@ fun WebDavBackupScreen(
                 }
             },
             confirmButton = {
-                IOSDialogAction(onClick = {
+                AppDialogAction(onClick = {
                     viewModel.saveConfig(
                         WebDavBackupConfig(
                             baseUrl = draftBaseUrl,
@@ -344,7 +344,7 @@ fun WebDavBackupScreen(
                 }
             },
             dismissButton = {
-                IOSDialogAction(onClick = { showEditDialog = false }) {
+                AppDialogAction(onClick = { showEditDialog = false }) {
                     Text(cancelLabel)
                 }
             }
@@ -352,14 +352,14 @@ fun WebDavBackupScreen(
     }
 
     if (showRestoreConfirm) {
-        IOSAlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showRestoreConfirm = false },
             title = { Text("确认恢复最新备份") },
             text = {
                 Text("恢复会覆盖当前本地设置与插件配置。建议先执行一次“立即备份”。")
             },
             confirmButton = {
-                IOSDialogAction(onClick = {
+                AppDialogAction(onClick = {
                     showRestoreConfirm = false
                     viewModel.restoreLatest()
                 }) {
@@ -367,7 +367,7 @@ fun WebDavBackupScreen(
                 }
             },
             dismissButton = {
-                IOSDialogAction(onClick = { showRestoreConfirm = false }) {
+                AppDialogAction(onClick = { showRestoreConfirm = false }) {
                     Text(cancelLabel)
                 }
             }

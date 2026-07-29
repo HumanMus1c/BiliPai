@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.data.model.response.ViewPoint
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.Xmark
@@ -57,7 +58,7 @@ fun ChapterListPanel(
             .clickable(onClick = onDismiss)
     ) {
         // 浮动卡片 - 左下角位置，固定宽度
-        Surface(
+        AppSurface(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 16.dp, bottom = 60.dp)  // 避开进度条

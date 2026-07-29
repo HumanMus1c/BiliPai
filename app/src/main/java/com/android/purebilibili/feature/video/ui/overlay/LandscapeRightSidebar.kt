@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +32,7 @@ import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
 import com.android.purebilibili.core.ui.rememberAppMoreIcon
 import com.android.purebilibili.core.ui.rememberAppShareIcon
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.util.FormatUtils
 
 /**
@@ -164,7 +164,7 @@ private fun SidebarTextButton(
     isHighlighted: Boolean = false,
     onClick: () -> Unit
 ) {
-    Surface(
+    AppSurface(
         onClick = onClick,
         color = Color.Black.copy(alpha = 0.5f),
         shape = RoundedCornerShape(6.dp)
@@ -212,7 +212,7 @@ private fun SidebarActionButton(
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         // 图标背景
-        Surface(
+        AppSurface(
             shape = CircleShape,
             color = Color.Black.copy(alpha = 0.4f),
             modifier = Modifier.size(40.dp)

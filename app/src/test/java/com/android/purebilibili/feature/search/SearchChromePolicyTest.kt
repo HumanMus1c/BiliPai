@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.search
 import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.theme.AndroidNativeVariant
 import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.resolveAppTopChromePolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -12,7 +13,7 @@ class SearchChromePolicyTest {
 
     @Test
     fun `md3 preset should use taller search chrome and filled action`() {
-        val spec = resolveSearchChromeVisualSpec(UiPreset.MD3)
+        val spec = resolveSearchChromeVisualSpec(resolveAppTopChromePolicy(UiPreset.MD3, AndroidNativeVariant.MATERIAL3))
 
         assertEquals(56, spec.inputHeightDp)
         assertEquals(28, spec.inputCornerRadiusDp)
@@ -26,7 +27,7 @@ class SearchChromePolicyTest {
 
     @Test
     fun `ios preset should preserve compact capsule search chrome`() {
-        val spec = resolveSearchChromeVisualSpec(UiPreset.IOS)
+        val spec = resolveSearchChromeVisualSpec(resolveAppTopChromePolicy(UiPreset.IOS, AndroidNativeVariant.MATERIAL3))
 
         assertEquals(44, spec.inputHeightDp)
         assertEquals(22, spec.inputCornerRadiusDp)
@@ -40,10 +41,7 @@ class SearchChromePolicyTest {
 
     @Test
     fun `miuix variant should use denser rounded search chrome`() {
-        val spec = resolveSearchChromeVisualSpec(
-            uiPreset = UiPreset.MD3,
-            androidNativeVariant = AndroidNativeVariant.MIUIX
-        )
+        val spec = resolveSearchChromeVisualSpec(resolveAppTopChromePolicy(UiPreset.MD3, AndroidNativeVariant.MIUIX))
 
         assertEquals(48, spec.inputHeightDp)
         assertEquals(22, spec.inputCornerRadiusDp)

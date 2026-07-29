@@ -2,12 +2,12 @@ package com.android.purebilibili.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.components.AppTextButton
 
 const val OFFICIAL_GITHUB_URL = "https://github.com/jay3-yy/BiliPai/"
 const val OFFICIAL_TELEGRAM_URL = "https://t.me/BiliPai"
@@ -20,7 +20,7 @@ fun ReleaseChannelDisclaimerDialog(
     onOpenTelegram: () -> Unit,
     title: String = "免责声明"
 ) {
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
@@ -37,14 +37,14 @@ fun ReleaseChannelDisclaimerDialog(
             )
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            AppTextButton(onClick = onDismiss) {
                 Text("我已知晓")
             }
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = onOpenGithub) { Text("GitHub") }
-                TextButton(onClick = onOpenTelegram) { Text("Telegram") }
+                AppTextButton(onClick = onOpenGithub) { Text("GitHub") }
+                AppTextButton(onClick = onOpenTelegram) { Text("Telegram") }
             }
         }
     )

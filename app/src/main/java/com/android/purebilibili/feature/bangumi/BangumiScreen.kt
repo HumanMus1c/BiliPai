@@ -54,7 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.android.purebilibili.core.ui.AdaptiveScaffold
+import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 //  已改用 MaterialTheme.colorScheme.primary
 import com.android.purebilibili.core.theme.iOSYellow
@@ -162,7 +162,7 @@ fun BangumiScreen(
         }
     }
     
-    AdaptiveScaffold(
+    AppScaffold(
         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
         topBar = {
             if (showSearchBar) {

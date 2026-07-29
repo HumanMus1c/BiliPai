@@ -64,6 +64,16 @@ internal fun shouldSkipGesturePlayerCollapseForLayout(
     compactForCommentTab: Boolean,
 ): Boolean = compactForIntroScroll || compactForCommentTab
 
+internal fun shouldTrackVideoDetailCollapseMotion(
+    inlinePortraitScrollEnabled: Boolean,
+    previousOffsetPx: Float,
+    currentOffsetPx: Float,
+    minMovementPx: Float = 0.75f,
+): Boolean = inlinePortraitScrollEnabled &&
+    previousOffsetPx.isFinite() &&
+    currentOffsetPx.isFinite() &&
+    abs(currentOffsetPx - previousOffsetPx) >= minMovementPx
+
 internal fun resolveVideoDetailCollapseProgress(
     playerHeightOffsetPx: Float,
     collapseRangePx: Float,

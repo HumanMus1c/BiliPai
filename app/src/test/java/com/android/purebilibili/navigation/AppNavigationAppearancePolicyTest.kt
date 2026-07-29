@@ -1,8 +1,6 @@
 package com.android.purebilibili.navigation
 
 import com.android.purebilibili.core.store.HomeSettings
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -38,11 +36,8 @@ class AppNavigationAppearancePolicyTest {
     }
 
     @Test
-    fun md3Preset_keepsFloatingBottomBarWhenShellSettingsAreStillDefault() {
-        val appearance = resolveAppNavigationAppearance(
-            homeSettings = HomeSettings(),
-            uiPreset = UiPreset.MD3
-        )
+    fun defaultSettings_keepFloatingBottomBar() {
+        val appearance = resolveAppNavigationAppearance(HomeSettings())
 
         assertTrue(appearance.bottomBarFloating)
         assertTrue(appearance.bottomBarBlurEnabled)
@@ -50,15 +45,13 @@ class AppNavigationAppearancePolicyTest {
     }
 
     @Test
-    fun md3Material3_keepsDockedBottomBarBlurWhenLiquidGlassIsDisabled() {
+    fun explicitSettings_keepDockedBottomBarBlur() {
         val appearance = resolveAppNavigationAppearance(
             homeSettings = HomeSettings(
                 isBottomBarFloating = false,
                 isBottomBarBlurEnabled = true,
                 androidNativeLiquidGlassEnabled = false,
             ),
-            uiPreset = UiPreset.MD3,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3,
         )
 
         assertFalse(appearance.bottomBarFloating)
@@ -66,24 +59,20 @@ class AppNavigationAppearancePolicyTest {
     }
 
     @Test
-    fun iosPreset_keepsBottomBarBlurWithDefaultHomeSettings() {
-        val appearance = resolveAppNavigationAppearance(
-            homeSettings = HomeSettings(),
-            uiPreset = UiPreset.IOS
-        )
+    fun defaultSettings_keepBottomBarBlur() {
+        val appearance = resolveAppNavigationAppearance(HomeSettings())
 
         assertTrue(appearance.bottomBarBlurEnabled)
     }
 
     @Test
-    fun md3Preset_preservesExplicitBottomBarShellCustomization() {
+    fun preservesExplicitBottomBarShellCustomization() {
         val appearance = resolveAppNavigationAppearance(
             homeSettings = HomeSettings(
                 isBottomBarFloating = true,
                 bottomBarLabelMode = 1,
                 isBottomBarBlurEnabled = false
             ),
-            uiPreset = UiPreset.MD3
         )
 
         assertTrue(appearance.bottomBarFloating)
@@ -92,12 +81,8 @@ class AppNavigationAppearancePolicyTest {
     }
 
     @Test
-    fun md3MiuixPreset_keepsFloatingBottomBarWhenShellSettingsAreDefault() {
-        val appearance = resolveAppNavigationAppearance(
-            homeSettings = HomeSettings(),
-            uiPreset = UiPreset.MD3,
-            androidNativeVariant = AndroidNativeVariant.MIUIX
-        )
+    fun shellDefaults_keepFloatingBottomBar() {
+        val appearance = resolveAppNavigationAppearance(HomeSettings())
 
         assertTrue(appearance.bottomBarFloating)
         assertTrue(appearance.bottomBarBlurEnabled)
@@ -132,6 +117,17 @@ class AppNavigationAppearancePolicyTest {
         assertFalse(source.contains("uiSkinState.copy("))
         assertFalse(source.contains("bottomBarLiquidGlassPreset = uiSkin"))
         assertFalse(source.contains("isBottomBarLiquidGlassEnabled = uiSkin"))
+    }
+
+    @Test
+    fun appNavigationUsesNeutralBottomBarPolicyWithoutReadingStyleLocals() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt")
+
+        assertTrue(source.contains("rememberAppBottomBarContentPadding("))
+        assertFalse(source.contains("LocalUiPreset"))
+        assertFalse(source.contains("LocalAndroidNativeVariant"))
+        assertFalse(source.contains("UiPreset"))
+        assertFalse(source.contains("AndroidNativeVariant"))
     }
 
     @Test
@@ -178,7 +174,10 @@ class AppNavigationAppearancePolicyTest {
             .substringBefore(") { key ->")
 
         assertTrue(
-            navHostCall.contains("videoCardDepthEffectEnabled = sharedVideoCardTransitionEnabled")
+            navHostCall.contains(
+                "videoCardDepthEffectEnabled =\n" +
+                    "                        videoDetailTransitionsEnabled && sharedVideoCardTransitionEnabled"
+            )
         )
         assertFalse(navHostCall.contains("videoCardBackgroundSinkEnabled"))
         assertFalse(navHostSource.contains("isBackgroundSinkEnabledProvider ="))

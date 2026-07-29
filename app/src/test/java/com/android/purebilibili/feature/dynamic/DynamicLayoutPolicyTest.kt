@@ -61,6 +61,14 @@ class DynamicLayoutPolicyTest {
     }
 
     @Test
+    fun `dynamic tab indicator follows pager position within tab bounds`() {
+        assertEquals(1.4f, resolveDynamicTabIndicatorPosition(1, 1.4f, 3))
+        assertEquals(2f, resolveDynamicTabIndicatorPosition(1, 5f, 3))
+        assertEquals(1f, resolveDynamicTabIndicatorPosition(1, Float.NaN, 3))
+        assertEquals(0f, resolveDynamicTabIndicatorPosition(1, 1f, 0))
+    }
+
+    @Test
     fun `dynamic sidebar return header aligns with top tab row height`() {
         assertEquals(52, resolveDynamicTopBarHeightDp())
         assertEquals(resolveDynamicTopBarHeightDp(), resolveDynamicSidebarReturnHeaderHeightDp())

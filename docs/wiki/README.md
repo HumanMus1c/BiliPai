@@ -1,6 +1,6 @@
 # BiliPai Wiki
 
-最后更新：2026-05-08（按当前 main 分支结构校对）
+最后更新：2026-07-28（按当前源码与构建配置校对）
 
 ## 目录
 
@@ -11,6 +11,7 @@
 - [发布流程](RELEASE_WORKFLOW.md)
 - [QA 测试手册](QA.md)
 - [用户常见问题](FAQ.md)
+- [直播 API 历史调研](LIVE_API_RESEARCH.md)
 - [插件开发指南（JSON）](../PLUGIN_DEVELOPMENT.md)
 - [插件开发指南（原生）](../NATIVE_PLUGIN_DEVELOPMENT.md)
 

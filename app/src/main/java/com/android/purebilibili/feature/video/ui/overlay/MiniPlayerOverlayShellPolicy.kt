@@ -1,10 +1,6 @@
 package com.android.purebilibili.feature.video.ui.overlay
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.ui.AppShapes
-import com.android.purebilibili.core.ui.ContainerLevel
-import com.android.purebilibili.core.ui.isNativeMiuixEnabled
+import com.android.purebilibili.core.ui.AppPlayerChromeProfile
 import kotlin.math.roundToInt
 
 /**
@@ -21,10 +17,9 @@ data class MiniPlayerOverlayShellVisual(
 
 fun resolveMiniPlayerOverlayShellVisual(
     layout: MiniPlayerOverlayLayoutPolicy,
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
+    chromeProfile: AppPlayerChromeProfile,
 ): MiniPlayerOverlayShellVisual {
-    if (!isNativeMiuixEnabled(uiPreset, androidNativeVariant)) {
+    if (!chromeProfile.effects.usesTonalContainerTreatment) {
         return MiniPlayerOverlayShellVisual(
             cardCornerRadiusDp = layout.cardCornerRadiusDp,
             cardElevationDp = layout.cardElevationDp,
@@ -33,24 +28,13 @@ fun resolveMiniPlayerOverlayShellVisual(
             useThemePrimaryAccent = false
         )
     }
-    val tokenCardCorner = AppShapes.resolveContainerCornerDp(
-        level = ContainerLevel.Card,
-        uiPreset = uiPreset,
-        androidNativeVariant = androidNativeVariant
-    ).value.roundToInt()
-    val tokenFloatingCorner = AppShapes.resolveContainerCornerDp(
-        level = ContainerLevel.Floating,
-        uiPreset = uiPreset,
-        androidNativeVariant = androidNativeVariant
-    ).value.roundToInt()
+    val tokenCardCorner = chromeProfile.compactChromeSpec.secondaryButtonCornerRadiusDp
+    val tokenFloatingCorner = chromeProfile.compactChromeSpec.primaryCornerRadiusDp
     // Floating mini-player chrome sits between card and floating token radii.
     val cardCorner = ((tokenCardCorner + tokenFloatingCorner) / 2)
         .coerceAtLeast(layout.cardCornerRadiusDp)
-    val chipCorner = AppShapes.resolveContainerCornerDp(
-        level = ContainerLevel.Chip,
-        uiPreset = uiPreset,
-        androidNativeVariant = androidNativeVariant
-    ).value.roundToInt().coerceAtLeast(layout.seekHintCornerRadiusDp)
+    val chipCorner = chromeProfile.compactChromeSpec.chipCornerRadiusDp
+        .coerceAtLeast(layout.seekHintCornerRadiusDp)
     return MiniPlayerOverlayShellVisual(
         cardCornerRadiusDp = cardCorner,
         cardElevationDp = 0,

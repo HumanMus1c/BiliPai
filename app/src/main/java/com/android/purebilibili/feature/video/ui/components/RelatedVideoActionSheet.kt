@@ -27,7 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.android.purebilibili.core.ui.IOSModalBottomSheet
+import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.data.model.response.RecommendationFeedbackReason
 import com.android.purebilibili.data.model.response.RelatedVideo
 
@@ -42,7 +42,7 @@ fun RelatedVideoActionSheet(
     val model = remember(video.bvid, video.owner.mid, video.owner.name) {
         resolveRelatedVideoActionSheetModel(video)
     }
-    IOSModalBottomSheet(onDismissRequest = onDismissRequest) {
+    AppModalBottomSheet(onDismissRequest = onDismissRequest) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

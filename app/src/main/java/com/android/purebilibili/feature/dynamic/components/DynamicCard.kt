@@ -1,6 +1,12 @@
 // 文件路径: feature/dynamic/components/DynamicCard.kt
 package com.android.purebilibili.feature.dynamic.components
 
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,9 +15,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 //  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +30,8 @@ import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -34,13 +39,14 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.store.SettingsManager
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
 import com.android.purebilibili.core.ui.common.CopySelectionDialog
 import com.android.purebilibili.core.ui.rememberAppMoreIcon
 import com.android.purebilibili.core.ui.rememberAppVisibilityOffIcon
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppDialogAction
+import com.android.purebilibili.core.ui.rememberAppHistoryIcon
+import com.android.purebilibili.core.ui.rememberAppDeleteIcon
+import com.android.purebilibili.core.ui.rememberAppLinkIcon
 import com.android.purebilibili.data.model.response.DynamicDesc
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.DrawItem
@@ -117,13 +123,12 @@ fun DynamicCardV2(
     }
 
     pendingDeleteAction?.let { action ->
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { pendingDeleteAction = null },
-            icon = { Icon(CupertinoIcons.Default.Trash, contentDescription = null) },
             title = { Text(action.title) },
             text = { Text(action.content) },
             confirmButton = {
-                TextButton(
+                AppDialogAction(
                     onClick = {
                         pendingDeleteAction = null
                         onDeleteClick?.invoke(action)
@@ -133,7 +138,7 @@ fun DynamicCardV2(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDeleteAction = null }) {
+                AppDialogAction(onClick = { pendingDeleteAction = null }) {
                     Text(action.cancelText)
                 }
             }
@@ -162,7 +167,7 @@ fun DynamicCardV2(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = resolveDynamicCardContentPadding())
-                .padding(top = 12.dp, bottom = if (isDetail) 0.dp else 10.dp)
+                .padding(top = AppSpacingTokens.Medium, bottom = if (isDetail) AppSpacingTokens.None else AppSpacingTokens.Small + AppSpacingTokens.Micro)
         ) {
         //  [新增] 更多菜单状态
         var showMoreMenu by remember { mutableStateOf(false) }
@@ -175,15 +180,11 @@ fun DynamicCardV2(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // 头像
-                AsyncImage(
-                    model = coil.request.ImageRequest.Builder(LocalContext.current)
-                        .data(author.face.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
+                Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(AppChromeSizeTokens.MinimumTouchTarget)
                         .clip(CircleShape)
+                        .semantics { contentDescription = "查看${author.name}的个人主页" }
                         .clickable(enabled = author.mid > 0) {
                             dispatchDynamicCardPrimaryAction(
                                 action = DynamicCardPrimaryAction.OpenUser(author.mid),
@@ -195,21 +196,33 @@ fun DynamicCardV2(
                                 onLiveClick = onLiveClick
                             )
                         },
-                    contentScale = ContentScale.Crop
-                )
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = coil.request.ImageRequest.Builder(LocalContext.current)
+                            .data(author.face.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
                 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
                 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         author.name,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp,
+                        fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                         color = if (author.vip?.status == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         authorTimeText,
-                        fontSize = 12.sp,
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
                     )
                 }
@@ -235,9 +248,9 @@ fun DynamicCardV2(
                             text = { Text("复制链接", color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = { 
                                 Icon(
-                                    CupertinoIcons.Default.Link,
+                                    rememberAppLinkIcon(),
                                     contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
                                     tint = MaterialTheme.colorScheme.onSurface
                                 ) 
                             },
@@ -256,9 +269,9 @@ fun DynamicCardV2(
                                 text = { Text("稍后再看", color = MaterialTheme.colorScheme.onSurface) },
                                 leadingIcon = {
                                     Icon(
-                                        CupertinoIcons.Default.Clock,
+                                        rememberAppHistoryIcon(),
                                         contentDescription = null,
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
                                         tint = MaterialTheme.colorScheme.onSurface
                                     )
                                 },
@@ -274,9 +287,9 @@ fun DynamicCardV2(
                                 text = { Text(deleteAction.label, color = MaterialTheme.colorScheme.error) },
                                 leadingIcon = {
                                     Icon(
-                                        CupertinoIcons.Default.Trash,
+                                        rememberAppDeleteIcon(),
                                         contentDescription = null,
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
                                         tint = MaterialTheme.colorScheme.error
                                     )
                                 },
@@ -294,7 +307,7 @@ fun DynamicCardV2(
                                 Icon(
                                     rememberAppVisibilityOffIcon(),
                                     contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
                                     tint = MaterialTheme.colorScheme.onSurface
                                 ) 
                             },
@@ -306,7 +319,7 @@ fun DynamicCardV2(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         }
         
         //  动态内容文字（支持@高亮）
@@ -316,7 +329,7 @@ fun DynamicCardV2(
                     desc = desc,
                     onUserClick = onUserClick
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
             }
         }
         
@@ -333,7 +346,7 @@ fun DynamicCardV2(
                 },
                 sharedElementKey = com.android.purebilibili.core.ui.transition.videoPlayerSharedElementKey(archive.bvid)
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         }
 
         content?.major?.pgc?.let { pgc ->
@@ -350,7 +363,7 @@ fun DynamicCardV2(
                     pgc.bvid.ifBlank { item.id_str }
                 )
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         }
         
         //  图片类型动态（支持GIF + 点击预览）
@@ -376,7 +389,7 @@ fun DynamicCardV2(
                     }
                 }
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
             
             // 全屏图片预览
             if (selectedImageIndex >= 0) {
@@ -418,10 +431,10 @@ fun DynamicCardV2(
                 if (title.isNotEmpty()) {
                     Text(
                         title,
-                        fontSize = 16.sp,
+                        fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = AppSpacingTokens.Small)
                     )
                 }
             }
@@ -434,7 +447,7 @@ fun DynamicCardV2(
                             desc = summary,
                             onUserClick = onUserClick
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
                     }
                 }
             }
@@ -451,7 +464,7 @@ fun DynamicCardV2(
                                 text = block.text,
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(bottom = 12.dp)
+                                modifier = Modifier.padding(bottom = AppSpacingTokens.Medium)
                             )
                         }
                         is OpusContentBlock.Image -> {
@@ -476,18 +489,18 @@ fun DynamicCardV2(
                                             Modifier
                                         }
                                     )
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(AppShapes.container(ContainerLevel.Card))
                                     .clickable(enabled = currentImageIndex in previewImages.indices) {
                                         fullContentSelectedImageIndex = currentImageIndex
                                     },
                                 contentScale = ContentScale.FillWidth
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
                         }
                         is OpusContentBlock.LinkCard -> {
                             DynamicOpusLinkCard(
                                 card = block.card,
-                                modifier = Modifier.padding(bottom = 12.dp),
+                                modifier = Modifier.padding(bottom = AppSpacingTokens.Medium),
                                 onClick = {
                                     when (val action = resolveDynamicOpusLinkCardAction(block.card)) {
                                         is DynamicOpusLinkCardAction.OpenVideo -> onVideoClick(action.videoId)
@@ -540,7 +553,7 @@ fun DynamicCardV2(
                         }
                     }
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
                 
                 // 全屏图片预览
                 if (selectedImageIndex >= 0) {
@@ -588,7 +601,7 @@ fun DynamicCardV2(
                         }
                     }
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
 
                 if (selectedImageIndex >= 0) {
                     ImagePreviewDialog(
@@ -621,14 +634,14 @@ fun DynamicCardV2(
                         seasonArchive.bvid
                     )
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
             } else {
                 Text(
                      "合集：${season.title}", 
                      fontWeight = FontWeight.Bold,
                      color = MaterialTheme.colorScheme.primary
                 )
-                 Spacer(modifier = Modifier.height(8.dp))
+                 Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
             }
         }
         
@@ -648,7 +661,7 @@ fun DynamicCardV2(
                     )
                 }
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         }
         
         //  转发动态 - 嵌套显示原始内容
@@ -662,7 +675,7 @@ fun DynamicCardV2(
                 gifImageLoader = gifImageLoader,
                 defaultPreviewTextVisible = dynamicPreviewTextVisible
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         }
         
         //  [修复] 底部操作栏：转发、评论、点赞 - 始终显示
@@ -671,12 +684,11 @@ fun DynamicCardV2(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 4.dp),
+                .padding(top = AppSpacingTokens.ExtraSmall),
             horizontalArrangement = Arrangement.spacedBy(resolveDynamicActionButtonSpacing())
         ) {
             // 转发按钮
             ActionButton(
-                icon = io.github.alexzhirkevich.cupertino.icons.CupertinoIcons.Default.ArrowTurnUpRight,
                 count = statModule.forward.count,
                 label = "转发",
                 enabled = !statModule.forward.forbidden,
@@ -686,7 +698,6 @@ fun DynamicCardV2(
             
             // 评论按钮
             ActionButton(
-                icon = io.github.alexzhirkevich.cupertino.icons.CupertinoIcons.Default.Message,
                 count = statModule.comment.count,
                 label = "评论",
                 enabled = !statModule.comment.forbidden,
@@ -696,8 +707,6 @@ fun DynamicCardV2(
             
             // 点赞按钮
             ActionButton(
-                icon = if (isLiked) io.github.alexzhirkevich.cupertino.icons.CupertinoIcons.Filled.HandThumbsup
-                       else io.github.alexzhirkevich.cupertino.icons.CupertinoIcons.Default.HandThumbsup,
                 count = statModule.like.count,
                 label = "点赞",
                 isActive = isLiked,
@@ -711,7 +720,7 @@ fun DynamicCardV2(
             HorizontalDivider(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.32f),
-                thickness = 0.7.dp
+                thickness = AppSpacingTokens.Micro * 0.35f
             )
         }
     }
@@ -775,8 +784,8 @@ fun RichTextContent(
     Text(
         text = annotatedText,
         inlineContent = inlineContent,
-        fontSize = 15.sp,
-        lineHeight = 22.sp,
+        fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+        lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
         color = textColor,
         onTextLayout = { textLayoutResult = it },
         modifier = Modifier.pointerInput(copyText, annotatedText) {
@@ -904,25 +913,33 @@ fun DynamicCardCompact(
                     ?.let(onVideoClick)
                     ?: author?.let { onUserClick(it.mid) }
             }
-            .padding(horizontal = 16.dp, vertical = 12.dp),  //  优化间距
+            .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Medium),  //  优化间距
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 头像
         if (author != null) {
-            AsyncImage(
-                model = coil.request.ImageRequest.Builder(LocalContext.current)
-                    .data(author.face.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
+            Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(AppChromeSizeTokens.MinimumTouchTarget)
                     .clip(CircleShape)
+                    .semantics { contentDescription = "查看${author.name}的个人主页" }
                     .clickable(enabled = author.mid > 0) { onUserClick(author.mid) },
-                contentScale = ContentScale.Crop
-            )
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = coil.request.ImageRequest.Builder(LocalContext.current)
+                        .data(author.face.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Medium)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            }
             
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
         }
         
         // 内容区
@@ -932,11 +949,11 @@ fun DynamicCardCompact(
                 Text(
                     author?.name ?: "",
                     fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp,
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                 Text(
                     author?.let {
                         resolveDynamicAuthorTimeText(
@@ -944,17 +961,17 @@ fun DynamicCardCompact(
                             pubTs = it.pub_ts
                         )
                     }.orEmpty(),
-                    fontSize = 12.sp,
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
                 )
             }
             
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
             
             // 内容预览
             Text(
                 previewText,
-                fontSize = 13.sp,
+                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -963,7 +980,7 @@ fun DynamicCardCompact(
         
         // 封面缩略图（如果有视频）
         content?.major?.archive?.let { archive ->
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
             AsyncImage(
                 model = coil.request.ImageRequest.Builder(LocalContext.current)
                     .data(archive.cover.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
@@ -971,8 +988,8 @@ fun DynamicCardCompact(
                     .build(),
                 contentDescription = null,
                 modifier = Modifier
-                    .size(width = 80.dp, height = 50.dp)
-                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp)),
+                    .size(width = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.DoubleExtraLarge, height = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Micro)
+                    .clip(AppShapes.container(ContainerLevel.Chip)),
                 contentScale = ContentScale.Crop
             )
         }

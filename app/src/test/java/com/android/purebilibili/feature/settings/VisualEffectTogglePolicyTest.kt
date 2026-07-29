@@ -88,14 +88,12 @@ class VisualEffectTogglePolicyTest {
     fun `android native preset preserves the bottom bar liquid glass choice`() {
         val enabled = resolveEffectiveHomeSettings(
             HomeSettings(isBottomBarLiquidGlassEnabled = true),
-            UiPreset.MD3
         )
         val disabled = resolveEffectiveHomeSettings(
             HomeSettings(
                 isBottomBarLiquidGlassEnabled = false,
                 androidNativeLiquidGlassEnabled = true
             ),
-            UiPreset.MD3
         )
 
         assertTrue(enabled.isBottomBarLiquidGlassEnabled)

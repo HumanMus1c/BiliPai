@@ -62,8 +62,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.android.purebilibili.core.store.DanmakuSettings
 import com.android.purebilibili.core.store.FullscreenAspectRatio
 import com.android.purebilibili.core.store.SettingsManager
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.blur.unifiedBlur
@@ -1135,10 +1134,10 @@ fun FullscreenPlayerOverlay(
             var localDisplayArea by remember(danmakuDisplayArea) { mutableFloatStateOf(danmakuDisplayArea) }
             var localMergeDuplicates by remember(danmakuMergeDuplicates) { mutableStateOf(danmakuMergeDuplicates) }
             var localDuplicateMergeWindowMs by remember(danmakuDuplicateMergeWindowMs) {
-                mutableStateOf(danmakuDuplicateMergeWindowMs)
+                mutableIntStateOf(danmakuDuplicateMergeWindowMs)
             }
             var localDuplicateMergeCountThreshold by remember(danmakuDuplicateMergeCountThreshold) {
-                mutableStateOf(danmakuDuplicateMergeCountThreshold)
+                mutableIntStateOf(danmakuDuplicateMergeCountThreshold)
             }
             var localAllowScroll by remember(danmakuAllowScroll) { mutableStateOf(danmakuAllowScroll) }
             var localAllowTop by remember(danmakuAllowTop) { mutableStateOf(danmakuAllowTop) }
@@ -1318,13 +1317,9 @@ private fun GestureIndicator(
     hazeState: HazeState? = null,
     modifier: Modifier = Modifier
 ) {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val overlayStyle = remember(uiPreset, androidNativeVariant) {
-        resolveGestureLevelOverlayStyle(
-            uiPreset = uiPreset,
-            androidNativeVariant = androidNativeVariant
-        )
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val overlayStyle = remember(playerChromeProfile.tabPresentation) {
+        resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
     }
     val overlayShape = RoundedCornerShape(18.dp)
     if (mode == FullscreenGestureMode.Seek) {

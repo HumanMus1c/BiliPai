@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home
 
+import com.android.purebilibili.core.ui.MediaContrastPalette
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -139,7 +141,7 @@ internal fun HomeWallpaperBackdrop(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = appearance.scrimAlpha))
+                .background(MediaContrastPalette.Scrim.copy(alpha = appearance.scrimAlpha))
         )
         Box(
             modifier = Modifier

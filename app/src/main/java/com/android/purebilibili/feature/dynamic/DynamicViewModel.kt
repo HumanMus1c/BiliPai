@@ -1105,45 +1105,60 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
 
         val pageToLoad = commentNextPage
         val sortMode = _dynamicCommentSortMode.value
+        val requestId = commentLoadRequestId
+        val paginationOffset = commentGrpcNextOffset
         _commentsLoadingMore.value = true
         viewModelScope.launch {
-            CommentRepository.getCommentsForSubject(
-                oid = target.oid,
-                type = target.type,
-                page = pageToLoad,
-                ps = 20,
-                mode = sortMode.apiMode,
-                paginationOffset = commentGrpcNextOffset,
-                fallbackOnMissingLocation = target.type != 11
-            ).onSuccess { data ->
-                if (_selectedCommentTarget.value != target || _dynamicCommentSortMode.value != sortMode) return@onSuccess
+            try {
+                CommentRepository.getCommentsForSubject(
+                    oid = target.oid,
+                    type = target.type,
+                    page = pageToLoad,
+                    ps = 20,
+                    mode = sortMode.apiMode,
+                    paginationOffset = paginationOffset,
+                    fallbackOnMissingLocation = target.type != 11
+                ).onSuccess { data ->
+                    if (!shouldApplyDynamicCommentPageResult(
+                            activeRequestId = commentLoadRequestId,
+                            requestId = requestId,
+                            activeTarget = _selectedCommentTarget.value,
+                            requestTarget = target,
+                            activeSortMode = _dynamicCommentSortMode.value,
+                            requestSortMode = sortMode,
+                        )
+                    ) return@onSuccess
 
-                val currentReplies = _comments.value
-                val newReplies = data.replies.orEmpty()
-                val mergedReplies = (currentReplies + newReplies).distinctBy { it.rpid }
-                val addedReplyCount = mergedReplies.size - currentReplies.size
-                val totalCount = maxOf(
-                    data.getAllCount(),
-                    _commentTotalCount.value,
-                    mergedReplies.size
-                )
-                _comments.value = mergedReplies
-                _commentTotalCount.value = totalCount
-                commentNextPage = pageToLoad + 1
-                commentGrpcNextOffset = data.grpcNextOffset.takeIf { it.isNotBlank() }
-                commentsEnd = resolveDynamicMainCommentPageEnd(
-                    cursorIsEnd = data.cursor.isEnd,
-                    fetchedReplyCount = addedReplyCount,
-                    loadedReplyCount = mergedReplies.size,
-                    totalCount = totalCount
-                )
-            }.onFailure { error ->
-                com.android.purebilibili.core.util.Logger.w(
-                    "DynamicVM",
-                    "动态评论加载更多失败: oid=${target.oid}, type=${target.type}, page=$pageToLoad, error=${error.message}"
-                )
+                    val currentReplies = _comments.value
+                    val newReplies = data.replies.orEmpty()
+                    val mergedReplies = (currentReplies + newReplies).distinctBy { it.rpid }
+                    val addedReplyCount = mergedReplies.size - currentReplies.size
+                    val totalCount = maxOf(
+                        data.getAllCount(),
+                        _commentTotalCount.value,
+                        mergedReplies.size
+                    )
+                    _comments.value = mergedReplies
+                    _commentTotalCount.value = totalCount
+                    commentNextPage = pageToLoad + 1
+                    commentGrpcNextOffset = data.grpcNextOffset.takeIf { it.isNotBlank() }
+                    commentsEnd = resolveDynamicMainCommentPageEnd(
+                        cursorIsEnd = data.cursor.isEnd,
+                        fetchedReplyCount = addedReplyCount,
+                        loadedReplyCount = mergedReplies.size,
+                        totalCount = totalCount
+                    )
+                }.onFailure { error ->
+                    com.android.purebilibili.core.util.Logger.w(
+                        "DynamicVM",
+                        "动态评论加载更多失败: oid=${target.oid}, type=${target.type}, page=$pageToLoad, error=${error.message}"
+                    )
+                }
+            } finally {
+                if (requestId == commentLoadRequestId) {
+                    _commentsLoadingMore.value = false
+                }
             }
-            _commentsLoadingMore.value = false
         }
     }
     

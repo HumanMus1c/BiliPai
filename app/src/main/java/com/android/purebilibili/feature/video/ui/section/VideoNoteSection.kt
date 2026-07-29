@@ -25,20 +25,20 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FormatColorFill
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.components.AppAssistChip
+import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -88,7 +88,7 @@ fun VideoNoteCard(
         !noteState.saving
     val showSecondaryActions = noteState.privateNoteDocument != null ||
         noteState.status == VideoNoteLoadStatus.ERROR
-    Surface(
+    AppSurface(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -130,7 +130,7 @@ fun VideoNoteCard(
                     AdaptiveLoadingIndicator(size = 18.dp, strokeWidth = 2.dp)
                 }
                 if (defaultCollapsed) {
-                    TextButton(onClick = { userExpanded = !userExpanded }) {
+                    AppTextButton(onClick = { userExpanded = !userExpanded }) {
                         Text(if (showBody) "收起" else "展开")
                     }
                 }
@@ -162,14 +162,14 @@ fun VideoNoteCard(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         noteState.privateNoteDocument?.let { privateDocument ->
-                            OutlinedButton(
+                            AppOutlinedButton(
                                 onClick = { onShareClick(privateDocument) }
                             ) {
                                 Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("分享")
                             }
-                            OutlinedButton(
+                            AppOutlinedButton(
                                 onClick = onDeleteClick,
                                 enabled = !noteState.deleting
                             ) {
@@ -179,7 +179,7 @@ fun VideoNoteCard(
                             }
                         }
                         if (noteState.status == VideoNoteLoadStatus.ERROR) {
-                            TextButton(onClick = onRetryClick) {
+                            AppTextButton(onClick = onRetryClick) {
                                 Text("重试")
                             }
                         }
@@ -220,7 +220,7 @@ private fun VideoNotePrimaryActionButton(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
-    Button(
+    AppButton(
         onClick = onClick,
         enabled = enabled
     ) {
@@ -255,7 +255,7 @@ fun VideoNoteEditorSheet(
         richTextState.setMarkdown(markdown)
     }
 
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
     ) {
@@ -271,7 +271,7 @@ fun VideoNoteEditorSheet(
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
             )
             Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
                 label = { Text("标题") },
@@ -330,7 +330,7 @@ fun VideoNoteEditorSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                OutlinedButton(
+                AppOutlinedButton(
                     onClick = {
                         val document = markdownToDocument(
                             title = title,
@@ -347,11 +347,11 @@ fun VideoNoteEditorSheet(
                     Text("分享")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                TextButton(onClick = onDismiss) {
+                AppTextButton(onClick = onDismiss) {
                     Text("取消")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Button(
+                AppButton(
                     onClick = {
                         val nextMarkdown = richTextState.toMarkdown()
                         val document = markdownToDocument(
@@ -384,17 +384,17 @@ fun VideoNoteDeleteConfirmDialog(
     onDismiss: () -> Unit
 ) {
     if (!visible) return
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("删除视频笔记") },
         text = { Text("删除后无法在 BiliPai 内恢复。确认要删除这条笔记吗？") },
         confirmButton = {
-            TextButton(onClick = onConfirm, enabled = !deleting) {
+            AppTextButton(onClick = onConfirm, enabled = !deleting) {
                 Text(if (deleting) "删除中" else "删除")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !deleting) {
+            AppTextButton(onClick = onDismiss, enabled = !deleting) {
                 Text("取消")
             }
         }
@@ -403,7 +403,7 @@ fun VideoNoteDeleteConfirmDialog(
 
 @Composable
 private fun IconBox() {
-    Surface(
+    AppSurface(
         modifier = Modifier.size(32.dp),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -427,18 +427,18 @@ private fun VideoNoteEditorToolbar(
     onRedoClick: () -> Unit
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        IconButton(onClick = onBoldClick) { Text("B", fontWeight = FontWeight.Bold) }
-        IconButton(onClick = onHighlightClick) {
+        AppIconButton(onClick = onBoldClick) { Text("B", fontWeight = FontWeight.Bold) }
+        AppIconButton(onClick = onHighlightClick) {
             Icon(Icons.Outlined.FormatColorFill, contentDescription = "高亮")
         }
-        IconButton(onClick = onBulletClick) { Text("-") }
-        IconButton(onClick = onTimestampClick) {
+        AppIconButton(onClick = onBulletClick) { Text("-") }
+        AppIconButton(onClick = onTimestampClick) {
             Icon(Icons.Outlined.AccessTime, contentDescription = "插入时间点")
         }
-        IconButton(onClick = onUndoClick) {
+        AppIconButton(onClick = onUndoClick) {
             Icon(Icons.AutoMirrored.Outlined.Undo, contentDescription = "撤销")
         }
-        IconButton(onClick = onRedoClick) {
+        AppIconButton(onClick = onRedoClick) {
             Icon(Icons.AutoMirrored.Outlined.Redo, contentDescription = "重做")
         }
     }
@@ -453,7 +453,7 @@ private fun VideoNoteTimestampChips(
     if (timestamps.isEmpty()) return
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         timestamps.forEach { timestamp ->
-            AssistChip(
+            AppAssistChip(
                 onClick = { onTimestampClick(timestamp.seconds * 1000L) },
                 label = { Text(timestamp.label) },
                 leadingIcon = {

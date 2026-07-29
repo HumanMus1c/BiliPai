@@ -1,10 +1,5 @@
 package com.android.purebilibili.feature.search
 
-import com.android.purebilibili.core.store.resolveEffectiveLiquidGlassEnabled
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
-
 internal enum class SearchResultCardSurfaceStyle {
     GLASS,
     PLAIN
@@ -31,18 +26,11 @@ internal fun resolveSearchCardBlurEnabled(
 ): Boolean = headerBlurEnabled || bottomBarBlurEnabled
 
 internal fun resolveSearchVideoCardAppearance(
-    liquidGlassEnabled: Boolean,
+    effectiveLiquidGlassEnabled: Boolean,
     blurEnabled: Boolean,
     showHomeCoverGlassBadges: Boolean,
     showHomeInfoGlassBadges: Boolean,
-    uiPreset: UiPreset = UiPreset.IOS,
-    androidNativeLiquidGlassEnabled: Boolean = false
 ): SearchVideoCardAppearance {
-    val effectiveLiquidGlassEnabled = resolveEffectiveLiquidGlassEnabled(
-        requestedEnabled = liquidGlassEnabled,
-        uiPreset = uiPreset,
-        androidNativeLiquidGlassEnabled = androidNativeLiquidGlassEnabled
-    )
     return SearchVideoCardAppearance(
         glassEnabled = effectiveLiquidGlassEnabled,
         blurEnabled = blurEnabled,
@@ -52,24 +40,16 @@ internal fun resolveSearchVideoCardAppearance(
 }
 
 internal fun resolveSearchResultCardAppearance(
-    liquidGlassEnabled: Boolean,
-    uiPreset: UiPreset = UiPreset.IOS,
-    androidNativeLiquidGlassEnabled: Boolean = false,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+    effectiveLiquidGlassEnabled: Boolean,
+    supportsIndependentLiquidGlass: Boolean,
+    tonalElevationDp: Int,
 ): SearchResultCardAppearance {
-    val effectiveLiquidGlassEnabled = resolveEffectiveLiquidGlassEnabled(
-        requestedEnabled = liquidGlassEnabled,
-        uiPreset = uiPreset,
-        androidNativeLiquidGlassEnabled = androidNativeLiquidGlassEnabled
-    )
-    val chromeTokens = resolveAndroidNativeChromeTokens(uiPreset, androidNativeVariant)
-    val md3TonalElevationDp = chromeTokens.tonalSurfaceElevationDp
-    return if (effectiveLiquidGlassEnabled && uiPreset == UiPreset.MD3) {
+    return if (effectiveLiquidGlassEnabled && !supportsIndependentLiquidGlass) {
         SearchResultCardAppearance(
             surfaceStyle = SearchResultCardSurfaceStyle.GLASS,
             containerAlpha = 0.96f,
             borderAlpha = 0f,
-            tonalElevationDp = md3TonalElevationDp,
+            tonalElevationDp = tonalElevationDp,
             shadowElevationDp = 0
         )
     } else if (effectiveLiquidGlassEnabled) {
@@ -80,12 +60,12 @@ internal fun resolveSearchResultCardAppearance(
             tonalElevationDp = 0,
             shadowElevationDp = 0
         )
-    } else if (uiPreset == UiPreset.MD3) {
+    } else if (!supportsIndependentLiquidGlass) {
         SearchResultCardAppearance(
             surfaceStyle = SearchResultCardSurfaceStyle.PLAIN,
             containerAlpha = 1f,
             borderAlpha = 0f,
-            tonalElevationDp = md3TonalElevationDp,
+            tonalElevationDp = tonalElevationDp,
             shadowElevationDp = 0
         )
     } else {
@@ -93,7 +73,7 @@ internal fun resolveSearchResultCardAppearance(
             surfaceStyle = SearchResultCardSurfaceStyle.PLAIN,
             containerAlpha = 1f,
             borderAlpha = 0f,
-            tonalElevationDp = chromeTokens.tonalSurfaceElevationDp,
+            tonalElevationDp = tonalElevationDp,
             shadowElevationDp = 1
         )
     }

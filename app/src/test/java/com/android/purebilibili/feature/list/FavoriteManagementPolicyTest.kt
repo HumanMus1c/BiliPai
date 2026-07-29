@@ -24,8 +24,8 @@ class FavoriteManagementPolicyTest {
     }
 
     @Test
-    fun `favorite folder content page size requests more than default twenty items`() {
-        assertEquals(40, resolveFavoriteFolderContentPageSize())
+    fun `favorite folder content page size respects api limit`() {
+        assertEquals(20, resolveFavoriteFolderContentPageSize())
     }
 
     @Test

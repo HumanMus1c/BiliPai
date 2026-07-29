@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -169,7 +169,7 @@ private fun StoryErrorState(
     ) {
         Text(message, color = Color.White)
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onRetry) {
+        AppButton(onClick = onRetry) {
             Text("重试")
         }
     }

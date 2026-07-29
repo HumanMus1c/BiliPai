@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -80,7 +81,7 @@ internal fun VideoDetailPipParamsEffect(
 ) {
     var lastPipBounds by remember { mutableStateOf<Rect?>(null) }
     var lastPipModeEnabled by remember { mutableStateOf<Boolean?>(null) }
-    var lastPipUpdateElapsedMs by remember { mutableStateOf(0L) }
+    var lastPipUpdateElapsedMs by remember { mutableLongStateOf(0L) }
     val latestPlayer by rememberUpdatedState(player)
 
     LaunchedEffect(activity, playerBounds, pipModeEnabled) {

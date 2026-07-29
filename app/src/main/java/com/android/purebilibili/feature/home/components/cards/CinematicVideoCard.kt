@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home.components.cards
 
+import com.android.purebilibili.core.ui.MediaContrastPalette
+
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,8 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -57,6 +59,10 @@ import com.android.purebilibili.core.theme.iOSCornerRadius
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
+import com.android.purebilibili.core.ui.FeedTitleHierarchy
+import com.android.purebilibili.core.ui.feedContentTypography
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
@@ -117,10 +123,11 @@ fun CinematicVideoCard(
     onClick: (String, Long) -> Unit
 ) {
     val haptic = rememberHapticFeedback()
+    val contentTypography = feedContentTypography(FeedTitleHierarchy.Prominent)
     
     // 动态圆角 - 略大一点的圆角以适配大图卡片
     val cornerRadiusScale = LocalCornerRadiusScale.current
-    val cardCornerRadius = 16.dp * cornerRadiusScale 
+    val cardCornerRadius = AppSpacingTokens.Large * cornerRadiusScale
 
     var showDismissMenu by remember { mutableStateOf(false) }
 
@@ -221,7 +228,7 @@ fun CinematicVideoCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 24.dp, start = 16.dp, end = 16.dp) // 增加间距
+            .padding(bottom = AppSpacingTokens.ExtraLarge, start = AppSpacingTokens.Large, end = AppSpacingTokens.Large) // 增加间距
             .animateEnter(
                 index = index,
                 key = Unit,
@@ -247,7 +254,7 @@ fun CinematicVideoCard(
                     clipShape = cardShellShape
                 )
                 .clip(RoundedCornerShape(cardCornerRadius))
-                .background(Color.Black) // 纯黑底色
+                .background(MediaContrastPalette.Scrim) // 纯黑底色
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onLongPress = {
@@ -285,15 +292,15 @@ fun CinematicVideoCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
+                    .height(AppSpacingTokens.TripleExtraLarge * 4 - AppSpacingTokens.Medium)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.1f),
-                                Color.Black.copy(alpha = 0.5f),
-                                Color.Black.copy(alpha = 0.8f) 
+                                MediaContrastPalette.Scrim.copy(alpha = 0.1f),
+                                MediaContrastPalette.Scrim.copy(alpha = 0.5f),
+                                MediaContrastPalette.Scrim.copy(alpha = 0.8f)
                             )
                         )
                     )
@@ -303,7 +310,7 @@ fun CinematicVideoCard(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(16.dp)
+                    .padding(AppSpacingTokens.Large)
                     .videoCardShellReturnChromeAlpha(
                         enabled = useCardShellSharedBounds,
                         bvid = video.bvid,
@@ -316,22 +323,18 @@ fun CinematicVideoCard(
                     text = video.title,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontSize = 18.sp
-                    ),
+                    style = contentTypography.title.copy(color = MediaContrastPalette.Foreground),
                     modifier = Modifier
                         .fillMaxWidth()
                         .semantics { contentDescription = "视频标题: ${video.title}" }
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
 
                 // 数据层 (一直显示)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
                 ) {
                      UpBadgeName(
                          name = video.owner.name,
@@ -345,34 +348,32 @@ fun CinematicVideoCard(
                                         .build(),
                                     contentDescription = null,
                                     modifier = Modifier
-                                        .size(20.dp)
+                                        .size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
                                         .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.2f)),
+                                        .background(MediaContrastPalette.Foreground.copy(alpha = 0.2f)),
                                     contentScale = ContentScale.Crop
                                  )
                              }
                          } else null,
-                         nameStyle = MaterialTheme.typography.bodySmall.copy(
-                             fontWeight = FontWeight.Medium
-                         ),
-                         nameColor = Color.White.copy(alpha = 0.9f),
-                         badgeTextColor = Color.White.copy(alpha = 0.92f),
-                         badgeBorderColor = Color.White.copy(alpha = 0.45f),
+                         nameStyle = contentTypography.author,
+                         nameColor = MediaContrastPalette.Foreground.copy(alpha = 0.9f),
+                         badgeTextColor = MediaContrastPalette.Foreground.copy(alpha = 0.92f),
+                         badgeBorderColor = MediaContrastPalette.Foreground.copy(alpha = 0.45f),
                          showUpBadge = showUpBadge
                      )
                      
                      // 播放量
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall)) {
                         Icon(
                             imageVector = CupertinoIcons.Filled.PlayCircle, 
                             contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                            tint = Color.White.copy(alpha = 0.8f)
+                            modifier = Modifier.size(AppSpacingTokens.Medium),
+                            tint = MediaContrastPalette.Foreground.copy(alpha = 0.8f)
                         )
                         Text(
                             text = FormatUtils.formatStat(video.stat.view.toLong()),
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                color = Color.White.copy(alpha = 0.8f),
+                            style = contentTypography.statistic.copy(
+                                color = MediaContrastPalette.Foreground.copy(alpha = 0.8f),
                                 fontWeight = FontWeight.Medium
                             )
                         )
@@ -381,8 +382,8 @@ fun CinematicVideoCard(
                     // 时长
                     Text(
                         text = FormatUtils.formatDuration(video.duration),
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            color = Color.White.copy(alpha = 0.8f)
+                        style = contentTypography.coverBadge.copy(
+                            color = MediaContrastPalette.Foreground.copy(alpha = 0.8f)
                         )
                     )
                 }
@@ -395,34 +396,41 @@ fun CinematicVideoCard(
              Box(
                  modifier = Modifier
                      .align(Alignment.TopEnd)
-                     .padding(12.dp)
-                     .size(24.dp)
-                     .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                     .padding(AppSpacingTokens.Medium)
+                     .size(AppChromeSizeTokens.MinimumTouchTarget)
+                     .semantics { contentDescription = "更多操作" }
                      .clickable { 
                          haptic(HapticType.LIGHT)
                          showDismissMenu = true 
                      },
                  contentAlignment = Alignment.Center
              ) {
-                 Text(
-                     text = "⋮",
-                     color = Color.White,
-                     fontSize = 16.sp,
-                     fontWeight = FontWeight.Bold,
-                     modifier = Modifier.padding(bottom = 2.dp)
-                 )
+                 Box(
+                     modifier = Modifier
+                         .size(AppSpacingTokens.ExtraLarge)
+                         .background(MediaContrastPalette.Scrim.copy(alpha = 0.3f), CircleShape),
+                     contentAlignment = Alignment.Center,
+                 ) {
+                     Text(
+                         text = "⋮",
+                         color = MediaContrastPalette.Foreground,
+                         fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                         fontWeight = FontWeight.Bold,
+                         modifier = Modifier.padding(bottom = AppSpacingTokens.Micro)
+                     )
+                 }
              }
          }
     }
 
 
     // 长按菜单
-    DropdownMenu(
+    AppDropdownMenu(
         expanded = showDismissMenu,
         onDismissRequest = { showDismissMenu = false }
     ) {
         if (onWatchLater != null) {
-            DropdownMenuItem(
+            AppDropdownMenuItem(
                 text = { Text("🕐 稍后再看") },
                 onClick = {
                     showDismissMenu = false
@@ -431,7 +439,7 @@ fun CinematicVideoCard(
             )
         }
         if (onDismiss != null) {
-            DropdownMenuItem(
+            AppDropdownMenuItem(
                 text = { Text("🚫 不感兴趣") },
                 onClick = {
                     showDismissMenu = false

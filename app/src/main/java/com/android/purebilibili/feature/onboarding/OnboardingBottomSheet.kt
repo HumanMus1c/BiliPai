@@ -53,12 +53,7 @@ import kotlinx.coroutines.launch
 import com.airbnb.lottie.compose.*
 import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.core.ui.LottieUrls
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.ui.bottomSheetContentEnterTransition
-import com.android.purebilibili.core.ui.bottomSheetContentExitTransition
-import com.android.purebilibili.core.ui.bottomSheetScrimEnterTransition
-import com.android.purebilibili.core.ui.bottomSheetScrimExitTransition
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
+import com.android.purebilibili.core.ui.rememberAppBottomSheetMotion
 
 /**
  *  iOS 风格新手引导底部弹窗
@@ -79,8 +74,7 @@ fun OnboardingBottomSheet(
 ) {
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
+    val sheetMotion = rememberAppBottomSheetMotion()
     
     // 3 页引导
     val pagerState = rememberPagerState(pageCount = { 3 })
@@ -91,8 +85,8 @@ fun OnboardingBottomSheet(
     //  控制进出场动画
     androidx.compose.animation.AnimatedVisibility(
         visible = visible,
-        enter = bottomSheetScrimEnterTransition(uiPreset, androidNativeVariant),
-        exit = bottomSheetScrimExitTransition(uiPreset, androidNativeVariant)
+        enter = sheetMotion.scrimEnter,
+        exit = sheetMotion.scrimExit
     ) {
         //  1. 半透明遮罩层 (点击关闭)
         Box(
@@ -109,8 +103,8 @@ fun OnboardingBottomSheet(
 
     androidx.compose.animation.AnimatedVisibility(
         visible = visible,
-        enter = bottomSheetContentEnterTransition(uiPreset, androidNativeVariant),
-        exit = bottomSheetContentExitTransition(uiPreset, androidNativeVariant)
+        enter = sheetMotion.contentEnter,
+        exit = sheetMotion.contentExit
     ) {
         //  2. 内容层 (点击透传)
         Box(

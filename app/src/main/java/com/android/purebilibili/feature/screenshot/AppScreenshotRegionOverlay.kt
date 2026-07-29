@@ -15,11 +15,11 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -145,7 +145,7 @@ fun AppScreenshotRegionOverlay(
             }
         }
 
-        Surface(
+        AppSurface(
             color = Color.Black.copy(alpha = 0.54f),
             contentColor = Color.White,
             shape = RoundedCornerShape(18.dp),
@@ -169,7 +169,7 @@ fun AppScreenshotRegionOverlay(
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            OutlinedButton(
+            AppOutlinedButton(
                 onClick = onCancel,
                 enabled = !saving,
                 modifier = Modifier.weight(1f),
@@ -180,7 +180,7 @@ fun AppScreenshotRegionOverlay(
                 Text("取消")
             }
             Spacer(modifier = Modifier.weight(0.08f))
-            Button(
+            AppButton(
                 onClick = {
                     cropRect?.let(onSaveRegion)
                 },

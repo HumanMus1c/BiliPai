@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.ui.AppTopTabPresentation
+
 import kotlin.math.roundToInt
 
 internal const val HOME_HEADER_SECONDARY_BLUR_RESTORE_DELAY_MS = 120L
@@ -229,19 +231,19 @@ internal fun shouldAnimateIosTopTabCapsule(
 }
 
 internal fun shouldDrawLightweightTopTabItemContainer(
-    renderer: HomeTopTabRenderer,
+    presentation: AppTopTabPresentation,
     skinPlainStyle: Boolean,
     hasSkinStickerIcon: Boolean
 ): Boolean {
-    return renderer != HomeTopTabRenderer.IOS || skinPlainStyle || hasSkinStickerIcon
+    return presentation != AppTopTabPresentation.MOVING_CAPSULE || skinPlainStyle || hasSkinStickerIcon
 }
 
 internal fun shouldUseLightweightTopTabItemClickIndication(
-    renderer: HomeTopTabRenderer,
+    presentation: AppTopTabPresentation,
     skinPlainStyle: Boolean,
     usesCapsuleIndicator: Boolean
 ): Boolean {
     if (skinPlainStyle) return true
     if (usesCapsuleIndicator) return false
-    return renderer == HomeTopTabRenderer.MD3
+    return presentation == AppTopTabPresentation.MATERIAL_UNDERLINE
 }

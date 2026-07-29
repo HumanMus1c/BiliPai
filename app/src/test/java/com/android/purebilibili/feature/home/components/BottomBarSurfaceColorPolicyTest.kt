@@ -308,7 +308,7 @@ class BottomBarSurfaceColorPolicyTest {
         assertEquals(
             SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE,
             resolveSegmentedControlChromeStyle(
-                uiPreset = UiPreset.MD3,
+                prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = false
             )
         )
@@ -316,7 +316,7 @@ class BottomBarSurfaceColorPolicyTest {
         assertEquals(
             SegmentedControlChromeStyle.LIQUID_PILL,
             resolveSegmentedControlChromeStyle(
-                uiPreset = UiPreset.MD3,
+                prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = true
             )
         )
@@ -324,7 +324,7 @@ class BottomBarSurfaceColorPolicyTest {
         assertEquals(
             SegmentedControlChromeStyle.LIQUID_PILL,
             resolveSegmentedControlChromeStyle(
-                uiPreset = UiPreset.IOS,
+                prefersNativeChrome = false,
                 androidNativeLiquidGlassEnabled = false
             )
         )

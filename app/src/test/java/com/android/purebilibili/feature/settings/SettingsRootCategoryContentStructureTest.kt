@@ -12,7 +12,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         assertTrue(source.contains("internal data class SettingsRootCategoryActions("))
         assertTrue(source.contains("internal data class SettingsRootCategoryState("))
@@ -34,7 +34,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         val sectionBlock = source
             .substringAfter("internal fun SettingsDetailEntrySection(")
@@ -51,7 +51,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         val feedApiBlock = source
             .substringAfter("fun FeedApiSection(")
@@ -70,7 +70,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/SettingsScreen.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/screen/SettingsScreen.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         assertTrue(source.contains("SettingsHomeSearchEntry("))
         assertTrue(source.contains("SettingsRootCategoryListSection("))
@@ -83,7 +83,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         assertTrue(source.contains("internal fun SettingsRootCategoryEntranceSection("))
         assertTrue(source.contains("Box(modifier = Modifier.entrance())"))
@@ -102,7 +102,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         val contentBlock = source
             .substringAfter("internal fun SettingsRootCategoryContent(")
@@ -122,7 +122,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/SettingsScreen.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/screen/SettingsScreen.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         assertTrue(source.contains("SettingsNavDestination"))
         assertTrue(source.contains("SettingsRootCategoryContent("))
@@ -136,7 +136,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         val sectionBlock = source
             .substringAfter("internal fun SettingsRootCategoryListSection(")
@@ -153,7 +153,7 @@ class SettingsRootCategoryContentStructureTest {
         val screenSource = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/SettingsScreen.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/screen/SettingsScreen.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
         val categoryScreenExists = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/SettingsCategoryScreen.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/screen/SettingsCategoryScreen.kt")
@@ -174,7 +174,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/SettingsTabletShell.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/screen/SettingsTabletShell.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         assertTrue(source.contains("SettingsHomeSearchEntry(onClick = onSearchOpen)"))
         assertTrue(source.contains("NavigationDrawerItem("))
@@ -187,7 +187,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt"),
             File("src/main/java/com/android/purebilibili/navigation/AppNavigation.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         assertTrue(source.contains("fun SettingsTabletEntry(content: @Composable () -> Unit)"))
         assertTrue(source.contains("SettingsTabletNavEntryShell("))
@@ -211,11 +211,11 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/TipsSettingsScreen.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/screen/TipsSettingsScreen.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         assertTrue(source.contains("SettingsPageScaffold("))
         assertFalse(source.contains("SettingsLargeTitleHeader("))
-        assertFalse(source.contains("AdaptiveScaffold("))
+        assertFalse(source.contains("AppScaffold("))
     }
 
     @Test
@@ -223,7 +223,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         val aboutBlock = source
             .substringAfter("SettingsRootCategory.SYSTEM_ABOUT -> {")
@@ -238,7 +238,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         val aboutSectionBlock = source
             .substringAfter("fun AboutSection(")
@@ -259,7 +259,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         val contributorBlock = source
             .substringAfter("internal data class AboutContributor(")
@@ -296,31 +296,34 @@ class SettingsRootCategoryContentStructureTest {
         val settingsSections = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
         val appearance = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/AppearanceSettingsScreen.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/screen/AppearanceSettingsScreen.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
         val playback = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/PlaybackSettingsScreen.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/screen/PlaybackSettingsScreen.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
         val animation = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/AnimationSettingsScreen.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/screen/AnimationSettingsScreen.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         assertTrue(settingsSections.contains("SettingsDetailGroup(title = \"显示与交互\")"))
         assertTrue(settingsSections.contains("SettingsDetailGroup(title = \"画质与播放\")"))
         assertTrue(settingsSections.contains("SettingsDetailGroup(title = \"隐私与安全\")"))
-        assertTrue(appearance.contains("IOSSectionTitle(\"显示模式\")"))
-        assertTrue(appearance.contains("IOSSectionTitle(\"字体与密度\")"))
-        assertTrue(appearance.contains("IOSSectionTitle(\"开屏与图标\")"))
-        assertTrue(playback.contains("IOSSectionTitle(\"小窗与后台\")"))
-        assertTrue(playback.contains("IOSSectionTitle(\"诊断\")"))
-        assertTrue(playback.indexOf("IOSSectionTitle(\"网络与画质\")") < playback.indexOf("IOSSectionTitle(\"互动与评论\")"))
-        assertTrue(animation.contains("IOSSectionTitle(\"玻璃效果\")"))
-        assertTrue(animation.contains("IOSSectionTitle(\"底栏入口\")"))
+        assertTrue(appearance.contains("AppPreferenceSectionTitle(\"显示模式\")"))
+        assertTrue(appearance.contains("AppPreferenceSectionTitle(\"字体与密度\")"))
+        assertTrue(appearance.contains("AppPreferenceSectionTitle(\"开屏与图标\")"))
+        assertTrue(playback.contains("AppPreferenceSectionTitle(\"小窗与后台\")"))
+        assertTrue(playback.contains("AppPreferenceSectionTitle(\"诊断\")"))
+        assertTrue(
+            playback.indexOf("AppPreferenceSectionTitle(\"网络与画质\")") <
+                playback.indexOf("AppPreferenceSectionTitle(\"互动与评论\")")
+        )
+        assertTrue(animation.contains("AppPreferenceSectionTitle(\"玻璃效果\")"))
+        assertTrue(animation.contains("AppPreferenceSectionTitle(\"底栏入口\")"))
     }
 
     @Test
@@ -328,7 +331,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         val overviewBlock = source
             .substringAfter("private fun AboutProjectOverviewCard(")
@@ -343,7 +346,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         val aboutSectionBlock = source
             .substringAfter("fun AboutSection(")
@@ -358,7 +361,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/SettingsTabletShell.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/screen/SettingsTabletShell.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         assertTrue(source.contains("text = category.subtitle"))
     }
@@ -368,7 +371,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         assertTrue(source.contains("title = \"首页样式与壁纸\""))
         assertTrue(source.contains("value = \"在播放设置内 · 全屏方向与手势控制\""))
@@ -380,7 +383,7 @@ class SettingsRootCategoryContentStructureTest {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"),
             File("src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt")
-        ).first { it.exists() }.readText()
+        ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         val pinnedCardBlock = source
             .substringAfter("fun ReleaseChannelPinnedCard(")

@@ -15,6 +15,8 @@ class SettingsSharePolicyTest {
             appVersion = "6.8.2",
             exportedAtIso = "2026-03-07T13:00:00Z",
             rawSettings = mapOf(
+                "ui_preset" to JsonPrimitive(1),
+                "android_native_variant_v1" to JsonPrimitive(1),
                 "app_language_v1" to JsonPrimitive(3),
                 "theme_mode_v2" to JsonPrimitive(2),
                 "dark_theme_style_v1" to JsonPrimitive(1),
@@ -22,6 +24,14 @@ class SettingsSharePolicyTest {
                 "download_path" to JsonPrimitive("/storage/emulated/0/Download/BiliPai")
             ),
             definitions = listOf(
+                SettingsShareEntryDefinition(
+                    storageKey = "ui_preset",
+                    section = SettingsShareSection.APPEARANCE
+                ),
+                SettingsShareEntryDefinition(
+                    storageKey = "android_native_variant_v1",
+                    section = SettingsShareSection.APPEARANCE
+                ),
                 SettingsShareEntryDefinition(
                     storageKey = "app_language_v1",
                     section = SettingsShareSection.APPEARANCE
@@ -42,6 +52,11 @@ class SettingsSharePolicyTest {
         )
 
         assertEquals("我的设置", profile.profileName)
+        assertEquals(JsonPrimitive(1), profile.sections.appearance["ui_preset"])
+        assertEquals(
+            JsonPrimitive(1),
+            profile.sections.appearance["android_native_variant_v1"]
+        )
         assertEquals(JsonPrimitive(3), profile.sections.appearance["app_language_v1"])
         assertEquals(JsonPrimitive(2), profile.sections.appearance["theme_mode_v2"])
         assertEquals(JsonPrimitive(1), profile.sections.appearance["dark_theme_style_v1"])
@@ -58,13 +73,25 @@ class SettingsSharePolicyTest {
                 appVersion = "6.8.2",
                 exportedAtIso = "2026-03-07T13:00:00Z",
                 sections = SettingsShareSections(
-                    appearance = mapOf("theme_mode_v2" to JsonPrimitive(1)),
+                    appearance = mapOf(
+                        "theme_mode_v2" to JsonPrimitive(1),
+                        "ui_preset" to JsonPrimitive(1),
+                        "android_native_variant_v1" to JsonPrimitive(1)
+                    ),
                     playback = mapOf("download_path" to JsonPrimitive("/secret/path"))
                 )
             ),
             definitions = listOf(
                 SettingsShareEntryDefinition(
                     storageKey = "theme_mode_v2",
+                    section = SettingsShareSection.APPEARANCE
+                ),
+                SettingsShareEntryDefinition(
+                    storageKey = "ui_preset",
+                    section = SettingsShareSection.APPEARANCE
+                ),
+                SettingsShareEntryDefinition(
+                    storageKey = "android_native_variant_v1",
                     section = SettingsShareSection.APPEARANCE
                 )
             )
@@ -73,6 +100,8 @@ class SettingsSharePolicyTest {
         assertEquals("社群推荐配置", preview.profileName)
         assertEquals(listOf(SettingsShareSection.APPEARANCE), preview.importableSections)
         assertTrue(preview.skippedKeys.contains("download_path"))
+        assertFalse(preview.skippedKeys.contains("ui_preset"))
+        assertFalse(preview.skippedKeys.contains("android_native_variant_v1"))
     }
 
     @Test

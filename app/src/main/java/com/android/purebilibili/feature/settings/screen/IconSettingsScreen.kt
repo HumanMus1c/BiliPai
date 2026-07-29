@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.settings
 
+import com.android.purebilibili.core.ui.components.AppSegmentOption
 
 import android.widget.Toast
 
@@ -218,13 +219,13 @@ fun IconSettingsContent(
                         .clip(AppShapes.container(ContainerLevel.Card))
                         .background(AppSurfaceTokens.cardContainer())
                 ) {
-                    IOSSlidingSegmentedSetting(
+                    AppSegmentedPreference(
                         title = "女仆图标外观",
                         subtitle = "可跟随系统，或在任意系统主题下固定明亮、暗黑外壳",
                         options = listOf(
-                            PlaybackSegmentOption(AppIconAppearance.FOLLOW_SYSTEM, "跟随系统"),
-                            PlaybackSegmentOption(AppIconAppearance.LIGHT, "明亮"),
-                            PlaybackSegmentOption(AppIconAppearance.DARK, "暗黑")
+                            AppSegmentOption(AppIconAppearance.FOLLOW_SYSTEM, "跟随系统"),
+                            AppSegmentOption(AppIconAppearance.LIGHT, "明亮"),
+                            AppSegmentOption(AppIconAppearance.DARK, "暗黑")
                         ),
                         selectedValue = iconAppearance,
                         onSelectionChange = viewModel::setAppIconAppearance

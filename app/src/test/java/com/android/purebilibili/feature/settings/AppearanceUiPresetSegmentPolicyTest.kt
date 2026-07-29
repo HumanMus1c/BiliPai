@@ -1,24 +1,25 @@
 package com.android.purebilibili.feature.settings
 
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppThemeSelection
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class AppearanceUiPresetSegmentPolicyTest {
 
     @Test
-    fun uiPresetSegmentOptions_exposeStableOrder_andUseProvidedLabels() {
-        val options = resolveUiPresetSegmentOptions(
+    fun uiStyleSegmentOptions_exposeStableOrder_andUseProvidedLabels() {
+        val options = resolveThemeSelectionOptions(
             iosLabel = "iOS",
-            androidNativeLabel = "Android Native"
+            material3Label = "Material 3",
+            miuixLabel = "Miuix",
         )
 
         assertEquals(
-            listOf(UiPreset.IOS, UiPreset.MD3),
+            listOf(AppThemeSelection.IOS, AppThemeSelection.MATERIAL3, AppThemeSelection.MIUIX),
             options.map { it.value }
         )
         assertEquals(
-            listOf("iOS", "Android Native"),
+            listOf("iOS", "Material 3", "Miuix"),
             options.map { it.label }
         )
     }

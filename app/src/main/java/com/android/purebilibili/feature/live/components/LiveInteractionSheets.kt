@@ -11,25 +11,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Report
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.components.AppAssistChip
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,7 +47,12 @@ import com.android.purebilibili.data.repository.LiveEmoticonPackage
 import com.android.purebilibili.data.repository.LiveReportReason
 import com.android.purebilibili.data.repository.LiveShieldInfo
 import com.android.purebilibili.data.repository.LiveShieldUser
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.feature.live.LiveDanmakuItem
+import com.android.purebilibili.feature.live.resolveLiveSheetVisualSpec
 
 @Composable
 fun LiveReportDialog(
@@ -56,21 +60,21 @@ fun LiveReportDialog(
     onDismiss: () -> Unit,
     onReport: (LiveReportReason) -> Unit
 ) {
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Outlined.Report, contentDescription = null) },
         title = { Text("举报弹幕") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)) {
                 Text(
                     text = "@${target.uname.ifBlank { target.uid.toString() }}：${target.text}",
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
                     DefaultLiveReportReasons.forEach { reason ->
-                        AssistChip(
+                        AppAssistChip(
                             onClick = { onReport(reason) },
                             label = { Text(reason.label) }
                         )
@@ -80,7 +84,7 @@ fun LiveReportDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            AppTextButton(onClick = onDismiss) {
                 Text("取消")
             }
         }
@@ -94,12 +98,16 @@ fun LiveEmoticonSheet(
     onSelected: (LiveEmoticonItem) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    val visualSpec = remember { resolveLiveSheetVisualSpec() }
+    AppModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(
+                    horizontal = AppSpacingTokens.ExtraLarge,
+                    vertical = AppSpacingTokens.Small,
+                ),
+            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)
         ) {
             Text(
                 text = "直播表情",
@@ -116,8 +124,8 @@ fun LiveEmoticonSheet(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(420.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .height(visualSpec.emoticonListMaxHeightDp.dp),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
                 ) {
                     packages.forEach { pkg ->
                         item(key = "title-${pkg.id}") {
@@ -142,23 +150,24 @@ private fun LiveEmoticonRow(
     item: LiveEmoticonItem,
     onClick: () -> Unit
 ) {
-    Surface(
+    val visualSpec = remember { resolveLiveSheetVisualSpec() }
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(12.dp)
+        color = AppSurfaceTokens.cardContainer(),
+        shape = AppShapes.container(ContainerLevel.Card)
     ) {
         Row(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(AppSpacingTokens.Medium),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
         ) {
             AsyncImage(
                 model = item.url,
                 contentDescription = item.description.ifBlank { item.emoji },
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.height(34.dp)
+                modifier = Modifier.height(visualSpec.emoticonImageHeightDp.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.emoji, style = MaterialTheme.typography.bodyLarge)
@@ -188,13 +197,16 @@ fun LiveDmBlockSheet(
     onDismiss: () -> Unit
 ) {
     var keyword by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AppModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .padding(
+                    horizontal = AppSpacingTokens.ExtraLarge,
+                    vertical = AppSpacingTokens.Small,
+                )
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)
         ) {
             Text(
                 text = "弹幕屏蔽",
@@ -209,10 +221,10 @@ fun LiveDmBlockSheet(
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = keyword,
                     onValueChange = { keyword = it.take(20) },
                     enabled = isLoggedIn,
@@ -220,7 +232,7 @@ fun LiveDmBlockSheet(
                     singleLine = true,
                     placeholder = { Text("新增屏蔽词") }
                 )
-                Button(
+                AppButton(
                     enabled = isLoggedIn && keyword.trim().isNotBlank(),
                     onClick = {
                         onAddKeyword(keyword.trim())
@@ -245,7 +257,7 @@ fun LiveDmBlockSheet(
                 enabled = isLoggedIn,
                 onUnblockUser = onUnblockUser
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         }
     }
 }
@@ -256,22 +268,22 @@ private fun LiveRuleSection(
     enabled: Boolean,
     onSetRule: (String, Int) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
         Text("规则", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
+        Row(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
+            AppFilterChip(
                 selected = (shieldInfo?.level ?: 0) > 0,
                 enabled = enabled,
                 onClick = { onSetRule("level", if ((shieldInfo?.level ?: 0) > 0) 0 else 5) },
                 label = { Text("等级") }
             )
-            FilterChip(
+            AppFilterChip(
                 selected = (shieldInfo?.medal ?: 0) > 0,
                 enabled = enabled,
                 onClick = { onSetRule("medal", if ((shieldInfo?.medal ?: 0) > 0) 0 else 1) },
                 label = { Text("勋章") }
             )
-            FilterChip(
+            AppFilterChip(
                 selected = (shieldInfo?.verify ?: 0) > 0,
                 enabled = enabled,
                 onClick = { onSetRule("verify", if ((shieldInfo?.verify ?: 0) > 0) 0 else 1) },
@@ -287,7 +299,7 @@ private fun LiveKeywordSection(
     enabled: Boolean,
     onDeleteKeyword: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
         Text("关键词", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         val keywords = shieldInfo?.keywords.orEmpty()
         if (keywords.isEmpty()) {
@@ -299,7 +311,7 @@ private fun LiveKeywordSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(item.keyword, modifier = Modifier.weight(1f))
-                    IconButton(enabled = enabled, onClick = { onDeleteKeyword(item.keyword) }) {
+                    AppIconButton(enabled = enabled, onClick = { onDeleteKeyword(item.keyword) }) {
                         Icon(Icons.Outlined.Delete, contentDescription = "删除")
                     }
                 }
@@ -314,7 +326,7 @@ private fun LiveShieldUserSection(
     enabled: Boolean,
     onUnblockUser: (LiveShieldUser) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
         Text("用户", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         val users = shieldInfo?.users.orEmpty()
         if (users.isEmpty()) {
@@ -330,9 +342,9 @@ private fun LiveShieldUserSection(
                         text = user.uname.ifBlank { user.uid.toString() },
                         modifier = Modifier
                             .weight(1f)
-                            .padding(start = 10.dp)
+                            .padding(start = AppSpacingTokens.Medium)
                     )
-                    TextButton(enabled = enabled, onClick = { onUnblockUser(user) }) {
+                    AppTextButton(enabled = enabled, onClick = { onUnblockUser(user) }) {
                         Text("解除")
                     }
                 }

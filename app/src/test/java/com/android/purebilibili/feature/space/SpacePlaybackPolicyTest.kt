@@ -223,6 +223,50 @@ class SpacePlaybackPolicyTest {
     }
 
     @Test
+    fun `locating an old video keeps paging until the exact bvid is found or exhausted`() {
+        assertEquals(
+            SpaceLocateTargetPageAction.LoadMore,
+            resolveSpaceLocateTargetPageAction(
+                targetBvid = "BV-old",
+                videos = listOf(item("BV-new", "new", "01:00")),
+                isLoading = false,
+                hasMore = true,
+            ),
+        )
+        assertEquals(
+            SpaceLocateTargetPageAction.Found(index = 1),
+            resolveSpaceLocateTargetPageAction(
+                targetBvid = "BV-old",
+                videos = listOf(
+                    item("BV-new", "new", "01:00"),
+                    item("BV-old", "old", "01:00"),
+                ),
+                isLoading = false,
+                hasMore = true,
+            ),
+        )
+        assertEquals(
+            SpaceLocateTargetPageAction.Missing,
+            resolveSpaceLocateTargetPageAction(
+                targetBvid = "BV-missing",
+                videos = listOf(item("BV-new", "new", "01:00")),
+                isLoading = false,
+                hasMore = false,
+            ),
+        )
+        assertEquals(
+            SpaceLocateTargetPageAction.LoadFailed,
+            resolveSpaceLocateTargetPageAction(
+                targetBvid = "BV-old",
+                videos = listOf(item("BV-new", "new", "01:00")),
+                isLoading = false,
+                hasMore = true,
+                lastLoadFailed = true,
+            ),
+        )
+    }
+
+    @Test
     fun resolveSpacePriorityTabLoadState_keeps_tabs_independent() {
         val shell = buildInitialTabShellState(selectedTab = SpaceMainTab.CONTRIBUTION)
             .withUpdatedTab(SpaceMainTab.CONTRIBUTION) { it.copy(isLoading = true, hasLoaded = true) }

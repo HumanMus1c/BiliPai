@@ -32,8 +32,8 @@ class SettingsSubpageChromeStructureTest {
                 "$path should use SettingsPageScaffold",
             )
             assertFalse(
-                source.contains("AdaptiveScaffold("),
-                "$path should not declare its own AdaptiveScaffold",
+                source.contains("AppScaffold("),
+                "$path should not declare its own AppScaffold",
             )
         }
     }

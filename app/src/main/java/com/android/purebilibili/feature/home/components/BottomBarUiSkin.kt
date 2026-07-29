@@ -1,5 +1,10 @@
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.OpticalContrastPalette
+import com.android.purebilibili.feature.home.HomeVisualPalette
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -84,36 +89,32 @@ data class HomeUiSkinDecoration(
     }
 }
 
-internal fun resolveBottomBarSkinDockIconSize(): Dp = 40.dp
+internal fun resolveBottomBarSkinDockIconSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small
 
-internal fun resolveBottomBarSkinDockHeight(): Dp = 88.dp
+internal fun resolveBottomBarSkinDockHeight(): Dp = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small
 
 internal fun resolveBottomBarSkinDockContentPadding(): PaddingValues = PaddingValues(
-    start = 4.dp,
-    end = 4.dp,
-    top = 0.dp,
-    bottom = 0.dp
+    start = AppSpacingTokens.ExtraSmall,
+    end = AppSpacingTokens.ExtraSmall,
+    top = AppSpacingTokens.None,
+    bottom = AppSpacingTokens.None
 )
 
-internal fun resolveBottomBarSkinIconLabelGap(): Dp = 2.dp
+internal fun resolveBottomBarSkinIconLabelGap(): Dp = AppSpacingTokens.Micro
 
-internal fun resolveBottomBarSkinDockIconTopPadding(): Dp = 10.dp
+internal fun resolveBottomBarSkinDockIconTopPadding(): Dp = AppSpacingTokens.Small + AppSpacingTokens.Micro
 
-internal fun resolveBottomBarSkinDockLabelBottomPadding(): Dp = 18.dp
+internal fun resolveBottomBarSkinDockLabelBottomPadding(): Dp = AppSpacingTokens.Large + AppSpacingTokens.Micro
 
-internal fun resolveBottomBarSkinDockLabelFontSize(): TextUnit = 12.sp
+internal fun resolveBottomBarMiuixSkinDockIconSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro
 
-internal fun resolveBottomBarSkinDockLabelLineHeight(): TextUnit = 18.sp
-
-internal fun resolveBottomBarMiuixSkinDockIconSize(): Dp = 38.dp
-
-internal fun resolveBottomBarCompactSkinHomeIconSize(): Dp = 40.dp
+internal fun resolveBottomBarCompactSkinHomeIconSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small
 
 internal fun resolveMiuixDockedBottomBarItemHeight(hasUiSkinDecoration: Boolean): Dp {
     return if (hasUiSkinDecoration) {
         resolveBottomBarSkinDockHeight()
     } else {
-        64.dp
+        AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large
     }
 }
 
@@ -140,11 +141,11 @@ fun resolveBottomBarUiSkinDecoration(uiSkinState: UiSkinState): BottomBarUiSkinD
             skinId = activeSkin.manifest.skinId,
             bottomTrimTint = parseUiSkinColor(
                 value = activeSkin.manifest.colors.bottomBarTrimTint,
-                fallback = Color(0xFFEAF8FF)
+                fallback = HomeVisualPalette.BottomBarIceLight
             ),
             bottomTrimAccent = parseUiSkinColor(
                 value = activeSkin.manifest.colors.topAtmosphereTint,
-                fallback = Color(0xFFDFF5FF)
+                fallback = HomeVisualPalette.BottomBarIce
             ),
             bottomTrimImagePath = activeSkin.assetFilePath(activeSkin.manifest.assets.bottomBarTrim),
             bottomBarIconPaths = resolveBottomBarSkinIconPaths(activeSkin)
@@ -177,11 +178,11 @@ fun resolveHomeUiSkinDecoration(uiSkinState: UiSkinState): HomeUiSkinDecoration?
             skinId = manifest.skinId,
             topAtmosphereTint = parseUiSkinColor(
                 value = manifest.colors.topAtmosphereTint,
-                fallback = Color(0xFFDFF5FF)
+                fallback = HomeVisualPalette.BottomBarIce
             ),
             searchCapsuleTint = parseUiSkinColor(
                 value = manifest.colors.searchCapsuleTint,
-                fallback = Color.White
+                fallback = OpticalContrastPalette.Highlight
             ),
             topAtmosphereImagePath = activeSkin.assetFilePath(manifest.assets.topAtmosphere),
             topTabBackgroundImagePath = activeSkin.assetFilePath(manifest.assets.homeTopTabBackground),

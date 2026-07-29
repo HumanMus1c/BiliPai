@@ -11,8 +11,7 @@ import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.ui.graphics.Color
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppTopTabPresentation
 import com.android.purebilibili.feature.video.ui.components.GesturePercentTransitionDirection
 import com.android.purebilibili.feature.video.ui.components.resolveGesturePercentTransitionDirection
 import com.android.purebilibili.feature.video.ui.components.shouldTriggerGesturePercentHaptic
@@ -55,24 +54,15 @@ class VideoGestureFeedbackPolicyTest {
     fun `resolveGestureLevelIconStyle maps three distinct themes`() {
         assertEquals(
             GestureLevelIconStyle.Md3,
-            resolveGestureLevelIconStyle(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MATERIAL3
-            )
+            resolveGestureLevelIconStyle(AppTopTabPresentation.MATERIAL_UNDERLINE)
         )
         assertEquals(
             GestureLevelIconStyle.Ios,
-            resolveGestureLevelIconStyle(
-                uiPreset = UiPreset.IOS,
-                androidNativeVariant = AndroidNativeVariant.MATERIAL3
-            )
+            resolveGestureLevelIconStyle(AppTopTabPresentation.MOVING_CAPSULE)
         )
         assertEquals(
             GestureLevelIconStyle.Miuix,
-            resolveGestureLevelIconStyle(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MIUIX
-            )
+            resolveGestureLevelIconStyle(AppTopTabPresentation.TONAL_CAPSULE)
         )
     }
 

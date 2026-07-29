@@ -1,20 +1,16 @@
 package com.android.purebilibili.feature.settings
 
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppThemeSelection
+import com.android.purebilibili.core.ui.components.AppSegmentOption
 
-internal fun resolveUiPresetSegmentOptions(): List<PlaybackSegmentOption<UiPreset>> {
-    return resolveUiPresetSegmentOptions(
-        iosLabel = UiPreset.IOS.label,
-        androidNativeLabel = UiPreset.MD3.label
-    )
-}
-
-internal fun resolveUiPresetSegmentOptions(
+internal fun resolveThemeSelectionOptions(
     iosLabel: String,
-    androidNativeLabel: String
-): List<PlaybackSegmentOption<UiPreset>> {
+    material3Label: String,
+    miuixLabel: String,
+): List<AppSegmentOption<AppThemeSelection>> {
     return listOf(
-        PlaybackSegmentOption(UiPreset.IOS, iosLabel),
-        PlaybackSegmentOption(UiPreset.MD3, androidNativeLabel)
+        AppSegmentOption(AppThemeSelection.IOS, iosLabel),
+        AppSegmentOption(AppThemeSelection.MATERIAL3, material3Label),
+        AppSegmentOption(AppThemeSelection.MIUIX, miuixLabel),
     )
 }

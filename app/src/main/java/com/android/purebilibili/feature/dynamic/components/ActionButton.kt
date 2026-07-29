@@ -1,6 +1,14 @@
 // 文件路径: feature/dynamic/components/ActionButton.kt
 package com.android.purebilibili.feature.dynamic.components
 
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.AppTypographyTokens
+import com.android.purebilibili.feature.dynamic.DynamicStatusPalette
+
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -19,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,7 +47,6 @@ import com.android.purebilibili.feature.dynamic.resolveDynamicActionButtonText
  */
 @Composable
 fun ActionButton(
-    icon: ImageVector,
     count: Int,
     label: String,
     isActive: Boolean = false,
@@ -68,7 +74,7 @@ fun ActionButton(
     //  统一主题颜色 - 根据激活状态调整
     val buttonColor = when {
         !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(0.45f)
-        isLike && isActive -> Color(0xFFFF6B81)  // 已点赞：粉红色
+        isLike && isActive -> DynamicStatusPalette.Liked
         isLike -> MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
         isForward -> MaterialTheme.colorScheme.primary  // 使用主题色替代硬编码
         isComment -> MaterialTheme.colorScheme.primary
@@ -81,7 +87,7 @@ fun ActionButton(
         isLike -> rememberAppLikeIcon()
         isForward -> rememberAppShareIcon()
         isComment -> rememberAppCommentIcon()
-        else -> icon
+        else -> rememberAppCommentIcon()
     }
     BoxWithConstraints(modifier = modifier) {
         val slotWidthDp = maxWidth.value.toInt()
@@ -98,8 +104,9 @@ fun ActionButton(
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(min = AppChromeSizeTokens.MinimumTouchTarget)
                 .scale(scale)
-                .clip(RoundedCornerShape(24.dp))
+                .clip(AppShapes.container(ContainerLevel.Pill))
                 .background(
                     color = buttonColor.copy(alpha = if (isActive && isLike) 0.15f else 0.08f)
                 )
@@ -108,23 +115,23 @@ fun ActionButton(
                     interactionSource = interactionSource,
                     indication = null
                 ) { onClick() }
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Small)
         ) {
             Icon(
                 imageVector = buttonIcon,
                 contentDescription = label,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro),
                 tint = buttonColor
             )
 
             if (actionText != null) {
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
                 Text(
                     text = actionText,
-                    fontSize = 13.sp,
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Medium,
                     color = buttonColor,
-                    letterSpacing = 0.sp,
+                    letterSpacing = AppTypographyTokens.ZeroLetterSpacing,
                     maxLines = 1,
                     softWrap = false,
                     overflow = TextOverflow.Ellipsis

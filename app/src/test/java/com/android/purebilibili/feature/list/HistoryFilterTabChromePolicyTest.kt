@@ -1,7 +1,10 @@
 package com.android.purebilibili.feature.list
 
 import com.android.purebilibili.core.store.HomeSettings
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppSemanticIconFamily
+import com.android.purebilibili.core.ui.AppTopChromePolicy
+import com.android.purebilibili.core.ui.AppTopTabPresentation
+import com.android.purebilibili.core.ui.CompactCapsuleChromeSpec
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,7 +16,7 @@ class HistoryFilterTabChromePolicyTest {
     fun liquidDock_usesBottomBarMatchedSizingWhenGlobalLiquidGlassEnabled() {
         val spec = resolveHistoryFilterTabChromeSpec(
             homeSettings = HomeSettings(androidNativeLiquidGlassEnabled = true),
-            uiPreset = UiPreset.IOS
+            topChromePolicy = testTopChromePolicy(),
         )
 
         assertTrue(spec.useLiquidDock)
@@ -28,7 +31,7 @@ class HistoryFilterTabChromePolicyTest {
     fun liquidDock_disabledWhenGlobalLiquidGlassReuseOff() {
         val spec = resolveHistoryFilterTabChromeSpec(
             homeSettings = HomeSettings(androidNativeLiquidGlassEnabled = false),
-            uiPreset = UiPreset.IOS
+            topChromePolicy = testTopChromePolicy(),
         )
 
         assertFalse(spec.useLiquidDock)
@@ -41,4 +44,25 @@ class HistoryFilterTabChromePolicyTest {
         assertEquals(60, resolveHistoryFilterTabItemWidthDp(filterCount = 4))
         assertEquals(66, resolveHistoryFilterTabItemWidthDp(filterCount = 3))
     }
+
+    private fun testTopChromePolicy() = AppTopChromePolicy(
+        tabPresentation = AppTopTabPresentation.MOVING_CAPSULE,
+        iconFamily = AppSemanticIconFamily.CUPERTINO,
+        compactChromeSpec = CompactCapsuleChromeSpec(
+            primaryHeightDp = 44,
+            secondaryButtonSizeDp = 40,
+            chipHeightDp = 36,
+            compactChipHeightDp = 32,
+            primaryCornerRadiusDp = 22,
+            secondaryButtonCornerRadiusDp = 20,
+            chipCornerRadiusDp = 18,
+            compactChipCornerRadiusDp = 16,
+            iconSizeDp = 20,
+            smallIconSizeDp = 16,
+            inputHorizontalPaddingDp = 12,
+            chipHorizontalPaddingDp = 12,
+            compactChipHorizontalPaddingDp = 10,
+            standardGapDp = 8,
+        ),
+    )
 }

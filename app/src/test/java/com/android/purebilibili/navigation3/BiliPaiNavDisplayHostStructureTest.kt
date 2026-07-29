@@ -21,11 +21,12 @@ class BiliPaiNavDisplayHostStructureTest {
         assertFalse(source.contains("videoCardTransitionController"))
         assertFalse(source.contains("LocalVideoCardTransitionSession"))
         assertTrue(source.contains("predictivePopTransitionSpec"))
-        assertTrue(
-            source.contains(
-                "NavDisplayTransitionEffects(blockInputDuringTransition = false)"
-            )
-        )
+        val transitionEffects = source
+            .substringAfter("transitionEffects = NavDisplayTransitionEffects(")
+            .substringBefore("),")
+        assertTrue(transitionEffects.contains("enableCornerClip = false"))
+        assertTrue(transitionEffects.contains("dimAmount = 0f"))
+        assertTrue(transitionEffects.contains("blockInputDuringTransition = false"))
     }
 
     @Test
@@ -238,6 +239,24 @@ class BiliPaiNavDisplayHostStructureTest {
         assertTrue(source.contains("videoCardClock.beginGestureRestore()"))
         assertTrue(source.contains("videoCardClock.endGestureRestore()"))
         assertTrue(source.contains("isGestureRestoreInProgressProvider"))
+    }
+
+    @Test
+    fun navDisplayHostTracksOnlyActiveVideoCardTransitionPhases() {
+        val source = navDisplayHostSource()
+        val trackingBlock = source
+            .substringAfter("val videoCardTransitionJankState =")
+            .substringBefore("TrackJankStateValue(")
+
+        assertTrue(source.contains("AppRuntimeVisualGuardTracker.decision.collectAsStateWithLifecycle()"))
+        assertTrue(source.contains("stateName = VIDEO_CARD_TRANSITION_JANK_STATE"))
+        assertTrue(trackingBlock.contains("PredictiveReturn"))
+        assertTrue(trackingBlock.contains("GestureRestore"))
+        assertTrue(trackingBlock.contains("VideoCardTransitionBackgroundPhase.OPENING"))
+        assertTrue(trackingBlock.contains("VideoCardTransitionBackgroundPhase.RETURNING"))
+        assertFalse(trackingBlock.contains("VideoCardTransitionBackgroundPhase.HELD"))
+        assertTrue(source.contains("runtimeGuardDecision.effectiveMotionTier"))
+        assertTrue(source.contains("stateValue = videoCardTransitionJankState"))
     }
 
     @Test

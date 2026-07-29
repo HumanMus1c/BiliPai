@@ -31,18 +31,18 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
+import com.android.purebilibili.core.ui.components.AppCheckbox
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -144,7 +144,7 @@ fun LandscapeDanmakuComposer(
         exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom),
         modifier = modifier
     ) {
-        Surface(
+        AppSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .imePadding()
@@ -208,7 +208,7 @@ fun LandscapeDanmakuComposer(
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             modeOptions.forEach { option ->
-                                FilterChip(
+                                AppFilterChip(
                                     selected = selectedMode == option.value,
                                     onClick = { selectedMode = option.value },
                                     label = { Text(option.label, fontSize = 12.sp) },
@@ -222,7 +222,7 @@ fun LandscapeDanmakuComposer(
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             fontSizeOptions.forEach { option ->
-                                FilterChip(
+                                AppFilterChip(
                                     selected = selectedFontSize == option.value,
                                     onClick = { selectedFontSize = option.value },
                                     label = { Text(option.label, fontSize = 12.sp) },
@@ -247,7 +247,7 @@ fun LandscapeDanmakuComposer(
                                     .padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Checkbox(
+                                AppCheckbox(
                                     checked = attentionCommandChecked,
                                     onCheckedChange = {
                                         attentionCommandChecked = it
@@ -264,7 +264,7 @@ fun LandscapeDanmakuComposer(
                                 }
                             }
                         } else {
-                            TextButton(
+                            AppTextButton(
                                 onClick = { showAdvancedOptions = true },
                                 contentPadding = PaddingValues(horizontal = 0.dp)
                             ) {
@@ -279,7 +279,7 @@ fun LandscapeDanmakuComposer(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IconButton(
+                    AppIconButton(
                         onClick = onDismiss,
                         modifier = Modifier.size(40.dp)
                     ) {
@@ -345,7 +345,7 @@ fun LandscapeDanmakuComposer(
                         )
                     }
 
-                    IconButton(
+                    AppIconButton(
                         onClick = { showStylePanel = !showStylePanel },
                         modifier = Modifier.size(48.dp)
                     ) {
@@ -360,7 +360,7 @@ fun LandscapeDanmakuComposer(
                         )
                     }
 
-                    Button(
+                    AppButton(
                         onClick = {
                             if (text.isNotBlank() && !isSending) {
                                 onSend(
@@ -384,7 +384,7 @@ fun LandscapeDanmakuComposer(
                         )
                     ) {
                         if (isSending) {
-                            CircularProgressIndicator(
+                            AppCircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
                                 color = MaterialTheme.colorScheme.onPrimary

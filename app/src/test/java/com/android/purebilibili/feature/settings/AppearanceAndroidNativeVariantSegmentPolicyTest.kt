@@ -1,28 +1,26 @@
 package com.android.purebilibili.feature.settings
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
+import com.android.purebilibili.core.ui.AppThemeSelection
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class AppearanceAndroidNativeVariantSegmentPolicyTest {
 
     @Test
-    fun androidNativeVariantSegmentOptions_exposeStableOrder_andUseProvidedLabels() {
-        val options = resolveAndroidNativeVariantSegmentOptions(
+    fun uiStyleSegmentOptions_keepAndroidStylesInStableOrder() {
+        val options = resolveThemeSelectionOptions(
+            iosLabel = "iOS",
             material3Label = "Material 3",
-            miuixLabel = "Miuix"
+            miuixLabel = "Miuix",
         )
 
         assertEquals(
-            listOf(
-                AndroidNativeVariant.MATERIAL3,
-                AndroidNativeVariant.MIUIX
-            ),
-            options.map { it.value }
+            listOf(AppThemeSelection.MATERIAL3, AppThemeSelection.MIUIX),
+            options.drop(1).map { it.value }
         )
         assertEquals(
             listOf("Material 3", "Miuix"),
-            options.map { it.label }
+            options.drop(1).map { it.label }
         )
     }
 }

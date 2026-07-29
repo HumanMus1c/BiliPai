@@ -2,10 +2,7 @@ package com.android.purebilibili.core.ui
 
 import com.android.purebilibili.core.theme.AndroidNativeVariant
 import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.ui.IOSLargeTitleBarRenderer
-import com.android.purebilibili.core.ui.resolveLargeTitleBarRenderer
-import com.android.purebilibili.feature.home.components.IOSRefreshIndicatorRenderer
-import com.android.purebilibili.feature.home.components.resolveRefreshIndicatorRenderer
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -34,50 +31,27 @@ class PrimitivePresetCoverageTest {
     }
 
     @Test
-    fun largeTitleBarRenderer_collapsesMd3AndMiuixOntoAdaptiveTopAppBar() {
-        assertEquals(
-            IOSLargeTitleBarRenderer.IOS_LARGE_TITLE,
-            resolveLargeTitleBarRenderer(UiPreset.IOS, AndroidNativeVariant.MATERIAL3)
+    fun legacyLargeTitleBar_isRemovedAfterFeatureMigration() {
+        val legacySource = listOf(
+            File("app/src/main/java/com/android/purebilibili/core/ui/iOSLargeTitleBar.kt"),
+            File("src/main/java/com/android/purebilibili/core/ui/iOSLargeTitleBar.kt"),
         )
-        assertEquals(
-            IOSLargeTitleBarRenderer.ADAPTIVE_TOP_APP_BAR,
-            resolveLargeTitleBarRenderer(UiPreset.MD3, AndroidNativeVariant.MATERIAL3)
-        )
-        assertEquals(
-            IOSLargeTitleBarRenderer.ADAPTIVE_TOP_APP_BAR,
-            resolveLargeTitleBarRenderer(UiPreset.MD3, AndroidNativeVariant.MIUIX)
-        )
-    }
-
-    @Test
-    fun refreshIndicatorRenderer_swapsToMaterialWhenNotIos() {
-        assertEquals(
-            IOSRefreshIndicatorRenderer.CUPERTINO_IOS,
-            resolveRefreshIndicatorRenderer(UiPreset.IOS, AndroidNativeVariant.MATERIAL3)
-        )
-        assertEquals(
-            IOSRefreshIndicatorRenderer.MATERIAL3_LOADING,
-            resolveRefreshIndicatorRenderer(UiPreset.MD3, AndroidNativeVariant.MATERIAL3)
-        )
-        assertEquals(
-            IOSRefreshIndicatorRenderer.MIUIX_BRIDGED,
-            resolveRefreshIndicatorRenderer(UiPreset.MD3, AndroidNativeVariant.MIUIX)
-        )
+        assertEquals(false, legacySource.any { it.exists() })
     }
 
     @Test
     fun dialogActionLayoutPolicy_stillBranches() {
-        // iOSDialogComponents already exposes resolveIosDialogActionLayoutPolicy.
+        // AppDialogComponents exposes a preset-aware action layout policy.
         // Verify it continues to differentiate iOS vs MD3.
-        val iosLayout = resolveIosDialogActionLayoutPolicy(UiPreset.IOS)
-        val md3Layout = resolveIosDialogActionLayoutPolicy(UiPreset.MD3)
+        val iosLayout = resolveDialogActionLayoutPolicy(UiPreset.IOS)
+        val md3Layout = resolveDialogActionLayoutPolicy(UiPreset.MD3)
         assertEquals(true, iosLayout.expandToContainer)
         assertEquals(false, md3Layout.expandToContainer)
     }
 
     @Test
     fun adaptiveBottomSheetVisual_stillBranches() {
-        // iOSSheetComponents exposes resolveAdaptiveBottomSheetVisualSpec.
+        // AppSheetComponents exposes resolveAdaptiveBottomSheetVisualSpec.
         val ios = resolveAdaptiveBottomSheetVisualSpec(UiPreset.IOS)
         val md3 = resolveAdaptiveBottomSheetVisualSpec(UiPreset.MD3)
         assertEquals(14, ios.cornerRadiusDp)

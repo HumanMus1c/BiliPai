@@ -43,8 +43,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.media3.ui.PlayerView
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.rememberAppClearIcon
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
@@ -93,18 +92,16 @@ fun MiniPlayerOverlay(
     
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
     val layoutPolicy = remember(configuration.screenWidthDp) {
         resolveMiniPlayerOverlayLayoutPolicy(
             widthDp = configuration.screenWidthDp
         )
     }
-    val shellVisual = remember(layoutPolicy, uiPreset, androidNativeVariant) {
+    val shellVisual = remember(layoutPolicy, playerChromeProfile) {
         resolveMiniPlayerOverlayShellVisual(
             layout = layoutPolicy,
-            uiPreset = uiPreset,
-            androidNativeVariant = androidNativeVariant
+            chromeProfile = playerChromeProfile,
         )
     }
     val accentColor = if (shellVisual.useThemePrimaryAccent) {

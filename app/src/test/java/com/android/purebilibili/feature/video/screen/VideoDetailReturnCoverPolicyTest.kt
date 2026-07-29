@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.screen
 
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionVisualTimeline
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -288,15 +289,15 @@ class VideoDetailReturnCoverPolicyTest {
             resolveVideoDetailReturnPlayerAlpha(0.8f, true, true, liveReturnMorph = true),
             0.0001f,
         )
-        // 中段（settle=0.15 < yield 0.18）：正文仍可见随壳收缩
+        // 正文按统一的 0..0.28 settle 窗口让位，播放器本身仍保持完整可见。
         assertEquals(
-            1f,
+            1f - 0.15f / VideoCardTransitionVisualTimeline.DETAIL_CONTENT_RETURN_END,
             resolveVideoDetailReturnContentAlpha(0.85f, true, liveReturnMorph = true),
             0.0001f,
         )
-        // 末段（settle=0.7 > yield）：正文让位给源卡标题，alpha 下降
+        // 末段（settle=0.7 > 0.28）：正文已完全让位给源卡标题。
         val lateContent = resolveVideoDetailReturnContentAlpha(0.3f, true, liveReturnMorph = true)
-        assertTrue(lateContent < 1f && lateContent > 0f)
+        assertEquals(0f, lateContent, 0.0001f)
     }
 
     @Test
@@ -357,9 +358,9 @@ class VideoDetailReturnCoverPolicyTest {
             ),
             0.0001f,
         )
-        // 预测返回未提交：快速返回跟 morphDepth 线性让位（yieldStart=0），可取消。
+        // 预测返回未提交：快速返回跟 morphDepth 的统一窗口线性让位，可取消。
         assertEquals(
-            0.9f,
+            1f - 0.1f / VideoCardTransitionVisualTimeline.DETAIL_CONTENT_RETURN_END,
             resolveVideoDetailReturnContentAlpha(
                 transitionProgress = 0.9f,
                 isCommittedCardReturn = false,
@@ -458,7 +459,7 @@ class VideoDetailReturnCoverPolicyTest {
     }
 
     @Test
-    fun `uncommitted predictive live morph keeps player and detail content fully visible`() {
+    fun `uncommitted predictive live morph keeps player visible while content follows timeline`() {
         assertEquals(
             0f,
             resolveVideoDetailReturnCoverAlpha(0.8f, false, true, liveReturnMorph = true),
@@ -470,7 +471,7 @@ class VideoDetailReturnCoverPolicyTest {
             0.0001f,
         )
         assertEquals(
-            1f,
+            1f - 0.15f / VideoCardTransitionVisualTimeline.DETAIL_CONTENT_RETURN_END,
             resolveVideoDetailReturnContentAlpha(0.85f, false, liveReturnMorph = true),
             0.0001f,
         )

@@ -33,7 +33,9 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertTrue(source.contains("BiliPaiReturnSessionState"))
         assertTrue(source.contains("navigation3ReturnSession"))
         assertTrue(source.contains("resolveBiliPaiNavSourceMetadata"))
-        assertTrue(source.contains("CardPositionManager.lastClickedVideoSourceKey == navigation3ReturnSession.lastVideoSourceKey"))
+        assertTrue(source.contains("areVideoSourceKeysCompatible("))
+        assertTrue(source.contains("cardKey = CardPositionManager.lastClickedVideoSourceKey"))
+        assertTrue(source.contains("sessionKey = navigation3ReturnSession.lastVideoSourceKey"))
         assertTrue(source.contains("matchedVisibleCardRoute"))
         assertTrue(source.contains("navigation3ReturnSession.markReturning"))
         assertTrue(source.contains("navigation3ReturnSession.isQuickReturnFromDetail"))
@@ -91,7 +93,7 @@ class AppNavigationNavigation3BridgeStructureTest {
 
         // 必须走 pop 路径才能触发 popTransitionSpec → 方向化横向过渡。
         assertTrue(onHomeClickBlock.contains("popBiliPaiNavKeyToRoot(navigation3BackStack)"))
-        assertTrue(onHomeClickBlock.contains("mainBottomPagerState.snapToPage"))
+        assertTrue(onHomeClickBlock.contains("mainBottomPagerState.switchToPage"))
         // 不再用 push 把 Home 叠到栈顶；避免 fade 兜底以及栈泄漏。
         assertFalse(onHomeClickBlock.contains("pushNavigation3Route(ScreenRoutes.Home.route)"))
     }
@@ -237,12 +239,13 @@ class AppNavigationNavigation3BridgeStructureTest {
             .substringAfter("BiliPaiNavEntryContentRole.SEASON_SERIES_DETAIL ->")
             .substringBefore("BiliPaiNavEntryContentRole.BANGUMI ->")
 
+        assertTrue(detailBranch.contains("val seasonSeriesSourceRoute ="))
         assertTrue(
             detailBranch.contains(
-                "LocalVideoCardSharedElementSourceRoute provides seasonSeriesKey.toLegacyRoute()"
+                "LocalVideoCardSharedElementSourceRoute provides seasonSeriesSourceRoute"
             )
         )
-        assertTrue(detailBranch.contains("sourceRoute = seasonSeriesKey.toLegacyRoute()"))
+        assertTrue(detailBranch.contains("sourceRoute = seasonSeriesSourceRoute"))
     }
 
     @Test
@@ -450,7 +453,7 @@ class AppNavigationNavigation3BridgeStructureTest {
             .substringAfter(".miuixLayerBackdrop(bottomBarBackdrop)")
             .substringBefore("} // End of Content Box")
         val bottomBarOverlay = source
-            .substringAfter("if (bottomBarMountGate && bottomBarVisibilityMode")
+            .substringAfter("if (bottomBarCanMount)")
             .substringBefore("MainHostTabBackHandler(")
 
         assertTrue(mainHostBranch.contains("VideoCardTransitionBackgroundRouteContent(bottomPagerNavKeyForItem(currentBottomNavItem))"))
@@ -458,7 +461,9 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertTrue(source.contains("val bottomBarMountRoute = if (isVideoDetailDestination)"))
         assertTrue(source.contains("activeRoute = bottomBarMountRoute"))
         assertTrue(source.contains("!isVideoDetailDestination"))
-        assertTrue(bottomBarOverlay.contains("visible = finalBottomBarVisible"))
+        assertTrue(source.contains("val bottomBarCanMount = bottomBarMountGate"))
+        assertTrue(source.contains("val bottomBarReservesSpace = bottomBarCanMount"))
+        assertTrue(bottomBarOverlay.contains("visibleState = bottomBarVisibilityState"))
         assertTrue(bottomBarOverlay.contains("slideOutVertically("))
         assertTrue(bottomBarOverlay.contains("scaleOut("))
         assertTrue(bottomBarOverlay.contains("TransformOrigin(0.5f, 1f)"))

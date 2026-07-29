@@ -1,10 +1,14 @@
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
+
+import com.android.purebilibili.core.ui.MediaContrastPalette
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -31,6 +35,7 @@ import com.android.purebilibili.core.ui.rememberAppWatchLaterIcon
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoItem
 import androidx.compose.material.icons.Icons
@@ -114,7 +119,7 @@ fun VideoPreviewDialog(
                     Modifier
                 }
             )
-            .background(Color.Black.copy(alpha = 0.6f))
+            .background(MediaContrastPalette.Scrim.copy(alpha = 0.6f))
             .clickable(
                 interactionSource = null, 
                 indication = null, 
@@ -124,14 +129,14 @@ fun VideoPreviewDialog(
     ) {
         Column(
             modifier = Modifier
-                .width(300.dp) // Slightly wider than standard alert
+                .width(AppSpacingTokens.TripleExtraLarge * 6 + AppSpacingTokens.Medium) // Slightly wider than standard alert
                 // Remove padding between items by putting them in one Surface
                 .clip(AppShapes.container(ContainerLevel.Card)) // Clip the whole card
                 .clickable(enabled = false) {}, // Prevent clicks from passing through to background
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            Surface(
+            AppSurface(
                 color = AppSurfaceTokens.cardContainer(),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -141,7 +146,7 @@ fun VideoPreviewDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(1.6f)
-                                .background(Color.Black)
+                                .background(MediaContrastPalette.Scrim)
                                 .clickable { // Toggle Play/Pause
                                     haptic(HapticType.MEDIUM)
                                     isPlaying = !isPlaying
@@ -169,8 +174,8 @@ fun VideoPreviewDialog(
                                 // Loading Indicator
                                 if (isLoading) {
                                     androidx.compose.material3.CircularProgressIndicator(
-                                        color = Color.White,
-                                        modifier = Modifier.size(30.dp)
+                                        color = MediaContrastPalette.Foreground,
+                                        modifier = Modifier.size(AppSpacingTokens.DoubleExtraLarge - AppSpacingTokens.Micro)
                                     )
                                 }
                             } else {
@@ -178,17 +183,17 @@ fun VideoPreviewDialog(
                                 Icon(
                                     imageVector = playIcon,
                                     contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.8f),
+                                    tint = MediaContrastPalette.Foreground.copy(alpha = 0.8f),
                                     modifier = Modifier
-                                        .size(48.dp)
-                                        .background(Color.Black.copy(alpha = 0.3f), androidx.compose.foundation.shape.CircleShape)
-                                        .padding(12.dp)
+                                        .size(AppChromeSizeTokens.MinimumTouchTarget)
+                                        .background(MediaContrastPalette.Scrim.copy(alpha = 0.3f), androidx.compose.foundation.shape.CircleShape)
+                                        .padding(AppSpacingTokens.Medium)
                                 )
                             }
                         }
                         
                         // 2. Title & Info
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(AppSpacingTokens.Large)) {
                             Text(
                                 text = video.title,
                                 style = MaterialTheme.typography.titleMedium,
@@ -196,7 +201,7 @@ fun VideoPreviewDialog(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
                             Text(
                                 text = "${video.owner.name} · ${FormatUtils.formatStat(video.stat.view.toLong())}播放",
                                 style = MaterialTheme.typography.bodySmall,
@@ -341,20 +346,20 @@ private fun PreviewMenuItem(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .height(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.CenterStart
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = text,
-                fontSize = 17.sp,
+                fontSize = MaterialTheme.typography.titleMedium.fontSize,
                 fontWeight = FontWeight.Normal,
                 color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
             )
@@ -362,7 +367,7 @@ private fun PreviewMenuItem(
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
             )
         }
     }
@@ -372,6 +377,6 @@ private fun PreviewMenuItem(
 private fun MenuDivider() {
     androidx.compose.material3.HorizontalDivider(
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
-        thickness = 0.5.dp
+        thickness = AppSpacingTokens.Micro / 4
     )
 }

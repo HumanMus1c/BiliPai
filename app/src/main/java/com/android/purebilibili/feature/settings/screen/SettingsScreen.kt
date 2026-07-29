@@ -46,6 +46,7 @@ import com.android.purebilibili.core.store.DEFAULT_ANALYTICS_ENABLED
 import com.android.purebilibili.core.store.DEFAULT_CRASH_TRACKING_ENABLED
 import com.android.purebilibili.core.theme.LocalSettingsLiquidGlassEnabled
 import com.android.purebilibili.core.ui.LocalBottomBarVisible
+import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.AppNavigationSettings
 import com.android.purebilibili.core.util.AnalyticsHelper
@@ -61,6 +62,7 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.TopReadabilityChrome
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.plugin.PluginManager
 
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
@@ -69,7 +71,7 @@ import io.github.alexzhirkevich.cupertino.icons.filled.*
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import kotlinx.coroutines.launch
 
-import com.android.purebilibili.core.ui.components.IOSSectionTitle
+import com.android.purebilibili.core.ui.components.AppPreferenceSectionTitle
 import com.android.purebilibili.core.ui.animation.EntranceGroup
 import com.android.purebilibili.core.ui.animation.entrance
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
@@ -99,13 +101,20 @@ fun SettingsScreen(
     onSearchOpen: () -> Unit = {},
     destination: SettingsNavDestination = SettingsNavDestination.Home,
     mainHazeState: dev.chrisbanes.haze.HazeState? = null,
-    forceSinglePaneContent: Boolean = false
+    forceSinglePaneContent: Boolean = false,
+    rootEntranceEnabled: Boolean = true,
 ) {
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val navigationTransitionRunning =
+        LocalAnimatedVisibilityScope.current?.transition?.isRunning == true
+    val rootEntranceStartWhen = shouldStartSettingsEntrance(
+        entranceEnabled = rootEntranceEnabled,
+        navigationTransitionRunning = navigationTransitionRunning,
+    )
     val versionClickThreshold = EasterEggs.VERSION_EASTER_EGG_THRESHOLD
     
     // State Collection
@@ -504,7 +513,7 @@ fun SettingsScreen(
     }
     
     if (showPathDialog) {
-        com.android.purebilibili.core.ui.IOSAlertDialog(
+        com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showPathDialog = false },
             title = { Text("下载位置", color = MaterialTheme.colorScheme.onSurface) },
             text = { 
@@ -528,13 +537,13 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                com.android.purebilibili.core.ui.IOSDialogAction(onClick = { 
+                com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     showPathDialog = false
                     downloadFolderPicker.launch(null)
                 }) { Text("选择导出目录") }
             },
             dismissButton = { 
-                com.android.purebilibili.core.ui.IOSDialogAction(onClick = { 
+                com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     scope.launch {
                         SettingsManager.setDownloadPath(context, null)
                         SettingsManager.setDownloadExportTreeUri(context, null)
@@ -546,7 +555,7 @@ fun SettingsScreen(
         )
     }
     if (showImageSavePathDialog) {
-        com.android.purebilibili.core.ui.IOSAlertDialog(
+        com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showImageSavePathDialog = false },
             title = { Text("图片保存位置", color = MaterialTheme.colorScheme.onSurface) },
             text = {
@@ -573,13 +582,13 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                com.android.purebilibili.core.ui.IOSDialogAction(onClick = {
+                com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     showImageSavePathDialog = false
                     imageSaveFolderPicker.launch(null)
                 }) { Text("选择图片目录") }
             },
             dismissButton = {
-                com.android.purebilibili.core.ui.IOSDialogAction(onClick = {
+                com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     scope.launch {
                         SettingsManager.setImageSaveTreeUri(context, null)
                     }
@@ -591,11 +600,11 @@ fun SettingsScreen(
     }
     
     if (showEasterEggDialog) {
-        com.android.purebilibili.core.ui.IOSAlertDialog(
+        com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showEasterEggDialog = false; versionClickCount = 0 },
             title = { Text(" 你发现了彩蛋！", fontWeight = FontWeight.Bold) },
             text = { Text("感谢你使用 BiliPai！这是一个用爱发电的开源项目。") },
-            confirmButton = { com.android.purebilibili.core.ui.IOSDialogAction(onClick = { showEasterEggDialog = false; versionClickCount = 0 }) { Text("我知道了！") } }
+            confirmButton = { com.android.purebilibili.core.ui.AppDialogAction(onClick = { showEasterEggDialog = false; versionClickCount = 0 }) { Text("我知道了！") } }
         )
     }
 
@@ -641,7 +650,7 @@ fun SettingsScreen(
             )
         }
         val releaseNotesScrollState = rememberScrollState()
-        com.android.purebilibili.core.ui.IOSAlertDialog(
+        com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { updateCheckResult = null },
             title = {
                 Text(
@@ -711,7 +720,7 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                com.android.purebilibili.core.ui.IOSDialogAction(onClick = {
+                com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     val downloadedFile = updateDownloadState.filePath
                         ?.takeIf { updateDownloadState.status == AppUpdateDownloadStatus.COMPLETED }
                         ?.let { path -> java.io.File(path) }
@@ -719,18 +728,18 @@ fun SettingsScreen(
 
                     if (downloadedFile != null) {
                         installDownloadedAppUpdate(context, downloadedFile)
-                        return@IOSDialogAction
+                        return@AppDialogAction
                     }
 
                     val asset = preferredAsset
                     if (asset == null) {
                         updateCheckResult = null
                         uriHandler.openUri(info.releaseUrl)
-                        return@IOSDialogAction
+                        return@AppDialogAction
                     }
 
                     if (updateDownloadState.status == AppUpdateDownloadStatus.DOWNLOADING) {
-                        return@IOSDialogAction
+                        return@AppDialogAction
                     }
 
                     scope.launch {
@@ -768,7 +777,7 @@ fun SettingsScreen(
                 }
             },
             dismissButton = {
-                com.android.purebilibili.core.ui.IOSDialogAction(onClick = {
+                com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     updateCheckResult = null
                     updateDownloadState = AppUpdateDownloadState()
                 }) { Text("稍后") }
@@ -803,7 +812,7 @@ fun SettingsScreen(
             )
         }
         val releaseNotesScrollState = rememberScrollState()
-        com.android.purebilibili.core.ui.IOSAlertDialog(
+        com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { changelogCheckResult = null },
             title = {
                 Text(
@@ -852,13 +861,13 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                com.android.purebilibili.core.ui.IOSDialogAction(onClick = {
+                com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     changelogCheckResult = null
                     uriHandler.openUri(info.releaseUrl)
                 }) { Text("查看发布页") }
             },
             dismissButton = {
-                com.android.purebilibili.core.ui.IOSDialogAction(onClick = {
+                com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     changelogCheckResult = null
                 }) { Text("关闭") }
             }
@@ -933,6 +942,8 @@ fun SettingsScreen(
             ) {
                 MobileSettingsNavLayout(
                     destination = destination,
+                    rootEntranceEnabled = rootEntranceEnabled,
+                    rootEntranceStartWhen = rootEntranceStartWhen,
                     onBack = onBack,
                     onCategoryClick = onCategoryClick,
                     onSearchOpen = onSearchOpen,
@@ -1073,6 +1084,8 @@ internal fun SettingsCategoryHeader(title: String) {
 @Composable
 private fun MobileSettingsNavLayout(
     destination: SettingsNavDestination,
+    rootEntranceEnabled: Boolean,
+    rootEntranceStartWhen: Boolean,
     onBack: () -> Unit,
     onCategoryClick: (SettingsRootCategory) -> Unit,
     onSearchOpen: () -> Unit,
@@ -1237,44 +1250,53 @@ private fun MobileSettingsNavLayout(
         homeRefreshCount = homeRefreshCount,
     )
 
+    @Composable
+    fun SettingsRootContent() {
+        when (destination) {
+            SettingsNavDestination.Home -> {
+                Column {
+                    SettingsHomeSearchEntry(onClick = onSearchOpen)
+                    Box(modifier = Modifier.padding(top = 8.dp).entrance()) {
+                        SettingsRootCategoryListSection(
+                            categories = sectionOrder,
+                            onCategoryClick = onCategoryClick,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    SettingsAboutHomeSection(
+                        onGithubClick = onGithubClick,
+                        onTelegramClick = onTelegramClick,
+                        onCheckUpdateClick = onCheckUpdateClick,
+                        onDonateClick = onDonateClick,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+            is SettingsNavDestination.Category -> {
+                Box(modifier = Modifier.padding(top = 12.dp)) {
+                    SettingsRootCategoryContent(
+                        category = destination.category,
+                        actions = rootCategoryActions,
+                        state = rootCategoryState,
+                    )
+                }
+            }
+            SettingsNavDestination.Search -> Unit
+        }
+    }
+
     com.android.purebilibili.feature.settings.ui.SettingsPageScaffold(
         title = screenTitle,
         onBack = onBack,
         backContentDescription = backLabel,
         bottomContentPadding = bottomInset,
     ) {
-        EntranceGroup(startWhen = true) {
-            when (destination) {
-                SettingsNavDestination.Home -> {
-                    Column {
-                        SettingsHomeSearchEntry(onClick = onSearchOpen)
-                        Box(modifier = Modifier.padding(top = 8.dp).entrance()) {
-                            SettingsRootCategoryListSection(
-                                categories = sectionOrder,
-                                onCategoryClick = onCategoryClick,
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        SettingsAboutHomeSection(
-                            onGithubClick = onGithubClick,
-                            onTelegramClick = onTelegramClick,
-                            onCheckUpdateClick = onCheckUpdateClick,
-                            onDonateClick = onDonateClick,
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-                }
-                is SettingsNavDestination.Category -> {
-                    Box(modifier = Modifier.padding(top = 12.dp)) {
-                        SettingsRootCategoryContent(
-                            category = destination.category,
-                            actions = rootCategoryActions,
-                            state = rootCategoryState,
-                        )
-                    }
-                }
-                SettingsNavDestination.Search -> Unit
+        if (rootEntranceEnabled) {
+            EntranceGroup(startWhen = rootEntranceStartWhen) {
+                SettingsRootContent()
             }
+        } else {
+            SettingsRootContent()
         }
     }
 }
@@ -1311,7 +1333,7 @@ fun DonateDialog(onDismiss: () -> Unit) {
                     )
 
                     // Close Button (Top Left of Image)
-                    IconButton(
+                    AppIconButton(
                         onClick = onDismiss,
                         modifier = Modifier
                             .padding(8.dp)

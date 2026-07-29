@@ -1,26 +1,5 @@
 package com.android.purebilibili.feature.home.components
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.ui.PresetPrimitiveRenderer
-import com.android.purebilibili.core.ui.resolvePresetPrimitiveRenderer
-
-enum class SideBarRenderer {
-    FROSTED,
-    MIUIX_NAVIGATION_RAIL
-}
-
-fun resolveSideBarRenderer(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
-): SideBarRenderer = when (
-    resolvePresetPrimitiveRenderer(uiPreset, androidNativeVariant)
-) {
-    PresetPrimitiveRenderer.MIUIX_BRIDGED -> SideBarRenderer.MIUIX_NAVIGATION_RAIL
-    PresetPrimitiveRenderer.IOS,
-    PresetPrimitiveRenderer.MATERIAL3 -> SideBarRenderer.FROSTED
-}
-
 /** Expanded width class gets the 0.9.3 expandable rail; Medium stays classic fixed. */
 fun shouldUseExpandableMiuixSideBar(isExpandedWidthClass: Boolean): Boolean = isExpandedWidthClass
 

@@ -37,7 +37,7 @@ class FavoriteContentModeResolverTest {
             "app/src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt"
         )
         val segmentedSource = loadSource(
-            "app/src/main/java/com/android/purebilibili/feature/settings/IOSSlidingSegmentedControl.kt"
+            "app/src/main/java/com/android/purebilibili/feature/settings/AppSegmentedComponents.kt"
         )
         val bottomBarSource = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarLiquidSegmentedControl.kt"
@@ -65,11 +65,11 @@ class FavoriteContentModeResolverTest {
         )
         assertTrue(
             segmentedSource.contains("forceLiquidIndicator: Boolean = false"),
-            "Shared iOS segmented control should expose an explicit liquid-indicator override"
+            "Shared segmented control should expose an explicit liquid-indicator override"
         )
         assertTrue(
             segmentedSource.contains("tapPressRefractionEnabled: Boolean = true"),
-            "Shared iOS segmented control should expose tap refraction control to callers"
+            "Shared segmented control should expose tap refraction control to callers"
         )
         assertTrue(
             segmentedSource.contains("forceLiquidChrome = forceLiquidIndicator"),

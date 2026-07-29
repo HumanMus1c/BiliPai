@@ -9,11 +9,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,11 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
-import com.android.purebilibili.core.ui.resolveContentCardSurfaceSpec
+import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -110,7 +108,7 @@ internal fun MessageFeedError(
         verticalArrangement = Arrangement.Center
     ) {
         Text(text = text, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(onClick = onRetry, modifier = Modifier.padding(top = 8.dp)) {
+        AppButton(onClick = onRetry, modifier = Modifier.padding(top = 8.dp)) {
             Text("重试")
         }
     }
@@ -134,7 +132,7 @@ internal fun MessageFeedLoadMore(
                 size = 24.dp
             )
         } else {
-            TextButton(onClick = onLoadMore) {
+            AppTextButton(onClick = onLoadMore) {
                 Text("加载更多")
             }
         }
@@ -157,18 +155,16 @@ internal fun MessageFeedCard(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val surfaceSpec = resolveContentCardSurfaceSpec(uiPreset, androidNativeVariant)
-    Surface(
+    val surfaceSpec = rememberContentCardSurfaceSpec()
+    AppSurface(
         modifier = modifier,
         shape = AppShapes.borderedContainer(surfaceSpec.cornerLevel),
-        color = if (surfaceSpec.useMiuixTokens) {
+        color = if (surfaceSpec.usesTonalContainerTreatment) {
             AppSurfaceTokens.surfaceContainer()
         } else {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
         },
-        border = if (surfaceSpec.useMiuixTokens) {
+        border = if (surfaceSpec.usesTonalContainerTreatment) {
             androidx.compose.foundation.BorderStroke(
                 surfaceSpec.borderWidthDp.dp,
                 AppSurfaceTokens.divider().copy(alpha = surfaceSpec.borderAlpha)

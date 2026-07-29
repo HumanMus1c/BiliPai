@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.blur.unifiedBlur
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.video.ui.feedback.VideoFeedbackAnchor
 import com.android.purebilibili.feature.video.ui.feedback.VideoFeedbackEmphasis
 import com.android.purebilibili.feature.video.ui.feedback.VideoFeedbackPlacement
@@ -62,7 +62,7 @@ fun BoxScope.VideoActionFeedbackHost(
                 bottom = placement.bottomInsetDp.dp
             )
         ) {
-        Surface(
+        AppSurface(
             color = Color.Black.copy(alpha = backgroundAlpha),
             contentColor = Color.White,
             shape = RoundedCornerShape(22.dp),

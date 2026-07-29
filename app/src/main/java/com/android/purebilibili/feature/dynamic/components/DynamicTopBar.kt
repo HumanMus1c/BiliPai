@@ -1,9 +1,17 @@
 // 文件路径: feature/dynamic/components/DynamicTopBar.kt
 package com.android.purebilibili.feature.dynamic.components
 
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.OpticalContrastPalette
+
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -12,20 +20,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 //  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import com.android.purebilibili.core.ui.rememberAppGridLayoutIcon
+import com.android.purebilibili.core.ui.rememberAppListLayoutIcon
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperProtectiveColor
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarHorizontalPadding
 import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarLiquidTabSpec
+import com.android.purebilibili.feature.dynamic.resolveDynamicTabIndicatorPosition
 import com.android.purebilibili.core.ui.blur.BlurStyles
 import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
-import com.android.purebilibili.feature.home.components.AndroidNativeUnderlinedSegmentedControl
 import dev.chrisbanes.haze.HazeState
 
 //  动态页面布局模式
@@ -63,7 +71,7 @@ fun DynamicTopBarWithTabs(
     
     //  使用 blurIntensity 对应的背景透明度实现毛玻璃质感
     val headerColor = resolveDynamicTopBarHeaderColor(
-        surfaceColor = MaterialTheme.colorScheme.surface,
+        surfaceColor = AppSurfaceTokens.surface(),
         backgroundAlpha = if (shouldUseHeaderBlur) backgroundAlpha else 0f,
         globalWallpaperVisible = globalWallpaperVisible
     )
@@ -102,14 +110,14 @@ fun DynamicTopBarWithTabs(
                             DynamicDisplayMode.HORIZONTAL else DynamicDisplayMode.SIDEBAR
                         onDisplayModeChange(newMode)
                     },
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)
                 ) {
                     Icon(
                         imageVector = if (displayMode == DynamicDisplayMode.SIDEBAR)
-                            CupertinoIcons.Default.ListBullet else CupertinoIcons.Default.RectangleStack,
+                            rememberAppListLayoutIcon() else rememberAppGridLayoutIcon(),
                         contentDescription = "切换布局模式",
                         tint = MaterialTheme.colorScheme.onSurface, // 自适应颜色
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
                     )
                 }
             }
@@ -125,15 +133,54 @@ private fun DynamicCompactTabRow(
     modifier: Modifier = Modifier,
     indicatorPositionProvider: (() -> Float)? = null
 ) {
-    AndroidNativeUnderlinedSegmentedControl(
-        items = tabs,
-        selectedIndex = selectedTab,
-        onSelected = onTabSelected,
-        modifier = modifier,
-        height = 44.dp,
-        labelFontSize = 14.sp,
-        indicatorPositionProvider = indicatorPositionProvider
+    if (tabs.isEmpty()) return
+    val safeSelectedIndex = selectedTab.coerceIn(tabs.indices)
+    val indicatorPosition = resolveDynamicTabIndicatorPosition(
+        selectedIndex = safeSelectedIndex,
+        externalPosition = indicatorPositionProvider?.invoke(),
+        itemCount = tabs.size,
     )
+    val height = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Medium
+
+    BoxWithConstraints(modifier = modifier.fillMaxWidth().height(height)) {
+        val segmentWidth = maxWidth / tabs.size
+        val underlineWidth = (segmentWidth * 0.42f)
+            .coerceAtLeast(AppSpacingTokens.ExtraLarge + AppSpacingTokens.ExtraSmall)
+            .coerceAtMost(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small)
+        val selectedColor = rememberDynamicTabSelectedColor()
+
+        Row(modifier = Modifier.fillMaxSize()) {
+            tabs.forEachIndexed { index, label ->
+                val selected = index == safeSelectedIndex
+                val textColor = if (selected) selectedColor else rememberDynamicTabUnselectedColor()
+                Box(
+                    modifier = Modifier
+                        .width(segmentWidth)
+                        .fillMaxHeight()
+                        .clickable { onTabSelected(index) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = label,
+                        color = textColor,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = segmentWidth * indicatorPosition + (segmentWidth - underlineWidth) / 2)
+                .width(underlineWidth)
+                .height(AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2)
+                .clip(CircleShape)
+                .background(selectedColor),
+        )
+    }
 }
 
 @Composable
@@ -161,8 +208,8 @@ internal fun shouldUseDynamicTopBarHeaderBlur(
 
 @Composable
 private fun rememberDynamicTabUnselectedColor(): Color {
-    return if (isDynamicTopBarDarkSurface(MaterialTheme.colorScheme.surface)) {
-        Color.White.copy(alpha = 0.9f)
+    return if (isDynamicTopBarDarkSurface(AppSurfaceTokens.surface())) {
+        OpticalContrastPalette.Highlight.copy(alpha = 0.9f)
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }

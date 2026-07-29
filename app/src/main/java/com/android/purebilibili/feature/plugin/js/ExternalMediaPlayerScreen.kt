@@ -11,13 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import com.android.purebilibili.core.ui.AppScaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.android.purebilibili.core.ui.AppTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -86,12 +86,12 @@ fun ExternalMediaPlayerScreen(
         player.playWhenReady = true
     }
 
-    Scaffold(
+    AppScaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(request?.title ?: "外部媒体") },
+            AppTopBar(
+                title = request?.title ?: "外部媒体",
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    AppIconButton(onClick = onBack) {
                         Icon(rememberAppBackIcon(), contentDescription = "返回")
                     }
                 }
@@ -110,7 +110,7 @@ fun ExternalMediaPlayerScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            return@Scaffold
+            return@AppScaffold
         }
 
         Column(
@@ -145,7 +145,7 @@ fun ExternalMediaPlayerScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 request.streams.forEachIndexed { index, mediaStream ->
-                    FilterChip(
+                    AppFilterChip(
                         selected = index == selectedIndex,
                         onClick = { selectedIndex = index },
                         label = { Text(mediaStream.title.ifBlank { "线路 ${index + 1}" }) }

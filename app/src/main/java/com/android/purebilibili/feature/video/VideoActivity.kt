@@ -14,6 +14,7 @@ import android.content.res.Configuration
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import com.android.purebilibili.core.util.Logger
 import android.util.Rational
 import androidx.activity.ComponentActivity
@@ -23,7 +24,19 @@ import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.metrics.performance.JankStats
+import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.ui.AppThemeConfig
+import com.android.purebilibili.core.ui.ProvideAppThemeConfig
+import com.android.purebilibili.core.ui.blur.BlurIntensity
+import com.android.purebilibili.core.ui.performance.AppRuntimeVisualGuardTracker
+import com.android.purebilibili.core.ui.performance.ProvideRuntimeVisualGuard
+import com.android.purebilibili.core.util.resolveWindowWidthSizeClass
 // Imports for moved classes
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
@@ -43,6 +56,8 @@ class VideoActivity : ComponentActivity() {
     private val viewModel: VideoPlaybackViewModel by viewModels()
     private var isFullscreen by mutableStateOf(false)
     private var isInPipMode by mutableStateOf(false)
+    private var runtimeJankStats: JankStats? = null
+    private val runtimeVisualGuardSession = Any()
     
     //  PiP 广播接收器
     private val pipReceiver = object : BroadcastReceiver() {
@@ -100,7 +115,39 @@ class VideoActivity : ComponentActivity() {
         updateStateFromConfig(resources.configuration)
 
         setContent {
+            val windowWidthSizeClass = resolveWindowWidthSizeClass(
+                LocalConfiguration.current.screenWidthDp.dp
+            )
+            val blurIntensity by SettingsManager.getBlurIntensity(this@VideoActivity)
+                .collectAsStateWithLifecycle(initialValue = BlurIntensity.THIN)
+            val hapticFeedbackEnabled by SettingsManager
+                .getHapticFeedbackEnabled(this@VideoActivity)
+                .collectAsStateWithLifecycle(initialValue = true)
+            val uiEntranceAnimationEnabled by SettingsManager
+                .getUiEntranceAnimationEnabled(this@VideoActivity)
+                .collectAsStateWithLifecycle(initialValue = true)
+            val runtimeVisualGuardEnabled by SettingsManager
+                .getRuntimeVisualGuardEnabled(this@VideoActivity)
+                .collectAsStateWithLifecycle(initialValue = true)
+            val appThemeConfig = remember(
+                blurIntensity,
+                hapticFeedbackEnabled,
+                uiEntranceAnimationEnabled,
+                runtimeVisualGuardEnabled,
+            ) {
+                AppThemeConfig(
+                    blurIntensity = blurIntensity,
+                    hapticFeedbackEnabled = hapticFeedbackEnabled,
+                    uiEntranceAnimationEnabled = uiEntranceAnimationEnabled,
+                    runtimeVisualGuardEnabled = runtimeVisualGuardEnabled,
+                )
+            }
             MaterialTheme {
+                // 与 MainActivity 对齐：没有这两个 provider 时，overlay 里的每个
+                // unifiedBlur 会各起一个 DataStore 收集器，且完全读不到运行时视觉守卫。
+                ProvideAppThemeConfig(config = appThemeConfig) {
+                ProvideRuntimeVisualGuard(widthSizeClass = windowWidthSizeClass) {
+                com.android.purebilibili.core.ui.blur.ProvideUnifiedBlurIntensity {
                 // VideoDetailScreen handles its own UI state and player initialization
                 com.android.purebilibili.feature.video.screen.VideoDetailScreen(
                     bvid = bvid,
@@ -117,11 +164,43 @@ class VideoActivity : ComponentActivity() {
                     // VideoPlayerState's reuse logic handles checking MiniPlayerManager if applicable.
                     // For pure Activity launch, it creates/reuses logic internally.
                 )
+                }
+                }
+                }
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        AppRuntimeVisualGuardTracker.activateSession(runtimeVisualGuardSession)
+        val existingJankStats = runtimeJankStats
+        if (existingJankStats != null) {
+            existingJankStats.isTrackingEnabled = true
+        } else {
+            runtimeJankStats = runCatching {
+                JankStats.createAndTrack(window) { frameData ->
+                    AppRuntimeVisualGuardTracker.onFrame(
+                        session = runtimeVisualGuardSession,
+                        frameData = frameData,
+                        nowMs = SystemClock.uptimeMillis(),
+                    )
+                }
+            }.onFailure { throwable ->
+                Logger.w(TAG, "无法启动独立播放器性能采样", throwable)
+            }.getOrNull()
+        }
+    }
+
+    override fun onStop() {
+        AppRuntimeVisualGuardTracker.discardActiveWindow(runtimeVisualGuardSession)
+        runtimeJankStats?.isTrackingEnabled = false
+        super.onStop()
+    }
     
     override fun onDestroy() {
+        runtimeJankStats?.isTrackingEnabled = false
+        runtimeJankStats = null
         super.onDestroy()
         //  注销广播接收器
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

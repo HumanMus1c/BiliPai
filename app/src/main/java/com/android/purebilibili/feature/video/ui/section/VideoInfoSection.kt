@@ -50,7 +50,7 @@ import com.android.purebilibili.data.model.response.VideoStaff
 import com.android.purebilibili.data.model.response.ViewInfo
 import com.android.purebilibili.data.model.response.VideoTag
 import com.android.purebilibili.core.ui.common.copyOnLongPress
-import com.android.purebilibili.core.ui.VideoCardSkeleton
+import com.android.purebilibili.feature.video.ui.components.VideoCardSkeleton
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.draw.rotate
 import com.android.purebilibili.core.ui.common.copyOnClick
@@ -1351,7 +1351,7 @@ private fun BgmSelectionSheet(
         selectedData.recommendedVideos.chunked(2)
     }
 
-    com.android.purebilibili.core.ui.IOSModalBottomSheet(
+    com.android.purebilibili.core.ui.AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = null

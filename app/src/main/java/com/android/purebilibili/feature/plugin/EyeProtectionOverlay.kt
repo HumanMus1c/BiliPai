@@ -19,13 +19,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
@@ -113,7 +113,7 @@ private fun RestReminderDialog(
     val layoutPolicy = remember(configuration.screenHeightDp) {
         resolveEyeReminderDialogLayoutPolicy(screenHeightDp = configuration.screenHeightDp)
     }
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier
             .fillMaxWidth()
@@ -179,7 +179,7 @@ private fun RestReminderDialog(
             }
         },
         confirmButton = {
-            Button(
+            AppButton(
                 onClick = onRest,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2)),
                 shape = RoundedCornerShape(12.dp),
@@ -194,14 +194,14 @@ private fun RestReminderDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(
+                    AppTextButton(
                         onClick = onSnooze,
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("${snoozeMinutes} 分钟后提醒")
                     }
                     Spacer(modifier = Modifier.width(4.dp))
-                    TextButton(
+                    AppTextButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f)
                     ) {
@@ -213,13 +213,13 @@ private fun RestReminderDialog(
                 }
             } else {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    TextButton(
+                    AppTextButton(
                         onClick = onSnooze,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("${snoozeMinutes} 分钟后提醒")
                     }
-                    TextButton(
+                    AppTextButton(
                         onClick = onDismiss,
                         modifier = Modifier.fillMaxWidth()
                     ) {

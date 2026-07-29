@@ -33,23 +33,24 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -73,6 +74,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -189,7 +191,12 @@ private fun rememberLoginPalette(): LoginPalette {
 fun LoginBackground() {
     val palette = rememberLoginPalette()
     val infiniteTransition = rememberInfiniteTransition(label = "login_bg")
-    val drift by infiniteTransition.animateFloat(
+    // 刻意不用 `by` 解构：那会让 drift 在**组合期**被读取，
+    // 于是这个 7.2 秒的循环动画每一帧都重组整个登录背景，
+    // 而背景里有 4 个 300dp 级别的 Box、每个都挂着 .blur(72~115dp)——
+    // 每次重组都要重建对应的 RenderEffect。
+    // 保持 State 形态，让读取发生在下面 offset{} 的放置阶段。
+    val drift = infiniteTransition.animateFloat(
         initialValue = -16f,
         targetValue = 16f,
         animationSpec = infiniteRepeatable(
@@ -240,7 +247,8 @@ fun LoginBackground() {
 
         Box(
             modifier = Modifier
-                .offset(x = (-132 + drift).dp, y = (-92).dp)
+                // lambda 版 offset 在放置阶段求值，drift 变化不再触发重组与重新测量
+                .offset { IntOffset(x = (-132 + drift.value).dp.roundToPx(), y = (-92).dp.roundToPx()) }
                 .size(300.dp)
                 .blur(100.dp)
                 .background(palette.orbBlue, CircleShape)
@@ -256,7 +264,7 @@ fun LoginBackground() {
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .offset(x = (-76 - drift).dp, y = 180.dp)
+                .offset { IntOffset(x = (-76 - drift.value).dp.roundToPx(), y = 180.dp.roundToPx()) }
                 .size(220.dp)
                 .blur(95.dp)
                 .background(palette.orbMint, CircleShape)
@@ -309,7 +317,7 @@ fun BrandingHeader(isSmall: Boolean = false) {
     val logoSize = if (isSmall) 58.dp else 82.dp
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Surface(
+        AppSurface(
             shape = RoundedCornerShape(999.dp),
             color = palette.segmentTrack,
             border = BorderStroke(1.dp, palette.segmentBorder)
@@ -334,7 +342,7 @@ fun BrandingHeader(isSmall: Boolean = false) {
             }
         }
         Spacer(modifier = Modifier.height(14.dp))
-        Surface(
+        AppSurface(
             modifier = Modifier.size(logoSize),
             shape = RoundedCornerShape(if (isSmall) 18.dp else 26.dp),
             color = palette.segmentSelected,
@@ -551,7 +559,7 @@ fun QrCodeLoginContent(
                                 color = palette.qrContent,
                                 fontSize = 13.sp
                             )
-                            TextButton(onClick = onRefresh) {
+                            AppTextButton(onClick = onRefresh) {
                                 Text(text = "重试", color = palette.link)
                             }
                         }
@@ -563,7 +571,7 @@ fun QrCodeLoginContent(
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        Surface(
+        AppSurface(
             shape = RoundedCornerShape(999.dp),
             color = palette.segmentTrack,
             border = BorderStroke(1.dp, palette.segmentBorder),
@@ -593,7 +601,7 @@ fun PhoneLoginContent(
 
     var phoneNumber by rememberSaveable { mutableStateOf("") }
     var smsCode by rememberSaveable { mutableStateOf("") }
-    var selectedRegionCid by rememberSaveable { mutableStateOf(86) }
+    var selectedRegionCid by rememberSaveable { mutableIntStateOf(86) }
     var captchaManager by remember { mutableStateOf<CaptchaManager?>(null) }
     var regionMenuExpanded by remember { mutableStateOf(false) }
     val phoneRegions = remember { resolveSupportedPhoneRegions() }
@@ -658,7 +666,7 @@ fun PhoneLoginContent(
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-        Surface(
+        AppSurface(
             shape = RoundedCornerShape(12.dp),
             color = palette.segmentTrack,
             border = BorderStroke(1.dp, palette.segmentBorder),
@@ -709,12 +717,12 @@ fun PhoneLoginContent(
             )
         }
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = regionMenuExpanded,
             onDismissRequest = { regionMenuExpanded = false }
         ) {
             phoneRegions.forEach { region ->
-                DropdownMenuItem(
+                AppDropdownMenuItem(
                     text = { Text("${region.dialingCode} ${region.name}") },
                     onClick = {
                         selectedRegionCid = region.cid
@@ -750,7 +758,7 @@ fun PhoneLoginContent(
         }
 
         Spacer(modifier = Modifier.height(18.dp))
-        Surface(
+        AppSurface(
             shape = RoundedCornerShape(12.dp),
             color = palette.segmentTrack,
             border = BorderStroke(1.dp, palette.segmentBorder),
@@ -785,7 +793,7 @@ fun PhoneLoginContent(
                 isLoading = state is LoginState.Loading
             )
             Spacer(modifier = Modifier.height(8.dp))
-            TextButton(
+            AppTextButton(
                 onClick = {
                     focusManager.clearFocus(force = true)
                     keyboardController?.hide()
@@ -901,7 +909,7 @@ fun ModernTextField(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
+                    AppSurface(
                         shape = CircleShape,
                         color = palette.segmentTrack
                     ) {
@@ -960,7 +968,7 @@ fun ModernButton(
         contentAlignment = Alignment.Center
     ) {
         if (isLoading) {
-            CircularProgressIndicator(
+            AppCircularProgressIndicator(
                 modifier = Modifier.size(18.dp),
                 color = palette.buttonText,
                 strokeWidth = 2.dp
@@ -986,7 +994,7 @@ fun TopBar(
     Row(
         modifier = modifier.fillMaxWidth()
     ) {
-        IconButton(
+        AppIconButton(
             onClick = onClose,
             modifier = Modifier
                 .size(38.dp)
@@ -1007,7 +1015,7 @@ fun TopBar(
 
 @Composable
 private fun LoginPill(text: String, palette: LoginPalette) {
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(999.dp),
         color = palette.segmentTrack,
         border = BorderStroke(1.dp, palette.segmentBorder)

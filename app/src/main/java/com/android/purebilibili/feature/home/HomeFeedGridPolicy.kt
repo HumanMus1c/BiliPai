@@ -1,6 +1,10 @@
 package com.android.purebilibili.feature.home
 
 import com.android.purebilibili.core.store.HomeFeedCardWidthPreset
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+internal fun resolveHomeFeedMaxContentWidth(): Dp = 1280.dp
 
 internal fun resolveHomeFeedGridColumns(
     contentWidthDp: Int,

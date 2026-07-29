@@ -1,9 +1,7 @@
 package com.android.purebilibili.feature.list
 
 import com.android.purebilibili.core.store.HomeSettings
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.ui.resolveCompactCapsuleChromeSpec
+import com.android.purebilibili.core.ui.AppTopChromePolicy
 internal const val HISTORY_FILTER_LIQUID_DOCK_HEIGHT_DP = 58
 internal const val HISTORY_FILTER_LIQUID_DOCK_INDICATOR_HEIGHT_DP = 54
 internal const val HISTORY_FILTER_LIQUID_DOCK_LABEL_FONT_SIZE_SP = 15
@@ -32,14 +30,13 @@ internal fun resolveHistoryFilterTabItemWidthDp(filterCount: Int): Int {
 
 internal fun resolveHistoryFilterTabChromeSpec(
     homeSettings: HomeSettings,
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3,
+    topChromePolicy: AppTopChromePolicy,
     filterCount: Int = HistoryContentFilter.entries.size
 ): HistoryFilterTabChromeSpec {
     val useLiquidDock = shouldUseHistoryFilterLiquidDock(
         androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
     )
-    val compactChrome = resolveCompactCapsuleChromeSpec(uiPreset, androidNativeVariant)
+    val compactChrome = topChromePolicy.compactChromeSpec
     return if (useLiquidDock) {
         HistoryFilterTabChromeSpec(
             useLiquidDock = true,

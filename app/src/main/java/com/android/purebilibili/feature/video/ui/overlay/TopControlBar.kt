@@ -33,6 +33,7 @@ import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.*
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import com.android.purebilibili.core.ui.AppIcons
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ThumbUp
 import androidx.compose.material.icons.outlined.ThumbUp
@@ -223,7 +224,7 @@ fun TopControlBar(
                 modifier = Modifier.weight(1f) // Text takes remaining space
             ) {
                 // Back Button
-                IconButton(
+                AppIconButton(
                     onClick = onBack,
                     modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
                 ) {
@@ -313,7 +314,7 @@ fun TopControlBar(
                 }
                 
                 // More (Three dots)
-                IconButton(
+                AppIconButton(
                     onClick = onMoreClick,
                     modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
                 ) {
@@ -458,7 +459,7 @@ private fun ActionIcon(
     buttonSizeDp: Int = 32,
     iconSizeDp: Int = 24
 ) {
-    IconButton(
+    AppIconButton(
         onClick = onClick,
         modifier = Modifier.size(buttonSizeDp.dp)
     ) {

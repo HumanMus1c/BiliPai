@@ -12,6 +12,16 @@ package com.android.purebilibili.core.ui.lint
  */
 internal object StyleLintAllowlist {
 
+    /** Feature prefixes already covered by typography, color, and spacing lint. */
+    val MIGRATED_TOKEN_PREFIXES: Set<String> = setOf(
+        "src/main/java/com/android/purebilibili/feature/live/",
+        "src/main/java/com/android/purebilibili/feature/home/",
+        "src/main/java/com/android/purebilibili/feature/dynamic/",
+        "src/main/java/com/android/purebilibili/feature/following/",
+        "src/main/java/com/android/purebilibili/feature/list/",
+        "src/main/java/com/android/purebilibili/feature/watchlater/",
+    )
+
     /** 迁移到 AppShapes / MaterialTheme.shapes 后从本表移除. */
     val SHAPE_HITS: Set<String> = setOf(
         "src/main/java/com/android/purebilibili/feature/article/ArticleDetailScreen.kt",
@@ -25,32 +35,6 @@ internal object StyleLintAllowlist {
         "src/main/java/com/android/purebilibili/feature/download/DownloadListScreen.kt",
         "src/main/java/com/android/purebilibili/feature/download/DownloadQualityDialog.kt",
         "src/main/java/com/android/purebilibili/feature/download/OfflineVideoPlayerScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/ActionButton.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCard.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCommentSheet.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicComponents.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicSidebar.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/ImagePreviewDialog.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicOpusLinkCard.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/LiveCard.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/RepostDialog.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/VideoCards.kt",
-        "src/main/java/com/android/purebilibili/feature/home/components/cards/GlassVideoCard.kt",
-        "src/main/java/com/android/purebilibili/feature/home/components/iOSRefreshIndicator.kt",
-        "src/main/java/com/android/purebilibili/feature/home/HomeFeedSkeletonCard.kt",
-        "src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/live/components/LandscapeChatOverlay.kt",
-        "src/main/java/com/android/purebilibili/feature/live/components/LiveChatSection.kt",
-        "src/main/java/com/android/purebilibili/feature/live/components/LiveContributionRankSheet.kt",
-        "src/main/java/com/android/purebilibili/feature/live/components/LiveInteractionSheets.kt",
-        "src/main/java/com/android/purebilibili/feature/live/components/LivePlayerControls.kt",
-        "src/main/java/com/android/purebilibili/feature/live/components/LiveSendDanmakuSheet.kt",
-        "src/main/java/com/android/purebilibili/feature/live/components/LiveSuperChatSection.kt",
-        "src/main/java/com/android/purebilibili/feature/live/LiveAreaDetailScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/live/LiveAreaScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/live/LiveListScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/live/LivePlayerScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/live/LiveSearchScreen.kt",
         "src/main/java/com/android/purebilibili/feature/login/LoginComponents.kt",
         "src/main/java/com/android/purebilibili/feature/message/ChatScreen.kt",
         "src/main/java/com/android/purebilibili/feature/message/InboxScreen.kt",
@@ -122,17 +106,11 @@ internal object StyleLintAllowlist {
         "src/main/java/com/android/purebilibili/feature/video/ui/section/VideoInfoSection.kt",
         "src/main/java/com/android/purebilibili/feature/video/ui/section/VideoNoteSection.kt",
         "src/main/java/com/android/purebilibili/feature/video/ui/section/VideoPlayerSection.kt",
-        "src/main/java/com/android/purebilibili/feature/watchlater/WatchLaterScreen.kt"
     )
 
     /** 迁移到 AppMotionTokens 后从本表移除. */
     val MOTION_HITS: Set<String> = setOf(
         "src/main/java/com/android/purebilibili/feature/bangumi/BangumiScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicSidebar.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/DynamicScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/following/FollowingListScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/home/components/miuix/InteractiveHighlight.kt",
-        "src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt",
         "src/main/java/com/android/purebilibili/feature/login/LoginComponents.kt",
         "src/main/java/com/android/purebilibili/feature/login/LoginScreen.kt",
         "src/main/java/com/android/purebilibili/feature/onboarding/OnboardingBottomSheet.kt",
@@ -160,15 +138,6 @@ internal object StyleLintAllowlist {
         "src/main/java/com/android/purebilibili/feature/download/DirectorySelectionDialog.kt",
         "src/main/java/com/android/purebilibili/feature/download/DownloadListScreen.kt",
         "src/main/java/com/android/purebilibili/feature/download/DownloadQualityDialog.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicComponents.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicSidebar.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/components/RepostDialog.kt",
-        "src/main/java/com/android/purebilibili/feature/dynamic/DynamicScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/following/FollowingListScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/home/components/cards/GlassVideoCard.kt",
-        "src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt",
-        "src/main/java/com/android/purebilibili/feature/live/LivePlayerScreen.kt",
         "src/main/java/com/android/purebilibili/feature/message/ChatScreen.kt",
         "src/main/java/com/android/purebilibili/feature/onboarding/OnboardingBottomSheet.kt",
         "src/main/java/com/android/purebilibili/feature/onboarding/OnboardingScreen.kt",
@@ -208,7 +177,6 @@ internal object StyleLintAllowlist {
         "src/main/java/com/android/purebilibili/feature/video/ui/overlay/VideoPlayerOverlay.kt",
         "src/main/java/com/android/purebilibili/feature/video/ui/pager/PortraitDetailSheet.kt",
         "src/main/java/com/android/purebilibili/feature/video/ui/section/VideoInfoSection.kt",
-        "src/main/java/com/android/purebilibili/feature/watchlater/WatchLaterScreen.kt",
         "src/main/java/com/android/purebilibili/feature/web/WebViewScreen.kt"
     )
 }

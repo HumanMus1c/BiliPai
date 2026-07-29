@@ -30,12 +30,12 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -54,7 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.android.purebilibili.core.ui.IOSModalBottomSheet
+import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.data.model.response.Page
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -160,7 +160,7 @@ fun PagesSelector(
                 }
             }
             if (onDismissRequest != null) {
-                IconButton(onClick = onDismissRequest) {
+                AppIconButton(onClick = onDismissRequest) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "关闭选集面板",
@@ -233,7 +233,7 @@ fun PagesSelector(
             )
         }
 
-        IOSModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { showExpandedSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             dragHandle = null,
@@ -259,7 +259,7 @@ fun PagesSelector(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { showExpandedSheet = false }) {
+                    AppIconButton(onClick = { showExpandedSheet = false }) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "关闭选集",
@@ -322,7 +322,7 @@ private fun PagesSelectorFilterBar(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
             singleLine = true,
@@ -338,7 +338,7 @@ private fun PagesSelectorFilterBar(
             },
             trailingIcon = if (query.isNotBlank()) {
                 {
-                    IconButton(onClick = { onQueryChange("") }) {
+                    AppIconButton(onClick = { onQueryChange("") }) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "清空搜索"
@@ -354,14 +354,14 @@ private fun PagesSelectorFilterBar(
             Spacer(modifier = Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item {
-                    FilterChip(
+                    AppFilterChip(
                         selected = selectedGroupKey == null,
                         onClick = { onGroupSelect(null) },
                         label = { Text("全部 $totalCount") }
                     )
                 }
                 items(groups, key = { it.key }) { group ->
-                    FilterChip(
+                    AppFilterChip(
                         selected = selectedGroupKey == group.key,
                         onClick = { onGroupSelect(group.key) },
                         label = { Text("${group.label} ${group.count}") }
@@ -472,7 +472,7 @@ private fun PageSelectorItem(
         MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
     }
 
-    Surface(
+    AppSurface(
         onClick = { onClick(index) },
         color = containerColor,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),

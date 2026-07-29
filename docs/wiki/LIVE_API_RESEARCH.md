@@ -2,7 +2,7 @@
 
 整理时间：2026-04-28
 
-资料来源：`/Users/yiyang/Desktop/bilibili-API-collect`。本文件只基于本地 API 文档归纳，未进行线上接口探测。
+资料来源：[bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)。本文件是历史调研记录，接口是否仍可用必须以当前项目源码和实际请求结果为准。
 
 ## 相关文档范围
 

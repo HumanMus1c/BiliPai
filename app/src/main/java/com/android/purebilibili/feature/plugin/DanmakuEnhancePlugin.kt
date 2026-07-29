@@ -8,7 +8,9 @@ import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import io.github.alexzhirkevich.cupertino.icons.filled.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SwitchDefaults
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -24,8 +26,6 @@ import com.android.purebilibili.core.plugin.PluginCapabilityManifest
 import com.android.purebilibili.core.plugin.PluginManager
 import com.android.purebilibili.core.plugin.PluginStore
 import com.android.purebilibili.core.util.Logger
-import io.github.alexzhirkevich.cupertino.CupertinoSwitch
-import io.github.alexzhirkevich.cupertino.CupertinoSwitchDefaults
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -194,7 +194,7 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
                     Text("启用关键词屏蔽", style = MaterialTheme.typography.bodyLarge)
                 }
                 val primaryColor = MaterialTheme.colorScheme.primary
-                CupertinoSwitch(
+                AppSwitch(
                     checked = enableFilter,
                     onCheckedChange = { newValue ->
                         enableFilter = newValue
@@ -202,8 +202,8 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
                             persistConfig(context, config.copy(enableFilter = newValue))
                         }
                     },
-                    colors = CupertinoSwitchDefaults.colors(
-                        thumbColor = Color.White,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
                         checkedTrackColor = primaryColor,
                         uncheckedTrackColor = Color(0xFFE9E9EA)
                     )
@@ -212,7 +212,7 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
             
             // 屏蔽关键词输入
             if (enableFilter) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = blockedKeywords,
                     onValueChange = { newValue ->
                         blockedKeywords = newValue
@@ -229,7 +229,7 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = blockedUserIds,
                     onValueChange = { newValue ->
                         blockedUserIds = newValue
@@ -261,7 +261,7 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
                     )
                 }
                 val primaryColor = MaterialTheme.colorScheme.primary
-                CupertinoSwitch(
+                AppSwitch(
                     checked = enableHighlight,
                     onCheckedChange = { newValue ->
                         enableHighlight = newValue
@@ -269,8 +269,8 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
                             persistConfig(context, config.copy(enableHighlight = newValue))
                         }
                     },
-                    colors = CupertinoSwitchDefaults.colors(
-                        thumbColor = Color.White,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
                         checkedTrackColor = primaryColor,
                         uncheckedTrackColor = Color(0xFFE9E9EA)
                     )
@@ -279,7 +279,7 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
             
             // 高亮关键词输入
             if (enableHighlight) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = highlightKeywords,
                     onValueChange = { newValue ->
                         highlightKeywords = newValue

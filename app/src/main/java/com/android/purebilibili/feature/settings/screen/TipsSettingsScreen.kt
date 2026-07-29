@@ -26,7 +26,7 @@ import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
 import com.android.purebilibili.core.ui.animation.EntranceGroup
 import com.android.purebilibili.core.ui.animation.entrance
 import com.android.purebilibili.core.ui.components.rememberAdaptiveSemanticIconTint
-import com.android.purebilibili.core.ui.components.IOSSectionTitle
+import com.android.purebilibili.core.ui.components.AppPreferenceSectionTitle
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.*
@@ -147,7 +147,7 @@ fun TipsSettingsScreen(
             lazyListContent = {
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("基础技巧")
+                    AppPreferenceSectionTitle("基础技巧")
                 }
             }
             item {
@@ -158,7 +158,7 @@ fun TipsSettingsScreen(
 
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("隐藏技巧")
+                    AppPreferenceSectionTitle("隐藏技巧")
                 }
             }
             item {
@@ -169,7 +169,7 @@ fun TipsSettingsScreen(
 
             item {
                 Box(modifier = Modifier.entrance()) {
-                    IOSSectionTitle("进阶玩法")
+                    AppPreferenceSectionTitle("进阶玩法")
                 }
             }
             item {

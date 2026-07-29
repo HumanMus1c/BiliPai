@@ -54,13 +54,13 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.KeyboardDoubleArrowLeft
 import androidx.compose.material.icons.outlined.KeyboardDoubleArrowRight
 import androidx.compose.material.icons.outlined.PlaylistPlay
-import androidx.compose.material3.FloatingActionButton
+import com.android.purebilibili.core.ui.components.AppFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.PrimaryTabRow
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppTab
+import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -137,7 +137,7 @@ import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
-import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -332,7 +332,7 @@ internal fun TabletCinemaLayout(
                         onRetryVideoNote = playbackActions.retryVideoNote
                     )
                 } else {
-                    Surface(
+                    AppSurface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f),
@@ -343,7 +343,7 @@ internal fun TabletCinemaLayout(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            CupertinoActivityIndicator()
+                            AdaptiveLoadingIndicator()
                         }
                     }
                 }
@@ -449,7 +449,7 @@ private fun CinemaStagePlayer(
         } else {
             playerWidth * 9f / 16f
         }
-        Surface(
+        AppSurface(
             modifier = playerContainerModifier
                 .align(Alignment.Center)
                 .width(playerWidth)
@@ -598,7 +598,7 @@ private fun CinemaMetaPanel(
         }
     }
 
-    Surface(
+    AppSurface(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 0.dp),
@@ -863,7 +863,7 @@ private fun CinemaVideoIntroSection(
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Surface(
+        AppSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -960,7 +960,7 @@ private fun CinemaSideCurtain(
             modifier = Modifier.fillMaxHeight(),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .width(20.dp)
                     .fillMaxHeight()
@@ -987,7 +987,7 @@ private fun CinemaSideCurtain(
             }
 
             if (targetState != TabletSideCurtainState.HIDDEN) {
-                Surface(
+                AppSurface(
                     modifier = Modifier
                         .width(width)
                         .fillMaxHeight()
@@ -1003,14 +1003,14 @@ private fun CinemaSideCurtain(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            IconButton(onClick = { onTabSelected(0) }) {
+                            AppIconButton(onClick = { onTabSelected(0) }) {
                                 Icon(
                                     imageVector = Icons.Outlined.ChatBubbleOutline,
                                     contentDescription = "comments"
                                 )
                             }
                             Spacer(modifier = Modifier.height(10.dp))
-                            IconButton(onClick = { onTabSelected(1) }) {
+                            AppIconButton(onClick = { onTabSelected(1) }) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
                                     contentDescription = "related videos"
@@ -1019,11 +1019,11 @@ private fun CinemaSideCurtain(
                         }
                     } else {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            PrimaryTabRow(
+                            AppPrimaryTabRow(
                                 selectedTabIndex = pagerState.currentPage,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Tab(
+                                AppTab(
                                     selected = pagerState.currentPage == 0,
                                     onClick = {
                                         onTabSelected(0)
@@ -1034,7 +1034,7 @@ private fun CinemaSideCurtain(
                                         )
                                     }
                                 )
-                                Tab(
+                                AppTab(
                                     selected = pagerState.currentPage == 1,
                                     onClick = {
                                         onTabSelected(1)
@@ -1054,7 +1054,7 @@ private fun CinemaSideCurtain(
                                             modifier = Modifier.fillMaxSize(),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            CupertinoActivityIndicator()
+                                            AdaptiveLoadingIndicator()
                                         }
                                     }
 
@@ -1226,7 +1226,7 @@ private fun CinemaCommentsPane(
                 contentPadding = PaddingValues(bottom = 74.dp)
             ) {
             item {
-                Surface(
+                AppSurface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -1300,7 +1300,7 @@ private fun CinemaCommentsPane(
                             .padding(12.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CupertinoActivityIndicator()
+                        AdaptiveLoadingIndicator()
                     }
                 }
             }
@@ -1322,7 +1322,7 @@ private fun CinemaCommentsPane(
             }
             }
 
-        FloatingActionButton(
+        AppFloatingActionButton(
             onClick = commentActions.toggleUpOnly,
             modifier = Modifier
                 .align(Alignment.BottomEnd)

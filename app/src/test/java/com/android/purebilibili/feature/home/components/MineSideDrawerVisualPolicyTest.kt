@@ -1,8 +1,9 @@
 package com.android.purebilibili.feature.home.components
 
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppDrawerContainerTreatment
+import com.android.purebilibili.core.ui.PresetPrimitiveRenderer
+import com.android.purebilibili.core.ui.resolveAppDrawerVisualPolicy
 import org.junit.Assert.assertTrue
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -56,26 +57,40 @@ class MineSideDrawerVisualPolicyTest {
     }
 
     @Test
-    fun `md3 drawer chrome should prefer material icons and opaque containers when blur is off`() {
-        val spec = resolveMineSideDrawerChromeSpec(
-            uiPreset = UiPreset.MD3,
+    fun `material drawer should use opaque containers and larger chevron when blur is off`() {
+        val policy = resolveAppDrawerVisualPolicy(
+            renderer = PresetPrimitiveRenderer.MATERIAL3,
             blurEnabled = false
         )
 
-        assertTrue(spec.useMaterialIcons)
-        assertTrue(spec.preferOpaqueMd3Container)
-        assertEquals(20, spec.profileChevronSizeDp)
+        assertEquals(AppDrawerContainerTreatment.OPAQUE, policy.containerTreatment)
+        assertEquals(20, policy.profileChevronSizeDp)
     }
 
     @Test
-    fun `ios drawer chrome should preserve translucent glass defaults`() {
-        val spec = resolveMineSideDrawerChromeSpec(
-            uiPreset = UiPreset.IOS,
+    fun `cupertino drawer should preserve translucent glass defaults`() {
+        val policy = resolveAppDrawerVisualPolicy(
+            renderer = PresetPrimitiveRenderer.IOS,
             blurEnabled = true
         )
 
-        assertFalse(spec.useMaterialIcons)
-        assertFalse(spec.preferOpaqueMd3Container)
-        assertEquals(18, spec.profileChevronSizeDp)
+        assertEquals(AppDrawerContainerTreatment.TRANSLUCENT, policy.containerTreatment)
+        assertEquals(18, policy.profileChevronSizeDp)
+    }
+
+    @Test
+    fun `material-family drawers keep translucent glass while blur is active`() {
+        listOf(
+            PresetPrimitiveRenderer.MATERIAL3,
+            PresetPrimitiveRenderer.MIUIX_BRIDGED,
+        ).forEach { renderer ->
+            val policy = resolveAppDrawerVisualPolicy(
+                renderer = renderer,
+                blurEnabled = true,
+            )
+
+            assertEquals(AppDrawerContainerTreatment.TRANSLUCENT, policy.containerTreatment)
+            assertEquals(20, policy.profileChevronSizeDp)
+        }
     }
 }

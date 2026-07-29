@@ -4,15 +4,14 @@ package com.android.purebilibili.core.ui.blur
 import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
-import androidx.compose.ui.platform.LocalContext
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.adaptive.MotionTier
-import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.ui.adaptive.minMotionTier
+import com.android.purebilibili.core.ui.performance.LocalRuntimeVisualGuard
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import dev.chrisbanes.haze.HazeState
@@ -39,11 +38,9 @@ internal fun resolveUnifiedBlurredEdgeTreatment(shape: Shape?): BlurredEdgeTreat
 
 @Composable
 fun ProvideUnifiedBlurIntensity(
+    blurIntensity: BlurIntensity = LocalAppThemeConfig.current.blurIntensity,
     content: @Composable () -> Unit
 ) {
-    val context = LocalContext.current
-    val blurIntensity by SettingsManager.getBlurIntensity(context)
-        .collectAsStateWithLifecycle(initialValue = BlurIntensity.THIN)
     CompositionLocalProvider(
         LocalUnifiedBlurIntensity provides blurIntensity,
         content = content
@@ -53,14 +50,7 @@ fun ProvideUnifiedBlurIntensity(
 @Composable
 fun currentUnifiedBlurIntensity(): BlurIntensity {
     val providedBlurIntensity = LocalUnifiedBlurIntensity.current
-    if (providedBlurIntensity != null) {
-        return providedBlurIntensity
-    }
-
-    val context = LocalContext.current
-    val fallbackBlurIntensity by SettingsManager.getBlurIntensity(context)
-        .collectAsStateWithLifecycle(initialValue = BlurIntensity.THIN)
-    return fallbackBlurIntensity
+    return providedBlurIntensity ?: LocalAppThemeConfig.current.blurIntensity
 }
 
 /**
@@ -82,40 +72,50 @@ fun Modifier.unifiedBlur(
     isScrolling: Boolean = false,
     isTransitionRunning: Boolean = false,
     forceLowBudget: Boolean = false
-): Modifier = composed {
-    if (!enabled) return@composed this
-    if (!shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT)) return@composed this
+): Modifier {
+    if (!enabled) return this
+    if (!shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT)) return this
 
     val blurIntensity = currentUnifiedBlurIntensity()
-    val budget = resolveBlurBudget(
-        surfaceType = surfaceType,
-        motionTier = motionTier,
-        isScrolling = isScrolling,
-        isTransitionRunning = isTransitionRunning,
-        forceLowBudget = forceLowBudget
-    )
-    
-    // 根据用户选择获取对应的模糊样式
+    // 运行时视觉守卫：连续掉帧时把毛玻璃/液态玻璃一并降级。调用点自带的
+    // motionTier / forceLowBudget 语义正交，这里取更保守者而非覆盖。
+    val guard = LocalRuntimeVisualGuard.current.value
+    val effectiveMotionTier = minMotionTier(motionTier, guard.effectiveMotionTier)
+    val effectiveForceLowBudget = forceLowBudget || guard.forceLowBlurBudget
+
+    val budget = remember(
+        surfaceType,
+        effectiveMotionTier,
+        isScrolling,
+        isTransitionRunning,
+        effectiveForceLowBudget,
+    ) {
+        resolveBlurBudget(
+            surfaceType = surfaceType,
+            motionTier = effectiveMotionTier,
+            isScrolling = isScrolling,
+            isTransitionRunning = isTransitionRunning,
+            forceLowBudget = effectiveForceLowBudget
+        )
+    }
+
+    // 根据用户选择获取对应的模糊样式（getBlurStyle 自身是 @Composable，内部读主题色）
     val blurStyle = BlurStyles.getBlurStyle(blurIntensity, budget)
-    
+    val edgeTreatment = remember(shape) { resolveUnifiedBlurredEdgeTreatment(shape) }
+    val inputScaleFactor = remember(budget, surfaceType) {
+        resolveBlurInputScale(budget = budget, surfaceType = surfaceType)
+    }
+
     //  [修复] HazeEffect 不支持 shape 参数，需使用 clip 修饰符
     //  仅当提供了 shape 时才应用 clip，避免破坏现有圆角组件 (如 BottomBar)
-    if (shape != null) {
-        this.clip(shape)
-    } else {
-        this
-    }.hazeEffect(
+    return (if (shape != null) this.clip(shape) else this).hazeEffect(
         state = hazeState,
         style = blurStyle
     ) {
         blurEnabled = true
-        blurredEdgeTreatment = resolveUnifiedBlurredEdgeTreatment(shape)
+        blurredEdgeTreatment = edgeTreatment
         @OptIn(ExperimentalHazeApi::class)
         run {
-            val inputScaleFactor = resolveBlurInputScale(
-                budget = budget,
-                surfaceType = surfaceType
-            )
             inputScale = if (inputScaleFactor >= 1f) {
                 HazeInputScale.None
             } else {

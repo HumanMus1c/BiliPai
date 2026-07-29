@@ -28,7 +28,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,8 +46,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.feature.video.ui.components.AnimatedGesturePercentText
@@ -71,10 +70,9 @@ fun BoxScope.GestureLevelOverlayHost(
     modifier: Modifier = Modifier
 ) {
     val kind = resolveGestureLevelKind(mode) ?: return
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val style = remember(uiPreset, androidNativeVariant) {
-        resolveGestureLevelOverlayStyle(uiPreset, androidNativeVariant)
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val style = remember(playerChromeProfile.tabPresentation) {
+        resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
     }
     val motionSpec = remember { resolveVideoGestureMotionSpec() }
     val spec = remember(style, kind, percent) {
@@ -154,7 +152,7 @@ private fun Md3GestureLevelRail(
     percent: Int
 ) {
     val shape = RoundedCornerShape(28.dp)
-    Surface(
+    AppSurface(
         shape = shape,
         color = spec.containerColor,
         shadowElevation = 8.dp,
@@ -216,7 +214,7 @@ private fun IosGestureLevelCapsule(
     percent: Int
 ) {
     val shape = RoundedCornerShape(22.dp)
-    Surface(
+    AppSurface(
         shape = shape,
         color = spec.containerColor,
         border = androidx.compose.foundation.BorderStroke(1.dp, spec.borderColor),

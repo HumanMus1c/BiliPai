@@ -101,7 +101,7 @@ class WatchLaterRefreshContractTest {
     fun watchLaterTopBar_keepsBatchDeleteOutOfTheActionRow() {
         val source = sourceText("src/main/java/com/android/purebilibili/feature/watchlater/WatchLaterScreen.kt")
         val topBarSection = source
-            .substringAfter("AdaptiveTopAppBar(")
+            .substringAfter("AppTopBar(")
             .substringBefore("containerColor = MaterialTheme.colorScheme.background")
 
         assertTrue(

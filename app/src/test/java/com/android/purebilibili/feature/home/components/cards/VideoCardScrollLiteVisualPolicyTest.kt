@@ -104,12 +104,16 @@ class VideoCardScrollLiteVisualPolicyTest {
         val source = File("src/main/java/com/android/purebilibili/feature/home/components/cards/VideoCard.kt")
             .readText()
 
+        val coverModifier = source
+            .substringAfter(".testTag(\"home_video_cover\")")
+            .substringBefore(".onGloballyPositioned")
+        val aspectRatioIndex = coverModifier.indexOf(".aspectRatio(coverAspectRatio)")
+        val clipIndex = coverModifier.indexOf(".clip(coverShape)")
+
+        assertTrue(aspectRatioIndex >= 0)
         assertTrue(
             "首页视频封面本体必须裁剪 coverShape，不能只依赖 sharedBounds 的 overlay 裁剪。",
-            source.contains(
-                ".aspectRatio(coverAspectRatio)\n" +
-                    "                .clip(coverShape)"
-            )
+            aspectRatioIndex < clipIndex,
         )
     }
 
@@ -230,7 +234,11 @@ class VideoCardScrollLiteVisualPolicyTest {
         val upBadgeSource = File("src/main/java/com/android/purebilibili/core/ui/components/UpBadgeName.kt")
             .readText()
 
-        assertTrue(cardSource.contains("trailingSlotMinHeight = 20.dp"))
+        assertTrue(
+            cardSource.contains(
+                "trailingSlotMinHeight = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall"
+            )
+        )
         assertTrue(upBadgeSource.contains(".heightIn(min = trailingSlotMinHeight)"))
     }
 

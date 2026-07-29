@@ -1,6 +1,14 @@
 // 文件路径: feature/dynamic/components/DynamicSidebar.kt
 package com.android.purebilibili.feature.dynamic.components
 
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.motion.AppMotionTokens
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,9 +21,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 //  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -127,11 +132,11 @@ fun DynamicSidebar(
     val returnHeaderHeight = resolveDynamicSidebarReturnHeaderHeightDp().dp
     val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
     val sidebarContainerColor = resolveDynamicSidebarContainerColor(
-        surfaceColor = MaterialTheme.colorScheme.surface,
+        surfaceColor = AppSurfaceTokens.surface(),
         globalWallpaperVisible = globalWallpaperVisible
     )
     val returnHeaderColor = resolveDynamicSidebarReturnHeaderColor(
-        surfaceColor = MaterialTheme.colorScheme.surface,
+        surfaceColor = AppSurfaceTokens.surface(),
         backgroundAlpha = backgroundAlpha,
         globalWallpaperVisible = globalWallpaperVisible
     )
@@ -154,7 +159,7 @@ fun DynamicSidebar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 contentPadding = PaddingValues(
                     top = topPadding + returnHeaderHeight, // 与右侧动态顶栏同高，保证视觉中线一致
-                    bottom = 16.dp
+                    bottom = AppSpacingTokens.Large
                 ),
                 modifier = Modifier
                     .fillMaxSize()
@@ -165,22 +170,29 @@ fun DynamicSidebar(
                     item(key = "hidden_toggle") {
                         Box(
                             modifier = Modifier
-                                .padding(bottom = 12.dp)
-                                .size(40.dp)
+                                .padding(bottom = AppSpacingTokens.Medium)
+                                .size(AppChromeSizeTokens.MinimumTouchTarget)
                                 .clip(CircleShape)
-                                .background(
-                                    if (showHiddenUsers) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) 
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-                                )
                                 .clickable { onToggleShowHidden() },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = if (showHiddenUsers) rememberAppVisibilityOnIcon() else rememberAppVisibilityOffIcon(),
-                                contentDescription = null,
-                                tint = if (showHiddenUsers) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (showHiddenUsers) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (showHiddenUsers) rememberAppVisibilityOnIcon() else rememberAppVisibilityOffIcon(),
+                                    contentDescription = if (showHiddenUsers) "隐藏已隐藏用户" else "显示隐藏用户",
+                                    tint = if (showHiddenUsers) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
+                                )
+                            }
                         }
                     }
                 }
@@ -224,7 +236,7 @@ fun DynamicSidebar(
                         imageVector = rememberAppBackIcon(),
                         contentDescription = "Back",
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(AppSpacingTokens.ExtraLarge)
                     )
                 }
             }
@@ -236,7 +248,7 @@ fun DynamicSidebar(
                 .align(Alignment.TopEnd)
                 .padding(top = resolveDynamicSidebarDividerTopOffset(topPadding))
                 .fillMaxHeight()
-                .width(0.5.dp)
+                .width(AppSpacingTokens.Micro / 4)
                 .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
         )
     }
@@ -261,16 +273,13 @@ private fun CascadeSidebarItem(
     
     val offsetY by animateFloatAsState(
         targetValue = if (visible) 0f else 20f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = 0.7f,
-            stiffness = 400f
-        ),
+        animationSpec = AppMotionTokens.emphasizedSpec(),
         label = "cascadeOffsetY"
     )
     
     val alpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.tween(200),
+        animationSpec = AppMotionTokens.standardSpec(),
         label = "cascadeAlpha"
     )
     
@@ -301,11 +310,11 @@ fun SidebarItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp)
+            .padding(vertical = AppSpacingTokens.Small)
     ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small)
                 .clip(CircleShape)
                 .background(
                     if (isSelected) MaterialTheme.colorScheme.primaryContainer
@@ -315,17 +324,17 @@ fun SidebarItem(
         ) {
             Text(
                 text = icon,
-                fontSize = 14.sp,
+                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 fontWeight = FontWeight.Bold,
                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         
         if (label != null) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
             Text(
                 text = label,
-                fontSize = 10.sp,
+                fontSize = MaterialTheme.typography.labelSmall.fontSize,
                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -355,8 +364,8 @@ fun SidebarUserItem(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp, horizontal = 4.dp) // 增加水平间距以适应选中背景
-                .clip(RoundedCornerShape(12.dp)) // 选中态圆角背景
+                .padding(vertical = AppSpacingTokens.ExtraSmall, horizontal = AppSpacingTokens.ExtraSmall) // 增加水平间距以适应选中背景
+                .clip(AppShapes.container(ContainerLevel.Card)) // 选中态圆角背景
                 .then(
                     if (isSelected) Modifier.background(MaterialTheme.colorScheme.primaryContainer)
                     else Modifier
@@ -370,7 +379,7 @@ fun SidebarUserItem(
                     },
                     onLongClick = { showMenu = true }
                 )
-                .padding(vertical = 8.dp) // 内部间距
+                .padding(vertical = AppSpacingTokens.Small) // 内部间距
                 .alpha(if (user.isHidden) 0.5f else 1f)
         ) {
             Box {
@@ -388,12 +397,12 @@ fun SidebarUserItem(
 
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Medium)
                         .then(
-                            if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                            else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), CircleShape)
+                            if (isSelected) Modifier.border(AppSpacingTokens.Micro, MaterialTheme.colorScheme.primary, CircleShape)
+                            else Modifier.border(AppSpacingTokens.Micro / 2, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), CircleShape)
                         )
-                        .padding(2.dp)
+                        .padding(AppSpacingTokens.Micro)
                 ) {
                     AsyncImage(
                         model = coil.request.ImageRequest.Builder(LocalContext.current)
@@ -410,19 +419,19 @@ fun SidebarUserItem(
             }
 
             if (shouldShowDynamicUserLiveBadge(user.isLive)) {
-                DynamicUserLiveBadge(modifier = Modifier.padding(top = 2.dp))
+                DynamicUserLiveBadge(modifier = Modifier.padding(top = AppSpacingTokens.Micro))
             }
 
             if (showLabel) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                 Text(
                     text = displayName,
-                    fontSize = 11.sp,
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface, // 自适应文字
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 2.dp)
+                    modifier = Modifier.padding(horizontal = AppSpacingTokens.Micro)
                 )
             }
         }

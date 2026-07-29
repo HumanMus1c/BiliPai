@@ -21,42 +21,42 @@ class BiliPaiNavContentTransformPolicyStructureTest {
     }
 
     @Test
-    fun disabledVideoDirectionalReturnKeepsTargetPageImmediatelyVisible() {
+    fun disabledVideoDirectionalReturnMovesTargetPageFromOppositeSide() {
         val source = contentTransformPolicySource()
         val returnFunctionStart = source.indexOf("private fun disabledVideoDirectionReturnTransform")
         val returnFunctionEnd = source.length
         val returnFunction = source.substring(returnFunctionStart, returnFunctionEnd)
 
-        assertTrue(returnFunction.contains("EnterTransition.None togetherWith"))
-        assertTrue(returnFunction.contains("ExitTransition.None").not())
+        assertTrue(returnFunction.contains("slideInHorizontally("))
+        assertTrue(returnFunction.contains("initialOffsetX = { width -> (-directionSign * width * 0.18f).toInt() }"))
     }
 
     @Test
-    fun disabledVideoDirectionalReturnMovesOnlyOutgoingPageHorizontally() {
+    fun disabledVideoDirectionalReturnMovesBothPagesHorizontally() {
         val source = contentTransformPolicySource()
         val returnFunctionStart = source.indexOf("private fun disabledVideoDirectionReturnTransform")
         val returnFunctionEnd = source.length
         val returnFunction = source.substring(returnFunctionStart, returnFunctionEnd)
 
         assertTrue(returnFunction.contains("slideOutHorizontally("))
-        assertTrue(returnFunction.contains("slideInHorizontally(").not())
+        assertTrue(returnFunction.contains("slideInHorizontally("))
     }
 
     @Test
-    fun disabledVideoDirectionalReturnSlidesFullyOffscreen() {
+    fun disabledVideoDirectionalReturnSlidesTowardCardColumn() {
         val source = contentTransformPolicySource()
         val returnFunctionStart = source.indexOf("private fun disabledVideoDirectionReturnTransform")
         val returnFunctionEnd = source.length
         val returnFunction = source.substring(returnFunctionStart, returnFunctionEnd)
 
-        assertTrue(returnFunction.contains("targetOffsetX = { width -> directionSign * width }"))
+        assertTrue(returnFunction.contains("targetOffsetX = { width -> (directionSign * width * 0.9f).toInt() }"))
     }
 
     @Test
     fun disabledVideoDirectionalReturnUsesResponsiveMotionWindow() {
         val source = contentTransformPolicySource()
 
-        assertTrue(source.contains("NAV3_DISABLED_VIDEO_RETURN_MILLIS = 220"))
+        assertTrue(source.contains("NAV3_DISABLED_VIDEO_RETURN_MILLIS = 260"))
     }
 
     @Test
@@ -66,10 +66,7 @@ class BiliPaiNavContentTransformPolicyStructureTest {
         val returnFunctionEnd = source.length
         val returnFunction = source.substring(returnFunctionStart, returnFunctionEnd)
 
-        assertTrue(returnFunction.contains("EnterTransition.None togetherWith"))
-        assertTrue(returnFunction.contains("ExitTransition.None").not())
-        // 与前向方向（slideIn + fadeIn togetherWith fadeOut）对称：
-        // 返回方向也应 fadeOut 退出页面，使入口/出口视觉效果一致。
+        assertTrue(returnFunction.contains("fadeIn("))
         assertTrue(returnFunction.contains("fadeOut("))
     }
 
@@ -146,10 +143,69 @@ class BiliPaiNavContentTransformPolicyStructureTest {
         assertTrue(source.contains("private fun bottomBarSiblingPopTransform()"))
     }
 
+    @Test
+    fun horizontalPageTransitionsUseCriticallyDampedSpring() {
+        val tokenSource = designSystemSourceFile("core/ui/motion/NavigationSlideSpring.kt")
+        val bottomBarSource = designSystemSourceFile(
+            "core/ui/motion/BottomBarLikeContentTransformPolicy.kt"
+        )
+        val settingsSource = designSystemSourceFile(
+            "core/ui/motion/SettingsIosPushContentTransformPolicy.kt"
+        )
+        val springToken = tokenSource
+            .substringAfter("fun navigationSlideSpring(durationMillis: Int): SpringSpec<IntOffset>")
+            .substringBefore("/**")
+
+        assertTrue(tokenSource.contains("fun navigationSlideSpring(durationMillis: Int): SpringSpec<IntOffset>"))
+        assertTrue(springToken.contains("dampingRatio = 1f"))
+        assertTrue(springToken.contains("resolveNavigationSlideSpringStiffness(durationMillis)"))
+        assertTrue(springToken.contains("visibilityThreshold = IntOffset(1, 1)"))
+        assertTrue(bottomBarSource.contains("val spec = navigationSlideSpring(durationMillis)"))
+        assertTrue(settingsSource.contains("resolveSettingsIosPushForwardContentTransform"))
+        assertTrue(settingsSource.contains("val spec = navigationSlideSpring(durationMillis)"))
+        assertTrue(contentTransformPolicySource().contains("navigationSlideSpring(NAV3_SPACE_FORWARD_MILLIS)"))
+    }
+
+    @Test
+    fun settingsPredictivePopKeepsSeekableTween() {
+        val source = designSystemSourceFile(
+            "core/ui/motion/SettingsIosPushContentTransformPolicy.kt"
+        )
+        val predictiveFunction = source
+            .substringAfter("fun resolveSettingsIosPredictivePopContentTransform")
+
+        assertTrue(predictiveFunction.contains("tween("))
+        assertTrue(predictiveFunction.contains("navigationSlideSpring(").not())
+    }
+
+    @Test
+    fun settingsCommittedPopKeepsTweenForGestureContinuity() {
+        val source = designSystemSourceFile(
+            "core/ui/motion/SettingsIosPushContentTransformPolicy.kt"
+        )
+        val popFunction = source
+            .substringAfter("fun resolveSettingsIosPushPopContentTransform")
+            .substringBefore("fun resolveSettingsIosPredictivePopContentTransform")
+
+        assertTrue(popFunction.contains("tween<IntOffset>("))
+        assertTrue(popFunction.contains("navigationSlideSpring(").not())
+    }
+
     private fun contentTransformPolicySource(): String {
+        return sourceFile("navigation3/BiliPaiNavContentTransformPolicy.kt")
+    }
+
+    private fun sourceFile(relativePath: String): String {
         return listOf(
-            File("app/src/main/java/com/android/purebilibili/navigation3/BiliPaiNavContentTransformPolicy.kt"),
-            File("src/main/java/com/android/purebilibili/navigation3/BiliPaiNavContentTransformPolicy.kt")
+            File("app/src/main/java/com/android/purebilibili/$relativePath"),
+            File("src/main/java/com/android/purebilibili/$relativePath")
+        ).first { it.exists() }.readText()
+    }
+
+    private fun designSystemSourceFile(relativePath: String): String {
+        return listOf(
+            File("design-system/src/main/java/com/android/purebilibili/$relativePath"),
+            File("../design-system/src/main/java/com/android/purebilibili/$relativePath"),
         ).first { it.exists() }.readText()
     }
 }

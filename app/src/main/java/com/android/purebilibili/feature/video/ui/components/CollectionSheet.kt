@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.ui.rememberAppClearIcon
+import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.data.model.response.UgcEpisode
 import com.android.purebilibili.data.model.response.UgcSeason
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
@@ -73,7 +74,7 @@ fun CollectionSheet(
         currentCid = currentCid
     )
     
-    com.android.purebilibili.core.ui.IOSModalBottomSheet(
+    com.android.purebilibili.core.ui.AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         windowInsets = WindowInsets(0.dp)  //  沉浸式
@@ -114,7 +115,7 @@ fun CollectionSheet(
                     fontSize = 13.sp
                 )
 
-                IconButton(onClick = onDismiss) {
+                AppIconButton(onClick = onDismiss) {
                     Icon(
                         clearIcon,
                         contentDescription = "关闭",
@@ -139,7 +140,7 @@ fun CollectionSheet(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                iOSSegmentedControl(
+                CommentSegmentedControl(
                     items = sortModes.map(::resolveCollectionSortLabel),
                     selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
                     onScaleChange = { index ->

@@ -7,11 +7,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -276,7 +276,7 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
                 )
             }
             Spacer(modifier = Modifier.height(10.dp))
-            Button(
+            AppButton(
                 enabled = !probing && probeTarget.hosts.isNotEmpty(),
                 onClick = {
                     probing = true
@@ -312,7 +312,7 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium
                 )
-                Switch(
+                AppSwitch(
                     checked = strictCustomCdn,
                     onCheckedChange = { strictCustomCdn = it }
                 )
@@ -351,14 +351,14 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row {
-                Button(onClick = {
+                AppButton(onClick = {
                     customRules = customRules + CdnCustomRule(enabled = false)
                     customRuleError = null
                 }) {
                     Text("新增规则")
                 }
                 Spacer(modifier = Modifier.padding(horizontal = 4.dp))
-                Button(onClick = {
+                AppButton(onClick = {
                     val error = validateCdnCustomRules(customRules)
                         .firstOrNull { it.error != null }
                         ?.error
@@ -408,9 +408,9 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text("启用", style = MaterialTheme.typography.bodySmall)
-                Switch(checked = rule.enabled, onCheckedChange = { onChange(rule.copy(enabled = it)) })
+                AppSwitch(checked = rule.enabled, onCheckedChange = { onChange(rule.copy(enabled = it)) })
             }
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = rule.pattern,
                 onValueChange = { onChange(rule.copy(pattern = it)) },
                 label = { Text("匹配正则") },
@@ -418,7 +418,7 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(4.dp))
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = rule.replacement,
                 onValueChange = { onChange(rule.copy(replacement = it)) },
                 label = { Text("替换内容") },
@@ -426,11 +426,11 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
                 modifier = Modifier.fillMaxWidth()
             )
             Row {
-                Button(enabled = canMoveUp, onClick = onMoveUp) { Text("上移") }
+                AppButton(enabled = canMoveUp, onClick = onMoveUp) { Text("上移") }
                 Spacer(modifier = Modifier.padding(horizontal = 2.dp))
-                Button(enabled = canMoveDown, onClick = onMoveDown) { Text("下移") }
+                AppButton(enabled = canMoveDown, onClick = onMoveDown) { Text("下移") }
                 Spacer(modifier = Modifier.padding(horizontal = 2.dp))
-                Button(onClick = onRemove) { Text("删除") }
+                AppButton(onClick = onRemove) { Text("删除") }
             }
         }
     }

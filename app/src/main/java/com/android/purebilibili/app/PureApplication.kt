@@ -11,7 +11,9 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.StrictMode
 import androidx.profileinstaller.ProfileInstaller
+import com.android.purebilibili.BuildConfig
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
@@ -115,6 +117,10 @@ class PureApplication : Application(), ImageLoaderFactory, ComponentCallbacks2 {
     }
     
     override fun onCreate() {
+        // StrictMode 必须装在任何业务代码之前，否则紧接着的 applyThemePreference()
+        // 里那次同步偏好读取就漏检了——而那恰恰是最该被看见的一处。
+        installStrictModeForDebugBuilds()
+
         //  [关键] 必须在 super.onCreate() 之前设置！
         // 这样系统在初始化时就能读取到正确的夜间模式配置
         applyThemePreference()
@@ -138,6 +144,40 @@ class PureApplication : Application(), ImageLoaderFactory, ComponentCallbacks2 {
 
         startupOrchestrator.runImmediate(::runStartupTask)
         startupOrchestrator.scheduleDeferred(::runStartupTask)
+    }
+
+    /**
+     * debug 包启用 StrictMode。
+     *
+     * 此前全仓 **0 处 StrictMode 引用**，意味着主线程磁盘 I/O 在开发期永远不会自动
+     * 暴露，只能靠人肉 review 抓。这是「性能优化在盲打」的第三条证据——另两条是
+     * Baseline Profile 从未产出产物、Compose 指标被注释掉。
+     *
+     * 刻意用 [StrictMode.ThreadPolicy.Builder.penaltyLog] 而不是 `penaltyDeath()`：
+     * 现存违规的数量还未知（`SettingsManager` 的 `*Sync` 家族在 core/store 之外就有
+     * 76 个调用点），直接 death 会让 debug 包起不来，结果必然是有人把整段删掉。
+     * 等这批清干净后，再单独把 `detectDiskReads` 升级为 death 并配棘轮。
+     *
+     * 只在 debug 生效：release/smooth 包不受任何影响，这段在 R8 下会被整体裁掉。
+     */
+    private fun installStrictModeForDebugBuilds() {
+        if (!BuildConfig.DEBUG) return
+
+        StrictMode.setThreadPolicy(
+            StrictMode.ThreadPolicy.Builder()
+                .detectDiskReads()
+                .detectDiskWrites()
+                .detectNetwork()
+                .penaltyLog()
+                .build()
+        )
+        StrictMode.setVmPolicy(
+            StrictMode.VmPolicy.Builder()
+                .detectLeakedClosableObjects()
+                .detectLeakedSqlLiteObjects()
+                .penaltyLog()
+                .build()
+        )
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

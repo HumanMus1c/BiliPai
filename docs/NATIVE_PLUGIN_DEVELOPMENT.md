@@ -35,7 +35,7 @@
 - Android Studio 2024.1 或更高版本
 - Kotlin 1.9+
 - Gradle 8.0+
-- Android SDK 36（Compile SDK）
+- Android SDK 37（Compile SDK）
 
 ### 克隆项目
 
@@ -118,18 +118,16 @@ class MyPlugin : Plugin {
 在 `PureApplication.kt` 的插件初始化区域中添加：
 
 ```kotlin
-Looper.myQueue().addIdleHandler {
+private fun initPluginStackNow() {
     PluginManager.initialize(this)
-    PluginManager.register(SponsorBlockPlugin())
-    PluginManager.register(MyPlugin())  // 添加这行
-    false
+    PluginManager.register(MyPlugin())
 }
 ```
 
 ### 3. 编译运行
 
 ```bash
-./gradlew assembleDebug
+./gradlew :app:assembleDev
 ```
 
 ---
@@ -206,6 +204,9 @@ interface PlayerPlugin : Plugin {
      * @return 跳过动作
      */
     suspend fun onPositionUpdate(positionMs: Long): SkipAction?
+
+    /** 用户拖动进度条或点击章节时调用 */
+    fun onUserSeek(positionMs: Long) {}
     
     /**
      * 视频播放结束时回调
@@ -513,18 +514,11 @@ override fun SettingsContent() {
 
 ```kotlin
 // 文件: PureApplication.kt
-Looper.myQueue().addIdleHandler {
-    // 初始化插件系统
+private fun initPluginStackNow() {
     PluginManager.initialize(this)
-
-    // 注册内置插件
-    PluginManager.register(SponsorBlockPlugin())
-    PluginManager.register(AdFilterPlugin())
-    PluginManager.register(DanmakuEnhancePlugin())
 
     // 注册你的插件
     PluginManager.register(MyCustomPlugin())
-    false
 }
 ```
 

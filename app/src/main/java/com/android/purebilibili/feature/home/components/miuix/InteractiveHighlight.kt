@@ -26,10 +26,8 @@ class InteractiveHighlight(
     val position: (size: Size, offset: Offset) -> Offset = { _, offset -> offset }
 ) {
 
-    private val pressProgressAnimationSpec =
-        spring(0.5f, 300f, 0.001f)
-    private val positionAnimationSpec =
-        spring(0.5f, 300f, Offset.VisibilityThreshold)
+    private val pressProgressAnimationSpec = interactiveHighlightPressSpec()
+    private val positionAnimationSpec = interactiveHighlightPositionSpec()
 
     private val pressProgressAnimation =
         Animatable(0f, 0.001f)
@@ -60,13 +58,16 @@ class InteractiveHighlight(
             val progress = pressProgressAnimation.value
             if (progress > 0f) {
                 drawRect(
-                    Color.White.copy(0.06f * progress),
+                    InteractiveHighlightPalette.Content.copy(0.06f * progress),
                     blendMode = BlendMode.Plus
                 )
                 shader.apply {
                     val position = position(size, positionAnimation.value)
                     setFloatUniform("size", size.width, size.height)
-                    setColorUniform("color", Color.White.copy(0.12f * progress).toArgb())
+                    setColorUniform(
+                        "color",
+                        InteractiveHighlightPalette.Content.copy(0.12f * progress).toArgb(),
+                    )
                     setFloatUniform("radius", size.minDimension * 1.2f)
                     setFloatUniform(
                         "position",

@@ -26,11 +26,12 @@ class TopTabRefractionPolicyTest {
         assertTrue(source.contains("val topTabContentBackdrop = rememberLayerBackdrop()"))
         assertTrue(source.contains("val effectiveTopTabIndicatorContentBackdrop: Backdrop?"))
         assertTrue(source.contains("rememberCombinedBackdrop(backdrop, topTabContentBackdrop)"))
-        assertTrue(source.contains("contentBackdrop = effectiveTopTabIndicatorContentBackdrop"))
-        assertTrue(source.contains("backdrop = backdrop"))
+        assertTrue(source.contains("contentBackdrop = topTabContentBackdrop"))
+        assertTrue(source.contains("backdrop = effectiveTopTabIndicatorContentBackdrop ?: backdrop"))
         assertTrue(source.contains("val glassLayersAlwaysOn = shouldUseLiquidGlassIndicator"))
         assertTrue(source.contains("resolveTopTabIndicatorBackdropPolicy("))
-        assertTrue(source.contains("indicatorLayerScaleTransform = if (topTabDragActive)"))
+        assertTrue(source.contains("isDragging = topTabShouldStretchIndicator"))
+        assertTrue(source.contains("indicatorLayerScaleProgress = topTabIndicatorLayerScaleProgress"))
         assertFalse(source.contains("indicatorHeight = 4.dp"))
     }
 
@@ -380,8 +381,8 @@ class TopTabRefractionPolicyTest {
             "app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt"
         )
 
-        assertTrue(source.contains("val shouldUseMd3LiquidCapsule = effectiveRenderer == HomeTopTabRenderer.MD3"))
-        assertTrue(source.contains("val shouldUseMd3DockBackedCapsule = effectiveRenderer == HomeTopTabRenderer.MD3"))
+        assertTrue(source.contains("val shouldUseMd3LiquidCapsule = effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE"))
+        assertTrue(source.contains("val shouldUseMd3DockBackedCapsule = effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE"))
         assertTrue(source.contains("indicatorLayerScaleProgress = topTabIndicatorLayerScaleProgress"))
         assertTrue(source.contains("indicatorHeight = dockIndicatorHeight"))
     }

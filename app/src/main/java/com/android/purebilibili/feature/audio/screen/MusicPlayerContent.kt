@@ -40,18 +40,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
+import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSlider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -371,7 +371,7 @@ internal fun MusicPlayerContent(
     }
 
     if (showActions) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { showActions = false },
             containerColor = backgroundColor.copy(alpha = 0.92f),
             contentColor = MusicContentColor
@@ -427,7 +427,7 @@ internal fun MusicPlayerContent(
     }
 
     if (showQueue) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { showQueue = false },
             containerColor = backgroundColor.copy(alpha = 0.96f),
             contentColor = MusicContentColor
@@ -488,7 +488,7 @@ internal fun MusicPlayerContent(
     }
 
     if (showLyricsSearch) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { showLyricsSearch = false },
             containerColor = backgroundColor.copy(alpha = 0.97f),
             contentColor = MusicContentColor
@@ -505,19 +505,19 @@ internal fun MusicPlayerContent(
                     .padding(horizontal = 24.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = lyricSearchText,
                     onValueChange = { lyricSearchText = it },
                     label = { Text("歌名") },
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
-                TextButton(onClick = { onLyricsSearch(lyricSearchText) }) {
+                AppTextButton(onClick = { onLyricsSearch(lyricSearchText) }) {
                     Text("搜索")
                 }
             }
             if (state.isLyricsSearching) {
-                CircularProgressIndicator(
+                AppCircularProgressIndicator(
                     color = MusicContentColor,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
@@ -612,7 +612,7 @@ private fun PlayerPage(
         verticalArrangement = Arrangement.Center
     ) {
         if (state.isLoading && state.coverUrl.isBlank()) {
-            CircularProgressIndicator(color = MusicContentColor)
+            AppCircularProgressIndicator(color = MusicContentColor)
         } else {
             MusicArtwork(
                 coverUrl = state.coverUrl,
@@ -728,7 +728,7 @@ private fun MusicArtwork(
 private fun MusicProgress(state: MusicPlayerUiState, onSeek: (Long) -> Unit) {
     val duration = state.durationMs.coerceAtLeast(1L)
     var draggedPosition by remember { mutableStateOf<Float?>(null) }
-    Slider(
+    AppSlider(
         value = draggedPosition ?: state.positionMs.coerceIn(0L, duration).toFloat(),
         onValueChange = { draggedPosition = it },
         onValueChangeFinished = {
@@ -767,9 +767,9 @@ private fun PlaybackControls(
             enabled = state.queueControls.hasPrevious && onPrevious != null,
             onClick = onPrevious ?: {}
         )
-        IconButton(onClick = onPlayPause, modifier = Modifier.size(72.dp)) {
+        AppIconButton(onClick = onPlayPause, modifier = Modifier.size(72.dp)) {
             if (state.isBuffering) {
-                CircularProgressIndicator(color = MusicContentColor, modifier = Modifier.size(36.dp))
+                AppCircularProgressIndicator(color = MusicContentColor, modifier = Modifier.size(36.dp))
             } else {
                 Icon(
                     imageVector = if (state.isPlaying) CupertinoIcons.Filled.Pause else CupertinoIcons.Filled.Play,
@@ -790,7 +790,7 @@ private fun PlaybackControls(
 
 @Composable
 private fun PlaybackIconButton(icon: ImageVector, description: String, enabled: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(56.dp)) {
+    AppIconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(56.dp)) {
         Icon(
             imageVector = icon,
             contentDescription = description,
@@ -972,7 +972,7 @@ private fun LyricsPage(
     }
 
     if (showLyricsSettings) {
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { showLyricsSettings = false },
             containerColor = glassTintColor.copy(alpha = 0.97f),
             contentColor = MusicContentColor
@@ -1020,10 +1020,10 @@ private fun LyricsPrimaryControls(
         MusicProgress(state, onSeek)
         Row(verticalAlignment = Alignment.CenterVertically) {
             PlaybackControls(state, onPlayPause, onPrevious, onNext, modifier = Modifier.weight(1f))
-            TextButton(onClick = onOpenSettings, modifier = Modifier.height(48.dp)) {
+            AppTextButton(onClick = onOpenSettings, modifier = Modifier.height(48.dp)) {
                 Text("歌词设置", color = MusicContentColor, fontSize = 12.sp)
             }
-            TextButton(onClick = onHideControls, modifier = Modifier.height(48.dp)) {
+            AppTextButton(onClick = onHideControls, modifier = Modifier.height(48.dp)) {
                 Text("收起", color = MusicContentColor, fontSize = 12.sp)
             }
         }
@@ -1045,7 +1045,7 @@ private fun LyricsImmersiveProgress(
     modifier: Modifier = Modifier
 ) {
     val duration = state.durationMs.coerceAtLeast(1L)
-    LinearProgressIndicator(
+    AppLinearProgressIndicator(
         progress = { state.positionMs.coerceIn(0L, duration).toFloat() / duration.toFloat() },
         modifier = modifier
             .fillMaxWidth()
@@ -1075,10 +1075,10 @@ private fun LyricsSettingsContent(
         MusicActionSheetItem(if (showTranslations) "隐藏翻译与罗马音" else "显示翻译与罗马音", onToggleTranslations)
         Text("歌词时间校正 · ${formatLyricsOffset(lyricsOffsetMs)}", color = MusicContentColor.copy(alpha = 0.72f))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { onLyricsOffsetChange(-250L) }, modifier = Modifier.height(48.dp)) { Text("歌词提前 0.25 秒") }
-            TextButton(onClick = { onLyricsOffsetChange(250L) }, modifier = Modifier.height(48.dp)) { Text("歌词延后 0.25 秒") }
+            AppTextButton(onClick = { onLyricsOffsetChange(-250L) }, modifier = Modifier.height(48.dp)) { Text("歌词提前 0.25 秒") }
+            AppTextButton(onClick = { onLyricsOffsetChange(250L) }, modifier = Modifier.height(48.dp)) { Text("歌词延后 0.25 秒") }
         }
-        TextButton(onClick = { onLyricsOffsetChange(-lyricsOffsetMs) }, modifier = Modifier.height(48.dp)) { Text("重置歌词时间") }
+        AppTextButton(onClick = { onLyricsOffsetChange(-lyricsOffsetMs) }, modifier = Modifier.height(48.dp)) { Text("重置歌词时间") }
         MusicActionSheetItem("重新匹配歌词", onLyricsRetry)
         MusicActionSheetItem("手动搜索歌词", onOpenLyricsSearch)
     }
@@ -1191,7 +1191,7 @@ private fun GlassIconButton(
     miuixBackdrop: MiuixBackdrop?,
     onClick: () -> Unit
 ) {
-    IconButton(
+    AppIconButton(
         onClick = onClick,
         modifier = Modifier
             .size(48.dp)

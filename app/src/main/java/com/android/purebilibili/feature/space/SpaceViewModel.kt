@@ -45,6 +45,8 @@ sealed class SpaceUiState {
         val totalVideos: Int = 0,
         val isLoadingMore: Boolean = false,
         val hasMoreVideos: Boolean = true,
+        val videoPageLoadCompletionVersion: Long = 0L,
+        val lastVideoPageLoadFailed: Boolean = false,
         //  视频分类
         val categories: List<SpaceVideoCategory> = emptyList(),
         val selectedTid: Int = 0,  // 0 表示全部
@@ -617,7 +619,14 @@ class SpaceViewModel(
             currentPage = currentPage,
             totalCount = current.totalVideos,
             pageSize = pageSize
-        ) ?: return
+        ) ?: run {
+            _uiState.value = current.copy(
+                hasMoreVideos = false,
+                videoPageLoadCompletionVersion = current.videoPageLoadCompletionVersion + 1,
+                lastVideoPageLoadFailed = false,
+            )
+            return
+        }
         android.util.Log.d("SpaceVM", " loadMoreVideos: page=$nextPage, tid=$currentTid, order=$currentOrder")
         val requestGeneration = beginVideoListRequest()
         val requestTid = currentTid
@@ -625,12 +634,19 @@ class SpaceViewModel(
         val requestKeyword = currentKeyword
         
         activeVideoListJob = viewModelScope.launch {
-            _uiState.value = current.copy(isLoadingMore = true)
+            _uiState.value = current.copy(
+                isLoadingMore = true,
+                lastVideoPageLoadFailed = false,
+            )
             
             try {
                 if (!ensureWbiKeysLoaded()) {
                     if (shouldApplySpaceVideoResult(currentMid, currentMid, requestGeneration, activeVideoListGeneration, requestTid, currentTid, requestOrder, currentOrder, requestKeyword, currentKeyword)) {
-                        _uiState.value = current.copy(isLoadingMore = false)
+                        _uiState.value = current.copy(
+                            isLoadingMore = false,
+                            videoPageLoadCompletionVersion = current.videoPageLoadCompletionVersion + 1,
+                            lastVideoPageLoadFailed = true,
+                        )
                     }
                     return@launch
                 }
@@ -660,18 +676,28 @@ class SpaceViewModel(
                             currentPage = currentPage,
                             totalCount = result.page.count,
                             pageSize = pageSize
-                        ) != null
+                        ) != null,
+                        videoPageLoadCompletionVersion = current.videoPageLoadCompletionVersion + 1,
+                        lastVideoPageLoadFailed = false,
                     )
                 } else {
                     android.util.Log.e("SpaceVM", " loadMoreVideos failed: result is null")
                     if (shouldApplySpaceVideoResult(currentMid, currentMid, requestGeneration, activeVideoListGeneration, requestTid, currentTid, requestOrder, currentOrder, requestKeyword, currentKeyword)) {
-                        _uiState.value = current.copy(isLoadingMore = false)
+                        _uiState.value = current.copy(
+                            isLoadingMore = false,
+                            videoPageLoadCompletionVersion = current.videoPageLoadCompletionVersion + 1,
+                            lastVideoPageLoadFailed = true,
+                        )
                     }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("SpaceVM", " loadMoreVideos error: ${e.message}", e)
                 if (shouldApplySpaceVideoResult(currentMid, currentMid, requestGeneration, activeVideoListGeneration, requestTid, currentTid, requestOrder, currentOrder, requestKeyword, currentKeyword)) {
-                    _uiState.value = current.copy(isLoadingMore = false)
+                    _uiState.value = current.copy(
+                        isLoadingMore = false,
+                        videoPageLoadCompletionVersion = current.videoPageLoadCompletionVersion + 1,
+                        lastVideoPageLoadFailed = true,
+                    )
                 }
             }
         }
@@ -1531,6 +1557,7 @@ class SpaceViewModel(
             searchQuery = "",
             pendingLocateBvid = targetBvid,
             locateMessage = null,
+            lastVideoPageLoadFailed = false,
             tabShellState = current.tabShellState.withSelectedTab(SpaceMainTab.CONTRIBUTION)
         )
         refreshVideoSearchResults()
@@ -1571,6 +1598,26 @@ class SpaceViewModel(
         val current = _uiState.value as? SpaceUiState.Success ?: return
         if (current.pendingLocateBvid == bvid) {
             _uiState.value = current.copy(pendingLocateBvid = null)
+        }
+    }
+
+    fun reportPendingLocateBvidMissing(bvid: String) {
+        val current = _uiState.value as? SpaceUiState.Success ?: return
+        if (current.pendingLocateBvid == bvid) {
+            _uiState.value = current.copy(
+                pendingLocateBvid = null,
+                locateMessage = "未在该 UP 的投稿中找到该视频",
+            )
+        }
+    }
+
+    fun reportPendingLocateBvidLoadFailed(bvid: String) {
+        val current = _uiState.value as? SpaceUiState.Success ?: return
+        if (current.pendingLocateBvid == bvid) {
+            _uiState.value = current.copy(
+                pendingLocateBvid = null,
+                locateMessage = "加载投稿失败，请稍后重试定位",
+            )
         }
     }
 

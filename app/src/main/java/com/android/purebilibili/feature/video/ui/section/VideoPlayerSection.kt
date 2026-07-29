@@ -131,8 +131,7 @@ import androidx.media3.ui.PlayerView
 import com.android.purebilibili.core.store.FullscreenAspectRatio
 import com.android.purebilibili.core.plugin.PluginManager
 import com.android.purebilibili.core.store.SettingsManager
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
+import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.performance.TrackJankStateFlag
 import com.android.purebilibili.core.ui.performance.TrackJankStateValue
 import com.android.purebilibili.core.ui.blur.unifiedBlur
@@ -990,13 +989,9 @@ fun VideoPlayerSection(
     var orientationHintText by remember { mutableStateOf(resolveOrientationSwitchHintText(isFullscreen)) }
     var hasObservedOrientationChange by remember { mutableStateOf(false) }
     val gestureMotionSpec = remember { resolveVideoGestureMotionSpec() }
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val gestureLevelOverlayStyle = remember(uiPreset, androidNativeVariant) {
-        resolveGestureLevelOverlayStyle(
-            uiPreset = uiPreset,
-            androidNativeVariant = androidNativeVariant
-        )
+    val playerChromeProfile = rememberAppPlayerChromeProfile()
+    val gestureLevelOverlayStyle = remember(playerChromeProfile.tabPresentation) {
+        resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
     }
     val forceCoverDuringReturnAnimation = shouldForceCoverDuringReturnAnimation(
         forceCoverOnly = forceCoverOnly

@@ -13,7 +13,7 @@ import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.WatchLater
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.Clock
 import io.github.alexzhirkevich.cupertino.icons.outlined.ChartBar
@@ -30,37 +30,37 @@ class BottomBarSettingsScreenIconPolicyTest {
 
     @Test
     fun bottomBarIconPolicy_usesSemanticIconsForSecondaryTabs() {
-        assertSameVectorAsset(CupertinoIcons.Outlined.RectangleStack, resolveBottomBarTabIcon("DYNAMIC", UiPreset.IOS))
-        assertSameVectorAsset(CupertinoIcons.Outlined.Star, resolveBottomBarTabIcon("FAVORITE", UiPreset.IOS))
-        assertSameVectorAsset(CupertinoIcons.Outlined.Clock, resolveBottomBarTabIcon("WATCHLATER", UiPreset.IOS))
+        assertSameVectorAsset(CupertinoIcons.Outlined.RectangleStack, resolveBottomBarTabIcon("DYNAMIC", AppSemanticIconFamily.CUPERTINO))
+        assertSameVectorAsset(CupertinoIcons.Outlined.Star, resolveBottomBarTabIcon("FAVORITE", AppSemanticIconFamily.CUPERTINO))
+        assertSameVectorAsset(CupertinoIcons.Outlined.Clock, resolveBottomBarTabIcon("WATCHLATER", AppSemanticIconFamily.CUPERTINO))
     }
 
     @Test
-    fun bottomBarIconPolicy_usesMaterialIconsForMd3Preset() {
-        assertSameVectorAsset(Icons.Outlined.Home, resolveBottomBarTabIcon("HOME", UiPreset.MD3))
-        assertSameVectorAsset(Icons.Outlined.DynamicFeed, resolveBottomBarTabIcon("DYNAMIC", UiPreset.MD3))
-        assertSameVectorAsset(Icons.Outlined.StarBorder, resolveBottomBarTabIcon("FAVORITE", UiPreset.MD3))
-        assertSameVectorAsset(Icons.Outlined.WatchLater, resolveBottomBarTabIcon("WATCHLATER", UiPreset.MD3))
-        assertSameVectorAsset(Icons.Outlined.LiveTv, resolveBottomBarTabIcon("LIVE", UiPreset.MD3))
-        assertSameVectorAsset(Icons.Outlined.Settings, resolveBottomBarTabIcon("SETTINGS", UiPreset.MD3))
+    fun bottomBarIconPolicy_usesMaterialIconFamily() {
+        assertSameVectorAsset(Icons.Outlined.Home, resolveBottomBarTabIcon("HOME", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.DynamicFeed, resolveBottomBarTabIcon("DYNAMIC", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.StarBorder, resolveBottomBarTabIcon("FAVORITE", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.WatchLater, resolveBottomBarTabIcon("WATCHLATER", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.LiveTv, resolveBottomBarTabIcon("LIVE", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.Settings, resolveBottomBarTabIcon("SETTINGS", AppSemanticIconFamily.MATERIAL))
     }
 
     @Test
     fun topTabIconPolicy_usesSemanticIconsForContentCategories() {
-        assertSameVectorAsset(CupertinoIcons.Outlined.PersonCropCircleBadgePlus, resolveTopTabIcon("FOLLOW", UiPreset.IOS))
-        assertSameVectorAsset(CupertinoIcons.Outlined.ChartBar, resolveTopTabIcon("POPULAR", UiPreset.IOS))
-        assertSameVectorAsset(CupertinoIcons.Outlined.Grid, resolveTopTabIcon("PARTITION", UiPreset.IOS))
-        assertSameVectorAsset(CupertinoIcons.Outlined.Lightbulb, resolveTopTabIcon("KNOWLEDGE", UiPreset.IOS))
-        assertSameVectorAsset(CupertinoIcons.Outlined.Cpu, resolveTopTabIcon("TECH", UiPreset.IOS))
+        assertSameVectorAsset(CupertinoIcons.Outlined.PersonCropCircleBadgePlus, resolveTopTabIcon("FOLLOW", AppSemanticIconFamily.CUPERTINO))
+        assertSameVectorAsset(CupertinoIcons.Outlined.ChartBar, resolveTopTabIcon("POPULAR", AppSemanticIconFamily.CUPERTINO))
+        assertSameVectorAsset(CupertinoIcons.Outlined.Grid, resolveTopTabIcon("PARTITION", AppSemanticIconFamily.CUPERTINO))
+        assertSameVectorAsset(CupertinoIcons.Outlined.Lightbulb, resolveTopTabIcon("KNOWLEDGE", AppSemanticIconFamily.CUPERTINO))
+        assertSameVectorAsset(CupertinoIcons.Outlined.Cpu, resolveTopTabIcon("TECH", AppSemanticIconFamily.CUPERTINO))
     }
 
     @Test
-    fun topTabIconPolicy_usesMaterialIconsForMd3Preset() {
-        assertSameVectorAsset(Icons.Outlined.Person, resolveTopTabIcon("FOLLOW", UiPreset.MD3))
-        assertSameVectorAsset(Icons.AutoMirrored.Outlined.TrendingUp, resolveTopTabIcon("POPULAR", UiPreset.MD3))
-        assertSameVectorAsset(Icons.Outlined.GridView, resolveTopTabIcon("PARTITION", UiPreset.MD3))
-        assertSameVectorAsset(Icons.Outlined.Lightbulb, resolveTopTabIcon("KNOWLEDGE", UiPreset.MD3))
-        assertSameVectorAsset(Icons.Outlined.SmartToy, resolveTopTabIcon("TECH", UiPreset.MD3))
+    fun topTabIconPolicy_usesMaterialIconFamily() {
+        assertSameVectorAsset(Icons.Outlined.Person, resolveTopTabIcon("FOLLOW", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.AutoMirrored.Outlined.TrendingUp, resolveTopTabIcon("POPULAR", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.GridView, resolveTopTabIcon("PARTITION", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.Lightbulb, resolveTopTabIcon("KNOWLEDGE", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.SmartToy, resolveTopTabIcon("TECH", AppSemanticIconFamily.MATERIAL))
     }
 
     private fun assertSameVectorAsset(expected: ImageVector, actual: ImageVector) {

@@ -10,6 +10,37 @@ import kotlin.test.assertTrue
 class BottomBarMiuixPolicyTest {
 
     @Test
+    fun `runtime low blur budget disables expensive liquid glass effects`() {
+        assertTrue(
+            shouldRenderBottomBarLiquidGlassEffects(
+                glassEnabled = true,
+                forceLowBlurBudget = false,
+            )
+        )
+        assertFalse(
+            shouldRenderBottomBarLiquidGlassEffects(
+                glassEnabled = true,
+                forceLowBlurBudget = true,
+            )
+        )
+        assertFalse(
+            shouldRenderBottomBarLiquidGlassEffects(
+                glassEnabled = false,
+                forceLowBlurBudget = false,
+            )
+        )
+
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+        val renderer = source
+            .substringAfter("private fun KernelSuAlignedBottomBar(")
+            .substringBefore("@Composable\nprivate fun AndroidNativeBottomBarItem(")
+        assertTrue(renderer.contains("val effectiveGlassEnabled = shouldRenderBottomBarLiquidGlassEffects("))
+        assertTrue(renderer.contains("val glassLayersAlwaysOn = effectiveGlassEnabled && miuixBackdrop != null"))
+        assertTrue(renderer.contains("shouldUseBottomBarCaptureLens(effectiveGlassEnabled)"))
+        assertTrue(renderer.contains("glassEnabled = effectiveGlassEnabled"))
+    }
+
+    @Test
     fun `floating android native bottom bar adopts miuix chrome defaults`() {
         val spec = resolveMd3BottomBarFloatingChromeSpec(isFloating = true)
 
@@ -120,9 +151,13 @@ class BottomBarMiuixPolicyTest {
         assertTrue(source.contains(".miuixLayerBackdrop(tabsBackdrop)"))
         assertTrue(source.contains("val contentBackdrop = if (shouldRenderIndicatorBackdrop && miuixBackdrop != null)"))
         assertTrue(source.contains("rememberMiuixCombinedBackdrop(miuixBackdrop, tabsBackdrop)"))
-        assertTrue(source.contains("miuixBlur(4.dp.toPx(), 4.dp.toPx())"))
-        assertTrue(source.contains("refractionHeight = 24.dp.toPx()"))
-        assertTrue(source.contains("refractionAmount = 24.dp.toPx()"))
+        assertTrue(
+            source.contains(
+                "miuixBlur(AppSpacingTokens.ExtraSmall.toPx(), AppSpacingTokens.ExtraSmall.toPx())"
+            )
+        )
+        assertTrue(source.contains("refractionHeight = AppSpacingTokens.ExtraLarge.toPx()"))
+        assertTrue(source.contains("refractionAmount = AppSpacingTokens.ExtraLarge.toPx()"))
         assertTrue(source.contains("BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET = 88f / 56f"))
     }
 

@@ -20,7 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,8 +55,8 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.TodayWatchDislikedVideoSnapshot
 import com.android.purebilibili.core.store.TodayWatchFeedbackStore
 import com.android.purebilibili.core.store.withDislikedVideoFeedback
-import com.android.purebilibili.core.ui.IOSAlertDialog
-import com.android.purebilibili.core.ui.IOSDialogAction
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.components.UpBadgeName
@@ -107,7 +107,7 @@ internal fun shouldDeferRelatedVideoNavigationForSharedTransition(
  */
 @Composable
 fun RelatedVideosHeader() {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         color = Color.Transparent
     ) {
@@ -496,7 +496,7 @@ fun RelatedVideoGridRow(
 
     val blockRequest = blockCreatorRequest
     if (blockRequest != null) {
-        IOSAlertDialog(
+        AppAlertDialog(
             onDismissRequest = {
                 if (!isBlockingCreator) {
                     blockCreatorRequest = null
@@ -510,7 +510,7 @@ fun RelatedVideoGridRow(
                 )
             },
             confirmButton = {
-                IOSDialogAction(
+                AppDialogAction(
                     onClick = {
                         if (!isBlockingCreator) {
                             isBlockingCreator = true
@@ -539,7 +539,7 @@ fun RelatedVideoGridRow(
                 }
             },
             dismissButton = {
-                IOSDialogAction(
+                AppDialogAction(
                     onClick = {
                         if (!isBlockingCreator) {
                             blockCreatorRequest?.let { request ->

@@ -1,6 +1,10 @@
 // 文件路径: feature/home/components/LiquidIndicator.kt
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.OpticalContrastPalette
+
 
 
 import android.os.Build
@@ -60,18 +64,18 @@ internal fun LiquidIndicator(
     itemCount: Int,
     isDragging: Boolean,
     velocity: Float = 0f,
-    startPadding: Dp = 0.dp,
+    startPadding: Dp = AppSpacingTokens.None,
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
     isLiquidGlassEnabled: Boolean = false,
     clampToBounds: Boolean = false,
-    edgeInset: Dp = 0.dp,
+    edgeInset: Dp = AppSpacingTokens.None,
     viewportShiftPx: Float = 0f,
     indicatorWidthMultiplier: Float = 1.42f,
-    indicatorMinWidth: Dp = 104.dp,
-    indicatorMaxWidth: Dp = 136.dp,
+    indicatorMinWidth: Dp = AppSpacingTokens.TripleExtraLarge * 2 + AppSpacingTokens.Small,
+    indicatorMaxWidth: Dp = AppSpacingTokens.TripleExtraLarge * 3 - AppSpacingTokens.Small,
     maxWidthToItemRatio: Float = Float.POSITIVE_INFINITY,
-    indicatorHeight: Dp = 54.dp,
+    indicatorHeight: Dp = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro,
     lensIntensityBoost: Float = 1f,
     edgeWarpBoost: Float = 1f,
     chromaticBoost: Float = 1f,
@@ -246,11 +250,11 @@ fun SimpleLiquidIndicator(
     liquidGlassTuning: LiquidGlassTuning? = null,
     backdrop: Backdrop? = null,
     indicatorColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-    indicatorHeight: Dp = 34.dp,
-    cornerRadius: Dp = 16.dp,
+    indicatorHeight: Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Micro,
+    cornerRadius: Dp = AppSpacingTokens.Large,
     widthRatio: Float = 0.78f,
-    minWidth: Dp = 48.dp,
-    horizontalInset: Dp = 16.dp,
+    minWidth: Dp = AppSpacingTokens.TripleExtraLarge,
+    horizontalInset: Dp = AppSpacingTokens.Large,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -350,8 +354,8 @@ fun SimpleLiquidIndicator(
                     }
                 }
                 .border(
-                    width = 0.7.dp,
-                    color = Color.White.copy(alpha = if (isLiquidGlassEnabled) 0.62f else 0.25f),
+                    width = AppSpacingTokens.Micro * 0.35f,
+                    color = OpticalContrastPalette.Highlight.copy(alpha = if (isLiquidGlassEnabled) 0.62f else 0.25f),
                     shape = RoundedCornerShape(cornerRadius)
                 )
         )
@@ -552,8 +556,8 @@ private fun DrawScope.drawLiquidSphereSurface(
     drawRect(
         brush = Brush.radialGradient(
             colors = listOf(
-                Color.White.copy(alpha = centerGlowAlpha),
-                Color.White.copy(alpha = centerGlowAlpha * 0.35f),
+                OpticalContrastPalette.Highlight.copy(alpha = centerGlowAlpha),
+                OpticalContrastPalette.Highlight.copy(alpha = centerGlowAlpha * 0.35f),
                 Color.Transparent
             ),
             center = Offset(x = size.width / 2f, y = size.height * 0.54f),
@@ -564,10 +568,10 @@ private fun DrawScope.drawLiquidSphereSurface(
     drawRect(
         brush = Brush.horizontalGradient(
             colors = listOf(
-                Color.Black.copy(alpha = edgeShadeAlpha),
+                OpticalContrastPalette.Shadow.copy(alpha = edgeShadeAlpha),
                 Color.Transparent,
                 Color.Transparent,
-                Color.Black.copy(alpha = edgeShadeAlpha)
+                OpticalContrastPalette.Shadow.copy(alpha = edgeShadeAlpha)
             )
         )
     )
@@ -575,7 +579,7 @@ private fun DrawScope.drawLiquidSphereSurface(
     drawRect(
         brush = Brush.verticalGradient(
             colors = listOf(
-                Color.White.copy(
+                OpticalContrastPalette.Highlight.copy(
                     alpha = blendFloat(
                         start = if (isMoving) 0.10f else 0.06f,
                         stop = tuning.whiteOverlayAlpha * 1.2f,
@@ -583,7 +587,7 @@ private fun DrawScope.drawLiquidSphereSurface(
                     )
                 ),
                 Color.Transparent,
-                Color.Black.copy(alpha = if (isMoving) 0.09f else 0.04f)
+                OpticalContrastPalette.Shadow.copy(alpha = if (isMoving) 0.09f else 0.04f)
             )
         )
     )
@@ -591,9 +595,9 @@ private fun DrawScope.drawLiquidSphereSurface(
     val ringAlpha = clearWeight * if (isMoving) 0.22f else 0.16f
     if (ringAlpha > 0.01f) {
         val ringStroke = (size.minDimension * 0.05f).coerceAtLeast(1f)
-        val ringHighlight = lerp(baseColor, Color.White, 0.48f).copy(alpha = ringAlpha)
-        val ringMid = lerp(baseColor, Color.White, 0.22f).copy(alpha = ringAlpha * 0.86f)
-        val ringShadow = lerp(baseColor, Color.Black, 0.24f).copy(alpha = ringAlpha * 0.70f)
+        val ringHighlight = lerp(baseColor, OpticalContrastPalette.Highlight, 0.48f).copy(alpha = ringAlpha)
+        val ringMid = lerp(baseColor, OpticalContrastPalette.Highlight, 0.22f).copy(alpha = ringAlpha * 0.86f)
+        val ringShadow = lerp(baseColor, OpticalContrastPalette.Shadow, 0.24f).copy(alpha = ringAlpha * 0.70f)
         drawRoundRect(
             brush = Brush.sweepGradient(
                 colors = listOf(
@@ -615,10 +619,10 @@ private fun DrawScope.drawLiquidSphereSurface(
         drawRect(
             brush = Brush.horizontalGradient(
                 colors = listOf(
-                    lerp(baseColor, Color.White, 0.45f).copy(alpha = fringe),
+                    lerp(baseColor, OpticalContrastPalette.Highlight, 0.45f).copy(alpha = fringe),
                     Color.Transparent,
                     Color.Transparent,
-                    lerp(baseColor, Color.Black, 0.18f).copy(alpha = fringe)
+                    lerp(baseColor, OpticalContrastPalette.Shadow, 0.18f).copy(alpha = fringe)
                 )
             )
         )

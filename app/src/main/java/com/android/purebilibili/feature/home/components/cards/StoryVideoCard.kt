@@ -1,6 +1,12 @@
 // 文件路径: feature/home/components/cards/StoryVideoCard.kt
 package com.android.purebilibili.feature.home.components.cards
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
+import com.android.purebilibili.core.ui.MediaContrastPalette
+import com.android.purebilibili.core.ui.FeedTitleHierarchy
+import com.android.purebilibili.core.ui.feedContentTypography
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -53,6 +59,8 @@ import com.android.purebilibili.core.theme.LocalCornerRadiusScale
 import com.android.purebilibili.core.theme.iOSCornerRadius
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.components.UpBadgeName
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.resolveUpStatsText
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
@@ -96,7 +104,7 @@ internal fun StoryVideoCard(
     showUpBadge: Boolean = true,
     homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
     coverAspectRatio: Float = 4f / 3f,
-    cardHorizontalPadding: Dp = 0.dp,
+    cardHorizontalPadding: Dp = AppSpacingTokens.None,
     compactMetadata: Boolean = true,
     showOnlineCount: Boolean = false,
     showPublishTime: Boolean = false,
@@ -107,13 +115,20 @@ internal fun StoryVideoCard(
     onLongClick: ((VideoItem) -> Unit)? = null, // [修复] 长按预览回调
     onClick: (String, Long) -> Unit
 ) {
+    val contentTypography = feedContentTypography(
+        titleHierarchy = if (compactMetadata) {
+            FeedTitleHierarchy.Compact
+        } else {
+            FeedTitleHierarchy.Standard
+        },
+    )
     val haptic = rememberHapticFeedback()
     
     // [新增] 获取圆角缩放比例
     val cornerRadiusScale = LocalCornerRadiusScale.current
-    val cardCornerRadius = iOSCornerRadius.ExtraLarge * cornerRadiusScale  // 20.dp * scale
+    val cardCornerRadius = iOSCornerRadius.ExtraLarge * cornerRadiusScale  // AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall * scale
     val coverShape = RoundedCornerShape(cardCornerRadius)
-    val smallCornerRadius = iOSCornerRadius.Small * cornerRadiusScale - 2.dp  // 8.dp * scale
+    val smallCornerRadius = iOSCornerRadius.Small * cornerRadiusScale - AppSpacingTokens.Micro  // AppSpacingTokens.Small * scale
     val durationText = remember(video.duration) { FormatUtils.formatDuration(video.duration) }
     val showDurationOnCover = homeDurationStyle == HomeDurationStyle.OVERLAY_TEXT_ONLY
     val coverOverlayTextStyle = remember {
@@ -256,7 +271,7 @@ internal fun StoryVideoCard(
                 motionSpec = cardSharedTransitionMotionSpec,
                 clipShape = cardShellShape
             )
-            .padding(horizontal = cardHorizontalPadding, vertical = 8.dp)
+            .padding(horizontal = cardHorizontalPadding, vertical = AppSpacingTokens.Small)
             .animateEnter(
                 index = index,
                 key = Unit,
@@ -330,16 +345,15 @@ internal fun StoryVideoCard(
                     style = badgeStylePolicy.coverStyle,
                     shape = AppShapes.container(ContainerLevel.Chip),
                     containerColor = BiliPink.copy(alpha = 0.82f),
-                    borderColor = Color.White.copy(alpha = 0.24f),
+                    borderColor = MediaContrastPalette.Foreground.copy(alpha = 0.24f),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(8.dp)
+                        .padding(AppSpacingTokens.Small)
                 ) {
                     Text(
                         text = premiumBadgeLabel,
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
+                        color = MediaContrastPalette.Foreground,
+                        style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1
                     )
                 }
@@ -349,16 +363,16 @@ internal fun StoryVideoCard(
             if (showDurationOnCover) {
                 Text(
                     text = durationText,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    style = coverOverlayTextStyle,
+                    color = MediaContrastPalette.Foreground,
+                    style = contentTypography.coverBadge
+                        .copy(fontWeight = FontWeight.Medium)
+                        .merge(coverOverlayTextStyle),
                     maxLines = 1,
                     softWrap = false,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(10.dp)
+                        .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro)
                 )
             }
         }
@@ -372,16 +386,14 @@ internal fun StoryVideoCard(
                 isQuickReturnFromDetail = isQuickReturningFromVideoDetail,
             )
         ) {
-        Spacer(modifier = Modifier.height(if (compactMetadata) 8.dp else 12.dp))
+        Spacer(modifier = Modifier.height(if (compactMetadata) AppSpacingTokens.Small else AppSpacingTokens.Medium))
         
         Text(
             text = video.title,
             color = MaterialTheme.colorScheme.onSurface,
-            fontSize = if (compactMetadata) 15.sp else 17.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = contentTypography.title,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            lineHeight = if (compactMetadata) 20.sp else 23.sp,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -390,10 +402,10 @@ internal fun StoryVideoCard(
             publishTimeText = publishTimeRowText,
             emphasizePublishTime = emphasizePublishTime,
             publishTimeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-            topSpacingDp = if (compactMetadata) 4 else 8
+            topSpacing = if (compactMetadata) AppSpacingTokens.ExtraSmall else AppSpacingTokens.Small
         )
         
-        Spacer(modifier = Modifier.height(if (compactMetadata) 6.dp else 8.dp))
+        Spacer(modifier = Modifier.height(if (compactMetadata) AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro else AppSpacingTokens.Small))
         
         // UP主信息 + 数据
         Row(
@@ -422,16 +434,13 @@ internal fun StoryVideoCard(
                                 .build(),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(24.dp)
+                                .size(AppSpacingTokens.ExtraLarge)
                                 .clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
                     }
                 } else null,
-                nameStyle = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                ),
+                nameStyle = contentTypography.author.copy(fontWeight = FontWeight.Medium),
                 nameColor = MaterialTheme.colorScheme.primary,
                 metaColor = MaterialTheme.colorScheme.primary,
                 badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
@@ -445,27 +454,26 @@ internal fun StoryVideoCard(
             if (scrollLitePolicy.showSecondaryStatsRow) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(start = 16.dp) // 与 UP 主信息分开
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
+                    modifier = Modifier.padding(start = AppSpacingTokens.Large) // 与 UP 主信息分开
                 ) {
                     // 播放量
                     if (video.stat.view > 0) {
                         Box {
                              Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
                             ) {
                                 Icon(
                                     imageVector = CupertinoIcons.Outlined.PlayCircle,
                                     contentDescription = null,
-                                    modifier = Modifier.size(12.dp),
+                                    modifier = Modifier.size(AppSpacingTokens.Medium),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     text = FormatUtils.formatStat(video.stat.view.toLong()),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
+                                    style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
                                 )
                             }
                         }
@@ -476,19 +484,18 @@ internal fun StoryVideoCard(
                          Box {
                              Row(
                                  verticalAlignment = Alignment.CenterVertically,
-                                 horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                 horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
                              ) {
                                  Icon(
                                      imageVector = CupertinoIcons.Outlined.BubbleLeft,
                                      contentDescription = null,
-                                     modifier = Modifier.size(12.dp),
+                                     modifier = Modifier.size(AppSpacingTokens.Medium),
                                      tint = MaterialTheme.colorScheme.onSurfaceVariant
                                  )
                                  Text(
                                      text = FormatUtils.formatStat(video.stat.danmaku.toLong()),
                                      color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                     fontSize = 11.sp,
-                                     fontWeight = FontWeight.Medium
+                                     style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
                                  )
                              }
                          }
@@ -497,19 +504,18 @@ internal fun StoryVideoCard(
                     if (onlineCount.isNotEmpty()) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
                         ) {
                             Icon(
                                 imageVector = CupertinoIcons.Outlined.Eye,
                                 contentDescription = null,
-                                modifier = Modifier.size(12.dp),
+                                modifier = Modifier.size(AppSpacingTokens.Medium),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = onlineCount,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
+                                style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
                             )
                         }
                     }
@@ -520,11 +526,11 @@ internal fun StoryVideoCard(
     }
     
     //  [新增] 长按删除菜单
-    DropdownMenu(
+    AppDropdownMenu(
         expanded = showDismissMenu,
         onDismissRequest = { showDismissMenu = false }
     ) {
-        DropdownMenuItem(
+        AppDropdownMenuItem(
             text = { 
                 Text(
                     "🚫 不感兴趣",

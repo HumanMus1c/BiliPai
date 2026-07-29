@@ -1,13 +1,12 @@
 package com.android.purebilibili.feature.home
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.animation.*
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.*
@@ -17,11 +16,11 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Card
+import com.android.purebilibili.core.ui.components.AppCard
 import androidx.compose.material3.CardDefaults
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,7 +51,6 @@ import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard
 import com.android.purebilibili.feature.home.components.cards.LiveRoomCard
 import com.android.purebilibili.feature.home.components.cards.StoryVideoCard
 
-import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
 import androidx.compose.ui.Alignment
 import coil.compose.AsyncImage
 import java.io.File
@@ -246,7 +244,7 @@ internal fun HomeCategoryPageContent(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = AppSpacingTokens.Small, vertical = AppSpacingTokens.Small)
                     )
                 }
                 
@@ -274,7 +272,7 @@ internal fun HomeCategoryPageContent(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = AppSpacingTokens.Small, vertical = AppSpacingTokens.Small)
                     )
                 }
                 
@@ -372,7 +370,7 @@ internal fun HomeCategoryPageContent(
                         onSubCategoryChange = onPopularSubCategoryChange,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 0.dp)
+                            .padding(horizontal = AppSpacingTokens.Small, vertical = AppSpacingTokens.None)
                     )
                 }
             }
@@ -527,12 +525,12 @@ internal fun HomeCategoryPageContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(AppSpacingTokens.Large),
                     contentAlignment = Alignment.Center
                 ) {
                     if (categoryState.isLoading) {
-                        CupertinoActivityIndicator(
-                            modifier = Modifier.size(24.dp),
+                        AdaptiveLoadingIndicator(
+                            size = AppSpacingTokens.ExtraLarge,
                             color = MaterialTheme.colorScheme.secondary
                         )
                     }
@@ -542,7 +540,7 @@ internal fun HomeCategoryPageContent(
         
         // Spacer
         item(span = { GridItemSpan(gridColumns) }) {
-            Box(modifier = Modifier.fillMaxWidth().height(20.dp))
+            Box(modifier = Modifier.fillMaxWidth().height(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall))
         }
         }
         }
@@ -568,11 +566,11 @@ private fun PopularSubCategorySegmentedControl(
             subCategories.getOrNull(index)?.let(onSubCategoryChange)
         },
         modifier = modifier,
-        height = 48.dp,
-        indicatorHeight = 46.dp,
-        labelFontSize = 14.sp,
-        containerHorizontalPadding = 3.dp,
-        containerVerticalPadding = 3.dp,
+        height = AppSpacingTokens.TripleExtraLarge,
+        indicatorHeight = AppSpacingTokens.TripleExtraLarge - AppSpacingTokens.Micro,
+        labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
+        containerHorizontalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
+        containerVerticalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
         liquidGlassEffectsEnabled = true,
         dragSelectionEnabled = false,
         preferInlineContentStyle = true
@@ -600,11 +598,11 @@ private fun TodayWatchModeSegmentedControl(
         },
         modifier = modifier,
         enabled = enabled,
-        height = 42.dp,
-        indicatorHeight = 34.dp,
-        labelFontSize = 14.sp,
-        containerHorizontalPadding = 3.dp,
-        containerVerticalPadding = 3.dp,
+        height = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small + AppSpacingTokens.Micro,
+        indicatorHeight = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Micro,
+        labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
+        containerHorizontalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
+        containerVerticalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
         liquidGlassEffectsEnabled = true,
         dragSelectionEnabled = true,
         preferInlineContentStyle = false
@@ -644,17 +642,17 @@ private fun TodayWatchPlanCard(
         revealContent = true
     }
 
-    Card(
+    AppCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
         ),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = AppSpacingTokens.Small, vertical = AppSpacingTokens.ExtraSmall)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(AppSpacingTokens.Medium),
+            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -667,28 +665,28 @@ private fun TodayWatchPlanCard(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    TextButton(
+                Row(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)) {
+                    AppTextButton(
                         enabled = !isLoading,
                         onClick = onRefresh
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Refresh,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(AppSpacingTokens.Large)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
                         Text("刷新")
                     }
-                    TextButton(
+                    AppTextButton(
                         onClick = { onCollapsedChange(!collapsed) }
                     ) {
                         Icon(
                             imageVector = if (collapsed) Icons.Rounded.ExpandMore else Icons.Rounded.ExpandLess,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(AppSpacingTokens.Large)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
                         Text(if (collapsed) "展开" else "收起")
                     }
                 }
@@ -724,12 +722,12 @@ private fun TodayWatchPlanCard(
 
             if (isLoading) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AdaptiveLoadingIndicator(
-                        size = 14.dp,
-                        strokeWidth = 1.8.dp
+                        size = AppSpacingTokens.Medium + AppSpacingTokens.Micro,
+                        strokeWidth = AppSpacingTokens.Micro * 0.9f
                     )
                     Text("正在根据你的历史观看习惯生成推荐…", style = MaterialTheme.typography.bodySmall)
                 }
@@ -784,8 +782,8 @@ private fun TodayWatchPlanCard(
                     exponent = cardConfig.waterfallExponent
                 ) {
                     FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                        verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
                     ) {
                         activePlan.upRanks.forEachIndexed { index, up ->
                             val clickable = shouldEnableTodayWatchUpRankClick(up)
@@ -799,7 +797,7 @@ private fun TodayWatchPlanCard(
                                 },
                                 modifier = Modifier
                                     .clickable(enabled = clickable) { onUpClick(up.mid) }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Micro)
                             )
                         }
                     }
@@ -830,8 +828,8 @@ private fun TodayWatchPlanCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { onVideoClick(video) }
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    .padding(vertical = AppSpacingTokens.ExtraSmall),
+                                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
@@ -845,13 +843,13 @@ private fun TodayWatchPlanCard(
                                         contentDescription = video.owner.name,
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
-                                            .size(24.dp)
+                                            .size(AppSpacingTokens.ExtraLarge)
                                             .clip(CircleShape)
                                     )
                                 } else {
                                     Box(
                                         modifier = Modifier
-                                            .size(24.dp)
+                                            .size(AppSpacingTokens.ExtraLarge)
                                             .clip(CircleShape)
                                             .background(MaterialTheme.colorScheme.surfaceTint.copy(alpha = 0.15f)),
                                         contentAlignment = Alignment.Center
@@ -865,7 +863,7 @@ private fun TodayWatchPlanCard(
                                 }
                                 Column(
                                     modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
                                 ) {
                                     Text(
                                         text = video.title,
@@ -916,27 +914,17 @@ private fun WaterfallReveal(
     }
     val delay = nonLinearWaterfallDelayMillis(
         index = index,
-        baseDelayMs = 52,
         exponent = exponent,
-        maxDelayMs = 620
     )
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(
-            animationSpec = tween(
-                durationMillis = 280,
-                delayMillis = delay,
-                easing = LinearOutSlowInEasing
-            )
+            animationSpec = homeWaterfallFadeInSpec(delay)
         ) + expandVertically(
             expandFrom = Alignment.Top,
-            animationSpec = tween(
-                durationMillis = 420,
-                delayMillis = delay,
-                easing = FastOutSlowInEasing
-            )
+            animationSpec = homeWaterfallExpandSpec(delay)
         ),
-        exit = fadeOut(animationSpec = tween(durationMillis = 120))
+        exit = fadeOut(animationSpec = homeWaterfallFadeOutSpec())
     ) {
         content()
     }
@@ -947,23 +935,23 @@ private fun OldContentDivider() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro),
         verticalAlignment = Alignment.CenterVertically
     ) {
         HorizontalDivider(
             modifier = Modifier.weight(1f),
-            thickness = 0.5.dp,
+            thickness = AppSpacingTokens.Micro / 4,
             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
         )
         Text(
             text = "以下是上次最新的视频",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 10.dp)
+            modifier = Modifier.padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro)
         )
         HorizontalDivider(
             modifier = Modifier.weight(1f),
-            thickness = 0.5.dp,
+            thickness = AppSpacingTokens.Micro / 4,
             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
         )
     }

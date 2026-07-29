@@ -13,11 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,7 +69,7 @@ fun InteractiveChoiceOverlay(
                         3 -> TextAlign.Right
                         else -> TextAlign.Center
                     }
-                    Button(
+                    AppButton(
                         onClick = { onSelectChoice(choice.edgeId, choice.cid) },
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -125,7 +125,7 @@ fun InteractiveChoiceOverlay(
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
-                        TextButton(
+                        AppTextButton(
                             onClick = onDismiss,
                             modifier = Modifier.size(width = 56.dp, height = 32.dp)
                         ) {
@@ -135,7 +135,7 @@ fun InteractiveChoiceOverlay(
 
                     state.choices.forEach { choice ->
                         val label = if (choice.isDefault) "${choice.text}（默认）" else choice.text
-                        Button(
+                        AppButton(
                             onClick = { onSelectChoice(choice.edgeId, choice.cid) },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
@@ -182,7 +182,7 @@ private fun CoordinateModeHeader(
                 color = MaterialTheme.colorScheme.error
             )
         }
-        TextButton(
+        AppTextButton(
             onClick = onDismiss,
             modifier = Modifier.size(width = 56.dp, height = 28.dp)
         ) {

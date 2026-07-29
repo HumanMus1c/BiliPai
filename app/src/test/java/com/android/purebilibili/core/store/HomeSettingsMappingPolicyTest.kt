@@ -361,13 +361,11 @@ class HomeSettingsMappingPolicyTest {
         assertTrue(
             resolveHomeHeaderBlurEnabled(
                 mode = HomeHeaderBlurMode.FOLLOW_PRESET,
-                uiPreset = UiPreset.IOS
             )
         )
         assertTrue(
             resolveHomeHeaderBlurEnabled(
                 mode = HomeHeaderBlurMode.FOLLOW_PRESET,
-                uiPreset = UiPreset.MD3
             )
         )
     }

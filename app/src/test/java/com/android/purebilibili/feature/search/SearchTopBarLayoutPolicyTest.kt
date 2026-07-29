@@ -1,6 +1,6 @@
 package com.android.purebilibili.feature.search
 
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.AppTopTabPresentation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -26,20 +26,17 @@ class SearchTopBarLayoutPolicyTest {
     fun material3SearchInput_omitsLeadingIconToPreservePlaceholderWidth() {
         assertTrue(
             shouldOmitSearchInputLeadingIcon(
-                uiPreset = UiPreset.MD3,
-                usesMiuixSearchInput = false
+                tabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
             )
         )
         assertFalse(
             shouldOmitSearchInputLeadingIcon(
-                uiPreset = UiPreset.MD3,
-                usesMiuixSearchInput = true
+                tabPresentation = AppTopTabPresentation.TONAL_CAPSULE,
             )
         )
         assertFalse(
             shouldOmitSearchInputLeadingIcon(
-                uiPreset = UiPreset.IOS,
-                usesMiuixSearchInput = false
+                tabPresentation = AppTopTabPresentation.MOVING_CAPSULE,
             )
         )
     }

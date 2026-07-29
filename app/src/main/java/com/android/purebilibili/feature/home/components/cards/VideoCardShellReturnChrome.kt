@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home.components.cards
 
+import com.android.purebilibili.core.ui.AppSpacingTokens
+
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -31,7 +33,7 @@ internal fun Modifier.videoCardShellReturnChromeAlpha(
     if (!enabled || bvid.isBlank()) return this
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val bgState = LocalVideoCardTransitionBackgroundState.current
-    val followDistancePx = with(LocalDensity.current) { 8.dp.toPx() }
+    val followDistancePx = with(LocalDensity.current) { AppSpacingTokens.Small.toPx() }
     val isSharedMorphSourceCard = remember(
         bvid,
         sourceRoute,

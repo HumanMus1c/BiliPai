@@ -354,7 +354,7 @@ class SearchScreenPolicyTest {
         assertFalse(resultPagerBody.contains("SearchFilterBar("))
         assertFalse(searchSource.contains("detectHorizontalDragGestures"))
         assertTrue(searchSource.contains("TabRowDefaults.SecondaryIndicator"))
-        assertTrue(searchSource.contains("OutlinedTextField("))
+        assertTrue(searchSource.contains("AppSearchField("))
         assertTrue(searchSource.contains("material3.FilterChip("))
         assertTrue(searchSource.contains("material3.InputChip("))
         assertFalse(searchSource.contains("SearchPagerTabIndicator("))

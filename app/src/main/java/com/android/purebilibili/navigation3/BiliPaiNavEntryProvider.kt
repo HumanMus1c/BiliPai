@@ -55,6 +55,7 @@ private val SEARCH_LIGHT_SIBLING_ROUTE_BASES = setOf(
 internal fun biliPaiNavEntryProvider(
     sourceMetadata: BiliPaiNavSourceMetadata,
     cardTransitionEnabled: Boolean = true,
+    videoDetailTransitionsEnabled: Boolean = true,
     reduceMotion: Boolean = false,
     visibleBottomBarRoutes: Set<String> = emptySet(),
     activeMainHostRoute: String? = null,
@@ -65,6 +66,7 @@ internal fun biliPaiNavEntryProvider(
             key = key,
             sourceMetadata = sourceMetadata,
             cardTransitionEnabled = cardTransitionEnabled,
+            videoDetailTransitionsEnabled = videoDetailTransitionsEnabled,
             reduceMotion = reduceMotion,
             visibleBottomBarRoutes = visibleBottomBarRoutes,
             activeMainHostRoute = activeMainHostRoute,
@@ -160,11 +162,21 @@ internal fun biliPaiNavEntryMetadata(
     key: BiliPaiNavKey,
     sourceMetadata: BiliPaiNavSourceMetadata,
     cardTransitionEnabled: Boolean = true,
+    videoDetailTransitionsEnabled: Boolean = true,
     reduceMotion: Boolean = false,
     visibleBottomBarRoutes: Set<String> = emptySet(),
     activeMainHostRoute: String? = null,
 ): Map<String, Any> {
-    val transitions = if (reduceMotion) {
+    val suppressVideoDetailMotion =
+        !videoDetailTransitionsEnabled && key is BiliPaiNavKey.VideoDetail
+    val transitions = if (suppressVideoDetailMotion) {
+        resolveBiliPaiNavEntryRouteTransitions(
+            key = key,
+            cardTransitionEnabled = cardTransitionEnabled,
+            videoDetailTransitionsEnabled = false,
+            sourceMetadata = sourceMetadata,
+        )
+    } else if (reduceMotion) {
         BiliPaiNavEntryRouteTransitions(
             forward = BiliPaiNavRouteTransition.REDUCED_MOTION_FADE,
             pop = BiliPaiNavRouteTransition.REDUCED_MOTION_FADE,
@@ -174,13 +186,14 @@ internal fun biliPaiNavEntryMetadata(
         resolveBiliPaiNavEntryRouteTransitions(
             key = key,
             cardTransitionEnabled = cardTransitionEnabled,
+            videoDetailTransitionsEnabled = videoDetailTransitionsEnabled,
             sourceMetadata = sourceMetadata
         )
     }
     return mapOf(
         BILI_PAI_NAV_ROUTE_BASE_METADATA_KEY to key.routeBase
     ) + NavDisplay.transitionSpec {
-        val transition = if (reduceMotion) {
+        val transition = if (reduceMotion && !suppressVideoDetailMotion) {
             BiliPaiNavRouteTransition.REDUCED_MOTION_FADE
         } else {
             resolveBiliPaiNavEntryForwardRouteTransition(
@@ -193,7 +206,7 @@ internal fun biliPaiNavEntryMetadata(
         }
         resolveBiliPaiNavContentTransform(transition)
     } + NavDisplay.popTransitionSpec {
-        val transition = if (reduceMotion) {
+        val transition = if (reduceMotion && !suppressVideoDetailMotion) {
             BiliPaiNavRouteTransition.REDUCED_MOTION_FADE
         } else {
             resolveBiliPaiNavEntryPopRouteTransition(
@@ -201,6 +214,7 @@ internal fun biliPaiNavEntryMetadata(
                 fromRoute = initialState.biliPaiRouteBase(),
                 toRoute = targetState.biliPaiRouteBase(),
                 cardTransitionEnabled = cardTransitionEnabled,
+                videoDetailTransitionsEnabled = videoDetailTransitionsEnabled,
                 sharedElementPopReady = isRelatedVideoDetailReturn(
                     fromKey = key as? BiliPaiNavKey.VideoDetail,
                     toKey = targetState.biliPaiTopKey(),
@@ -260,6 +274,7 @@ internal fun resolveBiliPaiNavEntryPopRouteTransition(
     fromRoute: String?,
     toRoute: String?,
     cardTransitionEnabled: Boolean = true,
+    videoDetailTransitionsEnabled: Boolean = true,
     sharedElementPopReady: Boolean = false,
     sourceMetadata: BiliPaiNavSourceMetadata,
     activeMainHostRoute: String? = null
@@ -271,6 +286,10 @@ internal fun resolveBiliPaiNavEntryPopRouteTransition(
     val videoToCardReturnTarget = normalizedFromRoute == VIDEO_ROUTE_BASE &&
         normalizedToRoute != null &&
         isCardReturnTargetRouteBase(normalizedToRoute)
+
+    if (!videoDetailTransitionsEnabled && videoToCardReturnTarget) {
+        return BiliPaiNavRouteTransition.VIDEO_DETAIL_NO_ANIMATION
+    }
 
     if (cardTransitionEnabled && sharedElementPopReady) {
         return BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
@@ -341,8 +360,16 @@ internal data class BiliPaiNavEntryRouteTransitions(
 internal fun resolveBiliPaiNavEntryRouteTransitions(
     key: BiliPaiNavKey,
     cardTransitionEnabled: Boolean = true,
+    videoDetailTransitionsEnabled: Boolean = true,
     sourceMetadata: BiliPaiNavSourceMetadata
 ): BiliPaiNavEntryRouteTransitions {
+    if (!videoDetailTransitionsEnabled && key is BiliPaiNavKey.VideoDetail) {
+        return BiliPaiNavEntryRouteTransitions(
+            forward = BiliPaiNavRouteTransition.VIDEO_DETAIL_NO_ANIMATION,
+            pop = BiliPaiNavRouteTransition.VIDEO_DETAIL_NO_ANIMATION,
+            predictivePop = BiliPaiNavRouteTransition.VIDEO_DETAIL_NO_ANIMATION,
+        )
+    }
     val recordedMatchingVideoSource = isSharedReadyCardMorphPush(key, sourceMetadata)
     val sharedReadyVideoPush = recordedMatchingVideoSource &&
         sourceMetadata.sharedTransitionEntryReady

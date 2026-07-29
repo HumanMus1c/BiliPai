@@ -30,9 +30,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
+import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -582,10 +582,10 @@ fun PortraitVideoPager(
         )
     }
     var currentPlayingCid by remember(initialInfo.cid, useSharedPlayer) {
-        mutableStateOf(if (useSharedPlayer) initialInfo.cid else 0L)
+        mutableLongStateOf(if (useSharedPlayer) initialInfo.cid else 0L)
     }
     var currentPlayingAid by remember(initialInfo.aid, useSharedPlayer) {
-        mutableStateOf(if (useSharedPlayer) initialInfo.aid else 0L)
+        mutableLongStateOf(if (useSharedPlayer) initialInfo.aid else 0L)
     }
     var isLoading by remember { mutableStateOf(false) }
     var lastCommittedPage by remember(useSharedPlayer) {
@@ -2297,7 +2297,7 @@ private fun VideoPageItem(
                 }
 
                 if (isLoading && isCurrentPage) {
-                    CircularProgressIndicator(
+                    AppCircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
                         color = Color.White
                     )
@@ -2488,7 +2488,7 @@ private fun VideoPageItem(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            Button(
+            AppButton(
                 onClick = {
                     resetViewportTransform()
                     onPortraitOverlayVisibleChange(true)

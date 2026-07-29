@@ -4,11 +4,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.CommonListHeaderCollapseMode
-import com.android.purebilibili.core.store.resolveEffectiveLiquidGlassEnabled
 import com.android.purebilibili.core.store.resolveHomeHeaderBlurEnabled
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.ui.resolveCompactCapsuleChromeSpec
+import com.android.purebilibili.core.ui.AppTopChromePolicy
+import com.android.purebilibili.core.ui.AppTopTabPresentation
 
 internal data class CommonListVideoCardAppearance(
     val glassEnabled: Boolean,
@@ -16,6 +14,21 @@ internal data class CommonListVideoCardAppearance(
     val showCoverGlassBadges: Boolean,
     val showInfoGlassBadges: Boolean
 )
+
+internal fun resolveCommonListSingleColumnMaxWidth(): Dp = 840.dp
+
+internal fun resolveCommonListGridMinColumnWidth(isExpandedScreen: Boolean): Dp =
+    if (isExpandedScreen) 240.dp else 170.dp
+
+internal fun resolveFavoriteSubscribedFolderPreviewWidth(): Dp = 112.dp
+
+internal data class FavoriteProgressBadgeWidthSpec(
+    val minWidth: Dp,
+    val maxWidth: Dp,
+)
+
+internal fun resolveFavoriteProgressBadgeWidthSpec(): FavoriteProgressBadgeWidthSpec =
+    FavoriteProgressBadgeWidthSpec(minWidth = 104.dp, maxWidth = 150.dp)
 
 internal data class CommonListFavoriteHeaderLayout(
     val searchBarHeightDp: Int,
@@ -37,11 +50,9 @@ internal data class CommonListFavoriteHeaderLayout(
 
 internal fun resolveCommonListHeaderBlurEnabled(
     homeSettings: HomeSettings,
-    uiPreset: UiPreset
 ): Boolean {
     return resolveHomeHeaderBlurEnabled(
         mode = homeSettings.headerBlurMode,
-        uiPreset = uiPreset
     )
 }
 
@@ -116,18 +127,13 @@ internal fun resolveCommonListHeaderOffsetForSettledContent(
 
 internal fun resolveCommonListVideoCardAppearance(
     homeSettings: HomeSettings,
-    uiPreset: UiPreset
+    liquidGlassEnabled: Boolean,
 ): CommonListVideoCardAppearance {
     val headerBlurEnabled = resolveCommonListHeaderBlurEnabled(
         homeSettings = homeSettings,
-        uiPreset = uiPreset
     )
     return CommonListVideoCardAppearance(
-        glassEnabled = resolveEffectiveLiquidGlassEnabled(
-            requestedEnabled = homeSettings.isLiquidGlassEnabled,
-            uiPreset = uiPreset,
-            androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
-        ),
+        glassEnabled = liquidGlassEnabled,
         blurEnabled = headerBlurEnabled || homeSettings.isBottomBarBlurEnabled,
         showCoverGlassBadges = false,
         showInfoGlassBadges = false
@@ -135,12 +141,11 @@ internal fun resolveCommonListVideoCardAppearance(
 }
 
 internal fun resolveCommonListFavoriteHeaderLayout(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+    topChromePolicy: AppTopChromePolicy,
 ): CommonListFavoriteHeaderLayout {
-    val compactChrome = resolveCompactCapsuleChromeSpec(uiPreset, androidNativeVariant)
-    return when {
-        uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX -> {
+    val compactChrome = topChromePolicy.compactChromeSpec
+    return when (topChromePolicy.tabPresentation) {
+        AppTopTabPresentation.TONAL_CAPSULE -> {
             CommonListFavoriteHeaderLayout(
                 searchBarHeightDp = compactChrome.primaryHeightDp,
                 searchBarHorizontalPaddingDp = 16,
@@ -159,7 +164,7 @@ internal fun resolveCommonListFavoriteHeaderLayout(
                 headerBackgroundAlphaMultiplier = 0.84f
             )
         }
-        uiPreset == UiPreset.MD3 -> {
+        AppTopTabPresentation.MATERIAL_UNDERLINE -> {
             CommonListFavoriteHeaderLayout(
                 searchBarHeightDp = compactChrome.primaryHeightDp,
                 searchBarHorizontalPaddingDp = 16,
@@ -178,7 +183,7 @@ internal fun resolveCommonListFavoriteHeaderLayout(
                 headerBackgroundAlphaMultiplier = 0.86f
             )
         }
-        else -> {
+        AppTopTabPresentation.MOVING_CAPSULE -> {
             CommonListFavoriteHeaderLayout(
                 searchBarHeightDp = compactChrome.primaryHeightDp,
                 searchBarHorizontalPaddingDp = 16,
