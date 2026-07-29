@@ -5,8 +5,6 @@ on:
     - cron: '0 2 * * *'        # 每天 UTC 02:00 = 北京时间 10:00
   workflow_dispatch:            # 允许在 Actions 页面手动触发
 
-permissions:
-  contents: write              # 授予 GITHUB_TOKEN 写权限，无需自建 secret
 
 jobs:
   sync:
