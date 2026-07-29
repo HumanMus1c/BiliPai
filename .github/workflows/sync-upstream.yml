@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: '0 2 * * *'        # 每天 UTC 02:00 = 北京时间 10:00
   workflow_dispatch:            # 允许在 Actions 页面手动触发
+  
+permissions:
+  contents: write
 
 
 jobs:
