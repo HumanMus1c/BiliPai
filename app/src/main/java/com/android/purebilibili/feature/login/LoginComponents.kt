@@ -37,11 +37,11 @@ import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
@@ -326,14 +326,14 @@ fun BrandingHeader(isSmall: Boolean = false) {
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Filled.Star,
                     contentDescription = null,
                     tint = palette.buttonGradientStart,
                     modifier = Modifier.size(12.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(
+                AppText(
                     text = "高画质登录",
                     color = palette.secondaryText,
                     fontSize = 11.sp,
@@ -359,14 +359,14 @@ fun BrandingHeader(isSmall: Boolean = false) {
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text(
+        AppText(
             text = "BiliPai 登录",
             color = palette.primaryText,
             fontSize = if (isSmall) 24.sp else 30.sp,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(6.dp))
-        Text(
+        AppText(
             text = "安全登录，继续你的观看进度",
             color = palette.secondaryText,
             fontSize = 13.sp
@@ -432,14 +432,14 @@ fun LoginMethodTabs(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = fg,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(
+                    AppText(
                         text = title,
                         color = fg,
                         fontSize = 14.sp,
@@ -464,14 +464,14 @@ fun QrCodeLoginContent(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
+        AppText(
             text = "打开哔哩哔哩 App 扫码",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = palette.primaryText
         )
         Spacer(modifier = Modifier.height(6.dp))
-        Text(
+        AppText(
             text = resolveQrLoginReason(),
             color = palette.secondaryText,
             fontSize = 13.sp,
@@ -530,14 +530,14 @@ fun QrCodeLoginContent(
                                 .alpha(0.18f)
                         )
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
+                            AppIcon(
                                 imageVector = CupertinoIcons.Filled.Phone,
                                 contentDescription = null,
                                 tint = palette.success,
                                 modifier = Modifier.size(38.dp)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
+                            AppText(
                                 text = "已扫码，请在手机确认",
                                 color = palette.qrContent,
                                 fontSize = 13.sp,
@@ -547,20 +547,20 @@ fun QrCodeLoginContent(
                     }
                     is LoginState.Error -> {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
+                            AppIcon(
                                 imageVector = CupertinoIcons.Filled.ExclamationmarkCircle,
                                 contentDescription = null,
                                 tint = palette.error,
                                 modifier = Modifier.size(34.dp)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
+                            AppText(
                                 text = "二维码加载失败",
                                 color = palette.qrContent,
                                 fontSize = 13.sp
                             )
                             AppTextButton(onClick = onRefresh) {
-                                Text(text = "重试", color = palette.link)
+                                AppText(text = "重试", color = palette.link)
                             }
                         }
                     }
@@ -581,9 +581,9 @@ fun QrCodeLoginContent(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "↻", color = palette.link, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                AppText(text = "↻", color = palette.link, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "刷新二维码", color = palette.link, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                AppText(text = "刷新二维码", color = palette.link, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -650,14 +650,14 @@ fun PhoneLoginContent(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
+        AppText(
             text = "手机号验证登录",
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = palette.primaryText
         )
         Spacer(modifier = Modifier.height(6.dp))
-        Text(
+        AppText(
             text = "验证码有效期 5 分钟，同手机号 60 秒内不可重复发送",
             color = palette.secondaryText,
             fontSize = 12.sp,
@@ -676,14 +676,14 @@ fun PhoneLoginContent(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Filled.Star,
                     contentDescription = null,
                     tint = palette.buttonGradientStart,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
+                AppText(
                     text = "提示：仅扫码登录可解锁更高画质（4K/HDR/1080P60）",
                     fontSize = 12.sp,
                     color = palette.tertiaryText
@@ -723,7 +723,7 @@ fun PhoneLoginContent(
         ) {
             phoneRegions.forEach { region ->
                 AppDropdownMenuItem(
-                    text = { Text("${region.dialingCode} ${region.name}") },
+                    text = { AppText("${region.dialingCode} ${region.name}") },
                     onClick = {
                         selectedRegionCid = region.cid
                         regionMenuExpanded = false
@@ -734,7 +734,7 @@ fun PhoneLoginContent(
 
         if (phoneNumber.isNotBlank() && !phoneEligible) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
+            AppText(
                 text = "号码长度需为 ${selectedRegion.minDigits}-${selectedRegion.maxDigits} 位",
                 color = palette.tertiaryText,
                 fontSize = 12.sp,
@@ -768,14 +768,14 @@ fun PhoneLoginContent(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Filled.Shield,
                     contentDescription = null,
                     tint = palette.buttonGradientStart,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
+                AppText(
                     text = "先完成安全验证，再发送短信验证码",
                     fontSize = 12.sp,
                     color = palette.tertiaryText
@@ -801,7 +801,7 @@ fun PhoneLoginContent(
                 },
                 enabled = phoneEligible && state !is LoginState.Loading
             ) {
-                Text(text = "重新获取验证码", color = palette.link, fontSize = 13.sp)
+                AppText(text = "重新获取验证码", color = palette.link, fontSize = 13.sp)
             }
         } else {
             ModernButton(
@@ -818,7 +818,7 @@ fun PhoneLoginContent(
 
         if (state is LoginState.Error) {
             Spacer(modifier = Modifier.height(12.dp))
-            Text(
+            AppText(
                 text = state.msg,
                 color = palette.error,
                 fontSize = 12.sp,
@@ -847,21 +847,21 @@ private fun CountryCodeSelector(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
+        AppText(
             text = region.dialingCode,
             color = palette.inputText,
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.width(6.dp))
-        Text(
+        AppText(
             text = region.name,
             color = palette.inputPlaceholder,
             fontSize = 12.sp,
             maxLines = 1,
             modifier = Modifier.weight(1f)
         )
-        Text(
+        AppText(
             text = "▾",
             color = palette.inputIcon,
             fontSize = 13.sp,
@@ -913,7 +913,7 @@ fun ModernTextField(
                         shape = CircleShape,
                         color = palette.segmentTrack
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = icon,
                             contentDescription = null,
                             tint = palette.inputIcon,
@@ -925,7 +925,7 @@ fun ModernTextField(
                     Spacer(modifier = Modifier.width(10.dp))
                     Box(modifier = Modifier.weight(1f)) {
                         if (value.isEmpty()) {
-                            Text(
+                            AppText(
                                 text = placeholder,
                                 color = palette.inputPlaceholder,
                                 fontSize = 15.sp
@@ -974,7 +974,7 @@ fun ModernButton(
                 strokeWidth = 2.dp
             )
         } else {
-            Text(
+            AppText(
                 text = text,
                 color = palette.buttonText,
                 fontSize = 16.sp,
@@ -1003,7 +1003,7 @@ fun TopBar(
                 .border(1.dp, palette.segmentBorder, CircleShape)
                 .wrapContentHeight(Alignment.CenterVertically)
         ) {
-            Text(
+            AppText(
                 text = "‹",
                 color = palette.closeFg,
                 fontSize = 20.sp,
@@ -1020,7 +1020,7 @@ private fun LoginPill(text: String, palette: LoginPalette) {
         color = palette.segmentTrack,
         border = BorderStroke(1.dp, palette.segmentBorder)
     ) {
-        Text(
+        AppText(
             text = text,
             color = palette.tertiaryText,
             fontSize = 11.sp,

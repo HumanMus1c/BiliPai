@@ -41,11 +41,11 @@ import androidx.compose.material.icons.outlined.Speed
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
@@ -230,7 +230,7 @@ private fun OnboardingBottomControls(
                     color = actionColors.contentColor
                 )
             } else {
-                Text(
+                AppText(
                     text = if (isLastPage) "应用设置并开始" else "下一步",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold
@@ -294,7 +294,7 @@ private fun WelcomePage(motionSpec: OnboardingMotionSpec) {
 
             Spacer(modifier = Modifier.height(44.dp))
 
-            Text(
+            AppText(
                 text = "Welcome to\nBiliPai",
                 style = MaterialTheme.typography.displayMedium.copy(
                     fontSize = 42.sp,
@@ -307,7 +307,7 @@ private fun WelcomePage(motionSpec: OnboardingMotionSpec) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
+            AppText(
                 text = "纯净 · 流畅 · 沉浸",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f),
@@ -329,7 +329,7 @@ private fun DesignPage(motionSpec: OnboardingMotionSpec) {
 
             Spacer(modifier = Modifier.height(44.dp))
 
-            Text(
+            AppText(
                 text = "原生外观",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
@@ -338,7 +338,7 @@ private fun DesignPage(motionSpec: OnboardingMotionSpec) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
+            AppText(
                 text = "默认 MD3，关闭液态玻璃，保留轻盈悬浮底栏",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -447,7 +447,7 @@ private fun FeaturesPage(motionSpec: OnboardingMotionSpec) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
+            AppText(
                 text = "先认识几个重点",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
@@ -495,7 +495,7 @@ private fun OnboardingFeatureCard(
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
@@ -504,12 +504,12 @@ private fun OnboardingFeatureCard(
         }
         Spacer(modifier = Modifier.width(18.dp))
         Column {
-            Text(
+            AppText(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            Text(
+            AppText(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -526,7 +526,7 @@ private fun GetStartedPage(motionSpec: OnboardingMotionSpec) {
             verticalArrangement = Arrangement.Center
         ) {
             OnboardingHeroHalo(size = 156.dp, motionSpec = motionSpec) {
-                Icon(
+                AppIcon(
                     imageVector = Icons.Filled.CheckCircle,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
@@ -536,7 +536,7 @@ private fun GetStartedPage(motionSpec: OnboardingMotionSpec) {
 
             Spacer(modifier = Modifier.height(44.dp))
 
-            Text(
+            AppText(
                 text = "最后一步",
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
@@ -545,7 +545,7 @@ private fun GetStartedPage(motionSpec: OnboardingMotionSpec) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
+            AppText(
                 text = "下一页会带你快速选一套设置预案",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -569,7 +569,7 @@ private fun SettingsGuidePage(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
+        AppText(
             text = "带你过一版设置",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
@@ -578,7 +578,7 @@ private fun SettingsGuidePage(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        Text(
+        AppText(
             text = "选一套预设，之后随时能在设置里改",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -608,7 +608,7 @@ private fun SettingsGuidePage(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             selectedPreset.summaryLines.forEach { line ->
-                Text(
+                AppText(
                     text = "• $line",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -661,7 +661,7 @@ private fun SettingsProfileCard(
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
+        AppIcon(
             imageVector = when (profile) {
                 OnboardingSettingsProfile.RECOMMENDED -> Icons.Filled.Star
                 OnboardingSettingsProfile.PERFORMANCE -> Icons.Filled.Refresh
@@ -673,19 +673,19 @@ private fun SettingsProfileCard(
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
+            AppText(
                 text = profile.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            Text(
+            AppText(
                 text = profile.subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         if (selected) {
-            Icon(
+            AppIcon(
                 imageVector = Icons.Filled.CheckCircle,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,

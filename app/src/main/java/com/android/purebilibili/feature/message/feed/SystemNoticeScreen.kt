@@ -11,9 +11,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
@@ -140,7 +140,7 @@ fun SystemNoticeScreen(
                 title = "系统通知",
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
-                        Icon(rememberAppBackIcon(), contentDescription = "返回")
+                        AppIcon(rememberAppBackIcon(), contentDescription = "返回")
                     }
                 }
             )
@@ -183,7 +183,7 @@ fun SystemNoticeScreen(
                                     modifier = Modifier.padding(14.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = item.title,
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.Medium
@@ -201,7 +201,7 @@ fun SystemNoticeScreen(
                                                 ?.let(onOpenLink)
                                         }
                                     )
-                                    Text(
+                                    AppText(
                                         text = item.timeAt,
                                         modifier = Modifier
                                             .align(Alignment.End),

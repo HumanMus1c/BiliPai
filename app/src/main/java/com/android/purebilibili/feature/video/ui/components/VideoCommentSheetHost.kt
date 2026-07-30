@@ -37,11 +37,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -804,7 +804,7 @@ internal fun VideoCommentMainList(
                             shape = RoundedCornerShape(16.dp),
                             onClick = onRootCommentClick
                         ) {
-                            Text(
+                            AppText(
                                 text = "说点什么，直接评论 UP 主和大家",
                                 color = appearance.secondaryTextColor,
                                 fontSize = 13.sp,
@@ -896,7 +896,7 @@ private fun VideoCommentBackToTopButton(
             containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
             contentColor = MaterialTheme.colorScheme.primary
         ) {
-            Icon(
+            AppIcon(
                 imageVector = rememberAppChevronUpIcon(),
                 contentDescription = "回到顶部"
             )
@@ -925,7 +925,7 @@ private fun NoMoreFooter() {
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
+        AppText(
             text = "没有更多了",
             color = appearance.secondaryTextColor,
             fontWeight = FontWeight.Normal

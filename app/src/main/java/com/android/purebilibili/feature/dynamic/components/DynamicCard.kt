@@ -1,5 +1,8 @@
 // 文件路径: feature/dynamic/components/DynamicCard.kt
 package com.android.purebilibili.feature.dynamic.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -16,6 +19,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 //  Cupertino Icons - iOS SF Symbols 风格图标
 import androidx.compose.material3.*
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -125,8 +131,8 @@ fun DynamicCardV2(
     pendingDeleteAction?.let { action ->
         AppAlertDialog(
             onDismissRequest = { pendingDeleteAction = null },
-            title = { Text(action.title) },
-            text = { Text(action.content) },
+            title = { AppText(action.title) },
+            text = { AppText(action.content) },
             confirmButton = {
                 AppDialogAction(
                     onClick = {
@@ -134,12 +140,12 @@ fun DynamicCardV2(
                         onDeleteClick?.invoke(action)
                     }
                 ) {
-                    Text(action.confirmText, color = MaterialTheme.colorScheme.error)
+                    AppText(action.confirmText, color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 AppDialogAction(onClick = { pendingDeleteAction = null }) {
-                    Text(action.cancelText)
+                    AppText(action.cancelText)
                 }
             }
         )
@@ -214,13 +220,13 @@ fun DynamicCardV2(
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
                 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                    AppText(
                         author.name,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                         color = if (author.vip?.status == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
+                    AppText(
                         authorTimeText,
                         fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
@@ -229,8 +235,8 @@ fun DynamicCardV2(
                 
                 //  [修复] 更多按钮 + 下拉菜单
                 Box {
-                    IconButton(onClick = { showMoreMenu = true }) {
-                        Icon(
+                    AppIconButton(onClick = { showMoreMenu = true }) {
+                        AppIcon(
                             rememberAppMoreIcon(),
                             contentDescription = "更多",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
@@ -238,16 +244,16 @@ fun DynamicCardV2(
                     }
                     
                     // 下拉菜单 - 自适应背景
-                    DropdownMenu(
+                    AppDropdownMenu(
                         expanded = showMoreMenu,
                         onDismissRequest = { showMoreMenu = false },
                         modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer) // 使用 surfaceContainer 获得微略不同的背景
                     ) {
                         // 复制链接
-                        DropdownMenuItem(
-                            text = { Text("复制链接", color = MaterialTheme.colorScheme.onSurface) },
+                        AppDropdownMenuItem(
+                            text = { AppText("复制链接", color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = { 
-                                Icon(
+                                AppIcon(
                                     rememberAppLinkIcon(),
                                     contentDescription = null,
                                     modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
@@ -265,10 +271,10 @@ fun DynamicCardV2(
                         )
                         
                         if (watchLaterAid != null && onWatchLaterClick != null) {
-                            DropdownMenuItem(
-                                text = { Text("稍后再看", color = MaterialTheme.colorScheme.onSurface) },
+                            AppDropdownMenuItem(
+                                text = { AppText("稍后再看", color = MaterialTheme.colorScheme.onSurface) },
                                 leadingIcon = {
-                                    Icon(
+                                    AppIcon(
                                         rememberAppHistoryIcon(),
                                         contentDescription = null,
                                         modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
@@ -283,10 +289,10 @@ fun DynamicCardV2(
                         }
 
                         if (deleteAction != null && onDeleteClick != null) {
-                            DropdownMenuItem(
-                                text = { Text(deleteAction.label, color = MaterialTheme.colorScheme.error) },
+                            AppDropdownMenuItem(
+                                text = { AppText(deleteAction.label, color = MaterialTheme.colorScheme.error) },
                                 leadingIcon = {
-                                    Icon(
+                                    AppIcon(
                                         rememberAppDeleteIcon(),
                                         contentDescription = null,
                                         modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
@@ -301,10 +307,10 @@ fun DynamicCardV2(
                         }
 
                         // 不感兴趣
-                        DropdownMenuItem(
-                            text = { Text("不感兴趣", color = MaterialTheme.colorScheme.onSurface) },
+                        AppDropdownMenuItem(
+                            text = { AppText("不感兴趣", color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = { 
-                                Icon(
+                                AppIcon(
                                     rememberAppVisibilityOffIcon(),
                                     contentDescription = null,
                                     modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
@@ -429,7 +435,7 @@ fun DynamicCardV2(
             // 显示标题 (如果有)
             opus.title?.let { title ->
                 if (title.isNotEmpty()) {
-                    Text(
+                    AppText(
                         title,
                         fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                         fontWeight = FontWeight.SemiBold,
@@ -460,7 +466,7 @@ fun DynamicCardV2(
                 fullOpusContentBlocks.forEach { block ->
                     when (block) {
                         is OpusContentBlock.Text -> {
-                            Text(
+                            AppText(
                                 text = block.text,
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -636,7 +642,7 @@ fun DynamicCardV2(
                 )
                 Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
             } else {
-                Text(
+                AppText(
                      "合集：${season.title}", 
                      fontWeight = FontWeight.Bold,
                      color = MaterialTheme.colorScheme.primary
@@ -717,7 +723,7 @@ fun DynamicCardV2(
         }
 
         if (!isDetail) {
-            HorizontalDivider(
+            AppHorizontalDivider(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.32f),
                 thickness = AppSpacingTokens.Micro * 0.35f
@@ -781,7 +787,7 @@ fun RichTextContent(
     var showCopySelectionDialog by remember(copyText) { mutableStateOf(false) }
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     
-    Text(
+    AppText(
         text = annotatedText,
         inlineContent = inlineContent,
         fontSize = MaterialTheme.typography.bodyMedium.fontSize,
@@ -946,7 +952,7 @@ fun DynamicCardCompact(
         Column(modifier = Modifier.weight(1f)) {
             // 用户名 + 时间
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
+                AppText(
                     author?.name ?: "",
                     fontWeight = FontWeight.Medium,
                     fontSize = MaterialTheme.typography.labelMedium.fontSize,
@@ -954,7 +960,7 @@ fun DynamicCardCompact(
                     maxLines = 1
                 )
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
-                Text(
+                AppText(
                     author?.let {
                         resolveDynamicAuthorTimeText(
                             pubTime = it.pub_time,
@@ -969,7 +975,7 @@ fun DynamicCardCompact(
             Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
             
             // 内容预览
-            Text(
+            AppText(
                 previewText,
                 fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

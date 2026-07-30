@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.home.components.cards
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -150,7 +151,7 @@ fun LiveRoomCard(
                 shape = RoundedCornerShape(tagCornerRadius),
                 color = MaterialTheme.colorScheme.error
             ) {
-                Text(
+                AppText(
                     text = "直播中",
                     color = MediaContrastPalette.Foreground,
                     fontSize = MaterialTheme.typography.labelSmall.fontSize,
@@ -168,7 +169,7 @@ fun LiveRoomCard(
                     shape = RoundedCornerShape(tagCornerRadius),
                     color = MediaContrastPalette.Scrim.copy(alpha = 0.5f)
                 ) {
-                    Text(
+                    AppText(
                         text = room.areaName,
                         color = MediaContrastPalette.Foreground,
                         fontSize = MaterialTheme.typography.labelSmall.fontSize,
@@ -184,12 +185,12 @@ fun LiveRoomCard(
                     .padding(AppSpacingTokens.Small),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
+                AppText(
                     text = "👁",
                     fontSize = MaterialTheme.typography.labelSmall.fontSize
                 )
                 Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
-                Text(
+                AppText(
                     text = FormatUtils.formatStat(viewerCount.toLong()),
                     color = MediaContrastPalette.Foreground.copy(0.95f),
                     fontSize = MaterialTheme.typography.labelSmall.fontSize,
@@ -201,7 +202,7 @@ fun LiveRoomCard(
         Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))  //  减少间距
         
         // 标题
-        Text(
+        AppText(
             text = room.title,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -239,7 +240,7 @@ fun LiveRoomCard(
                 Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro / 2))
             }
             
-            Text(
+            AppText(
                 text = room.uname,
                 fontSize = MaterialTheme.typography.labelSmall.fontSize,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

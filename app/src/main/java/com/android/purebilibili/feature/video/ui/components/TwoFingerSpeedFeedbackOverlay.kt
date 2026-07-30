@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -101,21 +101,21 @@ fun BoxScope.TwoFingerSpeedFeedbackOverlay(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = cueIcon,
                             contentDescription = null,
                             tint = Color.White.copy(alpha = 0.86f),
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.size(6.dp))
-                        Text(
+                        AppText(
                             text = cueText,
                             color = Color.White.copy(alpha = 0.76f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
-                    Text(
+                    AppText(
                         text = PlaybackSpeed.formatSpeedFull(speed),
                         color = Color.White.copy(alpha = 0.98f),
                         fontSize = 22.sp,

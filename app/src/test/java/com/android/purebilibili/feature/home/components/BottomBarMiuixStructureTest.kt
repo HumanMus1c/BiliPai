@@ -34,6 +34,9 @@ class BottomBarMiuixStructureTest {
     @Test
     fun `android native floating branch renders through kernelsu aligned renderer`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+        val sharedChromeSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarMatchedLiquidChrome.kt"
+        )
         val kernelSuRendererSource = source
             .substringAfter("private fun KernelSuAlignedBottomBar(")
             .substringBefore("@Composable\nprivate fun AndroidNativeBottomBarItem(")
@@ -105,7 +108,7 @@ class BottomBarMiuixStructureTest {
             kernelSuRendererSource.contains("shellProgress = backdropPresetProgress.shellProgress")
         )
         assertTrue(kernelSuRendererSource.contains("notifyIndexChangedOnReleaseStart = false"))
-        assertTrue(kernelSuRendererSource.contains("holdPressUntilReleaseTargetSettles = true"))
+        assertTrue(sharedChromeSource.contains("holdPressUntilReleaseTargetSettles = true"))
         assertTrue(kernelSuRendererSource.contains("dampedDragState.updateIndex(index)"))
         assertTrue(source.contains("private const val BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET = 88f / 56f"))
         assertFalse(kernelSuAlignedBodySource.contains("var bottomBarTapSwitchPulseKey by remember"))
@@ -171,7 +174,7 @@ class BottomBarMiuixStructureTest {
             .substringBefore("}")
         assertTrue(backdropLayerBlockSource.contains("scaleX = indicatorLayerTransform.scaleX"))
         assertTrue(backdropLayerBlockSource.contains("scaleY = indicatorLayerTransform.scaleY"))
-        assertTrue(kernelSuRendererSource.contains("indicatorLayerScaleTransform = null"))
+        assertTrue(sharedChromeSource.contains("indicatorLayerScaleTransform = null"))
         assertFalse(kernelSuRendererSource.contains("scaleX = dampedDragState.scaleX"))
         assertFalse(indicatorLayerSource.contains("visualIndicatorWidth"))
         assertFalse(kernelSuAlignedBodySource.contains("rememberBottomBarSettleReboundTransform("))
@@ -186,14 +189,8 @@ class BottomBarMiuixStructureTest {
             kernelSuRendererSource.contains("indicatorPanelOffsetPx = presetPanelOffsets.indicatorPanelOffsetPx") &&
                 kernelSuRendererSource.contains("translationX = indicatorTranslationXPx + indicatorPanelOffsetPx")
         )
-        assertTrue(kernelSuRendererSource.contains("val interactiveHighlightCenterXPx by remember("))
-        assertTrue(kernelSuRendererSource.contains("presetPanelOffsets.indicatorPanelOffsetPx"))
-        assertTrue(kernelSuRendererSource.contains("resolveBottomBarInteractiveHighlightCenterX("))
-        assertTrue(kernelSuRendererSource.contains("val shellHighlightAlpha = resolveBottomBarShellHighlightAlpha("))
-        assertTrue(kernelSuRendererSource.contains(".bottomBarInteractiveHighlight("))
-        assertTrue(kernelSuRendererSource.contains("enabled = glassEnabled && interactiveHighlightEnabled"))
-        assertTrue(kernelSuRendererSource.contains("alpha = shellHighlightAlpha"))
-        assertTrue(kernelSuRendererSource.contains("centerXPx = interactiveHighlightCenterXPx"))
+        assertFalse(kernelSuRendererSource.contains("bottomBarInteractiveHighlight"))
+        assertFalse(kernelSuRendererSource.contains("shellHighlightAlpha"))
         assertFalse(
             kernelSuRendererSource.contains(
                 ".width(dockWidth)\n                        .height(dockHeight)\n                        .graphicsLayer { scaleX = edgeCompressionScaleX }"
@@ -317,12 +314,12 @@ class BottomBarMiuixStructureTest {
             .substringBefore("@Composable\nprivate fun AndroidNativeBottomBarItem(")
         val refractionCaptureSource = source
             .substringAfter("if (shouldRenderIndicatorContentCapture && miuixBackdrop != null) {")
-            .substringBefore("KernelSuMiuixBottomBarIndicatorLayer(")
+            .substringBefore("BottomBarMatchedLiquidIndicator(")
 
         val shellSource = source
             .substringAfter("private fun KernelSuBottomBarShell(")
             .substringBefore("@Composable\nprivate fun BoxScope.KernelSuMiuixBottomBarIndicatorLayer(")
-        val shellIndex = shellSource.indexOf(".kernelSuMiuixFloatingDockSurface(")
+        val shellIndex = shellSource.indexOf("BottomBarMatchedLiquidDock(")
         val skinIndex = shellSource.indexOf("BottomBarSkinDecorativeTrim(")
         val visibleContentIndex = kernelSuRendererSource.indexOf(
             "val coverage = itemCoverage(index)"
@@ -616,9 +613,12 @@ class BottomBarMiuixStructureTest {
         assertTrue(source.contains("KernelSuAlignedBottomBar("))
         assertTrue(source.contains("iconStyle = SharedFloatingBottomBarIconStyle.CUPERTINO"))
         assertTrue(source.contains("private enum class SharedFloatingBottomBarIconStyle"))
-        assertTrue(source.contains("MiuixNavigationBar("))
+        assertTrue(source.contains("AppNavigationBar("))
+        assertTrue(source.contains("AppPlatformNavigationBar("))
         assertTrue(source.contains("MiuixDockedBottomBarItem("))
-        assertTrue(source.contains("NavigationBarDisplayMode as MiuixNavigationBarDisplayMode"))
+        assertTrue(source.contains("fun Md3BottomBarDisplayMode.toAppPlatformNavigationDisplayMode()"))
+        assertFalse(source.contains("import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar"))
+        assertFalse(source.contains("import top.yukonga.miuix.kmp.basic.NavigationBarItem as MiuixNavigationBarItem"))
     }
 
     @Test
@@ -628,8 +628,9 @@ class BottomBarMiuixStructureTest {
             .substringAfter("private fun MiuixBottomBar(")
             .substringBefore("@Composable\nprivate fun RowScope.MiuixDockedBottomBarItem(")
 
-        assertTrue(miuixRendererSource.contains("MiuixNavigationBar("))
-        assertTrue(miuixRendererSource.contains("MiuixNavigationBarItem("))
+        assertTrue(miuixRendererSource.contains("AppPlatformNavigationBar("))
+        assertTrue(miuixRendererSource.contains("AppPlatformNavigationBarItem("))
+        assertTrue(miuixRendererSource.contains("AppPlatformNavigationBadge {"))
         assertTrue(miuixRendererSource.contains("shouldUseMiuixOfficialNavigationBarItem("))
         assertTrue(miuixRendererSource.contains("MiuixDockedBottomBarItem("))
         assertFalse(miuixRendererSource.contains("MiuixFloatingNavigationBar("))
@@ -651,13 +652,16 @@ class BottomBarMiuixStructureTest {
 
         assertTrue(materialRendererSource.contains("DockedBottomBarSkinContainer("))
         assertTrue(materialRendererSource.contains("decoration = uiSkinDecoration"))
-        assertTrue(materialRendererSource.indexOf("DockedBottomBarSkinContainer(") < materialRendererSource.indexOf("NavigationBar("))
+        assertTrue(materialRendererSource.indexOf("DockedBottomBarSkinContainer(") < materialRendererSource.indexOf("AppNavigationBar("))
+        assertTrue(materialRendererSource.contains("AppNavigationBarItem("))
+        assertTrue(materialRendererSource.contains("BottomBarReminderBadgeAnchor("))
         assertTrue(materialRendererSource.contains("val skinIconPath = uiSkinDecoration?.iconPathFor(item, selected = currentItem == item)"))
         assertTrue(materialRendererSource.contains("if (skinIconPath != null)"))
         assertTrue(materialRendererSource.contains("BottomBarSkinIcon("))
         assertTrue(miuixRendererSource.contains("DockedBottomBarSkinContainer("))
         assertTrue(miuixRendererSource.contains("decoration = uiSkinDecoration"))
-        assertTrue(miuixRendererSource.indexOf("DockedBottomBarSkinContainer(") < miuixRendererSource.indexOf("MiuixNavigationBar("))
+        assertTrue(miuixRendererSource.indexOf("DockedBottomBarSkinContainer(") < miuixRendererSource.indexOf("AppPlatformNavigationBar("))
+        assertTrue(miuixRendererSource.contains("AppPlatformNavigationBadge {"))
         assertTrue(miuixRendererSource.contains("Modifier.height(resolveBottomBarSkinDockHeight())"))
         assertTrue(miuixDockedItemSource.contains("height(resolveMiuixDockedBottomBarItemHeight(skinIconPath != null))"))
         assertFalse(miuixDockedItemSource.contains("height(64.dp)"))

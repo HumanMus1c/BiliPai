@@ -13,7 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,7 +50,7 @@ fun LiveSendDanmakuSheet(
                 ),
             verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)
         ) {
-            Text(
+            AppText(
                 text = if (replyTarget == null) "发弹幕" else "回复 @${replyTarget.uname.ifBlank { replyTarget.uid.toString() }}",
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.titleLarge,
@@ -72,14 +72,14 @@ fun LiveSendDanmakuSheet(
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 3,
                         maxLines = 4,
-                        placeholder = { Text(if (replyTarget == null) "输入弹幕内容" else "输入回复内容") },
+                        placeholder = { AppText(if (replyTarget == null) "输入弹幕内容" else "输入回复内容") },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(onSend = {
                             val content = message.trim()
                             if (content.isNotEmpty() && permission.canSend) onSend(content)
                         })
                     )
-                    Text(
+                    AppText(
                         text = buildString {
                             append(permission.statusText)
                             append(" · ")
@@ -106,7 +106,7 @@ fun LiveSendDanmakuSheet(
                             enabled = permission.canSend && message.trim().isNotEmpty(),
                             onClick = { onSend(message.trim()) }
                         ) {
-                            Text("发送")
+                            AppText("发送")
                         }
                     }
                 }

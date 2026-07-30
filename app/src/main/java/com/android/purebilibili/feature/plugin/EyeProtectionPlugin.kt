@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.plugin
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,12 +14,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import com.android.purebilibili.core.ui.components.AppFilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSlider
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import androidx.compose.runtime.Composable
@@ -399,7 +399,7 @@ class EyeProtectionPlugin : Plugin {
                 iconTint = Color(0xFFFFB74D)
             )
 
-            HorizontalDivider(
+            AppHorizontalDivider(
                 modifier = Modifier.padding(start = 56.dp),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
@@ -443,7 +443,7 @@ class EyeProtectionPlugin : Plugin {
                 }
             }
 
-            HorizontalDivider(
+            AppHorizontalDivider(
                 modifier = Modifier.padding(start = 56.dp, top = 12.dp),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
@@ -474,7 +474,7 @@ class EyeProtectionPlugin : Plugin {
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
+                AppText(
                     text = "提醒频率",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -496,7 +496,7 @@ class EyeProtectionPlugin : Plugin {
                             },
                             modifier = Modifier.defaultMinSize(minWidth = 84.dp),
                             label = {
-                                Text(
+                                AppText(
                                     text = "${minutes}分钟",
                                     softWrap = false,
                                     maxLines = 1,
@@ -508,7 +508,7 @@ class EyeProtectionPlugin : Plugin {
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
+                AppText(
                     text = "稍后提醒",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -530,7 +530,7 @@ class EyeProtectionPlugin : Plugin {
                             },
                             modifier = Modifier.defaultMinSize(minWidth = 84.dp),
                             label = {
-                                Text(
+                                AppText(
                                     text = "${minutes}分钟",
                                     softWrap = false,
                                     maxLines = 1,
@@ -543,13 +543,13 @@ class EyeProtectionPlugin : Plugin {
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
+            AppText(
                 text = "关怀强度预设",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary
             )
-            Text(
+            AppText(
                 text = "三种模式都可 DIY，当前模式下的调节会自动保存",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -568,7 +568,7 @@ class EyeProtectionPlugin : Plugin {
                             updateConfig(changed)
                         },
                         label = {
-                            Text(
+                            AppText(
                                 text = label,
                                 maxLines = 1,
                                 overflow = TextOverflow.Clip
@@ -579,14 +579,14 @@ class EyeProtectionPlugin : Plugin {
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
+            AppText(
                 text = "显示调节",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            Text(
+            AppText(
                 text = "当前页面是实时预览；离开设置后按“立即开启护眼/定时护眼”规则生效。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -599,16 +599,16 @@ class EyeProtectionPlugin : Plugin {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
+                    AppIcon(
                         CupertinoIcons.Filled.SunMax,
                         contentDescription = null,
                         tint = Color(0xFFFFB74D),
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.padding(horizontal = 6.dp))
-                    Text("亮度", style = MaterialTheme.typography.bodyLarge)
+                    AppText("亮度", style = MaterialTheme.typography.bodyLarge)
                 }
-                Text(
+                AppText(
                     text = "${(uiConfig.brightnessLevel * 100).toInt()}%",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -638,16 +638,16 @@ class EyeProtectionPlugin : Plugin {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
+                    AppIcon(
                         CupertinoIcons.Outlined.SunMax,
                         contentDescription = null,
                         tint = Color(0xFFFF7043),
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.padding(horizontal = 6.dp))
-                    Text("暖色滤镜", style = MaterialTheme.typography.bodyLarge)
+                    AppText("暖色滤镜", style = MaterialTheme.typography.bodyLarge)
                 }
-                Text(
+                AppText(
                     text = "${(uiConfig.warmFilterStrength * 100).toInt()}%",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -671,7 +671,7 @@ class EyeProtectionPlugin : Plugin {
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Text(
+            AppText(
                 text = "护眼滤镜不影响触摸操作。建议搭配夜间模式与定时休息。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -683,13 +683,13 @@ class EyeProtectionPlugin : Plugin {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Outlined.Heart,
                     contentDescription = null,
                     tint = Color(0xFFE57373),
                     modifier = Modifier.size(16.dp)
                 )
-                Text(
+                AppText(
                     text = "照顾好自己，视频永远看得完。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -731,18 +731,18 @@ private fun TimePickerDropdown(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text(
+                    AppText(
                         text = label,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
+                    AppText(
                         text = String.format("%02d:00", selectedHour),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Outlined.Clock,
                     contentDescription = null
                 )
@@ -756,10 +756,10 @@ private fun TimePickerDropdown(
         ) {
             (0..23).forEach { hour ->
                 AppDropdownMenuItem(
-                    text = { Text(String.format("%02d:00", hour)) },
+                    text = { AppText(String.format("%02d:00", hour)) },
                     trailingIcon = {
                         if (hour == selectedHour) {
-                            Text(
+                            AppText(
                                 text = "当前",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary

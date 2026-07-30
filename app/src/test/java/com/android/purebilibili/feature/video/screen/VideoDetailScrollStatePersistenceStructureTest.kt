@@ -31,11 +31,13 @@ class VideoDetailScrollStatePersistenceStructureTest {
     @Test
     fun `phone player collapse state is saveable per video`() {
         val source = loadSource("VideoDetailScreenStateHolder.kt")
+        val collapseStateSource = loadSource("VideoDetailInlineCollapseState.kt")
 
-        assertTrue(source.contains("InlinePortraitPlayerCollapseState.Saver"))
+        assertTrue(collapseStateSource.contains("InlinePortraitPlayerCollapseState.Saver"))
+        assertTrue(collapseStateSource.contains("rememberSaveable(videoBvid, saver = InlinePortraitPlayerCollapseState.Saver)"))
         assertTrue(source.contains("rememberInlinePortraitPlayerCollapseState(currentBvid)"))
         assertTrue(source.contains("var introScrollPastCollapseThreshold by rememberSaveable(currentBvid)"))
-        assertFalse(source.contains("remember { InlinePortraitPlayerCollapseState() }"))
+        assertFalse(collapseStateSource.contains("remember { InlinePortraitPlayerCollapseState() }"))
     }
 
     private fun loadSource(name: String): String {

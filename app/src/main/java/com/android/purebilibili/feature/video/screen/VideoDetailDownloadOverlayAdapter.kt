@@ -2,7 +2,10 @@
 package com.android.purebilibili.feature.video.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import com.android.purebilibili.core.ui.components.AppIcon
+import androidx.compose.material3.MaterialTheme
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -10,6 +13,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.rememberAppCollectionIcon
 import com.android.purebilibili.core.ui.rememberAppDownloadIcon
 import com.android.purebilibili.core.ui.rememberAppMusicIcon
@@ -39,9 +44,9 @@ internal fun VideoDetailDownloadOverlayAdapter(
                 successForDownload.info
             )
         }
-        ModalBottomSheet(
+        AppModalBottomSheet(
             onDismissRequest = { viewModel.closeDownloadDialog() },
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = AppSurfaceTokens.surface(),
             tonalElevation = 8.dp
         ) {
             Column(
@@ -49,7 +54,7 @@ internal fun VideoDetailDownloadOverlayAdapter(
                     .fillMaxWidth()
                     .padding(bottom = 32.dp)
             ) {
-                Text(
+                AppText(
                     text = "下载选项",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
@@ -76,19 +81,19 @@ internal fun VideoDetailDownloadOverlayAdapter(
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = rememberAppDownloadIcon(),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text(
+                        AppText(
                             text = "缓存视频",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Text(
+                        AppText(
                             text = "选择画质缓存当前视频",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -107,19 +112,19 @@ internal fun VideoDetailDownloadOverlayAdapter(
                             .padding(horizontal = 16.dp, vertical = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = rememberAppCollectionIcon(),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
-                            Text(
+                            AppText(
                                 text = "批量缓存",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Text(
+                            AppText(
                                 text = "选择多个分P或合集条目统一加入下载",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -160,19 +165,19 @@ internal fun VideoDetailDownloadOverlayAdapter(
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = rememberAppMusicIcon(),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text(
+                        AppText(
                             text = "下载音频",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Text(
+                        AppText(
                             text = "仅保存音频文件",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -211,19 +216,19 @@ internal fun VideoDetailDownloadOverlayAdapter(
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = rememberAppPhotoIcon(),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text(
+                        AppText(
                             text = "保存封面",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Text(
+                        AppText(
                             text = "保存当前视频封面到相册",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

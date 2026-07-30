@@ -26,7 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.rememberHapticFeedback
@@ -178,7 +178,7 @@ fun AnimatedGesturePercentText(
         },
         label = label
     ) { targetPercent ->
-        Text(
+        AppText(
             text = "$targetPercent%",
             color = color,
             fontSize = fontSize,

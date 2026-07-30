@@ -21,14 +21,6 @@ class MusicPlayerVisualPolicyTest {
     }
 
     @Test
-    fun `glass fallback remains legible without refraction`() {
-        val fallback = resolveMusicGlassFallbackStyle()
-
-        assertTrue(fallback.backgroundAlphaPercent >= 46)
-        assertTrue(fallback.borderAlphaPercent >= 22)
-    }
-
-    @Test
     fun `liquid controls require supported foreground renderer`() {
         assertFalse(resolveMusicLiquidGlassEnabled(32, true, false, false))
         assertTrue(resolveMusicLiquidGlassEnabled(33, true, false, false))

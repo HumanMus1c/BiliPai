@@ -3,7 +3,7 @@ package com.android.purebilibili.feature.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.AppAlertDialog
@@ -23,13 +23,13 @@ fun ReleaseChannelDisclaimerDialog(
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
+            AppText(
                 text = title,
                 style = MaterialTheme.typography.titleLarge
             )
         },
         text = {
-            Text(
+            AppText(
                 text = "本应用仅用于学习与交流。\n\n" +
                     "官方发布渠道仅有：GitHub 与 Telegram。\n" +
                     "除上述渠道外，不存在任何其他官方发布途径。\n\n" +
@@ -38,13 +38,13 @@ fun ReleaseChannelDisclaimerDialog(
         },
         confirmButton = {
             AppTextButton(onClick = onDismiss) {
-                Text("我已知晓")
+                AppText("我已知晓")
             }
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                AppTextButton(onClick = onOpenGithub) { Text("GitHub") }
-                AppTextButton(onClick = onOpenTelegram) { Text("Telegram") }
+                AppTextButton(onClick = onOpenGithub) { AppText("GitHub") }
+                AppTextButton(onClick = onOpenTelegram) { AppText("Telegram") }
             }
         }
     )

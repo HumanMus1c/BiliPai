@@ -1,5 +1,6 @@
 // 文件路径: feature/home/HomeScreen.kt
 package com.android.purebilibili.feature.home
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.MediaContrastPalette
 
@@ -19,6 +20,8 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.staggeredgrid.*  // 🌊 瀑布流布局
 import com.kyant.backdrop.backdrops.layerBackdrop // [Fix] Import for modifier
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -41,6 +44,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.zIndex
 import androidx.compose.material3.DrawerValue
 import com.android.purebilibili.core.ui.components.AppModalNavigationDrawer
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material3.rememberDrawerState
 import com.android.purebilibili.feature.home.components.MineSideDrawer
 import androidx.compose.ui.graphics.Color
@@ -59,6 +65,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppPullRefreshLoadingIndicator
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppPullRefreshIndicatorStyle
 import com.android.purebilibili.core.ui.rememberAppPullRefreshProfile
@@ -148,7 +156,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged  //  性能优化：防止重复触发
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.map as mapFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.yield
 import androidx.compose.animation.ExperimentalSharedTransitionApi  //  共享过渡实验API
@@ -284,6 +292,7 @@ fun HomeScreen(
     val targetVideoItemState = remember { mutableStateOf<VideoItem?>(null) }
     var pendingNotInterestedVideo by remember { mutableStateOf<VideoItem?>(null) }
     val homeBackdrop = rememberLayerBackdrop()
+    val homeMiuixBackdrop = rememberMiuixLayerBackdrop()
 
     val coroutineScope = rememberCoroutineScope() // 用于双击回顶动画
     val headerSettleMotionSpec = AppMotionTokens.standardSpec<Float>()
@@ -387,6 +396,7 @@ fun HomeScreen(
             HomeTopTabEntry.Partition -> resolveHomeTopTabEntryLabel(entry)
         }
     }
+    val topTabKeys = remember(topTabEntries) { topTabEntries.map(HomeTopTabEntry::id) }
     val initialPage = resolveHomeInitialTopTabPage(
         topTabEntries = topTabEntries,
         currentCategory = currentCategory,
@@ -718,7 +728,7 @@ fun HomeScreen(
         val anchorBvid = recommendOldContentAnchorBvid ?: return@LaunchedEffect
         val recommendState = gridStates[HomeCategory.RECOMMEND] ?: return@LaunchedEffect
         viewModel.getCategoryState(HomeCategory.RECOMMEND)
-            .map { content -> content.videos.indexOfFirst { it.bvid == anchorBvid } }
+            .mapFlow { content -> content.videos.indexOfFirst { it.bvid == anchorBvid } }
             .distinctUntilChanged()
             .collectLatest { anchorIndex ->
                 if (anchorIndex <= 0) return@collectLatest
@@ -734,34 +744,34 @@ fun HomeScreen(
     
     //  [彩蛋] 关闭确认对话框
     if (showEasterEggDialog) {
-        androidx.compose.material3.AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showEasterEggDialog = false },
             title = { 
-                Text(
+                AppText(
                     "关闭趣味提示？", 
                     color = MaterialTheme.colorScheme.onSurface
                 ) 
             },
             text = { 
-                Text(
+                AppText(
                     "关闭后下拉刷新将不再显示趣味消息。\n\n你可以在「设置」中随时重新开启。",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 ) 
             },
             confirmButton = {
-                androidx.compose.material3.TextButton(
+                AppTextButton(
                     onClick = {
                         coroutineScope.launch {
                             SettingsManager.setEasterEggEnabled(context, false)
                         }
                         showEasterEggDialog = false
                     }
-                ) { Text("关闭彩蛋", color = MaterialTheme.colorScheme.error) }
+                ) { AppText("关闭彩蛋", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(
+                AppTextButton(
                     onClick = { showEasterEggDialog = false }
-                ) { Text("保留彩蛋", color = MaterialTheme.colorScheme.primary) }
+                ) { AppText("保留彩蛋", color = MaterialTheme.colorScheme.primary) }
             },
             containerColor = AppSurfaceTokens.cardContainer()
         )
@@ -828,8 +838,8 @@ fun HomeScreen(
     // 各功能面自身的开关(此处为卡片动画开关)仍各自独立。与设置页入场动画共用同一 reduce-motion 判定。
     val systemReduceMotion = rememberSystemReduceMotion()
     val cardAnimationEnabled = homePerformanceConfig.cardAnimationEnabled && !systemReduceMotion
-    // 视频详情转场正在重新设计；首页不再挂 sharedBounds 或返回期延迟。
-    val cardTransitionEnabled = false
+    // 过渡由用户设置控制；系统“减弱动效”开启时统一关闭。
+    val cardTransitionEnabled = homePerformanceConfig.cardTransitionEnabled && !systemReduceMotion
     val isBottomBarLiquidGlassEnabled = homePerformanceConfig.bottomBarLiquidGlassEnabled
     val isLiquidGlassEnabled = homePerformanceConfig.isAnyLiquidGlassEnabled
     val isDataSaverActive = homePerformanceConfig.isDataSaverActive
@@ -1473,6 +1483,7 @@ fun HomeScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .layerBackdrop(homeBackdrop)
+                            .miuixLayerBackdrop(homeMiuixBackdrop)
                             // 首页使用 Pager + Lazy 子层，source 挂在外层容器更稳定。
                             .hazeSourceCompat(state = hazeState)
                     ) {
@@ -1612,7 +1623,7 @@ fun HomeScreen(
                                     AppPullRefreshIndicatorStyle.MATERIAL_DEFAULT -> {
                                         // Official M3 expressive ContainedLoadingIndicator
                                         // (dynamic color) for Android Native Material 3.
-                                        PullToRefreshDefaults.LoadingIndicator(
+                                        AppPullRefreshLoadingIndicator(
                                             modifier = Modifier
                                                 .align(Alignment.TopCenter)
                                                 .padding(top = homeRefreshIndicatorTopInset),
@@ -1974,7 +1985,7 @@ fun HomeScreen(
             topRightUnreadCount = messageUnreadCount,
             onSearchClick = onSearchClick,
             topCategories = localizedTopTabLabels,
-            topCategoryKeys = topTabEntries.map { it.id },
+            topCategoryKeys = topTabKeys,
             categoryIndex = displayedTabIndex,
             onCategorySelected = onCategorySelected@ { index ->
                 viewModel.updateDisplayedTabIndex(index)
@@ -2015,6 +2026,7 @@ fun HomeScreen(
             pullProgress = 0f, // [Fix] Outer header doesn't track inner pull state
             pagerState = pagerState,
             backdrop = homeBackdrop,
+            miuixBackdrop = homeMiuixBackdrop,
             homeSettings = effectiveHomeSettings,
             topTabsVisible = resolveHomeTopTabsVisible(
                 isDelayedForCardSettle = delayTopTabsUntilCardSettled,
@@ -2051,7 +2063,7 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.TopCenter
             ) {
-                Surface(
+                AppSurface(
                     shape = AppShapes.container(ContainerLevel.Pill),
                     color = if (refreshTipAppearance.surfaceStyle == HomeRefreshTipSurfaceStyle.PLAIN) {
                         MaterialTheme.colorScheme.surfaceContainerHigh
@@ -2069,7 +2081,7 @@ fun HomeScreen(
                     tonalElevation = refreshTipAppearance.tonalElevationDp.dp,
                     shadowElevation = refreshTipAppearance.shadowElevationDp.dp
                 ) {
-                    Text(
+                    AppText(
                         text = refreshDeltaTipText.orEmpty(),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -2099,7 +2111,7 @@ fun HomeScreen(
                 ),
                 modifier = Modifier.padding(end = AppSpacingTokens.Large, bottom = homeListBottomPadding + AppSpacingTokens.Small)
             ) {
-            androidx.compose.material3.Button(
+            AppButton(
                 onClick = { viewModel.undoRefresh() },
                 modifier = Modifier.pointerInput(Unit) {
                     detectHorizontalDragGestures { change, _ ->
@@ -2118,13 +2130,13 @@ fun HomeScreen(
                 ),
                 contentPadding = PaddingValues(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small + AppSpacingTokens.Micro)
             ) {
-                Text(
+                AppText(
                     text = "⟲",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
-                Text(
+                AppText(
                     text = "撤销刷新",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold

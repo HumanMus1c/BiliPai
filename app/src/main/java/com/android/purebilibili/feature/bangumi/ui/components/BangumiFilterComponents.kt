@@ -1,5 +1,7 @@
 // 文件路径: feature/bangumi/ui/components/BangumiFilterComponents.kt
 package com.android.purebilibili.feature.bangumi.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -19,6 +21,10 @@ import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.ChevronDown
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.data.model.response.BangumiFilter
 import com.android.purebilibili.data.model.response.BangumiIndexFilterGroup
@@ -76,7 +82,7 @@ fun BangumiFilterPanel(
     var showStatusMenu by remember { mutableStateOf(false) }
     var showYearMenu by remember { mutableStateOf(false) }
     
-    Surface(
+    AppSurface(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
     ) {
@@ -86,7 +92,7 @@ fun BangumiFilterPanel(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 // 排序
-                FilterChip(
+                BangumiFilterMenuChip(
                     label = BangumiFilter.ORDER_OPTIONS.find { it.first == filter.order }?.second ?: "排序",
                     isActive = filter.order != 2,
                     onClick = { showOrderMenu = true },
@@ -100,7 +106,7 @@ fun BangumiFilterPanel(
                 )
                 
                 // 地区
-                FilterChip(
+                BangumiFilterMenuChip(
                     label = BangumiFilter.AREA_OPTIONS.find { it.first == filter.area }?.second ?: "地区",
                     isActive = filter.area != -1,
                     onClick = { showAreaMenu = true },
@@ -114,7 +120,7 @@ fun BangumiFilterPanel(
                 )
                 
                 // 状态
-                FilterChip(
+                BangumiFilterMenuChip(
                     label = BangumiFilter.STATUS_OPTIONS.find { it.first == filter.isFinish }?.second ?: "状态",
                     isActive = filter.isFinish != -1,
                     onClick = { showStatusMenu = true },
@@ -128,7 +134,7 @@ fun BangumiFilterPanel(
                 )
                 
                 // 年份
-                FilterChip(
+                BangumiFilterMenuChip(
                     label = BangumiFilter.YEAR_OPTIONS.find { it.first == filter.year }?.second ?: "年份",
                     isActive = filter.year != "-1",
                     onClick = { showYearMenu = true },
@@ -145,10 +151,10 @@ fun BangumiFilterPanel(
             // 重置按钮
             if (filter != BangumiFilter()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                TextButton(
+                AppTextButton(
                     onClick = { onFilterChange(BangumiFilter()) }
                 ) {
-                    Text("重置筛选", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
+                    AppText("重置筛选", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
                 }
             }
         }
@@ -164,7 +170,7 @@ fun BangumiIndexFilterRows(
 ) {
     if (groups.isEmpty()) return
 
-    Surface(
+    AppSurface(
         modifier = modifier
             .fillMaxWidth()
             .animateContentSize(),
@@ -203,11 +209,11 @@ private fun BangumiIndexFilterRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         item(key = "title") {
-            Surface(
+            AppSurface(
                 shape = AppShapes.container(ContainerLevel.Chip),
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
             ) {
-                Text(
+                AppText(
                     text = title,
                     modifier = Modifier
                         .widthIn(min = 72.dp)
@@ -248,12 +254,12 @@ private fun BangumiIndexFilterRow(
                 targetValue = if (selected) 11.dp else 4.dp,
                 label = "bangumiFilterChipPadding"
             )
-            Surface(
+            AppSurface(
                 onClick = { onOptionSelected(option) },
                 shape = AppShapes.container(ContainerLevel.Chip),
                 color = backgroundColor
             ) {
-                Text(
+                AppText(
                     text = option.label,
                     modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 7.dp),
                     color = if (selected) {
@@ -274,7 +280,7 @@ private fun BangumiIndexFilterRow(
  * 筛选选项 Chip
  */
 @Composable
-fun FilterChip(
+private fun BangumiFilterMenuChip(
     label: String,
     isActive: Boolean,
     onClick: () -> Unit,
@@ -285,7 +291,7 @@ fun FilterChip(
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
-        Surface(
+        AppSurface(
             onClick = onClick,
             color = if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
             shape = AppShapes.container(ContainerLevel.Chip)
@@ -294,13 +300,13 @@ fun FilterChip(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
+                AppText(
                     text = label,
                     fontSize = 12.sp,
                     color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.width(2.dp))
-                Icon(
+                AppIcon(
                     CupertinoIcons.Default.ChevronDown,
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),
@@ -309,13 +315,13 @@ fun FilterChip(
             }
         }
         
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = expanded,
             onDismissRequest = onDismiss
         ) {
             options.forEachIndexed { index, option ->
-                DropdownMenuItem(
-                    text = { Text(option, fontSize = 14.sp) },
+                AppDropdownMenuItem(
+                    text = { AppText(option, fontSize = 14.sp) },
                     onClick = { onOptionSelected(index) }
                 )
             }

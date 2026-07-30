@@ -18,10 +18,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +59,7 @@ internal fun DynamicOpusLinkCard(
                 verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall)
             ) {
                 if (card.label.isNotBlank()) {
-                    Text(
+                    AppText(
                         text = card.label,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
@@ -67,7 +67,7 @@ internal fun DynamicOpusLinkCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Text(
+                AppText(
                     text = card.title.ifBlank { resolveOpusLinkCardFallbackTitle(card.type) },
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
@@ -76,7 +76,7 @@ internal fun DynamicOpusLinkCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 if (card.description.isNotBlank()) {
-                    Text(
+                    AppText(
                         text = card.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -87,7 +87,7 @@ internal fun DynamicOpusLinkCard(
             }
             if (card.badgeText.isNotBlank()) {
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
-                Text(
+                AppText(
                     text = card.badgeText,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
@@ -118,7 +118,7 @@ private fun LinkCardCover(card: OpusLinkCard) {
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
+            AppIcon(
                 imageVector = rememberAppDynamicIcon(),
                 contentDescription = null,
                 modifier = Modifier.size(AppSpacingTokens.ExtraLarge),

@@ -22,9 +22,9 @@ import androidx.compose.foundation.verticalScroll
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -131,7 +131,7 @@ private fun RestReminderDialog(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
+                AppIcon(
                     CupertinoIcons.Filled.Moon,
                     contentDescription = null,
                     tint = Color(0xFF7E57C2),
@@ -140,7 +140,7 @@ private fun RestReminderDialog(
             }
         },
         title = {
-            Text(
+            AppText(
                 text = reminder.title,
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
@@ -155,14 +155,14 @@ private fun RestReminderDialog(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                Text(
+                AppText(
                     text = "你已连续观看 ${reminder.usageMinutes} 分钟",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
+                AppText(
                     text = reminder.message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -170,7 +170,7 @@ private fun RestReminderDialog(
                     lineHeight = 22.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
+                AppText(
                     text = reminder.suggestion,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
@@ -185,7 +185,7 @@ private fun RestReminderDialog(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("我去休息 20 秒", fontWeight = FontWeight.Medium)
+                AppText("我去休息 20 秒", fontWeight = FontWeight.Medium)
             }
         },
         dismissButton = {
@@ -198,14 +198,14 @@ private fun RestReminderDialog(
                         onClick = onSnooze,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("${snoozeMinutes} 分钟后提醒")
+                        AppText("${snoozeMinutes} 分钟后提醒")
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     AppTextButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(
+                        AppText(
                             "先继续观看",
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -217,13 +217,13 @@ private fun RestReminderDialog(
                         onClick = onSnooze,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("${snoozeMinutes} 分钟后提醒")
+                        AppText("${snoozeMinutes} 分钟后提醒")
                     }
                     AppTextButton(
                         onClick = onDismiss,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
+                        AppText(
                             "先继续观看",
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

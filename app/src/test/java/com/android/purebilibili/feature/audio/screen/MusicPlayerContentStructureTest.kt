@@ -18,9 +18,12 @@ class MusicPlayerContentStructureTest {
         assertTrue(compactBranch.contains("indicatorPositionProvider"))
         assertTrue(compactBranch.contains("animateScrollToPage"))
         assertTrue(compactBranch.contains("navigationBarsPadding()"))
-        assertTrue(compactBranch.contains("containerColorOverride = backgroundColor.copy("))
-        assertTrue(compactBranch.contains("selectedTextColorOverride = MusicContentColor"))
-        assertTrue(compactBranch.contains("unselectedTextColorOverride = MusicContentColor.copy(alpha = 0.90f)"))
+        assertTrue(compactBranch.contains("miuixBackdrop = musicBackdrop"))
+        assertTrue(!compactBranch.contains("forceLiquidChrome = true"))
+        assertTrue(!compactBranch.contains("containerColorOverride"))
+        assertTrue(!compactBranch.contains("indicatorIdleSurfaceColorOverride"))
+        assertTrue(!compactBranch.contains("selectedTextColorOverride"))
+        assertTrue(!compactBranch.contains("unselectedTextColorOverride"))
     }
 
     @Test
@@ -41,14 +44,14 @@ class MusicPlayerContentStructureTest {
     }
 
     @Test
-    fun `player uses three mode liquid dock and moves secondary actions to sheet`() {
+    fun `player uses four mode liquid dock and moves secondary actions to sheet`() {
         val source = loadSource()
         val playerPage = source
             .substringAfter("private fun PlayerPage(")
             .substringBefore("private fun MusicArtwork(")
 
         assertTrue(playerPage.contains("MusicPlayModeDock("))
-        assertTrue(source.contains("listOf(\"顺序播放\", \"随机播放\", \"单曲循环\")"))
+        assertTrue(source.contains("listOf(\"顺序播放\", \"随机播放\", \"单曲循环\", \"列表循环\")"))
         assertTrue(source.contains("showActions"))
         assertTrue(source.contains("播放器操作"))
         assertTrue(source.contains("onCollectionClick"))
@@ -74,13 +77,11 @@ class MusicPlayerContentStructureTest {
         assertTrue(lyricsPage.contains("未找到匹配歌词"))
         assertTrue(topBar.contains("CupertinoIcons.Outlined.ChevronDown"))
         assertTrue(topBar.contains("CupertinoIcons.Outlined.Ellipsis"))
-        assertTrue(source.contains(".musicGlassSurface(glassEnabled, CircleShape, glassTintColor, miuixBackdrop)"))
+        assertTrue(source.contains("BottomBarMatchedReusableLiquidDock("))
         assertTrue(!topBar.contains("?: Spacer"))
-
-        val glassSurface = source.substringAfter("private fun Modifier.musicGlassSurface(")
-        assertTrue(glassSurface.contains("kernelSuMiuixFloatingDockSurface("))
-        assertTrue(glassSurface.contains("containerColor = containerColor"))
-        assertTrue(!glassSurface.contains("Color.Black.copy"))
+        assertTrue(!source.contains("private fun Modifier.musicGlassSurface("))
+        assertTrue(!source.contains("bottomBarMatchedLiquidDockSurface("))
+        assertTrue(!source.contains("blurRadius = 20.dp"))
     }
 
     @Test
@@ -103,8 +104,12 @@ class MusicPlayerContentStructureTest {
         assertTrue(source.contains("MiuixBackdrop?"))
         assertTrue(source.contains("rememberMiuixLayerBackdrop()"))
         assertTrue(source.contains(".miuixLayerBackdrop(musicBackdrop)"))
-        assertTrue(source.contains("kernelSuMiuixFloatingDockSurface("))
+        assertTrue(source.contains("BottomBarMatchedReusableLiquidDock("))
+        assertTrue(!source.contains("kernelSuMiuixFloatingDockSurface("))
         assertTrue(!source.contains("liquidGlassBackground("))
+        assertTrue(!source.contains("forceLiquidChrome = true"))
+        assertTrue(!source.contains("containerColorOverride"))
+        assertTrue(!source.contains("indicatorIdleSurfaceColorOverride"))
     }
 
     private fun loadSource(

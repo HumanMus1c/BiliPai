@@ -1,5 +1,6 @@
 // 文件路径: feature/settings/CacheClearAnimation.kt
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppText
 
 import android.os.Build
 import androidx.compose.animation.animateColorAsState
@@ -639,7 +640,7 @@ internal fun CacheClearConfirmDialog(
     com.android.purebilibili.core.ui.AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { 
-            Text(
+            AppText(
                 "清除缓存", 
                 color = MaterialTheme.colorScheme.onSurface, 
                 fontWeight = FontWeight.Bold
@@ -647,12 +648,12 @@ internal fun CacheClearConfirmDialog(
         },
         text = { 
             Column {
-                Text(
+                AppText(
                     resolveCacheClearConfirmationMessage(selectedTargets),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
+                AppText(
                     selectedCacheSizeSummary,
                     color = MaterialTheme.colorScheme.primary, 
                     fontWeight = FontWeight.Medium
@@ -679,13 +680,13 @@ internal fun CacheClearConfirmDialog(
                         Column(
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(
+                            AppText(
                                 option.title,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(
+                            AppText(
                                 option.description,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
@@ -699,7 +700,7 @@ internal fun CacheClearConfirmDialog(
             com.android.purebilibili.core.ui.AppDialogAction(
                 onClick = onConfirm
             ) { 
-                Text(
+                AppText(
                     "确认清除",
                     color = if (selectedTargets.isEmpty()) {
                         MaterialTheme.colorScheme.onSurfaceVariant
@@ -711,7 +712,7 @@ internal fun CacheClearConfirmDialog(
         },
         dismissButton = { 
             com.android.purebilibili.core.ui.AppDialogAction(onClick = onDismiss) {
-                Text("取消", color = MaterialTheme.colorScheme.primary) 
+                AppText("取消", color = MaterialTheme.colorScheme.primary)
             } 
         }
     )
@@ -832,7 +833,7 @@ fun CacheClearAnimationDialog(
                     Spacer(modifier = Modifier.height(28.dp))
                     
                     // 状态文字
-                    Text(
+                    AppText(
                         text = if (progress.isComplete) "清理完成" else "正在清理",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
@@ -846,7 +847,7 @@ fun CacheClearAnimationDialog(
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     // 进度详情
-                    Text(
+                    AppText(
                         text = if (progress.clearedSize.isNotEmpty()) {
                             if (progress.isComplete) "共释放 ${progress.clearedSize}" 
                             else "已清理 ${progress.clearedSize}"
@@ -860,7 +861,7 @@ fun CacheClearAnimationDialog(
                     // 百分比显示
                     if (!progress.isComplete && progressValue > 0) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(
+                        AppText(
                             text = "${(progressValue * 100).toInt()}%",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
@@ -870,7 +871,7 @@ fun CacheClearAnimationDialog(
                     
                     if (progress.isComplete) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(
+                        AppText(
                             text = "即将自动关闭...",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)

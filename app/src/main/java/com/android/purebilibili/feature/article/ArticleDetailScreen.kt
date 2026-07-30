@@ -13,10 +13,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -109,7 +109,7 @@ fun ArticleDetailScreen(
                 title = screenTitle,
                 navigationIcon = {
                     AppIconButton(onClick = { onBack(sharedReturnReady) }) {
-                        Icon(rememberAppBackIcon(), contentDescription = backLabel)
+                        AppIcon(rememberAppBackIcon(), contentDescription = backLabel)
                     }
                 }
             )
@@ -138,12 +138,12 @@ fun ArticleDetailScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
+                        AppText(
                             text = state.message,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         AppButton(onClick = { retryToken++ }) {
-                            Text(retryLabel)
+                            AppText(retryLabel)
                         }
                     }
                 }
@@ -271,7 +271,7 @@ private fun ArticleDetailContent(
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
+                AppText(
                     text = article.title,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
@@ -296,7 +296,7 @@ private fun ArticleDetailContent(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             if (article.authorName.isNotBlank()) {
-                                Text(
+                                AppText(
                                     text = article.authorName,
                                     style = MaterialTheme.typography.titleSmall,
                                     modifier = Modifier.clickable(enabled = article.authorMid > 0) {
@@ -305,7 +305,7 @@ private fun ArticleDetailContent(
                                 )
                             }
                             if (article.publishTime.isNotBlank()) {
-                                Text(
+                                AppText(
                                     text = article.publishTime,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -315,7 +315,7 @@ private fun ArticleDetailContent(
                     }
                 }
                 if (article.summary.isNotBlank() && article.blocks.none { it is ArticleContentBlock.Paragraph && it.text == article.summary }) {
-                    Text(
+                    AppText(
                         text = article.summary,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -327,7 +327,7 @@ private fun ArticleDetailContent(
         itemsIndexed(article.blocks, key = { index, _ -> index }) { index, block ->
             when (block) {
                 is ArticleContentBlock.Heading -> {
-                    Text(
+                    AppText(
                         text = block.text,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
@@ -335,7 +335,7 @@ private fun ArticleDetailContent(
                 }
 
                 is ArticleContentBlock.Paragraph -> {
-                    Text(
+                    AppText(
                         text = block.text,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface

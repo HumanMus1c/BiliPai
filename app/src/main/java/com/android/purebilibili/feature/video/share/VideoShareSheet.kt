@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.video.share
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
@@ -24,11 +25,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.MoreHoriz
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -107,7 +107,7 @@ internal fun VideoShareSheet(
                 .fillMaxWidth()
                 .navigationBarsPadding()
         ) {
-            Text(
+            AppText(
                 text = "分享",
                 modifier = Modifier.padding(start = 20.dp, top = 22.dp, bottom = 18.dp),
                 color = MaterialTheme.colorScheme.onSurface,
@@ -187,7 +187,7 @@ internal fun VideoShareSheet(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -195,7 +195,7 @@ internal fun VideoShareSheet(
                     .clickable(onClick = onDismiss),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
+                AppText(
                     text = "取消",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 17.sp,
@@ -234,14 +234,14 @@ private fun VideoShareSheetItemView(
             contentAlignment = Alignment.Center
         ) {
             if (item.iconVector != null) {
-                Icon(
+                AppIcon(
                     imageVector = item.iconVector,
                     contentDescription = item.label,
                     modifier = Modifier.size(28.dp),
                     tint = item.contentColor
                 )
             } else {
-                Text(
+                AppText(
                     text = item.iconText.orEmpty(),
                     color = item.contentColor,
                     fontSize = 22.sp,
@@ -250,7 +250,7 @@ private fun VideoShareSheetItemView(
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
+        AppText(
             text = item.label,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 13.sp,

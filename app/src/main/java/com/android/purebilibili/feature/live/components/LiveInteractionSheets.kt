@@ -21,13 +21,13 @@ import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppFilterChip
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -62,11 +62,11 @@ fun LiveReportDialog(
 ) {
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Outlined.Report, contentDescription = null) },
-        title = { Text("举报弹幕") },
+        icon = { AppIcon(Icons.Outlined.Report, contentDescription = null) },
+        title = { AppText("举报弹幕") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)) {
-                Text(
+                AppText(
                     text = "@${target.uname.ifBlank { target.uid.toString() }}：${target.text}",
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 3,
@@ -76,7 +76,7 @@ fun LiveReportDialog(
                     DefaultLiveReportReasons.forEach { reason ->
                         AppAssistChip(
                             onClick = { onReport(reason) },
-                            label = { Text(reason.label) }
+                            label = { AppText(reason.label) }
                         )
                     }
                 }
@@ -85,7 +85,7 @@ fun LiveReportDialog(
         confirmButton = {},
         dismissButton = {
             AppTextButton(onClick = onDismiss) {
-                Text("取消")
+                AppText("取消")
             }
         }
     )
@@ -109,13 +109,13 @@ fun LiveEmoticonSheet(
                 ),
             verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)
         ) {
-            Text(
+            AppText(
                 text = "直播表情",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
             if (packages.isEmpty()) {
-                Text(
+                AppText(
                     text = "当前直播间暂无可用表情",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium
@@ -129,7 +129,7 @@ fun LiveEmoticonSheet(
                 ) {
                     packages.forEach { pkg ->
                         item(key = "title-${pkg.id}") {
-                            Text(
+                            AppText(
                                 text = pkg.name,
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold
@@ -170,9 +170,9 @@ private fun LiveEmoticonRow(
                 modifier = Modifier.height(visualSpec.emoticonImageHeightDp.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text(item.emoji, style = MaterialTheme.typography.bodyLarge)
+                AppText(item.emoji, style = MaterialTheme.typography.bodyLarge)
                 if (item.description.isNotBlank()) {
-                    Text(
+                    AppText(
                         text = item.description,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
@@ -208,13 +208,13 @@ fun LiveDmBlockSheet(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)
         ) {
-            Text(
+            AppText(
                 text = "弹幕屏蔽",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
             if (!isLoggedIn) {
-                Text(
+                AppText(
                     text = "登录后可同步直播间屏蔽词、屏蔽用户和规则。",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -230,7 +230,7 @@ fun LiveDmBlockSheet(
                     enabled = isLoggedIn,
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    placeholder = { Text("新增屏蔽词") }
+                    placeholder = { AppText("新增屏蔽词") }
                 )
                 AppButton(
                     enabled = isLoggedIn && keyword.trim().isNotBlank(),
@@ -239,7 +239,7 @@ fun LiveDmBlockSheet(
                         keyword = ""
                     }
                 ) {
-                    Text("添加")
+                    AppText("添加")
                 }
             }
             LiveRuleSection(
@@ -269,25 +269,25 @@ private fun LiveRuleSection(
     onSetRule: (String, Int) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
-        Text("规则", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        AppText("规则", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         Row(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
             AppFilterChip(
                 selected = (shieldInfo?.level ?: 0) > 0,
                 enabled = enabled,
                 onClick = { onSetRule("level", if ((shieldInfo?.level ?: 0) > 0) 0 else 5) },
-                label = { Text("等级") }
+                label = { AppText("等级") }
             )
             AppFilterChip(
                 selected = (shieldInfo?.medal ?: 0) > 0,
                 enabled = enabled,
                 onClick = { onSetRule("medal", if ((shieldInfo?.medal ?: 0) > 0) 0 else 1) },
-                label = { Text("勋章") }
+                label = { AppText("勋章") }
             )
             AppFilterChip(
                 selected = (shieldInfo?.verify ?: 0) > 0,
                 enabled = enabled,
                 onClick = { onSetRule("verify", if ((shieldInfo?.verify ?: 0) > 0) 0 else 1) },
-                label = { Text("认证") }
+                label = { AppText("认证") }
             )
         }
     }
@@ -300,19 +300,19 @@ private fun LiveKeywordSection(
     onDeleteKeyword: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
-        Text("关键词", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        AppText("关键词", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         val keywords = shieldInfo?.keywords.orEmpty()
         if (keywords.isEmpty()) {
-            Text("暂无屏蔽词", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            AppText("暂无屏蔽词", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             keywords.forEach { item ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(item.keyword, modifier = Modifier.weight(1f))
+                    AppText(item.keyword, modifier = Modifier.weight(1f))
                     AppIconButton(enabled = enabled, onClick = { onDeleteKeyword(item.keyword) }) {
-                        Icon(Icons.Outlined.Delete, contentDescription = "删除")
+                        AppIcon(Icons.Outlined.Delete, contentDescription = "删除")
                     }
                 }
             }
@@ -327,25 +327,25 @@ private fun LiveShieldUserSection(
     onUnblockUser: (LiveShieldUser) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
-        Text("用户", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        AppText("用户", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         val users = shieldInfo?.users.orEmpty()
         if (users.isEmpty()) {
-            Text("暂无屏蔽用户", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            AppText("暂无屏蔽用户", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             users.forEach { user ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Outlined.Block, contentDescription = null)
-                    Text(
+                    AppIcon(Icons.Outlined.Block, contentDescription = null)
+                    AppText(
                         text = user.uname.ifBlank { user.uid.toString() },
                         modifier = Modifier
                             .weight(1f)
                             .padding(start = AppSpacingTokens.Medium)
                     )
                     AppTextButton(enabled = enabled, onClick = { onUnblockUser(user) }) {
-                        Text("解除")
+                        AppText("解除")
                     }
                 }
             }

@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.android.purebilibili.feature.video.ui.section
 
 import android.view.SurfaceView
@@ -5,6 +7,7 @@ import android.view.TextureView
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.core.ui.AppTopTabPresentation
+import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.feature.video.ui.components.GesturePercentMotionDefaults
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -949,6 +952,26 @@ internal fun shouldShowCoverImage(
         shouldKeepCoverForManualStart = shouldKeepCoverForManualStart,
         hasStartedSmoothReveal = hasStartedSmoothReveal,
     )
+}
+
+/**
+ * 即播路径的封面是透明 TextureView 下的底图，不能持续压在视频帧上；
+ * CoverFirst 与返回则继续由封面承担最上层交互/共享 morph。
+ */
+internal fun resolveVideoPlayerCoverLayerZIndex(
+    playbackIntent: VideoSharedTransitionPlaybackIntent,
+    forceCoverDuringReturnAnimation: Boolean,
+    shouldKeepCoverForManualStart: Boolean,
+): Float {
+    return if (
+        forceCoverDuringReturnAnimation ||
+        shouldKeepCoverForManualStart ||
+        playbackIntent == VideoSharedTransitionPlaybackIntent.CoverFirst
+    ) {
+        100f
+    } else {
+        -1f
+    }
 }
 
 /**

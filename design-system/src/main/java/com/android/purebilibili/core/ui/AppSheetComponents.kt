@@ -29,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.theme.AndroidNativeVariant
 import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
@@ -137,8 +139,10 @@ fun AppModalBottomSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    shape: Shape? = null,
     containerColor: Color = MaterialTheme.colorScheme.surface,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    tonalElevation: Dp = 0.dp,
     scrimColor: Color = BottomSheetDefaults.ScrimColor,
     presentationProgress: Float = 1f,
     dragHandle: @Composable (() -> Unit)? = { AppBottomSheetDragHandle() },
@@ -150,7 +154,7 @@ fun AppModalBottomSheet(
     val visualSpec = remember(uiPreset, androidNativeVariant) {
         resolveAdaptiveBottomSheetVisualSpec(uiPreset, androidNativeVariant)
     }
-    val sheetShape = remember(visualSpec, uiPreset) {
+    val adaptiveSheetShape = remember(visualSpec, uiPreset) {
         if (shouldUseIosContinuousRounding(uiPreset)) {
             IosContinuousRoundedCornerShape(
                 topStart = visualSpec.cornerRadiusDp.dp,
@@ -163,6 +167,7 @@ fun AppModalBottomSheet(
             )
         }
     }
+    val sheetShape = shape ?: adaptiveSheetShape
     val progressVisual = resolveInteractiveOverlayProgressVisual(
         presentationProgress = presentationProgress,
         surfaceType = InteractiveOverlaySurfaceType.BOTTOM_SHEET,
@@ -187,6 +192,7 @@ fun AppModalBottomSheet(
         shape = sheetShape,
         containerColor = resolvedContainerColor,
         contentColor = contentColor,
+        tonalElevation = tonalElevation,
         scrimColor = scrimColor.copy(alpha = progressVisual.scrimAlpha),
         dragHandle = if (visualSpec.useMaterialDragHandle) {
             if (isNativeMiuixEnabled(uiPreset, androidNativeVariant)) {

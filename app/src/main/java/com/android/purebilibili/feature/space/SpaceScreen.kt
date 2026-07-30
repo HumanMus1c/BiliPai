@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.space
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -53,14 +54,13 @@ import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -266,7 +266,7 @@ fun SpaceScreen(
                     title = screenTitle,
                     navigationIcon = {
                         AppIconButton(onClick = onBack) {
-                            Icon(
+                            AppIcon(
                                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                                 contentDescription = backLabel
                             )
@@ -280,7 +280,7 @@ fun SpaceScreen(
                     actions = {
                         if (canSearch) {
                             AppIconButton(onClick = { viewModel.setSearchMode(!isSearchMode) }) {
-                                Icon(
+                                AppIcon(
                                     imageVector = if (isSearchMode) Icons.Outlined.Close else Icons.Outlined.Search,
                                     contentDescription = if (isSearchMode) "关闭搜索" else "搜索"
                                 )
@@ -288,7 +288,7 @@ fun SpaceScreen(
                         }
                         Box {
                             AppIconButton(onClick = { showMenu = true }) {
-                                Icon(
+                                AppIcon(
                                     imageVector = Icons.Outlined.MoreVert,
                                     contentDescription = moreLabel
                                 )
@@ -299,7 +299,7 @@ fun SpaceScreen(
                                 modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                             ) {
                                 AppDropdownMenuItem(
-                                    text = { Text("复制空间链接") },
+                                    text = { AppText("复制空间链接") },
                                     onClick = {
                                         showMenu = false
                                         copyToClipboard(
@@ -308,20 +308,20 @@ fun SpaceScreen(
                                         )
                                     },
                                     leadingIcon = {
-                                        Icon(
+                                        AppIcon(
                                             imageVector = Icons.Outlined.ContentCopy,
                                             contentDescription = null
                                         )
                                     }
                                 )
                                 AppDropdownMenuItem(
-                                    text = { Text(if (isBlocked) unblockUserLabel else blockUserLabel) },
+                                    text = { AppText(if (isBlocked) unblockUserLabel else blockUserLabel) },
                                     onClick = {
                                         showMenu = false
                                         showBlockConfirmDialog = true
                                     },
                                     leadingIcon = {
-                                        Icon(
+                                        AppIcon(
                                             imageVector = if (isBlocked) {
                                                 Icons.Outlined.Visibility
                                             } else {
@@ -550,9 +550,9 @@ fun SpaceScreen(
         val userFace = currentSuccessState?.userInfo?.face.orEmpty()
         AppAlertDialog(
             onDismissRequest = { showBlockConfirmDialog = false },
-            title = { Text(if (isBlocked) "解除屏蔽" else "屏蔽 UP 主") },
+            title = { AppText(if (isBlocked) "解除屏蔽" else "屏蔽 UP 主") },
             text = {
-                Text(
+                AppText(
                     if (isBlocked) {
                         "确定要解除对 $userName 的屏蔽吗？"
                     } else {
@@ -583,12 +583,12 @@ fun SpaceScreen(
                         }
                     }
                 ) {
-                    Text(if (isBlocked) "解除屏蔽" else "屏蔽")
+                    AppText(if (isBlocked) "解除屏蔽" else "屏蔽")
                 }
             },
             dismissButton = {
                 AppTextButton(onClick = { showBlockConfirmDialog = false }) {
-                    Text("取消")
+                    AppText("取消")
                 }
             }
         )
@@ -601,7 +601,7 @@ fun SpaceScreen(
                     viewModel.dismissFollowGroupDialog()
                 }
             },
-            title = { Text("设置关注分组") },
+            title = { AppText("设置关注分组") },
             text = {
                 if (isFollowGroupsLoading) {
                     Box(
@@ -620,7 +620,7 @@ fun SpaceScreen(
                             .verticalScroll(rememberScrollState())
                     ) {
                         if (followGroupTags.isEmpty()) {
-                            Text(
+                            AppText(
                                 text = "暂无可用分组（不勾选即为默认分组）",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 13.sp
@@ -638,7 +638,7 @@ fun SpaceScreen(
                                         checked = followGroupSelectedTagIds.contains(tag.tagid),
                                         onCheckedChange = { viewModel.toggleFollowGroupSelection(tag.tagid) }
                                     )
-                                    Text(
+                                    AppText(
                                         text = "${tag.name} (${tag.count})",
                                         fontSize = 14.sp,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -646,7 +646,7 @@ fun SpaceScreen(
                                 }
                             }
                         }
-                        Text(
+                        AppText(
                             text = "可多选，确定后覆盖原分组设置。",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
@@ -667,7 +667,7 @@ fun SpaceScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Text("确定")
+                        AppText("确定")
                     }
                 }
             },
@@ -676,7 +676,7 @@ fun SpaceScreen(
                     onClick = { viewModel.dismissFollowGroupDialog() },
                     enabled = !isSavingFollowGroups
                 ) {
-                    Text("取消")
+                    AppText("取消")
                 }
             }
         )
@@ -714,12 +714,12 @@ private fun SpacePlayedVideoLocatePrompt(
                     .widthIn(max = 248.dp)
                     .padding(start = 16.dp, top = 12.dp, end = 8.dp, bottom = 6.dp)
             ) {
-                Text(
+                AppText(
                     text = "刚刚看过",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
-                Text(
+                AppText(
                     text = "是否定位到视频投稿",
                     modifier = Modifier.padding(top = 2.dp),
                     fontSize = 13.sp,
@@ -730,10 +730,10 @@ private fun SpacePlayedVideoLocatePrompt(
                     horizontalArrangement = Arrangement.End
                 ) {
                     AppTextButton(onClick = onDismiss) {
-                        Text("暂不")
+                        AppText("暂不")
                     }
                     AppTextButton(onClick = onConfirm) {
-                        Text("定位")
+                        AppText("定位")
                     }
                 }
             }
@@ -2090,7 +2090,7 @@ private fun SpaceHeader(
                                 shape = CircleShape,
                                 color = Color(0xFFFFC107)
                             ) {
-                                Icon(
+                                AppIcon(
                                     imageVector = Icons.Outlined.Bolt,
                                     contentDescription = null,
                                     tint = Color.White,
@@ -2149,7 +2149,7 @@ private fun SpaceHeader(
                                         ).show()
                                     }
                                 ) {
-                                    Icon(
+                                    AppIcon(
                                         imageVector = Icons.Outlined.Email,
                                         contentDescription = "私信",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2179,14 +2179,14 @@ private fun SpaceHeader(
                                         horizontalArrangement = Arrangement.Center
                                     ) {
                                         if (userInfo.isFollowed) {
-                                            Icon(
+                                            AppIcon(
                                                 imageVector = Icons.Outlined.Menu,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(13.dp)
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
                                         }
-                                        Text(
+                                        AppText(
                                             text = followLabel,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.SemiBold
@@ -2209,7 +2209,7 @@ private fun SpaceHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
+                AppText(
                     text = userInfo.name,
                     modifier = Modifier.copyOnLongPress(userInfo.name, "UP主名称"),
                     fontSize = 18.sp,
@@ -2248,7 +2248,7 @@ private fun SpaceHeader(
 
             if (userInfo.sign.isNotBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
+                AppText(
                     text = userInfo.sign.trim(),
                     modifier = Modifier.copyOnLongPress(userInfo.sign, "UP主简介"),
                     fontSize = 13.sp,
@@ -2267,7 +2267,7 @@ private fun SpaceHeader(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (userInfo.mid > 0L) {
-                        Text(
+                        AppText(
                             text = "UID: ${userInfo.mid}",
                             modifier = Modifier.copyOnLongPress(userInfo.mid.toString(), "UID"),
                             fontSize = 12.sp,
@@ -2275,7 +2275,7 @@ private fun SpaceHeader(
                         )
                     }
                     ipLocation?.let { location ->
-                        Text(
+                        AppText(
                             text = "IP 属地 · $location",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
@@ -2316,13 +2316,13 @@ private fun SpaceSearchEntryChip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(
+            AppIcon(
                 imageVector = Icons.Outlined.Search,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp)
             )
-            Text(
+            AppText(
                 text = label,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium
@@ -2358,7 +2358,7 @@ private fun SpaceMainTabRow(
             labelFontSize = 14.sp,
             liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled
         )
-        HorizontalDivider(
+        AppHorizontalDivider(
             modifier = Modifier.padding(top = 10.dp),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.36f)
         )
@@ -2605,7 +2605,7 @@ private fun SpaceContributionExpandedTabRail(
                                     )
                             )
                         }
-                        Text(
+                        AppText(
                             text = tab.title,
                             style = labelTextStyle,
                             color = if (selected) {
@@ -2642,7 +2642,7 @@ private fun SpaceContributionVideoToolbarActions(
         horizontalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         if (spec.showTotalText) {
-            Text(
+            AppText(
                 text = "共${totalVideos}视频",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2657,13 +2657,13 @@ private fun SpaceContributionVideoToolbarActions(
                 modifier = Modifier.height(40.dp),
                 contentPadding = PaddingValues(horizontal = 8.dp)
             ) {
-                Icon(
+                AppIcon(
                     imageVector = Icons.Outlined.PlayCircleOutline,
                     contentDescription = null,
                     modifier = Modifier.size(17.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(
+                AppText(
                     text = "播放",
                     fontSize = 13.sp,
                     maxLines = 1,
@@ -2675,7 +2675,7 @@ private fun SpaceContributionVideoToolbarActions(
                 onClick = onPlayAllClick,
                 modifier = Modifier.size(40.dp)
             ) {
-                Icon(
+                AppIcon(
                     imageVector = Icons.Outlined.PlayCircleOutline,
                     contentDescription = "播放全部",
                     tint = MaterialTheme.colorScheme.primary
@@ -2687,7 +2687,7 @@ private fun SpaceContributionVideoToolbarActions(
             onClick = onLayoutModeClick,
             modifier = Modifier.size(40.dp)
         ) {
-            Icon(
+            AppIcon(
                 imageVector = if (isSingleColumn) Icons.Outlined.GridView else Icons.Outlined.ViewAgenda,
                 contentDescription = if (isSingleColumn) "切换为双列" else "切换为单列",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2701,14 +2701,14 @@ private fun SpaceContributionVideoToolbarActions(
                     modifier = Modifier.height(40.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.AutoMirrored.Outlined.Sort,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(17.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(
+                    AppText(
                         text = resolveSpaceVideoSortCompactLabel(currentOrder),
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 13.sp,
@@ -2721,7 +2721,7 @@ private fun SpaceContributionVideoToolbarActions(
                     onClick = { menuExpanded = true },
                     modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.AutoMirrored.Outlined.Sort,
                         contentDescription = resolveSpaceVideoSortCompactLabel(currentOrder),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2735,7 +2735,7 @@ private fun SpaceContributionVideoToolbarActions(
             ) {
                 VideoSortOrder.entries.forEach { order ->
                     AppDropdownMenuItem(
-                        text = { Text(order.displayName) },
+                        text = { AppText(order.displayName) },
                         onClick = {
                             menuExpanded = false
                             onOrderClick(order)
@@ -2760,14 +2760,14 @@ private fun SpaceSectionHeader(
             .padding(horizontal = 16.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
+        AppText(
             text = title,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(
+        AppText(
             text = count.toString(),
             fontSize = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2775,7 +2775,7 @@ private fun SpaceSectionHeader(
         Spacer(modifier = Modifier.weight(1f))
         if (onActionClick != null && !actionLabel.isNullOrBlank()) {
             AppTextButton(onClick = onActionClick) {
-                Text(actionLabel)
+                AppText(actionLabel)
             }
         }
     }
@@ -2953,7 +2953,7 @@ private fun SpaceHomeVideoCard(
                     shape = RoundedCornerShape(6.dp),
                     color = MaterialTheme.colorScheme.primary
                 ) {
-                    Text(
+                    AppText(
                         text = badgeLabel,
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                         fontSize = 11.sp,
@@ -2970,7 +2970,7 @@ private fun SpaceHomeVideoCard(
                 shape = RoundedCornerShape(6.dp),
                 color = Color.Black.copy(alpha = 0.72f)
             ) {
-                Text(
+                AppText(
                     text = video.length,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     fontSize = 11.sp,
@@ -2999,7 +2999,7 @@ private fun SpaceHomeVideoCard(
             )
         ) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
+            AppText(
                 text = video.title,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
@@ -3017,7 +3017,7 @@ private fun SpaceHomeVideoCard(
             }
             if (metadata.isNotBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
+                AppText(
                     text = metadata,
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -3104,7 +3104,7 @@ private fun SpaceAggregateMediaCard(
                     shape = RoundedCornerShape(6.dp),
                     color = Color.Black.copy(alpha = 0.72f)
                 ) {
-                    Text(
+                    AppText(
                         text = item.length,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         fontSize = 11.sp,
@@ -3115,7 +3115,7 @@ private fun SpaceAggregateMediaCard(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
+        AppText(
             text = item.title,
             fontSize = 14.sp,
             lineHeight = 20.sp,
@@ -3157,7 +3157,7 @@ private fun SpaceAggregatePosterCard(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
+        AppText(
             text = item.title,
             fontSize = 14.sp,
             lineHeight = 20.sp,
@@ -3167,7 +3167,7 @@ private fun SpaceAggregatePosterCard(
         )
         if (item.subtitle.isNotBlank()) {
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
+            AppText(
                 text = item.subtitle,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -3228,7 +3228,7 @@ private fun SpaceTopVideoCard(
             }
             .padding(14.dp)
     ) {
-        Text(
+        AppText(
             text = "置顶视频",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
@@ -3262,7 +3262,7 @@ private fun SpaceTopVideoCard(
                     .height(90.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
+                AppText(
                     text = video.title,
                     fontSize = 15.sp,
                     lineHeight = 21.sp,
@@ -3270,12 +3270,12 @@ private fun SpaceTopVideoCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
+                AppText(
                     text = video.reason.ifBlank { FormatUtils.formatPublishTime(video.pubdate) },
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.primary
                 )
-                Text(
+                AppText(
                     text = "${FormatUtils.formatStat(video.stat.view)}播放 · ${FormatUtils.formatStat(video.stat.like)}点赞",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -3295,13 +3295,13 @@ private fun SpaceNoticeCard(notice: String) {
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
             .padding(14.dp)
     ) {
-        Text(
+        AppText(
             text = "公告",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(10.dp))
-        Text(
+        AppText(
             text = notice,
             fontSize = 14.sp,
             lineHeight = 22.sp,
@@ -3430,7 +3430,7 @@ private fun SpaceArchiveListItemRow(
                     shape = RoundedCornerShape(6.dp),
                     color = MaterialTheme.colorScheme.primary
                 ) {
-                    Text(
+                    AppText(
                         text = badgeLabel,
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                         fontSize = 11.sp,
@@ -3447,7 +3447,7 @@ private fun SpaceArchiveListItemRow(
                     shape = RoundedCornerShape(6.dp),
                     color = Color.Black.copy(alpha = 0.72f)
                 ) {
-                    Text(
+                    AppText(
                         text = duration,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         fontSize = 11.sp,
@@ -3484,7 +3484,7 @@ private fun SpaceArchiveListItemRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                Text(
+                AppText(
                     text = title,
                     modifier = Modifier.weight(1f),
                     fontSize = 15.sp,
@@ -3494,7 +3494,7 @@ private fun SpaceArchiveListItemRow(
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Icon(
+                AppIcon(
                     imageVector = Icons.Outlined.MoreVert,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
@@ -3503,7 +3503,7 @@ private fun SpaceArchiveListItemRow(
                         .size(18.dp)
                 )
             }
-            Text(
+            AppText(
                 text = if (progressState?.progressSec == -1) "$publishTime · 已看完" else publishTime,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -3517,13 +3517,13 @@ private fun SpaceArchiveListItemRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Outlined.PlayCircleOutline,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp)
                     )
-                    Text(
+                    AppText(
                         text = FormatUtils.formatStat(play),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -3534,13 +3534,13 @@ private fun SpaceArchiveListItemRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Outlined.ChatBubbleOutline,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(15.dp)
                     )
-                    Text(
+                    AppText(
                         text = FormatUtils.formatStat(secondaryCount),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -3583,7 +3583,7 @@ private fun SpaceAudioListItem(
             )
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(
+            AppText(
                 text = audio.title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
@@ -3591,13 +3591,13 @@ private fun SpaceAudioListItem(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(6.dp))
-            Text(
+            AppText(
                 text = "${FormatUtils.formatStat(audio.play_count.toLong())}播放 · ${FormatUtils.formatDuration(audio.duration)}",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Icon(
+        AppIcon(
             imageVector = Icons.Outlined.PlayCircleOutline,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
@@ -3631,7 +3631,7 @@ private fun SpaceArticleListItem(
             .clickable { onClick() }
             .padding(vertical = 6.dp)
     ) {
-        Text(
+        AppText(
             text = article.title,
             fontSize = 17.sp,
             fontWeight = FontWeight.SemiBold,
@@ -3664,12 +3664,12 @@ private fun SpaceArticleListItem(
             }
         }
         Spacer(modifier = Modifier.height(10.dp))
-        Text(
+        AppText(
             text = "${article.category?.name ?: "图文"} · ${FormatUtils.formatStat(article.stats?.view?.toLong() ?: 0)}阅读 · ${FormatUtils.formatStat(article.stats?.like?.toLong() ?: 0)}点赞",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        HorizontalDivider(
+        AppHorizontalDivider(
             modifier = Modifier.padding(top = 12.dp),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
         )
@@ -3696,7 +3696,7 @@ private fun SpaceFavoriteFolderRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                AppText(
                     text = folder.title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
@@ -3704,13 +3704,13 @@ private fun SpaceFavoriteFolderRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(
+                AppText(
                     text = "${folder.media_count} 个视频",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(
+            AppText(
                 text = "查看",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.primary
@@ -3754,7 +3754,7 @@ private fun SpaceBangumiCard(
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
+        AppText(
             text = item.title,
             fontSize = 14.sp,
             lineHeight = 20.sp,
@@ -3763,7 +3763,7 @@ private fun SpaceBangumiCard(
             overflow = TextOverflow.Ellipsis
         )
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
+        AppText(
             text = item.newEp?.indexShow?.ifBlank { item.progress }.orEmpty().ifBlank { item.evaluate },
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -3813,7 +3813,7 @@ private fun SpaceCollectionSummaryCard(
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                AppText(
                     text = title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -3821,14 +3821,14 @@ private fun SpaceCollectionSummaryCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(
+                AppText(
                     text = "$total 个内容",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.primary
                 )
                 if (subtitle.isNotBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(
+                    AppText(
                         text = subtitle,
                         fontSize = 13.sp,
                         lineHeight = 19.sp,
@@ -3888,7 +3888,7 @@ private fun SpaceCollectionWithPreviewCard(
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                    AppText(
                         text = title,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -3896,14 +3896,14 @@ private fun SpaceCollectionWithPreviewCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(
+                    AppText(
                         text = "$total 个内容",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.primary
                     )
                     if (subtitle.isNotBlank()) {
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(
+                        AppText(
                             text = subtitle,
                             fontSize = 13.sp,
                             lineHeight = 19.sp,
@@ -3934,7 +3934,7 @@ private fun SpaceCollectionWithPreviewCard(
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                             )
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(
+                            AppText(
                                 text = preview.title,
                                 fontSize = 12.sp,
                                 lineHeight = 17.sp,
@@ -3967,7 +3967,7 @@ private fun SpaceBadgeChip(
         shape = RoundedCornerShape(999.dp),
         color = containerColor
     ) {
-        Text(
+        AppText(
             text = text,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
             fontSize = 11.sp,
@@ -3987,7 +3987,7 @@ private fun SpaceHeaderStat(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
+        AppText(
             text = FormatUtils.formatStat(value),
             fontSize = 17.sp,
             fontWeight = FontWeight.SemiBold,
@@ -3996,7 +3996,7 @@ private fun SpaceHeaderStat(
             overflow = TextOverflow.Ellipsis
         )
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
+        AppText(
             text = label,
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -4038,14 +4038,14 @@ private fun SpaceSectionEmptyState(
             .padding(horizontal = 24.dp, vertical = 42.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
+        AppText(
             text = title,
             fontSize = 17.sp,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
+        AppText(
             text = subtitle,
             fontSize = 13.sp,
             lineHeight = 19.sp,
@@ -4066,14 +4066,14 @@ private fun SpaceErrorSection(
             .padding(horizontal = 24.dp, vertical = 42.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
+        AppText(
             text = message,
             fontSize = 15.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(12.dp))
         AppButton(onClick = onRetry) {
-            Text("重试")
+            AppText("重试")
         }
     }
 }
@@ -4088,14 +4088,14 @@ private fun SpaceErrorState(
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
+            AppText(
                 text = message,
                 fontSize = 15.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(12.dp))
             AppButton(onClick = onRetry) {
-                Text("重试")
+                AppText("重试")
             }
         }
     }

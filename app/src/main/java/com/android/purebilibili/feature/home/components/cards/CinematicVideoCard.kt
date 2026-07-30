@@ -24,9 +24,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -319,7 +319,7 @@ fun CinematicVideoCard(
                         isQuickReturnFromDetail = isQuickReturningFromVideoDetail,
                     )
             ) {
-                Text(
+                AppText(
                     text = video.title,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -364,13 +364,13 @@ fun CinematicVideoCard(
                      
                      // 播放量
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall)) {
-                        Icon(
+                        AppIcon(
                             imageVector = CupertinoIcons.Filled.PlayCircle, 
                             contentDescription = null,
                             modifier = Modifier.size(AppSpacingTokens.Medium),
                             tint = MediaContrastPalette.Foreground.copy(alpha = 0.8f)
                         )
-                        Text(
+                        AppText(
                             text = FormatUtils.formatStat(video.stat.view.toLong()),
                             style = contentTypography.statistic.copy(
                                 color = MediaContrastPalette.Foreground.copy(alpha = 0.8f),
@@ -380,7 +380,7 @@ fun CinematicVideoCard(
                     }
 
                     // 时长
-                    Text(
+                    AppText(
                         text = FormatUtils.formatDuration(video.duration),
                         style = contentTypography.coverBadge.copy(
                             color = MediaContrastPalette.Foreground.copy(alpha = 0.8f)
@@ -411,7 +411,7 @@ fun CinematicVideoCard(
                          .background(MediaContrastPalette.Scrim.copy(alpha = 0.3f), CircleShape),
                      contentAlignment = Alignment.Center,
                  ) {
-                     Text(
+                     AppText(
                          text = "⋮",
                          color = MediaContrastPalette.Foreground,
                          fontSize = MaterialTheme.typography.bodyMedium.fontSize,
@@ -431,7 +431,7 @@ fun CinematicVideoCard(
     ) {
         if (onWatchLater != null) {
             AppDropdownMenuItem(
-                text = { Text("🕐 稍后再看") },
+                text = { AppText("🕐 稍后再看") },
                 onClick = {
                     showDismissMenu = false
                     onWatchLater.invoke()
@@ -440,7 +440,7 @@ fun CinematicVideoCard(
         }
         if (onDismiss != null) {
             AppDropdownMenuItem(
-                text = { Text("🚫 不感兴趣") },
+                text = { AppText("🚫 不感兴趣") },
                 onClick = {
                     showDismissMenu = false
                     onDismiss.invoke()

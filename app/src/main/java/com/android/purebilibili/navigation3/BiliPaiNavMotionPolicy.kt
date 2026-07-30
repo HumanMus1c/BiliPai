@@ -10,7 +10,6 @@ internal enum class BiliPaiNavMotionMode {
 }
 
 internal enum class BiliPaiNavRouteTransition {
-    VIDEO_DETAIL_NO_ANIMATION,
     NO_OP_SHARED_ELEMENT,
     REDUCED_MOTION_FADE,
     CARD_DISABLED_VIDEO_FORWARD_FROM_LEFT,
@@ -85,7 +84,6 @@ internal fun resolveBiliPaiNavMotionDecision(
 
 internal fun resolveBiliPaiBackGestureDecision(
     cardTransitionEnabled: Boolean,
-    videoDetailTransitionsEnabled: Boolean = true,
     systemBackAction: AppSystemBackAction,
     currentKey: BiliPaiNavKey?,
     previousKey: BiliPaiNavKey?,
@@ -95,7 +93,6 @@ internal fun resolveBiliPaiBackGestureDecision(
     val motionMode = resolveBiliPaiNavMotionMode(cardTransitionEnabled = cardTransitionEnabled)
     val routeTransition = resolveBiliPaiNavDisplayPopRouteTransition(
         cardTransitionEnabled = cardTransitionEnabled,
-        videoDetailTransitionsEnabled = videoDetailTransitionsEnabled,
         sourceMetadata = sourceMetadata,
         fromKey = currentKey,
         toKey = previousKey,
@@ -149,7 +146,6 @@ internal fun shouldRecoverVideoPlayerAfterBackCancellation(
  */
 internal fun resolveBiliPaiNavDisplayPopRouteTransition(
     cardTransitionEnabled: Boolean = true,
-    videoDetailTransitionsEnabled: Boolean = true,
     sourceMetadata: BiliPaiNavSourceMetadata,
     fromKey: BiliPaiNavKey?,
     toKey: BiliPaiNavKey?,
@@ -162,9 +158,6 @@ internal fun resolveBiliPaiNavDisplayPopRouteTransition(
     )?.let { return it }
     val fromVideoKey = fromKey as? BiliPaiNavKey.VideoDetail
     val toIsCardReturnTarget = toKey != null && isCardReturnTargetNavKey(toKey)
-    if (!videoDetailTransitionsEnabled && fromVideoKey != null && toIsCardReturnTarget) {
-        return BiliPaiNavRouteTransition.VIDEO_DETAIL_NO_ANIMATION
-    }
     if (cardTransitionEnabled) {
         if (isRelatedVideoDetailReturn(fromVideoKey, toKey)) {
             return BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT

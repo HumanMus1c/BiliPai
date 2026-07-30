@@ -104,12 +104,12 @@ sealed class ScreenRoutes(val route: String) {
     }
     object JsPluginContent : ScreenRoutes("js_plugin/{pluginId}") {
         fun createRoute(pluginId: String): String {
-            return "js_plugin/${android.net.Uri.encode(pluginId)}"
+            return "js_plugin/${URLEncoder.encode(pluginId, StandardCharsets.UTF_8.name()).replace("+", "%20")}"
         }
     }
     object ExternalMedia : ScreenRoutes("external_media/{launchId}") {
         fun createRoute(launchId: String): String {
-            return "external_media/${android.net.Uri.encode(launchId)}"
+            return "external_media/${URLEncoder.encode(launchId, StandardCharsets.UTF_8.name()).replace("+", "%20")}"
         }
     }
     object BottomBarSettings : ScreenRoutes("bottom_bar_settings")  //  底栏管理

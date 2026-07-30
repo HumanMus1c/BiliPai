@@ -37,11 +37,11 @@ import com.android.purebilibili.core.ui.components.AppCheckbox
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -211,7 +211,7 @@ fun LandscapeDanmakuComposer(
                                 AppFilterChip(
                                     selected = selectedMode == option.value,
                                     onClick = { selectedMode = option.value },
-                                    label = { Text(option.label, fontSize = 12.sp) },
+                                    label = { AppText(option.label, fontSize = 12.sp) },
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
                                         selectedLabelColor = Color.White
@@ -225,7 +225,7 @@ fun LandscapeDanmakuComposer(
                                 AppFilterChip(
                                     selected = selectedFontSize == option.value,
                                     onClick = { selectedFontSize = option.value },
-                                    label = { Text(option.label, fontSize = 12.sp) },
+                                    label = { AppText(option.label, fontSize = 12.sp) },
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
                                         selectedLabelColor = Color.White
@@ -255,8 +255,8 @@ fun LandscapeDanmakuComposer(
                                     }
                                 )
                                 Column {
-                                    Text("内嵌关注按钮", color = Color.White, fontSize = 13.sp)
-                                    Text(
+                                    AppText("内嵌关注按钮", color = Color.White, fontSize = 13.sp)
+                                    AppText(
                                         "发送视频内嵌关注按钮",
                                         color = Color.White.copy(alpha = 0.68f),
                                         fontSize = 11.sp
@@ -268,7 +268,7 @@ fun LandscapeDanmakuComposer(
                                 onClick = { showAdvancedOptions = true },
                                 contentPadding = PaddingValues(horizontal = 0.dp)
                             ) {
-                                Text("更多发送选项", color = Color.White.copy(alpha = 0.78f), fontSize = 12.sp)
+                                AppText("更多发送选项", color = Color.White.copy(alpha = 0.78f), fontSize = 12.sp)
                             }
                         }
                     }
@@ -283,7 +283,7 @@ fun LandscapeDanmakuComposer(
                         onClick = onDismiss,
                         modifier = Modifier.size(40.dp)
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = CupertinoIcons.Outlined.Xmark,
                             contentDescription = "关闭",
                             tint = Color.White.copy(alpha = 0.82f),
@@ -334,7 +334,7 @@ fun LandscapeDanmakuComposer(
                             ),
                             decorationBox = { innerTextField ->
                                 if (text.isEmpty()) {
-                                    Text(
+                                    AppText(
                                         text = "发个友善的弹幕见证当下",
                                         color = Color.White.copy(alpha = 0.55f),
                                         fontSize = 15.sp
@@ -349,7 +349,7 @@ fun LandscapeDanmakuComposer(
                         onClick = { showStylePanel = !showStylePanel },
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = CupertinoIcons.Outlined.Paintpalette,
                             contentDescription = "弹幕样式",
                             tint = if (showStylePanel) {
@@ -390,7 +390,7 @@ fun LandscapeDanmakuComposer(
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
                         } else {
-                            Text(
+                            AppText(
                                 text = "发送",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -404,12 +404,12 @@ fun LandscapeDanmakuComposer(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
+                    AppText(
                         text = if (showStylePanel) "样式仅作用于本条弹幕" else "回车或点发送即可提交",
                         color = Color.White.copy(alpha = 0.62f),
                         fontSize = 11.sp
                     )
-                    Text(
+                    AppText(
                         text = "${text.length}/100",
                         color = if (text.length > 90) {
                             MaterialTheme.colorScheme.error.copy(alpha = 0.92f)

@@ -1,4 +1,7 @@
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -219,7 +222,7 @@ private fun TipItem(
             .padding(16.dp),
         verticalAlignment = Alignment.Top
     ) {
-        Icon(
+        AppIcon(
             imageVector = icon,
             contentDescription = null,
             tint = effectiveIconTint,
@@ -229,14 +232,14 @@ private fun TipItem(
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column {
-            Text(
+            AppText(
                 text = title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
+            AppText(
                 text = content,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
@@ -248,7 +251,7 @@ private fun TipItem(
 
 @Composable
 private fun TipDivider() {
-    HorizontalDivider(
+    AppHorizontalDivider(
         modifier = Modifier.padding(start = 48.dp),
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
         thickness = 0.5.dp

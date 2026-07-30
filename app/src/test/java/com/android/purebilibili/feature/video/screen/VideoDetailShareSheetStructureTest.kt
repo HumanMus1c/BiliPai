@@ -5,25 +5,34 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class VideoDetailVideoShareSheetStructureTest {
+class VideoDetailShareSheetStructureTest {
 
     @Test
     fun ordinaryVideoDetailShareEntrypoints_openVideoShareSheet() {
         val source = loadVideoDetailSource()
         val phoneContentSource = loadVideoDetailPhoneContentSource()
+        val overlayAdapterSource = loadVideoDetailCommonOverlayAdapterSource()
 
         assertTrue(
             source.contains("pendingVideoShare"),
             "VideoDetailScreen should keep a local sheet state for ordinary video sharing"
         )
-        assertTrue(
+        assertTrue(source.contains("VideoDetailCommonOverlayAdapter("))
+        assertTrue(source.contains("pendingVideoShare = pendingVideoShare"))
+        assertTrue(source.contains("onDismissShare = { pendingVideoShare = null }"))
+        assertFalse(
             source.contains("VideoShareSheet("),
-            "VideoDetailScreen should render the shared video share sheet"
+            "VideoDetailScreenStateHolder should only coordinate the sheet state",
+        )
+        assertTrue(
+            overlayAdapterSource.contains("pendingVideoShare?.let { payload ->") &&
+                overlayAdapterSource.contains("VideoShareSheet(payload = payload, onDismiss = onDismissShare)"),
+            "VideoDetailCommonOverlayAdapter should render and dismiss the shared video share sheet",
         )
 
         val detailActionShare = phoneContentSource
             .substringAfter("onDownloadClick = playbackActions.openDownloadDialog")
-            .substringBefore("//  [新增] 时间戳点击跳转")
+            .substringBefore("onTimestampClick = {")
         val bottomInputShare = phoneContentSource
             .substringAfter("BottomInputBar(")
             .substringBefore("onCommentClick = {")
@@ -73,6 +82,16 @@ class VideoDetailVideoShareSheetStructureTest {
         )
         val sourceFile = candidates.firstOrNull { it.exists() }
             ?: error("Cannot locate VideoDetailPhoneContent.kt from ${File(".").absolutePath}")
+        return sourceFile.readText()
+    }
+
+    private fun loadVideoDetailCommonOverlayAdapterSource(): String {
+        val candidates = listOf(
+            File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailCommonOverlayAdapter.kt"),
+            File("app/src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailCommonOverlayAdapter.kt"),
+        )
+        val sourceFile = candidates.firstOrNull { it.exists() }
+            ?: error("Cannot locate VideoDetailCommonOverlayAdapter.kt from ${File(".").absolutePath}")
         return sourceFile.readText()
     }
 }

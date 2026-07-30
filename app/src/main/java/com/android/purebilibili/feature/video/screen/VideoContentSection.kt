@@ -1,5 +1,8 @@
 // 文件路径: feature/video/screen/VideoContentSection.kt
 package com.android.purebilibili.feature.video.screen
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.animation.*
@@ -27,6 +30,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -51,8 +55,11 @@ import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberAppPlayIcon
 import com.android.purebilibili.core.ui.rememberAppSettingsIcon
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppTopTabPresentation
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
+import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.performance.TrackJankStateFlag
 import com.android.purebilibili.core.ui.performance.TrackScrollJank
 import com.android.purebilibili.core.store.DanmakuSettings
@@ -62,6 +69,9 @@ import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.model.response.VideoTag
@@ -517,9 +527,17 @@ fun VideoContentSection(
 
     // 采样层只挂在 Tab 页滚动内容上；排序栏/顶栏分段控件必须在捕获区外，避免 drawBackdrop 自引用导致 RenderThread 栈溢出。
     val videoContentChromeBackdrop = rememberLayerBackdrop()
+    val videoContentMiuixBackdrop = rememberMiuixLayerBackdrop()
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(0f)
+                .miuixLayerBackdrop(videoContentMiuixBackdrop)
+                .background(AppSurfaceTokens.background())
+        )
         // Inline 弹幕设置不是 Dialog，必须在详情内容之后绘制，避免被列表盖住。
         Column(
             modifier = Modifier.fillMaxSize()
@@ -535,7 +553,8 @@ fun VideoContentSection(
                 modifier = Modifier,
                 isPlayerCollapsed = isPlayerCollapsed,
                 onRestorePlayer = onRestorePlayer,
-                backdrop = videoContentChromeBackdrop
+                backdrop = videoContentChromeBackdrop,
+                miuixBackdrop = videoContentMiuixBackdrop
             )
 
             HorizontalPager(
@@ -648,7 +667,8 @@ fun VideoContentSection(
                         onToggleTopComment = onToggleTopComment,
                         showIdentityDecorations = showIdentityDecorations,
                         lightweightCommentRendering = lightweightCommentRendering,
-                        chromeBackdrop = videoContentChromeBackdrop
+                        chromeBackdrop = videoContentChromeBackdrop,
+                        chromeMiuixBackdrop = videoContentMiuixBackdrop
                     )
                 }
             }
@@ -943,7 +963,8 @@ private fun VideoCommentTab(
     onToggleTopComment: (ReplyItem) -> Unit,
     showIdentityDecorations: Boolean,
     lightweightCommentRendering: Boolean,
-    chromeBackdrop: LayerBackdrop? = null
+    chromeBackdrop: LayerBackdrop? = null,
+    chromeMiuixBackdrop: MiuixBackdrop? = null
 ) {
     val commentAppearance = rememberVideoCommentAppearance()
     val scope = rememberCoroutineScope()
@@ -983,7 +1004,8 @@ private fun VideoCommentTab(
             onSortModeChange = onSortModeChange,
             upOnly = upOnlyFilter,
             onUpOnlyToggle = onUpOnlyToggle,
-            backdrop = chromeBackdrop
+            backdrop = chromeBackdrop,
+            miuixBackdrop = chromeMiuixBackdrop
         )
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(
@@ -1008,7 +1030,7 @@ private fun VideoCommentTab(
             } else if (replies.isEmpty()) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text(
+                        AppText(
                             text = if (upOnlyFilter) "这个视频没有 UP 主的评论" else "暂无评论",
                             color = commentAppearance.secondaryTextColor
                         )
@@ -1075,7 +1097,7 @@ private fun VideoCommentTab(
                         when {
                             isRepliesLoading -> AdaptiveLoadingIndicator()
                             isRepliesEnd || replies.size >= replyCount -> {
-                                Text("—— end ——", color = commentAppearance.secondaryTextColor, fontSize = 12.sp)
+                                AppText("—— end ——", color = commentAppearance.secondaryTextColor, fontSize = 12.sp)
                             }
                             // 当 shouldLoadMore 为 true 时才显示加载指示器
                             shouldLoadMore -> AdaptiveLoadingIndicator()
@@ -1096,7 +1118,7 @@ private fun VideoCommentTab(
                 enter = fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.92f),
                 exit = fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.92f)
             ) {
-                SmallFloatingActionButton(
+                AppSmallFloatingActionButton(
                     onClick = {
                         scope.launch {
                             listState.animateScrollToItem(0)
@@ -1105,7 +1127,7 @@ private fun VideoCommentTab(
                     containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
                     contentColor = MaterialTheme.colorScheme.primary
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = rememberAppChevronUpIcon(),
                         contentDescription = "回到顶部"
                     )
@@ -1183,7 +1205,7 @@ private fun VideoHeaderContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface) // 🎨 [修复] 与 TabBar 统一使用 Surface (通常为白色/深灰色)，消除割裂感
+            .background(MaterialTheme.colorScheme.surface) // 🎨 [修复] 与 TabBar 统一使用容器背景色，消除割裂感
             .onGloballyPositioned { coordinates ->
                 onGloballyPositioned(coordinates.size.height.toFloat())
             }
@@ -1423,7 +1445,8 @@ private fun VideoContentTabBar(
     modifier: Modifier = Modifier,
     isPlayerCollapsed: Boolean = false,
     onRestorePlayer: () -> Unit = {},
-    backdrop: Backdrop? = null
+    backdrop: Backdrop? = null,
+    miuixBackdrop: MiuixBackdrop? = null
 ) {
     val context = LocalContext.current
     val homeSettings by SettingsManager
@@ -1479,6 +1502,7 @@ private fun VideoContentTabBar(
                 indicatorHeight = liquidChromeSpec.segmentedControlIndicatorHeightDp.dp,
                 labelFontSize = liquidChromeSpec.labelFontSizeSp.sp,
                 backdrop = backdrop,
+                miuixBackdrop = miuixBackdrop,
                 forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
                 liquidGlassEffectsEnabled = liquidChromeSpec.liquidGlassEffectsEnabled,
                 // Avoid extra press refraction in this compact in-content chrome.
@@ -1500,14 +1524,14 @@ private fun VideoContentTabBar(
                         .clickable { onRestorePlayer() }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = rememberAppPlayIcon(),
                         contentDescription = "恢复画面",
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(
+                    AppText(
                         text = "恢复画面",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onPrimary,
@@ -1542,14 +1566,14 @@ private fun VideoContentTabBar(
                         vertical = danmakuActionLayoutPolicy.toggleVerticalPaddingDp.dp
                     )
             ) {
-                Icon(
+                AppIcon(
                     imageVector = rememberAppCommentIcon(),
                     contentDescription = if (danmakuEnabled) "关闭弹幕" else "开启弹幕",
                     tint = if (danmakuEnabled) danmakuActiveColor else danmakuInactiveColor,
                     modifier = Modifier.size(danmakuActionLayoutPolicy.toggleIconSizeDp.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Text(
+                AppText(
                     text = if (danmakuEnabled) "开" else "关",
                     fontSize = danmakuActionLayoutPolicy.toggleTextSizeSp.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -1574,7 +1598,7 @@ private fun VideoContentTabBar(
                             vertical = danmakuActionLayoutPolicy.sendVerticalPaddingDp.dp
                         )
                 ) {
-                    Text(
+                    AppText(
                         text = danmakuActionLayoutPolicy.sendLabel,
                         fontSize = danmakuActionLayoutPolicy.sendTextSizeSp.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1582,7 +1606,7 @@ private fun VideoContentTabBar(
                 }
             }
 
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .padding(start = danmakuActionLayoutPolicy.settingsLeadingPaddingDp.dp)
                     .size(danmakuActionLayoutPolicy.settingsButtonSizeDp.dp)
@@ -1591,7 +1615,7 @@ private fun VideoContentTabBar(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
+                    AppIcon(
                         imageVector = rememberAppSettingsIcon(),
                         contentDescription = "弹幕设置",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1600,7 +1624,7 @@ private fun VideoContentTabBar(
                 }
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+        AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
     }
 }
 
@@ -1615,7 +1639,7 @@ private fun VideoRecommendationHeader() {
             .padding(horizontal = 4.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
+        AppText(
             text = "相关推荐",
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
@@ -1661,12 +1685,12 @@ fun VideoTagChip(
     tagName: String,
     onClick: (String) -> Unit = {}
 ) {
-    Surface(
+    AppSurface(
         onClick = { onClick(tagName) },
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
         shape = RoundedCornerShape(14.dp)
     ) {
-        Text(
+        AppText(
             text = tagName,
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

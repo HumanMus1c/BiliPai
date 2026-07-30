@@ -26,11 +26,11 @@ import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
 import com.android.purebilibili.core.ui.components.AppButton
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -115,7 +115,7 @@ fun LiveFollowingScreen(
                 title = if (items.isNotEmpty()) "${items.size}人正在直播" else "关注直播",
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "返回",
                         )
@@ -139,7 +139,7 @@ fun LiveFollowingScreen(
                             }
                         },
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.Outlined.Refresh,
                             contentDescription = if (isRefreshing) "正在刷新" else "刷新",
                         )
@@ -165,7 +165,7 @@ fun LiveFollowingScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = error ?: "", color = colorScheme.onSurfaceVariant)
+                AppText(text = error ?: "", color = colorScheme.onSurfaceVariant)
             }
             else -> {
                 LazyVerticalGrid(
@@ -216,7 +216,7 @@ fun LiveFollowingScreen(
                                     }
                                 },
                             ) {
-                                Text(if (isLoadingMore) "加载中" else "加载更多")
+                                AppText(if (isLoadingMore) "加载中" else "加载更多")
                             }
                         }
                     }

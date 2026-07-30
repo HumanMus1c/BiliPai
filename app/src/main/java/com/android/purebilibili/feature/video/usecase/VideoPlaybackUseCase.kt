@@ -1,4 +1,6 @@
 // File: feature/video/usecase/VideoPlaybackUseCase.kt
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.android.purebilibili.feature.video.usecase
 
 import android.content.Context

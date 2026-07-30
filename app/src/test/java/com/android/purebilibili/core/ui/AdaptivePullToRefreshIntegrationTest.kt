@@ -22,7 +22,7 @@ class AdaptivePullToRefreshIntegrationTest {
     @Test
     fun `home material default pull refresh uses official loading indicator`() {
         val home = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
-        assertTrue(home.contains("PullToRefreshDefaults.LoadingIndicator("))
+        assertTrue(home.contains("AppPullRefreshLoadingIndicator("))
         assertTrue(home.contains("AppPullRefreshIndicatorStyle.MATERIAL_DEFAULT"))
     }
 

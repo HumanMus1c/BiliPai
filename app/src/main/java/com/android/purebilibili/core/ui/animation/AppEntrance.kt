@@ -16,7 +16,10 @@ import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.ObserverModifierNode
 import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.node.invalidateMeasurement
+import androidx.compose.ui.node.observeReads
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
@@ -122,20 +125,34 @@ private object EntranceElement : ModifierNodeElement<EntranceNode>() {
 private class EntranceNode :
     Modifier.Node(),
     LayoutModifierNode,
-    CompositionLocalConsumerModifierNode {
+    CompositionLocalConsumerModifierNode,
+    ObserverModifierNode {
 
     private val progress = Animatable(0f)
+    private var controller: AppEntranceController? = null
 
     override fun onAttach() {
-        val controller = currentValueOf(LocalAppEntrance)
-        val spec = controller?.spec
-        if (controller == null || spec == null || !spec.animate) return
-        val index = controller.allocateIndex()
+        observeController()
+        val currentController = controller ?: return
+        val spec = currentController.spec
+        if (!spec.animate) return
+        val index = currentController.allocateIndex()
         val delayMs = resolveEntranceStaggerDelayMs(index, spec)
         coroutineScope.launch {
-            controller.awaitStart()
+            currentController.awaitStart()
             if (delayMs > 0) delay(delayMs.toLong())
             progress.animateTo(targetValue = 1f, animationSpec = spec.progressSpring())
+        }
+    }
+
+    override fun onObservedReadsChanged() {
+        observeController()
+        invalidateMeasurement()
+    }
+
+    private fun observeController() {
+        observeReads {
+            controller = currentValueOf(LocalAppEntrance)
         }
     }
 
@@ -143,7 +160,7 @@ private class EntranceNode :
         measurable: Measurable,
         constraints: Constraints
     ): MeasureResult {
-        val spec = currentValueOf(LocalAppEntrance)?.spec
+        val spec = controller?.spec
         val placeable = measurable.measure(constraints)
         return layout(placeable.width, placeable.height) {
             if (spec == null || !spec.animate) {

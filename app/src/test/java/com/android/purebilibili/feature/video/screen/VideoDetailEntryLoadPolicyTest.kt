@@ -126,4 +126,16 @@ class VideoDetailEntryLoadPolicyTest {
             )
         )
     }
+
+    @Test
+    fun playbackPreload_startsDuringTheLaterPartOfSharedMorph() {
+        assertEquals(
+            147,
+            resolveVideoDetailEntryPlaybackPreloadDelayMillis(morphDurationMillis = 460),
+        )
+        assertEquals(
+            0,
+            resolveVideoDetailEntryPlaybackPreloadDelayMillis(morphDurationMillis = 0),
+        )
+    }
 }

@@ -9,18 +9,16 @@ import com.android.purebilibili.core.ui.OpticalContrastPalette
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.*
+import com.android.purebilibili.core.ui.components.AppIcon
+import androidx.compose.material3.MaterialTheme
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 //  Cupertino Icons - iOS SF Symbols 风格图标
@@ -31,7 +29,7 @@ import com.android.purebilibili.core.ui.resolveGlobalWallpaperProtectiveColor
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarHorizontalPadding
 import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarLiquidTabSpec
-import com.android.purebilibili.feature.dynamic.resolveDynamicTabIndicatorPosition
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.core.ui.blur.BlurStyles
 import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
 import dev.chrisbanes.haze.HazeState
@@ -54,7 +52,8 @@ fun DynamicTopBarWithTabs(
     displayMode: DynamicDisplayMode = DynamicDisplayMode.SIDEBAR,
     onDisplayModeChange: (DynamicDisplayMode) -> Unit = {},
     hazeState: HazeState? = null,
-    indicatorPositionProvider: (() -> Float)? = null
+    indicatorPositionProvider: (() -> Float)? = null,
+    isScrollInProgressProvider: () -> Boolean = { false }
 ) {
     val density = LocalDensity.current
     val statusBarHeight = WindowInsets.statusBars.getTop(density).let { with(density) { it.toDp() } }
@@ -95,16 +94,20 @@ fun DynamicTopBarWithTabs(
                     .padding(horizontal = resolveDynamicTopBarHorizontalPadding()),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                DynamicCompactTabRow(
-                    selectedTab = selectedTab,
-                    tabs = tabs,
-                    onTabSelected = onTabSelected,
+                BottomBarLiquidSegmentedControl(
+                    items = tabs,
+                    selectedIndex = selectedTab,
+                    onSelected = onTabSelected,
                     modifier = Modifier.weight(1f),
-                    indicatorPositionProvider = indicatorPositionProvider
+                    height = liquidTabSpec.heightDp.dp,
+                    indicatorHeight = (liquidTabSpec.heightDp - 4).dp,
+                    labelFontSize = liquidTabSpec.labelFontSizeSp.sp,
+                    indicatorPositionProvider = indicatorPositionProvider,
+                    isScrollInProgressProvider = isScrollInProgressProvider
                 )
                 
                 //  布局模式切换按钮
-                IconButton(
+                AppIconButton(
                     onClick = {
                         val newMode = if (displayMode == DynamicDisplayMode.SIDEBAR) 
                             DynamicDisplayMode.HORIZONTAL else DynamicDisplayMode.SIDEBAR
@@ -112,7 +115,7 @@ fun DynamicTopBarWithTabs(
                     },
                     modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = if (displayMode == DynamicDisplayMode.SIDEBAR)
                             rememberAppListLayoutIcon() else rememberAppGridLayoutIcon(),
                         contentDescription = "切换布局模式",
@@ -124,67 +127,6 @@ fun DynamicTopBarWithTabs(
         }
     }
 }
-
-@Composable
-private fun DynamicCompactTabRow(
-    selectedTab: Int,
-    tabs: List<String>,
-    onTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-    indicatorPositionProvider: (() -> Float)? = null
-) {
-    if (tabs.isEmpty()) return
-    val safeSelectedIndex = selectedTab.coerceIn(tabs.indices)
-    val indicatorPosition = resolveDynamicTabIndicatorPosition(
-        selectedIndex = safeSelectedIndex,
-        externalPosition = indicatorPositionProvider?.invoke(),
-        itemCount = tabs.size,
-    )
-    val height = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Medium
-
-    BoxWithConstraints(modifier = modifier.fillMaxWidth().height(height)) {
-        val segmentWidth = maxWidth / tabs.size
-        val underlineWidth = (segmentWidth * 0.42f)
-            .coerceAtLeast(AppSpacingTokens.ExtraLarge + AppSpacingTokens.ExtraSmall)
-            .coerceAtMost(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small)
-        val selectedColor = rememberDynamicTabSelectedColor()
-
-        Row(modifier = Modifier.fillMaxSize()) {
-            tabs.forEachIndexed { index, label ->
-                val selected = index == safeSelectedIndex
-                val textColor = if (selected) selectedColor else rememberDynamicTabUnselectedColor()
-                Box(
-                    modifier = Modifier
-                        .width(segmentWidth)
-                        .fillMaxHeight()
-                        .clickable { onTabSelected(index) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = label,
-                        color = textColor,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .offset(x = segmentWidth * indicatorPosition + (segmentWidth - underlineWidth) / 2)
-                .width(underlineWidth)
-                .height(AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2)
-                .clip(CircleShape)
-                .background(selectedColor),
-        )
-    }
-}
-
-@Composable
-private fun rememberDynamicTabSelectedColor(): Color = resolveDynamicTabSelectedColor(MaterialTheme.colorScheme.primary)
 
 internal fun resolveDynamicTabSelectedColor(primaryColor: Color): Color = primaryColor
 
@@ -205,17 +147,3 @@ internal fun shouldUseDynamicTopBarHeaderBlur(
     hasHazeState: Boolean,
     globalWallpaperVisible: Boolean
 ): Boolean = hasHazeState && !globalWallpaperVisible
-
-@Composable
-private fun rememberDynamicTabUnselectedColor(): Color {
-    return if (isDynamicTopBarDarkSurface(AppSurfaceTokens.surface())) {
-        OpticalContrastPalette.Highlight.copy(alpha = 0.9f)
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-}
-
-private fun isDynamicTopBarDarkSurface(color: Color): Boolean {
-    val perceivedBrightness = (color.red * 0.299f) + (color.green * 0.587f) + (color.blue * 0.114f)
-    return perceivedBrightness < 0.45f
-}

@@ -21,7 +21,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 //  Cupertino Icons - iOS SF Symbols 风格图标
-import androidx.compose.material3.*
+import com.android.purebilibili.core.ui.components.AppIcon
+import androidx.compose.material3.MaterialTheme
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -186,7 +190,7 @@ fun DynamicSidebar(
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
+                                AppIcon(
                                     imageVector = if (showHiddenUsers) rememberAppVisibilityOnIcon() else rememberAppVisibilityOffIcon(),
                                     contentDescription = if (showHiddenUsers) "隐藏已隐藏用户" else "显示隐藏用户",
                                     tint = if (showHiddenUsers) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -232,7 +236,7 @@ fun DynamicSidebar(
                         .clickable { onBackClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = rememberAppBackIcon(),
                         contentDescription = "Back",
                         tint = MaterialTheme.colorScheme.onSurface,
@@ -322,7 +326,7 @@ fun SidebarItem(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Text(
+            AppText(
                 text = icon,
                 fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 fontWeight = FontWeight.Bold,
@@ -332,7 +336,7 @@ fun SidebarItem(
         
         if (label != null) {
             Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-            Text(
+            AppText(
                 text = label,
                 fontSize = MaterialTheme.typography.labelSmall.fontSize,
                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -424,7 +428,7 @@ fun SidebarUserItem(
 
             if (showLabel) {
                 Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-                Text(
+                AppText(
                     text = displayName,
                     fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
@@ -436,20 +440,20 @@ fun SidebarUserItem(
             }
         }
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = showMenu,
             onDismissRequest = { showMenu = false },
             modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer) // 自适应菜单背景
         ) {
-            DropdownMenuItem(
-                text = { Text(if (user.isPinned) "取消置顶" else "置顶", color = MaterialTheme.colorScheme.onSurface) },
+            AppDropdownMenuItem(
+                text = { AppText(if (user.isPinned) "取消置顶" else "置顶", color = MaterialTheme.colorScheme.onSurface) },
                 onClick = {
                     showMenu = false
                     onTogglePin()
                 }
             )
-            DropdownMenuItem(
-                text = { Text(if (user.isHidden) "取消隐藏" else "隐藏", color = MaterialTheme.colorScheme.onSurface) },
+            AppDropdownMenuItem(
+                text = { AppText(if (user.isHidden) "取消隐藏" else "隐藏", color = MaterialTheme.colorScheme.onSurface) },
                 onClick = {
                     showMenu = false
                     onToggleHidden()

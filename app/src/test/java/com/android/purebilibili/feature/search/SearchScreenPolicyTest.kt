@@ -355,8 +355,8 @@ class SearchScreenPolicyTest {
         assertFalse(searchSource.contains("detectHorizontalDragGestures"))
         assertTrue(searchSource.contains("TabRowDefaults.SecondaryIndicator"))
         assertTrue(searchSource.contains("AppSearchField("))
-        assertTrue(searchSource.contains("material3.FilterChip("))
-        assertTrue(searchSource.contains("material3.InputChip("))
+        assertTrue(searchSource.contains("AppFilterChip("))
+        assertTrue(searchSource.contains("AppInputChip("))
         assertFalse(searchSource.contains("SearchPagerTabIndicator("))
         assertFalse(searchSource.contains("val showStableFilterBar = !searchPagerState.isScrollInProgress"))
     }

@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.plugin
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.content.Context
 import androidx.compose.foundation.layout.Column
@@ -8,11 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import com.android.purebilibili.core.ui.components.AppButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSwitch
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -250,26 +250,26 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            Text(
+            AppText(
                 text = "属地：${snapshot.location.province.ifBlank { "未知" }} / ${snapshot.location.city.ifBlank { "未知" }}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Text(
+            AppText(
                 text = "运营商：${snapshot.location.isp.ifBlank { "未知" }}，命中区域：$regionText",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             hostDiagnostics.forEachIndexed { index, diagnostic ->
-                Text(
+                AppText(
                     text = "${index + 1}. ${diagnostic.host} · ${formatCdnHostDiagnostic(diagnostic)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
             if (hostDiagnostics.isEmpty()) {
-                Text(
+                AppText(
                     text = "暂无可检测候选 host，请稍后刷新属地或进入播放页检测当前线路。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -286,28 +286,28 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
                     }
                 }
             ) {
-                Text(if (probing) "检测中..." else "检测候选服务器")
+                AppText(if (probing) "检测中..." else "检测候选服务器")
             }
-            Text(
+            AppText(
                 text = "检测仅手动触发，单次最多 5 个 host，同一 host 10 分钟冷却。",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
+            AppHorizontalDivider(modifier = Modifier.padding(top = 10.dp))
             Spacer(modifier = Modifier.height(12.dp))
-            Text(
+            AppText(
                 text = "高级 URL 替换",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
+            AppText(
                 text = "规则按顺序匹配完整播放 URL，仅应用首条命中规则。替换结果必须是 HTTPS 且指向 B 站或当前候选 CDN。",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
-                Text(
+                AppText(
                     text = "严格使用自定义 CDN",
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium
@@ -317,7 +317,7 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
                     onCheckedChange = { strictCustomCdn = it }
                 )
             }
-            Text(
+            AppText(
                 text = "开启后，只要有自定义规则成功生成播放地址，就不再加入属地和原始线路；没有规则命中时仍会自动回退，避免无法播放。",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -355,7 +355,7 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
                     customRules = customRules + CdnCustomRule(enabled = false)
                     customRuleError = null
                 }) {
-                    Text("新增规则")
+                    AppText("新增规则")
                 }
                 Spacer(modifier = Modifier.padding(horizontal = 4.dp))
                 AppButton(onClick = {
@@ -375,17 +375,17 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
                         scope.launch { CdnRegionPluginStore.write(context, next) }
                     }
                 }) {
-                    Text("保存规则")
+                    AppText("保存规则")
                 }
             }
             customRuleError?.let { error ->
-                Text(
+                AppText(
                     text = error,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error
                 )
             }
-            HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
+            AppHorizontalDivider(modifier = Modifier.padding(top = 10.dp))
         }
     }
 
@@ -402,18 +402,18 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row {
-                Text(
+                AppText(
                     text = "规则 ${index + 1}",
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium
                 )
-                Text("启用", style = MaterialTheme.typography.bodySmall)
+                AppText("启用", style = MaterialTheme.typography.bodySmall)
                 AppSwitch(checked = rule.enabled, onCheckedChange = { onChange(rule.copy(enabled = it)) })
             }
             AppOutlinedTextField(
                 value = rule.pattern,
                 onValueChange = { onChange(rule.copy(pattern = it)) },
-                label = { Text("匹配正则") },
+                label = { AppText("匹配正则") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -421,16 +421,16 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
             AppOutlinedTextField(
                 value = rule.replacement,
                 onValueChange = { onChange(rule.copy(replacement = it)) },
-                label = { Text("替换内容") },
+                label = { AppText("替换内容") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             Row {
-                AppButton(enabled = canMoveUp, onClick = onMoveUp) { Text("上移") }
+                AppButton(enabled = canMoveUp, onClick = onMoveUp) { AppText("上移") }
                 Spacer(modifier = Modifier.padding(horizontal = 2.dp))
-                AppButton(enabled = canMoveDown, onClick = onMoveDown) { Text("下移") }
+                AppButton(enabled = canMoveDown, onClick = onMoveDown) { AppText("下移") }
                 Spacer(modifier = Modifier.padding(horizontal = 2.dp))
-                AppButton(onClick = onRemove) { Text("删除") }
+                AppButton(onClick = onRemove) { AppText("删除") }
             }
         }
     }

@@ -7,14 +7,20 @@ import kotlin.test.assertTrue
 class ReusableLiquidGlassBackdropStructureTest {
 
     @Test
-    fun `audio library records pager content outside its segmented control`() {
+    fun `audio library keeps pager outside segmented control and synchronizes indicator`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/audio/screen/ListenVideoScreen.kt"
         )
 
-        assertTrue(source.contains("val selectionBackdrop = rememberLayerBackdrop()"))
-        assertTrue(source.contains("backdrop = selectionBackdrop"))
-        assertTrue(source.contains(".layerBackdrop(selectionBackdrop)"))
+        val segmentedControlSource = source
+            .substringAfter("BottomBarLiquidSegmentedControl(")
+            .substringBefore("HorizontalPager(")
+
+        assertTrue(segmentedControlSource.contains("indicatorPositionProvider = {"))
+        assertTrue(segmentedControlSource.contains("pagerState.currentPage + pagerState.currentPageOffsetFraction"))
+        assertTrue(segmentedControlSource.contains("preferInlineContentStyle = false"))
+        assertTrue(source.contains("HorizontalPager("))
+        assertTrue(source.indexOf("HorizontalPager(") > source.indexOf("BottomBarLiquidSegmentedControl("))
     }
 
     @Test

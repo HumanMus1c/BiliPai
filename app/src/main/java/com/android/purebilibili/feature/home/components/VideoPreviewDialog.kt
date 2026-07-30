@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.home.components
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
@@ -9,7 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,7 +41,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoItem
 import androidx.compose.material.icons.Icons
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import androidx.compose.ui.viewinterop.AndroidView
@@ -173,14 +175,14 @@ fun VideoPreviewDialog(
                                 
                                 // Loading Indicator
                                 if (isLoading) {
-                                    androidx.compose.material3.CircularProgressIndicator(
+                                    AppCircularProgressIndicator(
                                         color = MediaContrastPalette.Foreground,
                                         modifier = Modifier.size(AppSpacingTokens.DoubleExtraLarge - AppSpacingTokens.Micro)
                                     )
                                 }
                             } else {
                                 // Play Icon Overlay (Hint that it's clickable)
-                                Icon(
+                                AppIcon(
                                     imageVector = playIcon,
                                     contentDescription = null,
                                     tint = MediaContrastPalette.Foreground.copy(alpha = 0.8f),
@@ -194,7 +196,7 @@ fun VideoPreviewDialog(
                         
                         // 2. Title & Info
                         Column(modifier = Modifier.padding(AppSpacingTokens.Large)) {
-                            Text(
+                            AppText(
                                 text = video.title,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
@@ -202,7 +204,7 @@ fun VideoPreviewDialog(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
-                            Text(
+                            AppText(
                                 text = "${video.owner.name} · ${FormatUtils.formatStat(video.stat.view.toLong())}播放",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -357,13 +359,13 @@ private fun PreviewMenuItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
+            AppText(
                 text = text,
                 fontSize = MaterialTheme.typography.titleMedium.fontSize,
                 fontWeight = FontWeight.Normal,
                 color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
             )
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
@@ -375,7 +377,7 @@ private fun PreviewMenuItem(
 
 @Composable
 private fun MenuDivider() {
-    androidx.compose.material3.HorizontalDivider(
+    AppHorizontalDivider(
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
         thickness = AppSpacingTokens.Micro / 4
     )

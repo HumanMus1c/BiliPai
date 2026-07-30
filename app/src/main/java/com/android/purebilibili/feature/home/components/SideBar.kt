@@ -25,11 +25,13 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppPlatformNavigationRail
+import com.android.purebilibili.core.ui.components.AppPlatformNavigationRailItem
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -68,11 +70,6 @@ import dev.chrisbanes.haze.HazeState
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.SidebarRight
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.NavigationRail as MiuixNavigationRail
-import top.yukonga.miuix.kmp.basic.NavigationRailDefaults as MiuixNavigationRailDefaults
-import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem
-import top.yukonga.miuix.kmp.basic.NavigationRailValue as MiuixNavigationRailValue
-import top.yukonga.miuix.kmp.basic.rememberNavigationRailState as rememberMiuixNavigationRailState
 
 /**
  * 平板端侧边导航栏 - 垂直版本的 FrostedBottomBar
@@ -146,11 +143,6 @@ private fun MiuixSideBar(
     val isExpandedWidthClass =
         LocalWindowSizeClass.current.widthSizeClass == WindowWidthSizeClass.Expanded
     val expandable = shouldUseExpandableMiuixSideBar(isExpandedWidthClass)
-    val railState = if (expandable) {
-        rememberMiuixNavigationRailState(MiuixNavigationRailValue.Expanded)
-    } else {
-        null
-    }
     val chromeBackground = AppSurfaceTokens.surface()
     val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
     val blurIntensity = com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity()
@@ -172,7 +164,8 @@ private fun MiuixSideBar(
     }
     var lastHomeClickMs by remember { mutableLongStateOf(0L) }
 
-    MiuixNavigationRail(
+    AppPlatformNavigationRail(
+        expanded = expandable,
         modifier = modifier
             .fillMaxHeight()
             .then(
@@ -182,11 +175,8 @@ private fun MiuixSideBar(
                     Modifier
                 }
             ),
-        state = railState,
         color = railColor,
         showDivider = true,
-        minWidth = MiuixNavigationRailDefaults.MinWidth,
-        expandedWidth = MiuixNavigationRailDefaults.ExpandedWidth
     ) {
         visibleItems.forEachIndexed { itemIndex, item ->
             val isSelected = item == currentItem
@@ -219,7 +209,7 @@ private fun MiuixSideBar(
             }
 
             if (shouldUseMiuixOfficialSideBarItem(skinIconPath)) {
-                MiuixNavigationRailItem(
+                AppPlatformNavigationRailItem(
                     selected = isSelected,
                     onClick = onItemTap,
                     icon = resolveMaterialBottomBarIcon(item, isSelected),
@@ -250,7 +240,7 @@ private fun MiuixSideBar(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
+                AppIcon(
                     CupertinoIcons.Outlined.SidebarRight,
                     contentDescription = sidebarLabel,
                     tint = AppSurfaceTokens.onSurfaceVariantSummary(),
@@ -294,7 +284,7 @@ private fun ColumnScope.MiuixSideBarSkinItem(
             }
         }
         Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-        Text(
+        AppText(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             fontSize = MaterialTheme.typography.labelSmall.fontSize,
@@ -481,7 +471,7 @@ private fun FrostedSideBarContent(
 
                     Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
 
-                    Text(
+                    AppText(
                         text = itemLabel,
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = MaterialTheme.typography.labelSmall.fontSize,
@@ -507,7 +497,7 @@ private fun FrostedSideBarContent(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
+                    AppIcon(
                         CupertinoIcons.Outlined.SidebarRight,
                         contentDescription = sidebarLabel,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),

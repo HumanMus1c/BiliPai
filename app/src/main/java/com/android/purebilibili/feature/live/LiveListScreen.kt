@@ -18,11 +18,11 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Search
 import com.android.purebilibili.core.ui.components.AppBadge
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -468,7 +468,7 @@ private fun LiveListHeader(
                 modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = "返回",
                         tint = palette.primaryText
@@ -489,13 +489,13 @@ private fun LiveListHeader(
                     ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Outlined.Search,
                         contentDescription = null,
                         tint = palette.secondaryText
                     )
                     Spacer(Modifier.width(AppSpacingTokens.Medium))
-                    Text(
+                    AppText(
                         text = "搜索直播间 / 主播",
                         color = palette.secondaryText,
                         style = MaterialTheme.typography.bodyMedium,
@@ -510,7 +510,7 @@ private fun LiveListHeader(
                     modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.Outlined.NotificationsNone,
                             contentDescription = "开播提醒",
                             tint = palette.primaryText
@@ -523,7 +523,7 @@ private fun LiveListHeader(
                         contentColor = palette.onAccent,
                         modifier = Modifier.align(Alignment.TopEnd)
                     ) {
-                        Text(
+                        AppText(
                             text = if (livingCount > 99) "99+" else livingCount.toString(),
                             style = MaterialTheme.typography.labelSmall,
                         )
@@ -551,7 +551,7 @@ private fun LiveListHeader(
                         )
                     } else {
                         Box(contentAlignment = Alignment.Center) {
-                            Text(
+                            AppText(
                                 text = "LIVE",
                                 color = palette.primaryText,
                                 style = MaterialTheme.typography.labelSmall,
@@ -576,18 +576,18 @@ private fun LiveFollowHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
-            Text(
+            AppText(
                 text = "我的关注  ",
                 color = palette.primaryText,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium
             )
-            Text(
+            AppText(
                 text = livingCount.toString(),
                 color = palette.accentStrong,
                 style = MaterialTheme.typography.bodySmall,
             )
-            Text(
+            AppText(
                 text = " 人正在直播",
                 color = palette.secondaryText,
                 style = MaterialTheme.typography.bodySmall,
@@ -597,13 +597,13 @@ private fun LiveFollowHeader(
             modifier = Modifier.clickable(onClick = onActionClick),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = "查看更多",
                 color = palette.secondaryText,
                 style = MaterialTheme.typography.labelLarge,
             )
             Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
-            Text(
+            AppText(
                 text = ">",
                 color = palette.secondaryText,
                 style = MaterialTheme.typography.titleMedium,
@@ -648,7 +648,7 @@ private fun LiveFollowAvatarRow(
                     }
                 }
                 Spacer(Modifier.height(AppSpacingTokens.Small))
-                Text(
+                AppText(
                     text = item.uname,
                     color = palette.primaryText,
                     style = MaterialTheme.typography.labelSmall,
@@ -760,7 +760,7 @@ private fun LiveAreaChildChipRow(
                 shape = AppShapes.container(ContainerLevel.Pill),
                 border = null
             ) {
-                Text(
+                AppText(
                     text = child.name,
                     color = chipColors.unselectedContentColor,
                     style = MaterialTheme.typography.labelMedium,
@@ -783,7 +783,7 @@ private fun LiveListLoadingState() {
             .padding(AppSpacingTokens.ExtraLarge),
         contentAlignment = Alignment.Center
     ) {
-        Text(
+        AppText(
             text = "直播内容加载中…",
             color = palette.secondaryText,
             style = MaterialTheme.typography.bodyMedium,
@@ -802,14 +802,14 @@ private fun LiveListErrorState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
+        AppText(
             text = message,
             color = palette.primaryText,
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(Modifier.height(AppSpacingTokens.Medium))
         AppOutlinedButton(onClick = onRetry) {
-            Text("重试")
+            AppText("重试")
         }
     }
 }
@@ -834,14 +834,14 @@ private fun EmptyState(
                 .background(palette.surfaceMuted),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
+            AppIcon(
                 imageVector = Icons.Outlined.NotificationsNone,
                 contentDescription = null,
                 tint = palette.secondaryText,
                 modifier = Modifier.size(visualSpec.emptyStateIconSizeDp.dp)
             )
         }
-        Text(
+        AppText(
             text = message,
             color = palette.secondaryText,
             style = MaterialTheme.typography.bodyMedium,

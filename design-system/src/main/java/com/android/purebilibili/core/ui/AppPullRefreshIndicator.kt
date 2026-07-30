@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import com.android.purebilibili.core.theme.AndroidNativeVariant
 import com.android.purebilibili.core.theme.UiPreset
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
@@ -58,6 +61,27 @@ internal fun resolveAppPullRefreshIndicatorRenderer(
     PresetPrimitiveRenderer.IOS -> AppPullRefreshIndicatorRenderer.CUPERTINO
     PresetPrimitiveRenderer.MATERIAL3 -> AppPullRefreshIndicatorRenderer.MATERIAL3
     PresetPrimitiveRenderer.MIUIX_BRIDGED -> AppPullRefreshIndicatorRenderer.MIUIX
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppPullRefreshLoadingIndicator(
+    state: PullToRefreshState,
+    isRefreshing: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    when (rememberPresetPrimitiveRenderer()) {
+        PresetPrimitiveRenderer.MATERIAL3 -> PullToRefreshDefaults.LoadingIndicator(
+            state = state,
+            isRefreshing = isRefreshing,
+            modifier = modifier,
+        )
+
+        PresetPrimitiveRenderer.IOS,
+        PresetPrimitiveRenderer.MIUIX_BRIDGED -> AppPullRefreshLoadingIndicator(
+            modifier = modifier,
+        )
+    }
 }
 
 @Composable

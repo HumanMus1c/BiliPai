@@ -519,100 +519,6 @@ class BottomBarIndicatorPolicyTest {
     }
 
     @Test
-    fun `shell highlight follows indicator motion while dragging`() {
-        assertEquals(
-            0.86f,
-            resolveBottomBarShellHighlightAlpha(
-                glassEnabled = true,
-                pressProgress = 0.12f,
-                motionProgress = 0.86f
-            ),
-            0.001f
-        )
-        assertEquals(
-            0.72f,
-            resolveBottomBarShellHighlightAlpha(
-                glassEnabled = true,
-                pressProgress = 0.72f,
-                motionProgress = 0.18f
-            ),
-            0.001f
-        )
-    }
-
-    @Test
-    fun `shell highlight keeps a floor while dragging so it stays pinned`() {
-        // 慢拖时 press/motion 都低,但拖拽中高光应保持可见(跟手)
-        assertEquals(
-            0.6f,
-            resolveBottomBarShellHighlightAlpha(
-                glassEnabled = true,
-                pressProgress = 0.1f,
-                motionProgress = 0.2f,
-                isDragging = true
-            ),
-            0.001f
-        )
-        // 非拖拽时无地板,沿用 max(press, motion)
-        assertEquals(
-            0.2f,
-            resolveBottomBarShellHighlightAlpha(
-                glassEnabled = true,
-                pressProgress = 0.1f,
-                motionProgress = 0.2f,
-                isDragging = false
-            ),
-            0.001f
-        )
-        // 高 motion 不被地板压低
-        assertEquals(
-            0.9f,
-            resolveBottomBarShellHighlightAlpha(
-                glassEnabled = true,
-                pressProgress = 0f,
-                motionProgress = 0.9f,
-                isDragging = true
-            ),
-            0.001f
-        )
-    }
-
-    @Test
-    fun `interactive highlight center follows indicator and panel offset`() {
-        assertEquals(
-            124f,
-            resolveBottomBarInteractiveHighlightCenterX(
-                indicatorTranslationXPx = 80f,
-                itemWidthPx = 72f,
-                panelOffsetPx = 8f
-            ),
-            0.001f
-        )
-    }
-
-    @Test
-    fun `interactive highlight modifier draws over existing surface`() {
-        val source = listOf(
-            java.io.File("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt"),
-            java.io.File("src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
-        ).first { it.exists() }.readText()
-        val highlightModifierSource = source
-            .substringAfter("private fun Modifier.bottomBarInteractiveHighlight(")
-            .substringBefore("internal fun resolveBottomBarBackdropPresetCaptureLens(")
-
-        assertTrue(highlightModifierSource.indexOf("drawContent()") >= 0)
-        assertTrue(
-            highlightModifierSource.indexOf("drawContent()") <
-                highlightModifierSource.indexOf("Brush.radialGradient(")
-        )
-        assertFalse(
-            highlightModifierSource.contains("RuntimeShader"),
-            "低版本系统会在 materialize modifier 时解析 RuntimeShader 类，交互高光不能直接引用它"
-        )
-        assertFalse(source.contains("import android.graphics.RuntimeShader"))
-    }
-
-    @Test
     fun `tap press can reuse indicator drag scale without horizontal motion`() {
         val transform = resolveBottomBarIndicatorLayerTransform(
             motionProgress = 1f,
@@ -844,6 +750,7 @@ class BottomBarIndicatorPolicyTest {
     @Test
     fun `shared indicator drag scale uses KernelSU separate axis springs`() {
         val source = listOf(
+            java.io.File("../design-system/src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
             java.io.File("design-system/src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
             java.io.File("src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
         ).first { it.exists() }.readText()

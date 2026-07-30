@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import com.android.purebilibili.core.ui.components.AppFilterChip
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -34,7 +34,7 @@ internal fun Anime4KPresetOptions(
             AppFilterChip(
                 selected = preset == value,
                 onClick = { onPresetChange(value) },
-                label = { Text(resolveAnime4KPresetLabel(value)) }
+                label = { AppText(resolveAnime4KPresetLabel(value)) }
             )
         }
     }

@@ -1,5 +1,7 @@
 // 文件路径: feature/settings/PlaybackSettingsScreen.kt
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppRadioButton
@@ -207,19 +209,19 @@ fun PlaybackSettingsContent(
     if (showPipPermissionDialog) {
         com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showPipPermissionDialog = false },
-            title = { Text("权限申请", color = MaterialTheme.colorScheme.onSurface) },
-            text = { Text("检测到未开启「画中画」权限。请在设置中开启该权限，否则无法使用小窗播放。", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            title = { AppText("权限申请", color = MaterialTheme.colorScheme.onSurface) },
+            text = { AppText("检测到未开启「画中画」权限。请在设置中开启该权限，否则无法使用小窗播放。", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             confirmButton = {
                 com.android.purebilibili.core.ui.AppDialogAction(
                     onClick = {
                         gotoPipSettings()
                         showPipPermissionDialog = false
                     }
-                ) { Text("去设置") }
+                ) { AppText("去设置") }
             },
             dismissButton = {
                 com.android.purebilibili.core.ui.AppDialogAction(onClick = { showPipPermissionDialog = false }) {
-                    Text("暂不开启", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AppText("暂不开启", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         )
@@ -228,7 +230,7 @@ fun PlaybackSettingsContent(
     if (showPlayerInsightModeDialog) {
         com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showPlayerInsightModeDialog = false },
-            title = { Text("播放器洞察") },
+            title = { AppText("播放器洞察") },
             text = {
                 Column {
                     listOf(
@@ -252,7 +254,7 @@ fun PlaybackSettingsContent(
                                 selected = playerInsightMode == mode,
                                 onClick = null
                             )
-                            Text(label, color = MaterialTheme.colorScheme.onSurface)
+                            AppText(label, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
@@ -499,7 +501,7 @@ fun PlaybackSettingsContent(
                                     .padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Default.ExclamationmarkTriangle,
                                     contentDescription = null,
                                     tint = warningTint,
@@ -507,18 +509,18 @@ fun PlaybackSettingsContent(
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
+                                    AppText(
                                         "画中画权限未开启",
                                         fontSize = 14.sp,
                                         color = warningTint
                                     )
-                                    Text(
+                                    AppText(
                                         "点击前往系统设置开启",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                     )
                                 }
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Default.ChevronForward,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -589,7 +591,7 @@ fun PlaybackSettingsContent(
                     AppPreferenceGroup {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Default.HandTap,
                                     contentDescription = null,
                                     tint = warningTint,
@@ -597,18 +599,18 @@ fun PlaybackSettingsContent(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
+                                    AppText(
                                         text = "手势灵敏度",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = "调整快进/音量/亮度手势响应速度",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Text(
+                                AppText(
                                     text = "${(state.gestureSensitivity * 100).toInt()}%",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.primary,
@@ -621,20 +623,19 @@ fun PlaybackSettingsContent(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(
+                                AppText(
                                     "较慢",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                //  iOS 风格滑块
-                                io.github.alexzhirkevich.cupertino.CupertinoSlider(
+                                AppSlider(
                                     value = state.gestureSensitivity,
                                     onValueChange = { viewModel.setGestureSensitivity(it) },
                                     valueRange = 0.5f..2.0f,
                                     steps = 5,
                                     modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
                                 )
-                                Text(
+                                AppText(
                                     "较快",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -873,7 +874,7 @@ fun PlaybackSettingsContent(
                                     .padding(horizontal = 16.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
+                                AppText(
                                     text = "省流量模式已限制为最高480P",
                                     fontSize = 11.sp,
                                     color = iOSGreen.copy(alpha = 0.8f)
@@ -947,14 +948,14 @@ fun PlaybackSettingsContent(
                                 .padding(16.dp),
                             verticalAlignment = Alignment.Top
                         ) {
-                            Icon(
+                            AppIcon(
                                 CupertinoIcons.Default.InfoCircle,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text(
+                            AppText(
                                 "省流量模式会禁用预加载、限制视频最高480P；首页封面是否降清晰度由上方开关决定。",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -1145,7 +1146,7 @@ private fun PlaybackInteractionSettingsSection(
                     }
                 }
             )
-            Text(
+            AppText(
                 text = "稍后再看、收藏夹等列表推荐选择“顺序播放”即可连续播放下一条；自动模式不会把普通单视频跳到推荐视频。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1384,12 +1385,12 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                    AppText(
                         text = "双击跳转",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
+                    AppText(
                         text = if (doubleTapSeekEnabled) {
                             "双击右侧快进 ${seekForwardSeconds} 秒，双击左侧后退 ${seekBackwardSeconds} 秒"
                         } else {
@@ -1618,12 +1619,12 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
+            AppText(
                 text = "非全屏滑动调进度范围",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
+            AppText(
                 text = "左右拖动约半屏达到 ${inlineSwipeSeekSeconds} 秒上限，数值越小越精确",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1659,7 +1660,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
+                AppText(
                     text = "横屏滑动调进度范围",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface
@@ -1674,7 +1675,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
                     }
                 )
             }
-            Text(
+            AppText(
                 text = if (fullscreenSwipeSeekEnabled) {
                     "左右拖动约半屏达到 ${fullscreenSwipeSeekSeconds} 秒上限，数值越小越精确"
                 } else {

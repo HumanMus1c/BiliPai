@@ -1,5 +1,7 @@
 // 文件路径: feature/video/ui/components/CommentFraudDialog.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -11,6 +13,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.data.model.CommentFraudStatus
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
@@ -60,10 +64,10 @@ fun CommentFraudResultDialog(
         }
     }
 
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         icon = {
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(36.dp),
@@ -76,7 +80,7 @@ fun CommentFraudResultDialog(
             )
         },
         title = {
-            Text(
+            AppText(
                 text = title,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
@@ -84,7 +88,7 @@ fun CommentFraudResultDialog(
             )
         },
         text = {
-            Text(
+            AppText(
                 text = description,
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -92,14 +96,14 @@ fun CommentFraudResultDialog(
             )
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("知道了")
+            AppTextButton(onClick = onDismiss) {
+                AppText("知道了")
             }
         },
         dismissButton = {
             // 如果被 ShadowBan，提供快捷删除操作
             if (status == CommentFraudStatus.SHADOW_BANNED && onDeleteComment != null) {
-                TextButton(
+                AppTextButton(
                     onClick = {
                         onDeleteComment()
                         onDismiss()
@@ -108,7 +112,7 @@ fun CommentFraudResultDialog(
                         contentColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("删除评论")
+                    AppText("删除评论")
                 }
             }
         }
@@ -142,7 +146,7 @@ fun CommentFraudDetectingBanner(
                 color = MaterialTheme.colorScheme.tertiary
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
+            AppText(
                 text = "正在检测评论可见性…",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

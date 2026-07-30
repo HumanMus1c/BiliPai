@@ -113,6 +113,18 @@ data class HomeTopDpPair(
     val floating: Dp
 )
 
+/**
+ * Edge controls retain the former dialog radii while their renderer is selected
+ * through the shared top-chrome policy.
+ */
+internal fun resolveHomeTopEdgeButtonCornerRadius(
+    chromePolicy: AppTopChromePolicy,
+): Dp = when (chromePolicy.tabPresentation) {
+    AppTopTabPresentation.MOVING_CAPSULE -> 0.dp
+    AppTopTabPresentation.MATERIAL_UNDERLINE -> 12.6.dp
+    AppTopTabPresentation.TONAL_CAPSULE -> 16.1.dp
+}
+
 internal fun resolveHomeTopPresetStyle(
     chromePolicy: AppTopChromePolicy,
     labelMode: Int

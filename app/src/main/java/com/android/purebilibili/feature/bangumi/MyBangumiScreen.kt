@@ -1,5 +1,7 @@
 // 文件路径: feature/bangumi/MyBangumiScreen.kt
 package com.android.purebilibili.feature.bangumi
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,6 +36,9 @@ import coil.compose.AsyncImage
 //  已改用 MaterialTheme.colorScheme.primary
 import com.android.purebilibili.core.theme.iOSYellow
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.data.model.response.FollowBangumiItem
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 
@@ -93,13 +98,13 @@ fun MyBangumiContent(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
+                        AppText(
                             text = myFollowState.message,
                             color = MaterialTheme.colorScheme.error
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = onRetry) {
-                            Text("重试")
+                        AppButton(onClick = onRetry) {
+                            AppText("重试")
                         }
                     }
                 }
@@ -111,17 +116,17 @@ fun MyBangumiContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
+                            AppText(
                                 "",
                                 fontSize = 48.sp
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text(
+                            AppText(
                                 "还没有${followLabel}哦",
                                 fontSize = 16.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
+                            AppText(
                                 if (followType == MY_FOLLOW_TYPE_CINEMA) "去发现喜欢的影视吧~" else "去发现喜欢的番剧吧~",
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
@@ -152,7 +157,7 @@ private fun MyFollowSummarySection(
 ) {
     var showDetail by rememberSaveable(currentType) { mutableStateOf(true) }
 
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp),
@@ -192,7 +197,7 @@ private fun MyFollowSummarySection(
                 )
             }
 
-            Surface(
+            AppSurface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
@@ -204,21 +209,21 @@ private fun MyFollowSummarySection(
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = if (showDetail) CupertinoIcons.Default.ChevronDown else CupertinoIcons.Default.ChevronForward,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
+                    AppText(
                         text = "统计详情",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.weight(1f))
-                    Text(
+                    AppText(
                         text = if (currentType == MY_FOLLOW_TYPE_CINEMA) "追剧" else "追番",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.primary
@@ -251,7 +256,7 @@ private fun FollowSummaryCard(
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
     }
 
-    Surface(
+    AppSurface(
         modifier = modifier.heightIn(min = 88.dp),
         shape = RoundedCornerShape(14.dp),
         color = cardColor,
@@ -266,13 +271,13 @@ private fun FollowSummaryCard(
                 .padding(horizontal = 10.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            Text(
+            AppText(
                 text = title,
                 fontSize = 12.sp,
                 color = if (active) activeColor else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
+            AppText(
                 text = value,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -280,7 +285,7 @@ private fun FollowSummaryCard(
             )
             if (!subtitle.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
+                AppText(
                     text = subtitle,
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -295,7 +300,7 @@ private fun MyFollowStatsDetailPanel(
     statsDetail: MyFollowStatsDetail,
     watchInsight: MyFollowWatchInsight
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f),
@@ -310,12 +315,12 @@ private fun MyFollowStatsDetailPanel(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
+            AppText(
                 text = "已加载 ${statsDetail.loadedCount}/${statsDetail.currentTypeTotal}",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            LinearProgressIndicator(
+            AppLinearProgressIndicator(
                 progress = { statsDetail.loadedProgress },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -342,7 +347,7 @@ private fun MyFollowStatsDetailPanel(
                 DetailMetricChip("平均进度", "${watchInsight.averageProgressPercent}%", Modifier.weight(1f))
             }
             if (watchInsight.estimatedTotalEpisodes > 0) {
-                Text(
+                AppText(
                     text = "已追集数 ${watchInsight.estimatedWatchedEpisodes}/${watchInsight.estimatedTotalEpisodes}",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -358,7 +363,7 @@ private fun DetailMetricChip(
     value: String,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppSurface(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
@@ -373,13 +378,13 @@ private fun DetailMetricChip(
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            Text(
+            AppText(
                 text = title,
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
+            AppText(
                 text = value,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -421,7 +426,7 @@ private fun MyFollowGrid(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Text(
+            AppText(
                 text = if (followType == MY_FOLLOW_TYPE_CINEMA) "共 $total 部追剧" else "共 $total 部追番",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -531,14 +536,14 @@ private fun MyFollowCard(
             
             // 角标（会员专享等）
             if (item.badge.isNotEmpty()) {
-                Surface(
+                AppSurface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(4.dp),
                     color = MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(4.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = item.badge,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         color = Color.White,
@@ -549,14 +554,14 @@ private fun MyFollowCard(
             
             // 更新状态标记
             if (item.newEp?.indexShow?.contains("更新") == true) {
-                Surface(
+                AppSurface(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(4.dp),
                     color = MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(4.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = "更新",
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         color = Color.White,
@@ -573,7 +578,7 @@ private fun MyFollowCard(
             ) {
                 // 观看进度
                 if (item.progress.isNotEmpty()) {
-                    Text(
+                    AppText(
                         text = item.progress,
                         color = iOSYellow,
                         fontSize = 11.sp,
@@ -583,7 +588,7 @@ private fun MyFollowCard(
                 
                 // 更新状态
                 item.newEp?.indexShow?.let { indexShow ->
-                    Text(
+                    AppText(
                         text = indexShow,
                         color = Color.White,
                         fontSize = 10.sp
@@ -592,7 +597,7 @@ private fun MyFollowCard(
             }
             
             // 播放按钮 (悬浮)
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(36.dp),
@@ -600,7 +605,7 @@ private fun MyFollowCard(
                 color = Color.Black.copy(alpha = 0.5f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
+                    AppIcon(
                         CupertinoIcons.Default.Play,
                         contentDescription = "播放",
                         tint = Color.White,
@@ -611,7 +616,7 @@ private fun MyFollowCard(
         }
         
         // 标题
-        Text(
+        AppText(
             text = item.title,
             modifier = Modifier.padding(top = 6.dp),
             maxLines = 2,

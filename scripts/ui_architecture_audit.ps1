@@ -95,13 +95,13 @@ function Get-VendorComponentEvidence {
         'CenterAlignedTopAppBar', 'Checkbox', 'CircularProgressIndicator',
         'DropdownMenu', 'DropdownMenuItem', 'ElevatedButton', 'ElevatedCard',
         'FilledIconButton', 'FilledTonalButton', 'FilterChip', 'FloatingActionButton',
-        'IconButton', 'LinearProgressIndicator', 'LoadingIndicator', 'ModalBottomSheet',
+        'HorizontalDivider', 'Icon', 'IconButton', 'LinearProgressIndicator', 'ListItem', 'LoadingIndicator', 'ModalBottomSheet',
         'ModalNavigationDrawer', 'NavigationBar', 'NavigationBarItem',
         'NavigationDrawerItem', 'NavigationRail', 'NavigationRailItem', 'OutlinedButton',
         'OutlinedCard', 'OutlinedIconButton', 'OutlinedTextField', 'PrimaryScrollableTabRow',
-        'PrimaryTabRow', 'PullToRefreshBox', 'RadioButton', 'Scaffold', 'SegmentedButton',
-        'SingleChoiceSegmentedButtonRow', 'Slider', 'SmallFloatingActionButton', 'Surface',
-        'SuggestionChip', 'Switch', 'Tab', 'TextButton', 'TextField', 'TopAppBar'
+        'PrimaryTabRow', 'PullToRefreshBox', 'RadioButton', 'Scaffold', 'ScrollableTabRow', 'SegmentedButton',
+        'SingleChoiceSegmentedButtonRow', 'Slider', 'SmallFloatingActionButton', 'Snackbar', 'SnackbarHost', 'Surface',
+        'SuggestionChip', 'Switch', 'Tab', 'Text', 'TextButton', 'TextField', 'TopAppBar'
     )
     $cupertinoComponents = @(
         'CupertinoActivityIndicator', 'CupertinoAlertDialog', 'CupertinoButton',
@@ -136,7 +136,7 @@ function Get-VendorComponentEvidence {
             } else {
                 $symbol
             }
-            if ($body -match ("\b{0}\s*\(" -f [regex]::Escape($localName))) {
+            if ($body -match ("\b{0}\s*(?:\(|\{{)" -f [regex]::Escape($localName))) {
                 $evidence.Add("Material3.$symbol")
             }
             continue
@@ -153,7 +153,7 @@ function Get-VendorComponentEvidence {
             } else {
                 $symbol
             }
-            if ($body -match ("\b{0}\s*\(" -f [regex]::Escape($localName))) {
+            if ($body -match ("\b{0}\s*(?:\(|\{{)" -f [regex]::Escape($localName))) {
                 $evidence.Add("Cupertino.$symbol")
             }
             continue
@@ -170,7 +170,7 @@ function Get-VendorComponentEvidence {
             } else {
                 $symbol
             }
-            if ($body -match ("\b{0}\s*\(" -f [regex]::Escape($localName))) {
+            if ($body -match ("\b{0}\s*(?:\(|\{{)" -f [regex]::Escape($localName))) {
                 $evidence.Add("Miuix.$symbol")
             }
         }
@@ -178,9 +178,27 @@ function Get-VendorComponentEvidence {
 
     if ($materialWildcard) {
         foreach ($symbol in $materialComponents) {
-            if ($body -match ("\b{0}\s*\(" -f [regex]::Escape($symbol))) {
+            if ($body -match ("\b{0}\s*(?:\(|\{{)" -f [regex]::Escape($symbol))) {
                 $evidence.Add("Material3.$symbol")
             }
+        }
+    }
+
+    foreach ($symbol in $materialComponents) {
+        if ($body -match ("\bandroidx\.compose\.material3(?:\.pulltorefresh)?\.{0}\s*(?:\(|\{{)" -f [regex]::Escape($symbol))) {
+            $evidence.Add("Material3.$symbol")
+        }
+    }
+
+    foreach ($symbol in $cupertinoComponents) {
+        if ($body -match ("\bio\.github\.alexzhirkevich\.cupertino\.{0}\s*(?:\(|\{{)" -f [regex]::Escape($symbol))) {
+            $evidence.Add("Cupertino.$symbol")
+        }
+    }
+
+    foreach ($symbol in $miuixComponents) {
+        if ($body -match ("\btop\.yukonga\.miuix\.kmp\.(?:basic|extra|overlay)\.{0}\s*(?:\(|\{{)" -f [regex]::Escape($symbol))) {
+            $evidence.Add("Miuix.$symbol")
         }
     }
 

@@ -39,7 +39,9 @@ class FeedContentTokenAdoptionTest {
 
     @Test
     fun large_card_compositions_preserve_title_hierarchy_through_shared_roles() {
-        val tokens = locate("src/main/java/com/android/purebilibili/core/ui/FeedContentTokens.kt").readText()
+        val tokens = locateDesignSystem(
+            "src/main/java/com/android/purebilibili/core/ui/FeedContentTokens.kt",
+        ).readText()
         val cinematic = locate(
             "src/main/java/com/android/purebilibili/feature/home/components/cards/CinematicVideoCard.kt",
         ).readText()
@@ -57,4 +59,9 @@ class FeedContentTokenAdoptionTest {
 
     private fun locate(path: String): File = listOf(File(path), File("app/$path"))
         .firstOrNull(File::exists) ?: error("Cannot locate $path")
+
+    private fun locateDesignSystem(path: String): File = listOf(
+        File("../design-system/$path"),
+        File("design-system/$path"),
+    ).firstOrNull(File::exists) ?: error("Cannot locate design-system/$path")
 }

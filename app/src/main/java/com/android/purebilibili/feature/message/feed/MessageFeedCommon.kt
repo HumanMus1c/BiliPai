@@ -12,7 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -92,7 +92,7 @@ internal fun MessageFeedEmpty(
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Text(text = text, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        AppText(text = text, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -107,9 +107,9 @@ internal fun MessageFeedError(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = text, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        AppText(text = text, color = MaterialTheme.colorScheme.onSurfaceVariant)
         AppButton(onClick = onRetry, modifier = Modifier.padding(top = 8.dp)) {
-            Text("重试")
+            AppText("重试")
         }
     }
 }
@@ -133,7 +133,7 @@ internal fun MessageFeedLoadMore(
             )
         } else {
             AppTextButton(onClick = onLoadMore) {
-                Text("加载更多")
+                AppText("加载更多")
             }
         }
     }
@@ -141,7 +141,7 @@ internal fun MessageFeedLoadMore(
 
 @Composable
 internal fun MessageFeedSectionHeader(text: String) {
-    Text(
+    AppText(
         text = text,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
         style = MaterialTheme.typography.labelLarge,

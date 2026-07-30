@@ -76,3 +76,29 @@ internal fun rememberVideoDetailEntryTransitionFinished(
 
     return finished
 }
+
+/**
+ * 冷启动不必等整个 shared morph 完成才请求媒体：在后段开始解码，实际画面仍由
+ * [VideoPlayerSection] 的首帧揭开策略接管封面，所以慢网不会露黑帧。
+ */
+@Composable
+internal fun rememberVideoDetailEntryPlaybackReady(
+    deferLoad: Boolean,
+    morphDurationMillis: Int,
+): Boolean {
+    if (!deferLoad) return true
+
+    var ready by remember(deferLoad) { mutableStateOf(false) }
+    val preloadDelayMillis = remember(morphDurationMillis) {
+        resolveVideoDetailEntryPlaybackPreloadDelayMillis(morphDurationMillis)
+    }
+    LaunchedEffect(deferLoad, preloadDelayMillis) {
+        if (!deferLoad) {
+            ready = true
+            return@LaunchedEffect
+        }
+        kotlinx.coroutines.delay(preloadDelayMillis.toLong())
+        ready = true
+    }
+    return ready
+}

@@ -150,9 +150,9 @@ class MiuixV2MigrationStructureTest {
     }
 
     @Test
-    fun miuixDockedBottomBar_usesOfficialNavigationBarItemForStandardItems() {
+    fun miuixDockedBottomBar_routesStandardItemsThroughPlatformNavigationFacade() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
-        assertTrue(source.contains("MiuixNavigationBarItem("))
+        assertTrue(source.contains("AppPlatformNavigationBarItem("))
         assertTrue(source.contains("shouldUseMiuixOfficialNavigationBarItem("))
     }
 

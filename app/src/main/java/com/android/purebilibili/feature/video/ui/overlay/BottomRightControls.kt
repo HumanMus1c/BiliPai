@@ -9,7 +9,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -126,7 +126,7 @@ private fun QualityButton(
         shape = RoundedCornerShape(layoutPolicy.chipCornerRadiusDp.dp),
         color = Color.Black.copy(alpha = 0.5f)
     ) {
-        Text(
+        AppText(
             text = qualityText,
             color = Color.White,
             fontSize = layoutPolicy.chipFontSp.sp,

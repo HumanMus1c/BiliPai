@@ -1,5 +1,7 @@
 // File: feature/video/ui/overlay/TopControlBar.kt
 package com.android.purebilibili.feature.video.ui.overlay
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import android.content.Context
 import android.content.Intent
@@ -228,7 +230,7 @@ fun TopControlBar(
                     onClick = onBack,
                     modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = CupertinoIcons.Default.ChevronBackward, 
                         contentDescription = "Back", 
                         tint = Color.White,
@@ -239,7 +241,7 @@ fun TopControlBar(
                 Spacer(modifier = Modifier.width(layoutPolicy.backToTitleSpacingDp.dp))
 
                 // 标题与右侧图标保持同一行
-                Text(
+                AppText(
                     text = title,
                     color = Color.White,
                     fontSize = layoutPolicy.titleFontSp.sp,
@@ -318,7 +320,7 @@ fun TopControlBar(
                     onClick = onMoreClick,
                     modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Outlined.MoreVert,
                         contentDescription = "更多",
                         tint = Color.White,
@@ -348,14 +350,14 @@ fun TopControlBar(
                                 height = (layoutPolicy.timeFontSp + 4).dp
                             )
                         )
-                        Text(
+                        AppText(
                             text = battery.displayText,
                             color = resolveBatteryStatusTint(battery).copy(alpha = 0.95f),
                             fontSize = layoutPolicy.timeFontSp.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         statusInfo.currentTimeText?.let { timeText ->
-                            Text(
+                            AppText(
                                 text = timeText,
                                 color = Color.White.copy(alpha = 0.88f),
                                 fontSize = layoutPolicy.timeFontSp.sp,
@@ -364,7 +366,7 @@ fun TopControlBar(
                         }
                     }
                 } ?: statusInfo.currentTimeText?.let { timeText ->
-                    Text(
+                    AppText(
                         text = timeText,
                         color = Color.White.copy(alpha = 0.88f),
                         fontSize = layoutPolicy.timeFontSp.sp,
@@ -373,7 +375,7 @@ fun TopControlBar(
                 }
 
                 if (onlineCount.isNotEmpty()) {
-                    Text(
+                    AppText(
                         text = onlineCount,
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = layoutPolicy.onlineCountFontSp.sp,
@@ -463,7 +465,7 @@ private fun ActionIcon(
         onClick = onClick,
         modifier = Modifier.size(buttonSizeDp.dp)
     ) {
-        Icon(
+        AppIcon(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = if (isActive) MaterialTheme.colorScheme.primary else Color.White,

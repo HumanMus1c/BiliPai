@@ -1,5 +1,8 @@
 // 文件路径: feature/plugin/AdFilterPlugin.kt
 package com.android.purebilibili.feature.plugin
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.content.Context
 import androidx.compose.foundation.background
@@ -38,6 +41,7 @@ import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.data.repository.SearchRepository
 import com.android.purebilibili.core.ui.components.*
+import com.android.purebilibili.core.ui.AppAlertDialog
 import io.github.alexzhirkevich.cupertino.CupertinoSwitch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -498,7 +502,7 @@ class AdFilterPlugin : FeedPlugin {
                 iconTint = Color(0xFFE91E63)
             )
             
-            HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(0.5f))
+            AppHorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(0.5f))
             
             // 标题党过滤
             AppSwitchPreference(
@@ -514,7 +518,7 @@ class AdFilterPlugin : FeedPlugin {
                 iconTint = Color(0xFFFF9800)
             )
             
-            HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(0.5f))
+            AppHorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(0.5f))
             
             // 低质量过滤
             AppSwitchPreference(
@@ -576,21 +580,21 @@ class AdFilterPlugin : FeedPlugin {
         
         // 添加UP主对话框
         if (showAddUpDialog) {
-            AlertDialog(
+            AppAlertDialog(
                 onDismissRequest = { showAddUpDialog = false; inputText = "" },
-                title = { Text("添加UP主拉黑") },
+                title = { AppText("添加UP主拉黑") },
                 text = {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = inputText,
                         onValueChange = { inputText = it },
-                        label = { Text("UP主名称") },
-                        placeholder = { Text("输入UP主名称") },
+                        label = { AppText("UP主名称") },
+                        placeholder = { AppText("输入UP主名称") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                 },
                 confirmButton = {
-                    TextButton(
+                    AppTextButton(
                         onClick = {
                             if (inputText.isNotBlank()) {
                                 blockedUpNames = blockedUpNames + inputText.trim()
@@ -607,31 +611,31 @@ class AdFilterPlugin : FeedPlugin {
                             showAddUpDialog = false
                             inputText = ""
                         }
-                    ) { Text("添加") }
+                    ) { AppText("添加") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showAddUpDialog = false; inputText = "" }) { Text("取消") }
+                    AppTextButton(onClick = { showAddUpDialog = false; inputText = "" }) { AppText("取消") }
                 }
             )
         }
         
         // 添加关键词对话框
         if (showAddKeywordDialog) {
-            AlertDialog(
+            AppAlertDialog(
                 onDismissRequest = { showAddKeywordDialog = false; inputText = "" },
-                title = { Text("添加屏蔽关键词") },
+                title = { AppText("添加屏蔽关键词") },
                 text = {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = inputText,
                         onValueChange = { inputText = it },
-                        label = { Text("关键词") },
-                        placeholder = { Text("输入要屏蔽的关键词") },
+                        label = { AppText("关键词") },
+                        placeholder = { AppText("输入要屏蔽的关键词") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                 },
                 confirmButton = {
-                    TextButton(
+                    AppTextButton(
                         onClick = {
                             if (inputText.isNotBlank()) {
                                 blockedKeywords = blockedKeywords + inputText.trim()
@@ -640,10 +644,10 @@ class AdFilterPlugin : FeedPlugin {
                             showAddKeywordDialog = false
                             inputText = ""
                         }
-                    ) { Text("添加") }
+                    ) { AppText("添加") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showAddKeywordDialog = false; inputText = "" }) { Text("取消") }
+                    AppTextButton(onClick = { showAddKeywordDialog = false; inputText = "" }) { AppText("取消") }
                 }
             )
         }
@@ -762,23 +766,23 @@ private fun AdFilterInsightPanel(summary: AdFilterInsightSummary) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
+                AppText(
                     text = "过滤效果",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Text(
+                AppText(
                     text = "展示最近实际隐藏的视频",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Surface(
+            AppSurface(
                 shape = RoundedCornerShape(999.dp),
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             ) {
-                Text(
+                AppText(
                     text = "${summary.totalFilteredCount} 条",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
@@ -852,14 +856,14 @@ private fun AdFilterStatTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Text(
+        AppText(
             text = title,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        Text(
+        AppText(
             text = value,
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface,
@@ -877,7 +881,7 @@ private fun AdFilterRecordSection(
     upProfiles: List<AdFilterUpProfile>
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
+        AppText(
             text = title,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
@@ -892,7 +896,7 @@ private fun AdFilterRecordSection(
                     .padding(horizontal = 12.dp, vertical = 14.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
+                AppText(
                     text = emptyText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -955,7 +959,7 @@ private fun AdFilterRecordCard(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            Text(
+            AppText(
                 text = record.videoTitle.ifBlank { "未知视频" },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -979,7 +983,7 @@ private fun AdFilterRecordCard(
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
-                Text(
+                AppText(
                     text = record.upName.ifBlank { "未知 UP" },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -996,7 +1000,7 @@ private fun AdFilterRecordCard(
                     AdFilterChip(text = record.matchedText)
                 }
             }
-            Text(
+            AppText(
                 text = "播放 ${FormatUtils.formatStat(record.viewCount.toLong())}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1010,9 +1014,9 @@ private fun AdFilterRecordDetailDialog(
     record: AdFilterRecord,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("过滤详情") },
+        title = { AppText("过滤详情") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AdFilterDetailLine("视频", record.videoTitle.ifBlank { "未知视频" })
@@ -1029,8 +1033,8 @@ private fun AdFilterRecordDetailDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("知道了")
+            AppTextButton(onClick = onDismiss) {
+                AppText("知道了")
             }
         }
     )
@@ -1042,12 +1046,12 @@ private fun AdFilterDetailLine(
     value: String
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
+        AppText(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Text(
+        AppText(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface
@@ -1057,11 +1061,11 @@ private fun AdFilterDetailLine(
 
 @Composable
 private fun AdFilterChip(text: String) {
-    Surface(
+    AppSurface(
         shape = RoundedCornerShape(999.dp),
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
     ) {
-        Text(
+        AppText(
             text = text,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
@@ -1093,7 +1097,7 @@ private fun AdFilterListItemAvatar(
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
     } else {
-        Icon(
+        AppIcon(
             icon,
             contentDescription = null,
             tint = tint,
@@ -1135,25 +1139,25 @@ private fun AdFilterCustomListSection(
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
             )
-            Surface(
+            AppSurface(
                 shape = RoundedCornerShape(999.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.68f)
             ) {
-                Text(
+                AppText(
                     text = summary.countText,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                 )
             }
-            Icon(
+            AppIcon(
                 imageVector = if (expanded) {
                     CupertinoIcons.Default.ChevronUp
                 } else {
@@ -1167,7 +1171,7 @@ private fun AdFilterCustomListSection(
             )
         }
 
-        Text(
+        AppText(
             text = summary.previewText,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1176,7 +1180,7 @@ private fun AdFilterCustomListSection(
 
         if (!expanded) {
             summary.hiddenCountText?.let { hiddenCountText ->
-                Text(
+                AppText(
                     text = hiddenCountText,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
@@ -1201,7 +1205,7 @@ private fun AdFilterCustomListSection(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
+                            AppText(
                                 text = item,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -1209,18 +1213,18 @@ private fun AdFilterCustomListSection(
                                 overflow = TextOverflow.Ellipsis
                             )
                             if (blockedUpProfile != null && blockedUpProfile.filteredCount > 0) {
-                                Text(
+                                AppText(
                                     text = "已过滤 ${blockedUpProfile.filteredCount} 条",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
-                        IconButton(
+                        AppIconButton(
                             onClick = { onRemove(item) },
                             modifier = Modifier.size(32.dp)
                         ) {
-                            Icon(
+                            AppIcon(
                                 CupertinoIcons.Default.Xmark,
                                 contentDescription = "移除$item",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1232,13 +1236,13 @@ private fun AdFilterCustomListSection(
             }
         }
 
-        OutlinedButton(
+        AppOutlinedButton(
             onClick = onAddClick,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(CupertinoIcons.Default.Plus, contentDescription = null, modifier = Modifier.size(18.dp))
+            AppIcon(CupertinoIcons.Default.Plus, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text(addButtonText)
+            AppText(addButtonText)
         }
     }
 }

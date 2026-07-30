@@ -16,7 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -84,7 +84,7 @@ fun InteractiveChoiceOverlay(
                         )
                     ) {
                         val label = if (choice.isDefault) "${choice.text}（默认）" else choice.text
-                        Text(text = label, textAlign = textAlign)
+                        AppText(text = label, textAlign = textAlign)
                     }
                 }
             }
@@ -108,7 +108,7 @@ fun InteractiveChoiceOverlay(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
+                        AppText(
                             text = state.title,
                             modifier = Modifier.weight(1f),
                             fontSize = 16.sp,
@@ -119,7 +119,7 @@ fun InteractiveChoiceOverlay(
                         )
                         val countdown = state.remainingMs
                         if (countdown != null) {
-                            Text(
+                            AppText(
                                 text = "${(countdown / 1000L).coerceAtLeast(0L)}s",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.error
@@ -129,7 +129,7 @@ fun InteractiveChoiceOverlay(
                             onClick = onDismiss,
                             modifier = Modifier.size(width = 56.dp, height = 32.dp)
                         ) {
-                            Text("关闭")
+                            AppText("关闭")
                         }
                     }
 
@@ -143,7 +143,7 @@ fun InteractiveChoiceOverlay(
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         ) {
-                            Text(text = label)
+                            AppText(text = label)
                         }
                     }
 
@@ -170,13 +170,13 @@ private fun CoordinateModeHeader(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
+        AppText(
             text = title,
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurface
         )
         if (remainingMs != null) {
-            Text(
+            AppText(
                 text = "${(remainingMs / 1000L).coerceAtLeast(0L)}s",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.error
@@ -186,7 +186,7 @@ private fun CoordinateModeHeader(
             onClick = onDismiss,
             modifier = Modifier.size(width = 56.dp, height = 28.dp)
         ) {
-            Text(
+            AppText(
                 text = "关闭",
                 fontSize = 12.sp
             )

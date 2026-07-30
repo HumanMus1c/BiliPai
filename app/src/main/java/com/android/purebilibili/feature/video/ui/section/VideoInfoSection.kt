@@ -1,5 +1,7 @@
 // File: feature/video/ui/section/VideoInfoSection.kt
 package com.android.purebilibili.feature.video.ui.section
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
@@ -55,6 +57,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.draw.rotate
 import com.android.purebilibili.core.ui.common.copyOnClick
 import com.android.purebilibili.core.ui.OfficialVerifyBadge
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.resolveUpStatsText
 import com.android.purebilibili.core.ui.components.UserUpBadge
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadgeFromRole
@@ -204,7 +208,7 @@ fun VideoTitleSection(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
-            Text(
+            AppText(
                 text = info.title,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontSize = 16.sp,
@@ -220,7 +224,7 @@ fun VideoTitleSection(
                     .copyOnLongPress(info.title, "视频标题")
             )
             Spacer(Modifier.width(4.dp))
-            Icon(
+            AppIcon(
                 imageVector = if (expanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -231,7 +235,7 @@ fun VideoTitleSection(
         Spacer(Modifier.height(2.dp))
         
         // Stats row (views, danmaku)
-        Text(
+        AppText(
             text = "${FormatUtils.formatStat(info.stat.view.toLong())}  \u2022  ${FormatUtils.formatStat(info.stat.danmaku.toLong())}\u5f39\u5e55",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -241,11 +245,11 @@ fun VideoTitleSection(
         if (publishTimeRowText.isNotBlank()) {
             Spacer(Modifier.height(6.dp))
             if (emphasizePublishTime) {
-                Surface(
+                AppSurface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = publishTimeRowText,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
@@ -254,7 +258,7 @@ fun VideoTitleSection(
                     )
                 }
             } else {
-                Text(
+                AppText(
                     text = publishTimeRowText,
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
@@ -390,7 +394,7 @@ fun VideoTitleWithDesc(
                 }
             }
 
-            Text(
+            AppText(
                 text = info.title,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontSize = 16.sp,
@@ -408,7 +412,7 @@ fun VideoTitleWithDesc(
                 animationSpec = tween(durationMillis = 300), // 设置动画时长和曲线
                 label = "IconRotation"
             )
-            Icon(
+            AppIcon(
                 imageVector = CupertinoIcons.Default.ChevronDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -449,14 +453,14 @@ fun VideoTitleWithDesc(
                         )
                     }
                 }
-                Text(
+                AppText(
                     text = "${FormatUtils.formatStat(info.stat.view.toLong())}播放",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     modifier = viewsModifier
                 )
 
-                Text(
+                AppText(
                     text = "  •  ",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -484,7 +488,7 @@ fun VideoTitleWithDesc(
                         )
                     }
                 }
-                Text(
+                AppText(
                     text = "${FormatUtils.formatStat(info.stat.danmaku.toLong())}弹幕",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -493,12 +497,12 @@ fun VideoTitleWithDesc(
 
             }
             if (onlineCountText.isNotBlank()) {
-                Text(
+                AppText(
                     text = "  •  ",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
-                Text(
+                AppText(
                     text = onlineCountText,
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.82f),
@@ -508,7 +512,7 @@ fun VideoTitleWithDesc(
             }
             // [新增] 显示 BVID 并支持点击复制
             Spacer(Modifier.width(8.dp))
-            Text(
+            AppText(
                 text = info.bvid,
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
@@ -534,11 +538,11 @@ fun VideoTitleWithDesc(
         if (publishTimeRowText.isNotBlank()) {
             Spacer(Modifier.height(6.dp))
             if (emphasizePublishTime) {
-                Surface(
+                AppSurface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = publishTimeRowText,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
@@ -547,7 +551,7 @@ fun VideoTitleWithDesc(
                     )
                 }
             } else {
-                Text(
+                AppText(
                     text = publishTimeRowText,
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
@@ -611,7 +615,7 @@ fun VideoTitleWithDesc(
                 }
                 // [新增] 使用 SelectionContainer 支持滑动复制
                 SelectionContainer {
-                    Text(
+                    AppText(
                         text = descriptionText,
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 12.sp,
@@ -647,12 +651,12 @@ fun VideoTitleWithDesc(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     videoTags.take(10).forEach { tag ->
-                        Surface(
+                        AppSurface(
                             onClick = { onTagClick(tag.tag_name) },
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text(
+                            AppText(
                                 text = tag.tag_name,
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -683,11 +687,11 @@ private fun VideoDetailBadgeChip(
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Surface(
+    AppSurface(
         color = containerColor,
         shape = RoundedCornerShape(8.dp)
     ) {
-        Text(
+        AppText(
             text = text,
             fontSize = 11.sp,
             lineHeight = 14.sp,
@@ -807,7 +811,7 @@ fun UpInfoSection(
                         modifier = avatarModifier,
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = CupertinoIcons.Default.PersonCropCircle,
                             contentDescription = "UP主标识",
                             tint = MaterialTheme.colorScheme.primary,
@@ -872,7 +876,7 @@ fun UpInfoSection(
                         }
                         Spacer(Modifier.width(4.dp))
                     }
-                    Text(
+                    AppText(
                         text = info.owner.name,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -884,7 +888,7 @@ fun UpInfoSection(
                 }
                 if (!upStatsText.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
+                    AppText(
                         text = upStatsText,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f),
@@ -921,7 +925,7 @@ fun UpInfoSection(
                 val followVisualPolicy = remember(isFollowing) {
                     resolveVideoFollowVisualPolicy(isFollowing = isFollowing)
                 }
-                Surface(
+                AppSurface(
                     onClick = onFollowClick,
                     color = when (followVisualPolicy.detailButtonTone) {
                         FollowButtonTone.PRIMARY -> MaterialTheme.colorScheme.primary
@@ -935,7 +939,7 @@ fun UpInfoSection(
                         modifier = Modifier.padding(horizontal = 16.dp)
                     ) {
                         if (!isFollowing) {
-                            Icon(
+                            AppIcon(
                                 CupertinoIcons.Default.Plus,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimary,
@@ -943,7 +947,7 @@ fun UpInfoSection(
                             )
                             Spacer(Modifier.width(2.dp))
                         }
-                        Text(
+                        AppText(
                             text = if (isFollowing) "\u5df2\u5173\u6ce8" else "\u5173\u6ce8",
                             fontSize = 13.sp,
                             color = when (followVisualPolicy.detailTextTone) {
@@ -980,14 +984,14 @@ private fun CreatorTeamSection(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = "创作团队",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.weight(1f))
-            Text(
+            AppText(
                 text = "共 ${staff.size} 位",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
@@ -1052,7 +1056,7 @@ private fun CreatorTeamMemberChip(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
+                AppText(
                     text = member.name,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
@@ -1069,7 +1073,7 @@ private fun CreatorTeamMemberChip(
                 }
             }
             if (member.title.isNotBlank()) {
-                Text(
+                AppText(
                     text = member.title,
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
@@ -1090,7 +1094,7 @@ fun DescriptionSection(desc: String) {
 
     if (desc.isBlank()) return
 
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.background
     ) {
@@ -1100,7 +1104,7 @@ fun DescriptionSection(desc: String) {
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .animateContentSize()
         ) {
-            Text(
+            AppText(
                 text = desc,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = 14.sp,
@@ -1120,14 +1124,14 @@ fun DescriptionSection(desc: String) {
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
+                    AppText(
                         text = if (expanded) "\u6536\u8d77" else "\u5c55\u5f00\u66f4\u591a",
                         color = MaterialTheme.colorScheme.primary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.width(2.dp))
-                    Icon(
+                    AppIcon(
                         imageVector = if (expanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
@@ -1204,7 +1208,7 @@ fun BgmInfoRow(
         label = "BgmExpandIndicator"
     )
 
-    Surface(
+    AppSurface(
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier
@@ -1215,7 +1219,7 @@ fun BgmInfoRow(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
+            AppIcon(
                 imageVector = CupertinoIcons.Default.MusicNote,
                 contentDescription = "BGM",
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
@@ -1223,7 +1227,7 @@ fun BgmInfoRow(
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                AppText(
                     text = title,
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Medium
@@ -1234,7 +1238,7 @@ fun BgmInfoRow(
                 )
                 subtitle?.takeIf { it.isNotBlank() }?.let {
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
+                    AppText(
                         text = it,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
@@ -1244,7 +1248,7 @@ fun BgmInfoRow(
                 }
             }
             if (showIndicator) {
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Default.ChevronDown,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
@@ -1370,7 +1374,7 @@ private fun BgmSelectionSheet(
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
+                    AppText(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
@@ -1379,8 +1383,8 @@ private fun BgmSelectionSheet(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    IconButton(onClick = onDismiss) {
-                        Icon(
+                    AppIconButton(onClick = onDismiss) {
+                        AppIcon(
                             imageVector = CupertinoIcons.Default.Xmark,
                             contentDescription = "关闭",
                             modifier = Modifier.size(20.dp)
@@ -1441,7 +1445,7 @@ private fun BgmSelectionSheet(
                 }
             } else if (selectedData.errorMessage?.isNotBlank() == true) {
                 item(key = "bgm-recommend-error") {
-                    Text(
+                    AppText(
                         text = selectedData.errorMessage.takeIf { it.isNotBlank() } ?: "音乐推荐加载失败",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
@@ -1450,7 +1454,7 @@ private fun BgmSelectionSheet(
                 }
             } else {
                 item(key = "bgm-recommend-empty") {
-                    Text(
+                    AppText(
                         text = "暂无相关视频",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
@@ -1467,7 +1471,7 @@ private fun BgmSelectionSheet(
 
             if (selectedMusicId.isBlank() || aid <= 0L || cid <= 0L) {
                 item {
-                    Text(
+                    AppText(
                         text = "暂时无法加载更多音乐信息",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
@@ -1512,7 +1516,7 @@ private fun BgmDiscoveryRelatedHeader() {
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        Text(
+        AppText(
             text = "使用该音乐的视频",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
@@ -1670,7 +1674,7 @@ private fun BgmSelectionStrip(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        Icon(
+                        AppIcon(
                             imageVector = CupertinoIcons.Default.MusicNote,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.78f),
@@ -1679,7 +1683,7 @@ private fun BgmSelectionStrip(
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
+                AppText(
                     text = bgm.musicTitle.ifBlank { "未知音乐" },
                     style = MaterialTheme.typography.labelSmall,
                     color = if (selected) {
@@ -1713,7 +1717,7 @@ private fun BgmDetailCard(
             ?: "点击查看这首音乐的完整详情"
     }
 
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
@@ -1741,7 +1745,7 @@ private fun BgmDetailCard(
                         .fillMaxHeight(),
                     verticalArrangement = Arrangement.Top
                 ) {
-                    Text(
+                    AppText(
                         text = detail?.musicTitle.orEmpty().ifBlank { bgm.musicTitle.ifBlank { "未知音乐" } },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
@@ -1751,14 +1755,14 @@ private fun BgmDetailCard(
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
+                        AppIcon(
                             imageVector = CupertinoIcons.Outlined.Star,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(
+                        AppText(
                             text = scoreText,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
@@ -1766,7 +1770,7 @@ private fun BgmDetailCard(
                         )
                     }
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(
+                    AppText(
                         text = displayStatLine,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1774,7 +1778,7 @@ private fun BgmDetailCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(
+                    AppText(
                         text = commentText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1782,7 +1786,7 @@ private fun BgmDetailCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
+                    AppText(
                         text = description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.92f),
@@ -1790,7 +1794,7 @@ private fun BgmDetailCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.weight(1f, fill = true))
-                    Text(
+                    AppText(
                         text = "打开音乐详情",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
@@ -1893,7 +1897,7 @@ private fun BgmDetailCover(
                 contentScale = ContentScale.Crop
             )
         } else {
-            Icon(
+            AppIcon(
                 imageVector = CupertinoIcons.Default.MusicNote,
                 contentDescription = title,
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),

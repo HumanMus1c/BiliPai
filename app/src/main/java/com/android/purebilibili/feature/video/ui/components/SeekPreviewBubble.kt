@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -259,7 +259,7 @@ private fun SeekPreviewImage(
             modifier = modifier.background(Color(0xFF101010)),
             contentAlignment = Alignment.Center
         ) {
-            Text(
+            AppText(
                 text = "预览加载中",
                 color = Color.White.copy(alpha = 0.72f),
                 fontSize = 12.sp
@@ -288,7 +288,7 @@ private fun SeekPreviewImage(
                 modifier = modifier.background(Color(0xFF1A1A1A)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "...", color = Color.White, fontSize = 13.sp)
+                AppText(text = "...", color = Color.White, fontSize = 13.sp)
             }
         }
         is AsyncImagePainter.State.Error -> {
@@ -296,7 +296,7 @@ private fun SeekPreviewImage(
                 modifier = modifier.background(Color(0xFF1A1A1A)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "预览不可用", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                AppText(text = "预览不可用", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
             }
         }
         is AsyncImagePainter.State.Success -> {
@@ -359,7 +359,7 @@ private fun BoxScope.SeekPreviewTimeLabel(
             offset = Offset(0f, 1.2f),
             blurRadius = 4f
         )
-        Text(
+        AppText(
             text = FormatUtils.formatDuration((targetPositionMs / 1000L).toInt()),
             color = Color.White,
             fontSize = timeFontSp.sp,
@@ -370,7 +370,7 @@ private fun BoxScope.SeekPreviewTimeLabel(
         val deltaSeconds = (targetPositionMs - currentPositionMs) / 1000L
         if (deltaSeconds != 0L) {
             Spacer(modifier = Modifier.width(6.dp))
-            Text(
+            AppText(
                 text = if (deltaSeconds > 0L) "+${deltaSeconds}s" else "${deltaSeconds}s",
                 color = if (deltaSeconds > 0L) Color(0xFF8CD48C) else Color(0xFFFF8A80),
                 fontSize = deltaFontSp.sp,
@@ -425,7 +425,7 @@ internal fun SeekPreviewBubbleSimple(
             ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
+            AppText(
                 text = FormatUtils.formatDuration((targetPositionMs / 1000L).toInt()),
                 color = Color.White,
                 fontSize = style.timeFontSp.sp,
@@ -435,7 +435,7 @@ internal fun SeekPreviewBubbleSimple(
             val deltaSeconds = (targetPositionMs - currentPositionMs) / 1000L
             if (deltaSeconds != 0L) {
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
+                AppText(
                     text = if (deltaSeconds > 0L) "+${deltaSeconds}s" else "${deltaSeconds}s",
                     color = if (deltaSeconds > 0L) Color(0xFF8CD48C) else Color(0xFFFF8A80),
                     fontSize = style.deltaFontSp.sp,

@@ -21,13 +21,13 @@ import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppFilterChip
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.AppTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -129,7 +129,7 @@ fun BiliPaiJsPluginContentScreen(
                 title = installed?.manifest?.title ?: "JS 插件内容",
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
-                        Icon(rememberAppBackIcon(), contentDescription = "返回")
+                        AppIcon(rememberAppBackIcon(), contentDescription = "返回")
                     }
                 }
             )
@@ -195,7 +195,7 @@ private fun PluginContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text(
+            AppText(
                 text = installed.manifest.description.ifBlank { "${installed.manifest.id} · v${installed.manifest.version}" },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -207,7 +207,7 @@ private fun PluginContent(
                     AppFilterChip(
                         selected = module == selectedModule,
                         onClick = { onSelectModule(module) },
-                        label = { Text(module.title) }
+                        label = { AppText(module.title) }
                     )
                 }
             }
@@ -219,12 +219,12 @@ private fun PluginContent(
                         AppOutlinedTextField(
                             value = paramValues[param.name] ?: param.defaultValue,
                             onValueChange = { paramValues[param.name] = it },
-                            label = { Text(param.title) },
+                            label = { AppText(param.title) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
                     }
-                    AppAssistChip(onClick = onReload, label = { Text("重新加载") })
+                    AppAssistChip(onClick = onReload, label = { AppText("重新加载") })
                 }
             }
         }
@@ -237,13 +237,13 @@ private fun PluginContent(
                 ) {
                     AdaptiveLoadingIndicator(size = 22.dp)
                     Spacer(modifier = Modifier.size(8.dp))
-                    Text("正在加载插件内容")
+                    AppText("正在加载插件内容")
                 }
             }
         }
         errorMessage?.let { message ->
             item {
-                Text(
+                AppText(
                     text = message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error
@@ -318,14 +318,14 @@ private fun BiliPaiJsMediaItemRow(
             }
             Spacer(modifier = Modifier.size(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                AppText(
                     text = item.title,
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 if (item.description.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
+                    AppText(
                         text = item.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -334,7 +334,7 @@ private fun BiliPaiJsMediaItemRow(
                 }
                 if (streams.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(
+                    AppText(
                         text = "线路 ${streams.size} 条",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
@@ -342,7 +342,7 @@ private fun BiliPaiJsMediaItemRow(
                 }
             }
             if (item.isPlayable) {
-                Text(
+                AppText(
                     text = "播放",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
@@ -372,7 +372,7 @@ private fun PluginMediaImagePlaceholder(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
         ) {}
-        Text(
+        AppText(
             text = when (state) {
                 PluginMediaImageState.NO_IMAGE -> "无图"
                 PluginMediaImageState.LOAD_FAILED -> "失败"
@@ -396,7 +396,7 @@ private fun EmptyState(
     text: String
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Text(
+        AppText(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant

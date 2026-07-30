@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -10,9 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -186,7 +186,7 @@ private fun RecallConfirmMenu(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            Icon(
+            AppIcon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
                 tint = PrimaryColor,
@@ -195,7 +195,7 @@ private fun RecallConfirmMenu(
                     .size(24.dp)
                     .clickable(onClick = onBack)
             )
-            Text(
+            AppText(
                 text = "确认撤回",
                 color = Color.White,
                 fontSize = 16.sp,
@@ -212,21 +212,21 @@ private fun RecallConfirmMenu(
                 .padding(horizontal = 18.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
+            AppText(
                 text = "撤回后不可恢复",
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
+            AppText(
                 text = "确认撤回这条弹幕？",
                 color = Color.White.copy(alpha = 0.82f),
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
+            AppText(
                 text = previewText,
                 color = Color.White.copy(alpha = 0.62f),
                 fontSize = 13.sp,
@@ -279,14 +279,14 @@ private fun MainMenu(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
+            AppText(
                 text = "弹幕内容",
                 color = Color.White.copy(0.5f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
+            AppText(
                 text = text,
                 color = Color.White,
                 fontSize = 15.sp,
@@ -377,7 +377,7 @@ private fun ReportReasonMenu(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            Icon(
+            AppIcon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
                 tint = PrimaryColor,
@@ -386,7 +386,7 @@ private fun ReportReasonMenu(
                     .size(24.dp)
                     .clickable(onClick = onBack)
             )
-            Text(
+            AppText(
                 text = "举报原因",
                 color = Color.White,
                 fontSize = 16.sp,
@@ -448,14 +448,14 @@ private fun MenuItem(
         horizontalArrangement = if (centered) Arrangement.Center else Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
+        AppText(
             text = label,
             color = displayColor,
             fontSize = 16.sp,
             fontWeight = FontWeight.Normal
         )
         if (icon != null) {
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = displayColor,
@@ -467,7 +467,7 @@ private fun MenuItem(
 
 @Composable
 private fun MenuSeparator() {
-    HorizontalDivider(
+    AppHorizontalDivider(
         color = SeparatorColor,
         thickness = 0.5.dp
     )

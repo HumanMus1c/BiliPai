@@ -105,7 +105,7 @@ class WatchLaterRefreshContractTest {
             .substringBefore("containerColor = MaterialTheme.colorScheme.background")
 
         assertTrue(
-            topBarSection.contains("text = { Text(\"批量删除\") }") &&
+            topBarSection.contains("text = { AppText(\"批量删除\") }") &&
                 topBarSection.contains("isBatchMode = true"),
             "批量删除应放进管理菜单，避免 MIUIX 顶栏操作区挤压标题"
         )
@@ -114,7 +114,7 @@ class WatchLaterRefreshContractTest {
                 "顶栏操作区不应直接放置批量删除文字按钮"
         )
         assertTrue(
-            topBarSection.contains("text = { Text(\"全部听\") }") &&
+            topBarSection.contains("text = { AppText(\"全部听\") }") &&
                 topBarSection.contains("onPlayAllAudioClick?.invoke"),
             "全部听应放进管理菜单，避免 MIUIX 顶栏操作区挤压标题"
         )

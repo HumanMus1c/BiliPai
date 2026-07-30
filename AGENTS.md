@@ -48,6 +48,12 @@ Use this file as the project-specific overlay on top of the global Codex/OMX gui
 
 Pick the smallest command set that proves the change:
 
+### Local packaging policy
+
+- Only build APK artifacts from the `release` or `dev` variants.
+- For installable test handoffs, use `:app:assembleDev` by default.
+- Do not build, package, install, or hand off `debug` or `smooth` variants.
+
 - Targeted unit tests for the touched feature:
   `./gradlew :app:testDebugUnitTest --tests '<ExactTestName>'`
 - Lightweight compile validation for touched Kotlin/Compose code:

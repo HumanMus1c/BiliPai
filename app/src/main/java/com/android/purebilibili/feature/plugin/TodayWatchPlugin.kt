@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.plugin
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,9 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppFilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -291,7 +291,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
+            AppText(
                 text = "默认模式",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
@@ -302,25 +302,25 @@ class TodayWatchPlugin : RecommendationPluginApi {
                 modifier = Modifier.fillMaxWidth()
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            Text(
+            AppText(
                 text = "推荐规模",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
-            Text("UP主榜数量", style = MaterialTheme.typography.labelLarge)
+            AppText("UP主榜数量", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(3, 5, 8, 10).forEach { value ->
                     AppFilterChip(
                         selected = uiConfig.upRankLimit == value,
                         onClick = { commit(uiConfig.copy(upRankLimit = value)) },
-                        label = { Text("$value 个") }
+                        label = { AppText("$value 个") }
                     )
                 }
             }
 
-            Text("队列生成长度", style = MaterialTheme.typography.labelLarge)
+            AppText("队列生成长度", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(12, 20, 30, 40).forEach { value ->
                     AppFilterChip(
@@ -329,35 +329,35 @@ class TodayWatchPlugin : RecommendationPluginApi {
                             val preview = uiConfig.queuePreviewLimit.coerceAtMost(value)
                             commit(uiConfig.copy(queueBuildLimit = value, queuePreviewLimit = preview))
                         },
-                        label = { Text("$value 条") }
+                        label = { AppText("$value 条") }
                     )
                 }
             }
 
-            Text("卡片展示条数", style = MaterialTheme.typography.labelLarge)
+            AppText("卡片展示条数", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(4, 6, 8, 10).forEach { value ->
                     val clamped = value.coerceAtMost(uiConfig.queueBuildLimit)
                     AppFilterChip(
                         selected = uiConfig.queuePreviewLimit == clamped,
                         onClick = { commit(uiConfig.copy(queuePreviewLimit = clamped)) },
-                        label = { Text("$clamped 条") }
+                        label = { AppText("$clamped 条") }
                     )
                 }
             }
 
-            Text("历史样本量", style = MaterialTheme.typography.labelLarge)
+            AppText("历史样本量", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(40, 80, 120).forEach { value ->
                     AppFilterChip(
                         selected = uiConfig.historySampleLimit == value,
                         onClick = { commit(uiConfig.copy(historySampleLimit = value)) },
-                        label = { Text("$value 条") }
+                        label = { AppText("$value 条") }
                     )
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             AppSwitchPreference(
                 icon = CupertinoIcons.Default.Sparkles,
@@ -393,7 +393,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
 
             if (uiConfig.enableWaterfallAnimation) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("动画曲率", style = MaterialTheme.typography.labelLarge)
+                AppText("动画曲率", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(
                         1.2f to "柔和",
@@ -404,22 +404,22 @@ class TodayWatchPlugin : RecommendationPluginApi {
                         AppFilterChip(
                             selected = kotlin.math.abs(uiConfig.waterfallExponent - value) < 0.01f,
                             onClick = { commit(uiConfig.copy(waterfallExponent = value)) },
-                            label = { Text(label) }
+                            label = { AppText(label) }
                         )
                     }
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             TodayWatchTasteInsightSection(insightState)
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            Text(
+            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            AppText(
                 text = "推荐画像维护",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
             )
-            Text(
+            AppText(
                 text = "会清空本地学习到的偏好与不感兴趣反馈，推荐会回到冷启动状态。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -427,11 +427,11 @@ class TodayWatchPlugin : RecommendationPluginApi {
             AppTextButton(
                 onClick = { showResetDialog = true }
             ) {
-                Text("清空本地推荐画像与反馈")
+                AppText("清空本地推荐画像与反馈")
             }
 
             if (!resetMessage.isNullOrBlank()) {
-                Text(
+                AppText(
                     text = resetMessage.orEmpty(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
@@ -439,7 +439,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
             }
 
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
+            AppText(
                 text = "所有设置仅在本地生效，不上传你的历史记录。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -449,8 +449,8 @@ class TodayWatchPlugin : RecommendationPluginApi {
         if (showResetDialog) {
             AppAlertDialog(
                 onDismissRequest = { showResetDialog = false },
-                title = { Text("清空推荐画像") },
-                text = { Text("确定清空本地推荐画像与不感兴趣反馈吗？该操作不可恢复。") },
+                title = { AppText("清空推荐画像") },
+                text = { AppText("确定清空本地推荐画像与不感兴趣反馈吗？该操作不可恢复。") },
                 confirmButton = {
                     AppTextButton(
                         onClick = {
@@ -461,12 +461,12 @@ class TodayWatchPlugin : RecommendationPluginApi {
                             showResetDialog = false
                         }
                     ) {
-                        Text("确定")
+                        AppText("确定")
                     }
                 },
                 dismissButton = {
                     AppTextButton(onClick = { showResetDialog = false }) {
-                        Text("取消")
+                        AppText("取消")
                     }
                 }
             )
@@ -518,33 +518,33 @@ private fun TodayWatchPluginModeSegmentedControl(
 private fun TodayWatchTasteInsightSection(
     state: TodayWatchTasteInsightState
 ) {
-    Text(
+    AppText(
         text = "推荐依据",
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary
     )
-    Text(
+    AppText(
         text = "${state.modeTitle}：${state.modeSummary}",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 
     if (state.preferredCreators.isNotEmpty()) {
-        Text("近期偏好 UP", style = MaterialTheme.typography.labelLarge)
+        AppText("近期偏好 UP", style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             state.preferredCreators.forEach { signal ->
                 AppFilterChip(
                     selected = false,
                     onClick = {},
-                    label = { Text("${signal.label} · ${signal.value}") }
+                    label = { AppText("${signal.label} · ${signal.value}") }
                 )
             }
         }
     }
 
-    Text("最近不感兴趣", style = MaterialTheme.typography.labelLarge)
+    AppText("最近不感兴趣", style = MaterialTheme.typography.labelLarge)
     if (state.recentDislikedVideos.isEmpty()) {
-        Text(
+        AppText(
             text = "还没有本地负反馈。点视频菜单里的“不感兴趣”后，会在这里显示近期样本。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -556,12 +556,12 @@ private fun TodayWatchTasteInsightSection(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = item.title,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
+                    AppText(
                         text = item.subtitle,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -572,13 +572,13 @@ private fun TodayWatchTasteInsightSection(
     }
 
     if (state.negativeSignals.isNotEmpty()) {
-        Text("已降权信号", style = MaterialTheme.typography.labelLarge)
+        AppText("已降权信号", style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             state.negativeSignals.forEach { signal ->
                 AppFilterChip(
                     selected = false,
                     onClick = {},
-                    label = { Text("${signal.label} · ${signal.value}") }
+                    label = { AppText("${signal.label} · ${signal.value}") }
                 )
             }
         }

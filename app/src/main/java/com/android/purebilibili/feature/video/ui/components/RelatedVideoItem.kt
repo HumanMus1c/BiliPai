@@ -18,10 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -117,7 +117,7 @@ fun RelatedVideosHeader() {
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = "\u66f4\u591a\u63a8\u8350",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
@@ -288,7 +288,7 @@ fun RelatedVideoItem(
                 alignment = Alignment.Center,
                 modifier = Modifier.fillMaxSize()
             )
-            Text(
+            AppText(
                 text = FormatUtils.formatDuration(video.duration),
                 color = Color.White,
                 style = MaterialTheme.typography.labelMedium.copy(
@@ -311,7 +311,7 @@ fun RelatedVideoItem(
                 .height(coverHeight),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(
+            AppText(
                 text = video.title,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 maxLines = 2,
@@ -323,7 +323,7 @@ fun RelatedVideoItem(
                 badgeTrailingContent = if (isFollowed) {
                     {
                         val followVisualPolicy = resolveVideoFollowVisualPolicy(isFollowing = true)
-                        Text(
+                        AppText(
                             text = "已关注",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                             color = when (followVisualPolicy.relatedBadgeTone) {
@@ -389,7 +389,7 @@ fun RelatedVideoItem(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
+                        AppText(
                             text = "⋮",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 20.sp,
@@ -502,9 +502,9 @@ fun RelatedVideoGridRow(
                     blockCreatorRequest = null
                 }
             },
-            title = { Text("屏蔽 UP 主") },
+            title = { AppText("屏蔽 UP 主") },
             text = {
-                Text(
+                AppText(
                     "确定要屏蔽 ${blockRequest.video.owner.name.ifBlank { "该 UP 主" }} 吗？\n" +
                         "屏蔽后将不再推荐该 UP 主的视频。"
                 )
@@ -535,7 +535,7 @@ fun RelatedVideoGridRow(
                         }
                     }
                 ) {
-                    Text("屏蔽", color = Color.Red)
+                    AppText("屏蔽", color = Color.Red)
                 }
             },
             dismissButton = {
@@ -561,7 +561,7 @@ fun RelatedVideoGridRow(
                         }
                     }
                 ) {
-                    Text("暂不屏蔽")
+                    AppText("暂不屏蔽")
                 }
             }
         )
@@ -607,14 +607,14 @@ private fun StatItem(
     text: String,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
+        AppIcon(
             icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.outline,
             modifier = Modifier.size(12.dp)
         )
         Spacer(modifier = Modifier.width(2.dp))
-        Text(
+        AppText(
             text = text,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

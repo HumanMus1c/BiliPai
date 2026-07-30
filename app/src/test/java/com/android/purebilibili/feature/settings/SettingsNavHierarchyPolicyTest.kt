@@ -79,6 +79,12 @@ class SettingsNavHierarchyPolicyTest {
                 childRoute = "animation_settings",
             )
         )
+        assertTrue(
+            isSettingsNavHierarchyTransition(
+                parentRoute = "profile",
+                childRoute = "settings",
+            )
+        )
         assertFalse(
             isSettingsNavHierarchyTransition(
                 parentRoute = "home",
@@ -114,6 +120,14 @@ class SettingsNavHierarchyPolicyTest {
             )
         )
         assertEquals(
+            BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_FORWARD,
+            resolveSettingsNavRouteTransition(
+                fromRoute = "profile",
+                toRoute = "settings",
+                forward = true,
+            )
+        )
+        assertEquals(
             BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP,
             resolveSettingsNavRouteTransition(
                 fromRoute = "animation_settings",
@@ -139,6 +153,14 @@ class SettingsNavHierarchyPolicyTest {
                 fromKey = BiliPaiNavKey.AnimationSettings,
                 toKey = BiliPaiNavKey.MainHost,
                 activeMainHostRoute = "settings",
+            )
+        )
+        assertEquals(
+            BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP,
+            resolveSettingsNavPopTransition(
+                fromKey = BiliPaiNavKey.Settings,
+                toKey = BiliPaiNavKey.MainHost,
+                activeMainHostRoute = "profile",
             )
         )
         assertNull(

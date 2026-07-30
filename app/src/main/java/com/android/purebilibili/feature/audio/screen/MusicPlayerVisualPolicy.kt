@@ -8,11 +8,6 @@ internal data class MusicLyricFocusStyle(
     val alphaPercent: Int
 )
 
-internal data class MusicGlassFallbackStyle(
-    val backgroundAlphaPercent: Int,
-    val borderAlphaPercent: Int
-)
-
 internal fun resolveMusicPagerIndicatorPosition(
     currentPage: Int,
     currentPageOffsetFraction: Float
@@ -30,13 +25,6 @@ internal fun resolveMusicPlayMode(index: Int): PlayMode = when (index) {
     2 -> PlayMode.REPEAT_ONE
     3 -> PlayMode.REPEAT_ALL
     else -> PlayMode.SEQUENTIAL
-}
-
-internal fun resolveMusicGlassFallbackStyle(): MusicGlassFallbackStyle {
-    return MusicGlassFallbackStyle(
-        backgroundAlphaPercent = 48,
-        borderAlphaPercent = 24
-    )
 }
 
 internal fun resolveMusicLyricsBlurEnabled(

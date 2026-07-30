@@ -1,5 +1,8 @@
 // 文件路径: feature/video/ui/components/VideoSettingsPanel.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
@@ -44,7 +47,9 @@ import com.android.purebilibili.core.ui.rememberAppSpeedIcon
 import com.android.purebilibili.core.ui.rememberAppTimerIcon
 import com.android.purebilibili.core.ui.rememberAppWifiIcon
 import com.android.purebilibili.core.ui.components.DefaultPlaybackSpeedPreferenceControl
+import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppPreference
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppSwitchPreference
 import com.android.purebilibili.core.ui.components.formatDefaultPlaybackSpeed
 import com.android.purebilibili.data.model.response.AiAudioInfo
@@ -297,7 +302,7 @@ fun VideoSettingsPanel(
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = timerIcon,
                             contentDescription = null,
                             tint = if (usesTonalContainerTreatment) {
@@ -308,7 +313,7 @@ fun VideoSettingsPanel(
                             modifier = Modifier.size(panelSpec.iconSize)
                         )
                         Spacer(modifier = Modifier.width(panelSpec.iconGap))
-                        Text(
+                        AppText(
                             text = "定时关闭",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
@@ -372,14 +377,14 @@ fun VideoSettingsPanel(
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
+                        AppIcon(
                             imageVector = downloadIcon,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text(
+                        AppText(
                             text = "资源下载",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
@@ -483,21 +488,21 @@ fun VideoSettingsPanel(
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
+                            AppIcon(
                                 imageVector = qualityIcon,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Text(
+                            AppText(
                                 text = "选择画质",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(
+                            AppText(
                                 text = "当前 $currentQualityLabel",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -526,7 +531,7 @@ fun VideoSettingsPanel(
                                     else -> videoSettingsChipContentColor(false).copy(alpha = 0.45f)
                                 }
 
-                                Surface(
+                                AppSurface(
                                     onClick = {
                                         if (!isSelected && isEnabled) {
                                             onQualitySelected(index)
@@ -541,7 +546,7 @@ fun VideoSettingsPanel(
                                         contentAlignment = Alignment.Center,
                                         modifier = Modifier.padding(horizontal = panelSpec.chipHorizontalPadding)
                                     ) {
-                                        Text(
+                                        AppText(
                                             text = label,
                                             fontSize = 13.sp,
                                             color = contentColor
@@ -563,14 +568,14 @@ fun VideoSettingsPanel(
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
+                        AppIcon(
                             imageVector = codecIcon,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text(
+                        AppText(
                             text = "编码格式",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
@@ -584,7 +589,7 @@ fun VideoSettingsPanel(
                             "av01" -> "AV1 (极致)"
                             else -> "未知"
                         }
-                        Text(
+                        AppText(
                             text = codecLabel,
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -598,14 +603,14 @@ fun VideoSettingsPanel(
                         val codecs = listOf("avc1" to "AVC (H.264)", "hev1" to "HEVC (H.265)", "av01" to "AV1")
                         codecs.forEach { (codec, label) ->
                             val isSelected = currentCodec == codec
-                            Surface(
+                            AppSurface(
                                 onClick = { onCodecChange(codec) },
                                 shape = RoundedCornerShape(16.dp),
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                 modifier = Modifier.height(32.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
-                                    Text(
+                                    AppText(
                                         text = label,
                                         fontSize = 13.sp,
                                         color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -626,14 +631,14 @@ fun VideoSettingsPanel(
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
+                        AppIcon(
                             imageVector = codecIcon,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text(
+                        AppText(
                             text = "次选编码",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
@@ -647,7 +652,7 @@ fun VideoSettingsPanel(
                             "av01" -> "AV1 (高压缩)"
                             else -> "未知"
                         }
-                        Text(
+                        AppText(
                             text = secondCodecLabel,
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -661,14 +666,14 @@ fun VideoSettingsPanel(
                         val codecs = listOf("avc1" to "AVC (H.264)", "hev1" to "HEVC (H.265)", "av01" to "AV1")
                         codecs.forEach { (codec, label) ->
                             val isSelected = currentSecondCodec == codec
-                            Surface(
+                            AppSurface(
                                 onClick = { onSecondCodecChange(codec) },
                                 shape = RoundedCornerShape(16.dp),
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                 modifier = Modifier.height(32.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
-                                    Text(
+                                    AppText(
                                         text = label,
                                         fontSize = 13.sp,
                                         color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -689,14 +694,14 @@ fun VideoSettingsPanel(
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
+                        AppIcon(
                             imageVector = musicIcon,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text(
+                        AppText(
                             text = "音频音质",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
@@ -713,7 +718,7 @@ fun VideoSettingsPanel(
                             30251 -> "Hi-Res无损"
                             else -> "其他"
                         }
-                        Text(
+                        AppText(
                             text = audioLabel,
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -732,14 +737,14 @@ fun VideoSettingsPanel(
                         )
                         audios.forEach { (code, label) ->
                             val isSelected = currentAudioQuality == code
-                            Surface(
+                            AppSurface(
                                 onClick = { onAudioQualityChange(code) },
                                 shape = RoundedCornerShape(16.dp),
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                 modifier = Modifier.height(32.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
-                                    Text(
+                                    AppText(
                                         text = label,
                                         fontSize = 13.sp,
                                         color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -762,7 +767,7 @@ fun VideoSettingsPanel(
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
+                            AppText(
                                 text = "AI原生翻译",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
@@ -773,7 +778,7 @@ fun VideoSettingsPanel(
                             val currentLangItem = aiAudioInfo.items.find { it.langCode == currentAudioLang }
                             val langLabel = currentLangItem?.langDoc ?: "原声"
                             
-                            Text(
+                            AppText(
                                 text = langLabel,
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -786,14 +791,14 @@ fun VideoSettingsPanel(
                         ) {
                             aiAudioInfo.items.forEach { item ->
                                 val isSelected = currentAudioLang == item.langCode
-                                Surface(
+                                AppSurface(
                                     onClick = { onAudioLangChange(item.langCode) },
                                     shape = RoundedCornerShape(16.dp),
                                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                     modifier = Modifier.height(32.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
-                                        Text(
+                                        AppText(
                                             text = item.langDoc,
                                             fontSize = 13.sp,
                                             color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -819,33 +824,33 @@ fun VideoSettingsPanel(
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
+                            AppIcon(
                                 imageVector = wifiIcon,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Text(
+                            AppText(
                                 text = "播放线路",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(
+                            AppText(
                                 text = "当前 线路${currentCdnIndex + 1}",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Spacer(modifier = Modifier.height(12.dp))
-                        Button(
+                        AppButton(
                             enabled = !isCdnProbing,
                             onClick = onProbeCdnCandidates,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (isCdnProbing) "检测中..." else "检测当前候选线路")
+                            AppText(if (isCdnProbing) "检测中..." else "检测当前候选线路")
                         }
                         Spacer(modifier = Modifier.height(10.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -876,21 +881,21 @@ fun VideoSettingsPanel(
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = speedIcon,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text(
+                        AppText(
                             text = "播放倍速",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
+                        AppText(
                             text = if (currentSpeed == 1.0f) "正常" else "${currentSpeed}x",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -978,7 +983,7 @@ fun VideoSettingsPanel(
                             Spacer(modifier = Modifier.height(12.dp))
                             
                             // 快进秒数选择
-                            Text(
+                            AppText(
                                 text = "快进秒数（双击右侧）",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -996,7 +1001,7 @@ fun VideoSettingsPanel(
                             Spacer(modifier = Modifier.height(12.dp))
                             
                             // 后退秒数选择
-                            Text(
+                            AppText(
                                 text = "后退秒数（双击左侧）",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1026,7 +1031,7 @@ fun VideoSettingsPanel(
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = gestureTapIcon,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1034,13 +1039,13 @@ fun VideoSettingsPanel(
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
+                            AppText(
                                 text = "长按倍速",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Text(
+                            AppText(
                                 text = "当前 ${longPressSpeed}x",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1158,7 +1163,7 @@ private fun SettingsItem(
 @Composable
 private fun SettingsDivider() {
     val spec = rememberVideoSettingsPanelVisualSpec()
-    HorizontalDivider(
+    AppHorizontalDivider(
         modifier = Modifier.padding(horizontal = spec.dividerHorizontalPadding),
         thickness = 0.5.dp,
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = spec.dividerAlpha)
@@ -1191,7 +1196,7 @@ private fun CdnLineRow(
         }
     }.ifBlank { "手动检测后显示延迟/速度" }
 
-    Surface(
+    AppSurface(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
         color = if (isSelected) {
@@ -1206,20 +1211,20 @@ private fun CdnLineRow(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                AppText(
                     text = "线路${index + 1} · $status",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Text(
+                AppText(
                     text = host,
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
+                AppText(
                     text = metric,
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1228,7 +1233,7 @@ private fun CdnLineRow(
                 )
             }
             if (isSelected) {
-                Text(
+                AppText(
                     text = "当前",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.primary,
@@ -1262,7 +1267,7 @@ private fun SleepTimerOptions(
     ) {
         options.forEach { (minutes, label) ->
             val isSelected = currentMinutes == minutes
-            Surface(
+            AppSurface(
                 onClick = { onSelect(minutes) },
                 shape = RoundedCornerShape(spec.chipCornerRadius),
                 color = videoSettingsChipContainerColor(isSelected),
@@ -1272,7 +1277,7 @@ private fun SleepTimerOptions(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.padding(horizontal = spec.chipHorizontalPadding)
                 ) {
-                    Text(
+                    AppText(
                         text = label,
                         fontSize = 13.sp,
                         color = videoSettingsChipContentColor(isSelected)
@@ -1308,7 +1313,7 @@ private fun SpeedOptions(
     ) {
         options.forEach { (speed, label) ->
             val isSelected = currentSpeed == speed
-            Surface(
+            AppSurface(
                 onClick = { onSelect(speed) },
                 shape = RoundedCornerShape(spec.chipCornerRadius),
                 color = videoSettingsChipContainerColor(isSelected),
@@ -1318,7 +1323,7 @@ private fun SpeedOptions(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.padding(horizontal = spec.chipHorizontalPadding)
                 ) {
-                    Text(
+                    AppText(
                         text = label,
                         fontSize = 13.sp,
                         color = videoSettingsChipContentColor(isSelected)
@@ -1341,7 +1346,7 @@ private fun FlipButton(
     policy: VideoSettingsPanelActionPolicy
 ) {
     val spec = rememberVideoSettingsPanelVisualSpec()
-    Surface(
+    AppSurface(
         onClick = onClick,
         shape = RoundedCornerShape(policy.pillHeightDp.dp),
         color = if (isActive) videoSettingsChipContainerColor(true) else videoSettingsChipContainerColor(false).copy(alpha = 0.78f),
@@ -1357,7 +1362,7 @@ private fun FlipButton(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (isActive) 
@@ -1367,7 +1372,7 @@ private fun FlipButton(
                 modifier = Modifier.size(policy.pillIconSizeDp.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
-            Text(
+            AppText(
                 text = label,
                 fontSize = 13.sp,
                 fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
@@ -1390,7 +1395,7 @@ private fun SettingsActionPill(
     val usesTonalContainerTreatment = rememberAppPlayerChromeProfile()
         .effects
         .usesTonalContainerTreatment
-    Surface(
+    AppSurface(
         onClick = onClick,
         shape = RoundedCornerShape(policy.pillHeightDp.dp),
         color = if (usesTonalContainerTreatment) {
@@ -1409,14 +1414,14 @@ private fun SettingsActionPill(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.size(policy.pillIconSizeDp.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
+            AppText(
                 text = label,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                 fontSize = 13.sp,
@@ -1444,7 +1449,7 @@ private fun SeekSecondsOptions(
     ) {
         options.forEach { seconds ->
             val isSelected = currentSeconds == seconds
-            Surface(
+            AppSurface(
                 onClick = { onSelect(seconds) },
                 shape = RoundedCornerShape(spec.chipCornerRadius),
                 color = videoSettingsChipContainerColor(isSelected),
@@ -1454,7 +1459,7 @@ private fun SeekSecondsOptions(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.padding(horizontal = spec.chipHorizontalPadding)
                 ) {
-                    Text(
+                    AppText(
                         text = "${seconds}s",
                         fontSize = 13.sp,
                         color = videoSettingsChipContentColor(isSelected)
@@ -1482,7 +1487,7 @@ private fun LongPressSpeedOptions(
     ) {
         options.forEach { speed ->
             val isSelected = currentSpeed == speed
-            Surface(
+            AppSurface(
                 onClick = { onSelect(speed) },
                 shape = RoundedCornerShape(spec.chipCornerRadius),
                 color = videoSettingsChipContainerColor(isSelected),
@@ -1492,7 +1497,7 @@ private fun LongPressSpeedOptions(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.padding(horizontal = spec.chipHorizontalPadding)
                 ) {
-                    Text(
+                    AppText(
                         text = "${speed}x",
                         fontSize = 13.sp,
                         color = videoSettingsChipContentColor(isSelected)

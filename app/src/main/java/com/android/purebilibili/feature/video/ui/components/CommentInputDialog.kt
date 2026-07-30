@@ -1,7 +1,17 @@
 // 文件路径: feature/video/ui/components/CommentInputDialog.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppScrollableTabRow
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTab
+import com.android.purebilibili.core.ui.components.AppTextButton
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -287,7 +297,7 @@ fun CommentInputDialog(
                 )
                 
                 // 输入区域
-                Surface(
+                AppSurface(
                     modifier = modifier
                         .fillMaxWidth()
                         .wrapContentHeight(),
@@ -332,7 +342,7 @@ fun CommentInputDialog(
                                         if (text.isEmpty()) {
                                             val fallbackHint = "进来唠会嗑呗~"
                                             val resolvedHint = inputHint.ifBlank { fallbackHint }
-                                            Text(
+                                            AppText(
                                                 text = if (replyToName != null) "回复 @$replyToName: $resolvedHint" else resolvedHint,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                                 fontSize = 16.sp
@@ -344,7 +354,7 @@ fun CommentInputDialog(
                             )
                             
                             // 右上角全屏图标 (装饰)
-                            Icon(
+                            AppIcon(
                                 imageVector = Icons.Filled.Fullscreen,
                                 contentDescription = "Expand",
                                 modifier = Modifier
@@ -391,7 +401,7 @@ fun CommentInputDialog(
                                     .padding(top = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
+                                AppText(
                                     text = "已选 ${selectedImageUris.size}/9 张",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -419,7 +429,7 @@ fun CommentInputDialog(
                                             contentDescription = "已选图片",
                                             modifier = Modifier.fillMaxSize()
                                         )
-                                        Surface(
+                                        AppSurface(
                                             shape = RoundedCornerShape(999.dp),
                                             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                                             modifier = Modifier
@@ -434,7 +444,7 @@ fun CommentInputDialog(
                                                     )
                                                 }
                                         ) {
-                                            Icon(
+                                            AppIcon(
                                                 imageVector = Icons.Outlined.Close,
                                                 contentDescription = "移除",
                                                 modifier = Modifier
@@ -478,14 +488,14 @@ fun CommentInputDialog(
                                         .padding(horizontal = 4.dp, vertical = 4.dp)
                                 ) {
                                     // 模拟 RadioButton/Checkbox
-                                    Icon(
+                                    AppIcon(
                                         imageVector = if (isForwardToDynamic) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
                                         contentDescription = null,
                                         tint = if (isForwardToDynamic) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
+                                    AppText(
                                         text = "转发到动态",
                                         fontSize = 13.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -494,12 +504,12 @@ fun CommentInputDialog(
                                 }
 
                                 // 图标栏: 表情 @ 图片
-                                IconButton(
+                                AppIconButton(
                                     onClick = { showEmojiPanel = !showEmojiPanel },
                                     enabled = canInputComment && !isSending,
                                     modifier = Modifier.size(layoutPolicy.toolbarToolButtonSizeDp.dp)
                                 ) {
-                                    Icon(
+                                    AppIcon(
                                         imageVector = Icons.Filled.Face,
                                         contentDescription = "Emoji",
                                         tint = if (showEmojiPanel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -507,7 +517,7 @@ fun CommentInputDialog(
                                     )
                                 }
 
-                                IconButton(
+                                AppIconButton(
                                     onClick = {
                                         insertTextAtCursor("@")
                                         showEmojiPanel = false
@@ -518,7 +528,7 @@ fun CommentInputDialog(
                                     enabled = canInputComment && !isSending,
                                     modifier = Modifier.size(layoutPolicy.toolbarToolButtonSizeDp.dp)
                                 ) {
-                                    Icon(
+                                    AppIcon(
                                         imageVector = Icons.Filled.Email,
                                         contentDescription = "At",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -526,7 +536,7 @@ fun CommentInputDialog(
                                     )
                                 }
 
-                                TextButton(
+                                AppTextButton(
                                     onClick = {
                                         insertTextAtCursor(resolveCommentProgressInsertText(currentVideoPositionMsProvider()))
                                         showEmojiPanel = false
@@ -536,14 +546,14 @@ fun CommentInputDialog(
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                                     modifier = Modifier.height(36.dp)
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = "进度",
                                         fontSize = 13.sp,
                                         maxLines = 1
                                     )
                                 }
 
-                                IconButton(
+                                AppIconButton(
                                     onClick = {
                                         imagePickerLauncher.launch(
                                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -552,7 +562,7 @@ fun CommentInputDialog(
                                     enabled = canUploadImage && canInputComment && !isSending,
                                     modifier = Modifier.size(layoutPolicy.toolbarToolButtonSizeDp.dp)
                                 ) {
-                                    Icon(
+                                    AppIcon(
                                         imageVector = Icons.Filled.AddCircle,
                                         contentDescription = "Add",
                                         tint = if (canUploadImage) {
@@ -568,7 +578,7 @@ fun CommentInputDialog(
                             Spacer(modifier = Modifier.width(8.dp))
 
                             // 发送按钮
-                            Button(
+                            AppButton(
                                 onClick = {
                                     if (text.isNotBlank() && !isSending && canInputComment) {
                                         keyboardController?.hide()
@@ -587,13 +597,13 @@ fun CommentInputDialog(
                                 modifier = Modifier.height(36.dp)
                             ) {
                                 if (isSending) {
-                                    CircularProgressIndicator(
+                                    AppCircularProgressIndicator(
                                         modifier = Modifier.size(16.dp),
                                         strokeWidth = 2.dp,
                                         color = MaterialTheme.colorScheme.onPrimary
                                     )
                                 } else {
-                                    Text(
+                                    AppText(
                                         text = "发布",
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
@@ -603,14 +613,14 @@ fun CommentInputDialog(
                         }
 
                         if (!canInputComment) {
-                            Text(
+                            AppText(
                                 text = "当前评论区暂不可评论",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 12.sp,
                                 modifier = Modifier.padding(top = 6.dp)
                             )
                         } else if (!canUploadImage) {
-                            Text(
+                            AppText(
                                 text = "当前评论区不支持图片评论",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 12.sp,
@@ -634,7 +644,7 @@ fun CommentInputDialog(
                                     .padding(top = 8.dp)
                             ) {
                                 // 顶部标签栏 (可滚动)
-                                ScrollableTabRow(
+                                AppScrollableTabRow(
                                     selectedTabIndex = currentTab,
                                     edgePadding = 16.dp,
                                     containerColor = MaterialTheme.colorScheme.surface,
@@ -647,20 +657,20 @@ fun CommentInputDialog(
                                             )
                                         }
                                     },
-                                    divider = { HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) },
+                                    divider = { AppHorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) },
                                     modifier = Modifier.height(48.dp)
                                 ) {
                                     // Tab 0: 颜文字
                                     AppTab(
                                         selected = currentTab == 0,
                                         onClick = { currentTab = 0 },
-                                        text = { Text("颜文字") }
+                                        text = { AppText("颜文字") }
                                     )
                                     // Tab 1: Emoji
                                     AppTab(
                                         selected = currentTab == 1,
                                         onClick = { currentTab = 1 },
-                                        text = { Text("Emoji") }
+                                        text = { AppText("Emoji") }
                                     )
                                     // API Packages (Tab 2+)
                                     emotePackages.forEachIndexed { index, pkg ->
@@ -676,7 +686,7 @@ fun CommentInputDialog(
                                                         modifier = Modifier.size(24.dp)
                                                     )
                                                 } else {
-                                                    Text(pkg.text) 
+                                                    AppText(pkg.text)
                                                 }
                                             }
                                         )
@@ -709,7 +719,7 @@ fun CommentInputDialog(
                                                             .clickable { insertTextAtCursor(kaomojis[i]) }
                                                             .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.1f))
                                                     ) {
-                                                        Text(kaomojis[i], fontSize = 13.sp)
+                                                        AppText(kaomojis[i], fontSize = 13.sp)
                                                     }
                                                 }
                                             }
@@ -735,7 +745,7 @@ fun CommentInputDialog(
                                                             .size(40.dp)
                                                             .clickable { insertTextAtCursor(emojis[i]) }
                                                     ) {
-                                                        Text(emojis[i], fontSize = 24.sp)
+                                                        AppText(emojis[i], fontSize = 24.sp)
                                                     }
                                                 }
                                             }
@@ -762,7 +772,7 @@ fun CommentInputDialog(
                                                                 contentDescription = emote.text,
                                                                 modifier = Modifier.size(50.dp)
                                                             )
-                                                            Text(
+                                                            AppText(
                                                                 text = emote.text.replace("[", "").replace("]", ""),
                                                                 fontSize = 10.sp,
                                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -795,7 +805,7 @@ private fun CommentMentionSearchPanel(
     onUserClick: (MentionSearchUser) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppSurface(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(max = 220.dp),
@@ -805,7 +815,7 @@ private fun CommentMentionSearchPanel(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = query,
                 onValueChange = onQueryChange,
                 modifier = Modifier
@@ -813,13 +823,13 @@ private fun CommentMentionSearchPanel(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 singleLine = true,
                 leadingIcon = {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Filled.Search,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
                 },
-                placeholder = { Text("搜索好友昵称") },
+                placeholder = { AppText("搜索好友昵称") },
                 textStyle = MaterialTheme.typography.bodySmall,
                 shape = RoundedCornerShape(18.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -838,12 +848,12 @@ private fun CommentMentionSearchPanel(
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(
+                        AppCircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text(
+                        AppText(
                             text = "正在搜索好友",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -852,7 +862,7 @@ private fun CommentMentionSearchPanel(
                 }
 
                 errorMessage != null -> {
-                    Text(
+                    AppText(
                         text = errorMessage,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -861,7 +871,7 @@ private fun CommentMentionSearchPanel(
                 }
 
                 users.isEmpty() -> {
-                    Text(
+                    AppText(
                         text = if (query.isBlank()) "输入好友昵称搜索" else "没有找到匹配的用户",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -894,14 +904,14 @@ private fun CommentMentionSearchPanel(
                                 Column(
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = user.name,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Text(
+                                    AppText(
                                         text = "${FormatUtils.formatStat(user.fans.toLong())} 粉丝",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,

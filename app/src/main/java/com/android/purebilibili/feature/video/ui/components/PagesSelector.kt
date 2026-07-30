@@ -31,12 +31,12 @@ import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppFilterChip
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -122,7 +122,7 @@ fun PagesSelector(
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = "选集",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontSize = 16.sp,
@@ -131,7 +131,7 @@ fun PagesSelector(
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
+            AppText(
                 text = "(${pages.size})",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
@@ -145,13 +145,13 @@ fun PagesSelector(
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
+                    AppText(
                         text = "展开",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Outlined.ExpandMore,
                         contentDescription = "展开选集",
                         tint = MaterialTheme.colorScheme.primary,
@@ -161,7 +161,7 @@ fun PagesSelector(
             }
             if (onDismissRequest != null) {
                 AppIconButton(onClick = onDismissRequest) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "关闭选集面板",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -250,7 +250,7 @@ fun PagesSelector(
                         .padding(horizontal = 20.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
+                    AppText(
                         text = "分集(${pages.size})",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontSize = 22.sp,
@@ -260,7 +260,7 @@ fun PagesSelector(
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     AppIconButton(onClick = { showExpandedSheet = false }) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "关闭选集",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -328,10 +328,10 @@ private fun PagesSelectorFilterBar(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
-                Text(text = "搜索 P号 / 标题")
+                AppText(text = "搜索 P号 / 标题")
             },
             leadingIcon = {
-                Icon(
+                AppIcon(
                     imageVector = Icons.Outlined.Search,
                     contentDescription = null
                 )
@@ -339,7 +339,7 @@ private fun PagesSelectorFilterBar(
             trailingIcon = if (query.isNotBlank()) {
                 {
                     AppIconButton(onClick = { onQueryChange("") }) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "清空搜索"
                         )
@@ -357,14 +357,14 @@ private fun PagesSelectorFilterBar(
                     AppFilterChip(
                         selected = selectedGroupKey == null,
                         onClick = { onGroupSelect(null) },
-                        label = { Text("全部 $totalCount") }
+                        label = { AppText("全部 $totalCount") }
                     )
                 }
                 items(groups, key = { it.key }) { group ->
                     AppFilterChip(
                         selected = selectedGroupKey == group.key,
                         onClick = { onGroupSelect(group.key) },
-                        label = { Text("${group.label} ${group.count}") }
+                        label = { AppText("${group.label} ${group.count}") }
                     )
                 }
             }
@@ -394,7 +394,7 @@ private fun PagesGrid(
                 .height(180.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
+            AppText(
                 text = emptyMessage,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -482,14 +482,14 @@ private fun PageSelectorItem(
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
-            Text(
+            AppText(
                 text = "P${page.page}",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = indexColor
             )
             Spacer(modifier = Modifier.height(6.dp))
-            Text(
+            AppText(
                 text = page.part.ifEmpty { "第${page.page}P" },
                 style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 18.sp),
                 maxLines = 2,

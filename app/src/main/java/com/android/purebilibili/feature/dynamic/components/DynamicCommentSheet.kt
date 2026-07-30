@@ -1,5 +1,8 @@
 // 文件路径: feature/dynamic/components/DynamicCommentSheet.kt
 package com.android.purebilibili.feature.dynamic.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -19,6 +22,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -141,6 +147,7 @@ fun DynamicCommentSheet(
     var previewSourceRect by remember { mutableStateOf<Rect?>(null) }
     var previewTextContent by remember { mutableStateOf<ImagePreviewTextContent?>(null) }
     val sortModes = remember { listOf(CommentSortMode.HOT, CommentSortMode.NEWEST) }
+    val sortModeLabels = remember(sortModes) { sortModes.map { it.label } }
 
     if (showImagePreview && previewImages.isNotEmpty()) {
         ImagePreviewDialog(
@@ -185,22 +192,22 @@ fun DynamicCommentSheet(
                     .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Medium),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
+                AppText(
                     text = "评论 ${if (totalCount > 0) "($totalCount)" else ""}",  //  [修改] 使用 totalCount
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 DynamicCommentSortControl(
-                    items = sortModes.map { it.label },
+                    items = sortModeLabels,
                     selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
                     onSelected = { index ->
                         sortModes.getOrNull(index)?.let(onSortModeChange)
                     }
                 )
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
-                IconButton(onClick = onDismiss) {
-                    Icon(
+                AppIconButton(onClick = onDismiss) {
+                    AppIcon(
                         rememberAppClearIcon(),
                         contentDescription = "关闭",
                         modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
@@ -208,7 +215,7 @@ fun DynamicCommentSheet(
                 }
             }
             
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             
             // 评论列表
             if (isLoading) {
@@ -228,14 +235,14 @@ fun DynamicCommentSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
+                        AppIcon(
                             rememberAppCommentIcon(),
                             contentDescription = null,
                             modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.3f)
                         )
                         Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
-                        Text(
+                        AppText(
                             "暂无评论",
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
                         )
@@ -278,7 +285,7 @@ fun DynamicCommentSheet(
                 }
             }
             
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             
             // 评论输入框
             Row(
@@ -297,7 +304,7 @@ fun DynamicCommentSheet(
                 
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
                 
-                Button(
+                AppButton(
                     onClick = {
                         if (commentText.isNotBlank()) {
                             onPostComment(commentText)
@@ -307,7 +314,7 @@ fun DynamicCommentSheet(
                     enabled = commentText.isNotBlank(),
                     shape = AppShapes.container(ContainerLevel.Sheet)
                 ) {
-                    Text("发送")
+                    AppText("发送")
                 }
             }
             
@@ -325,11 +332,12 @@ private fun DynamicCommentSortControl(
 ) {
     if (items.isEmpty()) return
     val policy = rememberAppSegmentedControlPolicy()
+    val controlSpec = remember { resolveDynamicCommentSortControlSpec() }
     val safeSelectedIndex = selectedIndex.coerceIn(items.indices)
     Row(
         modifier = Modifier
-            .width(66.dp * items.size)
-            .height(40.dp)
+            .width(controlSpec.itemWidthDp.dp * items.size)
+            .height(controlSpec.heightDp.dp)
             .clip(RoundedCornerShape(policy.pillCornerRadius))
             .background(AppSurfaceTokens.surfaceContainer())
             .padding(AppSpacingTokens.Micro),
@@ -348,7 +356,7 @@ private fun DynamicCommentSortControl(
                     .clickable { onSelected(index) },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
+                AppText(
                     text = label,
                     color = if (selected) {
                         AppSurfaceTokens.onSecondaryContainer()
@@ -365,6 +373,16 @@ private fun DynamicCommentSortControl(
     }
 }
 
+private data class DynamicCommentSortControlSpec(
+    val itemWidthDp: Int,
+    val heightDp: Int,
+)
+
+private fun resolveDynamicCommentSortControlSpec() = DynamicCommentSortControlSpec(
+    itemWidthDp = 66,
+    heightDp = 40,
+)
+
 /** Inline comments for dynamic detail, rendered by the detail screen's LazyColumn. */
 @Composable
 fun DynamicInlineCommentHeader(
@@ -373,27 +391,28 @@ fun DynamicInlineCommentHeader(
     onSortModeChange: (CommentSortMode) -> Unit,
 ) {
     val sortModes = remember { listOf(CommentSortMode.HOT, CommentSortMode.NEWEST) }
+    val sortModeLabels = remember(sortModes) { sortModes.map { it.label } }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Medium),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
+        AppText(
             text = "评论 ${if (totalCount > 0) "($totalCount)" else ""}",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
         Spacer(modifier = Modifier.weight(1f))
         DynamicCommentSortControl(
-            items = sortModes.map { it.label },
+            items = sortModeLabels,
             selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
             onSelected = { index ->
                 sortModes.getOrNull(index)?.let(onSortModeChange)
             },
         )
     }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 }
 
 fun LazyListScope.dynamicInlineCommentItems(
@@ -422,7 +441,7 @@ fun LazyListScope.dynamicInlineCommentItems(
                     .padding(vertical = AppSpacingTokens.DoubleExtraLarge),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("暂无评论", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                AppText("暂无评论", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
             }
         }
 
@@ -468,7 +487,7 @@ fun DynamicInlineCommentComposer(
             singleLine = true,
         )
         Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
-        Button(
+        AppButton(
             onClick = {
                 onPostComment(commentText)
                 commentText = ""
@@ -476,7 +495,7 @@ fun DynamicInlineCommentComposer(
             enabled = commentText.isNotBlank(),
             shape = AppShapes.container(ContainerLevel.Sheet),
         ) {
-            Text("发送")
+            AppText("发送")
         }
     }
 }
@@ -527,7 +546,7 @@ private fun CommentItem(
         Column(modifier = Modifier.weight(1f)) {
             // 用户名 + 时间
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
+                AppText(
                     text = member.uname,
                     fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Medium,
@@ -537,7 +556,7 @@ private fun CommentItem(
                     modifier = if (fanGroupVisual != null) Modifier.weight(1f, fill = false) else Modifier
                 )
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
-                Text(
+                AppText(
                     text = formatTime(reply.ctime),
                     fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
@@ -581,14 +600,14 @@ private fun CommentItem(
             
             // 点赞数
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
+                AppIcon(
                     rememberAppLikeIcon(),
                     contentDescription = null,
                     modifier = Modifier.size(AppSpacingTokens.Medium + AppSpacingTokens.Micro),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
                 )
                 Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
-                Text(
+                AppText(
                     text = "${reply.like}",
                     fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
@@ -615,7 +634,7 @@ private fun CommentItem(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = "${subReply.member.uname}:",
                                         fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                         fontWeight = FontWeight.SemiBold,
@@ -650,7 +669,7 @@ private fun CommentItem(
                         }
 
                         if (showInlineToggle) {
-                            Text(
+                            AppText(
                                 text = resolveInlineSubReplyToggleLabel(expanded = isSubPreviewExpanded),
                                 fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                 color = MaterialTheme.colorScheme.primary,
@@ -662,11 +681,11 @@ private fun CommentItem(
                 }
 
                 Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
-                TextButton(
+                AppTextButton(
                     onClick = { onViewReplies(reply) },
                     contentPadding = PaddingValues(horizontal = AppSpacingTokens.None, vertical = AppSpacingTokens.None)
                 ) {
-                    Text(
+                    AppText(
                         text = "查看回复(${com.android.purebilibili.feature.dynamic.resolveDynamicSubReplyCount(reply)})",
                         fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         color = MaterialTheme.colorScheme.primary

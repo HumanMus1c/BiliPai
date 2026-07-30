@@ -34,15 +34,17 @@ class CommentSortFilterBarPolicyTest {
     }
 
     @Test
-    fun `sort segmented control passes page backdrop into bottom bar renderer`() {
+    fun `sort segmented control accepts a stable page sized miuix sibling capture`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/video/ui/components/CommentSortFilterBar.kt"
         )
 
         assertTrue(source.contains("backdrop: Backdrop? = null"))
         assertTrue(source.contains("backdrop = backdrop"))
+        assertTrue(source.contains("miuixBackdrop = miuixBackdrop"))
         assertTrue(source.contains("forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled"))
         assertTrue(source.contains("liquidGlassEffectsEnabled = backdrop != null"))
+        assertTrue(source.contains("MiuixBackdrop"))
     }
 
     private fun loadSource(path: String): String {

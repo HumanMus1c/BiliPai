@@ -154,7 +154,7 @@ class VideoSharedTransitionPolicyTest {
     }
 
     @Test
-    fun homeVideoTransition_usesWholeCardShellWithoutMetadataBounds() {
+    fun homeVideoTransition_usesCoverAndCardShellWithoutMetadataBounds() {
         val policy = resolveVideoSharedTransitionOwnership(
             sourceRoute = "home",
             coverSharedEnabled = true,
@@ -272,7 +272,7 @@ class VideoSharedTransitionPolicyTest {
     }
 
     @Test
-    fun videoCardShellContainerTransform_includesSpaceSources() {
+    fun videoCardShellContainerTransform_includesCardSources() {
         assertTrue(
             shouldUseVideoCardShellContainerTransform(
                 sourceRoute = "home",

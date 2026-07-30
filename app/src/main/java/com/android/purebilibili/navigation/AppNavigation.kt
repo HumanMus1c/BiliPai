@@ -13,8 +13,6 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.WindowInsets
@@ -34,7 +32,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material3.MaterialTheme
@@ -114,6 +111,8 @@ import com.android.purebilibili.core.ui.transition.predictiveBackBackgroundEffec
 import com.android.purebilibili.core.ui.transition.pinSourcePageDuringSharedTransition
 import com.android.purebilibili.core.ui.transition.shouldApplyPredictiveBackBlurToRoute
 import com.android.purebilibili.core.ui.transition.shouldApplyVideoCardTransitionBackgroundToRoute
+import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundScaleReduction
+import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundSource
 import com.android.purebilibili.core.ui.transition.videoCardTransitionBackgroundEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import com.android.purebilibili.data.model.response.BgmInfo
@@ -153,6 +152,8 @@ import com.android.purebilibili.core.plugin.skin.rememberUiSkinState
 // import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi (Removed)
 import com.android.purebilibili.feature.home.components.FrostedBottomBar
 import com.android.purebilibili.feature.home.components.BottomNavItem
+import com.android.purebilibili.feature.home.components.BottomBarMatchedDockEdge
+import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisibility
 import com.android.purebilibili.feature.home.components.rememberBottomBarUiSkinDecoration
 import com.android.purebilibili.feature.profile.shouldShowProfileHistoryService
 import com.android.purebilibili.core.store.AppNavigationSettings
@@ -373,7 +374,6 @@ fun AppNavigation(
         )
     }
     val cardTransitionEnabled = appearance.cardTransitionEnabled
-    val videoDetailTransitionsEnabled = false
     val videoTransitionRealtimeBlurEnabled by SettingsManager
         .getVideoTransitionRealtimeBlurEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
@@ -1041,7 +1041,6 @@ fun AppNavigation(
         ) {
             resolveBiliPaiBackGestureDecision(
                 cardTransitionEnabled = sharedVideoCardTransitionEnabled,
-                videoDetailTransitionsEnabled = videoDetailTransitionsEnabled,
                 systemBackAction = systemBackAction,
                 currentKey = currentNavigation3Key,
                 previousKey = previousNavigation3Key,
@@ -1073,7 +1072,7 @@ fun AppNavigation(
         val shouldDeferBottomBarReveal = shouldDeferBottomBarRevealOnVideoReturn(
             isReturningFromDetail = navigation3ReturnSession.isReturningFromDetail,
             activeBottomTabRoute = activeBottomTabRoute,
-            cardTransitionEnabled = videoDetailTransitionsEnabled
+            cardTransitionEnabled = cardTransitionEnabled
         )
         val bottomBarMountGate = shouldShowBottomBarForNavigation(
             activeRoute = bottomBarMountRoute,
@@ -1113,12 +1112,12 @@ fun AppNavigation(
                 shouldDelayBottomBarRevealAfterVideoReturn(
                     isReturningFromDetail = navigation3ReturnSession.isReturningFromDetail,
                     isBottomBarDestination = isBottomBarDestination,
-                    cardTransitionEnabled = videoDetailTransitionsEnabled
+                    cardTransitionEnabled = cardTransitionEnabled
                 )
             ) {
                 kotlinx.coroutines.delay(
                     resolveVideoReturnBottomBarRevealDelayMs(
-                        cardTransitionEnabled = videoDetailTransitionsEnabled,
+                        cardTransitionEnabled = cardTransitionEnabled,
                         isQuickReturnFromDetail = navigation3ReturnSession.isQuickReturnFromDetail
                     )
                 )
@@ -1587,8 +1586,12 @@ fun AppNavigation(
                     val entryRoute = key.toLegacyRoute()
                     val backgroundState = LocalVideoCardTransitionBackgroundState.current
                     val predictiveBackState = LocalPredictiveBackBackgroundState.current
-                    val shouldApplyBackground = videoDetailTransitionsEnabled &&
-                        cardTransitionEnabled &&
+                    val backgroundScaleReduction = resolveVideoCardTransitionBackgroundScaleReduction(
+                        resolveVideoCardTransitionBackgroundSource(
+                            sourceRoute = backgroundState.sourceRouteProvider(),
+                        )
+                    )
+                    val shouldApplyBackground = cardTransitionEnabled &&
                         shouldApplyVideoCardTransitionBackgroundToRoute(
                             entryRoute = entryRoute,
                             sourceRoute = backgroundState.sourceRouteProvider(),
@@ -1614,6 +1617,9 @@ fun AppNavigation(
                                             isLightBackgroundProvider = backgroundState.isLightBackgroundProvider,
                                             realtimeBlurEnabledProvider = {
                                                 videoTransitionRealtimeBlurEnabled
+                                            },
+                                            scaleReductionProvider = {
+                                                backgroundScaleReduction
                                             },
                                         )
                                     } else {
@@ -2150,10 +2156,9 @@ fun AppNavigation(
                                 onClearReturningFromDetail = {
                                     navigation3ReturnSession = navigation3ReturnSession.clearReturning()
                                 },
-                                transitionEnabled = videoDetailTransitionsEnabled &&
-                                    shouldEnableVideoDetailSharedTransition(
-                                        cardTransitionEnabled = sharedVideoCardTransitionEnabled
-                                    ),
+                                transitionEnabled = shouldEnableVideoDetailSharedTransition(
+                                    cardTransitionEnabled = sharedVideoCardTransitionEnabled
+                                ),
                                 transitionEnterDurationMillis = navMotionSpec.slowFadeDurationMillis,
                                 onBack = {
                                     if (!navigation3ProgrammaticBackDispatcher.dispatch()) {
@@ -3057,9 +3062,7 @@ fun AppNavigation(
                 BiliPaiNavDisplayHost(
                     backStack = navigation3BackStack,
                     cardTransitionEnabled = sharedVideoCardTransitionEnabled,
-                    videoDetailTransitionsEnabled = videoDetailTransitionsEnabled,
-                    videoCardDepthEffectEnabled =
-                        videoDetailTransitionsEnabled && sharedVideoCardTransitionEnabled,
+                    videoCardDepthEffectEnabled = sharedVideoCardTransitionEnabled,
                     reduceMotion = systemReduceMotion,
                     videoSharedTransitionDurationMillis =
                         effectiveVideoCardTransitionDurationMillis,
@@ -3113,26 +3116,11 @@ fun AppNavigation(
                     .zIndex(1f)
 
                 Box(modifier = bottomBarModifier) {
-                    AnimatedVisibility(
+                    BottomBarMatchedDockVisibility(
                         visibleState = bottomBarVisibilityState,
-                        enter = slideInVertically(
-                            animationSpec = softLandingSpring(),
-                            initialOffsetY = { it }
-                        ) + fadeIn(animationSpec = emphasizedEnterTween(navMotionSpec.slowFadeDurationMillis)) +
-                            scaleIn(
-                                animationSpec = softLandingSpring(),
-                                initialScale = 0.96f,
-                                transformOrigin = TransformOrigin(0.5f, 1f)
-                            ),
-                        exit = slideOutVertically(
-                            animationSpec = emphasizedExitTween(navMotionSpec.fastFadeDurationMillis),
-                            targetOffsetY = { it }
-                        ) + fadeOut(animationSpec = emphasizedExitTween(navMotionSpec.fastFadeDurationMillis)) +
-                            scaleOut(
-                                animationSpec = emphasizedExitTween(navMotionSpec.fastFadeDurationMillis),
-                                targetScale = 0.92f,
-                                transformOrigin = TransformOrigin(0.5f, 1f)
-                            )
+                        edge = BottomBarMatchedDockEdge.BOTTOM,
+                        enterFadeDurationMillis = navMotionSpec.slowFadeDurationMillis,
+                        exitFadeDurationMillis = navMotionSpec.fastFadeDurationMillis
                     ) {
                         if (isBottomBarFloating) {
                             Box(

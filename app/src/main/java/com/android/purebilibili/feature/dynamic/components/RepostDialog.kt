@@ -1,5 +1,7 @@
 // 文件路径: feature/dynamic/components/RepostDialog.kt
 package com.android.purebilibili.feature.dynamic.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -31,14 +33,14 @@ fun RepostDialog(
         onDismissRequest = { if (!isPosting) onDismiss() },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
+                AppIcon(
                     rememberAppShareIcon(),
                     contentDescription = null,
                     modifier = Modifier.size(AppSpacingTokens.ExtraLarge),
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
-                Text(
+                AppText(
                     "转发动态",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
@@ -60,7 +62,7 @@ fun RepostDialog(
         },
         dismissButton = {
             AppDialogAction(onClick = { if (!isPosting) onDismiss() }) {
-                Text("取消")
+                AppText("取消")
             }
         },
         confirmButton = {
@@ -77,7 +79,7 @@ fun RepostDialog(
                 if (isPosting) {
                     AdaptiveLoadingIndicator(size = AppSpacingTokens.Large)
                 } else {
-                    Text("转发")
+                    AppText("转发")
                 }
             }
         }

@@ -1,5 +1,6 @@
 // 文件路径: feature/dynamic/components/ForwardedContent.kt
 package com.android.purebilibili.feature.dynamic.components
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -128,7 +129,7 @@ fun ForwardedContent(
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
+                AppText(
                     "@${author.name}",
                     fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Medium,
@@ -138,7 +139,7 @@ fun ForwardedContent(
                     }
                 )
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
-                Text(
+                AppText(
                     authorTimeText,
                     fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)

@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.android.purebilibili.feature.home.components
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -29,9 +31,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -362,7 +364,7 @@ private fun HomeHeroCarouselCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (activeForPlayback) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.Rounded.PlayArrow,
                             contentDescription = null,
                             tint = MediaContrastPalette.Foreground.copy(alpha = 0.9f),
@@ -370,7 +372,7 @@ private fun HomeHeroCarouselCard(
                         )
                         Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
                     }
-                    Text(
+                    AppText(
                         text = video.title,
                         color = MediaContrastPalette.Foreground,
                         style = MaterialTheme.typography.titleLarge,
@@ -390,7 +392,7 @@ private fun HomeHeroCarouselCard(
                     var separatorNeeded = false
                     // ??
                     if (video.duration > 0) {
-                        Text(
+                        AppText(
                             text = FormatUtils.formatDuration(video.duration),
                             color = MediaContrastPalette.Foreground.copy(alpha = 0.65f),
                             fontSize = MaterialTheme.typography.labelSmall.fontSize,
@@ -402,12 +404,12 @@ private fun HomeHeroCarouselCard(
                     }
                     // ???
                     if (video.stat.view > 0) {
-                        if (separatorNeeded) Text(
+                        if (separatorNeeded) AppText(
                             " � ",
                             color = MediaContrastPalette.Foreground.copy(alpha = 0.5f),
                             fontSize = MaterialTheme.typography.labelSmall.fontSize
                         )
-                        Text(
+                        AppText(
                             text = FormatUtils.formatStat(video.stat.view.toLong()) + "??",
                             color = MediaContrastPalette.Foreground.copy(alpha = 0.65f),
                             fontSize = MaterialTheme.typography.labelSmall.fontSize,
@@ -419,12 +421,12 @@ private fun HomeHeroCarouselCard(
                     }
                     // ??
                     if (video.stat.danmaku > 0) {
-                        if (separatorNeeded) Text(
+                        if (separatorNeeded) AppText(
                             " � ",
                             color = MediaContrastPalette.Foreground.copy(alpha = 0.5f),
                             fontSize = MaterialTheme.typography.labelSmall.fontSize
                         )
-                        Text(
+                        AppText(
                             text = FormatUtils.formatStat(video.stat.danmaku.toLong()) + "??",
                             color = MediaContrastPalette.Foreground.copy(alpha = 0.65f),
                             fontSize = MaterialTheme.typography.labelSmall.fontSize,

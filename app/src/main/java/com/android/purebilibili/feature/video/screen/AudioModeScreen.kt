@@ -24,7 +24,7 @@ import com.android.purebilibili.core.ui.AppAlertDialog
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.runtime.Composable
@@ -319,7 +319,7 @@ private fun AudioModeInitialState(
                 .padding(top = 40.dp, start = 12.dp)
                 .height(48.dp)
         ) {
-            Text("返回")
+            AppText("返回")
         }
         Column(
             modifier = Modifier.align(Alignment.Center).padding(horizontal = 32.dp),
@@ -328,17 +328,17 @@ private fun AudioModeInitialState(
         ) {
             when (state) {
                 is VideoPlaybackUiState.Error -> {
-                    Text("音频加载失败", style = MaterialTheme.typography.headlineSmall)
-                    Text(state.msg, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AppText("音频加载失败", style = MaterialTheme.typography.headlineSmall)
+                    AppText(state.msg, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (state.canRetry) {
-                        AppTextButton(onClick = onRetry, modifier = Modifier.height(48.dp)) { Text("重试") }
+                        AppTextButton(onClick = onRetry, modifier = Modifier.height(48.dp)) { AppText("重试") }
                     }
                 }
                 else -> {
                     AdaptiveLoadingIndicator()
-                    Text(title)
+                    AppText(title)
                     if (title != "正在加载音频") {
-                        Text("正在加载音频", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AppText("正在加载音频", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -362,10 +362,10 @@ internal fun AudioModeSleepTimerDialog(
 
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("定时关闭") },
+        title = { AppText("定时关闭") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text(
+                AppText(
                     text = "选择常用时长，或输入分钟数 / 小时:分钟，例如 90、1:30。",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp
@@ -389,7 +389,7 @@ internal fun AudioModeSleepTimerDialog(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
+                                AppText(
                                     text = formatAudioModeSleepTimerButtonLabel(minutes),
                                     fontSize = 13.sp,
                                     color = if (isSelected) {
@@ -406,14 +406,14 @@ internal fun AudioModeSleepTimerDialog(
                     value = customInput,
                     onValueChange = { customInput = it.take(8) },
                     singleLine = true,
-                    label = { Text("自定义时间") },
-                    placeholder = { Text("例如 45 或 1:30") },
+                    label = { AppText("自定义时间") },
+                    placeholder = { AppText("例如 45 或 1:30") },
                     isError = showCustomError,
                     supportingText = {
                         if (showCustomError) {
-                            Text("请输入正整数分钟，或 小时:分钟，分钟需在 0-59。")
+                            AppText("请输入正整数分钟，或 小时:分钟，分钟需在 0-59。")
                         } else if (parsedCustomMinutes != null) {
-                            Text("将于 ${formatAudioModeSleepTimerButtonLabel(parsedCustomMinutes)}后暂停播放")
+                            AppText("将于 ${formatAudioModeSleepTimerButtonLabel(parsedCustomMinutes)}后暂停播放")
                         }
                     },
                     keyboardOptions = KeyboardOptions(
@@ -428,8 +428,8 @@ internal fun AudioModeSleepTimerDialog(
             AppTextButton(
                 onClick = { parsedCustomMinutes?.let(onConfirmCustom) },
                 enabled = parsedCustomMinutes != null
-            ) { Text("应用") }
+            ) { AppText("应用") }
         },
-        dismissButton = { AppTextButton(onClick = onDismiss) { Text("取消") } }
+        dismissButton = { AppTextButton(onClick = onDismiss) { AppText("取消") } }
     )
 }

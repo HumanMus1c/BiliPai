@@ -21,12 +21,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.automirrored.rounded.Comment
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.ThumbUp
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -286,7 +286,7 @@ private fun InteractionButton(
                     )
                 }
             }
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (isActive) activeColor else Color.White,
@@ -294,7 +294,7 @@ private fun InteractionButton(
             )
         }
         Spacer(modifier = Modifier.height(layoutPolicy.labelTopSpacingDp.dp))
-        Text(
+        AppText(
             text = countText,
             color = Color.White,
             fontSize = layoutPolicy.labelFontSp.sp,

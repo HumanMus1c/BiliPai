@@ -18,11 +18,11 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -159,7 +159,7 @@ fun LiveAreaDetailScreen(
                 title = title,
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "返回",
                         )
@@ -174,7 +174,7 @@ fun LiveAreaDetailScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            Text(
+            AppText(
                 text = roomSummary,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
@@ -280,7 +280,7 @@ private fun LiveAreaDetailState(
         if (message == null) {
             AdaptiveLoadingIndicator()
         } else {
-            Text(
+            AppText(
                 text = message,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
@@ -306,7 +306,7 @@ private fun LiveSortChip(
             if (selected) palette.accent else palette.border,
         ),
     ) {
-        Text(
+        AppText(
             text = text,
             color = if (selected) palette.accentStrong else palette.primaryText,
             style = MaterialTheme.typography.labelLarge,

@@ -1,5 +1,7 @@
 // 文件路径: feature/video/SponsorSkipUI.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -58,7 +60,7 @@ fun SponsorSkipButton(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // 类别标签
-                    Text(
+                    AppText(
                         text = seg.categoryName,
                         color = Color(0xFFFFA500),
                         fontSize = 12.sp,
@@ -77,13 +79,13 @@ fun SponsorSkipButton(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Icon(
+                            AppIcon(
                                 imageVector = CupertinoIcons.Default.ChevronForward,
                                 contentDescription = "跳过",
                                 tint = Color.White,
                                 modifier = Modifier.size(16.dp)
                             )
-                            Text(
+                            AppText(
                                 text = "跳过",
                                 color = Color.White,
                                 fontSize = 12.sp,
@@ -93,7 +95,7 @@ fun SponsorSkipButton(
                     }
                     
                     // 关闭按钮
-                    Icon(
+                    AppIcon(
                         imageVector = clearIcon,
                         contentDescription = "忽略",
                         tint = Color.White.copy(alpha = 0.6f),
@@ -135,13 +137,13 @@ fun SponsorSkipToast(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = CupertinoIcons.Default.ChevronForward,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)
                     )
-                    Text(
+                    AppText(
                         text = it,
                         color = Color.White,
                         fontSize = 13.sp,

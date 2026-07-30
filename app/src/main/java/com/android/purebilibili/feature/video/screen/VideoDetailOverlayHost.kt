@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.video.screen
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -49,7 +50,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ButtonDefaults
+import com.android.purebilibili.core.ui.components.AppIcon
+import androidx.compose.material3.MaterialTheme
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -95,6 +100,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.store.PortraitPlayerCollapseMode
 //  已改用 MaterialTheme.colorScheme.primary
 
@@ -200,7 +208,13 @@ import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.feature.video.danmaku.rememberDanmakuManager
 import com.android.purebilibili.core.ui.blur.shouldAllowRuntimeShaderBackedHazeEffect
 import com.android.purebilibili.core.ui.blur.unifiedBlur
+import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppCheckbox
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import coil.compose.AsyncImage
@@ -248,11 +262,11 @@ internal fun VideoDetailFollowGroupDialog(
     )
     if (!followGroupDialogVisible) return
 
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = {
             if (!isSavingFollowGroups) viewModel.dismissFollowGroupDialog()
         },
-        title = { Text("设置关注分组") },
+        title = { AppText("设置关注分组") },
         text = {
             if (isFollowGroupsLoading) {
                 Box(
@@ -271,7 +285,7 @@ internal fun VideoDetailFollowGroupDialog(
                         .verticalScroll(rememberScrollState())
                 ) {
                     if (followGroupTags.isEmpty()) {
-                        Text(
+                        AppText(
                             text = "暂无可用分组（不勾选即为默认分组）",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp
@@ -285,11 +299,11 @@ internal fun VideoDetailFollowGroupDialog(
                                     .padding(vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Checkbox(
+                                AppCheckbox(
                                     checked = followGroupSelectedTagIds.contains(tag.tagid),
                                     onCheckedChange = { viewModel.toggleFollowGroupSelection(tag.tagid) }
                                 )
-                                Text(
+                                AppText(
                                     text = "${tag.name} (${tag.count})",
                                     fontSize = 14.sp,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -297,7 +311,7 @@ internal fun VideoDetailFollowGroupDialog(
                             }
                         }
                     }
-                    Text(
+                    AppText(
                         text = "可多选，确定后覆盖原分组设置。",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
@@ -307,27 +321,27 @@ internal fun VideoDetailFollowGroupDialog(
             }
         },
         confirmButton = {
-            Button(
+            AppButton(
                 onClick = { viewModel.saveFollowGroupSelection() },
                 enabled = !isFollowGroupsLoading && !isSavingFollowGroups
             ) {
                 if (isSavingFollowGroups) {
-                    CircularProgressIndicator(
+                    AppCircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text("确定")
+                    AppText("确定")
                 }
             }
         },
         dismissButton = {
-            TextButton(
+            AppTextButton(
                 onClick = { viewModel.dismissFollowGroupDialog() },
                 enabled = !isSavingFollowGroups
             ) {
-                Text("取消")
+                AppText("取消")
             }
         }
     )
@@ -346,9 +360,9 @@ internal fun VideoDetailPlaybackEndedDialog(
     androidx.compose.ui.window.Dialog(
         onDismissRequest = { viewModel.dismissPlaybackEndedDialog() }
     ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
+        AppSurface(
+            shape = AppShapes.container(ContainerLevel.Dialog),
+            color = AppSurfaceTokens.surface(),
             tonalElevation = 8.dp
         ) {
             Column(
@@ -356,17 +370,17 @@ internal fun VideoDetailPlaybackEndedDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
+                AppText(
                     text = "播放完成",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
+                AppText(
                     text = "选择接下来的操作",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Button(
+                AppButton(
                     onClick = {
                         viewModel.dismissPlaybackEndedDialog()
                         player.seekTo(0)
@@ -378,9 +392,9 @@ internal fun VideoDetailPlaybackEndedDialog(
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 ) {
-                    Text("🔄 重播当前视频")
+                    AppText("🔄 重播当前视频")
                 }
-                Button(
+                AppButton(
                     onClick = {
                         viewModel.dismissPlaybackEndedDialog()
                         viewModel.playNextRecommended()
@@ -390,12 +404,12 @@ internal fun VideoDetailPlaybackEndedDialog(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
-                    Text("▶️ 播放下一个视频")
+                    AppText("▶️ 播放下一个视频")
                 }
-                TextButton(
+                AppTextButton(
                     onClick = { viewModel.dismissPlaybackEndedDialog() }
                 ) {
-                    Text("暂不操作")
+                    AppText("暂不操作")
                 }
             }
         }
@@ -443,13 +457,13 @@ internal fun VideoDetailQualitySwitchFailureDialog(
                 }
             }
 
-            AlertDialog(
+            AppAlertDialog(
                 onDismissRequest = { dismissQualitySwitchFailureDialogAfterUserChoice() },
-                title = { Text(dialog.title) },
+                title = { AppText(dialog.title) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(dialog.message)
-                        TextButton(
+                        AppText(dialog.message)
+                        AppTextButton(
                             onClick = {
                                 qualitySwitchDialogScope.launch {
                                     com.android.purebilibili.core.store.SettingsManager
@@ -461,7 +475,7 @@ internal fun VideoDetailQualitySwitchFailureDialog(
                             },
                             contentPadding = PaddingValues(0.dp)
                         ) {
-                            Text(
+                            AppText(
                                 if (playerDiagnosticLoggingEnabled) {
                                     "关闭诊断日志"
                                 } else {
@@ -481,7 +495,7 @@ internal fun VideoDetailQualitySwitchFailureDialog(
                                 },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Checkbox(
+                            AppCheckbox(
                                 checked = qualitySwitchFailureDialogOnceEnabled,
                                 onCheckedChange = { checked ->
                                     qualitySwitchDialogScope.launch {
@@ -490,23 +504,23 @@ internal fun VideoDetailQualitySwitchFailureDialog(
                                     }
                                 }
                             )
-                            Text("仅提示一次")
+                            AppText("仅提示一次")
                         }
                     }
                 },
                 confirmButton = {
-                    TextButton(
+                    AppTextButton(
                         onClick = {
                             com.android.purebilibili.core.util.LogCollector.exportAndShare(context)
                             dismissQualitySwitchFailureDialogAfterUserChoice()
                         }
                     ) {
-                        Text("导出日志")
+                        AppText("导出日志")
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { dismissQualitySwitchFailureDialogAfterUserChoice() }) {
-                        Text("关闭")
+                    AppTextButton(onClick = { dismissQualitySwitchFailureDialogAfterUserChoice() }) {
+                        AppText("关闭")
                     }
                 }
             )
@@ -634,7 +648,7 @@ internal fun ExternalPlaylistQueueSheet(
                         ) { onDismiss() }
                 )
 
-                Surface(
+                AppSurface(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
@@ -650,7 +664,7 @@ internal fun ExternalPlaylistQueueSheet(
                             }
                         ),
                     shape = sheetShape,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.74f),
+                    color = AppSurfaceTokens.surface().copy(alpha = 0.74f),
                     tonalElevation = 0.dp,
                     border = BorderStroke(
                         width = 0.6.dp,
@@ -674,13 +688,13 @@ internal fun ExternalPlaylistQueueSheet(
                 containerColor = Color.Transparent,
                 windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
             ) {
-                Surface(
+                AppSurface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(sheetShape)
                         .unifiedBlur(hazeState = hazeState, shape = sheetShape),
                     shape = sheetShape,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.80f),
+                    color = AppSurfaceTokens.surface().copy(alpha = 0.80f),
                     tonalElevation = 0.dp,
                     border = BorderStroke(
                         width = 0.6.dp,
@@ -721,13 +735,13 @@ internal fun ExternalPlaylistQueueSheetContent(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.weight(1f))
-            Text(
+            AppText(
                 text = "${playlist.size}个视频",
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyMedium,
@@ -735,7 +749,7 @@ internal fun ExternalPlaylistQueueSheetContent(
             )
         }
 
-        HorizontalDivider(
+        AppHorizontalDivider(
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
         )
 
@@ -773,7 +787,7 @@ internal fun ExternalPlaylistQueueSheetContent(
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
+                    AppText(
                         text = "${index + 1}",
                         color = if (selected) {
                             MaterialTheme.colorScheme.primary
@@ -788,7 +802,7 @@ internal fun ExternalPlaylistQueueSheetContent(
                         modifier = Modifier
                             .width(96.dp)
                             .height(54.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(AppShapes.container(ContainerLevel.Field))
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
                     ) {
                         if (normalizedCoverUrl.isNotEmpty()) {
@@ -803,7 +817,7 @@ internal fun ExternalPlaylistQueueSheetContent(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
+                                AppText(
                                     text = "无封面",
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
@@ -815,13 +829,13 @@ internal fun ExternalPlaylistQueueSheetContent(
                     Column(
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(
+                        AppText(
                             text = item.title,
                             maxLines = 1,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Text(
+                        AppText(
                             text = item.owner,
                             maxLines = 1,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -829,7 +843,7 @@ internal fun ExternalPlaylistQueueSheetContent(
                         )
                     }
                     if (selected) {
-                        Icon(
+                        AppIcon(
                             imageVector = rememberAppPlayIcon(),
                             contentDescription = "当前播放",
                             tint = MaterialTheme.colorScheme.primary

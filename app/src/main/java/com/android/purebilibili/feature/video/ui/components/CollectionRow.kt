@@ -1,5 +1,7 @@
 // 文件路径: feature/video/ui/components/CollectionRow.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +21,8 @@ import androidx.compose.ui.unit.sp
 
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.rememberAppShareIcon
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.data.model.response.UgcSeason
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.ChevronForward
@@ -62,7 +66,7 @@ fun CollectionRow(
     val currentPosition = if (currentIndex >= 0) currentIndex + 1 else 0
     val totalCount = allEpisodes.size.takeIf { it > 0 } ?: ugcSeason.ep_count
     
-    Surface(
+    AppSurface(
         modifier = modifier
             .fillMaxWidth(),
         shape = androidx.compose.ui.graphics.RectangleShape,
@@ -82,7 +86,7 @@ fun CollectionRow(
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
+                AppIcon(
                     CupertinoIcons.Default.Folder,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
@@ -95,14 +99,14 @@ fun CollectionRow(
             //  合集信息
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
+                    AppText(
                         text = "合集",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(
+                    AppText(
                         text = ugcSeason.title,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -119,7 +123,7 @@ fun CollectionRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (currentPosition > 0 && totalCount > 0) {
-                        Text(
+                        AppText(
                             text = "$currentPosition/$totalCount",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -127,7 +131,7 @@ fun CollectionRow(
                         )
                     }
 
-                    Text(
+                    AppText(
                         text = resolveCollectionSortLabel(sortMode),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
@@ -145,7 +149,7 @@ fun CollectionRow(
             )
 
             //  分享按钮
-            IconButton(
+            AppIconButton(
                 onClick = {
                     val shareUrl = "https://space.bilibili.com/${ugcSeason.mid}/lists/${ugcSeason.id}?type=season"
                     val shareText = "${ugcSeason.title}\n$shareUrl"
@@ -157,7 +161,7 @@ fun CollectionRow(
                 },
                 modifier = Modifier.size(28.dp)
             ) {
-                Icon(
+                AppIcon(
                     shareIcon,
                     contentDescription = "分享合集",
                     modifier = Modifier.size(16.dp),
@@ -166,7 +170,7 @@ fun CollectionRow(
             }
             
             //  右侧箭头
-            Icon(
+            AppIcon(
                 CupertinoIcons.Default.ChevronForward,
                 contentDescription = "查看合集",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),

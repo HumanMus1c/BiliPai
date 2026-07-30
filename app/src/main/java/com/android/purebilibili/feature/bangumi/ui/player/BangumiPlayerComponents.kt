@@ -1,5 +1,8 @@
 // 文件路径: feature/bangumi/ui/player/BangumiPlayerComponents.kt
 package com.android.purebilibili.feature.bangumi.ui.player
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.app.Activity
 import android.content.Context
@@ -734,7 +737,7 @@ fun BangumiGestureIndicator(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp)
                 ) {
-                    Text(
+                    AppText(
                         "${FormatUtils.formatDuration(((seekTime ?: 0) / 1000).toInt())} / ${FormatUtils.formatDuration((duration / 1000).toInt())}",
                         color = Color.White,
                         fontSize = 20.sp,
@@ -863,14 +866,14 @@ fun BangumiQualityMenu(
             tonalElevation = 8.dp
         ) {
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                Text(
+                AppText(
                     text = "画质选择",
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                 )
-                HorizontalDivider(color = Color.White.copy(0.1f))
+                AppHorizontalDivider(color = Color.White.copy(0.1f))
                 
                 qualities.forEachIndexed { index, quality ->
                     val qn = qualityIds.getOrNull(index) ?: 0
@@ -885,7 +888,7 @@ fun BangumiQualityMenu(
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
+                        AppText(
                             text = quality,
                             color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(0.9f),
                             fontSize = 14.sp,
@@ -898,7 +901,7 @@ fun BangumiQualityMenu(
                                 color = MaterialTheme.colorScheme.primary,
                                 shape = RoundedCornerShape(4.dp)
                             ) {
-                                Text(
+                                AppText(
                                     text = tag,
                                     color = Color.White,
                                     fontSize = 10.sp,
@@ -911,7 +914,7 @@ fun BangumiQualityMenu(
                         Spacer(modifier = Modifier.weight(1f))
                         
                         if (isSelected) {
-                            Icon(
+                            AppIcon(
                                 Icons.Outlined.Check,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,

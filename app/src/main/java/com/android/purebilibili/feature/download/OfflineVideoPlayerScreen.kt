@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.download
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import android.app.Activity
 import android.content.Context
@@ -44,6 +46,9 @@ import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.rememberAppCommentIcon
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.rememberAppPlayIcon
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.feature.video.player.MiniPlayerManager
@@ -152,9 +157,9 @@ fun OfflineVideoPlayerScreen(
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("视频文件不存在", color = Color.White)
+                AppText("视频文件不存在", color = Color.White)
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = onBack) { Text("返回") }
+                AppButton(onClick = onBack) { AppText("返回") }
             }
         }
         return
@@ -167,9 +172,9 @@ fun OfflineVideoPlayerScreen(
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("视频文件已被删除", color = Color.White)
+                AppText("视频文件已被删除", color = Color.White)
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = onBack) { Text("返回") }
+                AppButton(onClick = onBack) { AppText("返回") }
             }
         }
         return
@@ -658,7 +663,7 @@ fun OfflineVideoPlayerScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         val durationSeconds = (player.duration / 1000).coerceAtLeast(1)
                         val targetSeconds = (seekTargetTime / 1000).toInt()
-                        Text(
+                        AppText(
                             text = "${FormatUtils.formatDuration(targetSeconds)} / ${FormatUtils.formatDuration(durationSeconds.toInt())}",
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
@@ -667,7 +672,7 @@ fun OfflineVideoPlayerScreen(
                         val deltaSeconds = (seekTargetTime - startPosition) / 1000
                         val sign = if (deltaSeconds > 0) "+" else ""
                         if (deltaSeconds != 0L) {
-                            Text(
+                            AppText(
                                 text = "($sign${deltaSeconds}s)",
                                 color = if (deltaSeconds > 0) Color.Green else Color.Red,
                                 style = MaterialTheme.typography.bodySmall
@@ -725,7 +730,7 @@ fun OfflineVideoPlayerScreen(
                     .background(Color.Black.copy(0.75f), RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
+                AppText(
                     text = seekFeedbackText ?: "",
                     color = if (seekFeedbackText?.startsWith("+") == true) Color.Green else Color.Red,
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
@@ -740,7 +745,7 @@ fun OfflineVideoPlayerScreen(
             enter = scaleIn() + fadeIn(),
             exit = scaleOut() + fadeOut()
         ) {
-            Surface(
+            AppSurface(
                 color = Color.Black.copy(alpha = 0.7f),
                 shape = RoundedCornerShape(20.dp)
             ) {
@@ -748,14 +753,14 @@ fun OfflineVideoPlayerScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
+                    AppIcon(
                         Icons.Outlined.FastForward,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
+                    AppText(
                         text = "${longPressSpeed}x 倍速播放中",
                         color = Color.White,
                         fontWeight = FontWeight.Bold
@@ -816,8 +821,8 @@ fun OfflineVideoPlayerScreen(
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { if (isFullscreen) toggleFullscreen() else onBack() }) {
-                    Icon(
+                AppIconButton(onClick = { if (isFullscreen) toggleFullscreen() else onBack() }) {
+                    AppIcon(
                         backIcon,
                         contentDescription = "返回",
                         tint = Color.White,
@@ -827,7 +832,7 @@ fun OfflineVideoPlayerScreen(
                 
                 Spacer(modifier = Modifier.width(8.dp))
                 
-                Text(
+                AppText(
                     text = task.episodeLabel?.takeIf { it.isNotBlank() } ?: task.title,
                     color = Color.White,
                     fontSize = 16.sp,
@@ -869,9 +874,9 @@ fun OfflineVideoPlayerScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Surface(
+                        AppSurface(
                             onClick = {
-                                val previousTask = episodeQueue.getOrNull(currentEpisodeIndex - 1) ?: return@Surface
+                                val previousTask = episodeQueue.getOrNull(currentEpisodeIndex - 1) ?: return@AppSurface
                                 switchEpisode(previousTask.id)
                             },
                             enabled = currentEpisodeIndex > 0,
@@ -882,24 +887,24 @@ fun OfflineVideoPlayerScreen(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
+                                AppIcon(
                                     Icons.Outlined.SkipPrevious,
                                     contentDescription = "上一集",
                                     tint = Color.White,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("上一集", color = Color.White, fontSize = 12.sp)
+                                AppText("上一集", color = Color.White, fontSize = 12.sp)
                             }
                         }
-                        Text(
+                        AppText(
                             text = "${currentEpisodeIndex + 1}/${episodeQueue.size}",
                             color = Color.White.copy(alpha = 0.85f),
                             fontSize = 12.sp
                         )
-                        Surface(
+                        AppSurface(
                             onClick = {
-                                val nextTask = episodeQueue.getOrNull(currentEpisodeIndex + 1) ?: return@Surface
+                                val nextTask = episodeQueue.getOrNull(currentEpisodeIndex + 1) ?: return@AppSurface
                                 switchEpisode(nextTask.id)
                             },
                             enabled = currentEpisodeIndex < episodeQueue.lastIndex,
@@ -910,9 +915,9 @@ fun OfflineVideoPlayerScreen(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("下一集", color = Color.White, fontSize = 12.sp)
+                                AppText("下一集", color = Color.White, fontSize = 12.sp)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
+                                AppIcon(
                                     Icons.Outlined.SkipNext,
                                     contentDescription = "下一集",
                                     tint = Color.White,
@@ -930,7 +935,7 @@ fun OfflineVideoPlayerScreen(
                 ) {
                     val activeControlColors = resolveAdaptivePrimaryAccentColors(MaterialTheme.colorScheme)
                     // 播放/暂停按钮
-                    IconButton(
+                    AppIconButton(
                         onClick = {
                             if (player.playbackState == Player.STATE_ENDED) {
                                 player.seekTo(0)
@@ -943,7 +948,7 @@ fun OfflineVideoPlayerScreen(
                         },
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(
+                        AppIcon(
                             if (isPlaying) Icons.Outlined.Pause else playIcon,
                             contentDescription = if (isPlaying) "暂停" else "播放",
                             tint = Color.White,
@@ -952,7 +957,7 @@ fun OfflineVideoPlayerScreen(
                     }
                     
                     // 时间显示
-                    Text(
+                    AppText(
                         text = "${FormatUtils.formatDuration((progressState.current / 1000).toInt())} / ${FormatUtils.formatDuration((progressState.duration / 1000).toInt())}",
                         color = Color.White.copy(alpha = 0.9f),
                         fontSize = 12.sp
@@ -961,7 +966,7 @@ fun OfflineVideoPlayerScreen(
                     Spacer(modifier = Modifier.weight(1f))
 
                     if (danmakuAvailable) {
-                        Surface(
+                        AppSurface(
                             onClick = { danmakuEnabled = !danmakuEnabled },
                             color = if (danmakuEnabled) {
                                 activeControlColors.backgroundColor.copy(alpha = 0.9f)
@@ -972,7 +977,7 @@ fun OfflineVideoPlayerScreen(
                             modifier = Modifier.size(40.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                                Icon(
+                                AppIcon(
                                     commentIcon,
                                     contentDescription = if (danmakuEnabled) "关闭弹幕" else "开启弹幕",
                                     tint = if (danmakuEnabled) activeControlColors.contentColor else Color.White,
@@ -985,7 +990,7 @@ fun OfflineVideoPlayerScreen(
                     }
                     
                     // 📺 全屏按钮
-                    Surface(
+                    AppSurface(
                         onClick = { toggleFullscreen() },
                         color = if (!isFullscreen) {
                             activeControlColors.backgroundColor.copy(alpha = 0.9f)
@@ -996,7 +1001,7 @@ fun OfflineVideoPlayerScreen(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            Icon(
+                            AppIcon(
                                 if (isFullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
                                 contentDescription = if (isFullscreen) "退出全屏" else "全屏",
                                 tint = if (!isFullscreen) activeControlColors.contentColor else Color.White,
@@ -1015,14 +1020,14 @@ fun OfflineVideoPlayerScreen(
             enter = scaleIn() + fadeIn(),
             exit = scaleOut() + fadeOut()
         ) {
-            Surface(
+            AppSurface(
                 onClick = { player.play() },
                 color = Color.Black.copy(alpha = 0.5f),
                 shape = CircleShape,
                 modifier = Modifier.size(72.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
+                    AppIcon(
                         playIcon,
                         contentDescription = "播放",
                         tint = Color.White.copy(alpha = 0.95f),

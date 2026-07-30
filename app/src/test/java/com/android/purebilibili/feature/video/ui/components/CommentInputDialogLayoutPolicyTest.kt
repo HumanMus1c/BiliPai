@@ -104,7 +104,7 @@ class CommentInputDialogLayoutPolicyTest {
             java.io.File("src/main/java/com/android/purebilibili/feature/video/ui/components/CommentInputDialog.kt")
         ).first { it.exists() }.readText()
 
-        assertTrue(source.contains("placeholder = { Text(\"搜索好友昵称\") }"))
+        assertTrue(source.contains("placeholder = { AppText(\"搜索好友昵称\") }"))
         assertTrue(source.contains("onMentionSearchQueryChange(query)"))
         assertTrue(source.contains("输入好友昵称搜索"))
     }

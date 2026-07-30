@@ -25,9 +25,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -227,7 +227,7 @@ private fun VideoCardLargeCover(
                     .background(MaterialTheme.colorScheme.primary, AppShapes.container(ContainerLevel.Tag))
                     .padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Micro)
             ) {
-                Text(
+                AppText(
                     text = badgeText,
                     fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     fontWeight = FontWeight.Bold,
@@ -263,7 +263,7 @@ private fun VideoCardLargeCover(
                             .background(MediaContrastPalette.Scrim.copy(alpha = 0.45f), AppShapes.container(ContainerLevel.Tag))
                             .padding(horizontal = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Micro)
                     ) {
-                        Text(
+                        AppText(
                             text = archive.duration_text,
                             fontSize = MaterialTheme.typography.labelSmall.fontSize,
                             color = MediaContrastPalette.Foreground,
@@ -284,7 +284,7 @@ private fun VideoCardLargeCover(
                         .background(MediaContrastPalette.Scrim.copy(alpha = 0.28f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = rememberAppPlayIcon(),
                         contentDescription = null,
                         tint = MediaContrastPalette.Foreground,
@@ -305,7 +305,7 @@ private fun VideoCardLargeInfo(
     titleModifier: Modifier = Modifier
 ) {
     if (isCollection && collectionTitle.isNotBlank()) {
-        Text(
+        AppText(
             text = collectionTitle,
             fontSize = MaterialTheme.typography.bodyMedium.fontSize,
             fontWeight = FontWeight.Bold,
@@ -314,7 +314,7 @@ private fun VideoCardLargeInfo(
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(AppSpacingTokens.Micro))
-        Text(
+        AppText(
             text = archive.title,
             fontSize = MaterialTheme.typography.labelMedium.fontSize,
             maxLines = 2,
@@ -323,7 +323,7 @@ private fun VideoCardLargeInfo(
             modifier = titleModifier
         )
     } else {
-        Text(
+        AppText(
             text = archive.title,
             fontSize = MaterialTheme.typography.bodyMedium.fontSize,
             fontWeight = FontWeight.Bold,
@@ -340,7 +340,7 @@ private fun VideoCardLargeInfo(
 private fun VideoCardLargeMetaText(
     text: String
 ) {
-    Text(
+    AppText(
         text = text,
         fontSize = MaterialTheme.typography.labelSmall.fontSize,
         color = MediaContrastPalette.Foreground,

@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,7 +66,7 @@ fun PortraitBottomInputBar(
                 .padding(horizontal = layoutPolicy.inputHorizontalPaddingDp.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            Text(
+            AppText(
                 text = "发弹幕...",
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = layoutPolicy.inputFontSp.sp
@@ -103,7 +103,7 @@ private fun IconButton(
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Icon(
+        AppIcon(
             imageVector = icon,
             contentDescription = desc,
             tint = Color.White,

@@ -66,7 +66,7 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("SpaceContributionToolbarDock("))
         assertTrue(source.contains("SpaceContributionCollapsedTab("))
         assertTrue(source.contains("SpaceContributionExpandedTabRail("))
-        assertTrue(source.contains("Surface("))
+        assertTrue(source.contains("AppSurface("))
         assertTrue(source.contains("AppShapes.container(ContainerLevel.Pill)"))
         assertTrue(source.contains(".combinedClickable("))
         assertTrue(source.contains("onExpand = { expanded = true }"))
@@ -79,7 +79,12 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("tabs.forEachIndexed"))
         assertTrue(source.contains(".width(tabWidths.getOrElse(index) { minimumTouchTargetWidth })"))
         assertTrue(source.contains("if (expanded) {"))
-        assertTrue(source.contains("} else {\n                    SpaceContributionCollapsedTab("))
+        val expandedBranch = source
+            .substringAfter("if (expanded) {")
+            .substringBefore("if (toolbarSpec.showVideoActions)")
+        assertTrue(expandedBranch.contains("SpaceContributionExpandedTabRail("))
+        assertTrue(expandedBranch.contains("} else {"))
+        assertTrue(expandedBranch.contains("SpaceContributionCollapsedTab("))
         assertTrue(source.contains("if (toolbarSpec.collapseAfterTabSelection) expanded = false"))
         assertFalse(source.contains("AnimatedVisibility(visible = expanded)"))
         assertFalse(

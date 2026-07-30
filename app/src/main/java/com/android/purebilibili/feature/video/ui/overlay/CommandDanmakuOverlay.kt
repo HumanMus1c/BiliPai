@@ -35,12 +35,12 @@ import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.ThumbUp
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -186,12 +186,12 @@ private fun InfoCommandCard(item: CommandDanmakuItem) {
             Spacer(Modifier.width(8.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
+            AppText(
                 text = if (item.type == CommandDanmakuType.LINK) "关联视频" else "UP 主提示",
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.White.copy(alpha = 0.74f)
             )
-            Text(
+            AppText(
                 text = item.linkTitle.ifBlank { item.content },
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White,
@@ -255,7 +255,7 @@ private fun AttentionCommandCard(
                 .height(36.dp)
                 .fillMaxWidth()
         ) {
-            Text(
+            AppText(
                 text = label,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -282,7 +282,7 @@ private fun CommandDanmakuCloseButton(
             contentColor = Color.White
         )
     ) {
-        Icon(
+        AppIcon(
             imageVector = Icons.Rounded.Close,
             contentDescription = "关闭提示",
             modifier = Modifier.size(16.dp)
@@ -390,7 +390,7 @@ private fun CommandTripleActionIcon(
                     style = Stroke(width = stroke, cap = StrokeCap.Round)
                 )
             }
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier.size(17.dp)

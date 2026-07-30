@@ -473,7 +473,6 @@ data class HomeSettings(
     val isBottomBarLiquidGlassEnabled: Boolean = false,
     val bottomBarLiquidGlassPreset: BottomBarLiquidGlassPreset =
         BottomBarLiquidGlassPreset.BILIPAI_TUNED,
-    val bottomBarInteractiveHighlightEnabled: Boolean = true,
     val isBottomBarSearchEnabled: Boolean = false,
     val bottomBarSearchAutoExpandMode: BottomBarSearchAutoExpandMode =
         BottomBarSearchAutoExpandMode.EXPAND_AT_HOME_TOP,
@@ -1236,8 +1235,6 @@ object SettingsManager {
     private val KEY_HOME_SEARCH_LIQUID_GLASS_ENABLED =
         booleanPreferencesKey("home_search_liquid_glass_enabled")
     private val KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED = booleanPreferencesKey("bottom_bar_liquid_glass_enabled")
-    private val KEY_BOTTOM_BAR_INTERACTIVE_HIGHLIGHT_ENABLED =
-        booleanPreferencesKey("bottom_bar_interactive_highlight_enabled")
     private val KEY_BOTTOM_BAR_SEARCH_ENABLED = booleanPreferencesKey("bottom_bar_search_enabled")
     private val KEY_BOTTOM_BAR_SEARCH_AUTO_EXPAND_MODE =
         intPreferencesKey("bottom_bar_search_auto_expand_mode")
@@ -1373,7 +1370,6 @@ object SettingsManager {
                 preferences[KEY_HOME_SEARCH_LIQUID_GLASS_ENABLED]
                     ?: (preferences[KEY_TOP_BAR_LIQUID_GLASS_ENABLED] ?: false),
             isBottomBarLiquidGlassEnabled = preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] ?: legacyLiquidGlassEnabled,
-            bottomBarInteractiveHighlightEnabled = true,
             isBottomBarSearchEnabled = preferences[KEY_BOTTOM_BAR_SEARCH_ENABLED] ?: false,
             bottomBarSearchAutoExpandMode = BottomBarSearchAutoExpandMode.fromValue(
                 preferences[KEY_BOTTOM_BAR_SEARCH_AUTO_EXPAND_MODE]
@@ -3236,17 +3232,6 @@ object SettingsManager {
     suspend fun setBottomBarLiquidGlassEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] = value
-        }
-    }
-
-    fun getBottomBarInteractiveHighlightEnabled(context: Context): Flow<Boolean> =
-        context.settingsDataStore.data.map { preferences ->
-            preferences[KEY_BOTTOM_BAR_INTERACTIVE_HIGHLIGHT_ENABLED] ?: false
-        }
-
-    suspend fun setBottomBarInteractiveHighlightEnabled(context: Context, value: Boolean) {
-        context.settingsDataStore.edit { preferences ->
-            preferences[KEY_BOTTOM_BAR_INTERACTIVE_HIGHLIGHT_ENABLED] = value
         }
     }
 

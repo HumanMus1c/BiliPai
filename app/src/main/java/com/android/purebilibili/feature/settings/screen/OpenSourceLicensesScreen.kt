@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -324,12 +326,12 @@ fun OpenSourceLicensesScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Text(
+                    AppText(
                         text = "本应用使用了以下开源组件，感谢所有开源贡献者！",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Text(
+                    AppText(
                         text = "说明：该列表按当前工程依赖、投屏/测试模块以及明确参考实现整理，可能不包含全部传递依赖或完整法律清单。",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
@@ -378,14 +380,14 @@ fun LicenseCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                AppText(
                     text = library.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 if (library.description.isNotEmpty()) {
-                    Text(
+                    AppText(
                         text = library.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -401,14 +403,14 @@ fun LicenseCard(
                         color = MaterialTheme.colorScheme.primaryContainer,
                         shape = AppShapes.container(ContainerLevel.Tag)
                     ) {
-                        Text(
+                        AppText(
                             text = library.license,
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
-                    Text(
+                    AppText(
                         text = "GitHub/链接",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
@@ -416,7 +418,7 @@ fun LicenseCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Text(
+                AppText(
                     text = library.url,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
@@ -425,7 +427,7 @@ fun LicenseCard(
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
-            Icon(
+            AppIcon(
                 CupertinoIcons.Default.ChevronForward,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),

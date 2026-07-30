@@ -15,9 +15,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
@@ -149,7 +149,7 @@ fun AtMeScreen(
                 title = "@我",
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
-                        Icon(rememberAppBackIcon(), contentDescription = "返回")
+                        AppIcon(rememberAppBackIcon(), contentDescription = "返回")
                     }
                 }
             )
@@ -240,14 +240,14 @@ private fun AtMeCard(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                AppText(
                     text = "${item.user?.nickname.orEmpty().ifBlank { "用户" }} 在${item.item?.business.orEmpty().ifBlank { "内容" }}中@了我",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium
                 )
                 item.item?.sourceContent?.takeIf { it.isNotBlank() }?.let {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
+                    AppText(
                         text = it,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 3,
@@ -256,13 +256,13 @@ private fun AtMeCard(
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
+                    AppText(
                         text = formatMessageFeedTime(item.atTime.toInt()),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.weight(1f))
-                    Text(
+                    AppText(
                         text = "删除",
                         modifier = Modifier.clickable(onClick = onRemove),
                         style = MaterialTheme.typography.bodySmall,

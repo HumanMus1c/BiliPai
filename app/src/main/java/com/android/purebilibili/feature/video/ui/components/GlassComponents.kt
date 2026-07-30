@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -68,7 +69,7 @@ fun GlassDurationTag(
             .background(Color.Black.copy(alpha = 0.55f))
             .padding(horizontal = 6.dp, vertical = 3.dp)
     ) {
-        androidx.compose.material3.Text(
+        AppText(
             text = duration,
             color = Color.White,
             fontSize = 11.sp

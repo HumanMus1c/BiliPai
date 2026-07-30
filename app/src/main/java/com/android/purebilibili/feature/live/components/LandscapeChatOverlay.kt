@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.live.components
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -70,14 +71,14 @@ fun LandscapeChatOverlay(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = "实时弹幕",
                 color = LiveStatusPalette.MediaContent,
                 fontSize = visualSpec.headerFontSizeSp.sp,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(Modifier.weight(1f))
-            Text(
+            AppText(
                 text = "横屏互动",
                 color = LiveStatusPalette.MediaContent.copy(alpha = 0.66f),
                 fontSize = visualSpec.subtitleFontSizeSp.sp
@@ -124,14 +125,14 @@ private fun LandscapeChatItem(
                         vertical = visualSpec.medalVerticalPaddingDp.dp,
                     )
                 ) {
-                    Text(
+                    AppText(
                         text = item.medalName,
                         fontSize = visualSpec.medalFontSizeSp.sp,
                         color = LiveStatusPalette.MediaContent,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(Modifier.width(AppSpacingTokens.Micro))
-                    Text(
+                    AppText(
                         text = "${item.medalLevel}",
                         fontSize = visualSpec.medalFontSizeSp.sp,
                         color = LiveStatusPalette.MediaContent,
@@ -149,7 +150,7 @@ private fun LandscapeChatItem(
         )
 
         if (shouldRenderLiveDanmakuImageEmoticon(item.emoticonUrl)) {
-            Text(
+            AppText(
                 text = "${item.uname}: ",
                 style = textStyle
             )
@@ -166,7 +167,7 @@ private fun LandscapeChatItem(
                  LiveStatusPalette.OverlayNeutral
              }
              
-             Text(
+             AppText(
                 buildAnnotatedString {
                     withStyle(SpanStyle(color = nameColor, fontWeight = FontWeight.Bold)) {
                         append(item.uname)

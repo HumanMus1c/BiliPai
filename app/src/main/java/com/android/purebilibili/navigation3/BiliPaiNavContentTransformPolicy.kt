@@ -30,7 +30,6 @@ internal fun resolveBiliPaiNavContentTransform(
     routeTransition: BiliPaiNavRouteTransition
 ): ContentTransform {
     return when (routeTransition) {
-        BiliPaiNavRouteTransition.VIDEO_DETAIL_NO_ANIMATION,
         BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT ->
             EnterTransition.None togetherWith ExitTransition.None
         BiliPaiNavRouteTransition.REDUCED_MOTION_FADE ->
@@ -69,7 +68,6 @@ internal fun resolveBiliPaiNavPopContentTransform(
     routeTransition: BiliPaiNavRouteTransition
 ): ContentTransform? {
     return when (routeTransition) {
-        BiliPaiNavRouteTransition.VIDEO_DETAIL_NO_ANIMATION,
         BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT,
         BiliPaiNavRouteTransition.REDUCED_MOTION_FADE,
         BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT,

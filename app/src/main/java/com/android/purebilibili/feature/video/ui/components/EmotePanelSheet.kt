@@ -1,5 +1,8 @@
 // 文件路径: feature/video/ui/components/EmotePanelSheet.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppScrollableTabRow
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.components.AppTab
 
@@ -60,7 +63,7 @@ fun EmotePanelSheet(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Text(
+                AppText(
                     text = "表情",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
@@ -84,7 +87,7 @@ fun EmotePanelSheet(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
+                    AppText(
                         text = "暂无表情包",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp
@@ -94,7 +97,7 @@ fun EmotePanelSheet(
                 // 表情包 Tab 栏
                 var selectedPackageIndex by remember { mutableIntStateOf(0) }
                 
-                ScrollableTabRow(
+                AppScrollableTabRow(
                     selectedTabIndex = selectedPackageIndex,
                     modifier = Modifier.fillMaxWidth(),
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -116,7 +119,7 @@ fun EmotePanelSheet(
                             selected = selectedPackageIndex == index,
                             onClick = { selectedPackageIndex = index },
                             text = {
-                                Text(
+                                AppText(
                                     text = pkg.text,
                                     fontSize = 13.sp,
                                     maxLines = 1,
@@ -127,7 +130,7 @@ fun EmotePanelSheet(
                     }
                 }
                 
-                HorizontalDivider(
+                AppHorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                     thickness = 0.5.dp
                 )

@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -60,6 +62,9 @@ import io.github.alexzhirkevich.cupertino.icons.filled.*
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import com.android.purebilibili.core.ui.common.copyOnLongPress
 import com.android.purebilibili.core.ui.components.AppAdaptiveSwitch
+import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.rememberAdaptiveSemanticIconTint
 import com.android.purebilibili.core.ui.components.rememberAdaptiveListVisualCapabilities
 import androidx.compose.ui.res.stringResource
@@ -305,13 +310,13 @@ internal fun SettingsRootCategoryNavigationSection(
                     contentAlignment = Alignment.Center
                 ) {
                     when {
-                        visual.icon != null -> Icon(
+                        visual.icon != null -> AppIcon(
                             imageVector = visual.icon,
                             contentDescription = null,
                             tint = effectiveIconTint,
                             modifier = Modifier.size(22.dp)
                         )
-                        visual.iconResId != null -> Icon(
+                        visual.iconResId != null -> AppIcon(
                             painter = painterResource(id = visual.iconResId),
                             contentDescription = null,
                             tint = effectiveIconTint,
@@ -321,13 +326,13 @@ internal fun SettingsRootCategoryNavigationSection(
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                    AppText(
                         text = category.title,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
+                    AppText(
                         text = category.subtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -336,7 +341,7 @@ internal fun SettingsRootCategoryNavigationSection(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Default.ChevronForward,
                     contentDescription = if (isExpanded) "收起${category.title}" else "展开${category.title}",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
@@ -419,13 +424,13 @@ private fun SettingsRootCategoryRow(
             contentAlignment = Alignment.Center,
         ) {
             when {
-                iconPainter != null -> Icon(
+                iconPainter != null -> AppIcon(
                     painter = iconPainter,
                     contentDescription = null,
                     tint = iconTint,
                     modifier = Modifier.size(visualSpec.categoryIconSize),
                 )
-                icon != null -> Icon(
+                icon != null -> AppIcon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = iconTint,
@@ -435,13 +440,13 @@ private fun SettingsRootCategoryRow(
         }
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
+            AppText(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            Text(
+            AppText(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -449,7 +454,7 @@ private fun SettingsRootCategoryRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Icon(
+        AppIcon(
             imageVector = CupertinoIcons.Default.ChevronForward,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
@@ -883,7 +888,7 @@ fun ReleaseChannelPinnedCard(
 ) {
     val disclaimerTint = rememberAdaptiveSemanticIconTint(iOSBlue)
     val releaseChannelIcon = rememberAppShareIcon()
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
@@ -894,7 +899,7 @@ fun ReleaseChannelPinnedCard(
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
+                AppIcon(
                     imageVector = releaseChannelIcon,
                     contentDescription = null,
                     tint = disclaimerTint,
@@ -902,12 +907,12 @@ fun ReleaseChannelPinnedCard(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                    AppText(
                         text = "官方发布渠道仅限 GitHub / Telegram",
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
+                    AppText(
                         text = "不存在其他官方发布渠道，请注意安装来源安全。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -919,36 +924,36 @@ fun ReleaseChannelPinnedCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedButton(
+                AppOutlinedButton(
                     onClick = onGithubClick,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 10.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = "GitHub",
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Clip
                     )
                 }
-                OutlinedButton(
+                AppOutlinedButton(
                     onClick = onTelegramClick,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 10.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = "Telegram",
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Clip
                     )
                 }
-                TextButton(
+                AppTextButton(
                     onClick = onDisclaimerClick,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 10.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = "完整声明",
                         maxLines = 1,
                         softWrap = false,
@@ -1041,7 +1046,7 @@ fun FeedApiSection(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
+                AppIcon(
                     imageVector = feedIcon,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
@@ -1049,12 +1054,12 @@ fun FeedApiSection(
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                    AppText(
                         text = "推荐流类型",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
+                    AppText(
                         text = feedApiType.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1158,7 +1163,7 @@ private fun FeedDynamicTabVisibilityItem(
                     .background(iconTint.copy(alpha = visualSpec.iconBackgroundAlpha)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
+                AppIcon(
                     icon,
                     contentDescription = null,
                     tint = iconTint,
@@ -1167,13 +1172,13 @@ private fun FeedDynamicTabVisibilityItem(
             }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                AppText(
                     text = "动态栏位显示",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
+                AppText(
                     text = "选择动态页显示哪些栏位，至少保留 1 个。隐藏 UP 后，点侧栏用户会直接打开主页。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1468,7 +1473,7 @@ fun AboutSection(
         val dialogScrollState = rememberScrollState()
         AppAlertDialog(
             onDismissRequest = { detailDialogContent = null },
-            title = { Text(dialogContent.title) },
+            title = { AppText(dialogContent.title) },
             text = {
                 Column(
                     modifier = Modifier
@@ -1476,13 +1481,13 @@ fun AboutSection(
                         .heightIn(max = 320.dp)
                         .verticalScroll(dialogScrollState)
                 ) {
-                    Text(
+                    AppText(
                         text = dialogContent.value,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
+                    AppText(
                         text = dialogContent.body,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1500,12 +1505,12 @@ fun AboutSection(
                         detailDialogContent = null
                     }
                 ) {
-                    Text(dialogContent.actionLabel)
+                    AppText(dialogContent.actionLabel)
                 }
             },
             dismissButton = {
                 AppDialogAction(onClick = { detailDialogContent = null }) {
-                    Text("关闭")
+                    AppText("关闭")
                 }
             }
         )
@@ -1701,7 +1706,7 @@ private fun AboutProjectOverviewCard(
     contributors: List<AboutContributor> = AboutContributors
 ) {
     val slogan = remember { AboutSlogans.random() }
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
@@ -1721,12 +1726,12 @@ private fun AboutProjectOverviewCard(
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                    AppText(
                         text = "BiliPai",
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
+                    AppText(
                         text = "v$versionName",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1743,7 +1748,7 @@ private fun AboutProjectOverviewCard(
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
                 )
                 Spacer(modifier = Modifier.width(12.dp))
-                Text(
+                AppText(
                     text = slogan,
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium,
@@ -1752,7 +1757,7 @@ private fun AboutProjectOverviewCard(
                 )
             }
             Spacer(modifier = Modifier.height(22.dp))
-            Text(
+            AppText(
                 text = "贡献者",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
@@ -1800,7 +1805,7 @@ private fun AboutContributorItem(
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
+        AppText(
             text = contributor.name,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface,

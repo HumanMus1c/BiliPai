@@ -14,11 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppNavigationDrawerItem
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -70,12 +70,12 @@ fun SettingsTabletShell(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     AppIconButton(onClick = onBack) {
-                        Icon(
+                        AppIcon(
                             imageVector = rememberAppBackIcon(),
                             contentDescription = stringResource(R.string.common_back),
                         )
                     }
-                    Text(
+                    AppText(
                         text = stringResource(R.string.settings_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
@@ -94,8 +94,8 @@ fun SettingsTabletShell(
                         AppNavigationDrawerItem(
                             label = {
                                 Column {
-                                    Text(category.title, fontWeight = FontWeight.Medium)
-                                    Text(
+                                    AppText(category.title, fontWeight = FontWeight.Medium)
+                                    AppText(
                                         text = category.subtitle,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -114,7 +114,7 @@ fun SettingsTabletShell(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (visual.icon != null) {
-                                        Icon(
+                                        AppIcon(
                                             imageVector = visual.icon,
                                             contentDescription = null,
                                             tint = visual.iconTint,

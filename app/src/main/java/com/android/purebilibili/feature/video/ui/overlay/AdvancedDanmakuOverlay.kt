@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -175,7 +175,7 @@ private fun RenderSingleAdvancedDanmaku(
             }
     ) {
         // 主文字
-        Text(
+        AppText(
             text = displayText,
             color = color,
             fontSize = danmaku.fontSize.sp,

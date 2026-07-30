@@ -20,7 +20,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -154,7 +154,7 @@ fun AppScreenshotRegionOverlay(
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Text(
+            AppText(
                 text = "拖拽选择截图区域",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
@@ -177,7 +177,7 @@ fun AppScreenshotRegionOverlay(
                     contentColor = Color.White
                 )
             ) {
-                Text("取消")
+                AppText("取消")
             }
             Spacer(modifier = Modifier.weight(0.08f))
             AppButton(
@@ -187,7 +187,7 @@ fun AppScreenshotRegionOverlay(
                 enabled = cropRect != null && !saving,
                 modifier = Modifier.weight(1f)
             ) {
-                Text(if (saving) "保存中" else "保存")
+                AppText(if (saving) "保存中" else "保存")
             }
         }
     }

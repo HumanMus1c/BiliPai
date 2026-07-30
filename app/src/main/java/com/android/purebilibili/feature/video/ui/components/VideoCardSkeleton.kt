@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
@@ -106,7 +107,7 @@ private fun Modifier.videoCardShimmer(
     delayMillis: Int = 0,
 ): Modifier = composed {
     val baseColor = MaterialTheme.colorScheme.surfaceVariant
-    val highlightColor = MaterialTheme.colorScheme.surface
+    val highlightColor = AppSurfaceTokens.surface()
     val shimmerColors = listOf(
         baseColor,
         baseColor,

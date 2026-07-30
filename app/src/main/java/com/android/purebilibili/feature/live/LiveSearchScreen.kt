@@ -26,14 +26,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Search
 import com.android.purebilibili.core.ui.components.AppButton
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTab
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -178,7 +178,7 @@ fun LiveSearchScreen(
                 title = "搜索直播",
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "返回",
                         )
@@ -217,9 +217,9 @@ fun LiveSearchScreen(
                     },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    placeholder = { Text("搜索房间或主播") },
+                    placeholder = { AppText("搜索房间或主播") },
                     trailingIcon = {
-                        Icon(imageVector = Icons.Outlined.Search, contentDescription = null)
+                        AppIcon(imageVector = Icons.Outlined.Search, contentDescription = null)
                     },
                     shape = AppShapes.borderedContainer(ContainerLevel.Field),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -230,7 +230,7 @@ fun LiveSearchScreen(
                     enabled = query.isNotBlank(),
                     modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge),
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Outlined.Search,
                         contentDescription = "搜索",
                     )
@@ -244,12 +244,12 @@ fun LiveSearchScreen(
                     AppTab(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
-                        text = { Text("正在直播 ${liveResults.size.takeIf { it > 0 } ?: ""}") },
+                        text = { AppText("正在直播 ${liveResults.size.takeIf { it > 0 } ?: ""}") },
                     )
                     AppTab(
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
-                        text = { Text("主播 ${userResults.size.takeIf { it > 0 } ?: ""}") },
+                        text = { AppText("主播 ${userResults.size.takeIf { it > 0 } ?: ""}") },
                     )
                 }
                 when {
@@ -282,7 +282,7 @@ fun LiveSearchScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     onClick = { scope.launch { loadMoreLive() } },
                                 ) {
-                                    Text(if (liveLoadingMore) "加载中" else "加载更多")
+                                    AppText(if (liveLoadingMore) "加载中" else "加载更多")
                                 }
                             }
                         }
@@ -309,7 +309,7 @@ fun LiveSearchScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     onClick = { scope.launch { loadMoreUser() } },
                                 ) {
-                                    Text(if (userLoadingMore) "加载中" else "加载更多")
+                                    AppText(if (userLoadingMore) "加载中" else "加载更多")
                                 }
                             }
                         }
@@ -326,7 +326,7 @@ private fun LiveSearchState(message: String? = null) {
         if (message == null) {
             AdaptiveLoadingIndicator()
         } else {
-            Text(
+            AppText(
                 text = message,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
@@ -359,13 +359,13 @@ private fun LiveSearchUserCard(item: SearchUpItem, onClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.size(AppSpacingTokens.Medium))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                AppText(
                     text = item.uname,
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-                Text(
+                AppText(
                     text = item.usign.ifBlank { "${item.fans} 粉丝 · ${item.videos} 投稿" },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,

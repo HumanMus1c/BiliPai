@@ -1,5 +1,8 @@
 // 文件路径: feature/video/ui/components/CollectionSheet.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -92,7 +95,7 @@ fun CollectionSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                    AppText(
                         text = ugcSeason.title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
@@ -101,7 +104,7 @@ fun CollectionSheet(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
+                    AppText(
                         text = "共 ${allEpisodes.size} 个视频",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -116,7 +119,7 @@ fun CollectionSheet(
                 )
 
                 AppIconButton(onClick = onDismiss) {
-                    Icon(
+                    AppIcon(
                         clearIcon,
                         contentDescription = "关闭",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -124,7 +127,7 @@ fun CollectionSheet(
                 }
             }
             
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             val sortModes = remember { CollectionSortMode.entries.toList() }
 
@@ -135,7 +138,7 @@ fun CollectionSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
+                AppText(
                     text = "排序",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -153,7 +156,7 @@ fun CollectionSheet(
                 )
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             
             //  视频列表
             val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -240,7 +243,7 @@ fun CollectionSheet(
                                             )
                                             .padding(horizontal = 4.dp, vertical = 2.dp)
                                     ) {
-                                        Text(
+                                        AppText(
                                             text = formatDuration(duration),
                                             fontSize = 10.sp,
                                             color = Color.White,
@@ -258,7 +261,7 @@ fun CollectionSheet(
                                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
+                                    AppIcon(
                                         CupertinoIcons.Default.Play,
                                         contentDescription = null,
                                         tint = Color.White,
@@ -272,7 +275,7 @@ fun CollectionSheet(
                         
                         //  视频信息
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
+                            AppText(
                                 text = episode.title,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (isCurrentEpisode) MaterialTheme.colorScheme.primary
@@ -285,7 +288,7 @@ fun CollectionSheet(
                             
                             if (metadataText.isNotBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(
+                                AppText(
                                     text = metadataText,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = if (isCurrentEpisode) {

@@ -11,7 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,18 +50,18 @@ fun LiveSuperChatSection(
                     verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(
+                        AppText(
                             text = item.uname.ifBlank { "醒目留言" },
                             color = palette.primaryText,
                             style = MaterialTheme.typography.bodyLarge
                         )
-                        Text(
+                        AppText(
                             text = item.superChatPrice.ifBlank { "SC" },
                             color = palette.accentStrong,
                             style = MaterialTheme.typography.labelLarge
                         )
                     }
-                    Text(
+                    AppText(
                         text = item.text,
                         color = palette.primaryText,
                         style = MaterialTheme.typography.bodyLarge

@@ -84,7 +84,7 @@ class BottomBarColorBindingPolicyTest {
 
         assertTrue(
             selectedSymbols.all { symbol ->
-                source.contains("{ Icon(CupertinoIcons.Filled.$symbol, contentDescription = null) }")
+                source.contains("{ AppIcon(CupertinoIcons.Filled.$symbol, contentDescription = null) }")
             },
             "Bottom bar selected icons should use filled symbols so the whole selected icon is tinted by the theme color."
         )

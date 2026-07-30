@@ -1,5 +1,7 @@
 // 文件路径: feature/category/CategoryScreen.kt
 package com.android.purebilibili.feature.category
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -207,7 +209,7 @@ fun CategoryScreen(
                 title = name,
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
-                        Icon(rememberAppBackIcon(), contentDescription = "返回")
+                        AppIcon(rememberAppBackIcon(), contentDescription = "返回")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -228,7 +230,7 @@ fun CategoryScreen(
                 )
             } else if (videos.isEmpty() && error != null) {
                 // 错误状态
-                Text(
+                AppText(
                     text = error ?: "加载失败",
                     modifier = Modifier.align(Alignment.Center),
                     color = MaterialTheme.colorScheme.error

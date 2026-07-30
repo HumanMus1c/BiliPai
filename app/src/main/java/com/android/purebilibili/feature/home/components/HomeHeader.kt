@@ -1,5 +1,7 @@
 // 文件路径: feature/home/components/HomeHeader.kt
 package com.android.purebilibili.feature.home.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
@@ -526,8 +528,10 @@ internal fun resolveHomeTopEdgeButtonShape(
     return when (chromePolicy.tabPresentation) {
         AppTopTabPresentation.MOVING_CAPSULE -> CircleShape
         // Preserve the former semantic Dialog radii: 14dp scaled by each native profile.
-        AppTopTabPresentation.MATERIAL_UNDERLINE -> RoundedCornerShape(12.6.dp)
-        AppTopTabPresentation.TONAL_CAPSULE -> RoundedCornerShape(16.1.dp)
+        AppTopTabPresentation.MATERIAL_UNDERLINE,
+        AppTopTabPresentation.TONAL_CAPSULE -> RoundedCornerShape(
+            chromePolicy.compactChromeSpec.secondaryButtonCornerRadiusDp.dp
+        )
     }
 }
 
@@ -1292,6 +1296,7 @@ internal fun Modifier.homeTopChromeSurface(
     surfaceColor: Color,
     hazeState: HazeState?,
     backdrop: LayerBackdrop?,
+    miuixBackdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
     liquidStyle: LiquidGlassStyle,
     liquidGlassTuning: LiquidGlassTuning? = null,
     liquidGlassPreset: BottomBarLiquidGlassPreset = BottomBarLiquidGlassPreset.BILIPAI_TUNED,
@@ -1312,6 +1317,7 @@ internal fun Modifier.homeTopChromeSurface(
             shape = shape,
             hazeState = hazeState,
             backdrop = backdrop,
+            miuixBackdrop = miuixBackdrop,
             liquidGlassStyle = liquidStyle,
             liquidGlassTuning = liquidGlassTuning,
             liquidGlassPreset = liquidGlassPreset,
@@ -1386,6 +1392,7 @@ fun HomeHeader(
     pagerState: androidx.compose.foundation.pager.PagerState? = null, // [New] PagerState for sync
     // [New] LayerBackdrop for liquid glass effect
     backdrop: com.kyant.backdrop.backdrops.LayerBackdrop? = null,
+    miuixBackdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
     homeSettings: com.android.purebilibili.core.store.HomeSettings? = null,
     topTabsVisible: Boolean = true,
     topTabsCollapsed: Boolean = false,
@@ -1989,6 +1996,7 @@ fun HomeHeader(
             tabSurfaceColor = skinTintedTabSurfaceColor,
             hazeState = hazeState,
             backdrop = backdrop,
+            miuixBackdrop = miuixBackdrop,
             liquidStyle = liquidStyle,
             liquidGlassTuning = liquidGlassTuning,
             liquidGlassPreset = bottomBarLiquidGlassPreset,
@@ -2052,8 +2060,10 @@ fun HomeHeader(
                 ) && isGlassSupported,
                 liquidGlassStyle = liquidStyle,
                 liquidGlassTuning = liquidGlassTuning,
+                liquidGlassPreset = bottomBarLiquidGlassPreset,
                 hazeState = hazeState,
                 backdrop = backdrop,
+                miuixBackdrop = miuixBackdrop,
                 isFloatingStyle = isTabFloating,
                 edgeToEdge = integratedCollapsedTopBar,
                 hasOuterChromeSurface = drawTopTabDockChrome,
@@ -2094,6 +2104,7 @@ fun HomeHeader(
                         ),
                         hazeState = hazeState,
                         backdrop = backdrop,
+                        miuixBackdrop = miuixBackdrop,
                         liquidStyle = liquidStyle,
                         liquidGlassTuning = liquidGlassTuning,
                         liquidGlassPreset = bottomBarLiquidGlassPreset,
@@ -2236,7 +2247,7 @@ fun HomeHeader(
                         topTabsContent()
                         if (drawTopSearchDivider) {
                             Spacer(modifier = Modifier.height(currentSearchToTabsSpacing))
-                            HorizontalDivider(
+                            AppHorizontalDivider(
                                 thickness = AppSpacingTokens.Micro / 2,
                                 color = headerChromeColors.borderColor.copy(
                                     alpha = resolveHomeTopUnifiedPanelDividerAlpha(topChromeRenderMode) *
@@ -2415,12 +2426,14 @@ fun HomeHeader(
                                                     shape = searchContainerShape,
                                                     hazeState = hazeState,
                                                     backdrop = backdrop,
+                                                    miuixBackdrop = miuixBackdrop,
                                                     liquidGlassStyle = liquidStyle,
                                                     liquidGlassTuning = liquidGlassTuning,
                                                     liquidGlassPreset = bottomBarLiquidGlassPreset,
                                                     motionTier = motionTier,
                                                     isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
-                                                    forceLowBlurBudget = forceLowBlurBudget
+                                                    forceLowBlurBudget = forceLowBlurBudget,
+                                                    isScrolling = topChromeMotionPolicy.isScrolling
                                                 )
                                             } else {
                                                 Modifier.homeTopChromeSurface(
@@ -2528,13 +2541,15 @@ fun HomeHeader(
                                                             shape = edgeButtonShape,
                                                             hazeState = hazeState,
                                                             backdrop = backdrop,
+                                                            miuixBackdrop = miuixBackdrop,
                                                             liquidGlassStyle = liquidStyle,
                                                             liquidGlassTuning = liquidGlassTuning,
                                                             liquidGlassPreset = bottomBarLiquidGlassPreset,
                                                             motionTier = motionTier,
                                                             isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
                                                             forceLowBlurBudget = forceLowBlurBudget,
-                                                            drawShellLens = false
+                                                            drawShellLens = false,
+                                                            isScrolling = topChromeMotionPolicy.isScrolling
                                                         )
                                                 } else {
                                                     Modifier
@@ -2586,7 +2601,7 @@ fun HomeHeader(
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
+                                    AppIcon(
                                         topRightActionIcon,
                                         contentDescription = topRightActionContentDescription,
                                         tint = if (isLightMode) {
@@ -2617,7 +2632,7 @@ fun HomeHeader(
                     if (topLayoutOrder == HomeTopLayoutOrder.SEARCH_THEN_TABS) {
                         if (drawTopSearchDivider) {
                             Spacer(modifier = Modifier.height(currentSearchToTabsSpacing))
-                            HorizontalDivider(
+                            AppHorizontalDivider(
                                 thickness = AppSpacingTokens.Micro / 2,
                                 color = headerChromeColors.borderColor.copy(
                                     alpha = resolveHomeTopUnifiedPanelDividerAlpha(topChromeRenderMode) *

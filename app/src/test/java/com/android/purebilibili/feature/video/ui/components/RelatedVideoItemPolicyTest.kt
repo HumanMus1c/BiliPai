@@ -75,7 +75,7 @@ class RelatedVideoItemPolicyTest {
         assertTrue(source.contains("modifier = Modifier.fillMaxWidth()"))
         assertTrue(source.contains("videoCardShellSharedBoundsOrEmpty("))
         assertFalse(source.contains("videoCoverSharedBoundsOrEmpty("))
-        assertTrue(source.contains("followShellMotion = true"))
+        assertTrue(source.contains("crossfadeSourceContent = true"))
         assertTrue(source.contains("RelatedVideoGridRow("))
         assertTrue(source.contains("chunkRelatedVideosForHomeStyleGrid("))
         assertFalse(source.contains("relatedCoverWidth = 130.dp"))

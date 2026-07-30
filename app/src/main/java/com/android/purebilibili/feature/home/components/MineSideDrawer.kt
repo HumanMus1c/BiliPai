@@ -1,4 +1,7 @@
 package com.android.purebilibili.feature.home.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -244,7 +247,7 @@ fun MineSideDrawer(
                     
                     // 用户名和等级
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
+                        AppText(
                             text = user.name.ifEmpty { "未登录" },
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
@@ -269,7 +272,7 @@ fun MineSideDrawer(
                                         color = colorScheme.primary,
                                         shape = AppShapes.container(ContainerLevel.Tag)
                                     ) {
-                                        Text(
+                                        AppText(
                                             text = "大会员",
                                             color = colorScheme.onPrimary,
                                             fontSize = layoutPolicy.badgeFontSp.sp,
@@ -283,7 +286,7 @@ fun MineSideDrawer(
                     }
                     
                     // 右箭头
-                    Icon(
+                    AppIcon(
                         imageVector = chevronForwardIcon,
                         contentDescription = null,
                         tint = secondaryContentColor,
@@ -296,7 +299,7 @@ fun MineSideDrawer(
             val dividerThickness = AppSpacingTokens.Micro / 4
             
             // 组间分割线 (全宽带padding)
-            HorizontalDivider(
+            AppHorizontalDivider(
                 modifier = Modifier.padding(
                     horizontal = layoutPolicy.dividerHorizontalPaddingDp.dp,
                     vertical = layoutPolicy.dividerVerticalPaddingDp.dp
@@ -326,7 +329,7 @@ fun MineSideDrawer(
                         valueColor = secondaryContentColor,
                         chevronTint = chevronColor
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
+                    AppHorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
                     AppPreference(
                         icon = historyIcon,
                         title = "历史记录",
@@ -336,7 +339,7 @@ fun MineSideDrawer(
                         valueColor = secondaryContentColor,
                         chevronTint = chevronColor
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
+                    AppHorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
                     AppPreference(
                         icon = tvIcon,
                         title = "番剧影视",
@@ -346,7 +349,7 @@ fun MineSideDrawer(
                         valueColor = secondaryContentColor,
                         chevronTint = chevronColor
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
+                    AppHorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
                     AppPreference(
                         icon = bookmarkIcon,
                         title = "我的收藏",
@@ -356,7 +359,7 @@ fun MineSideDrawer(
                         valueColor = secondaryContentColor,
                         chevronTint = chevronColor
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
+                    AppHorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
                     AppPreference(
                         icon = likeIcon,
                         title = "我的点赞",
@@ -366,7 +369,7 @@ fun MineSideDrawer(
                         valueColor = secondaryContentColor,
                         chevronTint = chevronColor
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
+                    AppHorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
                     AppPreference(
                         icon = watchLaterIcon,
                         title = "稍后再看",
@@ -376,7 +379,7 @@ fun MineSideDrawer(
                         valueColor = secondaryContentColor,
                         chevronTint = chevronColor
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
+                    AppHorizontalDivider(modifier = Modifier.padding(start = AppSpacingTokens.TripleExtraLarge), thickness = dividerThickness, color = dividerColor)
                     AppPreference(
                         icon = inboxIcon,
                         title = "消息中心",
@@ -390,7 +393,7 @@ fun MineSideDrawer(
             }
             
             // 组间分割线
-            HorizontalDivider(
+            AppHorizontalDivider(
                 modifier = Modifier.padding(
                     horizontal = layoutPolicy.dividerHorizontalPaddingDp.dp,
                     vertical = layoutPolicy.dividerVerticalPaddingDp.dp

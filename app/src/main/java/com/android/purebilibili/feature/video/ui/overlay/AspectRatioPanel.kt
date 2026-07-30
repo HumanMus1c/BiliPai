@@ -10,7 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,7 +105,7 @@ fun AspectRatioPanel(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // 标题
-                    Text(
+                    AppText(
                         text = "画面比例",
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 11.sp,
@@ -127,7 +127,7 @@ fun AspectRatioPanel(
                                 .fillMaxWidth()
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            Text(
+                            AppText(
                                 text = option.label,
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White,
                                 fontSize = 14.sp,

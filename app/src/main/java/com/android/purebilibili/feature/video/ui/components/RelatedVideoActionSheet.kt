@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,9 +16,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -28,6 +28,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.data.model.response.RecommendationFeedbackReason
 import com.android.purebilibili.data.model.response.RelatedVideo
 
@@ -56,7 +58,7 @@ fun RelatedVideoActionSheet(
                     onDismissRequest()
                 }
             )
-            HorizontalDivider(
+            AppHorizontalDivider(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
             )
             SheetSectionHeader(
@@ -71,7 +73,7 @@ fun RelatedVideoActionSheet(
                 }
             )
             Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(
+            AppHorizontalDivider(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
             )
             SheetSectionHeader(
@@ -86,7 +88,7 @@ fun RelatedVideoActionSheet(
                 }
             )
             Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(
+            AppHorizontalDivider(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
             )
             SheetActionRow(
@@ -109,12 +111,12 @@ private fun SheetSectionHeader(
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
+        AppText(
             text = title,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onSurface
         )
-        Text(
+        AppText(
             text = subtitle,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -138,7 +140,7 @@ private fun SheetActionRow(
             .padding(horizontal = 20.dp, vertical = 14.dp),
         contentAlignment = Alignment.CenterStart
     ) {
-        Text(
+        AppText(
             text = text,
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontWeight = if (emphasize) FontWeight.Medium else FontWeight.Normal
@@ -187,7 +189,7 @@ private fun ReasonChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(10.dp)
+    val shape = AppShapes.container(ContainerLevel.Field)
     Box(
         modifier = modifier
             .heightIn(min = 44.dp)
@@ -202,7 +204,7 @@ private fun ReasonChip(
             .padding(horizontal = 10.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
+        AppText(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,

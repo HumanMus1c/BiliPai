@@ -130,7 +130,8 @@ class HomeFeedScrollStatePersistenceStructureTest {
             .substringAfter("private suspend fun fetchFollowFeed")
             .substringBefore("private fun videoItemKey")
 
-        assertTrue(followFeedSource.contains("type = \"video\""))
+        assertTrue(followFeedSource.contains("val followType = \"video\""))
+        assertTrue(followFeedSource.contains("type = followType"))
     }
 
     @Test
@@ -143,7 +144,8 @@ class HomeFeedScrollStatePersistenceStructureTest {
             .substringAfter("private suspend fun fetchFollowFeed")
             .substringBefore("private fun videoItemKey")
 
-        assertTrue(fetchDataSource.contains("return fetchFollowFeed("))
+        assertTrue(fetchDataSource.contains("val result = fetchFollowFeed("))
+        assertTrue(fetchDataSource.contains("return result"))
         assertTrue(followFeedSource.contains("probeWithBaseline"))
         assertTrue(followFeedSource.contains("resolveHomeFollowRefreshNewItemsCount("))
         assertTrue(followFeedSource.contains("currentUpdateBaseline("))

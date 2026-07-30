@@ -3,7 +3,7 @@ package com.android.purebilibili.feature.video.ui.components
 import android.widget.Toast
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -90,7 +90,7 @@ internal fun CollectionSubscriptionButton(
         },
         contentPadding = contentPadding
     ) {
-        Text(
+        AppText(
             text = if (isSubscribed) "已订阅" else "订阅",
             color = if (isSubscribed) {
                 MaterialTheme.colorScheme.primary

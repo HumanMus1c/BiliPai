@@ -8,6 +8,14 @@ import kotlin.test.assertEquals
 class FileLyricsCacheTest {
 
     @Test
+    fun `colon keys retain legacy read candidate after portable filename migration`() {
+        assertEquals(
+            listOf("video_BV1_test_2.json", "video:BV1_test:2.json"),
+            lyricCacheFileNamesForKey("video:BV1/test:2")
+        )
+    }
+
+    @Test
     fun `cache round trips lyric document with stable key`() = runTest {
         val directory = Files.createTempDirectory("bilipai-lyrics").toFile()
         val cache = FileLyricsCache(directory)

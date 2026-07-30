@@ -1,4 +1,6 @@
 // 文件路径: feature/video/VideoPlayerState.kt
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.android.purebilibili.feature.video.state
 
 import com.android.purebilibili.feature.video.player.MiniPlayerManager

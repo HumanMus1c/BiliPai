@@ -25,10 +25,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +46,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.rememberHapticFeedback
@@ -151,7 +153,7 @@ private fun Md3GestureLevelRail(
     progress: Float,
     percent: Int
 ) {
-    val shape = RoundedCornerShape(28.dp)
+    val shape = AppShapes.container(ContainerLevel.Floating)
     AppSurface(
         shape = shape,
         color = spec.containerColor,
@@ -176,7 +178,7 @@ private fun Md3GestureLevelRail(
                 modifier = Modifier
                     .width(18.dp)
                     .height((spec.railHeightDp - 78).dp)
-                    .clip(RoundedCornerShape(999.dp))
+                    .clip(CircleShape)
                     .background(spec.trackColor)
             ) {
                 Box(
@@ -194,7 +196,7 @@ private fun Md3GestureLevelRail(
                         )
                 )
             }
-            Text(
+            AppText(
                 text = "$percent",
                 color = spec.textColor,
                 style = MaterialTheme.typography.labelLarge.copy(
@@ -213,7 +215,7 @@ private fun IosGestureLevelCapsule(
     progress: Float,
     percent: Int
 ) {
-    val shape = RoundedCornerShape(22.dp)
+    val shape = AppShapes.container(ContainerLevel.Pill)
     AppSurface(
         shape = shape,
         color = spec.containerColor,
@@ -235,7 +237,7 @@ private fun IosGestureLevelCapsule(
                 glowColor = spec.accentColor.copy(alpha = 0.34f)
             )
             if (spec.showLabel) {
-                Text(
+                AppText(
                     text = resolveGestureLevelLabel(spec.kind),
                     color = Color.White.copy(alpha = 0.88f),
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
@@ -254,7 +256,7 @@ private fun IosGestureLevelCapsule(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(5.dp)
-                    .clip(RoundedCornerShape(999.dp))
+                    .clip(CircleShape)
                     .background(spec.trackColor)
             ) {
                 Box(
@@ -281,7 +283,10 @@ private fun MiuixGestureLevelRail(
     icon: ImageVector,
     progress: Float
 ) {
-    val shape = RoundedCornerShape(999.dp)
+    val shape = CircleShape
+    val standardMotion = AppMotionTokens.standardSpec<Float>()
+    val emphasizedMotion = AppMotionTokens.emphasizedSpec<Float>()
+    val expressiveMotion = AppMotionTokens.expressiveSpec<Float>()
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -319,12 +324,19 @@ private fun MiuixGestureLevelRail(
                 AnimatedContent(
                     targetState = icon,
                     transitionSpec = {
-                        (fadeIn(tween(120)) + scaleIn(initialScale = 0.82f, animationSpec = tween(140)))
-                            .togetherWith(fadeOut(tween(100)) + scaleOut(targetScale = 1.12f, animationSpec = tween(120)))
+                        (fadeIn(standardMotion) +
+                            scaleIn(initialScale = 0.82f, animationSpec = emphasizedMotion))
+                            .togetherWith(
+                                fadeOut(expressiveMotion) +
+                                    scaleOut(
+                                        targetScale = 1.12f,
+                                        animationSpec = standardMotion
+                                    )
+                            )
                     },
                     label = "miuix-gesture-icon"
                 ) { target ->
-                    Icon(
+                    AppIcon(
                         imageVector = target,
                         contentDescription = null,
                         tint = spec.iconTint,
@@ -343,6 +355,9 @@ private fun GestureLevelIconSlot(
     sizeDp: Int,
     glowColor: Color
 ) {
+    val standardMotion = AppMotionTokens.standardSpec<Float>()
+    val emphasizedMotion = AppMotionTokens.emphasizedSpec<Float>()
+    val expressiveMotion = AppMotionTokens.expressiveSpec<Float>()
     Box(
         modifier = Modifier.size((sizeDp + 16).dp),
         contentAlignment = Alignment.Center
@@ -356,12 +371,19 @@ private fun GestureLevelIconSlot(
         AnimatedContent(
             targetState = icon,
             transitionSpec = {
-                (fadeIn(tween(120)) + scaleIn(initialScale = 0.8f, animationSpec = tween(150)))
-                    .togetherWith(fadeOut(tween(100)) + scaleOut(targetScale = 1.15f, animationSpec = tween(130)))
+                (fadeIn(standardMotion) +
+                    scaleIn(initialScale = 0.8f, animationSpec = emphasizedMotion))
+                    .togetherWith(
+                        fadeOut(expressiveMotion) +
+                            scaleOut(
+                                targetScale = 1.15f,
+                                animationSpec = standardMotion
+                            )
+                    )
             },
             label = "gesture-level-icon"
         ) { target ->
-            Icon(
+            AppIcon(
                 imageVector = target,
                 contentDescription = null,
                 tint = tint,

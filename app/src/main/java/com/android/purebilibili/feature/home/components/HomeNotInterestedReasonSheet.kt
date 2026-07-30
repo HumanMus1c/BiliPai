@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.home.components
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -10,10 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,13 +40,13 @@ fun HomeNotInterestedReasonSheet(
                 .navigationBarsPadding()
                 .padding(bottom = AppSpacingTokens.Medium)
         ) {
-            Text(
+            AppText(
                 text = "选择不感兴趣的原因",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Small)
             )
-            Text(
+            AppText(
                 text = video.title,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -76,7 +76,7 @@ private fun ReasonGroup(
     onReasonSelected: (RecommendationFeedbackReason) -> Unit
 ) {
     if (reasons.isEmpty()) return
-    Text(
+    AppText(
         text = title,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
@@ -91,20 +91,20 @@ private fun ReasonGroup(
                 .padding(horizontal = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Medium),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = reason.name,
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f)
             )
             Spacer(modifier = Modifier.padding(horizontal = AppSpacingTokens.ExtraSmall))
-            Text(
+            AppText(
                 text = "选择",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         if (index != reasons.lastIndex) {
-            HorizontalDivider(
+            AppHorizontalDivider(
                 modifier = Modifier.padding(horizontal = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
             )

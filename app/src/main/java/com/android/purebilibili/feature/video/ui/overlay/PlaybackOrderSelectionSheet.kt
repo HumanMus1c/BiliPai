@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.video.ui.overlay
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,10 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -34,6 +34,7 @@ import android.content.res.Configuration
 import androidx.compose.foundation.layout.WindowInsets
 import com.android.purebilibili.core.store.PlaybackCompletionBehavior
 import com.android.purebilibili.core.ui.AppModalBottomSheet
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.components.AppSurface
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.Checkmark
@@ -103,7 +104,7 @@ private fun PlaybackOrderCompactOverlay(
     ) {
         AppSurface(
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 0.dp, bottomEnd = 0.dp),
-            color = MaterialTheme.colorScheme.surface,
+            color = AppSurfaceTokens.surface(),
             modifier = Modifier
                 .widthIn(max = layoutSpec.maxWidthDp.dp)
                 .fillMaxWidth(0.42f)
@@ -142,7 +143,7 @@ private fun PlaybackOrderSheetContent(
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(
+        AppText(
             text = "选择播放顺序",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
@@ -165,7 +166,7 @@ private fun PlaybackOrderSheetContent(
                     .padding(vertical = layoutSpec.rowVerticalPaddingDp.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
+                AppText(
                     text = behavior.label,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
@@ -173,7 +174,7 @@ private fun PlaybackOrderSheetContent(
                     modifier = Modifier.weight(1f),
                 )
                 if (currentBehavior == behavior) {
-                    Icon(
+                    AppIcon(
                         imageVector = CupertinoIcons.Outlined.Checkmark,
                         contentDescription = "已选择",
                         tint = MaterialTheme.colorScheme.primary,
@@ -184,7 +185,7 @@ private fun PlaybackOrderSheetContent(
                 }
             }
             if (index < options.lastIndex) {
-                HorizontalDivider(
+                AppHorizontalDivider(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
                 )
             }

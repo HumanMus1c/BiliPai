@@ -73,8 +73,8 @@ class VideoDetailScreenPolicyTest {
     }
 
     @Test
-    fun initialVerticalRouteHint_startsPortraitFullscreenBeforeApiDimensionArrives() {
-        assertTrue(
+    fun initialVerticalRouteHint_doesNotBypassInlinePresentationPolicy() {
+        assertFalse(
             shouldStartInPortraitFullscreenFromRouteHint(
                 autoEnterPortraitFromRoute = true,
                 startAudioFromRoute = false,
@@ -217,7 +217,7 @@ class VideoDetailScreenPolicyTest {
             .readText()
         val commentTabSource = contentSource
             .substringAfter("private fun VideoCommentTab(")
-            .substringBefore("private fun VideoCommentBackToTopButton(")
+            .substringBefore("private fun VideoHeaderContent(")
         val bottomInputBarSource = detailSource
             .substringAfter("BottomInputBar(")
             .substringBefore("if (shouldShowExternalPlaylistQueueBar)")

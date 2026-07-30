@@ -1,6 +1,6 @@
 # BiliPai Wiki
 
-最后更新：2026-07-28（按当前源码与构建配置校对）
+最后更新：2026-07-30（按当前源码与构建配置校对）
 
 ## 目录
 
@@ -8,6 +8,7 @@
 - [架构说明](ARCHITECTURE.md)
 - [AI 导航指南](AI.md)
 - [Miuix 对齐记录](MIUIX_ALIGNMENT.md)
+- [液态玻璃复用与首页底栏同源规范](LIQUID_GLASS_REUSE_PARITY.md)
 - [发布流程](RELEASE_WORKFLOW.md)
 - [QA 测试手册](QA.md)
 - [用户常见问题](FAQ.md)

@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.download
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,6 +29,9 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.util.NetworkUtils
 import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -65,8 +70,8 @@ fun DownloadListScreen(
             AppTopBar(
                 title = "离线缓存",
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(rememberAppBackIcon(), contentDescription = "返回")
+                    AppIconButton(onClick = onBack) {
+                        AppIcon(rememberAppBackIcon(), contentDescription = "返回")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -84,17 +89,17 @@ fun DownloadListScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
+                    AppText(
                         text = "",
                         fontSize = 48.sp
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
+                    AppText(
                         text = "暂无缓存视频",
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
+                    AppText(
                         text = "在视频详情页点击「缓存」按钮下载",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -143,13 +148,13 @@ fun DownloadListScreen(
                             .padding(vertical = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
+                        AppText(
                             text = "存储位置",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(
+                        AppText(
                             text = currentDir,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -172,7 +177,7 @@ private fun DownloadTaskItem(
     onDelete: () -> Unit,
     offlinePlayable: Boolean
 ) {
-    Card(
+    AppCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
@@ -230,10 +235,10 @@ private fun DownloadTaskItem(
                     ) {
                         when (task.status) {
                             DownloadStatus.QUEUED -> {
-                                Text("排队中", color = Color.White, fontSize = 12.sp)
+                                AppText("排队中", color = Color.White, fontSize = 12.sp)
                             }
                             DownloadStatus.DOWNLOADING, DownloadStatus.MERGING -> {
-                                CircularProgressIndicator(
+                                AppCircularProgressIndicator(
                                     progress = { resolveDownloadTaskProgress(task) },
                                     modifier = Modifier.size(32.dp),
                                     color = Color.White,
@@ -241,10 +246,10 @@ private fun DownloadTaskItem(
                                 )
                             }
                             DownloadStatus.PAUSED -> {
-                                Text("已暂停", color = Color.White, fontSize = 12.sp)
+                                AppText("已暂停", color = Color.White, fontSize = 12.sp)
                             }
                             DownloadStatus.FAILED -> {
-                                Text("失败", color = com.android.purebilibili.core.theme.iOSRed, fontSize = 12.sp)
+                                AppText("失败", color = com.android.purebilibili.core.theme.iOSRed, fontSize = 12.sp)
                             }
                             else -> {}
                         }
@@ -262,7 +267,7 @@ private fun DownloadTaskItem(
                         )
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = task.qualityDesc,
                         color = Color.White,
                         fontSize = 10.sp
@@ -276,7 +281,7 @@ private fun DownloadTaskItem(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                Text(
+                AppText(
                     text = task.title,
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
@@ -288,7 +293,7 @@ private fun DownloadTaskItem(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 resolveDownloadTaskSecondaryText(task)?.let { secondaryText ->
-                    Text(
+                    AppText(
                         text = secondaryText,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.primary,
@@ -298,7 +303,7 @@ private fun DownloadTaskItem(
                     Spacer(modifier = Modifier.height(4.dp))
                 }
                 
-                Text(
+                AppText(
                     text = task.ownerName,
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -316,7 +321,7 @@ private fun DownloadTaskItem(
                     DownloadStatus.PAUSED -> "已暂停"
                     DownloadStatus.FAILED -> task.errorMessage ?: "下载失败"
                 }
-                Text(
+                AppText(
                     text = statusText,
                     fontSize = 11.sp,
                     color = when (task.status) {
@@ -334,7 +339,7 @@ private fun DownloadTaskItem(
                 )
                 if (assetTexts.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
+                    AppText(
                         text = assetTexts.joinToString(" · "),
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -345,7 +350,7 @@ private fun DownloadTaskItem(
 
                 if (task.isComplete && !offlinePlayable) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
+                    AppText(
                         text = if (!task.exportedFileUri.isNullOrBlank()) {
                             "已导出到自定义目录，当前列表不直接离线播放"
                         } else {
@@ -363,8 +368,8 @@ private fun DownloadTaskItem(
             ) {
                 // 暂停/继续
                 if (task.isDownloading || task.canResume) {
-                    IconButton(onClick = onPauseResume) {
-                        Icon(
+                    AppIconButton(onClick = onPauseResume) {
+                        AppIcon(
                             imageVector = if (task.isDownloading) CupertinoIcons.Default.Pause else CupertinoIcons.Default.Play,
                             contentDescription = if (task.isDownloading) "暂停" else "继续",
                             tint = MaterialTheme.colorScheme.primary
@@ -373,8 +378,8 @@ private fun DownloadTaskItem(
                 }
                 
                 // 删除
-                IconButton(onClick = onDelete) {
-                    Icon(
+                AppIconButton(onClick = onDelete) {
+                    AppIcon(
                         imageVector = CupertinoIcons.Default.Trash,
                         contentDescription = "删除",
                         tint = MaterialTheme.colorScheme.error

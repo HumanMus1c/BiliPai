@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.web
+import com.android.purebilibili.core.ui.components.AppIcon
 
 import android.view.ViewGroup
 import android.webkit.WebResourceRequest
@@ -53,7 +54,7 @@ fun WebViewScreen(
                 title = title ?: "浏览器",
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
-                        Icon(rememberAppBackIcon(), contentDescription = "Back")
+                        AppIcon(rememberAppBackIcon(), contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

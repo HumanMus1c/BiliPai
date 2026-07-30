@@ -1,5 +1,8 @@
 // File: feature/video/ui/components/QualityMenu.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -96,14 +99,14 @@ fun QualitySelectionMenu(
                         .padding(vertical = 8.dp)
                         .verticalScroll(rememberScrollState())  //  [修复] 添加垂直滚动
                 ) {
-                    Text(
+                    AppText(
                         text = "画质选择",
                         color = Color.White,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
-                    HorizontalDivider(color = Color.White.copy(0.1f))
+                    AppHorizontalDivider(color = Color.White.copy(0.1f))
                     qualities.forEachIndexed { index, quality ->
                         val isSelected = quality == currentQuality
                         val qualityId = qualityIds.getOrNull(index) ?: 0
@@ -120,7 +123,7 @@ fun QualitySelectionMenu(
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
+                            AppText(
                                 text = quality,
                                 color = when {
                                     isSelected -> MaterialTheme.colorScheme.primary
@@ -137,7 +140,7 @@ fun QualitySelectionMenu(
                                     color = if (tag == "大会员") MaterialTheme.colorScheme.primary else Color(0xFF666666),
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = tag,
                                         color = Color.White,
                                         fontSize = 10.sp,
@@ -150,7 +153,7 @@ fun QualitySelectionMenu(
                             Spacer(modifier = Modifier.weight(1f))
                             
                             if (isSelected) {
-                                Icon(CupertinoIcons.Default.Checkmark, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                AppIcon(CupertinoIcons.Default.Checkmark, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
@@ -235,14 +238,14 @@ fun SpeedSelectionMenu(
                         .padding(vertical = 8.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Text(
+                    AppText(
                         text = "播放速度",
                         color = Color.White,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
-                    HorizontalDivider(color = Color.White.copy(0.1f))
+                    AppHorizontalDivider(color = Color.White.copy(0.1f))
                     speedOptions.forEach { speed ->
                         val isSelected = speed == currentSpeed
                         Row(
@@ -253,7 +256,7 @@ fun SpeedSelectionMenu(
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
+                            AppText(
                                 text = if (speed == 1.0f) "正常" else "${speed}x",
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(0.9f),
                                 fontSize = 14.sp,
@@ -261,7 +264,7 @@ fun SpeedSelectionMenu(
                             )
                             Spacer(modifier = Modifier.weight(1f))
                             if (isSelected) {
-                                Icon(CupertinoIcons.Default.Checkmark, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                AppIcon(CupertinoIcons.Default.Checkmark, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             }
                         }
                     }

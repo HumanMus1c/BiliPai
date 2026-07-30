@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -48,8 +48,8 @@ import com.android.purebilibili.feature.video.viewmodel.VideoEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
 import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 import com.android.purebilibili.feature.video.player.PlaylistItem
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
@@ -356,6 +356,11 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                     bottomInputBarBackdrop
                                 } else {
                                     null
+                                },
+                                isScrollInProgressProvider = {
+                                    introListState.isScrollInProgress ||
+                                        commentListState.isScrollInProgress ||
+                                        videoContentPagerState.isScrollInProgress
                                 }
                             )
                         }
@@ -417,21 +422,21 @@ private fun ExternalPlaylistQueueCollapsedBar(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = title,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.weight(1f))
-            Text(
+            AppText(
                 text = "${videoCount}个视频",
                 color = MaterialTheme.colorScheme.primary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.width(4.dp))
-            Icon(
+            AppIcon(
                 imageVector = rememberAppChevronUpIcon(),
                 contentDescription = "展开${title}队列",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant

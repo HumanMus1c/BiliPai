@@ -12,10 +12,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -117,7 +117,7 @@ fun DynamicDetailScreen(
                 title = screenTitle,
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
-                        Icon(rememberAppBackIcon(), contentDescription = backLabel)
+                        AppIcon(rememberAppBackIcon(), contentDescription = backLabel)
                     }
                 }
             )
@@ -146,12 +146,12 @@ fun DynamicDetailScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
                     ) {
-                        Text(
+                        AppText(
                             text = state.message,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         AppButton(onClick = { retryToken++ }) {
-                            Text(retryLabel)
+                            AppText(retryLabel)
                         }
                     }
                 }

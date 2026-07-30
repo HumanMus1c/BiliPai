@@ -1,5 +1,8 @@
 // 文件路径: feature/settings/PermissionSettingsScreen.kt
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.Manifest
 import android.content.Context
@@ -196,7 +199,7 @@ fun PermissionSettingsContent(
             .verticalScroll(rememberScrollState()),
     ) {
             Box(modifier = Modifier.entrance()) {
-                Text(
+                AppText(
                     text = "以下是应用所需的权限及其用途说明。普通权限在安装时自动授予，无需手动操作。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -210,7 +213,7 @@ fun PermissionSettingsContent(
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
                     permissions.filter { !it.isNormal }.forEachIndexed { index, info ->
-                        if (index > 0) HorizontalDivider()
+                        if (index > 0) AppHorizontalDivider()
                         PermissionItem(
                             info = info,
                             isGranted = permissionStates[info.permission] ?: false,
@@ -226,7 +229,7 @@ fun PermissionSettingsContent(
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
                     permissions.filter { it.isNormal }.forEachIndexed { index, info ->
-                        if (index > 0) HorizontalDivider()
+                        if (index > 0) AppHorizontalDivider()
                         PermissionItem(
                             info = info,
                             isGranted = true,
@@ -239,7 +242,7 @@ fun PermissionSettingsContent(
             Box(modifier = Modifier.entrance()) {
                 Column {
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
+                    AppText(
                         text = "BiliPai 仅在必要功能的前提下申请部分敏感权限。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -289,7 +292,7 @@ private fun PermissionItem(
                 .background(effectiveIconTint.copy(alpha = visualSpec.iconBackgroundAlpha)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
+            AppIcon(
                 info.icon,
                 contentDescription = null,
                 tint = effectiveIconTint,
@@ -301,13 +304,13 @@ private fun PermissionItem(
         
         // 名称和描述
         Column(modifier = Modifier.weight(1f)) {
-            Text(
+            AppText(
                 text = info.name,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
+            AppText(
                 text = info.description,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -316,7 +319,7 @@ private fun PermissionItem(
         
         // 状态指示器
         if (isGranted) {
-            Icon(
+            AppIcon(
                 CupertinoIcons.Default.CheckmarkCircle,
                 contentDescription = "已授权",
                 tint = grantedTint,
@@ -324,7 +327,7 @@ private fun PermissionItem(
             )
         } else {
             // 未授权时显示红色的 X
-            Icon(
+            AppIcon(
                 CupertinoIcons.Default.XmarkCircle,
                 contentDescription = "未授权",
                 tint = deniedTint,

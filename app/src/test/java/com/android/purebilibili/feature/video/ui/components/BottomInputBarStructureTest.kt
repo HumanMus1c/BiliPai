@@ -32,15 +32,13 @@ class BottomInputBarStructureTest {
         assertTrue(source.contains("resolveGlobalLiquidGlassReuseEnabled"))
         assertTrue(source.contains("FloatingLiquidBottomInputBar("))
         assertTrue(source.contains("FloatingLiquidBottomInputBarContentRow("))
-        assertTrue(source.contains(".kernelSuFloatingDockSurface("))
-        assertTrue(source.contains("drawShellLens = false"))
+        assertTrue(source.contains("BottomBarMatchedReusableLiquidDock("))
+        assertFalse(source.contains("BottomBarMatchedLiquidDock("))
+        assertTrue(!source.contains(".kernelSuFloatingDockSurface("))
         assertTrue(source.contains("resolveSharedBottomBarCapsuleShape()"))
-        assertTrue(source.contains("resolveAndroidNativeFloatingBottomBarContainerColor("))
+        assertTrue(!source.contains("resolveAndroidNativeFloatingBottomBarContainerColor("))
+        assertTrue(!source.contains("commentFieldContainerColor"))
         assertTrue(source.contains("backdrop: Backdrop? = null"))
-        assertTrue(
-            source.contains("Same liquid dock surface as home bottom-bar search capsule"),
-            "Comment placeholder should reuse liquid dock surface, not a solid chip"
-        )
     }
 
     @Test

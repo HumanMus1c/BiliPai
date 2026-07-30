@@ -5,7 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,7 +56,7 @@ fun LandscapeUpInfo(
             Spacer(modifier = Modifier.width(8.dp))
             
             // UP 主名字
-            Text(
+            AppText(
                 text = upName,
                 color = Color.White,
                 fontSize = 12.sp,
@@ -89,14 +89,14 @@ fun LandscapeViewerCount(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
             // 观看图标（使用文字代替）
-            Text(
+            AppText(
                 text = "👁",
                 fontSize = 10.sp
             )
             
             Spacer(modifier = Modifier.width(4.dp))
             
-            Text(
+            AppText(
                 text = count,
                 color = Color.White.copy(alpha = 0.9f),
                 fontSize = 11.sp,

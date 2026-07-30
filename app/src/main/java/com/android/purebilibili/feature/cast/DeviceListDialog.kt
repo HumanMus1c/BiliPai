@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.cast
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,6 +21,10 @@ import com.android.purebilibili.core.plugin.PluginManager
 import kotlinx.coroutines.flow.combine
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppListItem
+import com.android.purebilibili.core.ui.components.AppTextButton
 
 private data class PluginRouteEntry(
     val plugin: CastPluginApi,
@@ -76,14 +82,14 @@ fun DeviceListDialog(
         }
     }
 
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismissRequest,
-        icon = { Icon(Icons.Rounded.Cast, null) },
+        icon = { AppIcon(Icons.Rounded.Cast, null) },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("选择投屏设备")
+                AppText("选择投屏设备")
                 Spacer(Modifier.weight(1f))
-                IconButton(
+                AppIconButton(
                     enabled = !isDiscovering,
                     onClick = {
                         if (!isDiscovering) {
@@ -91,7 +97,7 @@ fun DeviceListDialog(
                         }
                     }
                 ) {
-                    Icon(Icons.Rounded.Refresh, "刷新")
+                    AppIcon(Icons.Rounded.Refresh, "刷新")
                 }
             }
         },
@@ -101,8 +107,8 @@ fun DeviceListDialog(
             if (castPlugins.isEmpty() && hasDisabledCastPlugins) {
                 Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("投屏插件未启用", style = MaterialTheme.typography.bodyMedium)
-                        Text(
+                        AppText("投屏插件未启用", style = MaterialTheme.typography.bodyMedium)
+                        AppText(
                             "请前往 设置 > 插件，启用 DLNA 或 Google Cast",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -112,8 +118,8 @@ fun DeviceListDialog(
             } else if (!hasDevices && !isDiscovering) {
                 Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("未找到设备", style = MaterialTheme.typography.bodyMedium)
-                        Text(
+                        AppText("未找到设备", style = MaterialTheme.typography.bodyMedium)
+                        AppText(
                             "请确保手机与电视在同一 WiFi，并已授予附近设备/定位权限",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -125,7 +131,7 @@ fun DeviceListDialog(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         AdaptiveLoadingIndicator(size = 32.dp)
                         Spacer(Modifier.height(8.dp))
-                        Text("搜索设备中...", style = MaterialTheme.typography.bodyMedium)
+                        AppText("搜索设备中...", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             } else {
@@ -133,10 +139,10 @@ fun DeviceListDialog(
                     items(pluginRouteEntries, key = { "${it.plugin.id}:${it.route.routeId}" }) { entry ->
                         val plugin = entry.plugin
                         val route = entry.route
-                        ListItem(
-                            headlineContent = { Text(route.name) },
-                            supportingContent = { Text(route.description ?: plugin.name) },
-                            leadingContent = { Icon(route.icon ?: plugin.icon ?: Icons.Rounded.Cast, null) },
+                        AppListItem(
+                            headlineContent = { AppText(route.name) },
+                            supportingContent = { AppText(route.description ?: plugin.name) },
+                            leadingContent = { AppIcon(route.icon ?: plugin.icon ?: Icons.Rounded.Cast, null) },
                             modifier = Modifier
                                 .clickable { onPluginCastDeviceSelected(plugin, route) }
                                 .fillMaxWidth()
@@ -151,16 +157,16 @@ fun DeviceListDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(
+                AppTextButton(
                     onClick = {
                         com.android.purebilibili.core.util.LogCollector.exportAndShare(context)
                     }
                 ) {
-                    Text("导出日志")
+                    AppText("导出日志")
                 }
 
-                TextButton(onClick = onDismissRequest) {
-                    Text("取消")
+                AppTextButton(onClick = onDismissRequest) {
+                    AppText("取消")
                 }
             }
         }

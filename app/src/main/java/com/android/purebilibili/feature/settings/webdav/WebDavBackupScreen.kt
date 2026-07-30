@@ -25,11 +25,11 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Warning
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSwitch
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -108,7 +108,7 @@ fun WebDavBackupScreen(
         scrollHost = SettingsPageScrollHost.External,
         actions = {
             AppIconButton(onClick = { viewModel.refreshRemoteBackups() }) {
-                Icon(
+                AppIcon(
                     imageVector = Icons.Filled.Refresh,
                     contentDescription = refreshLabel,
                 )
@@ -276,7 +276,7 @@ fun WebDavBackupScreen(
         }
         AppAlertDialog(
             onDismissRequest = { showEditDialog = false },
-            title = { Text(dialogTitle, fontWeight = FontWeight.Bold) },
+            title = { AppText(dialogTitle, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     when (editMode) {
@@ -317,7 +317,7 @@ fun WebDavBackupScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("启用备份", modifier = Modifier.weight(1f))
+                                AppText("启用备份", modifier = Modifier.weight(1f))
                                 AppSwitch(
                                     checked = draftEnabled,
                                     onCheckedChange = { draftEnabled = it }
@@ -340,12 +340,12 @@ fun WebDavBackupScreen(
                     )
                     showEditDialog = false
                 }) {
-                    Text(saveLabel)
+                    AppText(saveLabel)
                 }
             },
             dismissButton = {
                 AppDialogAction(onClick = { showEditDialog = false }) {
-                    Text(cancelLabel)
+                    AppText(cancelLabel)
                 }
             }
         )
@@ -354,21 +354,21 @@ fun WebDavBackupScreen(
     if (showRestoreConfirm) {
         AppAlertDialog(
             onDismissRequest = { showRestoreConfirm = false },
-            title = { Text("确认恢复最新备份") },
+            title = { AppText("确认恢复最新备份") },
             text = {
-                Text("恢复会覆盖当前本地设置与插件配置。建议先执行一次“立即备份”。")
+                AppText("恢复会覆盖当前本地设置与插件配置。建议先执行一次“立即备份”。")
             },
             confirmButton = {
                 AppDialogAction(onClick = {
                     showRestoreConfirm = false
                     viewModel.restoreLatest()
                 }) {
-                    Text("继续恢复")
+                    AppText("继续恢复")
                 }
             },
             dismissButton = {
                 AppDialogAction(onClick = { showRestoreConfirm = false }) {
-                    Text(cancelLabel)
+                    AppText(cancelLabel)
                 }
             }
         )

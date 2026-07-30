@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import com.android.purebilibili.core.ui.components.AppButton
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -167,10 +167,10 @@ private fun StoryErrorState(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(message, color = Color.White)
+        AppText(message, color = Color.White)
         Spacer(modifier = Modifier.height(16.dp))
         AppButton(onClick = onRetry) {
-            Text("重试")
+            AppText("重试")
         }
     }
 }

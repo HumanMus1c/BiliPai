@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.content.Intent
 import android.widget.Toast
@@ -40,11 +41,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.appendInlineContent
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -654,7 +654,7 @@ internal fun SubReplyDetailContent(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
+                AppText(
                     text = if (effectiveConversationMode) "对话详情" else "评论详情",
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
@@ -665,7 +665,7 @@ internal fun SubReplyDetailContent(
                     onClick = onDismiss,
                     modifier = Modifier.testTag(SUB_REPLY_DETAIL_CLOSE_TAG)
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "Close",
                         tint = appearance.primaryTextColor
@@ -673,7 +673,7 @@ internal fun SubReplyDetailContent(
                 }
             }
         }
-        HorizontalDivider(thickness = 0.5.dp, color = appearance.dividerColor)
+        AppHorizontalDivider(thickness = 0.5.dp, color = appearance.dividerColor)
 
         LazyColumn(
             state = listState,
@@ -720,7 +720,7 @@ internal fun SubReplyDetailContent(
                     levelIndex = 1
                 ) {
                     Column {
-                        HorizontalDivider(thickness = 8.dp, color = appearance.sectionDividerColor)
+                        AppHorizontalDivider(thickness = 8.dp, color = appearance.sectionDividerColor)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -728,7 +728,7 @@ internal fun SubReplyDetailContent(
                                 .testTag(SUB_REPLY_DETAIL_SECTION_TAG),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
+                            AppText(
                                 text = if (effectiveConversationMode) {
                                     resolveSubReplyConversationSectionTitle(replyCount = visibleReplies.size)
                                 } else {
@@ -743,7 +743,7 @@ internal fun SubReplyDetailContent(
                             )
                             Spacer(modifier = Modifier.weight(1f))
                             if (effectiveConversationMode) {
-                                Text(
+                                AppText(
                                     text = "返回全部回复",
                                     fontSize = 14.sp,
                                     color = appearance.sortTint,
@@ -764,13 +764,13 @@ internal fun SubReplyDetailContent(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Icon(
+                                    AppIcon(
                                         imageVector = Icons.AutoMirrored.Outlined.Sort,
                                         contentDescription = "Sort",
                                         tint = appearance.sortTint,
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Text(
+                                    AppText(
                                         text = "按时间",
                                         fontSize = 14.sp,
                                         color = appearance.sortTint,
@@ -779,7 +779,7 @@ internal fun SubReplyDetailContent(
                                 }
                             }
                         }
-                        HorizontalDivider(
+                        AppHorizontalDivider(
                             thickness = 0.5.dp,
                             color = appearance.dividerColor
                         )
@@ -854,7 +854,7 @@ internal fun SubReplyDetailContent(
                         }
                     }
                     showManualLoadMore -> {
-                        Text(
+                        AppText(
                             text = "加载更多回复",
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1097,7 +1097,7 @@ private fun SubReplyDetailItem(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(
+                            AppText(
                                 text = item.member.uname,
                                 fontSize = if (isRootItem) 15.sp else 14.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -1120,7 +1120,7 @@ private fun SubReplyDetailItem(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        Text(
+                        AppText(
                             text = metadataText,
                             fontSize = 12.sp,
                             color = appearance.secondaryTextColor
@@ -1143,7 +1143,7 @@ private fun SubReplyDetailItem(
                             .size(40.dp)
                             .testTag("$COMMENT_ACTION_BUTTON_TAG_PREFIX${item.rpid}")
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.Filled.MoreVert,
                             contentDescription = "评论操作",
                             tint = appearance.actionTint,
@@ -1211,7 +1211,7 @@ private fun SubReplyDetailItem(
 
                     if (showConversationAction) {
                         Spacer(modifier = Modifier.width(18.dp))
-                        Text(
+                        AppText(
                             text = "查看对话",
                             fontSize = 13.sp,
                             color = appearance.actionTint,
@@ -1226,7 +1226,7 @@ private fun SubReplyDetailItem(
                     Spacer(modifier = Modifier.weight(1f))
 
                     if (onDeleteClick != null) {
-                        Icon(
+                        AppIcon(
                             imageVector = CupertinoIcons.Outlined.Trash,
                             contentDescription = "Delete",
                             tint = appearance.actionTint,
@@ -1246,7 +1246,7 @@ private fun SubReplyDetailItem(
                             .clickable(enabled = onLikeClick != null) { onLikeClick?.invoke() }
                             .padding(4.dp)
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = if (isLiked) likeFilledIcon else likeIcon,
                             contentDescription = "Like",
                             tint = if (isLiked) appearance.primaryTextColor else appearance.actionTint,
@@ -1254,7 +1254,7 @@ private fun SubReplyDetailItem(
                         )
                         if (displayLikeCount > 0) {
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(
+                            AppText(
                                 text = FormatUtils.formatStat(displayLikeCount.toLong()),
                                 fontSize = 12.sp,
                                 color = if (isLiked) appearance.primaryTextColor else appearance.actionTint
@@ -1266,7 +1266,7 @@ private fun SubReplyDetailItem(
         }
 
         if (showTrailingDivider) {
-            HorizontalDivider(
+            AppHorizontalDivider(
                 modifier = Modifier.padding(start = 68.dp),
                 thickness = 0.5.dp,
                 color = appearance.dividerColor
@@ -1340,7 +1340,7 @@ private fun SubReplyAuxiliaryBadge(
             )
             Spacer(modifier = Modifier.height(visualSpec.imageLabelSpacingDp.dp))
         }
-        Text(
+        AppText(
             text = auxiliaryLabel.replace("NO.", "NO.\n"),
             fontSize = visualSpec.labelFontSizeSp.sp,
             lineHeight = visualSpec.labelLineHeightSp.sp,
@@ -1360,14 +1360,14 @@ private fun SubReplyTextAction(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.clickable(onClick = onClick)
     ) {
-        Icon(
+        AppIcon(
             imageVector = Icons.AutoMirrored.Outlined.Reply,
             contentDescription = label,
             tint = appearance.actionTint,
             modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(6.dp))
-        Text(
+        AppText(
             text = label,
             fontSize = 13.sp,
             color = appearance.actionTint

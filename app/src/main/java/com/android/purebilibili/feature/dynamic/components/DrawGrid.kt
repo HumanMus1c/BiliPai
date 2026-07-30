@@ -1,5 +1,6 @@
 // 文件路径: feature/dynamic/components/DrawGrid.kt
 package com.android.purebilibili.feature.dynamic.components
+import com.android.purebilibili.core.ui.components.AppIcon
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -31,7 +32,7 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.imageLoader
 import com.android.purebilibili.data.model.response.DrawItem
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.ui.unit.sp
 
 /**
@@ -62,7 +63,7 @@ fun DrawGridV2(
     val gridSpacing = resolveDrawGridSpacingDp().dp
     val cornerRadius = resolveDrawGridCornerRadiusDp().dp
 
-    BoxWithConstraints {
+    Box {
         if (isSingleImage) {
             val singleItem = displayItems.first()
             DrawGridImage(
@@ -177,7 +178,7 @@ private fun DrawGridImage(
                 }
             )
         } else {
-            Icon(
+            AppIcon(
                 rememberAppSparklesIcon(),
                 contentDescription = null,
                 modifier = Modifier.size(AppSpacingTokens.DoubleExtraLarge),
@@ -192,7 +193,7 @@ private fun DrawGridImage(
                     .background(MediaContrastPalette.Scrim.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
+                AppText(
                     "+${totalCount - displayCount}",
                     color = MediaContrastPalette.Foreground,
                     fontSize = MaterialTheme.typography.titleLarge.fontSize,

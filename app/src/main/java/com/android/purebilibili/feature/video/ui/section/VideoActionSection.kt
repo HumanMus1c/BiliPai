@@ -1,5 +1,7 @@
 // File: feature/video/ui/section/VideoActionSection.kt
 package com.android.purebilibili.feature.video.ui.section
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -435,7 +437,7 @@ private fun TripleProgressActionButton(
                 }
             }
 
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTint,
@@ -443,7 +445,7 @@ private fun TripleProgressActionButton(
             )
         }
         Spacer(modifier = Modifier.height(2.dp))
-        Text(
+        AppText(
             text = text,
             fontSize = 11.sp,
             color = textTint,
@@ -633,7 +635,7 @@ fun TripleProgressIcon(
             }
             
             // 图标
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTint,
@@ -642,7 +644,7 @@ fun TripleProgressIcon(
         }
         
         Spacer(modifier = Modifier.height(2.dp))
-        Text(
+        AppText(
             text = text,
             fontSize = 11.sp,
             color = textTint,
@@ -730,7 +732,7 @@ private fun BiliActionButton(
             modifier = Modifier.size(28.dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTint,
@@ -738,7 +740,7 @@ private fun BiliActionButton(
             )
         }
         Spacer(modifier = Modifier.height(2.dp))
-        Text(
+        AppText(
             text = text,
             fontSize = 11.sp,
             color = textTint,
@@ -822,7 +824,7 @@ fun ActionButton(
                 .background(iconColor.copy(alpha = if (isDark) 0.15f else 0.1f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconColor,
@@ -830,7 +832,7 @@ fun ActionButton(
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
+        AppText(
             text = text,
             fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

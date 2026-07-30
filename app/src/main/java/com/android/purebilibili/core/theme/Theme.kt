@@ -688,7 +688,7 @@ private fun rememberSystemWallpaperRefreshToken(
     )
 
     DisposableEffect(context, shouldObserve) {
-        if (!shouldObserve) {
+        if (!shouldObserve || Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) {
             return@DisposableEffect onDispose { }
         }
         val wallpaperManager = WallpaperManager.getInstance(context)
@@ -871,14 +871,18 @@ fun PureBiliBiliTheme(
             .withFontFamily(appFontFamily)
     }
     val systemWallpaperRefreshToken = rememberSystemWallpaperRefreshToken(isDynamicColorActive)
-    val dynamicLightBaseScheme = if (isDynamicColorActive) {
+    val dynamicLightBaseScheme = if (
+        isDynamicColorActive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    ) {
         key(systemWallpaperRefreshToken) {
             dynamicLightColorScheme(context)
         }
     } else {
         null
     }
-    val dynamicDarkBaseScheme = if (isDynamicColorActive) {
+    val dynamicDarkBaseScheme = if (
+        isDynamicColorActive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    ) {
         key(systemWallpaperRefreshToken) {
             dynamicDarkColorScheme(context)
         }

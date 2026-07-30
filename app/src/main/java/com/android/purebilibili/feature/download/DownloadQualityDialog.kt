@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.download
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +22,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.material.icons.Icons
+import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppCheckbox
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppSurface
 
 /**
  *  下载画质选择对话框
@@ -34,7 +41,7 @@ fun DownloadQualityDialog(
 ) {
     var includeDanmaku by remember { mutableStateOf(true) }
     Dialog(onDismissRequest = onDismiss) {
-        Card(
+        AppCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
@@ -50,14 +57,14 @@ fun DownloadQualityDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
+                    AppText(
                         text = "选择下载画质",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    IconButton(onClick = onDismiss) {
-                        Icon(
+                    AppIconButton(onClick = onDismiss) {
+                        AppIcon(
                             imageVector = CupertinoIcons.Default.Xmark,
                             contentDescription = "取消",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -68,7 +75,7 @@ fun DownloadQualityDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 // 视频标题
-                Text(
+                AppText(
                     text = title,
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -85,11 +92,11 @@ fun DownloadQualityDialog(
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
+                    AppCheckbox(
                         checked = includeDanmaku,
                         onCheckedChange = { includeDanmaku = it }
                     )
-                    Text(
+                    AppText(
                         text = "同时缓存弹幕",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -119,7 +126,7 @@ fun DownloadQualityDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
+                            AppText(
                                 text = qualityLabel,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
@@ -127,11 +134,11 @@ fun DownloadQualityDialog(
                             )
                             if (isVip) {
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Surface(
+                                AppSurface(
                                     color = MaterialTheme.colorScheme.tertiary,
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = "VIP",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
@@ -142,7 +149,7 @@ fun DownloadQualityDialog(
                             }
                         }
                         if (isSelected) {
-                            Icon(
+                            AppIcon(
                                 imageVector = CupertinoIcons.Default.Checkmark,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
@@ -155,12 +162,12 @@ fun DownloadQualityDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 // 取消按钮
-                OutlinedButton(
+                AppOutlinedButton(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("取消")
+                    AppText("取消")
                 }
             }
         }

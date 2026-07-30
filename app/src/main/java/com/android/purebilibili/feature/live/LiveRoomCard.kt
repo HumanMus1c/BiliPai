@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -120,7 +120,7 @@ internal fun LiveRoomCard(
                         ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
+                    AppText(
                         text = model.areaName.ifBlank { "直播间" },
                         color = LiveStatusPalette.MediaContent.copy(alpha = 0.92f),
                         style = MaterialTheme.typography.labelSmall,
@@ -129,7 +129,7 @@ internal fun LiveRoomCard(
                         modifier = Modifier.weight(1f),
                     )
                     Spacer(Modifier.width(AppSpacingTokens.Small))
-                    Text(
+                    AppText(
                         text = "${formatLiveViewerCount(model.viewerCount)}人看过",
                         color = LiveStatusPalette.MediaContent,
                         style = MaterialTheme.typography.labelSmall,
@@ -144,14 +144,14 @@ internal fun LiveRoomCard(
                     .padding(AppSpacingTokens.Medium),
                 verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
             ) {
-                Text(
+                AppText(
                     text = model.title,
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
+                AppText(
                     text = model.hostName,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,

@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.home
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -15,13 +16,12 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.HorizontalDivider
 import com.android.purebilibili.core.ui.components.AppCard
 import androidx.compose.material3.CardDefaults
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppTextButton
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
@@ -239,7 +239,7 @@ internal fun HomeCategoryPageContent(
             // 1. Followed Live Rooms
             if (categoryState.followedLiveRooms.isNotEmpty()) {
                 item(span = { GridItemSpan(gridColumns) }) {
-                    Text(
+                    AppText(
                         text = "关注",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
@@ -267,7 +267,7 @@ internal fun HomeCategoryPageContent(
             // 2. Popular Live Rooms
             if (categoryState.liveRooms.isNotEmpty()) {
                 item(span = { GridItemSpan(gridColumns) }) {
-                    Text(
+                    AppText(
                         text = "推荐直播",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
@@ -659,7 +659,7 @@ private fun TodayWatchPlanCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
+                AppText(
                     text = "今日推荐单",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
@@ -670,36 +670,36 @@ private fun TodayWatchPlanCard(
                         enabled = !isLoading,
                         onClick = onRefresh
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.Rounded.Refresh,
                             contentDescription = null,
                             modifier = Modifier.size(AppSpacingTokens.Large)
                         )
                         Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
-                        Text("刷新")
+                        AppText("刷新")
                     }
                     AppTextButton(
                         onClick = { onCollapsedChange(!collapsed) }
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = if (collapsed) Icons.Rounded.ExpandMore else Icons.Rounded.ExpandLess,
                             contentDescription = null,
                             modifier = Modifier.size(AppSpacingTokens.Large)
                         )
                         Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
-                        Text(if (collapsed) "展开" else "收起")
+                        AppText(if (collapsed) "展开" else "收起")
                     }
                 }
             }
 
             if (collapsed) {
-                Text(
+                AppText(
                     text = "已收起推荐单。展开后恢复自动更新；也可以直接点“刷新”换一批。",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (!error.isNullOrBlank()) {
-                    Text(
+                    AppText(
                         text = error,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
@@ -714,7 +714,7 @@ private fun TodayWatchPlanCard(
                 onModeChange = onModeChange,
                 modifier = Modifier.fillMaxWidth()
             )
-            Text(
+            AppText(
                 text = "点开后会自动从推荐单移除；想换一批可点右上角“刷新”。",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -729,12 +729,12 @@ private fun TodayWatchPlanCard(
                         size = AppSpacingTokens.Medium + AppSpacingTokens.Micro,
                         strokeWidth = AppSpacingTokens.Micro * 0.9f
                     )
-                    Text("正在根据你的历史观看习惯生成推荐…", style = MaterialTheme.typography.bodySmall)
+                    AppText("正在根据你的历史观看习惯生成推荐…", style = MaterialTheme.typography.bodySmall)
                 }
             }
 
             if (!error.isNullOrBlank()) {
-                Text(
+                AppText(
                     text = error,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
@@ -752,7 +752,7 @@ private fun TodayWatchPlanCard(
                     index = hintOrder,
                     exponent = cardConfig.waterfallExponent
                 ) {
-                    Text(
+                    AppText(
                         text = if (activePlan.nightSignalUsed) {
                             "已结合护眼状态：夜间优先短时长、低刺激内容"
                         } else {
@@ -772,7 +772,7 @@ private fun TodayWatchPlanCard(
                     index = titleOrder,
                     exponent = cardConfig.waterfallExponent
                 ) {
-                    Text("UP主榜", style = MaterialTheme.typography.labelLarge)
+                    AppText("UP主榜", style = MaterialTheme.typography.labelLarge)
                 }
                 val ranksOrder = revealIndex++
                 WaterfallReveal(
@@ -787,7 +787,7 @@ private fun TodayWatchPlanCard(
                     ) {
                         activePlan.upRanks.forEachIndexed { index, up ->
                             val clickable = shouldEnableTodayWatchUpRankClick(up)
-                            Text(
+                            AppText(
                                 text = "${index + 1}. ${up.name}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = if (clickable) {
@@ -812,7 +812,7 @@ private fun TodayWatchPlanCard(
                     index = queueTitleOrder,
                     exponent = cardConfig.waterfallExponent
                 ) {
-                    Text("视频队列", style = MaterialTheme.typography.labelLarge)
+                    AppText("视频队列", style = MaterialTheme.typography.labelLarge)
                 }
                 activePlan.videoQueue
                     .take(cardConfig.queuePreviewLimit.coerceAtLeast(1))
@@ -832,7 +832,7 @@ private fun TodayWatchPlanCard(
                                 horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
+                                AppText(
                                     text = "${index + 1}.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.primary
@@ -854,7 +854,7 @@ private fun TodayWatchPlanCard(
                                             .background(MaterialTheme.colorScheme.surfaceTint.copy(alpha = 0.15f)),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
+                                        AppText(
                                             text = video.owner.name.take(1).ifBlank { "UP" },
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.primary
@@ -865,7 +865,7 @@ private fun TodayWatchPlanCard(
                                     modifier = Modifier.weight(1f),
                                     verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = video.title,
                                         style = MaterialTheme.typography.bodySmall,
                                         maxLines = 1,
@@ -883,7 +883,7 @@ private fun TodayWatchPlanCard(
                                     )
                                     val explanation = activePlan.explanationByBvid[video.bvid].orEmpty()
                                     if (explanation.isNotBlank()) {
-                                        Text(
+                                        AppText(
                                             text = explanation,
                                             style = MaterialTheme.typography.labelSmall,
                                             maxLines = 1,
@@ -938,18 +938,18 @@ private fun OldContentDivider() {
             .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        HorizontalDivider(
+        AppHorizontalDivider(
             modifier = Modifier.weight(1f),
             thickness = AppSpacingTokens.Micro / 4,
             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
         )
-        Text(
+        AppText(
             text = "以下是上次最新的视频",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro)
         )
-        HorizontalDivider(
+        AppHorizontalDivider(
             modifier = Modifier.weight(1f),
             thickness = AppSpacingTokens.Micro / 4,
             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)

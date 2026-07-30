@@ -41,7 +41,6 @@ class HomeSettingsMappingPolicyTest {
         assertFalse(result.isTopBarLiquidGlassEnabled)
         assertFalse(result.isHomeSearchLiquidGlassEnabled)
         assertFalse(result.isBottomBarLiquidGlassEnabled)
-        assertTrue(result.bottomBarInteractiveHighlightEnabled)
         assertFalse(result.isBottomBarSearchEnabled)
         assertEquals(BottomBarSearchAutoExpandMode.EXPAND_AT_HOME_TOP, result.bottomBarSearchAutoExpandMode)
         assertEquals(BottomBarSearchLayoutMode.FULL_DOCK, result.bottomBarSearchLayoutMode)
@@ -89,7 +88,6 @@ class HomeSettingsMappingPolicyTest {
             booleanPreferencesKey("top_bar_liquid_glass_enabled") to true,
             booleanPreferencesKey("home_search_liquid_glass_enabled") to false,
             booleanPreferencesKey("bottom_bar_liquid_glass_enabled") to false,
-            booleanPreferencesKey("bottom_bar_interactive_highlight_enabled") to false,
             booleanPreferencesKey("bottom_bar_search_enabled") to true,
             intPreferencesKey("bottom_bar_search_auto_expand_mode") to BottomBarSearchAutoExpandMode.DISABLED.value,
             intPreferencesKey("bottom_bar_search_layout_mode") to BottomBarSearchLayoutMode.HOME_AND_SEARCH.value,
@@ -133,7 +131,6 @@ class HomeSettingsMappingPolicyTest {
         assertTrue(result.isTopBarLiquidGlassEnabled)
         assertFalse(result.isHomeSearchLiquidGlassEnabled)
         assertFalse(result.isBottomBarLiquidGlassEnabled)
-        assertTrue(result.bottomBarInteractiveHighlightEnabled)
         assertTrue(result.isBottomBarSearchEnabled)
         assertEquals(BottomBarSearchAutoExpandMode.DISABLED, result.bottomBarSearchAutoExpandMode)
         assertEquals(BottomBarSearchLayoutMode.HOME_AND_SEARCH, result.bottomBarSearchLayoutMode)

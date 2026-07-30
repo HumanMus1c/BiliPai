@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,12 +16,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import com.kyant.backdrop.Backdrop
+import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
@@ -34,8 +38,8 @@ internal data class CommentSortSegmentedControlSpec(
 internal fun resolveCommentSortSegmentedControlSpec(itemCount: Int): CommentSortSegmentedControlSpec {
     return CommentSortSegmentedControlSpec(
         itemWidthDp = if (itemCount >= 4) 56 else 66,
-        heightDp = 40,
-        indicatorHeightDp = 27
+        heightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp,
+        indicatorHeightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp,
     )
 }
 
@@ -60,7 +64,8 @@ fun CommentSortFilterBar(
     upOnly: Boolean = false,
     onUpOnlyToggle: () -> Unit = {},
     modifier: Modifier = Modifier,
-    backdrop: Backdrop? = null
+    backdrop: Backdrop? = null,
+    miuixBackdrop: MiuixBackdrop? = null
 ) {
     val sortModes = remember { CommentSortMode.entries.toList() }
     val appearance = rememberVideoCommentAppearance()
@@ -76,14 +81,14 @@ fun CommentSortFilterBar(
     ) {
         //  Left: Title
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
+            AppText(
                 text = "评论",
                 fontSize = 20.sp, // iOS Large Title style scale
                 fontWeight = FontWeight.Bold,
                 color = appearance.primaryTextColor
             )
             Spacer(modifier = Modifier.width(6.dp))
-            Text(
+            AppText(
                 text = FormatUtils.formatStat(count.toLong()),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Normal,
@@ -110,7 +115,8 @@ fun CommentSortFilterBar(
                 onScaleChange = { index ->
                     sortModes.getOrNull(index)?.let(onSortModeChange)
                 },
-                backdrop = backdrop
+                backdrop = backdrop,
+                miuixBackdrop = miuixBackdrop
             )
         }
     }
@@ -124,7 +130,8 @@ fun CommentSegmentedControl(
     items: List<String>,
     selectedIndex: Int,
     onScaleChange: (Int) -> Unit,
-    backdrop: Backdrop? = null
+    backdrop: Backdrop? = null,
+    miuixBackdrop: MiuixBackdrop? = null
 ) {
     val context = LocalContext.current
     val homeSettings by SettingsManager
@@ -142,6 +149,7 @@ fun CommentSegmentedControl(
         indicatorHeight = spec.indicatorHeightDp.dp,
         labelFontSize = 13.sp,
         backdrop = backdrop,
+        miuixBackdrop = miuixBackdrop,
         forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
         liquidGlassEffectsEnabled = backdrop != null,
         tapPressRefractionEnabled = false
@@ -177,7 +185,7 @@ fun CommentToggleButton(
             .clickable { onToggle() },
         contentAlignment = Alignment.Center
     ) {
-        Icon(
+        AppIcon(
             imageVector = icon,
             contentDescription = null,
             tint = contentColor,

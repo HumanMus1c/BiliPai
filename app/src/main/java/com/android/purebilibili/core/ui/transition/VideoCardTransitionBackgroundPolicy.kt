@@ -26,22 +26,23 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 // 景深层（与 Hero 卡片放大配合，progress 0→1 同源）：
-// 1) **页面层不缩放**：状态栏、顶底栏和屏幕边界保持原位
-// 2) sibling 视频元素缩小后撤；shared overlay 中的飞卡保持 1
+// 1) 页面整体轻微后退，状态栏、顶底栏和屏幕边界保持原位
+// 2) 页面几何保持原位；shared overlay 中的飞卡独自承担缩放
 // 3) blur：空间纵深（冻结层 + BlurEffect）。半径按 **dp** 定义、按密度换算
 // 4) scrim 压暗：聚焦/可读
 // - 冻结层：首帧 record 一次后只改 BlurEffect，禁止 live 重录
 // - 压暗全程保留（含 HELD），避免打开完成后景深断裂
 // - 返回：景深 progress 与 shared morph 同墙钟、同 Linear
 private const val VIDEO_CARD_TRANSITION_MAX_BLUR_RADIUS_DP = 12f
-// 同一条景深时间线仅让模糊轻微滞后；峰值不变，减少过渡中段的 GPU 模糊成本。
-private const val VIDEO_CARD_TRANSITION_BLUR_PROGRESS_EXPONENT = 1.15
-private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = 2f
-// 保持遮罩克制，让元素缩小与 shared 卡片放大承担主要层级对比。
+private const val VIDEO_CARD_TRANSITION_BLUR_QUANTUM_PX = 1f
+// 页面整体只后退 1.5%；被点击卡片由 shared overlay 自己放大，避免双重缩放。
+internal const val VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION = 0.015f
+private const val VIDEO_CARD_TRANSITION_RELATED_SCALE_REDUCTION = 0.009f
+private const val VIDEO_CARD_TRANSITION_PARTITION_SCALE_REDUCTION = 0.012f
+// 保持遮罩克制，让页面后退与 shared 卡片放大承担主要层级对比。
 private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_DARK = 0.22f
 private const val VIDEO_CARD_TRANSITION_MAX_SCRIM_ALPHA_LIGHT = 0.10f
 private const val VIDEO_CARD_TRANSITION_REDUCED_SCRIM_ALPHA = 0.08f
-private const val VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION = 0f
 /** 景深缩放露出的边缘：至少压到这个 tint 强度，避免浅色主题读成「白条」。 */
 private const val VIDEO_CARD_TRANSITION_SCALE_GAP_MIN_TINT_LIGHT = 0.36f
 private const val VIDEO_CARD_TRANSITION_SCALE_GAP_MIN_TINT_DARK = 0.44f
@@ -65,6 +66,37 @@ internal enum class VideoCardTransitionBackgroundPhase {
     OPENING,
     HELD,
     RETURNING
+}
+
+/** 不同来源页的景深范围：详情内相关推荐更克制，首页内嵌分区介于两者之间。 */
+internal enum class VideoCardTransitionBackgroundSource {
+    Home,
+    RelatedVideo,
+    Partition,
+}
+
+internal fun resolveVideoCardTransitionBackgroundSource(
+    sourceRoute: String?,
+): VideoCardTransitionBackgroundSource {
+    return when (normalizeVideoCardTransitionRoute(sourceRoute)) {
+        "partition" -> VideoCardTransitionBackgroundSource.Partition
+        else -> if (sourceRoute?.substringBefore("?")?.startsWith("video/") == true) {
+            VideoCardTransitionBackgroundSource.RelatedVideo
+        } else {
+            VideoCardTransitionBackgroundSource.Home
+        }
+    }
+}
+
+internal fun resolveVideoCardTransitionBackgroundScaleReduction(
+    source: VideoCardTransitionBackgroundSource,
+): Float = when (source) {
+    VideoCardTransitionBackgroundSource.Home ->
+        VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION
+    VideoCardTransitionBackgroundSource.RelatedVideo ->
+        VIDEO_CARD_TRANSITION_RELATED_SCALE_REDUCTION
+    VideoCardTransitionBackgroundSource.Partition ->
+        VIDEO_CARD_TRANSITION_PARTITION_SCALE_REDUCTION
 }
 
 internal data class VideoCardTransitionBackgroundFrame(
@@ -116,8 +148,8 @@ internal fun resolveVideoCardTransitionContentScale(
     phase: VideoCardTransitionBackgroundPhase,
     motionTier: MotionTier,
     isGestureRestoreInProgress: Boolean,
+    scaleReduction: Float = VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION,
 ): Float {
-    if (VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION <= 0f) return 1f
     if (phase == VideoCardTransitionBackgroundPhase.IDLE || motionTier == MotionTier.Reduced) {
         return 1f
     }
@@ -125,7 +157,7 @@ internal fun resolveVideoCardTransitionContentScale(
         progress = progress,
         phase = phase,
     )
-    return 1f - VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION * depthProgress
+    return 1f - scaleReduction.coerceIn(0f, 0.05f) * depthProgress
 }
 
 internal fun resolveVideoCardTransitionBackgroundFrame(
@@ -139,6 +171,7 @@ internal fun resolveVideoCardTransitionBackgroundFrame(
     density: Float = 1f,
     /** 设备物理屏圆角（px）；0 表示未知，走 24dp 兜底。 */
     deviceCornerRadiusPx: Float = 0f,
+    scaleReduction: Float = VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION,
 ): VideoCardTransitionBackgroundFrame {
     val clamped = progress.coerceIn(0f, 1f)
     val depthProgress = resolveVideoCardTransitionDepthProgress(
@@ -179,6 +212,7 @@ internal fun resolveVideoCardTransitionBackgroundFrame(
             phase = phase,
             motionTier = motionTier,
             isGestureRestoreInProgress = isGestureRestoreInProgress,
+            scaleReduction = scaleReduction,
         ),
         useLightScrimTint = isLightBackground,
         cornerRadiusPx = resolveVideoCardTransitionBackgroundCornerRadiusPx(
@@ -198,7 +232,13 @@ internal fun resolveDeviceDisplayCornerRadiusPx(
     rootWindowInsets: android.view.WindowInsets?,
     sdkInt: Int = Build.VERSION.SDK_INT,
 ): Float {
-    if (sdkInt < Build.VERSION_CODES.S || rootWindowInsets == null) return 0f
+    if (
+        sdkInt < Build.VERSION_CODES.S ||
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+        rootWindowInsets == null
+    ) {
+        return 0f
+    }
     val positions = intArrayOf(
         android.view.RoundedCorner.POSITION_TOP_LEFT,
         android.view.RoundedCorner.POSITION_TOP_RIGHT,
@@ -242,7 +282,6 @@ internal fun resolveVideoCardTransitionBackgroundCornerRadiusPx(
     deviceCornerRadiusPx: Float = 0f,
 ): Float {
     if (motionTier == MotionTier.Reduced) return 0f
-    if (VIDEO_CARD_TRANSITION_MAX_CONTENT_SCALE_REDUCTION <= 0f) return 0f
     val fullRadiusDp = resolveVideoCardTransitionBackgroundCornerRadiusDp(
         deviceCornerRadiusPx = deviceCornerRadiusPx,
         density = density,
@@ -518,6 +557,7 @@ private class VideoCardTransitionBackgroundFrameCache {
     private var lastGestureRestoreInProgress: Boolean? = null
     private var lastDensity = Float.NaN
     private var lastDeviceCornerRadiusPx = Float.NaN
+    private var lastScaleReduction = Float.NaN
     private var cached = VideoCardTransitionBackgroundFrame(
         blurRadiusPx = 0f,
         scrimAlpha = 0f,
@@ -532,6 +572,7 @@ private class VideoCardTransitionBackgroundFrameCache {
         isGestureRestoreInProgress: Boolean,
         density: Float,
         deviceCornerRadiusPx: Float,
+        scaleReduction: Float,
     ): VideoCardTransitionBackgroundFrame {
         if (
             progress != lastProgress ||
@@ -540,7 +581,8 @@ private class VideoCardTransitionBackgroundFrameCache {
             isLightBackground != lastIsLightBackground ||
             isGestureRestoreInProgress != lastGestureRestoreInProgress ||
             density != lastDensity ||
-            deviceCornerRadiusPx != lastDeviceCornerRadiusPx
+            deviceCornerRadiusPx != lastDeviceCornerRadiusPx ||
+            scaleReduction != lastScaleReduction
         ) {
             lastProgress = progress
             lastPhase = phase
@@ -549,6 +591,7 @@ private class VideoCardTransitionBackgroundFrameCache {
             lastGestureRestoreInProgress = isGestureRestoreInProgress
             lastDensity = density
             lastDeviceCornerRadiusPx = deviceCornerRadiusPx
+            lastScaleReduction = scaleReduction
             cached = resolveVideoCardTransitionBackgroundFrame(
                 progress = progress,
                 phase = phase,
@@ -557,6 +600,7 @@ private class VideoCardTransitionBackgroundFrameCache {
                 isGestureRestoreInProgress = isGestureRestoreInProgress,
                 density = density,
                 deviceCornerRadiusPx = deviceCornerRadiusPx,
+                scaleReduction = scaleReduction,
             )
         }
         return cached
@@ -611,6 +655,7 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
     motionTierProvider: () -> MotionTier = { MotionTier.Normal },
     isLightBackgroundProvider: () -> Boolean = { false },
     realtimeBlurEnabledProvider: () -> Boolean = { true },
+    scaleReductionProvider: () -> Float = { VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION },
 ): Modifier {
     val contentLayer = rememberGraphicsLayer()
     val snapshotState = remember { VideoCardTransitionSnapshotLayerState() }
@@ -674,6 +719,7 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
             isGestureRestoreInProgress = isGestureRestoreInProgressProvider(),
             density = density,
             deviceCornerRadiusPx = deviceCornerRadiusPx,
+            scaleReduction = scaleReductionProvider(),
         )
         val snapshotBlurActive = shouldUseVideoCardTransitionSnapshotBlur(
             phase = activePhase,
@@ -777,10 +823,8 @@ internal fun softClearVideoCardTransitionDepth(progress: Float): Float {
 }
 
 private fun resolveVideoCardTransitionBlurStrength(progress: Float): Float {
-    // 与景深进度共用时钟；轻微滞后建立/提前消退，保留峰值而降低平均模糊半径。
-    return progress.coerceIn(0f, 1f).toDouble()
-        .pow(VIDEO_CARD_TRANSITION_BLUR_PROGRESS_EXPONENT)
-        .toFloat()
+    // 与景深进度同源：模糊与背景下沉同步建立/消退，避免“先糊后沉”的分层错位。
+    return progress.coerceIn(0f, 1f)
 }
 
 /**

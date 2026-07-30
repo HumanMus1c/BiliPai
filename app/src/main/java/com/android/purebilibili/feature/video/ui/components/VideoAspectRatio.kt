@@ -1,5 +1,7 @@
 // 文件路径: feature/video/ui/components/VideoAspectRatio.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -144,7 +146,7 @@ fun AspectRatioMenu(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // 标题
-            Text(
+            AppText(
                 text = "画面比例",
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 12.sp,
@@ -165,7 +167,7 @@ fun AspectRatioMenu(
                         onDismiss()
                     }
                 ) {
-                    Text(
+                    AppText(
                         text = ratio.displayName,
                         color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White,
                         fontSize = 14.sp,
@@ -197,14 +199,14 @@ fun AspectRatioButton(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
-            Icon(
+            AppIcon(
                 CupertinoIcons.Default.Star,
                 contentDescription = "画面比例",
                 tint = Color.White,
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))
-            Text(
+            AppText(
                 text = currentRatio.displayName,
                 color = Color.White,
                 fontSize = 12.sp

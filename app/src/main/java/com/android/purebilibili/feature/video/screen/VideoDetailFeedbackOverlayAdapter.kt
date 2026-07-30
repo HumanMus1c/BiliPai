@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import com.android.purebilibili.core.ui.AppAlertDialog
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -119,20 +119,20 @@ internal fun BoxScope.VideoDetailFeedbackOverlayAdapter(
     resumePlaybackSuggestion?.let { suggestion ->
         AppAlertDialog(
             onDismissRequest = playbackViewModel::dismissResumePlaybackSuggestion,
-            title = { Text("继续播放") },
+            title = { AppText("继续播放") },
             text = {
-                Text(
+                AppText(
                     text = "检测到上次播放到 ${suggestion.targetLabel}（${FormatUtils.formatDuration(suggestion.positionMs)}），是否跳转继续播放？",
                 )
             },
             confirmButton = {
                 AppTextButton(onClick = playbackViewModel::continueResumePlaybackSuggestion) {
-                    Text("跳转")
+                    AppText("跳转")
                 }
             },
             dismissButton = {
                 AppTextButton(onClick = playbackViewModel::dismissResumePlaybackSuggestion) {
-                    Text("稍后")
+                    AppText("稍后")
                 }
             },
         )

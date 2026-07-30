@@ -168,6 +168,7 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertFalse(videoDetailBranch.contains("!shouldUseNativeVideoCardTransition(videoKey)"))
         assertFalse(videoDetailBranch.contains("!shouldUseNativeVideoBackgroundReturnEffect(videoKey)"))
         assertTrue(videoDetailBranch.contains("transitionEnabled = shouldEnableVideoDetailSharedTransition("))
+        assertTrue(videoDetailBranch.contains("shouldEnableVideoDetailSharedTransition("))
         assertFalse(videoDetailBranch.contains("nativeVideoBackPreviewVideoKey == videoKey.bvid"))
         assertFalse(videoDetailBranch.contains("hideVideoDetailForNativeBackPreview"))
         assertFalse(source.contains("previewNativeVideoBackProgress("))
@@ -446,6 +447,10 @@ class AppNavigationNavigation3BridgeStructureTest {
     @Test
     fun videoCardLaunchBottomBarUsesSimpleVisibilityOutsideBackdropSource() {
         val source = appNavigationSource()
+        val sharedChrome = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarMatchedLiquidChrome.kt"),
+            File("src/main/java/com/android/purebilibili/feature/home/components/BottomBarMatchedLiquidChrome.kt")
+        ).first { it.exists() }.readText()
         val mainHostBranch = source
             .substringAfter("BiliPaiNavEntryContentRole.MAIN_HOST -> {")
             .substringBefore("BiliPaiNavEntryContentRole.HOME ->")
@@ -464,9 +469,11 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertTrue(source.contains("val bottomBarCanMount = bottomBarMountGate"))
         assertTrue(source.contains("val bottomBarReservesSpace = bottomBarCanMount"))
         assertTrue(bottomBarOverlay.contains("visibleState = bottomBarVisibilityState"))
-        assertTrue(bottomBarOverlay.contains("slideOutVertically("))
-        assertTrue(bottomBarOverlay.contains("scaleOut("))
-        assertTrue(bottomBarOverlay.contains("TransformOrigin(0.5f, 1f)"))
+        assertTrue(bottomBarOverlay.contains("BottomBarMatchedDockVisibility("))
+        assertTrue(bottomBarOverlay.contains("edge = BottomBarMatchedDockEdge.BOTTOM"))
+        assertTrue(sharedChrome.contains("slideOutVertically("))
+        assertTrue(sharedChrome.contains("scaleOut("))
+        assertTrue(sharedChrome.contains("TransformOrigin(0.5f, 1f)"))
         assertTrue(bottomBarOverlay.contains("miuixBackdrop = bottomBarBackdrop"))
         assertFalse(bottomBarOverlay.contains("videoCardTransitionBackgroundEffect("))
         assertFalse(source.contains("videoCardTransitionBackgroundProgress = videoCardTransitionBackgroundProgress"))

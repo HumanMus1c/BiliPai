@@ -23,11 +23,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,6 +48,8 @@ import coil.compose.AsyncImage
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.network.WbiUtils
 import com.android.purebilibili.core.ui.rememberAppBottomSheetMotion
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.Owner
 import com.android.purebilibili.data.model.response.RelatedVideo
@@ -184,7 +185,7 @@ fun UpPreviewSheet(
                     .fillMaxWidth()
                     .height(screenHeight * 0.72f)
                     .clickable(enabled = false) {},
-                shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+                shape = AppShapes.container(ContainerLevel.Sheet),
                 color = colors.sheetColor,
                 tonalElevation = 6.dp,
                 shadowElevation = 12.dp,
@@ -217,7 +218,7 @@ fun UpPreviewSheet(
                                 .align(Alignment.TopCenter)
                                 .padding(top = 8.dp)
                                 .size(width = 36.dp, height = 4.dp)
-                                .clip(RoundedCornerShape(999.dp))
+                                .clip(CircleShape)
                                 .background(colors.supportingColor.copy(alpha = 0.35f))
                         )
                     }
@@ -240,7 +241,7 @@ fun UpPreviewSheet(
                         )
                         Spacer(Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
+                            AppText(
                                 text = owner.name.ifBlank { "UP主" },
                                 color = colors.titleColor,
                                 fontSize = 17.sp,
@@ -249,7 +250,7 @@ fun UpPreviewSheet(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Spacer(Modifier.height(4.dp))
-                            Text(
+                            AppText(
                                 text = resolveUpPreviewStatLine(
                                     followerCount = resolvedFollower,
                                     videoCount = resolvedVideoCount,
@@ -264,14 +265,14 @@ fun UpPreviewSheet(
                         Spacer(Modifier.width(8.dp))
                         AppSurface(
                             onClick = onFollowClick,
-                            shape = RoundedCornerShape(999.dp),
+                            shape = CircleShape,
                             color = if (isFollowing) {
                                 colors.followingFillColor
                             } else {
                                 colors.followFillColor
                             },
                         ) {
-                            Text(
+                            AppText(
                                 text = if (isFollowing) "已关注" else "+ 关注",
                                 color = if (isFollowing) {
                                     colors.followingContentColor
@@ -284,13 +285,13 @@ fun UpPreviewSheet(
                             )
                         }
                         Spacer(Modifier.width(8.dp))
-                        Text(
+                        AppText(
                             text = "进入空间  >",
                             color = colors.enterSpaceColor,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(AppShapes.container(ContainerLevel.Field))
                                 .clickable { onEnterSpace(owner.mid) }
                                 .padding(horizontal = 6.dp, vertical = 8.dp),
                         )
@@ -325,7 +326,7 @@ fun UpPreviewSheet(
                                     .weight(1f),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text(
+                                AppText(
                                     text = "暂无投稿",
                                     color = colors.supportingColor,
                                     fontSize = 14.sp,
@@ -371,14 +372,14 @@ private fun UpPreviewVideoCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(AppShapes.container(ContainerLevel.Field))
             .clickable(onClick = onClick)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 10f)
-                .clip(RoundedCornerShape(10.dp))
+                .clip(AppShapes.container(ContainerLevel.Field))
                 .background(colors.coverPlaceholderColor)
         ) {
             AsyncImage(
@@ -401,14 +402,14 @@ private fun UpPreviewVideoCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
+                AppText(
                     text = formatUpPreviewCount(item.playCount),
                     color = Color.White,
                     fontSize = 10.sp,
                     maxLines = 1,
                 )
                 if (item.durationText.isNotBlank()) {
-                    Text(
+                    AppText(
                         text = item.durationText,
                         color = Color.White,
                         fontSize = 10.sp,
@@ -418,7 +419,7 @@ private fun UpPreviewVideoCard(
             }
         }
         Spacer(Modifier.height(6.dp))
-        Text(
+        AppText(
             text = item.title,
             color = colors.titleColor,
             fontSize = 13.sp,
@@ -429,7 +430,7 @@ private fun UpPreviewVideoCard(
         )
         if (item.createdAtSeconds > 0L) {
             Spacer(Modifier.height(2.dp))
-            Text(
+            AppText(
                 text = formatUpPreviewRelativeDate(item.createdAtSeconds),
                 color = colors.supportingColor,
                 fontSize = 11.sp,

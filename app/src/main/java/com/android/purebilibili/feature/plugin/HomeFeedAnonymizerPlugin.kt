@@ -19,7 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import com.android.purebilibili.core.ui.AppAlertDialog
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -206,7 +206,7 @@ private fun HomeFeedAnonymizerSettingsContent(enabled: Boolean) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppTextButton(onClick = { refreshKey += 1 }) {
-                    Text("刷新统计")
+                    AppText("刷新统计")
                 }
                 AppTextButton(
                     onClick = {
@@ -214,7 +214,7 @@ private fun HomeFeedAnonymizerSettingsContent(enabled: Boolean) {
                         refreshKey += 1
                     }
                 ) {
-                    Text("重置统计")
+                    AppText("重置统计")
                 }
             }
         }
@@ -226,7 +226,7 @@ private fun HomeFeedAnonymizerSettingsContent(enabled: Boolean) {
                     onShowDetail = { detailRow = row }
                 )
             }
-            Text(
+            AppText(
                 text = "BiliPai 仅实现 Android 端内置插件形态，保留原项目与 Plus 改版来源说明。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -250,7 +250,7 @@ private fun HomeFeedAnonymizerSection(
     content: @Composable () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
+        AppText(
             text = title,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
@@ -296,7 +296,7 @@ private fun HomeFeedAnonymizerInfoRowView(
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top
     ) {
-        Text(
+        AppText(
             text = row.label,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -305,7 +305,7 @@ private fun HomeFeedAnonymizerInfoRowView(
             modifier = Modifier.width(86.dp)
         )
         Spacer(modifier = Modifier.width(10.dp))
-        Text(
+        AppText(
             text = row.summary,
             style = MaterialTheme.typography.bodySmall,
             color = if (row.url == null) {
@@ -328,17 +328,17 @@ private fun HomeFeedAnonymizerDetailDialog(
     val uriHandler = LocalUriHandler.current
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(row.label) },
+        title = { AppText(row.label) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
+                AppText(
                     text = "长按并拖拽选择需要复制的内容",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 SelectionContainer {
-                    Text(
+                    AppText(
                         text = row.fullContent,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier
@@ -360,13 +360,13 @@ private fun HomeFeedAnonymizerDetailDialog(
                         }
                     }
                 ) {
-                    Text("打开链接")
+                    AppText("打开链接")
                 }
             }
         },
         dismissButton = {
             AppTextButton(onClick = onDismiss) {
-                Text("关闭")
+                AppText("关闭")
             }
         }
     )

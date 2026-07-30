@@ -14,7 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -105,7 +105,7 @@ fun Md3ScreenshotRefreshIndicator(
 
             if (hintText.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(AppSpacingTokens.Small + AppSpacingTokens.Micro))
-                Text(
+                AppText(
                     text = if (hintText == "松手刷新") "松开刷新" else hintText,
                     fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                     lineHeight = MaterialTheme.typography.bodyMedium.lineHeight,
@@ -192,7 +192,7 @@ fun HomeRefreshIndicator(
                 AppPullRefreshLoadingIndicator()
             } else if (progress > 0.1f) {
                 //  箭头图标（旋转表示状态变化）
-                Text(
+                AppText(
                     text = "↓",
                     fontSize = MaterialTheme.typography.titleMedium.fontSize,
                     fontWeight = FontWeight.Bold,
@@ -204,7 +204,7 @@ fun HomeRefreshIndicator(
             if (hintText.isNotEmpty()) {
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                 
-                Text(
+                AppText(
                     text = hintText,
                     fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Medium,

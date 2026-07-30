@@ -42,14 +42,9 @@ class VideoContentSectionPerformanceStructureTest {
             "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt"
         )
 
-        assertTrue(
-            source.contains(
-                "beyondViewportPageCount = resolveVideoDetailBeyondViewportPageCount(\n" +
-                    "                    isVideoPlaying = isVideoPlaying,\n" +
-                    "                    selectedTabIndex = pagerState.currentPage\n" +
-                    "                )"
-            )
-        )
+        assertTrue(source.contains("beyondViewportPageCount = resolveVideoDetailBeyondViewportPageCount("))
+        assertTrue(source.contains("isVideoPlaying = isVideoPlaying,"))
+        assertTrue(source.contains("selectedTabIndex = pagerState.currentPage"))
     }
 
     private fun loadSource(path: String): String {

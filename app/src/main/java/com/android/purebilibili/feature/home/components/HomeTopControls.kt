@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,7 +64,7 @@ internal fun HomeTopAvatarContent(
                 .background(fallbackBackgroundColor),
             contentAlignment = Alignment.Center
         ) {
-            Text(
+            AppText(
                 text = "未",
                 fontSize = MaterialTheme.typography.labelSmall.fontSize,
                 fontWeight = FontWeight.Bold,
@@ -86,14 +86,14 @@ internal fun HomeTopSearchPillContent(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
+        AppIcon(
             imageVector = searchIcon,
             contentDescription = "搜索",
             tint = contentColor,
             modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
         )
         Spacer(modifier = Modifier.width(iconTextGap))
-        Text(
+        AppText(
             text = "搜索视频、UP主...",
             style = MaterialTheme.typography.bodyMedium,
             fontSize = textFontSize,
@@ -125,7 +125,7 @@ internal fun HomeTopUnreadBadge(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Text(
+        AppText(
             text = text,
             color = OpticalContrastPalette.Highlight,
             fontSize = MaterialTheme.typography.labelSmall.fontSize,

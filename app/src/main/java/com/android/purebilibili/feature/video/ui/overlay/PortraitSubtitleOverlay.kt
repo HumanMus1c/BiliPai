@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.video.ui.overlay
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,12 +14,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppSwitch
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -48,6 +47,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.exoplayer.ExoPlayer
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.feature.video.subtitle.SubtitleDisplayMode
 import com.android.purebilibili.feature.video.subtitle.SubtitleTrackOption
 import com.android.purebilibili.feature.video.subtitle.buildSubtitleTrackOptions
@@ -361,7 +362,7 @@ fun PortraitSubtitleHost(
                 val showPrimary = !primaryText.isNullOrBlank()
                 val showSecondary = !secondaryText.isNullOrBlank()
                 val secondaryAsPrimary = showSecondary && !showPrimary
-                Text(
+                AppText(
                     text = secondaryText.orEmpty(),
                     color = Color.White.copy(alpha = if (showSecondary) 0.88f else 0f),
                     fontSize = if (secondaryAsPrimary) {
@@ -377,7 +378,7 @@ fun PortraitSubtitleHost(
                         if (showSecondary) Modifier else Modifier.height(0.dp)
                     )
                 )
-                Text(
+                AppText(
                     text = primaryText.orEmpty(),
                     color = Color.White.copy(alpha = if (showPrimary) 1f else 0f),
                     fontSize = textSizeSpec.primarySp.sp,
@@ -454,14 +455,14 @@ private fun PortraitSubtitlePanel(
             modifier = modifier
                 .widthIn(min = 148.dp, max = 228.dp)
                 .clickable(enabled = false) {},
-            shape = RoundedCornerShape(12.dp),
+            shape = AppShapes.container(ContainerLevel.Dialog),
             color = Color.Black.copy(alpha = 0.82f)
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
+                AppText(
                     text = "字幕显示",
                     color = Color.White.copy(alpha = 0.88f),
                     fontSize = 13.sp,
@@ -480,7 +481,7 @@ private fun PortraitSubtitlePanel(
                             if (option.enabled) onDisplayModeChange(option.mode)
                         },
                         enabled = option.enabled,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = AppShapes.container(ContainerLevel.Field),
                         color = if (selected) {
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
                         } else {
@@ -488,7 +489,7 @@ private fun PortraitSubtitlePanel(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
+                        AppText(
                             text = option.label,
                             color = if (selected) {
                                 MaterialTheme.colorScheme.primary
@@ -502,8 +503,8 @@ private fun PortraitSubtitlePanel(
                     }
                 }
                 if (trackOptions.isNotEmpty()) {
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.10f))
-                    Text(
+                    AppHorizontalDivider(color = Color.White.copy(alpha = 0.10f))
+                    AppText(
                         text = "字幕轨道",
                         color = Color.White.copy(alpha = 0.72f),
                         fontSize = 12.sp,
@@ -513,7 +514,7 @@ private fun PortraitSubtitlePanel(
                     trackOptions.forEach { option ->
                         AppSurface(
                             onClick = { onTrackSelected(option.trackKey) },
-                            shape = RoundedCornerShape(8.dp),
+                            shape = AppShapes.container(ContainerLevel.Field),
                             color = if (option.selected) {
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
                             } else {
@@ -521,7 +522,7 @@ private fun PortraitSubtitlePanel(
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
+                            AppText(
                                 text = option.label,
                                 color = if (option.selected) {
                                     MaterialTheme.colorScheme.primary
@@ -535,7 +536,7 @@ private fun PortraitSubtitlePanel(
                         }
                     }
                 }
-                HorizontalDivider(color = Color.White.copy(alpha = 0.10f))
+                AppHorizontalDivider(color = Color.White.copy(alpha = 0.10f))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -543,7 +544,7 @@ private fun PortraitSubtitlePanel(
                         .fillMaxWidth()
                         .padding(horizontal = 4.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = "大字号",
                         color = Color.White.copy(alpha = 0.85f),
                         fontSize = 13.sp,
@@ -554,7 +555,7 @@ private fun PortraitSubtitlePanel(
                         onCheckedChange = onLargeTextChange
                     )
                 }
-                Text(
+                AppText(
                     text = "上下拖动字幕可调整位置",
                     color = Color.White.copy(alpha = 0.55f),
                     fontSize = 11.sp,
@@ -563,11 +564,11 @@ private fun PortraitSubtitlePanel(
                 if (canResetPosition) {
                     AppSurface(
                         onClick = onResetPosition,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = AppShapes.container(ContainerLevel.Field),
                         color = Color.White.copy(alpha = 0.10f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
+                        AppText(
                             text = "重置位置",
                             color = Color.White.copy(alpha = 0.9f),
                             fontSize = 13.sp,

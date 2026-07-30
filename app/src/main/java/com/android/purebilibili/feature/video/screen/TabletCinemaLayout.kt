@@ -55,13 +55,13 @@ import androidx.compose.material.icons.outlined.KeyboardDoubleArrowLeft
 import androidx.compose.material.icons.outlined.KeyboardDoubleArrowRight
 import androidx.compose.material.icons.outlined.PlaylistPlay
 import com.android.purebilibili.core.ui.components.AppFloatingActionButton
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTab
 import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -974,7 +974,7 @@ private fun CinemaSideCurtain(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = if (targetState == TabletSideCurtainState.OPEN) {
                             Icons.Outlined.KeyboardDoubleArrowRight
                         } else {
@@ -1004,14 +1004,14 @@ private fun CinemaSideCurtain(
                             verticalArrangement = Arrangement.Center
                         ) {
                             AppIconButton(onClick = { onTabSelected(0) }) {
-                                Icon(
+                                AppIcon(
                                     imageVector = Icons.Outlined.ChatBubbleOutline,
                                     contentDescription = "comments"
                                 )
                             }
                             Spacer(modifier = Modifier.height(10.dp))
                             AppIconButton(onClick = { onTabSelected(1) }) {
-                                Icon(
+                                AppIcon(
                                     imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
                                     contentDescription = "related videos"
                                 )
@@ -1029,7 +1029,7 @@ private fun CinemaSideCurtain(
                                         onTabSelected(0)
                                     },
                                     text = {
-                                        Text(
+                                        AppText(
                                             text = "评论 ${if (commentState.replyCount > 0) "(${commentState.replyCount})" else ""}"
                                         )
                                     }
@@ -1039,7 +1039,7 @@ private fun CinemaSideCurtain(
                                     onClick = {
                                         onTabSelected(1)
                                     },
-                                    text = { Text("相关推荐") }
+                                    text = { AppText("相关推荐") }
                                 )
                             }
 
@@ -1236,7 +1236,7 @@ private fun CinemaCommentsPane(
                         playbackActions.openRootCommentComposer()
                     }
                 ) {
-                    Text(
+                    AppText(
                         text = "写评论，直接和 UP 主交流",
                         color = commentAppearance.secondaryTextColor,
                         fontSize = 13.sp,
@@ -1312,7 +1312,7 @@ private fun CinemaCommentsPane(
                             .padding(horizontal = 20.dp, vertical = 28.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
+                        AppText(
                             text = "还没有评论，先看看相关推荐",
                             style = MaterialTheme.typography.bodyMedium,
                             color = commentAppearance.secondaryTextColor
@@ -1339,7 +1339,7 @@ private fun CinemaCommentsPane(
             },
             shape = CircleShape
         ) {
-            Text(
+            AppText(
                 text = "UP",
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 12.sp
@@ -1413,7 +1413,7 @@ private fun CinemaRelatedPane(
                         .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
+                    AppText(
                         text = "暂时没有推荐视频",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

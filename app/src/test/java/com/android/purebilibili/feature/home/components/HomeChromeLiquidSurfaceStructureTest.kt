@@ -30,6 +30,7 @@ class HomeChromeLiquidSurfaceStructureTest {
         val topTabChrome = componentsDir.resolve("HomeTopTabChrome.kt")
         val topBar = componentsDir.resolve("TopBar.kt")
         val bottomBar = componentsDir.resolve("BottomBar.kt")
+        val sharedChrome = componentsDir.resolve("BottomBarMatchedLiquidChrome.kt")
 
         assertFalse(
             "home chrome should not keep the old shared renderer file after migrating the only real dependency",
@@ -37,6 +38,7 @@ class HomeChromeLiquidSurfaceStructureTest {
         )
         val topHeaderSource = topHeader.readText()
         val topBarSource = topBar.readText()
+        val sharedChromeSource = sharedChrome.readText()
         assertTrue(
             "top header liquid chrome should route through the bottom-bar matched KSU surface",
             topHeaderSource.contains("return@composed this.homeTopBottomBarMatchedSurface(") &&
@@ -167,46 +169,53 @@ class HomeChromeLiquidSurfaceStructureTest {
             lightweightTopTabItemSource.contains(".align(Alignment.BottomCenter)")
         )
         assertTrue(
-            "matched top dock helper should still use the KSU floating dock renderer for header controls",
-            topBarSource.contains(".kernelSuFloatingDockSurface(") &&
+            "matched top dock helper should delegate to the same shared surface as the bottom bar",
+            topBarSource.contains(".bottomBarMatchedLiquidDockSurface(") &&
                 topBarSource.contains("liquidGlassPreset: BottomBarLiquidGlassPreset") &&
                 topBarSource.contains("liquidGlassPreset = liquidGlassPreset")
         )
         assertTrue(
-            "top tab indicator should reuse the bottom bar KSU indicator layer when chrome exists",
+            "top tab indicator should reuse the bottom bar matched indicator and sibling capture topology",
             topBarSource.contains("val shouldRenderTopTabLiquidGlassIndicator = shouldUseLiquidGlassIndicator") &&
                 topBarSource.contains("!hasOuterChromeSurface") &&
                 topBarSource.contains("val shouldUseMd3DockBackedCapsule =") &&
-                topBarSource.contains("KernelSuBottomBarIndicatorLayer(") &&
+                topBarSource.contains("BottomBarMatchedLiquidIndicator(") &&
+                topBarSource.contains("rememberBottomBarMatchedLiquidChromeState(") &&
                 topBarSource.contains("val shouldPrimeTopTabLiquidGlassCapture =") &&
                 topBarSource.contains("val topTabContentBackdrop = rememberLayerBackdrop()") &&
-                topBarSource.contains("rememberCombinedBackdrop(backdrop, topTabContentBackdrop)") &&
+                topBarSource.contains("val topTabMiuixContentBackdrop = rememberMiuixLayerBackdrop()") &&
                 topBarSource.contains("layerBackdrop(topTabContentBackdrop)") &&
+                topBarSource.contains("miuixLayerBackdrop(topTabMiuixContentBackdrop)") &&
+                topBarSource.contains("rememberMiuixCombinedBackdrop(miuixBackdrop, topTabMiuixContentBackdrop)") &&
+                topBarSource.contains(".miuixDrawBackdrop(") &&
+                topBarSource.contains(".drawBackdrop(") &&
+                topBarSource.contains("drawRect(topTabIndicatorCaptureSurfaceColor)") &&
                 topBarSource.contains("ColorFilter.tint(topTabExportTintColor)") &&
                 topBarSource.contains("TopTabLiquidColorMode.GLASS_EXPORT") &&
                 topBarSource.contains("TopTabLiquidColorMode.GLASS_VISIBLE") &&
                 topBarSource.contains("resolveSharedLiquidExportMonochromeColor(") &&
-                topBarSource.contains("shouldRenderBottomBarIndicatorBackdrop(") &&
-                topBarSource.contains("val glassLayersAlwaysOn = shouldUseLiquidGlassIndicator") &&
                 topBarSource.contains("resolveTopTabIndicatorBackdropPolicy(") &&
-                topBarSource.contains("allowIdleGlassEffect = false") &&
-                topBarSource.contains("contentBackdrop = topTabContentBackdrop") &&
+                topBarSource.contains("contentBackdrop = effectiveTopTabMiuixContentBackdrop") &&
+                topBarSource.contains("backdrop = topTabIndicatorMiuixBackdrop") &&
+                topBarSource.contains("legacyContentBackdrop = topTabContentBackdrop") &&
                 topBarSource.contains("topTabListScrollOffsetPx") &&
                 topBarSource.contains("One shared shift for export") &&
                 topBarSource.contains("indicatorPanelOffsetPx = 0f") &&
-                topBarSource.contains("!shouldUseMd3DockBackedCapsule && !shouldUseMd3LiquidCapsule")
+                topBarSource.contains("!shouldUseMd3DockBackedCapsule && !shouldUseMd3LiquidCapsule") &&
+                sharedChromeSource.contains("KernelSuMiuixBottomBarIndicatorLayer(")
         )
         assertFalse(
             "top tab row should not keep the old bottom-bar local backdrop capture names",
             topBarSource.contains("backdrop = tabsBackdrop") ||
                 topBarSource.contains(".layerBackdrop(tabsBackdrop)") ||
                 topBarSource.contains("rememberCombinedBackdrop(backdrop, tabsBackdrop)") ||
-                topBarSource.contains("rememberCombinedBackdrop(backdrop, tabContentBackdrop)")
+                topBarSource.contains("rememberCombinedBackdrop(backdrop, tabContentBackdrop)") ||
+                topBarSource.contains("rememberCombinedBackdrop(backdrop, topTabContentBackdrop)")
         )
         assertFalse(
             "top tab indicator should not keep its old custom indicator renderer",
             topBarSource.contains("BottomBarStyleIndicatorSurface(") ||
-                topBarSource.contains("LiquidIndicator(") ||
+                Regex("""(?m)^\s*LiquidIndicator\(""").containsMatchIn(topBarSource) ||
                 topBarSource.contains("rememberCombinedBackdrop(backdrop, tabsBackdrop)") ||
                 topBarSource.contains("rememberCombinedBackdrop(backdrop, tabContentBackdrop)")
         )
@@ -231,7 +240,7 @@ class HomeChromeLiquidSurfaceStructureTest {
         )
         assertFalse(
             "bottom bar should not keep the old LiquidIndicator renderer",
-            bottomBar.readText().contains("LiquidIndicator(")
+            Regex("""(?m)^\s*LiquidIndicator\(""").containsMatchIn(bottomBar.readText())
         )
         assertFalse(
             "bottom bar should not keep the old BottomBarContent renderer",

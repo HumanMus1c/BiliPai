@@ -1,5 +1,8 @@
 // 文件路径: feature/bangumi/ui/player/BangumiPlayerContent.kt
 package com.android.purebilibili.feature.bangumi.ui.player
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,8 +13,13 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.rememberAppCheckCircleIcon
 import com.android.purebilibili.core.ui.rememberAppProfileAddIcon
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -79,6 +87,7 @@ fun BangumiPlayerContent(
                 labelFontSize = 15.sp,
                 backdrop = selectionBackdrop,
                 tapPressRefractionEnabled = false,
+                isScrollInProgressProvider = { pagerState.isScrollInProgress },
             )
         }
 
@@ -96,7 +105,7 @@ fun BangumiPlayerContent(
         // 标题和信息
         item {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
+                AppText(
                     text = detail.title,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -105,7 +114,7 @@ fun BangumiPlayerContent(
                 
                 Spacer(modifier = Modifier.height(4.dp))
                 
-                Text(
+                AppText(
                     text = "正在播放：${currentEpisode.title} ${currentEpisode.longTitle}",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.primary
@@ -115,7 +124,7 @@ fun BangumiPlayerContent(
                 
                 detail.stat?.let { stat ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
+                        AppText(
                             text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.danmakus)}弹幕",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -133,7 +142,7 @@ fun BangumiPlayerContent(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Button(
+                AppButton(
                     onClick = {
                         if (isFollowing) {
                             showFollowStatusDialog = true
@@ -148,13 +157,13 @@ fun BangumiPlayerContent(
                         ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     }
                 ) {
-                    Icon(
+                    AppIcon(
                         if (isFollowing) followedIcon else followIcon,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(resolveBangumiFollowStatusLabel(detail.userStatus))
+                    AppText(resolveBangumiFollowStatusLabel(detail.userStatus))
                 }
             }
         }
@@ -162,7 +171,7 @@ fun BangumiPlayerContent(
         // 剧集选择
         if (!detail.episodes.isNullOrEmpty()) {
             item {
-                HorizontalDivider(
+                AppHorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 )
@@ -175,7 +184,7 @@ fun BangumiPlayerContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
+                    AppText(
                         text = "选集 (${detail.episodes.size})",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -185,12 +194,12 @@ fun BangumiPlayerContent(
                     if (detail.episodes.size > 50) {
                         var showJumpDialog by remember { mutableStateOf(false) }
                         
-                        Surface(
+                        AppSurface(
                             onClick = { showJumpDialog = true },
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = AppShapes.container(ContainerLevel.Sheet)
                         ) {
-                            Text(
+                            AppText(
                                 text = "跳转",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 fontSize = 12.sp,
@@ -242,12 +251,12 @@ fun BangumiPlayerContent(
                             val end = minOf((page + 1) * episodesPerPage, detail.episodes.size)
                             val isCurrentPage = page == selectedPage
                             
-                            Surface(
+                            AppSurface(
                                 onClick = { selectedPage = page },
                                 color = if (isCurrentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                 shape = AppShapes.container(ContainerLevel.Dialog)
                             ) {
-                                Text(
+                                AppText(
                                     text = "$start-$end",
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                     fontSize = 12.sp,
@@ -298,13 +307,13 @@ fun BangumiPlayerContent(
         if (detail.evaluate.isNotEmpty()) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
+                AppText(
                     text = "简介",
                     modifier = Modifier.padding(horizontal = 16.dp),
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
-                Text(
+                AppText(
                     text = detail.evaluate,
                     modifier = Modifier.padding(16.dp),
                     fontSize = 14.sp,
@@ -333,7 +342,7 @@ fun BangumiPlayerContent(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
+                            AppText(
                                 text = "当前剧集暂无评论区",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -345,13 +354,13 @@ fun BangumiPlayerContent(
     }
 
     if (showFollowStatusDialog) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showFollowStatusDialog = false },
-            title = { Text("追番状态") },
+            title = { AppText("追番状态") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     BANGUMI_FOLLOW_STATUS_OPTIONS.forEach { option ->
-                        Surface(
+                        AppSurface(
                             onClick = {
                                 showFollowStatusDialog = false
                                 onFollowStatusSelect(option.status)
@@ -364,7 +373,7 @@ fun BangumiPlayerContent(
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
+                            AppText(
                                 text = option.label,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -375,18 +384,18 @@ fun BangumiPlayerContent(
                 }
             },
             confirmButton = {
-                TextButton(
+                AppTextButton(
                     onClick = {
                         showFollowStatusDialog = false
                         onFollowStatusSelect(BANGUMI_FOLLOW_STATUS_UNFOLLOW)
                     }
                 ) {
-                    Text("取消追番")
+                    AppText("取消追番")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showFollowStatusDialog = false }) {
-                    Text("关闭")
+                AppTextButton(onClick = { showFollowStatusDialog = false }) {
+                    AppText("关闭")
                 }
             }
         )
@@ -417,12 +426,12 @@ fun EpisodeChipSelectable(
 ) {
     val selectedColors = resolveAdaptivePrimaryAccentColors(MaterialTheme.colorScheme)
 
-    Surface(
+    AppSurface(
         modifier = Modifier.clickable(onClick = onClick),
         shape = AppShapes.container(ContainerLevel.Chip),
         color = if (isSelected) selectedColors.backgroundColor else MaterialTheme.colorScheme.surfaceVariant
     ) {
-        Text(
+        AppText(
             text = episode.title.ifEmpty { "第${episode.id}话" },
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             color = if (isSelected) selectedColors.contentColor else MaterialTheme.colorScheme.onSurface,
@@ -444,24 +453,24 @@ fun EpisodeJumpDialog(
     var inputText by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("跳转到第几集") },
+        title = { AppText("跳转到第几集") },
         text = {
             Column {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = inputText,
                     onValueChange = { 
                         inputText = it.filter { char -> char.isDigit() }
                         errorMessage = null
                     },
-                    label = { Text("集数 (1-$totalEpisodes)") },
+                    label = { AppText("集数 (1-$totalEpisodes)") },
                     singleLine = true,
                     isError = errorMessage != null,
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (errorMessage != null) {
-                    Text(
+                    AppText(
                         text = errorMessage!!,
                         color = MaterialTheme.colorScheme.error,
                         fontSize = 12.sp,
@@ -471,7 +480,7 @@ fun EpisodeJumpDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            AppTextButton(
                 onClick = {
                     val epNumber = inputText.toIntOrNull()
                     if (epNumber == null || epNumber < 1 || epNumber > totalEpisodes) {
@@ -481,12 +490,12 @@ fun EpisodeJumpDialog(
                     }
                 }
             ) {
-                Text("跳转")
+                AppText("跳转")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
+            AppTextButton(onClick = onDismiss) {
+                AppText("取消")
             }
         }
     )
@@ -513,7 +522,7 @@ fun BangumiErrorContent(
             modifier = Modifier.padding(32.dp)
         ) {
             // 根据错误类型显示不同图标
-            Text(
+            AppText(
                 text = when {
                     isVipRequired -> "👑"
                     isLoginRequired -> ""
@@ -522,7 +531,7 @@ fun BangumiErrorContent(
                 fontSize = 48.sp
             )
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
+            AppText(
                 text = message,
                 fontSize = 16.sp,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -530,7 +539,7 @@ fun BangumiErrorContent(
             )
             if (isVipRequired) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
+                AppText(
                     text = "开通大会员即可观看",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.primary
@@ -539,21 +548,21 @@ fun BangumiErrorContent(
             // 登录按钮
             if (isLoginRequired) {
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(
+                AppButton(
                     onClick = onLogin,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
-                    Text("去登录")
+                    AppText("去登录")
                 }
             }
             if (canRetry) {
                 Spacer(modifier = Modifier.height(if (isLoginRequired) 12.dp else 24.dp))
                 if (isLoginRequired) {
-                    TextButton(onClick = onRetry) { Text("重试") }
+                    AppTextButton(onClick = onRetry) { AppText("重试") }
                 } else {
-                    Button(onClick = onRetry) { Text("重试") }
+                    AppButton(onClick = onRetry) { AppText("重试") }
                 }
             }
         }

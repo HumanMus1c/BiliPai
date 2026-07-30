@@ -1,5 +1,6 @@
 // 文件路径: feature/dynamic/DynamicScreen.kt
 package com.android.purebilibili.feature.dynamic
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -32,7 +33,11 @@ import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridS
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import com.android.purebilibili.core.ui.components.AppIcon
+import androidx.compose.material3.MaterialTheme
+import com.android.purebilibili.core.ui.components.AppText
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,6 +58,9 @@ import coil.compose.AsyncImage
 import coil.imageLoader
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.components.AppPrimaryButton
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
+import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
 import com.android.purebilibili.core.ui.EmptyState
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
@@ -85,6 +93,8 @@ import com.android.purebilibili.feature.dynamic.components.DynamicCommentSheet
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
 import com.android.purebilibili.feature.dynamic.components.DynamicSubReplyPreviewHost
 import com.android.purebilibili.feature.home.LocalHomeScrollOffset
+import com.android.purebilibili.feature.home.components.BottomBarMatchedDockEdge
+import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisibility
 import com.android.purebilibili.feature.home.policy.resolveBottomBarChromeScrollOffset
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
@@ -652,10 +662,9 @@ fun DynamicScreen(
                             }
 
                             // 顶栏（下滑折叠，回顶复现）
-                            androidx.compose.animation.AnimatedVisibility(
+                            BottomBarMatchedDockVisibility(
                                 visible = !shouldCollapseTopBar,
-                                enter = expandVertically(animationSpec = AppMotionTokens.standardSpec()) + fadeIn(animationSpec = AppMotionTokens.standardSpec()),
-                                exit = shrinkVertically(animationSpec = AppMotionTokens.standardSpec()) + fadeOut(animationSpec = AppMotionTokens.standardSpec()),
+                                edge = BottomBarMatchedDockEdge.TOP,
                                 modifier = Modifier.align(Alignment.TopCenter)
                             ) {
                                 DynamicTopBarWithTabs(
@@ -672,7 +681,11 @@ fun DynamicScreen(
                                     displayMode = displayMode,
                                     onDisplayModeChange = { viewModel.setDisplayMode(it) },
                                     hazeState = hazeState,
-                                    indicatorPositionProvider = dynamicTabIndicatorPositionProvider
+                                    indicatorPositionProvider = dynamicTabIndicatorPositionProvider,
+                                    isScrollInProgressProvider = {
+                                        activeListState?.isScrollInProgress == true ||
+                                            pagerState.isScrollInProgress
+                                    }
                                 )
                             }
 
@@ -811,10 +824,9 @@ fun DynamicScreen(
                                 )
                                 Column(modifier = Modifier.fillMaxWidth()) {
                                     // 顶栏（下滑折叠，回顶复现）
-                                    AnimatedVisibility(
+                                    BottomBarMatchedDockVisibility(
                                         visible = !shouldCollapseTopBar,
-                                        enter = expandVertically(animationSpec = AppMotionTokens.standardSpec()) + fadeIn(animationSpec = AppMotionTokens.standardSpec()),
-                                        exit = shrinkVertically(animationSpec = AppMotionTokens.standardSpec()) + fadeOut(animationSpec = AppMotionTokens.standardSpec())
+                                        edge = BottomBarMatchedDockEdge.TOP
                                     ) {
                                         DynamicTopBarWithTabs(
                                             selectedTab = displayedTabIndex,
@@ -830,7 +842,11 @@ fun DynamicScreen(
                                             displayMode = displayMode,
                                             onDisplayModeChange = { viewModel.setDisplayMode(it) },
                                             hazeState = hazeState,
-                                            indicatorPositionProvider = dynamicTabIndicatorPositionProvider
+                                            indicatorPositionProvider = dynamicTabIndicatorPositionProvider,
+                                            isScrollInProgressProvider = {
+                                                activeListState?.isScrollInProgress == true ||
+                                                    pagerState.isScrollInProgress
+                                            }
                                         )
                                     }
 
@@ -882,7 +898,7 @@ fun DynamicScreen(
                 enter = fadeIn(animationSpec = AppMotionTokens.standardSpec()) + scaleIn(initialScale = 0.92f),
                 exit = fadeOut(animationSpec = AppMotionTokens.standardSpec()) + scaleOut(targetScale = 0.92f)
             ) {
-                SmallFloatingActionButton(
+                AppSmallFloatingActionButton(
                     onClick = {
                         scope.launch {
                             scrollDynamicFeedToTop(refreshWhenAlreadyAtTop = false)
@@ -891,7 +907,7 @@ fun DynamicScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2),
                     contentColor = MaterialTheme.colorScheme.primary
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = rememberAppChevronUpIcon(),
                         contentDescription = "回到顶部"
                     )
@@ -1061,7 +1077,7 @@ private fun DynamicList(
                 contentType = "dynamic_no_more_footer",
                 span = StaggeredGridItemSpan.FullLine
             ) {
-                Text(
+                AppText(
                     "没有更多了",
                     modifier = Modifier.fillMaxWidth().padding(AppSpacingTokens.Large),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -1081,17 +1097,17 @@ private fun OldContentDivider(label: String) {
             .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small + AppSpacingTokens.Micro),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        HorizontalDivider(
+        AppHorizontalDivider(
             modifier = Modifier.weight(1f),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
-        Text(
+        AppText(
             text = label,
             modifier = Modifier.padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro),
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             fontSize = MaterialTheme.typography.labelSmall.fontSize
         )
-        HorizontalDivider(
+        AppHorizontalDivider(
             modifier = Modifier.weight(1f),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
@@ -1142,7 +1158,7 @@ private fun HorizontalUserList(
                                 .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
+                            AppIcon(
                                 imageVector = if (showHiddenUsers) {
                                     rememberAppVisibilityOnIcon()
                                 } else {
@@ -1153,7 +1169,7 @@ private fun HorizontalUserList(
                             )
                         }
                         Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-                        Text(
+                        AppText(
                             text = if (showHiddenUsers) "隐藏中" else "显示隐藏",
                             fontSize = MaterialTheme.typography.labelSmall.fontSize,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1211,7 +1227,7 @@ private fun HorizontalUserList(
                             DynamicUserLiveBadge(modifier = Modifier.padding(top = AppSpacingTokens.Micro))
                         }
                         Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-                        Text(
+                        AppText(
                             displayName,
                             fontSize = MaterialTheme.typography.labelSmall.fontSize,
                             color = if (isSelected)
@@ -1225,19 +1241,19 @@ private fun HorizontalUserList(
                         )
                     }
 
-                    DropdownMenu(
+                    AppDropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text(if (user.isPinned) "取消置顶" else "置顶") },
+                        AppDropdownMenuItem(
+                            text = { AppText(if (user.isPinned) "取消置顶" else "置顶") },
                             onClick = {
                                 showMenu = false
                                 onTogglePin(user.uid)
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text(if (user.isHidden) "取消隐藏" else "隐藏") },
+                        AppDropdownMenuItem(
+                            text = { AppText(if (user.isHidden) "取消隐藏" else "隐藏") },
                             onClick = {
                                 showMenu = false
                                 onToggleHidden(user.uid)
@@ -1265,7 +1281,7 @@ private fun ErrorOverlay(
             modifier = modifier,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
+            AppText(error.orEmpty(), color = MaterialTheme.colorScheme.error)
             Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
             if (error?.contains("未登录") == true) {
                 AppPrimaryButton(text = "去登录", onClick = onLoginClick)

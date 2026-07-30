@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.home.components
 
 import androidx.compose.ui.graphics.Color
+import com.android.purebilibili.core.ui.components.AppPlatformNavigationBarDisplayMode
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -73,18 +74,18 @@ class BottomBarMiuixPolicyTest {
     }
 
     @Test
-    fun `miuix display mode maps text-only onto icon-with-selected-label`() {
+    fun `platform navigation display mode maps text-only onto icon-with-selected-label`() {
         assertEquals(
-            top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode.IconAndText,
-            Md3BottomBarDisplayMode.IconAndText.toMiuixNavigationDisplayMode()
+            AppPlatformNavigationBarDisplayMode.ICON_AND_TEXT,
+            Md3BottomBarDisplayMode.IconAndText.toAppPlatformNavigationDisplayMode()
         )
         assertEquals(
-            top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode.IconOnly,
-            Md3BottomBarDisplayMode.IconOnly.toMiuixNavigationDisplayMode()
+            AppPlatformNavigationBarDisplayMode.ICON_ONLY,
+            Md3BottomBarDisplayMode.IconOnly.toAppPlatformNavigationDisplayMode()
         )
         assertEquals(
-            top.yukonga.miuix.kmp.basic.NavigationBarDisplayMode.IconWithSelectedLabel,
-            Md3BottomBarDisplayMode.TextOnly.toMiuixNavigationDisplayMode()
+            AppPlatformNavigationBarDisplayMode.ICON_WITH_SELECTED_LABEL,
+            Md3BottomBarDisplayMode.TextOnly.toAppPlatformNavigationDisplayMode()
         )
     }
 

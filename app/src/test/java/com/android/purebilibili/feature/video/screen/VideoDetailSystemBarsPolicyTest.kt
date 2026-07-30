@@ -288,6 +288,18 @@ class VideoDetailSystemBarsPolicyTest {
     }
 
     @Test
+    fun portraitPlayerTopInset_skipsStatusInsetForSharedCardTransition() {
+        assertEquals(
+            0f,
+            resolveVideoDetailPortraitPlayerTopInsetDp(
+                stableStatusBarHeightDp = 24f,
+                hideStatusBars = false,
+                isSharedCardTransition = true,
+            )
+        )
+    }
+
+    @Test
     fun restorePolicy_restoresSystemBarsAsSoonAsExitTransitionStarts() {
         assertTrue(
             shouldRestoreSystemBarsDuringVideoDetailExitTransition(

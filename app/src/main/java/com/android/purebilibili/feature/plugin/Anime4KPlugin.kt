@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -120,8 +120,8 @@ class Anime4KPlugin : Plugin {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("CNN 模型", style = MaterialTheme.typography.titleSmall)
-            Text(
+            AppText("CNN 模型", style = MaterialTheme.typography.titleSmall)
+            AppText(
                 text = "HDR、杜比视界、小窗和后台播放会自动使用原始视频输出。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -130,7 +130,7 @@ class Anime4KPlugin : Plugin {
                 AppFilterChip(
                     selected = configSnapshot.preset == preset,
                     onClick = { setPreset(preset) },
-                    label = { Text(resolveAnime4KPresetLabel(preset)) }
+                    label = { AppText(resolveAnime4KPresetLabel(preset)) }
                 )
             }
         }

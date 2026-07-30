@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.live.components
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,13 +11,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTab
 import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -90,13 +90,13 @@ fun LiveContributionRankSheet(
                 ),
             verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Large)
         ) {
-            Text(
+            AppText(
                 text = "高能榜",
                 color = AppSurfaceTokens.onSurface(),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
-            Text(
+            AppText(
                 text = roomTitle.ifBlank { anchorInfo.uname },
                 color = AppSurfaceTokens.onSurfaceVariantSummary(),
                 style = MaterialTheme.typography.bodySmall
@@ -106,7 +106,7 @@ fun LiveContributionRankSheet(
                     AppTab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(type.title) }
+                        text = { AppText(type.title) }
                     )
                 }
             }
@@ -127,10 +127,10 @@ fun LiveContributionRankSheet(
                         RankMetricRow("高能观众", roomInfo.onlineRankText.ifBlank { "暂无数据" })
                         RankMetricRow("开播时长", formatLiveDuration(roomInfo.liveStartTime).ifBlank { "刚刚开播" })
                     }
-                    HorizontalDivider(color = AppSurfaceTokens.divider())
+                    AppHorizontalDivider(color = AppSurfaceTokens.divider())
                     when {
                         isLoading -> {
-                            Text(
+                            AppText(
                                 text = "榜单加载中…",
                                 color = AppSurfaceTokens.onSurfaceVariantSummary(),
                                 style = MaterialTheme.typography.bodySmall,
@@ -138,7 +138,7 @@ fun LiveContributionRankSheet(
                             )
                         }
                         error != null -> {
-                            Text(
+                            AppText(
                                 text = error ?: "",
                                 color = AppSurfaceTokens.onSurfaceVariantSummary(),
                                 style = MaterialTheme.typography.bodySmall,
@@ -146,7 +146,7 @@ fun LiveContributionRankSheet(
                             )
                         }
                         items.isEmpty() -> {
-                            Text(
+                            AppText(
                                 text = "当前榜单暂无数据",
                                 color = AppSurfaceTokens.onSurfaceVariantSummary(),
                                 style = MaterialTheme.typography.bodySmall,
@@ -181,13 +181,13 @@ private fun RankMetricRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
+        AppText(
             text = label,
             color = AppSurfaceTokens.onSurfaceVariantSummary(),
             style = MaterialTheme.typography.bodySmall
         )
         androidx.compose.foundation.layout.Spacer(Modifier.width(AppSpacingTokens.Small))
-        Text(
+        AppText(
             text = value,
             color = AppSurfaceTokens.onSurface(),
             style = MaterialTheme.typography.bodyMedium,
@@ -217,14 +217,14 @@ private fun RankItemRow(
             modifier = Modifier.weight(1f),
             horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)
         ) {
-            Text(
+            AppText(
                 text = item.rank.takeIf { it > 0 }?.toString() ?: "-",
                 color = AppSurfaceTokens.primary(),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                AppText(
                     text = item.name.ifBlank { "用户" },
                     color = AppSurfaceTokens.onSurface(),
                     style = MaterialTheme.typography.bodyMedium,
@@ -234,7 +234,7 @@ private fun RankItemRow(
                 )
                 val medal = item.medalInfo
                 if (medal != null && medal.medalName.isNotBlank()) {
-                    Text(
+                    AppText(
                         text = "${medal.medalName} Lv.${medal.level}",
                         color = AppSurfaceTokens.onSurfaceVariantSummary(),
                         style = MaterialTheme.typography.labelSmall
@@ -242,7 +242,7 @@ private fun RankItemRow(
                 }
             }
         }
-        Text(
+        AppText(
             text = item.score.takeIf { it > 0 }?.toString() ?: "-",
             color = AppSurfaceTokens.onSurface(),
             style = MaterialTheme.typography.bodySmall,

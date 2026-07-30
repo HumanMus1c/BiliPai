@@ -8,7 +8,9 @@ import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.lerp
 import com.android.purebilibili.data.model.response.ViewPoint
 import com.android.purebilibili.feature.video.progress.PbpProgressData
 import com.android.purebilibili.feature.video.state.VideoPlayerState
@@ -17,13 +19,84 @@ import com.android.purebilibili.feature.video.ui.section.VideoPlayerSection
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
 import kotlin.math.roundToInt
 
+internal data class ContinuousPlayerHostLayout(
+    val modifier: Modifier,
+    val viewportWidth: Dp,
+    val alpha: State<Float>,
+    val scale: State<Float>,
+    val isFullscreen: Boolean,
+)
+
+internal data class ContinuousPlayerFullscreenExtras(
+    val danmakuComposerVisible: Boolean,
+    val onDismissDanmakuComposer: () -> Unit,
+    val onSendDanmakuComposer: (String, Int, Int, Int, Boolean) -> Unit,
+    val isSendingDanmakuComposer: Boolean,
+    val danmakuComposerInitialText: String,
+    val danmakuComposerInitialAttentionCommand: Boolean,
+    val danmakuComposerInitialColor: Int,
+    val danmakuComposerInitialMode: Int,
+    val danmakuComposerInitialFontSize: Int,
+    val onDanmakuComposerDraftChange: (String, Boolean) -> Unit,
+    val onDanmakuComposerSelectionChange: (Int, Int, Int) -> Unit,
+    val currentPlayMode: com.android.purebilibili.feature.video.player.PlayMode,
+    val onPlayModeClick: () -> Unit,
+    val onSaveCover: () -> Unit,
+    val onDownloadAudio: () -> Unit,
+    val relatedVideos: List<com.android.purebilibili.data.model.response.RelatedVideo>,
+    val ugcSeason: com.android.purebilibili.data.model.response.UgcSeason?,
+    val isFollowed: Boolean,
+    val isLiked: Boolean,
+    val isCoined: Boolean,
+    val isFavorited: Boolean,
+    val onToggleFollow: () -> Unit,
+    val onToggleLike: () -> Unit,
+    val onDislike: () -> Unit,
+    val onCoin: () -> Unit,
+    val onToggleFavorite: () -> Unit,
+    val onTriple: () -> Unit,
+    val onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
+    val onPageSelect: (Int) -> Unit,
+    val hasFavoritePlaylist: Boolean,
+    val onFavoritePlaylistClick: () -> Unit,
+)
+
+/**
+ * Reads the frame-rate progress only during measurement, keeping the player composition stable
+ * while the inline viewport grows into the landscape viewport.
+ */
+internal fun Modifier.continuousPlayerViewportHeight(
+    progressProvider: () -> Float,
+    inlineHeight: Dp,
+    fullscreenHeight: Dp,
+    enabled: Boolean,
+): Modifier {
+    if (!enabled) return height(inlineHeight)
+    return layout { measurable, constraints ->
+        val height = lerp(
+            start = inlineHeight,
+            stop = fullscreenHeight,
+            fraction = progressProvider().coerceIn(0f, 1f),
+        ).roundToPx().coerceIn(
+            minimumValue = constraints.minHeight,
+            maximumValue = constraints.maxHeight,
+        )
+        val placeable = measurable.measure(
+            constraints.copy(minHeight = height, maxHeight = height),
+        )
+        layout(placeable.width, placeable.height) {
+            placeable.placeRelative(0, 0)
+        }
+    }
+}
+
 @Composable
 internal fun PortraitInlineVideoPlayerHost(
     modifier: Modifier,
     animatedViewportWidth: Dp,
-    animatedViewportHeight: Dp,
     inlinePlayerAlpha: State<Float>,
     inlinePlayerScale: State<Float>,
+    isFullscreen: Boolean = false,
     playerState: VideoPlayerState,
     uiState: VideoPlaybackUiState,
     isPipMode: Boolean,
@@ -58,14 +131,14 @@ internal fun PortraitInlineVideoPlayerHost(
     sourceRouteForSharedElement: String?,
     suppressSubtitleOverlay: Boolean,
     subtitleDisplayModePreferenceOverride: SubtitleDisplayMode?,
-    onSubtitleDisplayModePreferenceOverrideChange: (SubtitleDisplayMode) -> Unit
+    onSubtitleDisplayModePreferenceOverrideChange: (SubtitleDisplayMode) -> Unit,
+    fullscreenExtras: ContinuousPlayerFullscreenExtras? = null,
 ) {
     val successState = uiState as? VideoPlaybackUiState.Success
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(animatedViewportHeight)
             .graphicsLayer {
                 alpha = inlinePlayerAlpha.value
                 scaleX = inlinePlayerScale.value
@@ -76,7 +149,7 @@ internal fun PortraitInlineVideoPlayerHost(
         VideoPlayerSection(
             playerState = playerState,
             uiState = uiState,
-            isFullscreen = false,
+            isFullscreen = isFullscreen,
             isInPipMode = isPipMode,
             transitionEnabled = transitionEnabled,
             transitionChromeAlphaProvider = transitionChromeAlphaProvider,
@@ -85,6 +158,22 @@ internal fun PortraitInlineVideoPlayerHost(
             onBack = onBack,
             onHomeClick = onHomeClick,
             onDanmakuInputClick = { playbackActions.showDanmakuSendDialog() },
+            danmakuComposerVisible = isFullscreen &&
+                fullscreenExtras?.danmakuComposerVisible == true,
+            onDismissDanmakuComposer = fullscreenExtras?.onDismissDanmakuComposer ?: {},
+            onSendDanmakuComposer = fullscreenExtras?.onSendDanmakuComposer
+                ?: { _, _, _, _, _ -> },
+            isSendingDanmakuComposer = fullscreenExtras?.isSendingDanmakuComposer == true,
+            danmakuComposerInitialText = fullscreenExtras?.danmakuComposerInitialText.orEmpty(),
+            danmakuComposerInitialAttentionCommand =
+                fullscreenExtras?.danmakuComposerInitialAttentionCommand == true,
+            danmakuComposerInitialColor = fullscreenExtras?.danmakuComposerInitialColor ?: 16777215,
+            danmakuComposerInitialMode = fullscreenExtras?.danmakuComposerInitialMode ?: 1,
+            danmakuComposerInitialFontSize = fullscreenExtras?.danmakuComposerInitialFontSize ?: 25,
+            onDanmakuComposerDraftChange = fullscreenExtras?.onDanmakuComposerDraftChange
+                ?: { _, _ -> },
+            onDanmakuComposerSelectionChange = fullscreenExtras?.onDanmakuComposerSelectionChange
+                ?: { _, _, _ -> },
             bvid = videoPlayerSectionTarget.bvid,
             coverUrl = videoPlayerSectionTarget.entryCoverUrl,
             onDoubleTapLike = onDoubleTapLike,
@@ -122,8 +211,27 @@ internal fun PortraitInlineVideoPlayerHost(
             onAudioQualityChange = { playbackActions.setAudioQuality(it) },
             onPlaybackSpeedChange = { playbackActions.applyPlaybackSpeed(it) },
             onAudioLangChange = { playbackActions.changeAudioLanguage(it) },
-            onSaveCover = { playbackActions.saveCover() },
-            onDownloadAudio = { playbackActions.downloadAudio() },
+            currentPlayMode = fullscreenExtras?.currentPlayMode
+                ?: com.android.purebilibili.feature.video.player.PlayMode.SEQUENTIAL,
+            onPlayModeClick = fullscreenExtras?.onPlayModeClick ?: {},
+            onSaveCover = fullscreenExtras?.onSaveCover ?: { playbackActions.saveCover() },
+            onDownloadAudio = fullscreenExtras?.onDownloadAudio ?: { playbackActions.downloadAudio() },
+            relatedVideos = fullscreenExtras?.relatedVideos.orEmpty(),
+            ugcSeason = fullscreenExtras?.ugcSeason,
+            isFollowed = fullscreenExtras?.isFollowed == true,
+            isLiked = fullscreenExtras?.isLiked == true,
+            isCoined = fullscreenExtras?.isCoined == true,
+            isFavorited = fullscreenExtras?.isFavorited == true,
+            onToggleFollow = fullscreenExtras?.onToggleFollow ?: {},
+            onToggleLike = fullscreenExtras?.onToggleLike ?: {},
+            onDislike = fullscreenExtras?.onDislike ?: {},
+            onCoin = fullscreenExtras?.onCoin ?: {},
+            onToggleFavorite = fullscreenExtras?.onToggleFavorite ?: {},
+            onTriple = fullscreenExtras?.onTriple ?: {},
+            onRelatedVideoClick = fullscreenExtras?.onRelatedVideoClick ?: { _, _ -> },
+            onPageSelect = fullscreenExtras?.onPageSelect ?: {},
+            hasFavoritePlaylist = fullscreenExtras?.hasFavoritePlaylist == true,
+            onFavoritePlaylistClick = fullscreenExtras?.onFavoritePlaylistClick ?: {},
             forceCoverOnly = forceCoverOnly,
             preserveCurrentFrameOnFullscreenChange = preserveCurrentFrameOnFullscreenChange,
             liveBackPreview = liveBackPreview,

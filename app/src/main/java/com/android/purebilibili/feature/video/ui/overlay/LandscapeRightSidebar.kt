@@ -10,8 +10,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -169,7 +169,7 @@ private fun SidebarTextButton(
         color = Color.Black.copy(alpha = 0.5f),
         shape = RoundedCornerShape(6.dp)
     ) {
-        Text(
+        AppText(
             text = text,
             color = if (isHighlighted) MaterialTheme.colorScheme.primary else Color.White,
             fontSize = 12.sp,
@@ -218,7 +218,7 @@ private fun SidebarActionButton(
             modifier = Modifier.size(40.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
+                AppIcon(
                     imageVector = icon,
                     contentDescription = label,
                     tint = if (isActive) (if (activeColor == Color.Unspecified) MaterialTheme.colorScheme.primary else activeColor) else Color.White,
@@ -230,7 +230,7 @@ private fun SidebarActionButton(
         Spacer(modifier = Modifier.height(4.dp))
         
         // 标签文字
-        Text(
+        AppText(
             text = label,
             color = if (isActive) (if (activeColor == Color.Unspecified) MaterialTheme.colorScheme.primary else activeColor) else Color.White.copy(alpha = 0.9f),
             fontSize = 10.sp,

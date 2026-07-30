@@ -30,14 +30,14 @@ import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSurface
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -100,7 +100,7 @@ fun VideoNoteCard(
                 IconBox()
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                    AppText(
                         text = "视频笔记",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                     )
@@ -109,7 +109,7 @@ fun VideoNoteCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
+                        AppText(
                             text = resolveNoteSubtitle(noteState, isLoggedIn),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -131,7 +131,7 @@ fun VideoNoteCard(
                 }
                 if (defaultCollapsed) {
                     AppTextButton(onClick = { userExpanded = !userExpanded }) {
-                        Text(if (showBody) "收起" else "展开")
+                        AppText(if (showBody) "收起" else "展开")
                     }
                 }
             }
@@ -139,7 +139,7 @@ fun VideoNoteCard(
             if (showBody) {
                 if (!noteState.feedbackMessage.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
+                    AppText(
                         text = noteState.feedbackMessage,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
@@ -147,7 +147,7 @@ fun VideoNoteCard(
                 }
                 if (!noteState.errorMessage.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
+                    AppText(
                         text = noteState.errorMessage,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
@@ -165,22 +165,22 @@ fun VideoNoteCard(
                             AppOutlinedButton(
                                 onClick = { onShareClick(privateDocument) }
                             ) {
-                                Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                                AppIcon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("分享")
+                                AppText("分享")
                             }
                             AppOutlinedButton(
                                 onClick = onDeleteClick,
                                 enabled = !noteState.deleting
                             ) {
-                                Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                                AppIcon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("删除")
+                                AppText("删除")
                             }
                         }
                         if (noteState.status == VideoNoteLoadStatus.ERROR) {
                             AppTextButton(onClick = onRetryClick) {
-                                Text("重试")
+                                AppText("重试")
                             }
                         }
                     }
@@ -188,14 +188,14 @@ fun VideoNoteCard(
 
                 if (noteState.publicNotes.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text(
+                    AppText(
                         text = "公开笔记 ${noteState.publicNoteCount} 篇",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     noteState.publicNotes.take(2).forEach { note ->
-                        Text(
+                        AppText(
                             text = note.title.ifBlank { note.summary },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary,
@@ -224,13 +224,13 @@ private fun VideoNotePrimaryActionButton(
         onClick = onClick,
         enabled = enabled
     ) {
-        Icon(
+        AppIcon(
             imageVector = if (label == "新建") Icons.Outlined.Add else Icons.Outlined.Edit,
             contentDescription = null,
             modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(6.dp))
-        Text(label)
+        AppText(label)
     }
 }
 
@@ -266,7 +266,7 @@ fun VideoNoteEditorSheet(
                 .padding(horizontal = 18.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Text(
+            AppText(
                 text = if (noteState.editorFromAiSummary) "AI 笔记草稿" else "视频笔记",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
             )
@@ -274,7 +274,7 @@ fun VideoNoteEditorSheet(
             AppOutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("标题") },
+                label = { AppText("标题") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -319,7 +319,7 @@ fun VideoNoteEditorSheet(
             )
             if (!noteState.errorMessage.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
+                AppText(
                     text = noteState.errorMessage,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
@@ -342,13 +342,13 @@ fun VideoNoteEditorSheet(
                     },
                     enabled = !noteState.saving
                 ) {
-                    Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    AppIcon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("分享")
+                    AppText("分享")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 AppTextButton(onClick = onDismiss) {
-                    Text("取消")
+                    AppText("取消")
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 AppButton(
@@ -368,7 +368,7 @@ fun VideoNoteEditorSheet(
                         AdaptiveLoadingIndicator(size = 16.dp, strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(6.dp))
                     }
-                    Text("保存")
+                    AppText("保存")
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -386,16 +386,16 @@ fun VideoNoteDeleteConfirmDialog(
     if (!visible) return
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("删除视频笔记") },
-        text = { Text("删除后无法在 BiliPai 内恢复。确认要删除这条笔记吗？") },
+        title = { AppText("删除视频笔记") },
+        text = { AppText("删除后无法在 BiliPai 内恢复。确认要删除这条笔记吗？") },
         confirmButton = {
             AppTextButton(onClick = onConfirm, enabled = !deleting) {
-                Text(if (deleting) "删除中" else "删除")
+                AppText(if (deleting) "删除中" else "删除")
             }
         },
         dismissButton = {
             AppTextButton(onClick = onDismiss, enabled = !deleting) {
-                Text("取消")
+                AppText("取消")
             }
         }
     )
@@ -408,7 +408,7 @@ private fun IconBox() {
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
     ) {
-        Icon(
+        AppIcon(
             imageVector = Icons.Outlined.BookmarkBorder,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
@@ -427,19 +427,19 @@ private fun VideoNoteEditorToolbar(
     onRedoClick: () -> Unit
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        AppIconButton(onClick = onBoldClick) { Text("B", fontWeight = FontWeight.Bold) }
+        AppIconButton(onClick = onBoldClick) { AppText("B", fontWeight = FontWeight.Bold) }
         AppIconButton(onClick = onHighlightClick) {
-            Icon(Icons.Outlined.FormatColorFill, contentDescription = "高亮")
+            AppIcon(Icons.Outlined.FormatColorFill, contentDescription = "高亮")
         }
-        AppIconButton(onClick = onBulletClick) { Text("-") }
+        AppIconButton(onClick = onBulletClick) { AppText("-") }
         AppIconButton(onClick = onTimestampClick) {
-            Icon(Icons.Outlined.AccessTime, contentDescription = "插入时间点")
+            AppIcon(Icons.Outlined.AccessTime, contentDescription = "插入时间点")
         }
         AppIconButton(onClick = onUndoClick) {
-            Icon(Icons.AutoMirrored.Outlined.Undo, contentDescription = "撤销")
+            AppIcon(Icons.AutoMirrored.Outlined.Undo, contentDescription = "撤销")
         }
         AppIconButton(onClick = onRedoClick) {
-            Icon(Icons.AutoMirrored.Outlined.Redo, contentDescription = "重做")
+            AppIcon(Icons.AutoMirrored.Outlined.Redo, contentDescription = "重做")
         }
     }
 }
@@ -455,9 +455,9 @@ private fun VideoNoteTimestampChips(
         timestamps.forEach { timestamp ->
             AppAssistChip(
                 onClick = { onTimestampClick(timestamp.seconds * 1000L) },
-                label = { Text(timestamp.label) },
+                label = { AppText(timestamp.label) },
                 leadingIcon = {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Outlined.AccessTime,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp)

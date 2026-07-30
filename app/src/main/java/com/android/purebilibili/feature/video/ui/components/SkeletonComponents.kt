@@ -40,9 +40,10 @@ private val LocalVideoSkeletonPulse = staticCompositionLocalOf { 0.5f }
 @Composable
 fun ShimmerContainer(
     modifier: Modifier = Modifier,
+    animated: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val pulse = rememberVideoSkeletonPulse()
+    val pulse = if (animated) rememberVideoSkeletonPulse() else 0.5f
     CompositionLocalProvider(LocalVideoSkeletonPulse provides pulse) {
         Box(modifier = modifier) {
             content()
@@ -73,8 +74,11 @@ fun SkeletonCircle(size: Dp = 48.dp) {
  *  视频详情页内容骨架屏（不包含播放器区域）
  */
 @Composable
-fun VideoDetailSkeleton() {
-    ShimmerContainer(modifier = Modifier.fillMaxSize()) {
+fun VideoDetailSkeleton(animated: Boolean = true) {
+    ShimmerContainer(
+        modifier = Modifier.fillMaxSize(),
+        animated = animated,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()

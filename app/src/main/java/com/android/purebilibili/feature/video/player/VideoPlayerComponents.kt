@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.video.player
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -66,7 +68,7 @@ fun VideoTitleSection(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
-            Text(
+            AppText(
                 text = info.title,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontSize = 16.sp,
@@ -81,7 +83,7 @@ fun VideoTitleSection(
                     .animateContentSize()
             )
             Spacer(Modifier.width(4.dp))
-            Icon(
+            AppIcon(
                 imageVector = if (expanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -92,7 +94,7 @@ fun VideoTitleSection(
         Spacer(Modifier.height(2.dp))
         
         // 统计行 (官方样式：播放量 • 弹幕 • 日期)
-        Text(
+        AppText(
             text = "${FormatUtils.formatStat(info.stat.view.toLong())}  •  ${FormatUtils.formatStat(info.stat.danmaku.toLong())}弹幕  •  ${FormatUtils.formatPublishTime(info.pubdate)}",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -120,7 +122,7 @@ fun VideoTitleWithDesc(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
-            Text(
+            AppText(
                 text = info.title,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontSize = 15.sp,
@@ -135,7 +137,7 @@ fun VideoTitleWithDesc(
                     .animateContentSize()
             )
             Spacer(Modifier.width(4.dp))
-            Icon(
+            AppIcon(
                 imageVector = if (expanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -149,7 +151,7 @@ fun VideoTitleWithDesc(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = "${FormatUtils.formatStat(info.stat.view.toLong())}播放  •  ${FormatUtils.formatStat(info.stat.danmaku.toLong())}弹幕  •  ${FormatUtils.formatPublishTime(info.pubdate)}",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -160,7 +162,7 @@ fun VideoTitleWithDesc(
         //  描述（动态）- 紧接在统计后面
         if (info.desc.isNotBlank()) {
             Spacer(Modifier.height(4.dp))  //  紧凑布局
-            Text(
+            AppText(
                 text = info.desc,
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontSize = 12.sp,
@@ -211,7 +213,7 @@ fun UpInfoSection(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 UserUpBadge()
                 Spacer(Modifier.width(4.dp))
-                Text(
+                AppText(
                     text = info.owner.name,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
@@ -234,7 +236,7 @@ fun UpInfoSection(
                 modifier = Modifier.padding(horizontal = 14.dp)
             ) {
                 if (!isFollowing) {
-                    Icon(
+                    AppIcon(
                         CupertinoIcons.Default.Plus,
                         contentDescription = null,
                         tint = Color.White,
@@ -242,7 +244,7 @@ fun UpInfoSection(
                     )
                     Spacer(Modifier.width(2.dp))
                 }
-                Text(
+                AppText(
                     text = if (isFollowing) "已关注" else "关注",
                     fontSize = 13.sp,
                     color = if (isFollowing) MaterialTheme.colorScheme.onSurfaceVariant else Color.White,
@@ -377,14 +379,14 @@ private fun BiliActionButton(
             ) { onClick() }
             .padding(horizontal = 4.dp, vertical = 2.dp)
     ) {
-        Icon(
+        AppIcon(
             imageVector = icon,
             contentDescription = null,
             tint = iconColor,
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.height(2.dp))
-        Text(
+        AppText(
             text = text,
             fontSize = 11.sp,
             color = textColor,
@@ -465,7 +467,7 @@ fun ActionButton(
                 .background(iconColor.copy(alpha = if (isDark) 0.15f else 0.1f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconColor,
@@ -473,7 +475,7 @@ fun ActionButton(
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
+        AppText(
             text = text,
             fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -500,7 +502,7 @@ fun DescriptionSection(desc: String) {
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .animateContentSize()
         ) {
-            Text(
+            AppText(
                 text = desc,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = 14.sp,
@@ -520,14 +522,14 @@ fun DescriptionSection(desc: String) {
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
+                    AppText(
                         text = if (expanded) "收起" else "展开更多",
                         color = MaterialTheme.colorScheme.primary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.width(2.dp))
-                    Icon(
+                    AppIcon(
                         imageVector = if (expanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
@@ -552,7 +554,7 @@ fun RelatedVideosHeader() {
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = "更多推荐",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontSize = 16.sp,
@@ -623,7 +625,7 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                     color = Color.Black.copy(alpha = 0.7f),
                     shape = RoundedCornerShape(4.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = FormatUtils.formatDuration(video.duration),
                         color = Color.White,
                         fontSize = 11.sp,
@@ -651,14 +653,14 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                         .padding(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
+                    AppIcon(
                         CupertinoIcons.Default.Play,
                         contentDescription = null,
                         tint = Color.White.copy(alpha = 0.9f),
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
-                    Text(
+                    AppText(
                         text = FormatUtils.formatStat(video.stat.view.toLong()),
                         color = Color.White.copy(alpha = 0.9f),
                         fontSize = 10.sp
@@ -676,7 +678,7 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 // 标题
-                Text(
+                AppText(
                     text = video.title,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontSize = 14.sp,
@@ -695,7 +697,7 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                     ) {
                         UserUpBadge()
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(
+                        AppText(
                             text = video.owner.name,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
@@ -711,26 +713,26 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
+                        AppIcon(
                             CupertinoIcons.Default.Play,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(2.dp))
-                        Text(
+                        AppText(
                             text = FormatUtils.formatStat(video.stat.view.toLong()),
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
+                        AppText(
                             text = "·",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
+                        AppText(
                             text = "${FormatUtils.formatStat(video.stat.danmaku.toLong())}弹幕",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -770,7 +772,7 @@ fun PagesSelector(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
+                AppText(
                     text = "选集",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontSize = 16.sp,
@@ -779,7 +781,7 @@ fun PagesSelector(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
+                AppText(
                     text = "(${pages.size}P)",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -793,13 +795,13 @@ fun PagesSelector(
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
+                AppText(
                     text = if (isExpanded) "收起" else "展开",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium
                 )
-                Icon(
+                AppIcon(
                     imageVector = if (isExpanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
@@ -839,14 +841,14 @@ fun PagesSelector(
                                 Column(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = "P${page.page}",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) selectedColors.contentColor else MaterialTheme.colorScheme.primary
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
+                                    AppText(
                                         text = page.part.ifEmpty { "第${page.page}P" },
                                         fontSize = 12.sp,
                                         maxLines = 1,
@@ -883,14 +885,14 @@ fun PagesSelector(
                         Column(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                         ) {
-                            Text(
+                            AppText(
                                 text = "P${page.page}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isSelected) selectedColors.contentColor else MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(
+                            AppText(
                                 text = page.part.ifEmpty { "第${page.page}P" },
                                 fontSize = 13.sp,
                                 maxLines = 1,

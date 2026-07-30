@@ -1,4 +1,7 @@
 package com.android.purebilibili.feature.download
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppCard
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppSurface
 import java.io.File
 
 /**
@@ -56,7 +63,7 @@ fun DirectorySelectionDialog(
     }
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(
+        AppCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(500.dp)
@@ -68,7 +75,7 @@ fun DirectorySelectionDialog(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 // 1. 顶部标题和当前路径
-                Text(
+                AppText(
                     text = "选择存储位置",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
@@ -77,7 +84,7 @@ fun DirectorySelectionDialog(
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 // 当前路径显示
-                Surface(
+                AppSurface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
@@ -86,14 +93,14 @@ fun DirectorySelectionDialog(
                         modifier = Modifier.padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.Filled.Folder,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
+                        AppText(
                             text = currentPath,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -112,19 +119,19 @@ fun DirectorySelectionDialog(
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "上级目录",
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
+                        AppText(
                             text = ".. (返回上级)",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    AppHorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                 }
 
                 // 2. 文件夹列表
@@ -137,7 +144,7 @@ fun DirectorySelectionDialog(
                                 modifier = Modifier.fillParentMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
+                                AppText(
                                     text = "空文件夹",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 )
@@ -152,26 +159,26 @@ fun DirectorySelectionDialog(
                                     .padding(vertical = 12.dp, horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
+                                AppIcon(
                                     imageVector = Icons.Filled.Folder,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.secondary
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
-                                Text(
+                                AppText(
                                     text = file.name,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.weight(1f)
                                 )
-                                Icon(
+                                AppIcon(
                                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
-                            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            AppHorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         }
                     }
                 }
@@ -183,20 +190,20 @@ fun DirectorySelectionDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedButton(
+                    AppOutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("取消")
+                        AppText("取消")
                     }
                     
-                    Button(
+                    AppButton(
                         onClick = { onPathSelected(currentPath) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("选择此目录")
+                        AppText("选择此目录")
                     }
                 }
             }

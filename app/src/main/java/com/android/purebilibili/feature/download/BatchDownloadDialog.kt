@@ -26,7 +26,7 @@ import com.android.purebilibili.core.ui.components.AppFilterChip
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppRadioButton
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -82,13 +82,13 @@ internal fun BatchDownloadDialog(
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = "批量缓存",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
+                    AppText(
                         text = title,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -107,14 +107,14 @@ internal fun BatchDownloadDialog(
                             onClick = {
                                 workingCandidates = selectAllBatchDownloadCandidates(workingCandidates)
                             },
-                            label = { Text("全选") }
+                            label = { AppText("全选") }
                         )
                         AppFilterChip(
                             selected = false,
                             onClick = {
                                 workingCandidates = invertBatchDownloadCandidateSelection(workingCandidates)
                             },
-                            label = { Text("反选") }
+                            label = { AppText("反选") }
                         )
                         AppFilterChip(
                             selected = false,
@@ -124,13 +124,13 @@ internal fun BatchDownloadDialog(
                                     downloadedIds = downloadedIds
                                 )
                             },
-                            label = { Text("仅未下载") }
+                            label = { AppText("仅未下载") }
                         )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
+                    AppText(
                         text = "选择条目",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
@@ -165,13 +165,13 @@ internal fun BatchDownloadDialog(
                                 Column(
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = candidate.label,
                                         style = MaterialTheme.typography.bodyLarge,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Text(
+                                    AppText(
                                         text = candidate.title,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -188,7 +188,7 @@ internal fun BatchDownloadDialog(
                                             )
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
-                                        Text(
+                                        AppText(
                                             text = "已存在",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -212,7 +212,7 @@ internal fun BatchDownloadDialog(
                             checked = includeDanmaku,
                             onCheckedChange = { includeDanmaku = it }
                         )
-                        Text(
+                        AppText(
                             text = "同时缓存弹幕",
                             style = MaterialTheme.typography.bodyLarge
                         )
@@ -220,7 +220,7 @@ internal fun BatchDownloadDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
+                    AppText(
                         text = "统一画质",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
@@ -239,7 +239,7 @@ internal fun BatchDownloadDialog(
                                 selected = selectedQuality == qualityId,
                                 onClick = { selectedQuality = qualityId }
                             )
-                            Text(
+                            AppText(
                                 text = qualityLabel,
                                 style = MaterialTheme.typography.bodyLarge
                             )
@@ -256,7 +256,7 @@ internal fun BatchDownloadDialog(
                             onClick = onDismiss,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("取消")
+                            AppText("取消")
                         }
                         AppButton(
                             onClick = {
@@ -269,7 +269,7 @@ internal fun BatchDownloadDialog(
                             modifier = Modifier.weight(1f),
                             enabled = canConfirmBatchDownload(workingCandidates)
                         ) {
-                            Text("加入下载")
+                            AppText("加入下载")
                         }
                     }
                 }

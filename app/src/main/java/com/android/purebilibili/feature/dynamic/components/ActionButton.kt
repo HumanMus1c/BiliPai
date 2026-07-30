@@ -1,5 +1,7 @@
 // 文件路径: feature/dynamic/components/ActionButton.kt
 package com.android.purebilibili.feature.dynamic.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -117,7 +119,7 @@ fun ActionButton(
                 ) { onClick() }
                 .padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Small)
         ) {
-            Icon(
+            AppIcon(
                 imageVector = buttonIcon,
                 contentDescription = label,
                 modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro),
@@ -126,7 +128,7 @@ fun ActionButton(
 
             if (actionText != null) {
                 Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
-                Text(
+                AppText(
                     text = actionText,
                     fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Medium,

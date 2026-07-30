@@ -1,5 +1,7 @@
 // 文件路径: feature/dynamic/components/LiveCard.kt
 package com.android.purebilibili.feature.dynamic.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -108,7 +110,7 @@ fun LiveCard(
                             .background(MaterialTheme.colorScheme.primary, AppShapes.container(ContainerLevel.Tag))
                             .padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Micro)
                     ) {
-                        Text("直播中", fontSize = MaterialTheme.typography.labelSmall.fontSize, color = MediaContrastPalette.Foreground, fontWeight = FontWeight.Bold)
+                        AppText("直播中", fontSize = MaterialTheme.typography.labelSmall.fontSize, color = MediaContrastPalette.Foreground, fontWeight = FontWeight.Bold)
                     }
                 }
                 
@@ -119,7 +121,7 @@ fun LiveCard(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
+                    AppText(
                         liveInfo.live_play_info?.title ?: "直播中",
                         fontSize = MaterialTheme.typography.labelMedium.fontSize,
                         fontWeight = FontWeight.Medium,
@@ -129,13 +131,13 @@ fun LiveCard(
                     )
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
+                        AppIcon(
                             rememberAppPlayIcon(),
                             null,
                             modifier = Modifier.size(AppSpacingTokens.Medium + AppSpacingTokens.Micro),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
                         )
-                        Text(
+                        AppText(
                             "${liveInfo.live_play_info?.online ?: 0} 人观看",
                             fontSize = MaterialTheme.typography.labelSmall.fontSize,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
@@ -163,10 +165,10 @@ fun LiveCard(
                         .background(MaterialTheme.colorScheme.primary, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🔴", fontSize = MaterialTheme.typography.titleMedium.fontSize)
+                    AppText("🔴", fontSize = MaterialTheme.typography.titleMedium.fontSize)
                 }
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
-                Text(
+                AppText(
                     "直播中",
                     fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Medium,

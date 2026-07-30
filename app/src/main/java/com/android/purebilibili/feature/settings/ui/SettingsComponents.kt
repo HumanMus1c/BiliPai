@@ -8,9 +8,9 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +59,7 @@ fun BlurIntensitySelector(
                 .padding(vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
+            AppIcon(
                 CupertinoIcons.Default.WandAndStars,
                 contentDescription = null,
                 tint = titleTint,
@@ -67,19 +67,19 @@ fun BlurIntensitySelector(
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
+                AppText(
                     text = "模糊强度",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Text(
+                AppText(
                     text = currentTitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             // 展开/收起箭头
-            Icon(
+            AppIcon(
                 imageVector = if (isExpanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
                 contentDescription = if (isExpanded) "收起" else "展开",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -160,7 +160,7 @@ fun BlurIntensityOption(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (isSelected) {
-            Icon(
+            AppIcon(
                 CupertinoIcons.Default.Checkmark,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
@@ -169,11 +169,11 @@ fun BlurIntensityOption(
             Spacer(modifier = Modifier.width(8.dp))
         }
         
-        Icon(icon, contentDescription = null, tint = effectiveIconTint, modifier = Modifier.size(20.dp))
+        AppIcon(icon, contentDescription = null, tint = effectiveIconTint, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+            AppText(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+            AppText(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
         }
     }
 }

@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,9 +13,16 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.feature.video.policy.resolveFavoriteFolderMediaId
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppCheckbox
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppTextButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +52,7 @@ fun FavoriteFolderSheet(
         )
     }
 
-    ModalBottomSheet(
+    AppModalBottomSheet(
         onDismissRequest = onDismissRequest,
         containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
@@ -59,7 +67,7 @@ fun FavoriteFolderSheet(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Text(
+                AppText(
                     text = "添加到收藏夹",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
@@ -67,11 +75,11 @@ fun FavoriteFolderSheet(
                 )
                 
                 // [新增] 新建文件夹按钮
-                TextButton(
+                AppTextButton(
                     onClick = { showCreateDialog = true },
                     modifier = Modifier.align(Alignment.CenterEnd)
                 ) {
-                    Text("新建")
+                    AppText("新建")
                 }
             }
             
@@ -91,7 +99,7 @@ fun FavoriteFolderSheet(
                         .height(200.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("暂无收藏夹", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AppText("暂无收藏夹", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 LazyColumn(
@@ -117,24 +125,24 @@ fun FavoriteFolderSheet(
                     .padding(top = 8.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
+                AppText(
                     text = "已选择 ${selectedFolderIds.size} 个收藏夹",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
-                Button(
+                AppButton(
                     onClick = onSaveClick,
                     enabled = !isLoading && !isSaving
                 ) {
                     if (isSaving) {
-                        CircularProgressIndicator(
+                        AppCircularProgressIndicator(
                             modifier = Modifier.size(14.dp),
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Text("保存")
+                        AppText("保存")
                     }
                 }
             }
@@ -151,39 +159,39 @@ fun CreateFolderDialog(
     var intro by remember { mutableStateOf("") }
     var isPrivate by remember { mutableStateOf(false) }
 
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("新建收藏夹") },
+        title = { AppText("新建收藏夹") },
         text = {
             Column {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("标题") },
+                    label = { AppText("标题") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = intro,
                     onValueChange = { intro = it },
-                    label = { Text("简介 (选填)") },
+                    label = { AppText("简介 (选填)") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
+                    AppCheckbox(
                         checked = isPrivate,
                         onCheckedChange = { isPrivate = it }
                     )
-                    Text("设为私密")
+                    AppText("设为私密")
                 }
             }
         },
         confirmButton = {
-            Button(
+            AppButton(
                 onClick = { 
                     if (title.isNotBlank()) {
                         onConfirm(title, intro, isPrivate)
@@ -191,12 +199,12 @@ fun CreateFolderDialog(
                 },
                 enabled = title.isNotBlank()
             ) {
-                Text("创建")
+                AppText("创建")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
+            AppTextButton(onClick = onDismiss) {
+                AppText("取消")
             }
         }
     )
@@ -216,20 +224,20 @@ fun FavoriteFolderItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
+            AppText(
                 text = folder.title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
+            AppText(
                 text = "${folder.media_count}个内容",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Checkbox(
+        AppCheckbox(
             checked = selected,
             onCheckedChange = { onClick() }
         )

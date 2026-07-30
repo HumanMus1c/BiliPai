@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 
@@ -197,14 +199,14 @@ fun IconSettingsContent(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
+                    AppIcon(
                         CupertinoIcons.Outlined.Info,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text(
+                    AppText(
                         text = "图标切换可能需要几秒钟生效，系统可能会短暂卡顿。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -236,7 +238,7 @@ fun IconSettingsContent(
             iconGroups.forEach { group ->
                 // 分组标题
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    Text(
+                    AppText(
                         text = group.title,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
@@ -295,7 +297,7 @@ fun IconSettingsContent(
                                     .align(Alignment.BottomEnd)
                                     .offset(x = 6.dp, y = 6.dp)
                             ) {
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Filled.CheckmarkCircle,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
@@ -309,7 +311,7 @@ fun IconSettingsContent(
                         
                         Spacer(modifier = Modifier.height(10.dp))
                         
-                        Text(
+                        AppText(
                             text = option.name,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,

@@ -178,7 +178,7 @@ class BiliPaiNavDisplayHostStructureTest {
         assertTrue(source.contains("videoCardClock: VideoCardTransitionClock"))
         assertTrue(source.contains("{ videoCardClock.depthProgress() }"))
         assertFalse(source.contains("onVideoCardDepthFrame"))
-        assertFalse(source.contains("withFrameNanos"))
+        assertFalse(source.contains("snapshotFlow"))
     }
 
     @Test

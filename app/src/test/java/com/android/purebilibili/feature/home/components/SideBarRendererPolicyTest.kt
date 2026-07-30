@@ -78,10 +78,14 @@ class SideBarRendererPolicyTest {
             ?: File("app/src/main/java/com/android/purebilibili/feature/home/components/SideBar.kt").readText()
 
         assertTrue(source.contains("rememberAppNavigationCapabilities()"))
-        assertTrue(source.contains("MiuixNavigationRail("))
-        assertTrue(source.contains("MiuixNavigationRailItem("))
-        assertTrue(source.contains("rememberMiuixNavigationRailState("))
+        assertTrue(source.contains("AppPlatformNavigationRail("))
+        assertTrue(source.contains("AppPlatformNavigationRailItem("))
+        assertTrue(source.contains("expanded = expandable"))
         assertTrue(source.contains("shouldUseExpandableMiuixSideBar("))
+        assertTrue(source.contains("shouldUseMiuixOfficialSideBarItem(skinIconPath)"))
+        assertTrue(source.contains("MiuixSideBarSkinItem("))
         assertTrue(source.contains("resolveHomeSideBarClickAction("))
+        assertFalse(source.contains("import top.yukonga.miuix.kmp.basic.NavigationRail as MiuixNavigationRail"))
+        assertFalse(source.contains("import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem"))
     }
 }

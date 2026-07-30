@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.android.purebilibili.feature.plugin.js
 
 import android.view.ViewGroup
@@ -12,11 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppFilterChip
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppScaffold
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.AppTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -92,7 +94,7 @@ fun ExternalMediaPlayerScreen(
                 title = request?.title ?: "外部媒体",
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
-                        Icon(rememberAppBackIcon(), contentDescription = "返回")
+                        AppIcon(rememberAppBackIcon(), contentDescription = "返回")
                     }
                 }
             )
@@ -105,7 +107,7 @@ fun ExternalMediaPlayerScreen(
                     .fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
+                AppText(
                     text = "播放请求已失效，请从插件内容重新打开",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -148,7 +150,7 @@ fun ExternalMediaPlayerScreen(
                     AppFilterChip(
                         selected = index == selectedIndex,
                         onClick = { selectedIndex = index },
-                        label = { Text(mediaStream.title.ifBlank { "线路 ${index + 1}" }) }
+                        label = { AppText(mediaStream.title.ifBlank { "线路 ${index + 1}" }) }
                     )
                 }
             }

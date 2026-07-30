@@ -1,5 +1,8 @@
 // 文件路径: feature/settings/BottomBarSettingsScreen.kt
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
@@ -357,7 +360,7 @@ fun BottomBarSettingsContent(
             // 说明文字
             item {
                 Box(modifier = Modifier.entrance()) {
-                    Text(
+                    AppText(
                         text = "集中管理底部导航、首页顶部标签和平板侧边栏。底栏项目最少 2 个，最多 5 个。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -390,7 +393,7 @@ fun BottomBarSettingsContent(
                                     .padding(vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Default.Eye,
                                     contentDescription = null,
                                     tint = com.android.purebilibili.core.theme.iOSOrange,
@@ -398,18 +401,18 @@ fun BottomBarSettingsContent(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
+                                    AppText(
                                         text = "显示模式",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = visibilityMode.label,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Icon(
+                                AppIcon(
                                     imageVector = if (visibilityModeExpanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -447,21 +450,21 @@ fun BottomBarSettingsContent(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text(
+                                                AppText(
                                                     mode.label,
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                                     color = if (isSelected) MaterialTheme.colorScheme.primary 
                                                             else MaterialTheme.colorScheme.onSurface
                                                 )
-                                                Text(
+                                                AppText(
                                                     mode.description,
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                                 )
                                             }
                                             if (isSelected) {
-                                                Icon(
+                                                AppIcon(
                                                     CupertinoIcons.Default.Checkmark,
                                                     contentDescription = "已选择",
                                                     tint = MaterialTheme.colorScheme.primary,
@@ -479,7 +482,7 @@ fun BottomBarSettingsContent(
                         //  底栏标签样式（选择器）
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Default.Tag,
                                     contentDescription = null,
                                     tint = com.android.purebilibili.core.theme.iOSPurple,
@@ -487,12 +490,12 @@ fun BottomBarSettingsContent(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text(
+                                    AppText(
                                         text = "标签样式",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = when(labelMode) {
                                             0 -> "图标 + 文字"
                                             2 -> "仅文字"
@@ -529,7 +532,7 @@ fun BottomBarSettingsContent(
                                             )
                                             .padding(horizontal = 16.dp, vertical = 8.dp)
                                     ) {
-                                        Icon(
+                                        AppIcon(
                                             icon,
                                             contentDescription = null,
                                             tint = if (isSelected) MaterialTheme.colorScheme.primary
@@ -537,7 +540,7 @@ fun BottomBarSettingsContent(
                                             modifier = Modifier.size(24.dp)
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
+                                        AppText(
                                             text = label,
                                             style = MaterialTheme.typography.labelSmall,
                                             color = if (isSelected) MaterialTheme.colorScheme.primary
@@ -568,7 +571,7 @@ fun BottomBarSettingsContent(
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Default.ListBullet,
                                     contentDescription = null,
                                     tint = com.android.purebilibili.core.theme.iOSBlue,
@@ -576,12 +579,12 @@ fun BottomBarSettingsContent(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text(
+                                    AppText(
                                         text = "顶部标签样式",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = when (topTabLabelMode) {
                                             SettingsManager.TopTabLabelMode.ICON_AND_TEXT -> "图标 + 文字"
                                             SettingsManager.TopTabLabelMode.ICON_ONLY -> "仅图标"
@@ -616,7 +619,7 @@ fun BottomBarSettingsContent(
                                             )
                                             .padding(horizontal = 16.dp, vertical = 8.dp)
                                     ) {
-                                        Icon(
+                                        AppIcon(
                                             icon,
                                             contentDescription = null,
                                             tint = if (isSelected) MaterialTheme.colorScheme.primary
@@ -624,7 +627,7 @@ fun BottomBarSettingsContent(
                                             modifier = Modifier.size(24.dp)
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
+                                        AppText(
                                             text = label,
                                             style = MaterialTheme.typography.labelSmall,
                                             color = if (isSelected) MaterialTheme.colorScheme.primary
@@ -635,10 +638,10 @@ fun BottomBarSettingsContent(
                                 }
                             }
 
-                            HorizontalDivider()
+                            AppHorizontalDivider()
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
+                                AppIcon(
                                     imageVector = if (homeTopRightAction == HomeTopRightAction.INBOX) {
                                         CupertinoIcons.Outlined.Envelope
                                     } else {
@@ -650,12 +653,12 @@ fun BottomBarSettingsContent(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text(
+                                    AppText(
                                         text = "首页右上角入口",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = homeTopRightAction.label,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -687,7 +690,7 @@ fun BottomBarSettingsContent(
                                             )
                                             .padding(horizontal = 16.dp, vertical = 8.dp)
                                     ) {
-                                        Icon(
+                                        AppIcon(
                                             icon,
                                             contentDescription = null,
                                             tint = if (isSelected) MaterialTheme.colorScheme.primary
@@ -695,7 +698,7 @@ fun BottomBarSettingsContent(
                                             modifier = Modifier.size(24.dp)
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
+                                        AppText(
                                             text = label,
                                             style = MaterialTheme.typography.labelSmall,
                                             color = if (isSelected) MaterialTheme.colorScheme.primary
@@ -706,10 +709,10 @@ fun BottomBarSettingsContent(
                                 }
                             }
 
-                            HorizontalDivider()
+                            AppHorizontalDivider()
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Default.Drop,
                                     contentDescription = null,
                                     tint = com.android.purebilibili.core.theme.iOSTeal,
@@ -717,12 +720,12 @@ fun BottomBarSettingsContent(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text(
+                                    AppText(
                                         text = "顶部模糊",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = when (headerBlurMode) {
                                             HomeHeaderBlurMode.FOLLOW_PRESET -> "跟随预设"
                                             HomeHeaderBlurMode.ALWAYS_ON -> "始终开启"
@@ -759,7 +762,7 @@ fun BottomBarSettingsContent(
                                             )
                                             .padding(horizontal = 16.dp, vertical = 8.dp)
                                     ) {
-                                        Text(
+                                        AppText(
                                             text = label,
                                             style = MaterialTheme.typography.labelMedium,
                                             color = if (isSelected) MaterialTheme.colorScheme.primary
@@ -767,7 +770,7 @@ fun BottomBarSettingsContent(
                                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
+                                        AppText(
                                             text = when (mode) {
                                                 HomeHeaderBlurMode.FOLLOW_PRESET -> "iOS 开 / MD3 开"
                                                 HomeHeaderBlurMode.ALWAYS_ON -> "两套都开"
@@ -781,10 +784,10 @@ fun BottomBarSettingsContent(
                                 }
                             }
 
-                            HorizontalDivider()
+                            AppHorizontalDivider()
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Default.ListBullet,
                                     contentDescription = null,
                                     tint = com.android.purebilibili.core.theme.iOSPurple,
@@ -792,12 +795,12 @@ fun BottomBarSettingsContent(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text(
+                                    AppText(
                                         text = "首页顶部布局",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = homeTopLayoutOrder.label,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -829,7 +832,7 @@ fun BottomBarSettingsContent(
                                             )
                                             .padding(horizontal = 18.dp, vertical = 9.dp)
                                     ) {
-                                        Text(
+                                        AppText(
                                             text = label,
                                             style = MaterialTheme.typography.labelMedium,
                                             color = if (isSelected) MaterialTheme.colorScheme.primary
@@ -840,10 +843,10 @@ fun BottomBarSettingsContent(
                                 }
                             }
 
-                            HorizontalDivider()
+                            AppHorizontalDivider()
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Outlined.MagnifyingGlass,
                                     contentDescription = null,
                                     tint = com.android.purebilibili.core.theme.iOSTeal,
@@ -851,12 +854,12 @@ fun BottomBarSettingsContent(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text(
+                                    AppText(
                                         text = "首页搜索框",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = if (homeHeaderCollapseMode.collapseSearch) {
                                             "列表下滑时折叠搜索框"
                                         } else {
@@ -898,7 +901,7 @@ fun BottomBarSettingsContent(
                                             .padding(horizontal = 12.dp, vertical = 9.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Text(
+                                        AppText(
                                             text = label,
                                             style = MaterialTheme.typography.labelMedium,
                                             color = if (isSelected) {
@@ -916,10 +919,10 @@ fun BottomBarSettingsContent(
                                 }
                             }
 
-                            HorizontalDivider()
+                            AppHorizontalDivider()
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Outlined.ArrowUpArrowDown,
                                     contentDescription = null,
                                     tint = com.android.purebilibili.core.theme.iOSBlue,
@@ -927,12 +930,12 @@ fun BottomBarSettingsContent(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text(
+                                    AppText(
                                         text = "首页标签页",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = if (homeHeaderCollapseMode.collapseTabs) {
                                             "列表下滑时折叠标签页"
                                         } else {
@@ -974,7 +977,7 @@ fun BottomBarSettingsContent(
                                             .padding(horizontal = 12.dp, vertical = 9.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Text(
+                                        AppText(
                                             text = label,
                                             style = MaterialTheme.typography.labelMedium,
                                             color = if (isSelected) {
@@ -992,16 +995,16 @@ fun BottomBarSettingsContent(
                                 }
                             }
 
-                            HorizontalDivider()
+                            AppHorizontalDivider()
 
-                            Text(
+                            AppText(
                                 text = "可调整顶部标签的显示/隐藏和顺序，第一位会直接显示在首页顶部。",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
                             val visibleTopOrder = localTopTabOrder.filter { it in localTopTabVisible }
-                            Text(
+                            AppText(
                                 text = "已显示（上下按钮可排序）",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1016,41 +1019,41 @@ fun BottomBarSettingsContent(
                                         .padding(horizontal = 12.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
+                                    AppIcon(
                                         imageVector = tab.icon,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
+                                    AppText(
                                         text = tab.label,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.weight(1f)
                                     )
                                     if (tab.fixedVisible) {
-                                        Text(
+                                        AppText(
                                             text = "固定",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
-                                    IconButton(
+                                    AppIconButton(
                                         onClick = { moveTopTab(tab.id, -1) },
                                         enabled = !tab.fixedVisible && index > 0
                                     ) {
-                                        Icon(
+                                        AppIcon(
                                             CupertinoIcons.Default.ChevronUp,
                                             contentDescription = "上移",
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
-                                    IconButton(
+                                    AppIconButton(
                                         onClick = { moveTopTab(tab.id, 1) },
                                         enabled = !tab.fixedVisible && index < visibleTopOrder.lastIndex
                                     ) {
-                                        Icon(
+                                        AppIcon(
                                             CupertinoIcons.Default.ChevronDown,
                                             contentDescription = "下移",
                                             modifier = Modifier.size(16.dp)
@@ -1060,7 +1063,7 @@ fun BottomBarSettingsContent(
                             }
 
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(
+                            AppText(
                                 text = "可用标签",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1080,7 +1083,7 @@ fun BottomBarSettingsContent(
                                         .padding(vertical = 2.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = tab.label,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface,
@@ -1168,7 +1171,7 @@ fun BottomBarSettingsContent(
                     AppPreferenceGroup {
                         allBottomBarTabs.forEachIndexed { index, tab ->
                             if (index > 0) {
-                                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                                AppHorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                             }
                             BottomBarTabItem(
                                 tab = tab,
@@ -1207,7 +1210,7 @@ fun BottomBarSettingsContent(
                 Box(modifier = Modifier.entrance()) {
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
+                        AppText(
                             text = " 长按图标并拖拽可调整显示顺序",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
@@ -1221,7 +1224,7 @@ fun BottomBarSettingsContent(
                 Box(modifier = Modifier.entrance()) {
                     Column {
                         Spacer(modifier = Modifier.height(16.dp))
-                        io.github.alexzhirkevich.cupertino.CupertinoButton(
+                        AppOutlinedButton(
                             onClick = {
                                 localOrder = listOf("HOME", "DYNAMIC", "HISTORY", "LISTEN_VIDEO", "PROFILE")
                                 localVisibleTabs = setOf("HOME", "DYNAMIC", "HISTORY", "LISTEN_VIDEO", "PROFILE")
@@ -1235,13 +1238,13 @@ fun BottomBarSettingsContent(
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = io.github.alexzhirkevich.cupertino.CupertinoButtonDefaults.borderedButtonColors(
+                            colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.primary
                             )
                         ) {
-                            Icon(CupertinoIcons.Default.ArrowCounterclockwise, contentDescription = null, modifier = Modifier.size(18.dp))
+                            AppIcon(CupertinoIcons.Default.ArrowCounterclockwise, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("重置为默认")
+                            AppText("重置为默认")
                         }
                     }
                 }
@@ -1267,7 +1270,7 @@ private fun BottomBarPreview(
     var draggingItemIndex by remember { mutableStateOf<Int?>(null) }
     var draggingItemCenter by remember { mutableFloatStateOf(0f) }
     
-    Surface(
+    AppSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(AppShapes.container(ContainerLevel.Dialog)),
@@ -1353,14 +1356,14 @@ private fun BottomBarPreview(
                             .scale(scale)
                             // 移除单独的 pointerInput
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = tab.icon,
                             contentDescription = tab.label,
                             tint = if (index == 0 && !isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(
+                        AppText(
                             text = tab.label,
                             style = MaterialTheme.typography.labelSmall,
                             color = if (index == 0 && !isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -1405,7 +1408,7 @@ private fun BottomBarTabItem(
                 .clickable { showColorPicker = true },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
+            AppIcon(
                 imageVector = tab.icon,
                 contentDescription = null,
                 tint = itemColor,
@@ -1417,12 +1420,12 @@ private fun BottomBarTabItem(
         
         // 名称
         Column(modifier = Modifier.weight(1f)) {
-            Text(
+            AppText(
                 text = tab.label,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
+            AppText(
                 text = "点击图标更换颜色",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1441,7 +1444,7 @@ private fun BottomBarTabItem(
     if (showColorPicker) {
         com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showColorPicker = false },
-            title = { Text("选择${tab.label}颜色") },
+            title = { AppText("选择${tab.label}颜色") },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -1466,14 +1469,14 @@ private fun BottomBarTabItem(
                                     .background(color)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(
+                            AppText(
                                 text = BottomBarColorNames[index],
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.weight(1f))
                             if (index == colorIndex) {
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Default.Checkmark,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
@@ -1488,7 +1491,7 @@ private fun BottomBarTabItem(
                 com.android.purebilibili.core.ui.AppDialogAction(
                     onClick = { showColorPicker = false }
                 ) {
-                    Text("取消", color = MaterialTheme.colorScheme.primary)
+                    AppText("取消", color = MaterialTheme.colorScheme.primary)
                 }
             }
         )

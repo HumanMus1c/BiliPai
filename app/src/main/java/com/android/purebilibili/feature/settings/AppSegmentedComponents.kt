@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -47,7 +47,7 @@ internal fun <T> AppSegmentedPreference(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
+        AppText(
             text = title,
             style = if (policy.usesEmphasizedTitle) {
                 MaterialTheme.typography.titleMedium
@@ -57,7 +57,7 @@ internal fun <T> AppSegmentedPreference(
             color = AppSurfaceTokens.onSurface(),
         )
         if (!subtitle.isNullOrBlank()) {
-            Text(
+            AppText(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = AppSurfaceTokens.onSurfaceVariantSummary(),

@@ -43,6 +43,7 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import dev.chrisbanes.haze.HazeState
+import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 
 @Composable
 internal fun HomeTopTabChrome(
@@ -60,6 +61,7 @@ internal fun HomeTopTabChrome(
     tabSurfaceColor: Color,
     hazeState: HazeState?,
     backdrop: LayerBackdrop?,
+    miuixBackdrop: MiuixBackdrop? = null,
     liquidStyle: LiquidGlassStyle,
     liquidGlassTuning: LiquidGlassTuning? = null,
     liquidGlassPreset: BottomBarLiquidGlassPreset = BottomBarLiquidGlassPreset.BILIPAI_TUNED,
@@ -192,13 +194,15 @@ internal fun HomeTopTabChrome(
                                     shape = tabShape,
                                     hazeState = hazeState,
                                     backdrop = backdrop,
+                                    miuixBackdrop = miuixBackdrop,
                                     liquidGlassStyle = liquidStyle,
                                     liquidGlassTuning = liquidGlassTuning,
                                     liquidGlassPreset = liquidGlassPreset,
                                     motionTier = motionTier,
                                     isTransitionRunning = isTransitionRunning,
                                     forceLowBlurBudget = forceLowBlurBudget,
-                                    drawShellLens = drawMatchedShellLens
+                                    drawShellLens = drawMatchedShellLens,
+                                    isScrolling = isScrolling
                                 )
                             } else {
                                 Modifier.homeTopChromeSurface(

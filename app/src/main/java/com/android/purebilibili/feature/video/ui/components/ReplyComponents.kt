@@ -1,4 +1,7 @@
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.content.Intent
 import android.widget.Toast
@@ -73,9 +76,12 @@ import com.android.purebilibili.core.ui.common.rememberClipboardCopyHandler
 import com.android.purebilibili.core.ui.OfficialVerifyBadge
 import com.android.purebilibili.core.ui.OfficialVerifyBadgeSpec
 import com.android.purebilibili.core.ui.OfficialVerifyBadgeTone
+import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.foundation.text.selection.SelectionContainer
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -979,14 +985,14 @@ fun ReplyHeader(count: Int) {
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
+        AppText(
             text = "评论",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(
+        AppText(
             text = FormatUtils.formatStat(count.toLong()),
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1328,7 +1334,7 @@ fun ReplyItemView(
                         ) {
                             // 用户名不挂长按复制：列表滑动时易误触连复制多个用户名。
                             // 需要时用评论长按菜单「复制用户名」。
-                            Text(
+                            AppText(
                                 text = item.member.uname,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -1369,7 +1375,7 @@ fun ReplyItemView(
                             }
                         }
 
-                        Text(
+                        AppText(
                             text = metadataText,
                             fontSize = 12.sp,
                             lineHeight = 16.sp,
@@ -1453,7 +1459,7 @@ fun ReplyItemView(
                             .clickable(enabled = onLikeClick != null) { onLikeClick?.invoke() }
                             .padding(4.dp)
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = if (isLiked) likeFilledIcon else likeIcon,
                             contentDescription = "Like",
                             tint = if (isLiked) appearance.accentColor else appearance.actionTint,
@@ -1461,7 +1467,7 @@ fun ReplyItemView(
                         )
                         if (displayLikeCount > 0) {
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(
+                            AppText(
                                 text = FormatUtils.formatStat(displayLikeCount.toLong()),
                                 fontSize = 12.sp,
                                 color = if (isLiked) appearance.accentColor else appearance.actionTint
@@ -1472,7 +1478,7 @@ fun ReplyItemView(
                     // [新增] 删除按钮 (仅显示给本人)
                     if (onDeleteClick != null) {
                         Spacer(modifier = Modifier.width(16.dp))
-                        Icon(
+                        AppIcon(
                             imageVector = CupertinoIcons.Default.Trash,
                             contentDescription = "Delete",
                             tint = appearance.actionTint,
@@ -1610,7 +1616,7 @@ fun ReplyItemView(
                         }
 
                         if (showInlineSubReplyToggle) {
-                            Text(
+                            AppText(
                                 text = resolveInlineSubReplyToggleLabel(expanded = isSubPreviewExpanded),
                                 fontSize = 13.sp,
                                 color = appearance.accentColor,
@@ -1629,7 +1635,7 @@ fun ReplyItemView(
                                     .clickable { onSubClick(item, 0L) },
                                 contentAlignment = Alignment.CenterStart
                             ) {
-                                Text(
+                                AppText(
                                     text = subReplySummaryLabel,
                                     fontSize = 13.sp,
                                     color = appearance.accentColor,
@@ -1655,14 +1661,14 @@ fun ReplyItemView(
             )
         }
 
-        IconButton(
+        AppIconButton(
             onClick = { showActionSheet = true },
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .size(layoutPolicy.actionButtonSizeDp.dp)
                 .testTag("$COMMENT_ACTION_BUTTON_TAG_PREFIX${item.rpid}")
         ) {
-            Icon(
+            AppIcon(
                 imageVector = Icons.Filled.MoreVert,
                 contentDescription = "评论操作",
                 tint = appearance.actionTint,
@@ -1670,7 +1676,7 @@ fun ReplyItemView(
             )
         }
         
-        HorizontalDivider(
+        AppHorizontalDivider(
             modifier = Modifier.padding(start = layoutPolicy.dividerStartPaddingDp.dp),
             thickness = 0.5.dp,
             color = appearance.dividerColor.copy(alpha = 0.25f)
@@ -1824,7 +1830,7 @@ private fun ReplyVideoReferenceText(
         Modifier
     }
 
-    Text(
+    AppText(
         text = annotatedString,
         inlineContent = inlineContent,
         fontSize = fontSize,
@@ -2065,7 +2071,7 @@ fun RichCommentText(
             else -> Modifier
         }
 
-        Text(
+        AppText(
             text = annotatedString,
             inlineContent = inlineContent,
             fontSize = fontSize,
@@ -2211,7 +2217,7 @@ private fun FansMedalTag(detail: ReplyFansDetail) {
             )
             .background(accentColor.copy(alpha = 0.14f))
     ) {
-        Text(
+        AppText(
             text = detail.medalName,
             fontSize = 9.sp,
             fontWeight = FontWeight.Medium,
@@ -2225,7 +2231,7 @@ private fun FansMedalTag(detail: ReplyFansDetail) {
                 .padding(horizontal = 3.dp, vertical = 1.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
+            AppText(
                 text = detail.level.toString(),
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -2297,13 +2303,13 @@ internal fun FanGroupDecorationBadge(
                     .clip(RoundedCornerShape(2.dp))
             )
         }
-        Surface(
+        AppSurface(
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
             shape = RoundedCornerShape(5.dp),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
         ) {
-            Text(
+            AppText(
                 text = labelText,
                 fontSize = 12.sp,
                 lineHeight = 14.sp,
@@ -2374,7 +2380,7 @@ fun formatTime(timestamp: Long): String {
 
 @Composable
 internal fun ReplySpecialLabelChip(text: String) {
-    Text(
+    AppText(
         text = text,
         fontSize = 12.sp,
         fontWeight = FontWeight.Medium,
@@ -2395,14 +2401,14 @@ private fun ReplyTextAction(
             .clickable { onClick() }
             .padding(end = 8.dp)
     ) {
-        Icon(
+        AppIcon(
             imageVector = Icons.AutoMirrored.Outlined.Reply,
             contentDescription = null,
             tint = appearance.actionTint,
             modifier = Modifier.size(17.dp)
         )
         Spacer(modifier = Modifier.width(3.dp))
-        Text(
+        AppText(
             text = label,
             fontSize = 13.sp,
             color = appearance.actionTint
@@ -2448,7 +2454,7 @@ internal fun ReplyActionSheet(
             canCopyUsername = canCopyUsername,
         )
     }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    AppModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2486,7 +2492,7 @@ private fun ReplyActionSheetItem(
     isDestructive: Boolean = false,
     onClick: () -> Unit
 ) {
-    Text(
+    AppText(
         text = label,
         fontSize = 16.sp,
         color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
@@ -2515,7 +2521,7 @@ fun TopTag() {
             )
             .padding(horizontal = 3.dp, vertical = 2.dp),
     ) {
-        Text(
+        AppText(
             text = "TOP",
             fontSize = 9.sp,
             lineHeight = 9.sp,
@@ -2650,7 +2656,7 @@ fun CommentPictures(
                                             .background(Color.Black.copy(alpha = 0.5f)),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
+                                        AppText(
                                             "+${totalCount - 9}",
                                             color = Color.White,
                                             fontSize = 18.sp,

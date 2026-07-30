@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.video.ui.section
 
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionTargetMode
+import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -8,6 +9,26 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class VideoPlayerCoverPolicyTest {
+
+    @Test
+    fun immediatePlaybackCoverBecomesThePlayerUnderlay() {
+        assertEquals(
+            -1f,
+            resolveVideoPlayerCoverLayerZIndex(
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+                forceCoverDuringReturnAnimation = false,
+                shouldKeepCoverForManualStart = false,
+            ),
+        )
+        assertEquals(
+            100f,
+            resolveVideoPlayerCoverLayerZIndex(
+                playbackIntent = VideoSharedTransitionPlaybackIntent.CoverFirst,
+                forceCoverDuringReturnAnimation = false,
+                shouldKeepCoverForManualStart = true,
+            ),
+        )
+    }
 
     @Test
     fun verticalVideo_fillsPlayerViewportDuringCoverPhase() {

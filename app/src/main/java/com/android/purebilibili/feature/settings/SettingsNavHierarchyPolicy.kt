@@ -6,6 +6,7 @@ import com.android.purebilibili.navigation3.BiliPaiNavRouteTransition
 internal const val SETTINGS_ROUTE_BASE = "settings"
 internal const val SETTINGS_CATEGORY_ROUTE_BASE = "settings_category"
 internal const val SETTINGS_SEARCH_ROUTE_BASE = "settings_search"
+private const val PROFILE_ROUTE_BASE = "profile"
 
 internal val SETTINGS_SUBTREE_ROUTE_BASES: Set<String> = setOf(
     SETTINGS_ROUTE_BASE,
@@ -133,6 +134,10 @@ internal fun isSettingsNavHierarchyTransition(
     if (!isSettingsSubtreeRoute(childRoute)) return false
     val normalizedParent = parentRoute.substringBefore("?")
     val normalizedChild = childRoute.substringBefore("?")
+    // “我的”页的设置按钮直接打开设置根页，属于设置树的根入口。
+    if (normalizedParent == PROFILE_ROUTE_BASE && normalizedChild == SETTINGS_ROUTE_BASE) {
+        return true
+    }
     if (resolveSettingsNavParentRoute(normalizedChild) == normalizedParent) {
         return true
     }
@@ -172,7 +177,7 @@ internal fun resolveSettingsNavPopTransition(
     val normalizedActive = activeMainHostRoute?.substringBefore("?")?.takeIf { it.isNotBlank() }
     val effectiveParentRoute = if (
         normalizedTo == BiliPaiNavKey.MainHost.routeBase &&
-        isSettingsSubtreeRoute(normalizedActive)
+        (isSettingsSubtreeRoute(normalizedActive) || normalizedActive == PROFILE_ROUTE_BASE)
     ) {
         normalizedActive
     } else {

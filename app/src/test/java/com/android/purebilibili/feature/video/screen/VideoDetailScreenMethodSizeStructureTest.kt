@@ -41,7 +41,7 @@ class VideoDetailScreenMethodSizeStructureTest {
         val transitionHost = loadSource("VideoDetailTransitionHost.kt")
         val content = loadSource("VideoDetailScreenContent.kt")
 
-        assertTrue(transitionHost.contains("label = \"video-detail-shared-transition-progress\""))
+        assertTrue(transitionHost.contains("label = \"video-detail-shared-morph-clock\""))
         assertTrue(holder.contains("val detailTransitionProgress = transitionState.progress"))
         assertTrue(holder.contains("resolveVideoDetailReturnCoverAlpha("))
         assertTrue(holder.contains("resolveVideoDetailReturnPlayerAlpha("))

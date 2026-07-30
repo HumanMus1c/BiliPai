@@ -57,8 +57,11 @@ internal class VideoCardTransitionClock {
      * Shared morph 回灌：与详情 shell 同一 Transition 的 fraction（0 卡 / 1 详情）。
      * null = 本帧无有效回灌。
      */
-    private var sharedMorphFraction: Float? = null
-    private var sharedMorphActive: Boolean = false
+    // 共享 morph 的进度由详情 AVS 每帧回灌。它必须是 Snapshot state，才能让背景
+    // drawWithContent 在同一帧失效重绘；普通字段会让背景只在 fallback 状态变化时
+    // 才刷新，视觉上就像先顿住、再追上卡片本体。
+    private var sharedMorphFraction: Float? by mutableStateOf(null)
+    private var sharedMorphActive: Boolean by mutableStateOf(false)
 
     val fallbackValue: Float
         get() = fallback.value
@@ -121,6 +124,10 @@ internal class VideoCardTransitionClock {
         sharedMorphActive = false
         sharedMorphFraction = null
     }
+
+    /** sharedBounds 已开始回灌时，背景应直接读取它，而非启动第二条 fallback 补间。 */
+    fun hasActiveSharedMorphProgress(): Boolean =
+        sharedMorphActive && sharedMorphFraction != null
 
     fun beginOpening(sourceRoute: String?) {
         this.sourceRoute = sourceRoute

@@ -98,8 +98,13 @@ class VideoContentTabBarPolicyTest {
         )
 
         assertTrue(source.contains("val videoContentChromeBackdrop = rememberLayerBackdrop()"))
+        assertTrue(source.contains("val videoContentMiuixBackdrop = rememberMiuixLayerBackdrop()"))
+        assertTrue(source.contains(".miuixLayerBackdrop(videoContentMiuixBackdrop)"))
+        assertTrue(source.contains(".alpha(0f)"))
         assertTrue(source.contains("chromeBackdrop = videoContentChromeBackdrop"))
+        assertTrue(source.contains("chromeMiuixBackdrop = videoContentMiuixBackdrop"))
         assertTrue(source.contains("backdrop = videoContentChromeBackdrop"))
+        assertTrue(source.contains("miuixBackdrop = videoContentMiuixBackdrop"))
         assertTrue(source.contains("backdrop = chromeBackdrop"))
         assertTrue(source.contains("Column(modifier = modifier.fillMaxSize())"))
         assertTrue(

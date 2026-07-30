@@ -2,6 +2,8 @@ package com.android.purebilibili.feature.video.screen
 
 /** 共享元素 morph 标准时长之外的超时 buffer，防止极端设备上过渡信号丢失。 */
 internal const val VIDEO_DETAIL_ENTRY_TRANSITION_FINISH_TIMEOUT_BUFFER_MS = 80
+/** 先让封面承接开场，morph 后段再启动解码，给首帧留出接管窗口。 */
+internal const val VIDEO_DETAIL_ENTRY_PLAYBACK_PRELOAD_RATIO = 0.32f
 
 internal fun shouldDeferVideoDetailLoadUntilEntryTransitionFinished(
     transitionEnabled: Boolean,
@@ -43,4 +45,11 @@ internal fun resolveVideoDetailEntryTransitionFallbackTimeoutMillis(
     bufferMillis: Int = VIDEO_DETAIL_ENTRY_TRANSITION_FINISH_TIMEOUT_BUFFER_MS,
 ): Int {
     return morphDurationMillis.coerceAtLeast(0) + bufferMillis.coerceAtLeast(0)
+}
+
+internal fun resolveVideoDetailEntryPlaybackPreloadDelayMillis(
+    morphDurationMillis: Int,
+): Int {
+    return (morphDurationMillis.coerceAtLeast(0) *
+        VIDEO_DETAIL_ENTRY_PLAYBACK_PRELOAD_RATIO).toInt()
 }

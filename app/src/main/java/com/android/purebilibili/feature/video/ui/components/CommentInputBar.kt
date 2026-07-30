@@ -1,5 +1,8 @@
 // 文件路径: feature/video/ui/components/CommentInputBar.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -29,7 +32,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.rememberAppClearIcon
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppTextButton
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 
@@ -66,13 +75,13 @@ fun CommentInputBar(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
+                AppText(
                     text = "回复 @${replyToName ?: ""}",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                Icon(
+                AppIcon(
                     imageVector = clearIcon,
                     contentDescription = "取消回复",
                     modifier = Modifier
@@ -83,7 +92,7 @@ fun CommentInputBar(
             }
         }
         
-        HorizontalDivider(
+        AppHorizontalDivider(
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
             thickness = 0.5.dp
         )
@@ -96,11 +105,11 @@ fun CommentInputBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 表情按钮
-            IconButton(
+            AppIconButton(
                 onClick = onEmoteClick,
                 modifier = Modifier.size(36.dp)
             ) {
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Default.FaceSmiling,
                     contentDescription = "表情",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -123,7 +132,7 @@ fun CommentInputBar(
                 contentAlignment = Alignment.CenterStart
             ) {
                 if (value.isEmpty()) {
-                    Text(
+                    AppText(
                         text = if (replyToName != null) "回复 @$replyToName" else "发一条友善的评论",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -172,13 +181,13 @@ fun CommentInputBar(
                 contentAlignment = Alignment.Center
             ) {
                 if (isSending) {
-                    CircularProgressIndicator(
+                    AppCircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Icon(
+                    AppIcon(
                         imageVector = CupertinoIcons.Default.Paperplane,
                         contentDescription = "发送",
                         tint = if (canSend) MaterialTheme.colorScheme.onPrimary 
@@ -203,50 +212,50 @@ fun CommentContextMenu(
     onDelete: (() -> Unit)? = null,  // 只有自己的评论才显示删除
     onReport: () -> Unit
 ) {
-    DropdownMenu(
+    AppDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss
     ) {
-        DropdownMenuItem(
-            text = { Text("复制") },
+        AppDropdownMenuItem(
+            text = { AppText("复制") },
             onClick = {
                 onCopy()
                 onDismiss()
             },
             leadingIcon = {
-                Icon(CupertinoIcons.Default.DocOnDoc, contentDescription = null, modifier = Modifier.size(18.dp))
+                AppIcon(CupertinoIcons.Default.DocOnDoc, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         )
-        DropdownMenuItem(
-            text = { Text("回复") },
+        AppDropdownMenuItem(
+            text = { AppText("回复") },
             onClick = {
                 onReply()
                 onDismiss()
             },
             leadingIcon = {
-                Icon(CupertinoIcons.Default.ArrowshapeTurnUpLeft, contentDescription = null, modifier = Modifier.size(18.dp))
+                AppIcon(CupertinoIcons.Default.ArrowshapeTurnUpLeft, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         )
         if (onDelete != null) {
-            DropdownMenuItem(
-                text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+            AppDropdownMenuItem(
+                text = { AppText("删除", color = MaterialTheme.colorScheme.error) },
                 onClick = {
                     onDelete()
                     onDismiss()
                 },
                 leadingIcon = {
-                    Icon(CupertinoIcons.Default.Trash, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                    AppIcon(CupertinoIcons.Default.Trash, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
                 }
             )
         }
-        DropdownMenuItem(
-            text = { Text("举报") },
+        AppDropdownMenuItem(
+            text = { AppText("举报") },
             onClick = {
                 onReport()
                 onDismiss()
             },
             leadingIcon = {
-                Icon(CupertinoIcons.Default.ExclamationmarkTriangle, contentDescription = null, modifier = Modifier.size(18.dp))
+                AppIcon(CupertinoIcons.Default.ExclamationmarkTriangle, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         )
     }
@@ -274,17 +283,17 @@ fun ReportReasonDialog(
         0 to "其他"
     )
     
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("举报原因", fontWeight = FontWeight.Bold) },
+        title = { AppText("举报原因", fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 reasons.forEach { (code, label) ->
-                    TextButton(
+                    AppTextButton(
                         onClick = { onReport(code) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
+                        AppText(
                             text = label,
                             modifier = Modifier.fillMaxWidth(),
                             color = MaterialTheme.colorScheme.onSurface
@@ -295,8 +304,8 @@ fun ReportReasonDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
+            AppTextButton(onClick = onDismiss) {
+                AppText("取消")
             }
         }
     )

@@ -27,8 +27,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -229,20 +228,20 @@ fun SettingsShareScreen(
         AppAlertDialog(
             onDismissRequest = { viewModel.dismissImportPreview() },
             title = {
-                Text(
+                AppText(
                     text = "导入设置",
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
+                    AppText(
                         text = buildImportPreviewSummary(pendingImportSession),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (showRawKeys && pendingImportSession.preview.skippedKeys.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(
+                        AppText(
                             text = pendingImportSession.preview.skippedKeys.joinToString(separator = "\n"),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -251,7 +250,7 @@ fun SettingsShareScreen(
             },
             confirmButton = {
                 AppDialogAction(onClick = { viewModel.confirmImport() }) {
-                    Text(importConfirmLabel)
+                    AppText(importConfirmLabel)
                 }
             },
             dismissButton = {
@@ -264,7 +263,7 @@ fun SettingsShareScreen(
                         }
                     }
                 ) {
-                    Text(
+                    AppText(
                         if (pendingImportSession.preview.skippedKeys.isNotEmpty() && !showRawKeys) {
                             viewSkippedLabel
                         } else {

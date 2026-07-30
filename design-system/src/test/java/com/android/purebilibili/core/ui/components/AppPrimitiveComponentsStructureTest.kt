@@ -18,6 +18,8 @@ class AppPrimitiveComponentsStructureTest {
         assertTrue(source.contains("colors: ButtonColors"))
         assertTrue(source.contains("fun AppIconButton("))
         assertTrue(source.contains(") = IconButton("))
+        assertTrue(source.contains("fun AppFilledIconButton("))
+        assertTrue(source.contains(") = FilledIconButton("))
         assertTrue(source.contains("fun AppTextButton("))
         assertTrue(source.contains(") = TextButton("))
         assertTrue(source.contains("fun AppOutlinedTextField("))

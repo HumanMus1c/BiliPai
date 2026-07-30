@@ -1,7 +1,11 @@
 // 文件路径: feature/home/components/cards/GlassVideoCard.kt
 package com.android.purebilibili.feature.home.components.cards
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
+import com.android.purebilibili.core.ui.components.AppSurface
 
 import com.android.purebilibili.core.ui.MediaContrastPalette
 
@@ -366,7 +370,7 @@ fun GlassVideoCard(
                         //  已删除悬浮播放按钮
                         //  时长标签 - 玻璃胶囊
                         if (badgeStylePolicy.coverStyle == HomeVideoBadgeStyle.GLASS) {
-                            Surface(
+                            AppSurface(
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
                                     .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro),
@@ -374,7 +378,7 @@ fun GlassVideoCard(
                                 border = BorderStroke(AppSpacingTokens.Micro * 0.4f, emphasizedCoverPillColors.borderColor),
                                 shape = RoundedCornerShape(tagCornerRadius)
                             ) {
-                                Text(
+                                AppText(
                                     text = durationText,
                                     color = MediaContrastPalette.Foreground,
                                     style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
@@ -387,14 +391,14 @@ fun GlassVideoCard(
                                 )
                             }
                         } else {
-                            Surface(
+                            AppSurface(
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
                                     .padding(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, AppSpacingTokens.None, AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, AppSpacingTokens.Large),
                                 color = MediaContrastPalette.Scrim.copy(alpha = durationBadgeStyle.backgroundAlpha),
                                 shape = RoundedCornerShape(tagCornerRadius)
                             ) {
-                                Text(
+                                AppText(
                                     text = durationText,
                                     color = MediaContrastPalette.Foreground,
                                     style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
@@ -410,7 +414,7 @@ fun GlassVideoCard(
                         
                         //  [新增] 竖屏标签 - 左上角显示
                         if (video.isVertical && badgeStylePolicy.coverStyle == HomeVideoBadgeStyle.GLASS) {
-                            Surface(
+                            AppSurface(
                                 modifier = Modifier
                                     .align(Alignment.TopStart)
                                     .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro),
@@ -418,7 +422,7 @@ fun GlassVideoCard(
                                 border = BorderStroke(AppSpacingTokens.Micro * 0.4f, coverPillColors.borderColor),
                                 shape = RoundedCornerShape(smallTagRadius)
                             ) {
-                                Text(
+                                AppText(
                                     text = "竖屏",
                                     color = MediaContrastPalette.Foreground,
                                     style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
@@ -426,14 +430,14 @@ fun GlassVideoCard(
                                 )
                             }
                         } else if (video.isVertical) {
-                            Surface(
+                            AppSurface(
                                 modifier = Modifier
                                     .align(Alignment.TopStart)
                                     .padding(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                 color = HomeVisualPalette.VerticalVideoAccent.copy(alpha = 0.82f),
                                 shape = RoundedCornerShape(smallTagRadius)
                             ) {
-                                Text(
+                                AppText(
                                     text = "竖屏",
                                     color = MediaContrastPalette.Foreground,
                                     style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
@@ -458,7 +462,7 @@ fun GlassVideoCard(
                             isQuickReturnFromDetail = isQuickReturningFromVideoDetail,
                         )
                 ) {
-                    Text(
+                    AppText(
                         text = video.title,
                         color = onSurface,
                         style = contentTypography.title,
@@ -502,12 +506,12 @@ fun GlassVideoCard(
                         // 播放量 -  [修复] 只在有播放量时显示
                         if (video.stat.view > 0) {
                             if (badgeStylePolicy.infoStyle == HomeVideoBadgeStyle.GLASS) {
-                                Surface(
+                                AppSurface(
                                     shape = AppShapes.container(ContainerLevel.Pill),
                                     color = inlinePillColors.containerColor,
                                     border = BorderStroke(AppSpacingTokens.Micro * 0.4f, inlinePillColors.borderColor)
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = "${FormatUtils.formatStat(video.stat.view.toLong())}播放",
                                         color = onSurfaceVariant.copy(alpha = 0.78f),
                                         style = contentTypography.statistic,
@@ -515,7 +519,7 @@ fun GlassVideoCard(
                                     )
                                 }
                             } else {
-                                Text(
+                                AppText(
                                     text = "${FormatUtils.formatStat(video.stat.view.toLong())}播放",
                                     color = onSurfaceVariant.copy(alpha = 0.78f),
                                     style = contentTypography.statistic
@@ -547,13 +551,13 @@ fun GlassVideoCard(
     }
     
     //  [新增] 长按删除菜单
-    DropdownMenu(
+    AppDropdownMenu(
         expanded = showDismissMenu,
         onDismissRequest = { showDismissMenu = false }
     ) {
-        DropdownMenuItem(
+        AppDropdownMenuItem(
             text = { 
-                Text(
+                AppText(
                     "🚫 不感兴趣",
                     color = MaterialTheme.colorScheme.onSurface
                 ) 

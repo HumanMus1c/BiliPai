@@ -175,8 +175,7 @@ class AppNavigationAppearancePolicyTest {
 
         assertTrue(
             navHostCall.contains(
-                "videoCardDepthEffectEnabled =\n" +
-                    "                        videoDetailTransitionsEnabled && sharedVideoCardTransitionEnabled"
+                "videoCardDepthEffectEnabled = sharedVideoCardTransitionEnabled"
             )
         )
         assertFalse(navHostCall.contains("videoCardBackgroundSinkEnabled"))

@@ -33,8 +33,8 @@ import androidx.compose.material.icons.filled.Refresh
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -2315,7 +2315,7 @@ private fun VideoPageItem(
             isSeekGesture = isSeekGesture
         )
         if (showPauseIcon) {
-            Icon(
+            AppIcon(
                 imageVector = Icons.Filled.PlayArrow,
                 contentDescription = "Pause",
                 modifier = Modifier
@@ -2339,14 +2339,14 @@ private fun VideoPageItem(
                     .padding(horizontal = 24.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                androidx.compose.material3.Text(
+                AppText(
                     text = "$targetTimeText / $totalTimeText",
                     color = Color.White,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                androidx.compose.material3.Text(
+                AppText(
                     text = deltaText,
                     color = if (deltaMs >= 0) Color(0xFF66FF66) else Color(0xFFFF6666),
                     fontSize = 14.sp
@@ -2373,7 +2373,7 @@ private fun VideoPageItem(
                     .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
+                AppText(
                     text = seekFeedbackText.orEmpty(),
                     color = if (seekFeedbackText?.startsWith("+") == true) {
                         Color(0xFF66FF66)
@@ -2464,7 +2464,7 @@ private fun VideoPageItem(
                     }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
+                AppText(
                     text = "${effectiveLongPressSpeed}x",
                     color = Color.White,
                     fontSize = 18.sp,
@@ -2499,12 +2499,12 @@ private fun VideoPageItem(
                 ),
                 shape = RoundedCornerShape(24.dp)
             ) {
-                Icon(
+                AppIcon(
                     imageVector = Icons.Filled.Refresh,
                     contentDescription = "还原画面"
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
+                AppText(
                     text = "还原画面",
                     fontWeight = FontWeight.Bold
                 )

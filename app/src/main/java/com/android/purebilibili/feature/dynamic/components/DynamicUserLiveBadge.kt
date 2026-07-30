@@ -1,7 +1,7 @@
 package com.android.purebilibili.feature.dynamic.components
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -12,7 +12,7 @@ import com.android.purebilibili.feature.dynamic.resolveDynamicUserLiveBadgeLabel
 fun DynamicUserLiveBadge(
     modifier: Modifier = Modifier
 ) {
-    Text(
+    AppText(
         text = resolveDynamicUserLiveBadgeLabel(),
         modifier = modifier,
         color = MaterialTheme.colorScheme.primary,

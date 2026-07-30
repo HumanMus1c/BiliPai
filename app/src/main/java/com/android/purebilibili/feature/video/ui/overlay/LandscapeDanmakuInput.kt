@@ -8,7 +8,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,7 +54,7 @@ fun LandscapeDanmakuInput(
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.CenterStart
     ) {
-        Text(
+        AppText(
             text = placeholder,
             color = Color.White.copy(alpha = 0.6f),
             fontSize = 12.sp,
@@ -81,7 +81,7 @@ fun LandscapeQuickActionButton(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(
+        AppText(
             text = emoji,
             fontSize = 14.sp
         )

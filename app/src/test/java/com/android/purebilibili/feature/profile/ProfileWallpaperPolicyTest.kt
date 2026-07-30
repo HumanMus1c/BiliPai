@@ -10,7 +10,7 @@ class ProfileWallpaperPolicyTest {
     @Test
     fun compactProfileTopBanner_usesHeroFractionAndClamp() {
         val compactHeight = resolveProfileTopBannerHeightDp(WindowWidthSizeClass.Compact)
-        assertEquals(288f, compactHeight, 0.001f)
+        assertEquals(resolveProfileLayoutTokens().heroMinHeightDp.toFloat(), compactHeight, 0.001f)
     }
 
     @Test

@@ -1,5 +1,7 @@
 // 文件路径: feature/home/components/cards/StoryVideoCard.kt
 package com.android.purebilibili.feature.home.components.cards
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
@@ -350,7 +352,7 @@ internal fun StoryVideoCard(
                         .align(Alignment.TopEnd)
                         .padding(AppSpacingTokens.Small)
                 ) {
-                    Text(
+                    AppText(
                         text = premiumBadgeLabel,
                         color = MediaContrastPalette.Foreground,
                         style = contentTypography.coverBadge.copy(fontWeight = FontWeight.Bold),
@@ -361,7 +363,7 @@ internal fun StoryVideoCard(
             
             //  时长标签 (保留在封面上)
             if (showDurationOnCover) {
-                Text(
+                AppText(
                     text = durationText,
                     color = MediaContrastPalette.Foreground,
                     style = contentTypography.coverBadge
@@ -388,7 +390,7 @@ internal fun StoryVideoCard(
         ) {
         Spacer(modifier = Modifier.height(if (compactMetadata) AppSpacingTokens.Small else AppSpacingTokens.Medium))
         
-        Text(
+        AppText(
             text = video.title,
             color = MaterialTheme.colorScheme.onSurface,
             style = contentTypography.title,
@@ -464,13 +466,13 @@ internal fun StoryVideoCard(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
                             ) {
-                                Icon(
+                                AppIcon(
                                     imageVector = CupertinoIcons.Outlined.PlayCircle,
                                     contentDescription = null,
                                     modifier = Modifier.size(AppSpacingTokens.Medium),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Text(
+                                AppText(
                                     text = FormatUtils.formatStat(video.stat.view.toLong()),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
@@ -486,13 +488,13 @@ internal fun StoryVideoCard(
                                  verticalAlignment = Alignment.CenterVertically,
                                  horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
                              ) {
-                                 Icon(
+                                 AppIcon(
                                      imageVector = CupertinoIcons.Outlined.BubbleLeft,
                                      contentDescription = null,
                                      modifier = Modifier.size(AppSpacingTokens.Medium),
                                      tint = MaterialTheme.colorScheme.onSurfaceVariant
                                  )
-                                 Text(
+                                 AppText(
                                      text = FormatUtils.formatStat(video.stat.danmaku.toLong()),
                                      color = MaterialTheme.colorScheme.onSurfaceVariant,
                                      style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
@@ -506,13 +508,13 @@ internal fun StoryVideoCard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
                         ) {
-                            Icon(
+                            AppIcon(
                                 imageVector = CupertinoIcons.Outlined.Eye,
                                 contentDescription = null,
                                 modifier = Modifier.size(AppSpacingTokens.Medium),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
+                            AppText(
                                 text = onlineCount,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
@@ -532,7 +534,7 @@ internal fun StoryVideoCard(
     ) {
         AppDropdownMenuItem(
             text = { 
-                Text(
+                AppText(
                     "🚫 不感兴趣",
                     color = MaterialTheme.colorScheme.onSurface
                 ) 

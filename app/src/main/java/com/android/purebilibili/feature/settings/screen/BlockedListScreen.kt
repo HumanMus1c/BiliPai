@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,10 +26,15 @@ import com.android.purebilibili.data.repository.buildBlockedUpShareText
 import com.android.purebilibili.data.repository.parseBlockedUpShareText
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppTextField
+import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppPreferenceSectionTitle
 import com.android.purebilibili.core.ui.components.UserLevelBadge
 import com.android.purebilibili.core.util.ShareUtils
@@ -167,9 +173,9 @@ fun BlockedListContent(
     var showImportDialog by remember { mutableStateOf(false) }
     var importText by remember { mutableStateOf("") }
     if (showImportDialog && onImportBlockedList != null) {
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { showImportDialog = false },
-            title = { Text("导入黑名单") },
+            title = { AppText("导入黑名单") },
             text = {
                 AppTextField(
                     value = importText,
@@ -180,7 +186,7 @@ fun BlockedListContent(
                 )
             },
             confirmButton = {
-                TextButton(
+                AppTextButton(
                     onClick = {
                         onImportBlockedList(importText)
                         showImportDialog = false
@@ -188,12 +194,12 @@ fun BlockedListContent(
                     },
                     enabled = importText.isNotBlank()
                 ) {
-                    Text("导入")
+                    AppText("导入")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showImportDialog = false }) {
-                    Text("取消")
+                AppTextButton(onClick = { showImportDialog = false }) {
+                    AppText("取消")
                 }
             }
         )
@@ -205,7 +211,7 @@ fun BlockedListContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
+            AppText(
                 text = "暂无屏蔽的 UP 主",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -298,7 +304,7 @@ private fun BlockedListSyncAction(
             .background(AppSurfaceTokens.cardContainer())
             .padding(12.dp)
     ) {
-        Button(
+        AppButton(
             onClick = onSync,
             enabled = !syncing && !refreshingProfiles,
             modifier = Modifier
@@ -306,14 +312,14 @@ private fun BlockedListSyncAction(
                 .heightIn(min = 48.dp)
         ) {
             if (syncing) {
-                CircularProgressIndicator(
+                AppCircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
-            Text(if (syncing) "同步中" else "同步 B站黑名单")
+            AppText(if (syncing) "同步中" else "同步 B站黑名单")
         }
         if (
             onRefreshProfiles != null ||
@@ -325,7 +331,7 @@ private fun BlockedListSyncAction(
             Spacer(modifier = Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (onRefreshProfiles != null) {
-                    OutlinedButton(
+                    AppOutlinedButton(
                         onClick = onRefreshProfiles,
                         enabled = !syncing && !refreshingProfiles,
                         modifier = Modifier.fillMaxWidth()
@@ -337,50 +343,50 @@ private fun BlockedListSyncAction(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                         }
-                        Text(if (refreshingProfiles) "刷新中" else "刷新资料")
+                        AppText(if (refreshingProfiles) "刷新中" else "刷新资料")
                     }
                 }
                 if (onExportBlockedListJson != null) {
-                    OutlinedButton(
+                    AppOutlinedButton(
                         onClick = onExportBlockedListJson,
                         enabled = !syncing && !refreshingProfiles,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("导出 JSON 文件")
+                        AppText("导出 JSON 文件")
                     }
                 }
                 if (onImportBlockedListJsonRequest != null) {
-                    OutlinedButton(
+                    AppOutlinedButton(
                         onClick = onImportBlockedListJsonRequest,
                         enabled = !syncing && !refreshingProfiles,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("导入 JSON 文件")
+                        AppText("导入 JSON 文件")
                     }
                 }
                 if (onImportBlockedListRequest != null) {
-                    OutlinedButton(
+                    AppOutlinedButton(
                         onClick = onImportBlockedListRequest,
                         enabled = !syncing && !refreshingProfiles,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("粘贴导入")
+                        AppText("粘贴导入")
                     }
                 }
                 if (onShareBlockedList != null) {
-                    OutlinedButton(
+                    AppOutlinedButton(
                         onClick = onShareBlockedList,
                         enabled = !syncing && !refreshingProfiles,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("分享文本")
+                        AppText("分享文本")
                     }
                 }
             }
         }
         if (!message.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
+            AppText(
                 text = message,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -425,7 +431,7 @@ private fun BlockedUpItem(
         
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
+                AppText(
                     text = name.ifBlank { "UP主$mid" },
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
@@ -439,7 +445,7 @@ private fun BlockedUpItem(
                 }
             }
             Spacer(modifier = Modifier.height(3.dp))
-            Text(
+            AppText(
                 text = buildBlockedUpMetaLine(
                     mid = mid,
                     level = level,
@@ -455,7 +461,7 @@ private fun BlockedUpItem(
             )
             if (sign.isNotBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
+                AppText(
                     text = sign.trim(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -464,8 +470,8 @@ private fun BlockedUpItem(
             }
         }
         
-        TextButton(onClick = onUnblock) {
-            Text("解除屏蔽", color = Color.Red)
+        AppTextButton(onClick = onUnblock) {
+            AppText("解除屏蔽", color = Color.Red)
         }
     }
 }

@@ -11,7 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwitchDefaults
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppSwitch
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -191,7 +191,7 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("启用关键词屏蔽", style = MaterialTheme.typography.bodyLarge)
+                    AppText("启用关键词屏蔽", style = MaterialTheme.typography.bodyLarge)
                 }
                 val primaryColor = MaterialTheme.colorScheme.primary
                 AppSwitch(
@@ -220,8 +220,8 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
                             persistConfig(context, config.copy(blockedKeywords = newValue))
                         }
                     },
-                    label = { Text("屏蔽关键词") },
-                    placeholder = { Text("用逗号分隔，如：剧透,前方高能") },
+                    label = { AppText("屏蔽关键词") },
+                    placeholder = { AppText("用逗号分隔，如：剧透,前方高能") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = false,
                     maxLines = 3
@@ -237,8 +237,8 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
                             persistConfig(context, config.copy(blockedUserIds = newValue))
                         }
                     },
-                    label = { Text("屏蔽用户 ID/哈希") },
-                    placeholder = { Text("用逗号分隔，如：abc123,7f9d...,123456") },
+                    label = { AppText("屏蔽用户 ID/哈希") },
+                    placeholder = { AppText("用逗号分隔，如：abc123,7f9d...,123456") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = false,
                     maxLines = 3
@@ -253,8 +253,8 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("启用同传高亮", style = MaterialTheme.typography.bodyLarge)
-                    Text(
+                    AppText("启用同传高亮", style = MaterialTheme.typography.bodyLarge)
+                    AppText(
                         "高亮显示同传/翻译弹幕",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -287,8 +287,8 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
                             persistConfig(context, config.copy(highlightKeywords = newValue))
                         }
                     },
-                    label = { Text("高亮关键词") },
-                    placeholder = { Text("用逗号分隔，如：【,】,同传") },
+                    label = { AppText("高亮关键词") },
+                    placeholder = { AppText("用逗号分隔，如：【,】,同传") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = false,
                     maxLines = 3

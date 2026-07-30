@@ -19,9 +19,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -192,7 +192,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-            Text(
+            AppText(
                 text = FormatUtils.formatDuration(video.duration),
                 color = MediaContrastPalette.Foreground,
                 style = contentTypography.coverBadge.copy(
@@ -219,7 +219,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
             ) {
-                Text(
+                AppText(
                     text = video.title,
                     modifier = Modifier.weight(1f),
                     style = contentTypography.title,
@@ -243,7 +243,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(
+                        AppText(
                             text = "⋮",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = MaterialTheme.typography.titleMedium.fontSize,
@@ -257,7 +257,7 @@ internal fun HomeStyleSingleColumnVideoCard(
                 name = video.owner.name,
                 badgeTrailingContent = if (isFollowing) {
                     {
-                        Text(
+                        AppText(
                             text = "已关注",
                             style = contentTypography.coverBadge,
                             color = MaterialTheme.colorScheme.primary,
@@ -299,13 +299,13 @@ private fun SingleColumnStatItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
     ) {
-        Icon(
+        AppIcon(
             imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(AppSpacingTokens.Medium + AppSpacingTokens.Micro),
         )
-        Text(
+        AppText(
             text = text,
             style = contentTypography.statistic,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

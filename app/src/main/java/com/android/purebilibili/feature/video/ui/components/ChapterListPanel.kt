@@ -1,5 +1,8 @@
 // File: feature/video/ui/components/ChapterListPanel.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -82,14 +85,14 @@ fun ChapterListPanel(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
+                    AppText(
                         text = "视频章节",
                         color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
                     
-                    Icon(
+                    AppIcon(
                         CupertinoIcons.Outlined.Xmark,
                         contentDescription = "关闭",
                         tint = Color.White.copy(alpha = 0.6f),
@@ -99,7 +102,7 @@ fun ChapterListPanel(
                     )
                 }
                 
-                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                AppHorizontalDivider(color = Color.White.copy(alpha = 0.1f))
                 
                 // 章节列表 - 简洁设计
                 LazyColumn(
@@ -150,7 +153,7 @@ private fun ChapterListItem(
         Column(
             modifier = Modifier.weight(1f)
         ) {
-            Text(
+            AppText(
                 text = chapter.content,
                 color = if (isCurrentChapter) primaryColor else Color.White,
                 fontSize = 13.sp,
@@ -159,7 +162,7 @@ private fun ChapterListItem(
                 overflow = TextOverflow.Ellipsis
             )
             
-            Text(
+            AppText(
                 text = FormatUtils.formatDuration(chapter.from) + " - " + FormatUtils.formatDuration(chapter.to),
                 color = Color.White.copy(alpha = 0.4f),
                 fontSize = 10.sp
@@ -168,7 +171,7 @@ private fun ChapterListItem(
         
         // 当前播放指示
         if (isCurrentChapter) {
-            Text(
+            AppText(
                 text = "正在播放",
                 color = primaryColor,
                 fontSize = 10.sp,

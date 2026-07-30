@@ -1,4 +1,7 @@
 package com.android.purebilibili.feature.video.ui.pager
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
@@ -36,6 +39,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppTextButton
 
 /**
  * 竖屏视频详情页 (简介)
@@ -94,7 +100,7 @@ fun PortraitDetailSheet(
             enter = sheetMotion.contentEnter,
             exit = sheetMotion.contentExit
         ) {
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = screenHeight * 0.75f) // max height 75%
@@ -116,7 +122,7 @@ fun PortraitDetailSheet(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
+                        AppText(
                             text = "简介",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
@@ -125,14 +131,14 @@ fun PortraitDetailSheet(
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            TextButton(onClick = onDanmakuToggle) {
-                                Text(
+                            AppTextButton(onClick = onDanmakuToggle) {
+                                AppText(
                                     text = if (danmakuEnabled) "弹幕开" else "弹幕关",
                                     fontSize = 13.sp
                                 )
                             }
-                            IconButton(onClick = onDismiss) {
-                                Icon(
+                            AppIconButton(onClick = onDismiss) {
+                                AppIcon(
                                     imageVector = Icons.Rounded.Close,
                                     contentDescription = "Close",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -141,7 +147,7 @@ fun PortraitDetailSheet(
                         }
                     }
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
                     // Content
                     if (info == null) {
@@ -171,8 +177,8 @@ fun PortraitDetailSheet(
                             if (showBlockConfirmDialog) {
                                 com.android.purebilibili.core.ui.AppAlertDialog(
                                     onDismissRequest = { showBlockConfirmDialog = false },
-                                    title = { Text(if (isBlocked) "解除屏蔽" else "屏蔽 UP 主") },
-                                    text = { Text(if (isBlocked) "确定要解除对 ${info.owner.name} 的屏蔽吗？" else "屏蔽后，将不再推荐该 UP 主的视频。\n确定要屏蔽 ${info.owner.name} 吗？") },
+                                    title = { AppText(if (isBlocked) "解除屏蔽" else "屏蔽 UP 主") },
+                                    text = { AppText(if (isBlocked) "确定要解除对 ${info.owner.name} 的屏蔽吗？" else "屏蔽后，将不再推荐该 UP 主的视频。\n确定要屏蔽 ${info.owner.name} 吗？") },
                                     confirmButton = {
                                         com.android.purebilibili.core.ui.AppDialogAction(
                                             onClick = {
@@ -188,19 +194,19 @@ fun PortraitDetailSheet(
                                                 }
                                             }
                                         ) {
-                                            Text(
+                                            AppText(
                                                 text = if (isBlocked) "解除屏蔽" else "屏蔽",
                                                 color = if (!isBlocked) Color.Red else com.android.purebilibili.core.theme.iOSBlue
                                             )
                                         }
                                     },
                                     dismissButton = {
-                                        com.android.purebilibili.core.ui.AppDialogAction(onClick = { showBlockConfirmDialog = false }) { Text("取消") }
+                                        com.android.purebilibili.core.ui.AppDialogAction(onClick = { showBlockConfirmDialog = false }) { AppText("取消") }
                                     }
                                 )
                             }
 
-                            Text(
+                            AppText(
                                 text = info.title,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
@@ -224,12 +230,12 @@ fun PortraitDetailSheet(
 
                             if (publishTimeRowText.isNotBlank()) {
                                 if (emphasizePublishTime) {
-                                    Surface(
+                                    AppSurface(
                                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
                                         shape = RoundedCornerShape(10.dp),
                                         modifier = Modifier.padding(bottom = 10.dp)
                                     ) {
-                                        Text(
+                                        AppText(
                                             text = publishTimeRowText,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Medium,
@@ -238,7 +244,7 @@ fun PortraitDetailSheet(
                                         )
                                     }
                                 } else {
-                                    Text(
+                                    AppText(
                                         text = publishTimeRowText,
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.74f),
@@ -270,7 +276,7 @@ fun PortraitDetailSheet(
                                 Column(
                                     verticalArrangement = Arrangement.Center
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = info.owner.name,
                                         fontSize = 13.sp,
                                         color = if (isBlocked) Color.Red else MaterialTheme.colorScheme.primary,
@@ -278,7 +284,7 @@ fun PortraitDetailSheet(
                                         modifier = Modifier.clickable { showBlockConfirmDialog = true }
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
+                                    AppText(
                                         text = "${FormatUtils.formatStat(info.stat.view.toLong())}观看 · ${FormatUtils.formatStat(info.stat.danmaku.toLong())}弹幕",
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -287,7 +293,7 @@ fun PortraitDetailSheet(
                             }
                             
                             // VID Info
-                            Text(
+                            AppText(
                                 text = info.bvid,
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.outline,
@@ -295,7 +301,7 @@ fun PortraitDetailSheet(
                             )
 
                             // 简介正文
-                            Text(
+                            AppText(
                                 text = info.desc.ifEmpty { "暂无简介" },
                                 fontSize = 15.sp,
                                 lineHeight = 24.sp,
@@ -357,7 +363,7 @@ fun PortraitDetailSheet(
                             }
 
                             if (recommendations.isNotEmpty()) {
-                                Text(
+                                AppText(
                                     text = recommendationTitle,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold,
@@ -387,14 +393,14 @@ fun PortraitDetailSheet(
                                         Column(
                                             modifier = Modifier.weight(1f)
                                         ) {
-                                            Text(
+                                            AppText(
                                                 text = video.title,
                                                 fontSize = 13.sp,
                                                 maxLines = 2,
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
+                                            AppText(
                                                 text = "${video.owner.name} · ${FormatUtils.formatStat(video.stat.view.toLong())}播放",
                                                 fontSize = 11.sp,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -428,7 +434,7 @@ private fun PortraitCollectionSection(
     items: List<PortraitCollectionChip>
 ) {
     if (items.isEmpty()) return
-    Text(
+    AppText(
         text = title,
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
@@ -443,7 +449,7 @@ private fun PortraitCollectionSection(
     ) {
         items.forEach { item ->
             key(item.key) {
-                Surface(
+                AppSurface(
                     onClick = item.onClick,
                     shape = RoundedCornerShape(10.dp),
                     color = if (item.selected) {
@@ -461,7 +467,7 @@ private fun PortraitCollectionSection(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
+                    AppText(
                         text = item.label,
                         fontSize = 13.sp,
                         fontWeight = if (item.selected) FontWeight.SemiBold else FontWeight.Normal,

@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import android.content.Intent
 import android.os.Build
@@ -515,20 +517,20 @@ fun SettingsScreen(
     if (showPathDialog) {
         com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showPathDialog = false },
-            title = { Text("下载位置", color = MaterialTheme.colorScheme.onSurface) },
+            title = { AppText("下载位置", color = MaterialTheme.colorScheme.onSurface) },
             text = { 
                 Column {
-                    Text("默认位置（应用私有目录）：", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(defaultPath.substringAfterLast("Android/"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                    AppText("默认位置（应用私有目录）：", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AppText(defaultPath.substringAfterLast("Android/"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
+                    AppText(
                         "可选：通过系统文件夹授权设置导出目录（无需“管理所有文件”权限）",
                         style = MaterialTheme.typography.bodySmall,
                         color = com.android.purebilibili.core.theme.iOSOrange
                     )
                     if (!downloadExportTreeUri.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
+                        AppText(
                             "当前导出目录：已设置",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -540,7 +542,7 @@ fun SettingsScreen(
                 com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     showPathDialog = false
                     downloadFolderPicker.launch(null)
-                }) { Text("选择导出目录") }
+                }) { AppText("选择导出目录") }
             },
             dismissButton = { 
                 com.android.purebilibili.core.ui.AppDialogAction(onClick = {
@@ -550,30 +552,30 @@ fun SettingsScreen(
                     }
                     showPathDialog = false
                     Toast.makeText(context, "已恢复仅应用内存储", Toast.LENGTH_SHORT).show()
-                }) { Text("仅使用默认") } 
+                }) { AppText("仅使用默认") }
             }
         )
     }
     if (showImageSavePathDialog) {
         com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showImageSavePathDialog = false },
-            title = { Text("图片保存位置", color = MaterialTheme.colorScheme.onSurface) },
+            title = { AppText("图片保存位置", color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column {
-                    Text(
+                    AppText(
                         "默认保存到系统相册的 BiliPai 文件夹。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
+                    AppText(
                         "可通过系统文件夹授权选择动态图片、头像和评论图片的保存目录。",
                         style = MaterialTheme.typography.bodySmall,
                         color = com.android.purebilibili.core.theme.iOSOrange
                     )
                     if (!imageSaveTreeUri.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
+                        AppText(
                             "当前图片目录：已选择",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -585,7 +587,7 @@ fun SettingsScreen(
                 com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     showImageSavePathDialog = false
                     imageSaveFolderPicker.launch(null)
-                }) { Text("选择图片目录") }
+                }) { AppText("选择图片目录") }
             },
             dismissButton = {
                 com.android.purebilibili.core.ui.AppDialogAction(onClick = {
@@ -594,7 +596,7 @@ fun SettingsScreen(
                     }
                     showImageSavePathDialog = false
                     Toast.makeText(context, "已恢复默认图片保存位置", Toast.LENGTH_SHORT).show()
-                }) { Text("恢复默认") }
+                }) { AppText("恢复默认") }
             }
         )
     }
@@ -602,9 +604,9 @@ fun SettingsScreen(
     if (showEasterEggDialog) {
         com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { showEasterEggDialog = false; versionClickCount = 0 },
-            title = { Text(" 你发现了彩蛋！", fontWeight = FontWeight.Bold) },
-            text = { Text("感谢你使用 BiliPai！这是一个用爱发电的开源项目。") },
-            confirmButton = { com.android.purebilibili.core.ui.AppDialogAction(onClick = { showEasterEggDialog = false; versionClickCount = 0 }) { Text("我知道了！") } }
+            title = { AppText(" 你发现了彩蛋！", fontWeight = FontWeight.Bold) },
+            text = { AppText("感谢你使用 BiliPai！这是一个用爱发电的开源项目。") },
+            confirmButton = { com.android.purebilibili.core.ui.AppDialogAction(onClick = { showEasterEggDialog = false; versionClickCount = 0 }) { AppText("我知道了！") } }
         )
     }
 
@@ -653,50 +655,50 @@ fun SettingsScreen(
         com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { updateCheckResult = null },
             title = {
-                Text(
+                AppText(
                     text = "发现新版本 v${info.latestVersion}",
                     color = dialogTextColors.titleColor
                 )
             },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
+                    AppText(
                         text = "当前版本 v${info.currentVersion}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = dialogTextColors.currentVersionColor
                     )
                     preferredAsset?.let { asset ->
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(
+                        AppText(
                             text = "安装包：${asset.name}",
                             style = MaterialTheme.typography.bodySmall,
                             color = dialogTextColors.currentVersionColor
                         )
                     }
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(
+                    AppText(
                         text = "Release 锁定：${if (info.releaseIsImmutable) "Immutable" else "可变"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = dialogTextColors.currentVersionColor
                     )
-                    Text(
+                    AppText(
                         text = "源码提交：$releaseCommit",
                         style = MaterialTheme.typography.bodySmall,
                         color = dialogTextColors.currentVersionColor
                     )
-                    Text(
+                    AppText(
                         text = "构建来源：$releaseWorkflowSubtitle",
                         style = MaterialTheme.typography.bodySmall,
                         color = dialogTextColors.currentVersionColor
                     )
-                    Text(
+                    AppText(
                         text = "Provenance：$releaseVerificationEvidence",
                         style = MaterialTheme.typography.bodySmall,
                         color = dialogTextColors.currentVersionColor
                     )
                     if (updateDownloadState.status != AppUpdateDownloadStatus.IDLE) {
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(
+                        AppText(
                             text = when (updateDownloadState.status) {
                                 AppUpdateDownloadStatus.DOWNLOADING -> "下载中 ${(updateDownloadState.progress * 100).toInt()}%"
                                 AppUpdateDownloadStatus.COMPLETED -> "下载完成，正在准备安装"
@@ -708,7 +710,7 @@ fun SettingsScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
+                    AppText(
                         text = resolvedReleaseNotes,
                         style = MaterialTheme.typography.bodyMedium,
                         color = dialogTextColors.releaseNotesColor,
@@ -765,7 +767,7 @@ fun SettingsScreen(
                         }
                     }
                 }) {
-                    Text(
+                    AppText(
                         when {
                             preferredAsset == null -> "前往下载"
                             updateDownloadState.status == AppUpdateDownloadStatus.DOWNLOADING ->
@@ -780,7 +782,7 @@ fun SettingsScreen(
                 com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     updateCheckResult = null
                     updateDownloadState = AppUpdateDownloadState()
-                }) { Text("稍后") }
+                }) { AppText("稍后") }
             }
         )
     }
@@ -815,41 +817,41 @@ fun SettingsScreen(
         com.android.purebilibili.core.ui.AppAlertDialog(
             onDismissRequest = { changelogCheckResult = null },
             title = {
-                Text(
+                AppText(
                     text = "更新日志 v${info.latestVersion}",
                     color = dialogTextColors.titleColor
                 )
             },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
+                    AppText(
                         text = "当前版本 v${info.currentVersion}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = dialogTextColors.currentVersionColor
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(
+                    AppText(
                         text = "Release 锁定：${if (info.releaseIsImmutable) "Immutable" else "可变"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = dialogTextColors.currentVersionColor
                     )
-                    Text(
+                    AppText(
                         text = "源码提交：$releaseCommit",
                         style = MaterialTheme.typography.bodySmall,
                         color = dialogTextColors.currentVersionColor
                     )
-                    Text(
+                    AppText(
                         text = "构建来源：$releaseWorkflowSubtitle",
                         style = MaterialTheme.typography.bodySmall,
                         color = dialogTextColors.currentVersionColor
                     )
-                    Text(
+                    AppText(
                         text = "Provenance：$releaseVerificationEvidence",
                         style = MaterialTheme.typography.bodySmall,
                         color = dialogTextColors.currentVersionColor
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
+                    AppText(
                         text = resolvedReleaseNotes,
                         style = MaterialTheme.typography.bodyMedium,
                         color = dialogTextColors.releaseNotesColor,
@@ -864,12 +866,12 @@ fun SettingsScreen(
                 com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     changelogCheckResult = null
                     uriHandler.openUri(info.releaseUrl)
-                }) { Text("查看发布页") }
+                }) { AppText("查看发布页") }
             },
             dismissButton = {
                 com.android.purebilibili.core.ui.AppDialogAction(onClick = {
                     changelogCheckResult = null
-                }) { Text("关闭") }
+                }) { AppText("关闭") }
             }
         )
     }
@@ -1071,7 +1073,7 @@ internal fun resolveCacheClearFailureMessage(error: Throwable?): String {
 
 @Composable
 internal fun SettingsCategoryHeader(title: String) {
-    Text(
+    AppText(
         text = title,
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.86f),
         fontSize = 13.sp,
@@ -1340,7 +1342,7 @@ fun DonateDialog(onDismiss: () -> Unit) {
                             .background(Color.Black.copy(alpha = 0.3f), androidx.compose.foundation.shape.CircleShape)
                             .size(32.dp)
                     ) {
-                        Icon(
+                        AppIcon(
                             imageVector = CupertinoIcons.Default.Xmark, // Fixed: Filled.Xmark -> Default.Xmark or correct path
                             contentDescription = "关闭",
                             tint = Color.White,
@@ -1351,7 +1353,7 @@ fun DonateDialog(onDismiss: () -> Unit) {
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                Text(
+                AppText(
                     "感谢您的支持！",
                     color = Color.White.copy(alpha = 0.9f),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
@@ -1359,7 +1361,7 @@ fun DonateDialog(onDismiss: () -> Unit) {
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                Text(
+                AppText(
                     "点击二维码或关闭按钮退出",
                     color = Color.White.copy(alpha = 0.6f),
                     style = MaterialTheme.typography.bodySmall

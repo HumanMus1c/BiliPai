@@ -41,12 +41,12 @@ import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.responsiveContentWidth
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -129,7 +129,7 @@ fun LiveAreaScreen(
                 title = "全部标签",
                 navigationIcon = {
                     AppIconButton(onClick = onBack) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "返回",
                         )
@@ -137,7 +137,7 @@ fun LiveAreaScreen(
                 },
                 actions = {
                     AppTextButton(onClick = { isEditing = !isEditing }) {
-                        Text(if (isEditing) "完成" else "编辑")
+                        AppText(if (isEditing) "完成" else "编辑")
                     }
                 },
             )
@@ -156,7 +156,7 @@ fun LiveAreaScreen(
             }
             error != null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = error ?: "", color = colorScheme.onSurfaceVariant)
+                    AppText(text = error ?: "", color = colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(AppSpacingTokens.Small))
                     AppTextButton(
                         onClick = {
@@ -165,12 +165,12 @@ fun LiveAreaScreen(
                             reloadKey += 1
                         }
                     ) {
-                        Text("重试")
+                        AppText("重试")
                     }
                 }
             }
             areas.isEmpty() -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "暂无直播标签", color = colorScheme.onSurfaceVariant)
+                AppText(text = "暂无直播标签", color = colorScheme.onSurfaceVariant)
             }
             areas.isNotEmpty() -> {
                 LaunchedEffect(areas.size) {
@@ -356,13 +356,13 @@ private fun LiveFavoriteTagsPanel(
             .padding(horizontal = AppSpacingTokens.Medium)
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(
+            AppText(
                 text = "我的常用标签  ",
                 color = colorScheme.onBackground,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium
             )
-            Text(
+            AppText(
                 text = "点击进入标签",
                 color = colorScheme.outline,
                 style = MaterialTheme.typography.bodySmall,
@@ -370,7 +370,7 @@ private fun LiveFavoriteTagsPanel(
         }
         Spacer(Modifier.height(AppSpacingTokens.Small))
         if (favoriteTags.isEmpty()) {
-            Text(
+            AppText(
                 text = "编辑时点亮标签，常用分区会显示在这里",
                 color = colorScheme.outline,
                 style = MaterialTheme.typography.bodySmall,
@@ -427,7 +427,7 @@ private fun LiveFavoriteTagCard(
                     modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge)
                 )
                 Spacer(Modifier.height(AppSpacingTokens.ExtraSmall))
-                Text(
+                AppText(
                     text = child.title,
                     color = colorScheme.onSurface,
                     style = MaterialTheme.typography.labelMedium,
@@ -436,7 +436,7 @@ private fun LiveFavoriteTagCard(
                     textAlign = TextAlign.Center
                 )
                 if (child.parentTitle.isNotBlank()) {
-                    Text(
+                    AppText(
                         text = child.parentTitle,
                         color = colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall,
@@ -460,7 +460,7 @@ private fun LiveFavoriteTagCard(
                     color = colorScheme.errorContainer,
                     modifier = Modifier.size(AppSpacingTokens.ExtraLarge),
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Outlined.StarBorder,
                         contentDescription = "移除常用标签",
                         tint = colorScheme.onErrorContainer,
@@ -486,7 +486,7 @@ private fun LiveAreaIcon(
             modifier = modifier
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Text(
+                AppText(
                     text = title.take(1),
                     color = colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.SemiBold,
@@ -525,7 +525,7 @@ private fun LiveAreaGridItem(
                 modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge)
             )
             Spacer(Modifier.height(AppSpacingTokens.ExtraSmall))
-            Text(
+            AppText(
                 text = child.name,
                 color = colorScheme.onSurface,
                 style = MaterialTheme.typography.labelMedium,
@@ -543,7 +543,7 @@ private fun LiveAreaGridItem(
                     .padding(end = AppSpacingTokens.Large)
                     .size(AppSpacingTokens.Large)
             ) {
-                Icon(
+                AppIcon(
                     imageVector = if (isFavorite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
                     contentDescription = if (isFavorite) "取消收藏" else "收藏标签",
                     tint = if (isFavorite) colorScheme.onSurfaceVariant else colorScheme.onSecondaryContainer,

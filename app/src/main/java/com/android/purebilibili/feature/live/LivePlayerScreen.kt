@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.live
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.app.Activity
 import android.content.ClipData
@@ -32,7 +33,9 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.OpenInBrowser
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.*
+import com.android.purebilibili.core.ui.components.AppIcon
+import androidx.compose.material3.MaterialTheme
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -104,6 +107,7 @@ import dev.chrisbanes.haze.materials.HazeMaterials
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
+import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
@@ -111,6 +115,14 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppOutlinedTextField
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppSwitch
+import com.android.purebilibili.core.ui.components.AppTextButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -840,7 +852,7 @@ fun LivePlayerScreen(
                             vertical = AppSpacingTokens.Medium
                         )
                 ) {
-                    Text(
+                    AppText(
                         text = "仅播放音频",
                         color = roomColorTokens.inputOverlayColor,
                         style = MaterialTheme.typography.titleSmall,
@@ -856,11 +868,11 @@ fun LivePlayerScreen(
             if (uiState is LivePlayerState.Error) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
+                        AppText(
                             (uiState as LivePlayerState.Error).message,
                             color = roomColorTokens.inputOverlayColor
                         )
-                        Button(onClick = { viewModel.retry() }) { Text("重试") }
+                        AppButton(onClick = { viewModel.retry() }) { AppText("重试") }
                     }
                 }
             }
@@ -1024,7 +1036,7 @@ fun LivePlayerScreen(
                             metrics = overlayMetrics
                         )
                     }
-                    Surface(
+                    AppSurface(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(
@@ -1359,11 +1371,11 @@ private fun LivePortraitOverlayAppBar(
             ),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(
+        AppIconButton(
             onClick = onBack,
             modifier = Modifier.size(liveVisualSpec.playerButtonTouchTargetDp.dp)
         ) {
-            Icon(
+            AppIcon(
                 backIcon,
                 contentDescription = "返回",
                 tint = roomColorTokens.inputOverlayColor
@@ -1395,7 +1407,7 @@ private fun LivePortraitOverlayAppBar(
         }
         Spacer(Modifier.width(AppSpacingTokens.Medium))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
+            AppText(
                 text = anchorInfo.uname.ifBlank { roomTitle },
                 color = roomColorTokens.inputOverlayColor,
                 style = MaterialTheme.typography.titleMedium,
@@ -1404,7 +1416,7 @@ private fun LivePortraitOverlayAppBar(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(AppSpacingTokens.Micro))
-            Text(
+            AppText(
                 text = subtitle.ifBlank { roomTitle },
                 color = roomColorTokens.inputOverlayColor.copy(alpha = 0.72f),
                 style = MaterialTheme.typography.bodySmall,
@@ -1421,11 +1433,11 @@ private fun LivePortraitOverlayAppBar(
             )
         }
         Box {
-            IconButton(
+            AppIconButton(
                 onClick = { onExpandedChange(true) },
                 modifier = Modifier.size(liveVisualSpec.playerButtonTouchTargetDp.dp)
             ) {
-                Icon(
+                AppIcon(
                     Icons.Filled.MoreVert,
                     contentDescription = "更多直播间操作",
                     tint = roomColorTokens.inputOverlayColor
@@ -1463,7 +1475,7 @@ private fun LiveRedPocketChip(
     } else {
         info.awardsText.ifBlank { info.danmu.ifBlank { "人气红包" } }
     }
-    Surface(
+    AppSurface(
         onClick = onClick,
         modifier = modifier.heightIn(min = AppSpacingTokens.TripleExtraLarge),
         shape = AppShapes.borderedContainer(ContainerLevel.Pill),
@@ -1480,14 +1492,14 @@ private fun LiveRedPocketChip(
             ),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
+            AppIcon(
                 imageVector = Icons.Outlined.CardGiftcard,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.size(compactChrome.smallIconSizeDp.dp)
             )
             Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
-            Text(
+            AppText(
                 text = label,
                 color = MaterialTheme.colorScheme.onErrorContainer,
                 style = MaterialTheme.typography.labelMedium,
@@ -1515,73 +1527,73 @@ private fun LiveRoomOverflowMenu(
     onShareToMessage: () -> Unit,
     onOpenBrowser: () -> Unit
 ) {
-    DropdownMenu(
+    AppDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss
     ) {
-        DropdownMenuItem(
-            text = { Text(if (isFollowing) "取消关注" else "关注主播") },
+        AppDropdownMenuItem(
+            text = { AppText(if (isFollowing) "取消关注" else "关注主播") },
             onClick = {
                 onDismiss()
                 onFollowClick()
             }
         )
-        DropdownMenuItem(
-            text = { Text("画质：$currentQualityDesc") },
+        AppDropdownMenuItem(
+            text = { AppText("画质：$currentQualityDesc") },
             onClick = {
                 onDismiss()
                 onQualityClick()
             }
         )
-        DropdownMenuItem(
-            text = { Text("高能榜") },
+        AppDropdownMenuItem(
+            text = { AppText("高能榜") },
             onClick = {
                 onDismiss()
                 onOpenRank()
             }
         )
-        DropdownMenuItem(
-            text = { Text("发弹幕") },
+        AppDropdownMenuItem(
+            text = { AppText("发弹幕") },
             onClick = {
                 onDismiss()
                 onOpenSend()
             }
         )
-        DropdownMenuItem(
-            text = { Text("屏蔽弹幕") },
-            leadingIcon = { Icon(Icons.Outlined.Block, contentDescription = null) },
+        AppDropdownMenuItem(
+            text = { AppText("屏蔽弹幕") },
+            leadingIcon = { AppIcon(Icons.Outlined.Block, contentDescription = null) },
             onClick = {
                 onDismiss()
                 onOpenBlock()
             }
         )
-        DropdownMenuItem(
-            text = { Text("复制链接") },
-            leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
+        AppDropdownMenuItem(
+            text = { AppText("复制链接") },
+            leadingIcon = { AppIcon(Icons.Outlined.ContentCopy, contentDescription = null) },
             onClick = {
                 onDismiss()
                 onCopyLink()
             }
         )
-        DropdownMenuItem(
-            text = { Text("分享直播间") },
-            leadingIcon = { Icon(Icons.Outlined.Share, contentDescription = null) },
+        AppDropdownMenuItem(
+            text = { AppText("分享直播间") },
+            leadingIcon = { AppIcon(Icons.Outlined.Share, contentDescription = null) },
             onClick = {
                 onDismiss()
                 onShare()
             }
         )
-        DropdownMenuItem(
-            text = { Text("分享至消息") },
-            leadingIcon = { Icon(Icons.AutoMirrored.Outlined.ForwardToInbox, contentDescription = null) },
+        AppDropdownMenuItem(
+            text = { AppText("分享至消息") },
+            leadingIcon = { AppIcon(Icons.AutoMirrored.Outlined.ForwardToInbox, contentDescription = null) },
             onClick = {
                 onDismiss()
                 onShareToMessage()
             }
         )
-        DropdownMenuItem(
-            text = { Text("浏览器打开") },
-            leadingIcon = { Icon(Icons.Outlined.OpenInBrowser, contentDescription = null) },
+        AppDropdownMenuItem(
+            text = { AppText("浏览器打开") },
+            leadingIcon = { AppIcon(Icons.Outlined.OpenInBrowser, contentDescription = null) },
             onClick = {
                 onDismiss()
                 onOpenBrowser()
@@ -1595,7 +1607,7 @@ private fun LivePortraitInfoPanel(
     anchorInfoBar: @Composable () -> Unit,
     bodyContent: @Composable () -> Unit
 ) {
-    Surface(
+    AppSurface(
         modifier = Modifier.fillMaxSize(),
         shape = AppShapes.container(ContainerLevel.Sheet),
         color = AppSurfaceTokens.surface(),
@@ -1616,7 +1628,7 @@ private fun LivePortraitInfoPanel(
         ) {
             Spacer(Modifier.height(AppSpacingTokens.Small))
             anchorInfoBar()
-            HorizontalDivider(color = AppSurfaceTokens.divider().copy(alpha = 0.45f))
+            AppHorizontalDivider(color = AppSurfaceTokens.divider().copy(alpha = 0.45f))
             Box(modifier = Modifier.weight(1f)) {
                 bodyContent()
             }
@@ -1675,7 +1687,8 @@ private fun LivePrimaryInteractionPanel(
                 height = segmentedSpec.heightDp.dp,
                 indicatorHeight = segmentedSpec.indicatorHeightDp.dp,
                 labelFontSize = segmentedSpec.labelFontSizeSp.sp,
-                backdrop = selectionBackdrop
+                backdrop = selectionBackdrop,
+                isScrollInProgressProvider = { pagerState.isScrollInProgress }
             )
         }
         HorizontalPager(
@@ -1699,7 +1712,7 @@ private fun LiveLandscapeChatPanel(
 ) {
     val palette = rememberLiveChromePalette()
     val roomColorTokens = resolveLivePiliPlusRoomColorTokens()
-    Surface(
+    AppSurface(
         modifier = modifier,
         shape = AppShapes.borderedContainer(ContainerLevel.Floating),
         color = palette.surface.copy(alpha = if (palette.isDark) 0.72f else 0.90f),
@@ -1748,7 +1761,7 @@ private fun LiveQualityMenu(
         ) { onDismiss() },
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        AppSurface(
             modifier = Modifier.width(visualSpec.playerQualityDialogWidthDp.dp),
             shape = AppShapes.borderedContainer(ContainerLevel.Dialog),
             color = palette.surfaceElevated,
@@ -1758,7 +1771,7 @@ private fun LiveQualityMenu(
             )
         ) {
             Column(Modifier.padding(vertical = AppSpacingTokens.Small)) {
-                Text(
+                AppText(
                     "画质选择",
                     color = palette.primaryText,
                     style = MaterialTheme.typography.titleMedium,
@@ -1773,9 +1786,9 @@ private fun LiveQualityMenu(
                             .padding(AppSpacingTokens.Large),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(q.desc, color = if (q.qn == currentQuality) palette.accent else palette.primaryText)
+                        AppText(q.desc, color = if (q.qn == currentQuality) palette.accent else palette.primaryText)
                         Spacer(Modifier.weight(1f))
-                        if (q.qn == currentQuality) Icon(Icons.Outlined.Check, null, tint = palette.accent)
+                        if (q.qn == currentQuality) AppIcon(Icons.Outlined.Check, null, tint = palette.accent)
                     }
                 }
             }
@@ -1804,7 +1817,7 @@ private fun LiveVideoFitMenu(
             ) { onDismiss() },
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        AppSurface(
             modifier = Modifier.width(visualSpec.playerQualityDialogWidthDp.dp),
             shape = AppShapes.borderedContainer(ContainerLevel.Dialog),
             color = palette.surfaceElevated,
@@ -1814,7 +1827,7 @@ private fun LiveVideoFitMenu(
             )
         ) {
             Column(Modifier.padding(vertical = AppSpacingTokens.Small)) {
-                Text(
+                AppText(
                     "画面比例",
                     color = palette.primaryText,
                     style = MaterialTheme.typography.titleMedium,
@@ -1832,10 +1845,10 @@ private fun LiveVideoFitMenu(
                             ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(mode.displayName, color = if (mode == current) palette.accent else palette.primaryText)
+                        AppText(mode.displayName, color = if (mode == current) palette.accent else palette.primaryText)
                         Spacer(Modifier.weight(1f))
                         if (mode == current) {
-                            Icon(Icons.Outlined.Check, null, tint = palette.accent)
+                            AppIcon(Icons.Outlined.Check, null, tint = palette.accent)
                         }
                     }
                 }
@@ -1855,9 +1868,9 @@ private fun LiveDanmakuSettingsDialog(
     onOpenBlock: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("弹幕设置") },
+        title = { AppText("弹幕设置") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium)) {
                 LiveSettingSwitchRow(
@@ -1874,7 +1887,7 @@ private fun LiveDanmakuSettingsDialog(
                     currentArea = displayArea,
                     onAreaSelected = onDisplayAreaSelected
                 )
-                Surface(
+                AppSurface(
                     onClick = onOpenBlock,
                     shape = AppShapes.container(ContainerLevel.Card),
                     color = AppSurfaceTokens.surfaceContainerHigh().copy(alpha = 0.72f),
@@ -1887,15 +1900,15 @@ private fun LiveDanmakuSettingsDialog(
                         ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Outlined.Block, contentDescription = null)
+                        AppIcon(Icons.Outlined.Block, contentDescription = null)
                         Spacer(Modifier.width(AppSpacingTokens.Medium))
-                        Text("屏蔽管理", modifier = Modifier.weight(1f))
+                        AppText("屏蔽管理", modifier = Modifier.weight(1f))
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("完成") }
+            AppTextButton(onClick = onDismiss) { AppText("完成") }
         }
     )
 }
@@ -1921,7 +1934,7 @@ private fun LiveDanmakuAreaSelector(
         )
     }
 
-    Surface(
+    AppSurface(
         shape = AppShapes.container(ContainerLevel.Card),
         color = AppSurfaceTokens.surfaceContainerHigh().copy(alpha = 0.72f),
         modifier = Modifier.fillMaxWidth()
@@ -1932,7 +1945,7 @@ private fun LiveDanmakuAreaSelector(
                 vertical = AppSpacingTokens.Medium
             )
         ) {
-            Text(
+            AppText(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium
@@ -1944,7 +1957,7 @@ private fun LiveDanmakuAreaSelector(
             ) {
                 options.forEach { option ->
                     val selected = kotlin.math.abs(currentArea - option.value) < 0.05f
-                    Surface(
+                    AppSurface(
                         onClick = { onAreaSelected(option.value) },
                         shape = AppShapes.borderedContainer(ContainerLevel.Card),
                         color = if (selected) {
@@ -1966,7 +1979,7 @@ private fun LiveDanmakuAreaSelector(
                             modifier = Modifier.padding(vertical = AppSpacingTokens.Small),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(
+                            AppText(
                                 text = option.label,
                                 style = MaterialTheme.typography.labelLarge,
                                 color = if (selected) {
@@ -1975,7 +1988,7 @@ private fun LiveDanmakuAreaSelector(
                                     MaterialTheme.colorScheme.onSurface
                                 }
                             )
-                            Text(
+                            AppText(
                                 text = option.subtitle,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (selected) {
@@ -2004,8 +2017,8 @@ private fun LiveSettingSwitchRow(
             .heightIn(min = AppSpacingTokens.TripleExtraLarge),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        AppText(title, modifier = Modifier.weight(1f))
+        AppSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -2015,28 +2028,28 @@ private fun LiveDanmakuBlockDialog(
     onDismiss: () -> Unit
 ) {
     var keyword by remember { mutableStateOf("") }
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("屏蔽弹幕") },
+        title = { AppText("屏蔽弹幕") },
         text = {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = keyword,
                 onValueChange = { keyword = it },
                 singleLine = true,
-                label = { Text("关键词") },
+                label = { AppText("关键词") },
                 modifier = Modifier.fillMaxWidth()
             )
         },
         confirmButton = {
-            TextButton(
+            AppTextButton(
                 enabled = keyword.isNotBlank(),
                 onClick = { onConfirm(keyword) }
             ) {
-                Text("添加")
+                AppText("添加")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            AppTextButton(onClick = onDismiss) { AppText("取消") }
         }
     )
 }
@@ -2052,9 +2065,9 @@ private fun LivePlayerInfoDialog(
     playUrl: String,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("播放信息") },
+        title = { AppText("播放信息") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
                 LiveInfoLine("房间", roomId.toString())
@@ -2067,7 +2080,7 @@ private fun LivePlayerInfoDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("关闭") }
+            AppTextButton(onClick = onDismiss) { AppText("关闭") }
         }
     )
 }
@@ -2078,14 +2091,14 @@ private fun LiveInfoLine(
     value: String
 ) {
     Row(verticalAlignment = Alignment.Top) {
-        Text(
+        AppText(
             text = label,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(
                 AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.ExtraLarge
             )
         )
-        Text(
+        AppText(
             text = value,
             modifier = Modifier.weight(1f),
             maxLines = 3,
@@ -2101,25 +2114,25 @@ private fun LiveShutdownTimerDialog(
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("定时关闭") },
+        title = { AppText("定时关闭") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
                 val remainingText = activeTargetMillis
                     ?.let { ((it - System.currentTimeMillis()) / 60_000L).coerceAtLeast(0L) }
                     ?.let { "剩余约${it}分钟" }
                 if (remainingText != null) {
-                    Text(remainingText, color = MaterialTheme.colorScheme.primary)
+                    AppText(remainingText, color = MaterialTheme.colorScheme.primary)
                 }
                 listOf(15L, 30L, 60L).forEach { minutes ->
-                    Surface(
+                    AppSurface(
                         onClick = { onSetMinutes(minutes) },
                         shape = AppShapes.container(ContainerLevel.Card),
                         color = AppSurfaceTokens.surfaceContainerHigh().copy(alpha = 0.72f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
+                        AppText(
                             text = "${minutes}分钟后关闭",
                             modifier = Modifier.padding(
                                 horizontal = AppSpacingTokens.Medium,
@@ -2132,11 +2145,11 @@ private fun LiveShutdownTimerDialog(
         },
         confirmButton = {
             if (activeTargetMillis != null) {
-                TextButton(onClick = onCancelTimer) { Text("取消定时") }
+                AppTextButton(onClick = onCancelTimer) { AppText("取消定时") }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("关闭") }
+            AppTextButton(onClick = onDismiss) { AppText("关闭") }
         }
     )
 }

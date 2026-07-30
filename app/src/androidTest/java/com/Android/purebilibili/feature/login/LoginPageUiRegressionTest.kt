@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
@@ -30,7 +31,7 @@ class LoginPageUiRegressionTest {
     @Test
     fun compactLoginPage_keepsEveryLoginMethodReachable() {
         composeTestRule.setContent {
-            var selectedMethod by mutableStateOf(LoginMethod.TV_QR)
+            var selectedMethod by remember { mutableStateOf(LoginMethod.TV_QR) }
             MaterialTheme {
                 Box(modifier = Modifier.size(width = 320.dp, height = 360.dp)) {
                     LoginPage(

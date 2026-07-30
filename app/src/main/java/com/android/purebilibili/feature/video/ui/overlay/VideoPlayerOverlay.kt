@@ -1,5 +1,8 @@
 // 文件路径: feature/video/VideoPlayerOverlay.kt
 package com.android.purebilibili.feature.video.ui.overlay
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.content.ClipData
 import android.content.Context
@@ -39,6 +42,7 @@ import androidx.media3.common.Player
 import com.android.purebilibili.core.store.DanmakuPanelWidthMode
 import com.android.purebilibili.core.store.PortraitDanmakuDisplayAreaMode
 import com.android.purebilibili.core.theme.BiliPink
+import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.blur.shouldAllowRuntimeShaderBackedHazeEffect
@@ -67,6 +71,12 @@ import com.android.purebilibili.feature.video.playback.dash.buildLocalDashManife
 import com.android.purebilibili.feature.common.resolveIndexedVideoLazyKey
 import com.android.purebilibili.feature.video.progress.PbpRidgeSample
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppTab
+import com.android.purebilibili.core.ui.components.AppTextButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -1432,14 +1442,14 @@ fun VideoPlayerOverlay(
                     .align(Alignment.CenterStart)
                     .padding(start = overlayVisualPolicy.lockButtonEndPaddingDp.dp)
             ) {
-                Surface(
+                AppSurface(
                     onClick = onLockToggle,
                     color = Color.Black.copy(alpha = 0.6f),
                     shape = RoundedCornerShape(overlayVisualPolicy.lockButtonCornerRadiusDp.dp),
                     modifier = Modifier.size(overlayVisualPolicy.lockButtonSizeDp.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Icon(
+                        AppIcon(
                             when (fullscreenLockButtonState.icon) {
                                 FullscreenLockButtonIcon.LOCKED -> CupertinoIcons.Default.Lock
                                 FullscreenLockButtonIcon.UNLOCKED -> CupertinoIcons.Default.LockOpen
@@ -1466,14 +1476,14 @@ fun VideoPlayerOverlay(
                     .align(Alignment.CenterEnd)
                     .padding(end = overlayVisualPolicy.lockButtonEndPaddingDp.dp)
             ) {
-                Surface(
+                AppSurface(
                     onClick = onCaptureScreenshot,
                     color = Color.Black.copy(alpha = 0.6f),
                     shape = RoundedCornerShape(overlayVisualPolicy.lockButtonCornerRadiusDp.dp),
                     modifier = Modifier.size(overlayVisualPolicy.lockButtonSizeDp.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Icon(
+                        AppIcon(
                             imageVector = CupertinoIcons.Default.Camera,
                             contentDescription = "截图",
                             tint = Color.White,
@@ -1492,7 +1502,7 @@ fun VideoPlayerOverlay(
             level = insightPresentation.level
         )
         if (showInsightHud) {
-            Surface(
+            AppSurface(
                 onClick = { showInsightDetails = true },
                 color = Color.Black.copy(alpha = 0.68f),
                 contentColor = Color.White,
@@ -1523,14 +1533,14 @@ fun VideoPlayerOverlay(
                             )
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                        Text(
+                        AppText(
                             text = insightPresentation.summary,
                             color = Color.White,
                             style = MaterialTheme.typography.labelMedium,
                             fontSize = overlayVisualPolicy.statsFontSp.sp,
                             maxLines = 1
                         )
-                        Text(
+                        AppText(
                             text = insightPresentation.statusText,
                             color = Color.White.copy(alpha = 0.7f),
                             style = MaterialTheme.typography.labelSmall,
@@ -1585,19 +1595,19 @@ fun VideoPlayerOverlay(
         }
 
         if (playerDiagnosticLoggingEnabled) playbackIssueSignal?.let { signal ->
-            AlertDialog(
+            AppAlertDialog(
                 onDismissRequest = {
                     dismissedPlaybackIssueTypes = dismissedPlaybackIssueTypes + signal.type
                     playbackIssueSignal = null
                 },
                 title = {
-                    Text(signal.title)
+                    AppText(signal.title)
                 },
                 text = {
-                    Text(signal.message)
+                    AppText(signal.message)
                 },
                 confirmButton = {
-                    TextButton(
+                    AppTextButton(
                         onClick = {
                             val savedPath = Logger.exportPlayerDiagnostic(
                                 context = context,
@@ -1620,17 +1630,17 @@ fun VideoPlayerOverlay(
                             playbackIssueSignal = null
                         }
                     ) {
-                        Text("导出日志")
+                        AppText("导出日志")
                     }
                 },
                 dismissButton = {
-                    TextButton(
+                    AppTextButton(
                         onClick = {
                             dismissedPlaybackIssueTypes = dismissedPlaybackIssueTypes + signal.type
                             playbackIssueSignal = null
                         }
                     ) {
-                        Text("关闭")
+                        AppText("关闭")
                     }
                 }
             )
@@ -1690,7 +1700,7 @@ fun VideoPlayerOverlay(
             exit = fadeOut(tween(200))
         ) {
             val loadingState = centerLoadingUiState ?: return@AnimatedVisibility
-            Surface(
+            AppSurface(
                 color = Color.Black.copy(alpha = 0.72f),
                 shape = RoundedCornerShape(overlayVisualPolicy.qualitySwitchCornerRadiusDp.dp),
                 modifier = Modifier.padding(overlayVisualPolicy.qualitySwitchOuterPaddingDp.dp)
@@ -1706,7 +1716,7 @@ fun VideoPlayerOverlay(
                         color = centerLoadingVisualState.indicatorColor
                     )
                     Spacer(modifier = Modifier.height(overlayVisualPolicy.qualitySwitchContentSpacingDp.dp))
-                    Text(
+                    AppText(
                         text = loadingState.primaryText,
                         color = centerLoadingVisualState.primaryTextColor,
                         fontSize = overlayVisualPolicy.qualitySwitchMessageFontSp.sp,
@@ -1714,7 +1724,7 @@ fun VideoPlayerOverlay(
                     )
                     loadingState.secondaryText?.let { secondaryText ->
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(
+                        AppText(
                             text = secondaryText,
                             color = centerLoadingVisualState.secondaryTextColor,
                             fontSize = (overlayVisualPolicy.qualitySwitchMessageFontSp - 1).sp,
@@ -1732,7 +1742,7 @@ fun VideoPlayerOverlay(
             enter = fadeIn(tween(200)),
             exit = fadeOut(tween(200))
         ) {
-            Surface(
+            AppSurface(
                 color = Color.Black.copy(alpha = 0.7f),
                 shape = RoundedCornerShape(overlayVisualPolicy.qualitySwitchCornerRadiusDp.dp),
                 modifier = Modifier.padding(overlayVisualPolicy.qualitySwitchOuterPaddingDp.dp)
@@ -1748,7 +1758,7 @@ fun VideoPlayerOverlay(
                         color = centerLoadingVisualState.indicatorColor
                     )
                     Spacer(modifier = Modifier.height(overlayVisualPolicy.qualitySwitchContentSpacingDp.dp))
-                    Text(
+                    AppText(
                         text = "正在切换清晰度...",
                         color = centerLoadingVisualState.primaryTextColor,
                         fontSize = overlayVisualPolicy.qualitySwitchMessageFontSp.sp,
@@ -2013,7 +2023,7 @@ fun VideoPlayerOverlay(
                     },
                 contentAlignment = Alignment.BottomCenter
             ) {
-                Surface(
+                AppSurface(
                     shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
                     color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier
@@ -2228,11 +2238,11 @@ private fun PortraitTopBar(
             horizontalArrangement = Arrangement.spacedBy(layoutPolicy.leftSectionSpacingDp.dp)
         ) {
             // 返回按钮 - 简洁无背景
-            IconButton(
+            AppIconButton(
                 onClick = onBack,
                 modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
             ) {
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Default.ChevronBackward,
                     contentDescription = "返回",
                     tint = Color.White,
@@ -2240,11 +2250,11 @@ private fun PortraitTopBar(
                 )
             }
 
-            IconButton(
+            AppIconButton(
                 onClick = onHome,
                 modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
             ) {
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Default.House,
                     contentDescription = "主界面",
                     tint = Color.White,
@@ -2254,7 +2264,7 @@ private fun PortraitTopBar(
             
             // 👀 在线人数
             if (onlineCount.isNotEmpty()) {
-                Text(
+                AppText(
                     text = onlineCount,
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = layoutPolicy.onlineCountFontSp.sp,
@@ -2268,7 +2278,7 @@ private fun PortraitTopBar(
             horizontalArrangement = Arrangement.spacedBy(layoutPolicy.rightSectionSpacingDp.dp)
         ) {
             //  听视频模式按钮 - 激活时保留背景色
-            IconButton(
+            AppIconButton(
                 onClick = onAudioMode,
                 modifier = Modifier
                     .size(layoutPolicy.buttonSizeDp.dp)
@@ -2277,7 +2287,7 @@ private fun PortraitTopBar(
                         else Modifier
                     )
             ) {
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Default.Headphones,
                     contentDescription = "听视频",
                     tint = Color.White,
@@ -2286,11 +2296,11 @@ private fun PortraitTopBar(
             }
 
             if (showCastButton) {
-                IconButton(
+                AppIconButton(
                     onClick = onCastClick,
                     modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = io.github.alexzhirkevich.cupertino.icons.CupertinoIcons.Default.Tv,
                         contentDescription = "投屏",
                         tint = Color.White,
@@ -2300,11 +2310,11 @@ private fun PortraitTopBar(
             }
             
             //  设置按钮 - 无背景
-            IconButton(
+            AppIconButton(
                 onClick = onSettings,
                 modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
             ) {
-                Icon(
+                AppIcon(
                     imageVector = moreIcon,
                     contentDescription = "设置",
                     tint = Color.White,
@@ -2313,11 +2323,11 @@ private fun PortraitTopBar(
             }
             
             // 分享按钮 - 无背景
-            IconButton(
+            AppIconButton(
                 onClick = onShare,
                 modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
             ) {
-                Icon(
+                AppIcon(
                     imageVector = shareIcon,
                     contentDescription = "分享",
                     tint = Color.White,
@@ -2341,7 +2351,7 @@ private fun PlaybackInsightPanel(
     val realtimeHazeState = hazeState?.takeIf {
         shouldAllowRuntimeShaderBackedHazeEffect(Build.VERSION.SDK_INT)
     }
-    Surface(
+    AppSurface(
         modifier = modifier.then(
             if (realtimeHazeState != null) {
                 Modifier.unifiedBlur(
@@ -2372,26 +2382,26 @@ private fun PlaybackInsightPanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("播放器洞察", style = MaterialTheme.typography.titleMedium)
-                    Text(
+                    AppText("播放器洞察", style = MaterialTheme.typography.titleMedium)
+                    AppText(
                         presentation.statusText,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 if (onCopyReport != null) {
-                    TextButton(onClick = onCopyReport) {
-                        Text("复制")
+                    AppTextButton(onClick = onCopyReport) {
+                        AppText("复制")
                     }
                 }
-                IconButton(onClick = onDismiss) {
-                    Icon(
+                AppIconButton(onClick = onDismiss) {
+                    AppIcon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "关闭"
                     )
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+            AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
             LazyColumn(
                 modifier = Modifier.weight(1f, fill = false),
                 contentPadding = PaddingValues(16.dp),
@@ -2400,7 +2410,7 @@ private fun PlaybackInsightPanel(
                 presentation.sections.forEach { (section, rows) ->
                     item(key = section.name) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
+                            AppText(
                                 section.title,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
@@ -2411,13 +2421,13 @@ private fun PlaybackInsightPanel(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
+                                    AppText(
                                         row.label,
                                         modifier = Modifier.weight(0.8f),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         style = MaterialTheme.typography.labelSmall
                                     )
-                                    Text(
+                                    AppText(
                                         row.value,
                                         modifier = Modifier.weight(1.2f),
                                         style = MaterialTheme.typography.labelSmall,
@@ -2434,13 +2444,13 @@ private fun PlaybackInsightPanel(
                 if (onCopyReport != null && diagnosticEvents.isNotEmpty()) {
                     item(key = "diagnostic-events") {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
+                            AppText(
                                 "诊断事件",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             diagnosticEvents.takeLast(6).asReversed().forEach { event ->
-                                Text(
+                                AppText(
                                     event,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontFamily = FontFamily.Monospace,
@@ -2536,7 +2546,7 @@ fun LandscapeEndDrawer(
             )
             
             // 抽屉内容
-            Surface(
+            AppSurface(
                 modifier = Modifier
                     .width(layoutPolicy.drawerWidthDp.dp)
                     .fillMaxHeight(),
@@ -2583,7 +2593,7 @@ fun LandscapeEndDrawer(
                             Spacer(modifier = Modifier.width(layoutPolicy.headerSpacingDp.dp))
                             
                             // 名字
-                            Text(
+                            AppText(
                                 text = ownerName,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = layoutPolicy.titleFontSp.sp,
@@ -2596,7 +2606,7 @@ fun LandscapeEndDrawer(
                             Spacer(modifier = Modifier.width(layoutPolicy.headerSpacingDp.dp))
                             
                             // 关注按钮 (放在右上角)
-                            Button(
+                            AppButton(
                                 onClick = onToggleFollow,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isFollowed) MaterialTheme.colorScheme.onSurface.copy(0.2f) else MaterialTheme.colorScheme.primary
@@ -2608,7 +2618,7 @@ fun LandscapeEndDrawer(
                                 modifier = Modifier.height(layoutPolicy.followButtonHeightDp.dp),
                                 shape = RoundedCornerShape(16.dp)
                             ) {
-                                Text(
+                                AppText(
                                     if (isFollowed) "已关注" else "+ 关注",
                                     fontSize = layoutPolicy.followButtonFontSp.sp
                                 )
@@ -2616,7 +2626,7 @@ fun LandscapeEndDrawer(
                         }
                     }
                     
-                    HorizontalDivider(color = dividerColor)
+                    AppHorizontalDivider(color = dividerColor)
                     
                     // 2. Tab Row
                     val hasSeason = ugcSeason != null && ugcSeason.sections.isNotEmpty()
@@ -2628,25 +2638,25 @@ fun LandscapeEndDrawer(
                     }
                     
                     if (hasSeason) {
-                        PrimaryTabRow(
+                        AppPrimaryTabRow(
                             selectedTabIndex = selectedTab,
                             containerColor = Color.Transparent,
                             contentColor = MaterialTheme.colorScheme.onSurface
                         ) {
-                            Tab(
+                            AppTab(
                                 selected = selectedTab == 0,
                                 onClick = { selectedTab = 0 },
-                                text = { Text("推荐视频", fontSize = layoutPolicy.followButtonFontSp.sp) }
+                                text = { AppText("推荐视频", fontSize = layoutPolicy.followButtonFontSp.sp) }
                             )
-                            Tab(
+                            AppTab(
                                 selected = selectedTab == 1,
                                 onClick = { selectedTab = 1 },
-                                text = { Text("合集列表", fontSize = layoutPolicy.followButtonFontSp.sp) }
+                                text = { AppText("合集列表", fontSize = layoutPolicy.followButtonFontSp.sp) }
                             )
                         }
                     } else {
                         // 只有推荐，显示标题
-                        Text(
+                        AppText(
                             text = "推荐视频",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
@@ -2709,7 +2719,7 @@ fun LandscapeEndDrawer(
                             ) {
                                 seasonSections.forEach { section ->
                                     item {
-                                        Text(
+                                        AppText(
                                             text = section.title,
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2763,14 +2773,14 @@ private fun InteractionButton(
             onClick = onClick
         )
     ) {
-        Icon(
+        AppIcon(
             imageVector = icon,
             contentDescription = label,
             tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
+        AppText(
             text = label,
             color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 10.sp
@@ -2953,7 +2963,7 @@ private fun LandscapeProgressIcon(
                 }
             }
             
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = if (isActive) progressColor else MaterialTheme.colorScheme.onSurface,
@@ -2962,7 +2972,7 @@ private fun LandscapeProgressIcon(
         }
         
         Spacer(modifier = Modifier.height(layoutPolicy.interactionLabelTopSpacingDp.dp))
-        Text(
+        AppText(
             text = label,
             color = if (isActive) progressColor else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = layoutPolicy.interactionLabelFontSp.sp
@@ -3001,7 +3011,7 @@ private fun LandscapeVideoItem(
                 modifier = Modifier.fillMaxSize()
             )
             // 时长
-            Text(
+            AppText(
                 text = FormatUtils.formatDuration(video.duration),
                 color = Color.White,
                 fontSize = layoutPolicy.itemDurationFontSp.sp,
@@ -3019,7 +3029,7 @@ private fun LandscapeVideoItem(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
+            AppText(
                 text = video.title,
                 color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 fontSize = layoutPolicy.itemTitleFontSp.sp,
@@ -3027,7 +3037,7 @@ private fun LandscapeVideoItem(
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 lineHeight = (layoutPolicy.itemTitleFontSp + 3).sp
             )
-            Text(
+            AppText(
                 text = video.owner.name,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = layoutPolicy.itemMetaFontSp.sp
@@ -3070,7 +3080,7 @@ private fun LandscapeEpisodeItem(
                     modifier = Modifier.fillMaxSize()
                 )
                 // 时长
-                Text(
+                AppText(
                     text = FormatUtils.formatDuration(episode.arc.duration),
                     color = Color.White,
                     fontSize = layoutPolicy.itemDurationFontSp.sp,
@@ -3084,7 +3094,7 @@ private fun LandscapeEpisodeItem(
         } else {
             // 无封面时的占位 (或纯文本模式)
              if (isCurrent) {
-                Icon(
+                AppIcon(
                     imageVector = CupertinoIcons.Default.Play,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
@@ -3107,7 +3117,7 @@ private fun LandscapeEpisodeItem(
             verticalArrangement = Arrangement.SpaceAround // 分散对齐
         ) {
             // 标题
-            Text(
+            AppText(
                 text = episode.title,
                 color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 fontSize = layoutPolicy.itemTitleFontSp.sp,
@@ -3126,14 +3136,14 @@ private fun LandscapeEpisodeItem(
             if (episode.arc?.stat != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // 播放量
-                    Icon(
+                    AppIcon(
                         imageVector = CupertinoIcons.Default.PlayCircle,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(layoutPolicy.metaIconSizeDp.dp)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
-                    Text(
+                    AppText(
                         text = FormatUtils.formatStat(episode.arc.stat.view.toLong()), 
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = layoutPolicy.itemMetaFontSp.sp
@@ -3142,14 +3152,14 @@ private fun LandscapeEpisodeItem(
                     Spacer(modifier = Modifier.width(8.dp))
                     
                     // 弹幕
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Filled.ChatBubble, 
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(layoutPolicy.metaIconSizeDp.dp)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
-                    Text(
+                    AppText(
                         text = FormatUtils.formatStat(episode.arc.stat.danmaku.toLong()), 
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = layoutPolicy.itemMetaFontSp.sp

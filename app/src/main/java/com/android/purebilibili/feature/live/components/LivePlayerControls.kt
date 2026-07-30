@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.live.components
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import android.media.AudioManager
 import androidx.compose.animation.AnimatedVisibility
@@ -118,7 +120,7 @@ private fun LivePlayerIconButton(
                 )
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
+                AppIcon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = if (selected) palette.accentStrong else LiveStatusPalette.MediaContent
@@ -379,7 +381,7 @@ fun LivePlayerControls(
                 )
                 Spacer(Modifier.width(AppSpacingTokens.Large))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                    AppText(
                         text = title,
                         color = LiveStatusPalette.MediaContent,
                         maxLines = 1,
@@ -388,7 +390,7 @@ fun LivePlayerControls(
                     )
                     if (subtitle.isNotBlank() && isFullscreen) {
                         Spacer(Modifier.height(AppSpacingTokens.ExtraSmall))
-                        Text(
+                        AppText(
                             text = subtitle,
                             color = LiveStatusPalette.MediaContent.copy(alpha = 0.76f),
                             maxLines = 1,
@@ -540,7 +542,7 @@ fun LivePlayerControls(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium)
                         ) {
-                            Icon(
+                            AppIcon(
                                 imageVector = commentIcon,
                                 contentDescription = null,
                                 tint = if (isDanmakuEnabled) {
@@ -551,7 +553,7 @@ fun LivePlayerControls(
                                 modifier = Modifier.size(controlVisualSpec.iconSizeDp.dp)
                             )
                             Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
-                            Text(
+                            AppText(
                                 text = if (isDanmakuEnabled) "弹幕 开" else "弹幕 关",
                                 color = if (isDanmakuEnabled) {
                                     palette.accentStrong
@@ -590,14 +592,14 @@ fun LivePlayerControls(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium)
                             ) {
-                                Icon(
+                                AppIcon(
                                     imageVector = commentIcon,
                                     contentDescription = null,
                                     tint = if (isChatVisible) palette.accentStrong else LiveStatusPalette.MediaContent.copy(alpha = 0.5f),
                                     modifier = Modifier.size(controlVisualSpec.iconSizeDp.dp)
                                 )
                                 Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
-                                Text(
+                                AppText(
                                     text = "互动区",
                                     color = if (isChatVisible) palette.accentStrong else LiveStatusPalette.MediaContent.copy(alpha = 0.5f),
                                     style = MaterialTheme.typography.labelMedium
@@ -617,14 +619,14 @@ fun LivePlayerControls(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium)
                             ) {
-                                Icon(
+                                AppIcon(
                                     imageVector = Icons.Outlined.AspectRatio,
                                     contentDescription = null,
                                     tint = LiveStatusPalette.MediaContent,
                                     modifier = Modifier.size(controlVisualSpec.iconSizeDp.dp)
                                 )
                                 Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
-                                Text(
+                                AppText(
                                     text = videoFitDesc,
                                     color = LiveStatusPalette.MediaContent,
                                     style = MaterialTheme.typography.labelMedium
@@ -644,7 +646,7 @@ fun LivePlayerControls(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium)
                             ) {
-                                Text(
+                                AppText(
                                     text = currentQualityDesc,
                                     color = LiveStatusPalette.MediaContent,
                                     style = MaterialTheme.typography.labelMedium

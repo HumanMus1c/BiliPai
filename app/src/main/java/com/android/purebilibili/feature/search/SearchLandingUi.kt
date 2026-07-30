@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.search
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -31,13 +32,12 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppSuggestionChip
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -280,14 +280,14 @@ fun SearchSuggestionDropdown(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Rounded.Search,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text(
+                    AppText(
                         text = rememberSuggestionAnnotatedText(
                             richText = suggestion.richText,
                             fallback = suggestion.keyword
@@ -300,7 +300,7 @@ fun SearchSuggestionDropdown(
                     )
                 }
                 if (index != suggestions.lastIndex) {
-                    HorizontalDivider(
+                    AppHorizontalDivider(
                         modifier = Modifier.padding(start = 46.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                     )
@@ -367,7 +367,7 @@ private fun SearchKeywordSection(
             }
         } else if (!enabled) {
             Spacer(modifier = Modifier.height(12.dp))
-            Text(
+            AppText(
                 text = resolveSearchKeywordSectionHiddenText(title),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -392,7 +392,7 @@ private fun SearchKeywordSectionHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = title,
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.ExtraBold,
@@ -405,7 +405,7 @@ private fun SearchKeywordSectionHeader(
             ) {
                 if (enabled) {
                     AppIconButton(onClick = onRefresh, modifier = Modifier.size(40.dp)) {
-                        Icon(
+                        AppIcon(
                             imageVector = Icons.Rounded.Refresh,
                             contentDescription = "刷新搜索发现",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -421,7 +421,7 @@ private fun SearchKeywordSectionHeader(
                             .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f))
                     )
                     AppIconButton(onClick = onToggleEnabled, modifier = Modifier.size(40.dp)) {
-                        Icon(
+                        AppIcon(
                             imageVector = if (enabled) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                             contentDescription = if (enabled) "隐藏搜索发现" else "显示搜索发现",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -443,7 +443,7 @@ private fun SearchKeywordSectionHeader(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = title,
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.ExtraBold,
@@ -454,11 +454,11 @@ private fun SearchKeywordSectionHeader(
             )
             if (showTrendingAction && enabled && onOpenTrending != null) {
                 AppTextButton(onClick = onOpenTrending) {
-                    Text(
+                    AppText(
                         text = "完整榜单",
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -474,7 +474,7 @@ private fun SearchKeywordSectionHeader(
         ) {
             if (enabled) {
                 AppIconButton(onClick = onRefresh, modifier = Modifier.size(40.dp)) {
-                    Icon(
+                    AppIcon(
                         imageVector = Icons.Rounded.Refresh,
                         contentDescription = "刷新搜索发现",
                         tint = MaterialTheme.colorScheme.secondary
@@ -483,7 +483,7 @@ private fun SearchKeywordSectionHeader(
             }
             if (onToggleEnabled != null) {
                 AppIconButton(onClick = onToggleEnabled, modifier = Modifier.size(40.dp)) {
-                    Icon(
+                    AppIcon(
                         imageVector = if (enabled) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                         contentDescription = if (enabled) "隐藏搜索发现" else "显示搜索发现",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -507,7 +507,7 @@ private fun SearchDiscoverOriginalCell(
         onClick = onClick,
         label = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
+                AppText(
                     text = item.title,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -518,7 +518,7 @@ private fun SearchDiscoverOriginalCell(
                     )
                 )
                 if (!displaySubtitle.isNullOrBlank()) {
-                    Text(
+                    AppText(
                         text = displaySubtitle,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -545,7 +545,7 @@ private fun SearchKeywordCell(
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
+        AppText(
             text = item.title,
             modifier = Modifier.weight(1f, fill = false),
             maxLines = 1,
@@ -564,7 +564,7 @@ private fun SearchKeywordCell(
                 containerColor = Color(0xFFFF6B97),
                 contentColor = Color.White
             )
-            !item.subtitle.isNullOrBlank() -> Text(
+            !item.subtitle.isNullOrBlank() -> AppText(
                 text = item.subtitle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -590,7 +590,7 @@ internal fun SearchKeywordBadge(
             .padding(horizontal = 6.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
+        AppText(
             text = text,
             color = contentColor,
             fontSize = 11.sp,
@@ -615,12 +615,12 @@ private fun SearchHistorySectionModern(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = "搜索历史",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             )
             AppTextButton(onClick = onClear) {
-                Text("清空")
+                AppText("清空")
             }
         }
         Spacer(modifier = Modifier.height(10.dp))

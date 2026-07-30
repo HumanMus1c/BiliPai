@@ -182,8 +182,12 @@ internal fun resolveVideoDetailStableStatusBarHeightDp(
 
 internal fun resolveVideoDetailPortraitPlayerTopInsetDp(
     stableStatusBarHeightDp: Float,
-    hideStatusBars: Boolean
+    hideStatusBars: Boolean,
+    isSharedCardTransition: Boolean = false,
 ): Float {
+    // 整个详情壳从来源卡片展开时，状态栏已经由页面根部处理；再把 inset 放进
+    // 播放器会在飞行中的顶部留下黑色 letterbox。
+    if (isSharedCardTransition) return 0f
     val stableInset = stableStatusBarHeightDp
         .takeIf { it.isFinite() }
         ?.coerceAtLeast(0f)

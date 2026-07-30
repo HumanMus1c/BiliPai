@@ -30,16 +30,18 @@ import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppCard
 import androidx.compose.material3.CardDefaults
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.AppScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
 import com.android.purebilibili.core.ui.components.AppPrimaryScrollableTabRow
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.components.AppTab
-import androidx.compose.material3.Text
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.AppTopBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -179,18 +181,19 @@ internal fun LoginPage(
     onAuthorizeHighQuality: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    AppSurface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        androidx.compose.material3.Scaffold(
+    AppSurface(modifier = modifier.fillMaxSize(), color = AppSurfaceTokens.chromeBackground()) {
+        AppScaffold(
+            containerColor = AppSurfaceTokens.chromeBackground(),
             topBar = {
                 AppTopBar(
                     title = "登录",
                     actions = {
                         AppIconButton(onClick = onClose) {
-                            Icon(Icons.Outlined.Close, contentDescription = "关闭登录")
+                            AppIcon(Icons.Outlined.Close, contentDescription = "关闭登录")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
+                        containerColor = AppSurfaceTokens.chromeBackground()
                     )
                 )
             }
@@ -239,7 +242,7 @@ internal fun LoginPage(
                         }
                     }
                     item {
-                        Text(
+                        AppText(
                             text = "继续即表示你同意用户协议和隐私政策。",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -256,8 +259,8 @@ internal fun LoginPage(
 @Composable
 private fun LoginHeader(modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "登录 BiliPai", style = MaterialTheme.typography.headlineMedium)
-        Text(
+        AppText(text = "登录 BiliPai", style = MaterialTheme.typography.headlineMedium)
+        AppText(
             text = "选择一种方式继续，你的观看进度和账号信息会同步到当前设备。",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -280,8 +283,8 @@ private fun LoginMethodTabs(
             AppTab(
                 selected = method == selectedMethod,
                 onClick = { onMethodSelected(method) },
-                text = { Text(loginMethodLabel(method)) },
-                icon = { Icon(loginMethodIcon(method), contentDescription = null) }
+                text = { AppText(loginMethodLabel(method)) },
+                icon = { AppIcon(loginMethodIcon(method), contentDescription = null) }
             )
         }
     }
@@ -308,7 +311,7 @@ private fun LoginStateMessage(state: LoginState, modifier: Modifier = Modifier) 
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
     ) {
-        Text(
+        AppText(
             text = message,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onErrorContainer,
@@ -331,21 +334,21 @@ private fun HighQualityAuthorizationCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
+            AppText(
                 text = "基础登录已完成",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
-            Text(
+            AppText(
                 text = "当前登录未返回高画质播放凭据。扫码可补充 1080P60、4K、HDR 等画质所需授权。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
             AppButton(onClick = onAuthorize, modifier = Modifier.fillMaxWidth()) {
-                Text("扫码授权高画质")
+                AppText("扫码授权高画质")
             }
             AppOutlinedButton(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
-                Text("稍后使用")
+                AppText("稍后使用")
             }
         }
     }
@@ -363,8 +366,8 @@ private fun TvQrLoginContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(text = "扫码登录", style = MaterialTheme.typography.titleLarge)
-            Text(
+            AppText(text = "扫码登录", style = MaterialTheme.typography.titleLarge)
+            AppText(
                 text = resolveQrLoginReason(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -382,7 +385,7 @@ private fun TvQrLoginContent(
                         modifier = Modifier.size(232.dp).testTag("login_qr_code")
                     )
                     if (state is LoginState.Scanned) {
-                        Text(
+                        AppText(
                             text = "已扫码，请在手机上确认登录。",
                             color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.bodyMedium,
@@ -391,7 +394,7 @@ private fun TvQrLoginContent(
                     }
                 }
                 LoginState.Loading -> AdaptiveLoadingIndicator(size = 48.dp)
-                else -> Icon(
+                else -> AppIcon(
                     imageVector = Icons.Outlined.QrCode2,
                     contentDescription = null,
                     modifier = Modifier.size(232.dp),
@@ -399,9 +402,9 @@ private fun TvQrLoginContent(
                 )
             }
             AppOutlinedButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Outlined.Refresh, contentDescription = null)
+                AppIcon(Icons.Outlined.Refresh, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
-                Text("刷新二维码")
+                AppText("刷新二维码")
             }
         }
     }
@@ -422,8 +425,8 @@ private fun PasswordLoginContent(
         AppOutlinedTextField(
             value = phone,
             onValueChange = { phone = it.filter(Char::isDigit) },
-            label = { Text("手机号") },
-            leadingIcon = { Icon(Icons.Outlined.Phone, contentDescription = null) },
+            label = { AppText("手机号") },
+            leadingIcon = { AppIcon(Icons.Outlined.Phone, contentDescription = null) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -431,11 +434,11 @@ private fun PasswordLoginContent(
         AppOutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("密码") },
-            leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
+            label = { AppText("密码") },
+            leadingIcon = { AppIcon(Icons.Outlined.Lock, contentDescription = null) },
             trailingIcon = {
                 AppIconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(
+                    AppIcon(
                         if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                         contentDescription = if (passwordVisible) "隐藏密码" else "显示密码"
                     )
@@ -446,7 +449,7 @@ private fun PasswordLoginContent(
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
-        Text(
+        AppText(
             text = "提交前需要完成安全验证。遇到风控时请改用扫码登录。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -456,7 +459,7 @@ private fun PasswordLoginContent(
             enabled = phone.isNotBlank() && password.isNotBlank() && !isLoading,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("验证并登录")
+            AppText("验证并登录")
         }
     }
 }
@@ -477,9 +480,9 @@ private fun SmsLoginContent(
         AppOutlinedTextField(
             value = phone,
             onValueChange = { phone = it.filter(Char::isDigit) },
-            label = { Text("中国大陆手机号") },
-            prefix = { Text("+86 ") },
-            leadingIcon = { Icon(Icons.Outlined.Phone, contentDescription = null) },
+            label = { AppText("中国大陆手机号") },
+            prefix = { AppText("+86 ") },
+            leadingIcon = { AppIcon(Icons.Outlined.Phone, contentDescription = null) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -488,14 +491,14 @@ private fun SmsLoginContent(
             AppOutlinedTextField(
                 value = code,
                 onValueChange = { code = it.filter(Char::isDigit).take(6) },
-                label = { Text("短信验证码") },
-                leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
+                label = { AppText("短信验证码") },
+                leadingIcon = { AppIcon(Icons.Outlined.Lock, contentDescription = null) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
         }
-        Text(
+        AppText(
             text = "发送验证码前需要完成安全验证。验证码有效期与发送频率以服务端规则为准。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -506,7 +509,7 @@ private fun SmsLoginContent(
                 enabled = code.length == 6 && !isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("登录")
+                AppText("登录")
             }
         } else {
             AppButton(
@@ -514,7 +517,7 @@ private fun SmsLoginContent(
                 enabled = phone.length >= 6 && !isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("获取验证码")
+                AppText("获取验证码")
             }
         }
     }
@@ -530,7 +533,7 @@ private fun CookieImportContent(
     val isLoading = state is LoginState.Loading
 
     LoginFormCard(title = "Cookie 导入", modifier = modifier) {
-        Text(
+        AppText(
             text = "粘贴浏览器中的完整 Cookie 字符串。导入前会先验证账号，验证失败不会覆盖当前登录状态。",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -538,8 +541,8 @@ private fun CookieImportContent(
         AppOutlinedTextField(
             value = cookieHeader,
             onValueChange = { cookieHeader = it },
-            label = { Text("Cookie") },
-            leadingIcon = { Icon(Icons.Outlined.ContentPaste, contentDescription = null) },
+            label = { AppText("Cookie") },
+            leadingIcon = { AppIcon(Icons.Outlined.ContentPaste, contentDescription = null) },
             minLines = 5,
             modifier = Modifier.fillMaxWidth()
         )
@@ -548,7 +551,7 @@ private fun CookieImportContent(
             enabled = cookieHeader.isNotBlank() && !isLoading,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("验证并导入")
+            AppText("验证并导入")
         }
     }
 }
@@ -564,7 +567,7 @@ private fun LoginFormCard(
             modifier = Modifier.padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(text = title, style = MaterialTheme.typography.titleLarge)
+            AppText(text = title, style = MaterialTheme.typography.titleLarge)
             content()
         }
     }

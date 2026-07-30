@@ -1,6 +1,8 @@
 @file:OptIn(androidx.compose.animation.ExperimentalAnimationApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 
@@ -21,6 +23,7 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.animation.*
 import com.android.purebilibili.core.ui.AdaptivePlainTooltipBox
+import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppThemeSelection
@@ -163,12 +166,12 @@ fun AppearanceSettingsScreen(
     }
 
     pendingLanguageRestart?.let { pendingLanguage ->
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { pendingLanguageRestart = null },
-            title = { Text(restartDialogTitle) },
-            text = { Text(restartDialogMessage) },
+            title = { AppText(restartDialogTitle) },
+            text = { AppText(restartDialogMessage) },
             confirmButton = {
-                TextButton(
+                AppTextButton(
                     onClick = {
                         pendingLanguageRestart = null
                         coroutineScope.launch {
@@ -180,12 +183,12 @@ fun AppearanceSettingsScreen(
                         }
                     }
                 ) {
-                    Text(restartDialogConfirm)
+                    AppText(restartDialogConfirm)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingLanguageRestart = null }) {
-                    Text(stringResource(R.string.common_cancel))
+                AppTextButton(onClick = { pendingLanguageRestart = null }) {
+                    AppText(stringResource(R.string.common_cancel))
                 }
             }
         )
@@ -693,7 +696,7 @@ fun AppearanceSettingsContent(
                         ) {
                             Column(modifier = Modifier.padding(top = 16.dp)) {
                                 //  Theme Color Label
-                                Text(
+                                AppText(
                                     "主题色", 
                                     style = MaterialTheme.typography.labelSmall, 
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -739,7 +742,7 @@ fun AppearanceSettingsContent(
                                                 ),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(
+                                            AppIcon(
                                                 CupertinoIcons.Filled.Play,
                                                 contentDescription = null,
                                                 tint = Color.White,
@@ -748,12 +751,12 @@ fun AppearanceSettingsContent(
                                         }
                                         
                                         // 当前选中颜色名称
-                                        Text(
+                                        AppText(
                                             text = state.md3CustomColorHex,
                                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
-                                        Text(
+                                        AppText(
                                             text = "正在预览自定义 MD3 主题色",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -835,7 +838,7 @@ fun AppearanceSettingsContent(
                                                             enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(),
                                                             exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()
                                                         ) {
-                                                            Icon(
+                                                            AppIcon(
                                                                 CupertinoIcons.Default.Checkmark,
                                                                 contentDescription = null,
                                                                 tint = Color.White,
@@ -846,7 +849,7 @@ fun AppearanceSettingsContent(
                                                     
                                                     // 颜色名称
                                                     Spacer(modifier = Modifier.height(8.dp))
-                                                    Text(
+                                                    AppText(
                                                         text = ThemeColorNames.getOrElse(index) { "" },
                                                         style = MaterialTheme.typography.labelSmall,
                                                         color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -982,7 +985,7 @@ fun AppearanceSettingsContent(
                                 )
 
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text(
+                                AppText(
                                     text = resolveDisplayMetricsSummary(displayMetricsSnapshot),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1047,13 +1050,13 @@ fun AppearanceSettingsContent(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
+                                AppText(
                                     text = "随机池预览",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Spacer(modifier = Modifier.weight(1f))
-                                Text(
+                                AppText(
                                     text = "${splashRandomPoolPreview.totalCount} 张",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary
@@ -1063,7 +1066,7 @@ fun AppearanceSettingsContent(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             if (splashRandomPoolPreview.previewUris.isEmpty()) {
-                                Text(
+                                AppText(
                                     text = "暂无可见壁纸，请先进入“选择开屏壁纸”加载列表",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1087,7 +1090,7 @@ fun AppearanceSettingsContent(
                                 }
                                 if (splashRandomPoolPreview.totalCount > splashRandomPoolPreview.previewUris.size) {
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
+                                    AppText(
                                         text = "还有 ${splashRandomPoolPreview.totalCount - splashRandomPoolPreview.previewUris.size} 张",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1148,7 +1151,7 @@ fun AppearanceSettingsContent(
                                             modifier = Modifier.fillMaxSize(),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(
+                                            AppIcon(
                                                 CupertinoIcons.Default.Photo,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1161,19 +1164,19 @@ fun AppearanceSettingsContent(
                                 Spacer(modifier = Modifier.width(16.dp))
                                 
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
+                                    AppText(
                                         text = "选择开屏壁纸",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = if (hasSplashWallpaper) "已设置壁纸，可从官方库或相册更换" else "从官方壁纸库或相册选择",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                                 
-                                Icon(
+                                AppIcon(
                                     CupertinoIcons.Default.ChevronForward,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -1316,7 +1319,7 @@ fun AppearanceSettingsContent(
                                     .padding(vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-	                                Icon(
+	                                AppIcon(
 	                                    rememberSettingsSemanticIcon(SettingsIconRole.DISPLAY_STYLE),
                                     contentDescription = null,
                                     tint = displayModeTint,
@@ -1324,18 +1327,18 @@ fun AppearanceSettingsContent(
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
+                                    AppText(
                                         text = "展示样式",
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = currentModeName,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Icon(
+                                AppIcon(
                                     imageVector = if (isExpanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -1371,21 +1374,21 @@ fun AppearanceSettingsContent(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text(
+                                                AppText(
                                                     mode.title,
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                                     color = if (isSelected) MaterialTheme.colorScheme.primary 
                                                             else MaterialTheme.colorScheme.onSurface
                                                 )
-                                                Text(
+                                                AppText(
                                                     mode.description,
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                                 )
                                             }
                                             if (isSelected) {
-                                                Icon(
+                                                AppIcon(
                                                     CupertinoIcons.Default.Checkmark,
                                                     contentDescription = "已选择",
                                                     tint = MaterialTheme.colorScheme.primary,
@@ -1532,7 +1535,7 @@ fun AppearanceSettingsContent(
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         // Wallpaper section: realtime card glass is WIP — keep default OFF.
-                        Text(
+                        AppText(
                             text = "壁纸与卡片实时模糊 / 实时液态玻璃仍在开发中，请勿使用相关选项（默认关闭）。",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
@@ -1567,7 +1570,7 @@ fun AppearanceSettingsContent(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-	                                        Icon(
+	                                        AppIcon(
 	                                            rememberSettingsSemanticIcon(SettingsIconRole.HOME_WALLPAPER),
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1580,12 +1583,12 @@ fun AppearanceSettingsContent(
                             Spacer(modifier = Modifier.width(16.dp))
 
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
+                                AppText(
                                     text = "选择首页壁纸",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-                                Text(
+                                AppText(
                                     text = when {
                                         dedicatedHomeWallpaperUri.isNotBlank() -> "已单独设置首页壁纸"
                                         homeWallpaperFollowsSplash -> "未单独设置，当前跟随开屏壁纸"
@@ -1596,7 +1599,7 @@ fun AppearanceSettingsContent(
                                 )
                             }
 
-                            Icon(
+                            AppIcon(
                                 CupertinoIcons.Default.ChevronForward,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -1702,7 +1705,7 @@ fun AppearanceSettingsContent(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                                     ) {
-                                        Icon(
+                                        AppIcon(
                                             CupertinoIcons.Default.ListBullet,
                                             contentDescription = null,
                                             tint = com.android.purebilibili.core.theme.iOSBlue,
@@ -1710,12 +1713,12 @@ fun AppearanceSettingsContent(
                                         )
                                         Spacer(modifier = Modifier.width(16.dp))
                                         Column {
-                                            Text(
+                                            AppText(
                                                 text = "网格列数",
                                                 style = MaterialTheme.typography.bodyLarge,
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
-                                            Text(
+                                            AppText(
                                                 text = if (state.gridColumnCount == 0) "自适应 (默认)" else "固定 ${state.gridColumnCount} 列",
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1740,7 +1743,7 @@ fun AppearanceSettingsContent(
                                                     .padding(horizontal = 16.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Text(
+                                                AppText(
                                                     text = "自动",
                                                     color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                                                     style = MaterialTheme.typography.labelMedium,
@@ -1759,7 +1762,7 @@ fun AppearanceSettingsContent(
                                                     .clickable { viewModel.setGridColumnCount(count) },
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Text(
+                                                AppText(
                                                     text = "$count",
                                                     color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                                                     style = MaterialTheme.typography.labelMedium,
@@ -1899,7 +1902,7 @@ internal fun ThemeRoleModeEditor(
         roles.controlAccentHex
     )
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        AppText(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1931,7 +1934,7 @@ internal fun ThemeRoleModeEditor(
                 iconTint = parseMd3CustomColorHex(colors[index])
             )
         }
-        Text(
+        AppText(
             text = "对比度：主要文字 %.2f:1，次要文字 %.2f:1".format(
                 primaryContrast,
                 secondaryContrast
@@ -1941,7 +1944,7 @@ internal fun ThemeRoleModeEditor(
             modifier = Modifier.padding(top = 8.dp)
         )
         if (warning) {
-            Text(
+            AppText(
                 text = "当前文字与背景对比度偏低，仍可按精确颜色保存。",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
@@ -1973,29 +1976,29 @@ private fun Md3CustomColorPickerDialog(
         }
     }
 
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(
+            AppTextButton(
                 onClick = {
                     haptic(HapticType.LIGHT)
                     onConfirm(normalizeMd3CustomColorHex(pendingHex))
                 }
             ) {
-                Text("确认")
+                AppText("确认")
             }
         },
         dismissButton = {
-            TextButton(
+            AppTextButton(
                 onClick = {
                     haptic(HapticType.LIGHT)
                     onDismiss()
                 }
             ) {
-                Text("取消")
+                AppText("取消")
             }
         },
-        title = { Text("自定义 MD3 颜色") },
+        title = { AppText("自定义 MD3 颜色") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Box(
@@ -2006,7 +2009,7 @@ private fun Md3CustomColorPickerDialog(
                         .background(pendingColor),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
+                    AppText(
                         text = normalizeMd3CustomColorHex(pendingHex),
                         style = MaterialTheme.typography.titleMedium,
                         color = if (pendingColor.luminance() < 0.5f) Color.White else Color.Black,
@@ -2074,7 +2077,7 @@ private fun Md3CustomColorPickerDialog(
                     isError = invalidInput,
                     supportingText = {
                         if (invalidInput) {
-                            Text("请输入 #RRGGBB 格式")
+                            AppText("请输入 #RRGGBB 格式")
                         }
                     }
                 )
@@ -2201,7 +2204,7 @@ private fun AppearanceUiPresetDescriptionCard(
     val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
 
     AdaptivePlainTooltipBox(text = summary) {
-        Surface(
+        AppSurface(
             shape = AppShapes.borderedContainer(ContainerLevel.Dialog),
             color = containerColor,
             contentColor = contentColor,
@@ -2215,14 +2218,14 @@ private fun AppearanceUiPresetDescriptionCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                Surface(
+                AppSurface(
                     modifier = Modifier.size(34.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
                     contentColor = MaterialTheme.colorScheme.primary
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(
+                        AppIcon(
                             imageVector = icon,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
@@ -2234,12 +2237,12 @@ private fun AppearanceUiPresetDescriptionCard(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
+                    AppText(
                         text = title,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Text(
+                    AppText(
                         text = summary,
                         style = MaterialTheme.typography.bodySmall,
                         color = contentColor.copy(alpha = 0.82f)
@@ -2273,7 +2276,7 @@ fun DynamicColorPreview() {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        Text(
+        AppText(
             text = "当前取色预览",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2329,7 +2332,7 @@ fun ColorPreviewItem(
                 .background(color)
         )
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
+        AppText(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2359,27 +2362,27 @@ private fun <T> ThemePresetDropdownSetting(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
+            AppIcon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = effectiveIconTint,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(16.dp))
-            Text(
+            AppText(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
-            Text(
+            AppText(
                 text = selectedLabel,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(
+            AppIcon(
                 imageVector = CupertinoIcons.Default.ChevronDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2387,13 +2390,13 @@ private fun <T> ThemePresetDropdownSetting(
             )
         }
 
-        DropdownMenu(
+        AppDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
             options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label) },
+                AppDropdownMenuItem(
+                    text = { AppText(option.label) },
                     onClick = {
                         expanded = false
                         onSelectionChange(option.value)

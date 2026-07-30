@@ -1,5 +1,7 @@
 // 文件路径: feature/settings/AnimationSettingsScreen.kt
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import androidx.compose.foundation.background
@@ -194,7 +196,7 @@ fun AnimationSettingsContent(
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 12.dp)
                             ) {
-                                Text(
+                                AppText(
                                     text = "系统已开启「减弱动效」，入场动画已自动关闭。",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -272,19 +274,19 @@ fun AnimationSettingsContent(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
+                                    AppText(
                                         text = "自定义时长",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Text(
+                                    AppText(
                                         text = "${customTransitionDurationMillis}ms",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
-                                Slider(
+                                AppSlider(
                                     value = customTransitionDurationMillis.toFloat(),
                                     onValueChange = { value ->
                                         customTransitionDurationMillis = snapCustomTransitionDuration(value)
@@ -309,26 +311,26 @@ fun AnimationSettingsContent(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
-                            Text(
+                            AppText(
                                 text = "首页卡片动画档位",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(
+                            AppText(
                                 text = motionTierLabel,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(
+                            AppText(
                                 text = motionTierHint,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(
+                            AppText(
                                 text = "设置页使用独立轻量入场动效，不跟随此开关关闭。",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -382,12 +384,12 @@ fun AnimationSettingsContent(
                                 Column {
                                     AppPreferenceDivider()
                                     Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(
+                                        AppText(
                                             "当前使用固定材质策略",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
-                                        Text(
+                                        AppText(
                                             text = "开启「安卓原生液态玻璃」后，顶部 Dock、搜索框、分段控件与底栏统一使用同一套底栏液态玻璃材质。",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -452,7 +454,7 @@ fun AnimationSettingsContent(
             //  提示
             item {
                 Box(modifier = Modifier.entrance()) {
-                    Surface(
+                    AppSurface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
@@ -463,14 +465,14 @@ fun AnimationSettingsContent(
                             modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
+                            AppIcon(
                                 CupertinoIcons.Default.Lightbulb,
                                 contentDescription = null,
                                 tint = warningTint,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(
+                            AppText(
                                 text = "关闭动画可以减少电量消耗，提升流畅度",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
