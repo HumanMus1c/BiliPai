@@ -276,7 +276,7 @@ class TopTabStylePolicyTest {
         assertEquals(15f, tuning.tabTextSizeSp, 0.001f)
         assertEquals(20f, tuning.tabTextLineHeightSp, 0.001f)
         assertEquals(42f, tuning.tabContentMinHeightDp, 0.001f)
-        assertEquals(20f, tuning.tabIconWithTextSizeDp, 0.001f)
+        assertEquals(24f, tuning.tabIconWithTextSizeDp, 0.001f)
         assertEquals(24f, tuning.tabIconOnlySizeDp, 0.001f)
     }
 
@@ -377,7 +377,7 @@ class TopTabStylePolicyTest {
 
     @Test
     fun `ios top tab icon modes use readable glyph sizes`() {
-        assertEquals(20f, resolveTopTabIconSizeDp(labelMode = 0), 0.001f)
+        assertEquals(24f, resolveTopTabIconSizeDp(labelMode = 0), 0.001f)
         assertEquals(24f, resolveTopTabIconSizeDp(labelMode = 1), 0.001f)
         assertEquals(3f, resolveTopTabIconTextSpacingDp(labelMode = 0), 0.001f)
         assertEquals(54.dp, resolveIosTopTabRowHeight(isFloatingStyle = false))
@@ -734,9 +734,12 @@ class TopTabStylePolicyTest {
         assertTrue(itemSource.contains("resolveTopTabSkinStickerItemVerticalPadding(showText = showText)"))
         assertTrue(itemSource.contains("resolveTopTabSkinStickerIndicatorWidth()"))
         assertTrue(itemSource.contains("alpha(selectionFraction)"))
-        assertTrue(itemSource.indexOf("AsyncImage(") < itemSource.indexOf("imageVector = icon"))
+        assertTrue(itemSource.indexOf("AsyncImage(") < itemSource.indexOf("TopTabBlendedIcon("))
         assertTrue(itemSource.contains("else {"))
-        assertTrue(itemSource.contains("resolveTopTabCategoryIcon(categoryKey, chromePolicy.iconFamily)"))
+        assertTrue(itemSource.contains("resolveTopTabCategoryIcon("))
+        assertTrue(itemSource.contains("selected = false"))
+        assertTrue(itemSource.contains("selected = true"))
+        assertTrue(rowCallSource.contains("iconFamily = topTabIconFamily"))
     }
 
     @Test

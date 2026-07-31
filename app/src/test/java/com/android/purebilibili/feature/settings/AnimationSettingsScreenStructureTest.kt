@@ -32,6 +32,16 @@ class AnimationSettingsScreenStructureTest {
         assertTrue(source.contains("toggleVideoTransitionRealtimeBlur"))
     }
 
+    @Test
+    fun animationSettingsScreen_doesNotExposeLiveReturnPreviewToggle() {
+        val source = animationSettingsSource()
+
+        assertFalse(source.contains("预测返回预览实时画面"))
+        assertFalse(source.contains("videoTransitionLiveReturnPreviewEnabled"))
+        assertFalse(source.contains("setVideoTransitionLiveReturnPreviewEnabled"))
+        assertFalse(source.contains("getVideoTransitionLiveReturnPreviewEnabled"))
+    }
+
     private fun animationSettingsSource(): String {
         return listOf(
             File("app/src/main/java/com/android/purebilibili/feature/settings/screen/AnimationSettingsScreen.kt"),

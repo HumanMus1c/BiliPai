@@ -128,6 +128,15 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("https://space.bilibili.com/${'$'}mid"))
     }
 
+    @Test
+    fun `played video locate prompt is configurable and scoped to each space visit`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+
+        assertTrue(source.contains("getSpacePlayedVideoLocatePromptEnabled(context)"))
+        assertTrue(source.contains("var playedVideoLocatePromptHandled by remember(mid, playedVideoBvid)"))
+        assertFalse(source.contains("var playedVideoLocatePromptHandled by rememberSaveable"))
+    }
+
     private fun loadSource(path: String): String {
         val normalizedPath = path.removePrefix("app/")
         val sourceFile = listOf(

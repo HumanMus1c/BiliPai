@@ -307,11 +307,25 @@ fun FullscreenPlayerOverlay(
         )
     }
 
-    // 播放器状态
+    // 播放器状态 — 用当前 player 位置 seed，避免全屏重建时先显示 00:00
     var isPlaying by remember { mutableStateOf(player?.isPlaying ?: false) }
-    var currentProgress by remember { mutableFloatStateOf(0f) }
-    var currentPosition by remember { mutableLongStateOf(0L) }
-    var duration by remember { mutableLongStateOf(0L) }
+    var currentProgress by remember {
+        mutableFloatStateOf(
+            run {
+                val p = player ?: return@run 0f
+                val d = p.duration
+                if (d > 0L) (p.currentPosition.toFloat() / d.toFloat()).coerceIn(0f, 1f) else 0f
+            }
+        )
+    }
+    var currentPosition by remember {
+        mutableLongStateOf(player?.currentPosition?.coerceAtLeast(0L) ?: 0L)
+    }
+    var duration by remember {
+        mutableLongStateOf(
+            player?.duration?.takeIf { it > 0L } ?: 0L
+        )
+    }
     var pendingGestureSeekPositionMs by remember { mutableStateOf<Long?>(null) }
     val currentClockText by produceState(initialValue = formatCurrentClock(), hostLifecycleStarted) {
         if (!hostLifecycleStarted) {

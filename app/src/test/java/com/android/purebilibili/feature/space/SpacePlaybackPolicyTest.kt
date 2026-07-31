@@ -76,6 +76,7 @@ class SpacePlaybackPolicyTest {
             shouldPromptToLocatePlayedVideo(
                 targetBvid = "BV1",
                 hasLoadedSpace = true,
+                promptEnabled = true,
                 promptHandled = false
             )
         )
@@ -84,6 +85,7 @@ class SpacePlaybackPolicyTest {
             shouldPromptToLocatePlayedVideo(
                 targetBvid = "BV1",
                 hasLoadedSpace = false,
+                promptEnabled = true,
                 promptHandled = false
             )
         )
@@ -92,6 +94,7 @@ class SpacePlaybackPolicyTest {
             shouldPromptToLocatePlayedVideo(
                 targetBvid = "",
                 hasLoadedSpace = true,
+                promptEnabled = true,
                 promptHandled = false
             )
         )
@@ -100,7 +103,17 @@ class SpacePlaybackPolicyTest {
             shouldPromptToLocatePlayedVideo(
                 targetBvid = "BV1",
                 hasLoadedSpace = true,
+                promptEnabled = true,
                 promptHandled = true
+            )
+        )
+        assertEquals(
+            false,
+            shouldPromptToLocatePlayedVideo(
+                targetBvid = "BV1",
+                hasLoadedSpace = true,
+                promptEnabled = false,
+                promptHandled = false
             )
         )
     }
@@ -212,14 +225,6 @@ class SpacePlaybackPolicyTest {
             SpacePlaybackTarget(cid = 0L, resumePositionMs = 42_000L),
             resolveSpacePlaybackTarget(syncedProgress = null, localPositionMs = 42_000L)
         )
-    }
-
-    @Test
-    fun resolveSpaceLocateSearchTarget_requiresExactBvid() {
-        val target = SpaceWatchProgress("BV1", 0L, "video", 10, 100, 1L)
-
-        assertEquals("BV1", resolveSpaceLocateSearchTarget(target, listOf(item("BV1", "video", "01:40"))))
-        assertNull(resolveSpaceLocateSearchTarget(target, listOf(item("BV2", "video", "01:40"))))
     }
 
     @Test

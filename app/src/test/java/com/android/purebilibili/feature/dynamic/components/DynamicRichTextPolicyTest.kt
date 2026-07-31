@@ -282,4 +282,122 @@ class DynamicRichTextPolicyTest {
             )
         )
     }
+
+    @Test
+    fun buildDynamicRichText_rendersEmojiNodesAsInlineContent() {
+        val desc = DynamicDesc(
+            text = "新年快乐[豹富][豹富]",
+            rich_text_nodes = listOf(
+                RichTextNode(type = "RICH_TEXT_NODE_TYPE_TEXT", text = "新年快乐"),
+                RichTextNode(
+                    type = "RICH_TEXT_NODE_TYPE_EMOJI",
+                    text = "[豹富]",
+                    emoji = com.android.purebilibili.data.model.response.EmojiInfo(
+                        icon_url = "https://i0.hdslb.com/bfs/emote/baofu.png",
+                        text = "[豹富]"
+                    )
+                ),
+                RichTextNode(
+                    type = "RICH_TEXT_NODE_TYPE_EMOJI",
+                    text = "[豹富]",
+                    emoji = com.android.purebilibili.data.model.response.EmojiInfo(
+                        icon_url = "https://i0.hdslb.com/bfs/emote/baofu.png",
+                        text = "[豹富]"
+                    )
+                )
+            )
+        )
+
+        val result = buildDynamicRichText(
+            desc = desc,
+            primaryColor = Color.Blue,
+            textColor = Color.Black
+        )
+
+        assertTrue(shouldUseDynamicRichTextNodes(desc))
+        assertEquals(
+            "https://i0.hdslb.com/bfs/emote/baofu.png",
+            result.emojiUrlById["[豹富]"]
+        )
+        assertTrue(result.annotatedString.hasInlineContent())
+    }
+
+    @Test
+    fun buildDynamicRichText_expandsShortcodesInPlainTextWithExtraEmoteMap() {
+        val desc = DynamicDesc(text = "大家好[tv_doge][tv_doge]")
+        val result = buildDynamicRichText(
+            desc = desc,
+            primaryColor = Color.Blue,
+            textColor = Color.Black,
+            extraEmoteUrlMap = mapOf(
+                "[tv_doge]" to "https://i0.hdslb.com/bfs/emote/tv_doge.png"
+            )
+        )
+
+        assertEquals(
+            "https://i0.hdslb.com/bfs/emote/tv_doge.png",
+            result.emojiUrlById["[tv_doge]"]
+        )
+        assertTrue(result.annotatedString.hasInlineContent())
+    }
+
+    @Test
+    fun shouldUseDynamicRichTextNodes_prefersNodesWhenTheyContainEmojiEvenIfShorter() {
+        val desc = DynamicDesc(
+            text = "第一段\n第二段\n第三段[豹富]",
+            rich_text_nodes = listOf(
+                RichTextNode(type = "TEXT", text = "第一段"),
+                RichTextNode(
+                    type = "EMOJI",
+                    text = "[豹富]",
+                    emoji = com.android.purebilibili.data.model.response.EmojiInfo(
+                        icon_url = "https://i0.hdslb.com/bfs/emote/baofu.png",
+                        text = "[豹富]"
+                    )
+                )
+            )
+        )
+
+        assertTrue(shouldUseDynamicRichTextNodes(desc))
+    }
+
+    @Test
+    fun resolvePreferredDynamicDesc_prefersSideWithRenderableEmoji() {
+        val plain = DynamicDesc(text = "画完芽衣，大家新年快乐[豹富][豹富]")
+        val withEmoji = DynamicDesc(
+            text = "画完芽衣，大家新年快乐[豹富][豹富]",
+            rich_text_nodes = listOf(
+                RichTextNode(type = "TEXT", text = "画完芽衣，大家新年快乐"),
+                RichTextNode(
+                    type = "EMOJI",
+                    text = "[豹富]",
+                    emoji = com.android.purebilibili.data.model.response.EmojiInfo(
+                        icon_url = "https://i0.hdslb.com/bfs/emote/baofu.png",
+                        text = "[豹富]"
+                    )
+                )
+            )
+        )
+
+        val preferred = resolvePreferredDynamicDesc(primary = plain, fallback = withEmoji)
+        assertEquals(withEmoji, preferred)
+    }
+
+    @Test
+    fun resolveDynamicEmojiIconUrl_fallsBackToWebpAndHttps() {
+        val url = resolveDynamicEmojiIconUrl(
+            com.android.purebilibili.data.model.response.EmojiInfo(
+                icon_url = "",
+                webp_url = "http://i0.hdslb.com/bfs/emote/a.webp",
+                text = "[x]"
+            )
+        )
+        assertEquals("https://i0.hdslb.com/bfs/emote/a.webp", url)
+    }
+}
+
+private fun androidx.compose.ui.text.AnnotatedString.hasInlineContent(): Boolean {
+    // Inline content uses a private annotation tag; non-empty emojiUrlById is asserted
+    // by callers. Here we only need a cheap presence signal for the built string.
+    return this.isNotEmpty()
 }

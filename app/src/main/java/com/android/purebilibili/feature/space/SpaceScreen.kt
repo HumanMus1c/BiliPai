@@ -212,12 +212,18 @@ fun SpaceScreen(
 
     val currentSuccessState = uiState as? SpaceUiState.Success
     val playedVideoBvid = targetBvid?.trim().orEmpty()
-    var playedVideoLocatePromptHandled by rememberSaveable(mid, playedVideoBvid) {
+    val playedVideoLocatePromptEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getSpacePlayedVideoLocatePromptEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = true)
+    // The prompt is deliberately scoped to this visit. Persisting the dismissal made a second
+    // visit to the same UP silently lose its locate entry.
+    var playedVideoLocatePromptHandled by remember(mid, playedVideoBvid) {
         mutableStateOf(false)
     }
     val shouldPromptToLocatePlayedVideo = shouldPromptToLocatePlayedVideo(
         targetBvid = playedVideoBvid,
         hasLoadedSpace = currentSuccessState != null,
+        promptEnabled = playedVideoLocatePromptEnabled,
         promptHandled = playedVideoLocatePromptHandled
     )
     val locateMessage = currentSuccessState?.locateMessage

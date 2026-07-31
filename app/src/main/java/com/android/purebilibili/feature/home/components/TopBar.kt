@@ -12,8 +12,16 @@ import com.android.purebilibili.core.ui.OpticalContrastPalette
 import com.android.purebilibili.feature.home.HomeVisualPalette
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.automirrored.outlined.MenuOpen
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.LiveTv
@@ -407,6 +415,17 @@ internal fun shouldShowTopTabText(mode: Int): Boolean {
     return normalized == 0 || normalized == 2
 }
 
+internal fun resolveTopTabIconFamily(
+    chromeIconFamily: AppSemanticIconFamily,
+    useBottomBarMatchedChrome: Boolean
+): AppSemanticIconFamily {
+    return if (useBottomBarMatchedChrome) {
+        AppSemanticIconFamily.CUPERTINO
+    } else {
+        chromeIconFamily
+    }
+}
+
 internal fun resolveMd3TopTabLabelMode(requestedLabelMode: Int): Int =
     normalizeTopTabLabelMode(requestedLabelMode)
 
@@ -421,31 +440,44 @@ private fun resolveTopTabCategoryForIcon(categoryKey: String): HomeCategory? {
 
 internal fun resolveTopTabCategoryIcon(
     categoryKey: String,
-    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO
+    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
+    selected: Boolean = false
 ): ImageVector {
     val category = resolveTopTabCategoryForIcon(categoryKey)
     return when (iconFamily) {
         AppSemanticIconFamily.MATERIAL -> when (category) {
-            HomeCategory.RECOMMEND -> Icons.Outlined.Home
-            HomeCategory.FOLLOW -> Icons.Outlined.Person
-            HomeCategory.POPULAR -> Icons.AutoMirrored.Outlined.TrendingUp
-            HomeCategory.LIVE -> Icons.Outlined.LiveTv
-            HomeCategory.ANIME -> Icons.Outlined.Tv
-            HomeCategory.GAME -> Icons.Outlined.SportsEsports
-            HomeCategory.KNOWLEDGE -> Icons.Outlined.Lightbulb
-            HomeCategory.TECH -> Icons.Outlined.SmartToy
+            HomeCategory.RECOMMEND -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
+            HomeCategory.FOLLOW -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
+            HomeCategory.POPULAR -> if (selected) {
+                Icons.AutoMirrored.Filled.TrendingUp
+            } else {
+                Icons.AutoMirrored.Outlined.TrendingUp
+            }
+            HomeCategory.LIVE -> if (selected) Icons.Filled.LiveTv else Icons.Outlined.LiveTv
+            HomeCategory.ANIME -> if (selected) Icons.Filled.Tv else Icons.Outlined.Tv
+            HomeCategory.GAME -> if (selected) Icons.Filled.SportsEsports else Icons.Outlined.SportsEsports
+            HomeCategory.KNOWLEDGE -> if (selected) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb
+            HomeCategory.TECH -> if (selected) Icons.Filled.SmartToy else Icons.Outlined.SmartToy
             else -> Icons.AutoMirrored.Outlined.MenuOpen
         }
         AppSemanticIconFamily.CUPERTINO -> when (category) {
-            HomeCategory.RECOMMEND -> CupertinoIcons.Default.House
-            HomeCategory.FOLLOW -> CupertinoIcons.Default.PersonCropCircleBadgePlus
-            HomeCategory.POPULAR -> CupertinoIcons.Default.ChartBar
-            HomeCategory.LIVE -> CupertinoIcons.Default.Video
-            HomeCategory.ANIME -> CupertinoIcons.Default.Tv
-            HomeCategory.GAME -> CupertinoIcons.Default.PlayCircle
-            HomeCategory.KNOWLEDGE -> CupertinoIcons.Default.Lightbulb
-            HomeCategory.TECH -> CupertinoIcons.Default.Cpu
-            else -> CupertinoIcons.Default.ListBullet
+            HomeCategory.RECOMMEND -> if (selected) CupertinoIcons.Filled.House else CupertinoIcons.Outlined.House
+            HomeCategory.FOLLOW -> if (selected) {
+                CupertinoIcons.Filled.PersonCropCircleBadgePlus
+            } else {
+                CupertinoIcons.Outlined.PersonCropCircleBadgePlus
+            }
+            HomeCategory.POPULAR -> if (selected) CupertinoIcons.Filled.ChartBar else CupertinoIcons.Outlined.ChartBar
+            HomeCategory.LIVE -> if (selected) CupertinoIcons.Filled.Video else CupertinoIcons.Outlined.Video
+            HomeCategory.ANIME -> if (selected) CupertinoIcons.Filled.Tv else CupertinoIcons.Outlined.Tv
+            HomeCategory.GAME -> if (selected) {
+                CupertinoIcons.Filled.Gamecontroller
+            } else {
+                CupertinoIcons.Outlined.Gamecontroller
+            }
+            HomeCategory.KNOWLEDGE -> if (selected) CupertinoIcons.Filled.Lightbulb else CupertinoIcons.Outlined.Lightbulb
+            HomeCategory.TECH -> if (selected) CupertinoIcons.Filled.Cpu else CupertinoIcons.Outlined.Cpu
+            else -> CupertinoIcons.Outlined.ListBullet
         }
     }
 }
@@ -823,6 +855,10 @@ private fun LightweightHomeTopTabs(
     val haptic = com.android.purebilibili.core.util.rememberHapticFeedback()
     val scrollChannel = com.android.purebilibili.feature.home.LocalHomeScrollChannel.current
     val normalizedLabelMode = normalizeTopTabLabelMode(labelMode)
+    val topTabIconFamily = resolveTopTabIconFamily(
+        chromeIconFamily = chromePolicy.iconFamily,
+        useBottomBarMatchedChrome = isFloatingStyle || hasOuterChromeSurface
+    )
     val showIcon = shouldShowTopTabIcon(normalizedLabelMode)
     val showText = shouldShowTopTabText(normalizedLabelMode)
     val effectivePresentation = if (skinPlainStyle || forceMaterialUnderline) {
@@ -1375,7 +1411,9 @@ private fun LightweightHomeTopTabs(
                         .fillMaxSize()
                         .graphicsLayer { translationX = topTabContentPanelOffsetPx }
                 ) {
-                // Hidden monochrome export row: theme tint → pure primary under glass.
+                // Match the bottom bar: keep the export capture inside the dock band.
+                // When the indicator scales beyond it, the combined backdrop exposes the
+                // page source above and below instead of stretching dock material outward.
                 if (shouldPrimeTopTabLiquidGlassCapture) {
                     Box(
                         modifier = Modifier
@@ -1480,6 +1518,7 @@ private fun LightweightHomeTopTabs(
                                 val categoryKey = categoryKeys.getOrNull(index) ?: category
                                 LightweightTopTabItem(
                                     presentation = effectivePresentation,
+                                    iconFamily = topTabIconFamily,
                                     category = category,
                                     categoryKey = categoryKey,
                                     index = index,
@@ -1545,6 +1584,7 @@ private fun LightweightHomeTopTabs(
                         }
                         LightweightTopTabItem(
                             presentation = effectivePresentation,
+                            iconFamily = topTabIconFamily,
                             category = category,
                             categoryKey = categoryKey,
                             index = index,
@@ -1583,7 +1623,7 @@ private fun LightweightHomeTopTabs(
                     }
                 }
                 // Capsule above labels; panel offset is on parent so do NOT add again here.
-                // clip=false so drag-scale (88/56) can slightly exceed the dock chrome.
+                // clip=false lets the bottom-bar motion transform exceed the dock chrome.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -1746,7 +1786,7 @@ private fun LightweightHomeTopTabs(
                         )
                     } else {
                         AppIcon(
-                            resolveTopTabPartitionIcon(chromePolicy.iconFamily),
+                            resolveTopTabPartitionIcon(topTabIconFamily),
                             contentDescription = "浏览全部分区",
                             tint = skinPlainContentColor ?: MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(actionIconSize)
@@ -1780,6 +1820,7 @@ internal enum class TopTabLiquidColorMode {
 @Composable
 private fun LightweightTopTabItem(
     presentation: AppTopTabPresentation,
+    iconFamily: AppSemanticIconFamily,
     category: String,
     categoryKey: String,
     index: Int,
@@ -1799,12 +1840,20 @@ private fun LightweightTopTabItem(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val chromePolicy = rememberAppTopChromePolicy()
     val colorScheme = MaterialTheme.colorScheme
     val isDarkTheme = isSystemInDarkTheme()
     val selected = selectionFraction > 0.5f || index == selectedIndex
     val skinIconPath = skinIconPaths?.pathFor(selected)
-    val icon = resolveTopTabCategoryIcon(categoryKey, chromePolicy.iconFamily)
+    val unselectedIcon = resolveTopTabCategoryIcon(
+        categoryKey = categoryKey,
+        iconFamily = iconFamily,
+        selected = false
+    )
+    val selectedIcon = resolveTopTabCategoryIcon(
+        categoryKey = categoryKey,
+        iconFamily = iconFamily,
+        selected = true
+    )
     val selectedColor = when (presentation) {
         AppTopTabPresentation.MOVING_CAPSULE -> if (skinPlainStyle) {
             skinPlainContentColor ?: colorScheme.onSurface
@@ -1892,9 +1941,10 @@ private fun LightweightTopTabItem(
                         modifier = Modifier.size(resolveTopTabSkinStickerIconSize(showText = showText))
                     )
                 } else {
-                    AppIcon(
-                        imageVector = icon,
-                        contentDescription = null,
+                    TopTabBlendedIcon(
+                        unselectedIcon = unselectedIcon,
+                        selectedIcon = selectedIcon,
+                        selectedAlpha = selectionFraction,
                         tint = contentColor,
                         modifier = Modifier.size(
                             resolveTopTabIconSizeDp(if (showText) 0 else 1).dp
@@ -1934,6 +1984,38 @@ private fun LightweightTopTabItem(
             }
         }
 
+    }
+}
+
+@Composable
+private fun TopTabBlendedIcon(
+    unselectedIcon: ImageVector,
+    selectedIcon: ImageVector,
+    selectedAlpha: Float,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    val progress = selectedAlpha.coerceIn(0f, 1f)
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        AppIcon(
+            imageVector = unselectedIcon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier
+                .matchParentSize()
+                .alpha(1f - progress)
+        )
+        AppIcon(
+            imageVector = selectedIcon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier
+                .matchParentSize()
+                .alpha(progress)
+        )
     }
 }
 
@@ -2414,7 +2496,16 @@ fun CategoryTabItem(
      val normalizedLabelMode = normalizeTopTabLabelMode(labelMode)
      val showIcon = shouldShowTopTabIcon(normalizedLabelMode)
      val showText = shouldShowTopTabText(normalizedLabelMode)
-     val icon = resolveTopTabCategoryIcon(categoryKey, chromePolicy.iconFamily)
+     val unselectedIcon = resolveTopTabCategoryIcon(
+         categoryKey = categoryKey,
+         iconFamily = chromePolicy.iconFamily,
+         selected = false
+     )
+     val selectedIcon = resolveTopTabCategoryIcon(
+         categoryKey = categoryKey,
+         iconFamily = chromePolicy.iconFamily,
+         selected = true
+     )
      val iconSize = resolveTopTabIconSizeDp(normalizedLabelMode).dp
      val textSize = resolveTopTabLabelTextSizeSp(normalizedLabelMode).sp
      val textLineHeight = resolveTopTabLabelLineHeightSp(normalizedLabelMode).sp
@@ -2464,9 +2555,10 @@ fun CategoryTabItem(
                      transformOrigin = androidx.compose.ui.graphics.TransformOrigin.Center
                  }
              ) {
-                AppIcon(
-                     imageVector = icon,
-                     contentDescription = null,
+                TopTabBlendedIcon(
+                     unselectedIcon = unselectedIcon,
+                     selectedIcon = selectedIcon,
+                     selectedAlpha = selectionFraction,
                      tint = contentColor,
                      modifier = Modifier
                          .size(iconSize)
@@ -2484,9 +2576,10 @@ fun CategoryTabItem(
                  )
              }
          } else if (showIcon) {
-             AppIcon(
-                 imageVector = icon,
-                 contentDescription = null,
+             TopTabBlendedIcon(
+                 unselectedIcon = unselectedIcon,
+                 selectedIcon = selectedIcon,
+                 selectedAlpha = selectionFraction,
                  tint = contentColor,
                  modifier = Modifier
                      .size(iconSize)

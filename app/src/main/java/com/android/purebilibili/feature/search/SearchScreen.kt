@@ -1799,7 +1799,8 @@ fun SearchTopBar(
                     shape = RoundedCornerShape(chromeSpec.inputCornerRadiusDp.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .defaultMinSize(minHeight = chromeSpec.inputHeightDp.dp),
+                        // 固定输入高度：禁止 fillMaxSize 吃掉 Column 剩余高度变成竖条胶囊。
+                        .height(chromeSpec.inputHeightDp.dp),
                     isScrollInProgressProvider = isScrollInProgressProvider
                 ) { liquidChromeActive ->
                     AppSearchField(
@@ -1810,7 +1811,9 @@ fun SearchTopBar(
                         presentation = AppSearchFieldPresentation.TOP_BAR,
                         autoFocusEnabled = autoFocusEnabled && query.isEmpty(),
                         focusRequester = focusRequester,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(chromeSpec.inputHeightDp.dp),
                         placeholder = placeholder,
                         containerColor = if (liquidChromeActive) {
                             Color.Transparent

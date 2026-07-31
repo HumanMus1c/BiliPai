@@ -94,9 +94,10 @@ fun resolveSpacePlayAllStartTarget(videos: List<SpaceVideoItem>): String? {
 internal fun shouldPromptToLocatePlayedVideo(
     targetBvid: String?,
     hasLoadedSpace: Boolean,
+    promptEnabled: Boolean,
     promptHandled: Boolean
 ): Boolean {
-    return hasLoadedSpace && targetBvid?.isNotBlank() == true && !promptHandled
+    return promptEnabled && hasLoadedSpace && targetBvid?.isNotBlank() == true && !promptHandled
 }
 
 internal fun resolveSpaceWatchProgressByBvid(
@@ -169,15 +170,6 @@ internal fun resolveSpacePlaybackTarget(
         )
     }
     return SpacePlaybackTarget(cid = 0L, resumePositionMs = localPositionMs.coerceAtLeast(0L))
-}
-
-internal fun resolveSpaceLocateSearchTarget(
-    target: SpaceWatchProgress?,
-    videos: List<SpaceVideoItem>
-): String? {
-    val bvid = target?.bvid.orEmpty()
-    if (bvid.isBlank()) return null
-    return bvid.takeIf { candidate -> videos.any { it.bvid == candidate } }
 }
 
 internal fun resolveSpaceLocateTargetPageAction(

@@ -388,6 +388,19 @@ class VideoCardScrollLiteVisualPolicyTest {
             ),
             0.001f,
         )
+        // 关闭实时画面预览：封面与标题整体落位，标题立刻全显
+        assertEquals(
+            1f,
+            resolveHomeCardChromeAlphaDuringShellReturnMorph(
+                useCardContainerSharedBounds = true,
+                isSharedMorphSourceCard = true,
+                isReturningFromDetail = true,
+                isSharedTransitionActive = true,
+                transitionBackgroundProgress = 1f,
+                preferWholeCardReturn = true,
+            ),
+            0.001f,
+        )
         // 进场 OPENING：藏字
         assertEquals(
             0f,

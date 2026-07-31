@@ -2213,8 +2213,22 @@ private fun VideoPageItem(
                                     view.player = exoPlayer
                                 }
                                 view.keepScreenOn = shouldKeepPortraitPagerItemAwake
-                                if (view.resizeMode != portraitPagerResizeMode) {
-                                    view.resizeMode = portraitPagerResizeMode
+                                // mode 变化：Media3 会 remeasure；同 mode 但 FILL 容器尺寸变：强制刷新一次。
+                                val modeChanged = view.resizeMode != portraitPagerResizeMode
+                                val sizeTag =
+                                    "vp:${view.width}x${view.height}:$portraitPagerResizeMode:$portraitPagerFillContainer"
+                                val sizeChanged = view.tag != sizeTag
+                                com.android.purebilibili.feature.video.ui.components.applyPlayerViewResizeMode(
+                                    playerView = view,
+                                    resizeMode = portraitPagerResizeMode,
+                                    forceRelayout = false,
+                                )
+                                if (modeChanged || (portraitPagerFillContainer && sizeChanged)) {
+                                    view.tag = sizeTag
+                                    com.android.purebilibili.feature.video.ui.components.schedulePlayerViewViewportRefresh(
+                                        playerView = view,
+                                        resizeMode = portraitPagerResizeMode,
+                                    )
                                 }
                             },
                             modifier = Modifier.fillMaxSize()

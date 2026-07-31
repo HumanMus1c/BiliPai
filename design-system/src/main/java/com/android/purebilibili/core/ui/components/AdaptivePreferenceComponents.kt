@@ -1475,12 +1475,21 @@ fun AdaptiveSearchFieldRenderer(
         if (uiPreset == UiPreset.MD3 || topBarChrome) {
             val textStyle = if (topBarChrome) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium
             val showLeadingIcon = !topBarChrome || uiPreset == UiPreset.IOS
+            // topBar：固定高度，禁止 fillMaxHeight 吃掉父 Row/Column 剩余空间变成竖条。
+            val sizeModifier = if (topBarChrome) {
+                Modifier
+                    .fillMaxWidth()
+                    .height(resolvedHeight)
+            } else {
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = resolvedHeight)
+            }
             OutlinedTextField(
                 value = query,
                 onValueChange = onQueryChange,
                 modifier = modifier
-                    .fillMaxWidth()
-                    .heightIn(min = resolvedHeight)
+                    .then(sizeModifier)
                     .then(focusModifier),
                 placeholder = {
                     Text(

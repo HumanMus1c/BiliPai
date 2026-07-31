@@ -1011,6 +1011,8 @@ private fun PlaybackInteractionSettingsSection(
         .getExternalPlaylistAutoContinue(context).collectAsStateWithLifecycle(initialValue = true)
     val resumePlaybackPromptEnabled by com.android.purebilibili.core.store.SettingsManager
         .getResumePlaybackPromptEnabled(context).collectAsStateWithLifecycle(initialValue = true)
+    val spacePlayedVideoLocatePromptEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getSpacePlayedVideoLocatePromptEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val playbackCompletionBehavior by com.android.purebilibili.core.store.SettingsManager
         .getPlaybackCompletionBehavior(context)
         .collectAsStateWithLifecycle(initialValue = PlaybackCompletionBehavior.CONTINUE_CURRENT_LOGIC)
@@ -1087,6 +1089,24 @@ private fun PlaybackInteractionSettingsSection(
                 scope.launch {
                     com.android.purebilibili.core.store.SettingsManager
                         .setResumePlaybackPromptEnabled(context, it)
+                }
+            },
+            iconTint = iOSTeal
+        )
+        AppPreferenceDivider()
+        AppSwitchPreference(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYBACK),
+            title = "UP 主页看过视频定位提示",
+            subtitle = if (spacePlayedVideoLocatePromptEnabled) {
+                "每次从视频进入该 UP 主页时显示，可一键定位到对应投稿"
+            } else {
+                "关闭后不再显示“刚刚看过”的定位提示"
+            },
+            checked = spacePlayedVideoLocatePromptEnabled,
+            onCheckedChange = {
+                scope.launch {
+                    com.android.purebilibili.core.store.SettingsManager
+                        .setSpacePlayedVideoLocatePromptEnabled(context, it)
                 }
             },
             iconTint = iOSTeal

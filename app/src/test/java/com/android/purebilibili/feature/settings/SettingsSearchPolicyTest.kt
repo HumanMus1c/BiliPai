@@ -188,6 +188,13 @@ class SettingsSearchPolicyTest {
     }
 
     @Test
+    fun queryByPlayedVideoLocatePrompt_hitsPlaybackEntry() {
+        val results = resolveSettingsSearchResults("刚刚看过")
+
+        assertTrue(results.any { it.target == SettingsSearchTarget.PLAYBACK })
+    }
+
+    @Test
     fun queryByAttentionDanmaku_hitsPlaybackInteractionEntry() {
         val results = resolveSettingsSearchResults("关注点赞弹幕")
 

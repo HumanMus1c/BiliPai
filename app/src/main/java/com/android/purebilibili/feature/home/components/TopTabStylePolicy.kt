@@ -365,7 +365,7 @@ data class TopTabVisualTuning(
     val tabTextSizeSp: Float = 15f,
     val tabTextLineHeightSp: Float = 20f,
     val tabContentMinHeightDp: Float = 42f,
-    val tabIconWithTextSizeDp: Float = 20f,
+    val tabIconWithTextSizeDp: Float = 24f,
     val tabIconOnlySizeDp: Float = 24f,
     val tabIconTextSpacingDp: Float = 3f
 )
@@ -406,7 +406,7 @@ fun resolveTopTabVisualTuning(presentation: AppTopTabPresentation): TopTabVisual
             tabTextSizeSp = 15f,
             tabTextLineHeightSp = 20f,
             tabContentMinHeightDp = 42f,
-            tabIconWithTextSizeDp = 20f,
+            tabIconWithTextSizeDp = 24f,
             tabIconOnlySizeDp = 24f,
             tabIconTextSpacingDp = 3f
         )

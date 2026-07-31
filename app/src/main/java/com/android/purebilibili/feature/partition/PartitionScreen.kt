@@ -22,10 +22,42 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 //  Cupertino Icons - iOS SF Symbols 风格图标
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Animation
+import androidx.compose.material.icons.filled.Checkroom
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.LocalMovies
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Newspaper
+import androidx.compose.material.icons.filled.OndemandVideo
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.TheaterComedy
+import androidx.compose.material.icons.outlined.Animation
+import androidx.compose.material.icons.outlined.Checkroom
+import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.DirectionsRun
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.LocalMovies
+import androidx.compose.material.icons.outlined.Movie
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.outlined.OndemandVideo
+import androidx.compose.material.icons.outlined.Pets
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.SportsSoccer
+import androidx.compose.material.icons.outlined.TheaterComedy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
@@ -51,6 +84,7 @@ import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.CutePersonLoadingIndicator
@@ -66,6 +100,7 @@ import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.BottomBarLiquidGlassPreset
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.rememberAppChromeLiquidGlassEnabled
+import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.data.model.response.BangumiType
 import com.android.purebilibili.data.model.response.VideoItem
@@ -76,9 +111,11 @@ import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.home.components.BottomBarIndicatorLayerTransform
 import com.android.purebilibili.feature.home.components.BottomBarLiquidOrientation
 import com.android.purebilibili.feature.home.components.BottomBarMatchedLiquidIndicator
+import com.android.purebilibili.feature.home.components.bottomBarMatchedCaptureOverflow
 import com.android.purebilibili.feature.home.components.rememberBottomBarMatchedLiquidChromeState
 import com.android.purebilibili.feature.home.components.resolveAndroidNativeIdleIndicatorSurfaceColor
 import com.android.purebilibili.feature.home.components.resolveBottomBarBackdropPresetIndicatorLens
+import com.android.purebilibili.feature.home.components.resolveBottomBarCaptureSafeInsetDp
 import com.android.purebilibili.feature.home.components.resolveBottomBarBackdropPresetProgress
 import com.android.purebilibili.feature.home.components.resolveBottomBarIndicatorGlowAlpha
 import com.android.purebilibili.feature.home.components.resolveBottomBarLiquidGlassHighlightAlpha
@@ -86,6 +123,7 @@ import com.android.purebilibili.feature.home.components.resolveBottomBarRefracti
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import com.android.purebilibili.feature.home.components.rememberBottomBarIndicatorDragScaleProgress
 import com.android.purebilibili.feature.home.components.normalizeTopTabLabelMode
+import com.android.purebilibili.feature.home.components.resolveTopTabCategoryIcon
 import com.android.purebilibili.feature.home.components.resolveSegmentedControlMotionProgress
 import com.android.purebilibili.feature.home.components.resolveSegmentedControlMotionSpec
 import com.android.purebilibili.feature.home.components.shouldShowTopTabIcon
@@ -109,9 +147,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  */
 data class PartitionCategory(
     val id: Int,
-    val name: String,
-    val emoji: String,
-    val color: Color
+    val name: String
 )
 
 /**
@@ -121,32 +157,32 @@ data class PartitionCategory(
  */
 val allPartitions = listOf(
     // === 视频分区（支持 newlist API）===
-    PartitionCategory(1, "动画", "🎬", Color(0xFF7BBEEC)),
-    PartitionCategory(13, "番剧", "📺", Color(0xFFFF6B9D)),      // 特殊分区
-    PartitionCategory(167, "国创", "🇨🇳", Color(0xFFFF7575)),     // 特殊分区
-    PartitionCategory(3, "音乐", "🎵", Color(0xFF6BB5FF)),
-    PartitionCategory(129, "舞蹈", "💃", Color(0xFFFF7777)),
-    PartitionCategory(4, "游戏", "🎮", Color(0xFF7FD37F)),
-    PartitionCategory(36, "知识", "📚", Color(0xFFFFD166)),
-    PartitionCategory(188, "科技", "💻", Color(0xFF6ECFFF)),
-    PartitionCategory(234, "运动", "⚽", Color(0xFF7BC96F)),
-    PartitionCategory(223, "汽车", "🚗", Color(0xFF74C0FC)),
-    PartitionCategory(160, "生活", "🏠", Color(0xFFFFB366)),
-    PartitionCategory(211, "美食", "🍜", Color(0xFFFFAB5C)),
-    PartitionCategory(217, "动物圈", "🐾", Color(0xFFB5D9A8)),
-    PartitionCategory(119, "鬼畜", "👻", Color(0xFFA8E6CF)),
-    PartitionCategory(155, "时尚", "👗", Color(0xFFFF9ECD)),
-    PartitionCategory(202, "资讯", "📰", Color(0xFF98D8C8)),
-    PartitionCategory(5, "娱乐", "🎪", Color(0xFFFFB347)),
+    PartitionCategory(1, "动画"),
+    PartitionCategory(13, "番剧"),      // 特殊分区
+    PartitionCategory(167, "国创"),     // 特殊分区
+    PartitionCategory(3, "音乐"),
+    PartitionCategory(129, "舞蹈"),
+    PartitionCategory(4, "游戏"),
+    PartitionCategory(36, "知识"),
+    PartitionCategory(188, "科技"),
+    PartitionCategory(234, "运动"),
+    PartitionCategory(223, "汽车"),
+    PartitionCategory(160, "生活"),
+    PartitionCategory(211, "美食"),
+    PartitionCategory(217, "动物圈"),
+    PartitionCategory(119, "鬼畜"),
+    PartitionCategory(155, "时尚"),
+    PartitionCategory(202, "资讯"),
+    PartitionCategory(5, "娱乐"),
     // === 特殊分区（番剧/电影等使用不同 API）===
-    PartitionCategory(23, "电影", "🎬", Color(0xFFFF9E7A)),      // 特殊分区
-    PartitionCategory(11, "电视剧", "📺", Color(0xFFFF85A2)),    // 特殊分区
-    PartitionCategory(177, "纪录片", "🎥", Color(0xFF7BC8F6)),   // 特殊分区
-    PartitionCategory(181, "影视", "🎦", Color(0xFFC7A4FF))      // 特殊分区
+    PartitionCategory(23, "电影"),      // 特殊分区
+    PartitionCategory(11, "电视剧"),    // 特殊分区
+    PartitionCategory(177, "纪录片"),   // 特殊分区
+    PartitionCategory(181, "影视")      // 特殊分区
 )
 
 private val partitionTabs = listOf(
-    PartitionCategory(0, "全站", "⌂", Color(0xFFFFA15F))
+    PartitionCategory(0, "全站")
 ) + allPartitions
 
 private val PartitionSideRailItemHeight = 48.dp
@@ -175,6 +211,59 @@ internal fun shouldShowPartitionSideRailIcon(labelMode: Int): Boolean =
 
 internal fun shouldShowPartitionSideRailText(labelMode: Int): Boolean =
     shouldShowTopTabText(resolvePartitionSideRailLabelMode(labelMode))
+
+internal fun resolvePartitionSideRailIcon(
+    partitionId: Int,
+    iconFamily: AppSemanticIconFamily,
+    selected: Boolean,
+): ImageVector = when (iconFamily) {
+    AppSemanticIconFamily.MATERIAL -> when (partitionId) {
+        0 -> if (selected) Icons.Filled.GridView else Icons.Outlined.GridView
+        1 -> if (selected) Icons.Filled.Animation else Icons.Outlined.Animation
+        13 -> resolveTopTabCategoryIcon("番剧", iconFamily, selected)
+        167 -> if (selected) Icons.Filled.Flag else Icons.Outlined.Flag
+        3 -> if (selected) Icons.Filled.MusicNote else Icons.Outlined.MusicNote
+        129 -> if (selected) Icons.Filled.DirectionsRun else Icons.Outlined.DirectionsRun
+        4 -> resolveTopTabCategoryIcon("游戏", iconFamily, selected)
+        36 -> resolveTopTabCategoryIcon("知识", iconFamily, selected)
+        188 -> resolveTopTabCategoryIcon("科技", iconFamily, selected)
+        234 -> if (selected) Icons.Filled.SportsSoccer else Icons.Outlined.SportsSoccer
+        223 -> if (selected) Icons.Filled.DirectionsCar else Icons.Outlined.DirectionsCar
+        160 -> resolveTopTabCategoryIcon("推荐", iconFamily, selected)
+        211 -> if (selected) Icons.Filled.Restaurant else Icons.Outlined.Restaurant
+        217 -> if (selected) Icons.Filled.Pets else Icons.Outlined.Pets
+        119, 5 -> if (selected) Icons.Filled.TheaterComedy else Icons.Outlined.TheaterComedy
+        155 -> if (selected) Icons.Filled.Checkroom else Icons.Outlined.Checkroom
+        202 -> if (selected) Icons.Filled.Newspaper else Icons.Outlined.Newspaper
+        23 -> if (selected) Icons.Filled.Movie else Icons.Outlined.Movie
+        11 -> resolveTopTabCategoryIcon("番剧", iconFamily, selected)
+        177 -> if (selected) Icons.Filled.OndemandVideo else Icons.Outlined.OndemandVideo
+        181 -> if (selected) Icons.Filled.LocalMovies else Icons.Outlined.LocalMovies
+        else -> if (selected) Icons.Filled.GridView else Icons.Outlined.GridView
+    }
+    AppSemanticIconFamily.CUPERTINO -> when (partitionId) {
+        0 -> CupertinoIcons.Outlined.Grid
+        1, 23 -> if (selected) CupertinoIcons.Filled.Film else CupertinoIcons.Outlined.Film
+        13, 11 -> resolveTopTabCategoryIcon("番剧", iconFamily, selected)
+        167 -> if (selected) CupertinoIcons.Filled.Flag else CupertinoIcons.Outlined.Flag
+        3 -> CupertinoIcons.Outlined.MusicNote
+        129 -> CupertinoIcons.Outlined.FigureWalk
+        4 -> resolveTopTabCategoryIcon("游戏", iconFamily, selected)
+        36 -> resolveTopTabCategoryIcon("知识", iconFamily, selected)
+        188 -> resolveTopTabCategoryIcon("科技", iconFamily, selected)
+        234 -> CupertinoIcons.Outlined.Soccerball
+        223 -> if (selected) CupertinoIcons.Filled.Car else CupertinoIcons.Outlined.Car
+        160 -> resolveTopTabCategoryIcon("推荐", iconFamily, selected)
+        211 -> CupertinoIcons.Outlined.ForkKnife
+        217 -> if (selected) CupertinoIcons.Filled.Pawprint else CupertinoIcons.Outlined.Pawprint
+        119, 5 -> if (selected) CupertinoIcons.Filled.Theatermasks else CupertinoIcons.Outlined.Theatermasks
+        155 -> if (selected) CupertinoIcons.Filled.Tshirt else CupertinoIcons.Outlined.Tshirt
+        202 -> if (selected) CupertinoIcons.Filled.Newspaper else CupertinoIcons.Outlined.Newspaper
+        177 -> if (selected) CupertinoIcons.Filled.Video else CupertinoIcons.Outlined.Video
+        181 -> if (selected) CupertinoIcons.Filled.Popcorn else CupertinoIcons.Outlined.Popcorn
+        else -> CupertinoIcons.Outlined.Grid
+    }
+}
 
 internal fun resolvePartitionSideRailIndicatorHorizontalPadding(
     contentPadding: PaddingValues,
@@ -380,6 +469,7 @@ fun PartitionContent(
 ) {
     val context = LocalContext.current
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(initialValue = HomeSettings())
+    val topChromeIconFamily = rememberAppTopChromePolicy().iconFamily
     val liquidGlassIndicatorEnabled = rememberAppChromeLiquidGlassEnabled(
         individualEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
         androidNativeEnabled = homeSettings.androidNativeLiquidGlassEnabled,
@@ -434,6 +524,7 @@ fun PartitionContent(
                 partitions = partitionTabs,
                 selectedId = state.selectedPartition.id,
                 labelMode = homeSettings.topTabLabelMode,
+                iconFamily = topChromeIconFamily,
                 modifier = Modifier.width(92.dp),
                 contentPadding = PaddingValues(
                     start = startPadding,
@@ -486,6 +577,7 @@ private fun PartitionSideRail(
     partitions: List<PartitionCategory>,
     selectedId: Int,
     labelMode: Int,
+    iconFamily: AppSemanticIconFamily,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues,
     liquidGlassIndicatorEnabled: Boolean,
@@ -514,7 +606,7 @@ private fun PartitionSideRail(
         dragState.updateIndex(selectedIndex)
     }
 
-    Box(modifier = modifier.fillMaxHeight()) {
+    BoxWithConstraints(modifier = modifier.fillMaxHeight()) {
         val itemHeightPx = with(density) { PartitionSideRailItemHeight.toPx() }
         val itemSlotHeightPx = with(density) { (PartitionSideRailItemHeight + PartitionSideRailItemSpacing).toPx() }
         val contentTopPaddingPx = with(density) { contentPadding.calculateTopPadding().toPx() }
@@ -532,25 +624,47 @@ private fun PartitionSideRail(
                 itemSlotHeightPx = itemSlotHeightPx
             )
         }
-        val railBackdrop = rememberLayerBackdrop()
+        val indicatorWidth = (maxWidth - indicatorHorizontalPadding.start - indicatorHorizontalPadding.end)
+            .coerceAtLeast(0.dp)
+        val fullIndicatorLensSpec = resolveBottomBarBackdropPresetIndicatorLens(progress = 1f)
+        val captureSafeInset = resolveBottomBarCaptureSafeInsetDp(
+            indicatorWidthDp = indicatorWidth.value,
+            refractionHeightDp = fullIndicatorLensSpec.refractionHeightDp,
+            refractionAmountDp = fullIndicatorLensSpec.refractionAmountDp,
+            panelOffsetDp = 0f
+        ).dp
+        val railPageBackdrop = rememberLayerBackdrop()
+
+        // The vertical indicator renders above the visible labels, so it only needs a stable page
+        // sample. Sampling the scrolling LazyColumn becomes invalid while the long-press layer is
+        // translated and scaled. The overflow keeps the 88/56 drag scale and lens inside capture.
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .bottomBarMatchedCaptureOverflow(captureSafeInset)
+                .alpha(0f)
+                .layerBackdrop(railPageBackdrop)
+                .background(AppSurfaceTokens.background())
+        )
 
         PartitionSideRailMovingIndicator(
             dragState = dragState,
             itemSlotHeightPx = itemSlotHeightPx,
             indicatorOffsetPxProvider = currentIndicatorOffsetPxProvider,
+            indicatorWidth = indicatorWidth,
             liquidGlassIndicatorEnabled = liquidGlassIndicatorEnabled,
             liquidGlassPreset = liquidGlassPreset,
-            backdrop = railBackdrop,
+            backdrop = railPageBackdrop,
             maxVideoPushPx = maxVideoPushPx,
             horizontalPadding = indicatorHorizontalPadding,
-            onVideoListPushChanged = onVideoListPushChanged
+            onVideoListPushChanged = onVideoListPushChanged,
+            modifier = Modifier.matchParentSize()
         )
 
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .layerBackdrop(railBackdrop)
                 .partitionSideRailIndicatorLongPressDrag(
                     dragState = dragState,
                     itemHeightPx = itemHeightPx,
@@ -574,6 +688,7 @@ private fun PartitionSideRail(
                     ),
                     showIcon = showIcon,
                     showText = showText,
+                    iconFamily = iconFamily,
                     onClick = { onPartitionSelected(partition) }
                 )
             }
@@ -586,12 +701,14 @@ private fun PartitionSideRailMovingIndicator(
     dragState: DampedDragAnimationState,
     itemSlotHeightPx: Float,
     indicatorOffsetPxProvider: () -> Float,
+    indicatorWidth: androidx.compose.ui.unit.Dp,
     liquidGlassIndicatorEnabled: Boolean,
     liquidGlassPreset: BottomBarLiquidGlassPreset,
     backdrop: top.yukonga.miuix.kmp.blur.Backdrop,
     maxVideoPushPx: Float,
     horizontalPadding: PartitionSideRailIndicatorHorizontalPadding,
-    onVideoListPushChanged: (Float) -> Unit
+    onVideoListPushChanged: (Float) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val shape = resolveSharedBottomBarCapsuleShape()
     val isDarkTheme = isSystemInDarkTheme()
@@ -628,10 +745,8 @@ private fun PartitionSideRailMovingIndicator(
         progress = pressProgress
     )
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier) {
         val density = LocalDensity.current
-        val indicatorWidth = (maxWidth - horizontalPadding.start - horizontalPadding.end)
-            .coerceAtLeast(0.dp)
         BottomBarMatchedLiquidIndicator(
             visible = true,
             dockContentAlpha = 1f,
@@ -667,6 +782,7 @@ private fun PartitionSideRailItem(
     selectionProgress: Float,
     showIcon: Boolean,
     showText: Boolean,
+    iconFamily: AppSemanticIconFamily,
     onClick: () -> Unit
 ) {
     val selectedColor = MaterialTheme.colorScheme.primary
@@ -702,14 +818,15 @@ private fun PartitionSideRailItem(
                 else -> unselectedColor
             }
             if (showIcon) {
-                AppText(
-                    text = partition.emoji,
-                    maxLines = 1,
-                    textAlign = TextAlign.Center,
-                    fontSize = if (showText) 15.sp else 22.sp,
-                    lineHeight = if (showText) 16.sp else 24.sp,
-                    color = contentColor,
-                    modifier = Modifier.fillMaxWidth()
+                AppIcon(
+                    imageVector = resolvePartitionSideRailIcon(
+                        partitionId = partition.id,
+                        iconFamily = iconFamily,
+                        selected = selected || clampedSelectionProgress > 0.5f,
+                    ),
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(if (showText) 18.dp else 24.dp)
                 )
             }
             if (showIcon && showText) {

@@ -362,6 +362,18 @@ class SearchScreenPolicyTest {
     }
 
     @Test
+    fun searchTopBar_inputUsesFixedHeightNotFillMaxSize() {
+        val searchSource = loadSource("app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt")
+        val topBar = searchSource
+            .substringAfter("fun SearchTopBar(")
+            .substringBefore("fun SearchSuggestionDropdown")
+        // 回归：fillMaxSize 会让输入框在 Column 剩余高度里变成竖向长胶囊
+        assertFalse(topBar.contains("Modifier = Modifier.fillMaxSize()"))
+        assertTrue(topBar.contains(".height(chromeSpec.inputHeightDp.dp)"))
+        assertTrue(topBar.contains(".fillMaxWidth()"))
+    }
+
+    @Test
     fun bottomBarSearchEntry_usesDedicatedTopBarContinuityMotion() {
         val navigationSource = loadSource("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt")
         val searchSource = loadSource("app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt")

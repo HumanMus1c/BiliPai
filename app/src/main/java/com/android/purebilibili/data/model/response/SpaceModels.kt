@@ -602,7 +602,10 @@ data class SpaceDynamicRichText(
 
 @kotlinx.serialization.Serializable
 data class SpaceDynamicEmoji(
+    @JsonNames("url")
     val icon_url: String = "",
+    val webp_url: String = "",
+    val gif_url: String = "",
     @Serializable(with = FlexibleIntSerializer::class)
     val size: Int = 1,
     val text: String = ""

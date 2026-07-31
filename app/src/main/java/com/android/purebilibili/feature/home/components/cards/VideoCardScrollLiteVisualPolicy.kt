@@ -129,6 +129,7 @@ internal fun resolveHorizontalCardChromeMotionFrame(
     isSharedTransitionActive: Boolean = false,
     transitionBackgroundProgress: Float = 0f,
     isQuickReturnFromDetail: Boolean = false,
+    preferWholeCardReturn: Boolean = false,
 ): HorizontalCardChromeMotionFrame {
     if (!useCardContainerSharedBounds || !isSharedMorphSourceCard) {
         return HorizontalCardChromeMotionFrame(alpha = 1f, translationProgress = 0f)
@@ -137,7 +138,7 @@ internal fun resolveHorizontalCardChromeMotionFrame(
         isVideoCardReturnGestureInProgress ||
         transitionBackgroundPhase == VideoCardTransitionBackgroundPhase.RETURNING
     if (isReturnContext) {
-        if (isQuickReturnFromDetail) {
+        if (isQuickReturnFromDetail || preferWholeCardReturn) {
             return HorizontalCardChromeMotionFrame(alpha = 1f, translationProgress = 0f)
         }
         return HorizontalCardChromeMotionFrame(
@@ -149,6 +150,7 @@ internal fun resolveHorizontalCardChromeMotionFrame(
                 isVideoCardReturnGestureInProgress = isVideoCardReturnGestureInProgress,
                 isSharedTransitionActive = isSharedTransitionActive,
                 transitionBackgroundProgress = transitionBackgroundProgress,
+                preferWholeCardReturn = preferWholeCardReturn,
             ),
             translationProgress = transitionBackgroundProgress.coerceIn(0f, 1f),
         )
@@ -179,7 +181,7 @@ internal fun resolveHorizontalCardChromeMotionFrame(
  * - 非源卡 / 无 shell：恒 1
  * - 进场（OPENING 或 shared 进行中且非返回）：0，避免字叠播放器
  * - 返回上下文：只跟 [transitionBackgroundProgress]（= clock.depthProgress）做 settle 淡入
- * - 快速返回：恒 1（详情正文必须同步立刻让位，见 resolveVideoDetailReturnContentAlpha）
+ * - 快速返回 / 整体落位（关闭实时画面预览）：恒 1，封面与标题同步落位
  * - settle≥1 或 depth≈0：恒 1
  *
  * 禁止：shared 一停就 `return 1f`——那会在 depth 仍为 0.4 时把标题从半透明弹满。
@@ -194,6 +196,7 @@ internal fun resolveHomeCardChromeAlphaDuringShellReturnMorph(
     isSharedTransitionActive: Boolean = false,
     transitionBackgroundProgress: Float = 0f,
     isQuickReturnFromDetail: Boolean = false,
+    preferWholeCardReturn: Boolean = false,
 ): Float {
     if (!useCardContainerSharedBounds || !isSharedMorphSourceCard) return 1f
 
@@ -202,7 +205,8 @@ internal fun resolveHomeCardChromeAlphaDuringShellReturnMorph(
         transitionBackgroundPhase == VideoCardTransitionBackgroundPhase.RETURNING
 
     if (isReturnContext) {
-        if (isQuickReturnFromDetail) return 1f
+        // 快速返回或关闭 live 预览：标题与封面一体落位，不延后淡入。
+        if (isQuickReturnFromDetail || preferWholeCardReturn) return 1f
         val settleProgress = resolveVideoCardReturnSettleFromMorphDepth(
             morphDepthProgress = transitionBackgroundProgress,
         )
@@ -233,6 +237,7 @@ internal fun shouldSuppressHomeCardVisualDuringShellReturnMorph(
     isSharedTransitionActive: Boolean = false,
     transitionBackgroundProgress: Float = 0f,
     isQuickReturnFromDetail: Boolean = false,
+    preferWholeCardReturn: Boolean = false,
 ): Boolean {
     return resolveHomeCardChromeAlphaDuringShellReturnMorph(
         useCardContainerSharedBounds = useCardContainerSharedBounds,
@@ -243,6 +248,7 @@ internal fun shouldSuppressHomeCardVisualDuringShellReturnMorph(
         isSharedTransitionActive = isSharedTransitionActive,
         transitionBackgroundProgress = transitionBackgroundProgress,
         isQuickReturnFromDetail = isQuickReturnFromDetail,
+        preferWholeCardReturn = preferWholeCardReturn,
     ) < 1f
 }
 

@@ -31,7 +31,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.foundation.text.InlineTextContent
-import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.TextLayoutResult
@@ -328,8 +327,22 @@ fun DynamicCardV2(
             Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         }
         
-        //  动态内容文字（支持@高亮）
-        if (!hasFullOpusDetailContent) visibleDynamicDesc?.let { desc ->
+        //  动态内容文字（支持@高亮 / 表情）；优先可渲染表情的 desc 或 opus summary
+        val visibleOpusSummaryDescForBody = remember(content?.major?.opus?.summary, content?.major?.opus?.pics) {
+            val opus = content?.major?.opus ?: return@remember null
+            opus.summary?.let { summary ->
+                resolveDynamicOpusSummaryDescForImages(
+                    text = summary.text,
+                    richTextNodes = summary.rich_text_nodes,
+                    hasImages = opus.pics.isNotEmpty()
+                )
+            }
+        }
+        val preferredBodyDesc = resolvePreferredDynamicDesc(
+            primary = visibleDynamicDesc,
+            fallback = visibleOpusSummaryDescForBody
+        )
+        if (!hasFullOpusDetailContent) preferredBodyDesc?.let { desc ->
             if (shouldRenderDynamicRichText(desc)) {
                 RichTextContent(
                     desc = desc,
@@ -445,18 +458,7 @@ fun DynamicCardV2(
                 }
             }
             
-            // 显示文字摘要 (如果有且 desc 为空)
-            if (!shouldRenderDynamicRichText(visibleDynamicDesc)) {
-                visibleOpusSummaryDesc?.let { summary ->
-                    if (shouldRenderDynamicRichText(summary)) {
-                        RichTextContent(
-                            desc = summary,
-                            onUserClick = onUserClick
-                        )
-                        Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
-                    }
-                }
-            }
+            // 正文已在上方 preferredBodyDesc 渲染；此处不再重复摘要
             
             // 显示图片 (转换为 DrawItem 格式复用现有组件)
             if (fullOpusContentBlocks.isNotEmpty()) {
@@ -734,59 +736,64 @@ fun DynamicCardV2(
 
 /**
  *  富文本内容（支持表情、@提及、话题高亮）
- *  解析 API 返回的 rich_text_nodes 来正确渲染表情图片
+ *  解析 API 返回的 rich_text_nodes 来正确渲染表情图片；
+ *  若节点仅为纯文本短码，则用表情面板缓存补全图片。
+ *
+ *  @param onBlankTap 点击非 @/链接区域时回调（转发原文点击跳原动态）
  */
 @Composable
 fun RichTextContent(
     desc: DynamicDesc,
-    onUserClick: (Long) -> Unit
+    onUserClick: (Long) -> Unit,
+    onBlankTap: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
-    // 收集所有表情节点以创建 InlineContent
-    // 支持两种类型格式: RICH_TEXT_NODE_TYPE_EMOJI 和 EMOJI
-    val emojiNodes = remember(desc.rich_text_nodes) {
-        desc.rich_text_nodes
-            .filter { it.type.endsWith("EMOJI") && it.emoji != null }
-            .associateBy({ it.text }, { it.emoji!!.icon_url })
+    var catalogEmoteMap by remember { mutableStateOf(DynamicEmoteCatalog.snapshot()) }
+    LaunchedEffect(Unit) {
+        catalogEmoteMap = DynamicEmoteCatalog.ensureLoaded()
     }
     val primaryColor = MaterialTheme.colorScheme.primary
     val textColor = MaterialTheme.colorScheme.onSurface
-    val annotatedText = remember(desc, primaryColor, textColor) {
-        buildDynamicRichTextAnnotatedString(
+    val richText = remember(desc, primaryColor, textColor, catalogEmoteMap) {
+        buildDynamicRichText(
             desc = desc,
             primaryColor = primaryColor,
-            textColor = textColor
+            textColor = textColor,
+            extraEmoteUrlMap = catalogEmoteMap
         )
     }
-    
-    // 创建表情的 InlineContent 映射
-    val inlineContent = emojiNodes.mapValues { (_, iconUrl) ->
-        InlineTextContent(
-            Placeholder(
-                width = 1.4.em,
-                height = 1.4.em,
-                placeholderVerticalAlign = PlaceholderVerticalAlign.Center
-            )
-        ) {
-            AsyncImage(
-                model = coil.request.ImageRequest.Builder(LocalContext.current)
-                    .data(iconUrl.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize()
-            )
+    val annotatedText = richText.annotatedString
+
+    // 仅对实际用到的表情 id 建 InlineContent，避免整包表情占内存
+    val inlineContent = remember(richText.emojiUrlById) {
+        richText.emojiUrlById.mapValues { (_, iconUrl) ->
+            InlineTextContent(
+                Placeholder(
+                    width = 1.4.em,
+                    height = 1.4.em,
+                    placeholderVerticalAlign = PlaceholderVerticalAlign.Center
+                )
+            ) {
+                AsyncImage(
+                    model = coil.request.ImageRequest.Builder(LocalContext.current)
+                        .data(iconUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
     val copyText = remember(desc.rich_text_nodes, desc.text) {
-        val richNodeText = desc.rich_text_nodes.joinToString(separator = "") { it.text }
+        val richNodeText = resolveDynamicRichTextNodeDisplayText(desc.rich_text_nodes)
         richNodeText.ifBlank { desc.text }.trim()
     }
     var showCopySelectionDialog by remember(copyText) { mutableStateOf(false) }
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    
+
     AppText(
         text = annotatedText,
         inlineContent = inlineContent,
@@ -794,7 +801,7 @@ fun RichTextContent(
         lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
         color = textColor,
         onTextLayout = { textLayoutResult = it },
-        modifier = Modifier.pointerInput(copyText, annotatedText) {
+        modifier = Modifier.pointerInput(copyText, annotatedText, onBlankTap) {
             detectTapGestures(
                 onLongPress = {
                     if (copyText.isNotEmpty()) {
@@ -818,35 +825,49 @@ fun RichTextContent(
                         return@detectTapGestures
                     }
 
-                    val annotation = annotatedText.getStringAnnotations(
+                    val urlAnnotation = annotatedText.getStringAnnotations(
                         tag = DYNAMIC_RICH_TEXT_URL_TAG,
                         start = searchStart,
                         end = searchEnd
-                    ).firstOrNull() ?: return@detectTapGestures
+                    ).firstOrNull()
 
-                    scope.launch {
-                        when (resolveDynamicRichTextOpenMode(annotation.item)) {
-                            DynamicRichTextOpenMode.IN_APP -> {
-                                val inAppIntent = android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse(annotation.item)
-                                ).setPackage(context.packageName)
-                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                val launchedInApp = runCatching {
-                                    context.startActivity(inAppIntent)
-                                }.isSuccess
-                                if (!launchedInApp) {
-                                    openDynamicRichTextLinkExternally(context, annotation.item, uriHandler)
+                    if (urlAnnotation != null) {
+                        scope.launch {
+                            when (resolveDynamicRichTextOpenMode(urlAnnotation.item)) {
+                                DynamicRichTextOpenMode.IN_APP -> {
+                                    val inAppIntent = android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(urlAnnotation.item)
+                                    ).setPackage(context.packageName)
+                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    val launchedInApp = runCatching {
+                                        context.startActivity(inAppIntent)
+                                    }.isSuccess
+                                    if (!launchedInApp) {
+                                        openDynamicRichTextLinkExternally(
+                                            context,
+                                            urlAnnotation.item,
+                                            uriHandler
+                                        )
+                                    }
                                 }
-                            }
 
-                            DynamicRichTextOpenMode.EXTERNAL -> {
-                                openDynamicRichTextLinkExternally(context, annotation.item, uriHandler)
-                            }
+                                DynamicRichTextOpenMode.EXTERNAL -> {
+                                    openDynamicRichTextLinkExternally(
+                                        context,
+                                        urlAnnotation.item,
+                                        uriHandler
+                                    )
+                                }
 
-                            null -> Unit
+                                null -> Unit
+                            }
                         }
+                        return@detectTapGestures
                     }
+
+                    // 非 @ / 链接：交给外层（例如转发卡片打开原动态）
+                    onBlankTap?.invoke()
                 }
             )
         }

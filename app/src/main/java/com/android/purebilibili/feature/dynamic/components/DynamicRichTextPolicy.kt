@@ -11,6 +11,7 @@ import androidx.compose.ui.text.withStyle
 import com.android.purebilibili.core.util.BilibiliNavigationTarget
 import com.android.purebilibili.core.util.BilibiliNavigationTargetParser
 import com.android.purebilibili.data.model.response.DynamicDesc
+import com.android.purebilibili.data.model.response.EmojiInfo
 import com.android.purebilibili.data.model.response.RichTextNode
 
 internal const val DYNAMIC_RICH_TEXT_URL_TAG = "URL"
@@ -21,37 +22,122 @@ internal enum class DynamicRichTextOpenMode {
     EXTERNAL
 }
 
+internal data class DynamicRichTextBuildResult(
+    val annotatedString: AnnotatedString,
+    val emojiUrlById: Map<String, String>
+)
+
 private val DYNAMIC_RICH_TEXT_URL_PATTERN =
     """((https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|])""".toRegex()
+private val DYNAMIC_EMOTE_TOKEN_PATTERN = """\[[^\[\]]+\]""".toRegex()
 private val DYNAMIC_IMAGE_PLACEHOLDERS = setOf("[图片]", "【图片】")
 
 internal fun buildDynamicRichTextAnnotatedString(
     desc: DynamicDesc,
     primaryColor: Color,
-    textColor: Color
+    textColor: Color,
+    extraEmoteUrlMap: Map<String, String> = emptyMap()
 ): AnnotatedString {
-    return buildAnnotatedString {
+    return buildDynamicRichText(desc, primaryColor, textColor, extraEmoteUrlMap).annotatedString
+}
+
+internal fun buildDynamicRichText(
+    desc: DynamicDesc,
+    primaryColor: Color,
+    textColor: Color,
+    extraEmoteUrlMap: Map<String, String> = emptyMap()
+): DynamicRichTextBuildResult {
+    val nodeEmoteMap = collectDynamicEmojiUrlMap(desc.rich_text_nodes)
+    val emoteUrlMap = buildMap {
+        putAll(extraEmoteUrlMap)
+        putAll(nodeEmoteMap)
+    }
+    val usedEmojiIds = linkedMapOf<String, String>()
+    val annotated = buildAnnotatedString {
         if (shouldUseDynamicRichTextNodes(desc)) {
             desc.rich_text_nodes.forEach { node ->
                 appendDynamicRichTextNode(
                     node = node,
                     primaryColor = primaryColor,
-                    textColor = textColor
+                    textColor = textColor,
+                    emoteUrlMap = emoteUrlMap,
+                    usedEmojiIds = usedEmojiIds
                 )
             }
         } else {
-            appendDynamicRichTextPlainText(
+            appendDynamicRichTextExpandableText(
                 text = desc.text,
-                primaryColor = primaryColor
+                primaryColor = primaryColor,
+                textColor = textColor,
+                emoteUrlMap = emoteUrlMap,
+                usedEmojiIds = usedEmojiIds
             )
         }
     }
+    return DynamicRichTextBuildResult(
+        annotatedString = annotated,
+        emojiUrlById = usedEmojiIds
+    )
 }
 
+/**
+ * Prefer structured nodes when they can render richer content (especially emoji images).
+ * Fall back to plain text only when nodes are clearly truncated and have no emoji.
+ */
 internal fun shouldUseDynamicRichTextNodes(desc: DynamicDesc): Boolean {
     if (desc.rich_text_nodes.isEmpty()) return false
+    if (desc.rich_text_nodes.any(::isRenderableDynamicEmojiNode)) return true
     if (desc.text.isBlank()) return true
-    return desc.rich_text_nodes.joinToString(separator = "") { it.text }.length >= desc.text.length
+    return resolveDynamicRichTextNodeDisplayText(desc.rich_text_nodes)
+        .length >= desc.text.length
+}
+
+internal fun collectDynamicEmojiUrlMap(nodes: List<RichTextNode>): Map<String, String> {
+    if (nodes.isEmpty()) return emptyMap()
+    val result = linkedMapOf<String, String>()
+    nodes.forEach { node ->
+        val iconUrl = resolveDynamicEmojiIconUrl(node.emoji) ?: return@forEach
+        val tokens = listOf(
+            node.text,
+            node.orig_text,
+            node.emoji?.text.orEmpty()
+        ).map { it.trim() }.filter { it.isNotEmpty() }
+        tokens.forEach { token ->
+            result.putIfAbsent(token, iconUrl)
+        }
+    }
+    return result
+}
+
+internal fun resolveDynamicEmojiIconUrl(emoji: EmojiInfo?): String? {
+    if (emoji == null) return null
+    val raw = sequenceOf(
+        emoji.icon_url,
+        emoji.webp_url,
+        emoji.gif_url
+    ).map { it.trim() }.firstOrNull { it.isNotEmpty() } ?: return null
+    return normalizeDynamicImageUrl(raw)
+}
+
+internal fun isRenderableDynamicEmojiNode(node: RichTextNode): Boolean {
+    val nodeType = node.type.trim().removePrefix("RICH_TEXT_NODE_TYPE_")
+    if (!nodeType.equals("EMOJI", ignoreCase = true)) return false
+    return resolveDynamicEmojiIconUrl(node.emoji) != null
+}
+
+internal fun resolveDynamicRichTextNodeDisplayText(nodes: List<RichTextNode>): String {
+    return nodes.joinToString(separator = "") { node ->
+        resolveDynamicRichTextNodeToken(node)
+    }
+}
+
+internal fun resolveDynamicRichTextNodeToken(node: RichTextNode): String {
+    return when {
+        node.text.isNotBlank() -> node.text
+        node.orig_text.isNotBlank() -> node.orig_text
+        node.emoji?.text?.isNotBlank() == true -> node.emoji.text
+        else -> ""
+    }
 }
 
 internal fun resolveDynamicDescForImages(
@@ -62,11 +148,14 @@ internal fun resolveDynamicDescForImages(
     return desc.copy(
         text = stripDynamicImagePlaceholders(desc.text),
         rich_text_nodes = desc.rich_text_nodes.filterNot { node ->
-            isDynamicStandaloneImagePlaceholder(node.text)
+            isDynamicStandaloneImagePlaceholder(resolveDynamicRichTextNodeToken(node))
         }.map { node ->
-            node.copy(text = stripDynamicImagePlaceholders(node.text))
+            node.copy(
+                text = stripDynamicImagePlaceholders(node.text),
+                orig_text = stripDynamicImagePlaceholders(node.orig_text)
+            )
         }.filterNot { node ->
-            node.text.isBlank() &&
+            resolveDynamicRichTextNodeToken(node).isBlank() &&
                 node.emoji == null &&
                 node.jump_url.isNullOrBlank() &&
                 node.rid.isNullOrBlank()
@@ -89,11 +178,33 @@ internal fun resolveDynamicOpusSummaryDescForImages(
     return desc.takeIf(::shouldRenderDynamicRichText)
 }
 
+/**
+ * Prefer the description that can render emoji images when both desc and opus summary exist.
+ */
+internal fun resolvePreferredDynamicDesc(
+    primary: DynamicDesc?,
+    fallback: DynamicDesc?
+): DynamicDesc? {
+    if (primary == null) return fallback
+    if (fallback == null) return primary
+    val primaryHasEmoji = primary.rich_text_nodes.any(::isRenderableDynamicEmojiNode)
+    val fallbackHasEmoji = fallback.rich_text_nodes.any(::isRenderableDynamicEmojiNode)
+    return when {
+        primaryHasEmoji -> primary
+        fallbackHasEmoji -> fallback
+        shouldUseDynamicRichTextNodes(primary) -> primary
+        shouldUseDynamicRichTextNodes(fallback) -> fallback
+        primary.text.isNotBlank() -> primary
+        else -> fallback
+    }
+}
+
 internal fun shouldRenderDynamicRichText(desc: DynamicDesc?): Boolean {
     if (desc == null) return false
     if (desc.text.isNotBlank()) return true
     return desc.rich_text_nodes.any { node ->
-        node.text.isNotBlank() && !isDynamicStandaloneImagePlaceholder(node.text)
+        val token = resolveDynamicRichTextNodeToken(node)
+        token.isNotBlank() && !isDynamicStandaloneImagePlaceholder(token)
     }
 }
 
@@ -133,42 +244,55 @@ internal fun resolveDynamicRichTextOpenMode(
 private fun AnnotatedString.Builder.appendDynamicRichTextNode(
     node: RichTextNode,
     primaryColor: Color,
-    textColor: Color
+    textColor: Color,
+    emoteUrlMap: Map<String, String>,
+    usedEmojiIds: MutableMap<String, String>
 ) {
-    val nodeType = node.type.removePrefix("RICH_TEXT_NODE_TYPE_")
+    val nodeType = node.type.trim().removePrefix("RICH_TEXT_NODE_TYPE_")
+    val displayToken = resolveDynamicRichTextNodeToken(node)
     when {
-        nodeType == "EMOJI" && node.emoji?.icon_url?.isNotEmpty() == true -> {
-            appendInlineContent(id = node.text, alternateText = node.text)
+        nodeType.equals("EMOJI", ignoreCase = true) -> {
+            val iconUrl = resolveDynamicEmojiIconUrl(node.emoji)
+                ?: emoteUrlMap[displayToken]
+            if (!iconUrl.isNullOrBlank() && displayToken.isNotBlank()) {
+                usedEmojiIds[displayToken] = iconUrl
+                appendInlineContent(id = displayToken, alternateText = displayToken)
+            } else if (displayToken.isNotBlank()) {
+                withStyle(SpanStyle(color = textColor)) {
+                    append(displayToken)
+                }
+            }
         }
 
         shouldRenderDynamicRichTextLink(nodeType, node) -> {
             appendDynamicRichTextLink(
-                displayText = node.text,
+                displayText = displayToken,
                 targetUrl = resolveDynamicRichTextLinkTarget(node),
                 primaryColor = primaryColor
             )
         }
 
-        nodeType == "AT" -> {
+        nodeType.equals("AT", ignoreCase = true) -> {
             appendDynamicRichTextAtMention(
                 node = node,
                 primaryColor = primaryColor
             )
         }
 
-        nodeType == "TOPIC" -> {
+        nodeType.equals("TOPIC", ignoreCase = true) -> {
             withStyle(SpanStyle(color = primaryColor, fontWeight = FontWeight.Medium)) {
-                append(node.text)
+                append(displayToken)
             }
         }
 
         else -> {
-            withStyle(SpanStyle(color = textColor)) {
-                appendDynamicRichTextPlainText(
-                    text = node.text,
-                    primaryColor = primaryColor
-                )
-            }
+            appendDynamicRichTextExpandableText(
+                text = displayToken,
+                primaryColor = primaryColor,
+                textColor = textColor,
+                emoteUrlMap = emoteUrlMap,
+                usedEmojiIds = usedEmojiIds
+            )
         }
     }
 }
@@ -197,7 +321,7 @@ private fun AnnotatedString.Builder.appendDynamicRichTextAtMention(
         pushStringAnnotation(tag = DYNAMIC_RICH_TEXT_USER_TAG, annotation = mid.toString())
     }
     withStyle(SpanStyle(color = primaryColor, fontWeight = FontWeight.Medium)) {
-        append(node.text)
+        append(resolveDynamicRichTextNodeToken(node))
     }
     if (mid != null) {
         pop()
@@ -208,15 +332,70 @@ private fun shouldRenderDynamicRichTextLink(
     nodeType: String,
     node: RichTextNode
 ): Boolean {
-    if (nodeType in setOf("AT", "TOPIC")) return false
-    if (nodeType in setOf("WEB", "LINK", "URL")) return true
+    val normalized = nodeType.uppercase()
+    if (normalized in setOf("AT", "TOPIC", "EMOJI")) return false
+    if (normalized in setOf("WEB", "LINK", "URL")) return true
+    val display = resolveDynamicRichTextNodeToken(node)
     return !resolveDynamicRichTextLinkTarget(node).isNullOrBlank() &&
-        DYNAMIC_RICH_TEXT_URL_PATTERN.containsMatchIn(node.text)
+        DYNAMIC_RICH_TEXT_URL_PATTERN.containsMatchIn(display)
 }
 
 private fun resolveDynamicRichTextLinkTarget(node: RichTextNode): String? {
     normalizeDynamicRichTextUrl(node.jump_url)?.let { return it }
-    return DYNAMIC_RICH_TEXT_URL_PATTERN.find(node.text)?.value
+    return DYNAMIC_RICH_TEXT_URL_PATTERN.find(resolveDynamicRichTextNodeToken(node))?.value
+}
+
+/**
+ * Expand known emote shortcodes and plain URLs inside free text.
+ */
+private fun AnnotatedString.Builder.appendDynamicRichTextExpandableText(
+    text: String,
+    primaryColor: Color,
+    textColor: Color,
+    emoteUrlMap: Map<String, String>,
+    usedEmojiIds: MutableMap<String, String>
+) {
+    if (text.isEmpty()) return
+    if (emoteUrlMap.isEmpty()) {
+        withStyle(SpanStyle(color = textColor)) {
+            appendDynamicRichTextPlainText(
+                text = text,
+                primaryColor = primaryColor
+            )
+        }
+        return
+    }
+
+    var lastIndex = 0
+    DYNAMIC_EMOTE_TOKEN_PATTERN.findAll(text).forEach { match ->
+        if (match.range.first > lastIndex) {
+            withStyle(SpanStyle(color = textColor)) {
+                appendDynamicRichTextPlainText(
+                    text = text.substring(lastIndex, match.range.first),
+                    primaryColor = primaryColor
+                )
+            }
+        }
+        val token = match.value
+        val iconUrl = emoteUrlMap[token]
+        if (!iconUrl.isNullOrBlank()) {
+            usedEmojiIds[token] = iconUrl
+            appendInlineContent(id = token, alternateText = token)
+        } else {
+            withStyle(SpanStyle(color = textColor)) {
+                append(token)
+            }
+        }
+        lastIndex = match.range.last + 1
+    }
+    if (lastIndex < text.length) {
+        withStyle(SpanStyle(color = textColor)) {
+            appendDynamicRichTextPlainText(
+                text = text.substring(lastIndex),
+                primaryColor = primaryColor
+            )
+        }
+    }
 }
 
 private fun AnnotatedString.Builder.appendDynamicRichTextPlainText(
@@ -265,6 +444,14 @@ private fun normalizeDynamicRichTextUrl(rawUrl: String?): String? {
     return when {
         url.startsWith("//") -> "https:$url"
         else -> url
+    }
+}
+
+private fun normalizeDynamicImageUrl(rawUrl: String): String {
+    return when {
+        rawUrl.startsWith("//") -> "https:$rawUrl"
+        rawUrl.startsWith("http://") -> rawUrl.replaceFirst("http://", "https://")
+        else -> rawUrl
     }
 }
 

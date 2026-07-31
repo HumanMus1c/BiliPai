@@ -179,6 +179,7 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
+import com.android.purebilibili.core.ui.transition.resolveVideoDetailShellOverlayCornerDp
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionEnterEasing
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionReturnEasing
@@ -217,9 +218,6 @@ import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import coil.compose.AsyncImage
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
 import com.android.purebilibili.feature.video.ui.components.DanmakuContextMenu
 import com.android.purebilibili.feature.video.ui.components.DanmakuBlockActionTarget
 import com.android.purebilibili.feature.video.ui.components.resolveDanmakuBlockActionFeedbackMessage
@@ -316,8 +314,13 @@ internal fun VideoDetailScreenStateHolder(
             isQuickReturn = isQuickReturningFromDetail,
         )
     }
-    val sharedTransitionSourceCornerDp = remember(sourceRouteForSharedElement) {
-        CardPositionManager.lastClickedVideoSourceCornerDp
+    val frozenTransitionSourceCornerDp =
+        LocalVideoCardTransitionBackgroundState.current.sourceCornerDpProvider()
+    val sharedTransitionSourceCornerDp = remember(
+        sourceRouteForSharedElement,
+        frozenTransitionSourceCornerDp,
+    ) {
+        frozenTransitionSourceCornerDp
             ?: resolveVideoSharedTransitionSourceCornerDp(sourceRouteForSharedElement)
     }
     val videoSharedPlaybackIntent = remember(context, startAudioFromRoute) {
@@ -916,6 +919,7 @@ internal fun VideoDetailScreenStateHolder(
     val openFavoriteFolders: (VideoFavoriteEntryPoint) -> Unit = { entryPoint ->
         when (resolveVideoFavoriteAction(entryPoint)) {
             VideoFavoriteAction.ToggleFavorite -> engagementViewModel.toggleFavorite()
+            VideoFavoriteAction.OpenFavoriteFolders -> viewModel.showFavoriteFolderDialog()
         }
     }
 
@@ -1134,13 +1138,20 @@ internal fun VideoDetailScreenStateHolder(
         isCardReturnExitInProgress = isCardReturnExitInProgress
     )
     // 离开态：次要内容淡出等。ImmediatePlayback live morph 时不把视觉交给常驻封面。
+    // 注意：预测 seek 中 isCardReturnExitInProgress 会为 true，但这不是「已提交」。
+    val isSessionReturningToCard = isReturningFromDetail &&
+        transitionEnabled &&
+        sharedBoundsActive &&
+        !keepLoadedContentForBackPreview
     val useReturningVideoDetailVisualState = shouldUseReturningVideoDetailVisualState(
         forceCoverOnlyForReturn = forceCoverOnlyForReturn,
         isCardReturnExitInProgress = isCardReturnExitInProgress,
-        isSessionReturningToCard = isReturningFromDetail &&
-            transitionEnabled &&
-            sharedBoundsActive &&
-            !keepLoadedContentForBackPreview,
+        isSessionReturningToCard = isSessionReturningToCard,
+    )
+    // 封面/播放器 handoff 只认已提交（按钮返回或 markReturning），预测跟手阶段保持实时画面。
+    val isCommittedCardReturn = shouldTreatVideoDetailCardReturnAsCommitted(
+        isActuallyLeaving = isActuallyLeaving,
+        isSessionReturningToCard = isSessionReturningToCard,
     )
     val hasResidentReturnCover = coverUrl.isNotBlank()
     val detailContentReadyForLiveReturnMorph = shouldTreatVideoDetailContentReadyForLiveReturnMorph(
@@ -1164,7 +1175,10 @@ internal fun VideoDetailScreenStateHolder(
             // 有 shell sharedBounds 时延后停播，避免一镜到底落位前 surface 被掐掉。
             miniPlayerManager?.markLeavingByNavigation(
                 expectedBvid = currentBvid,
-                deferPlaybackStop = detailShellSharedBoundsEnabled,
+                deferPlaybackStop = shouldDeferPlaybackStopForSharedLiveReturn(
+                    cardTransitionEnabled = detailShellSharedBoundsEnabled,
+                    hasSourceRoute = true,
+                ),
             )
 
             restoreStatusBar() // 立即恢复状态栏（动画开始前）
@@ -1545,14 +1559,15 @@ internal fun VideoDetailScreenStateHolder(
     val liveReturnMorph = isLiveReturnMorphFromOwnership(returnCoverOwnership)
     val useResidentCoverForCommittedReturn = shouldHandResidentCoverFromOwnership(
         ownership = returnCoverOwnership,
-        useReturningVisualState = useReturningVideoDetailVisualState,
+        useReturningVisualState = isCommittedCardReturn,
         hasResidentCover = hasResidentReturnCover,
     )
-    // live morph 时绝不 forceCoverOnly，避免 shell 一镜到底被封面盖死。
+    // live morph 时绝不 forceCoverOnly；预测 seek 未提交时也不 forceCover，避免封面瞬间盖住播放器。
     val forceCoverOnlyForLiveSafeReturn = shouldForceCoverOnlyForReturnOwnership(
         ownership = returnCoverOwnership,
         useReturningVisualState = useReturningVideoDetailVisualState,
         forceCoverOnlyOnReturn = forceCoverOnlyForReturn,
+        isCommittedCardReturn = isCommittedCardReturn,
     )
     val videoCardDepthBackgroundState = LocalVideoCardTransitionBackgroundState.current
     val videoCardTransitionDensity = LocalDensity.current
@@ -1566,6 +1581,40 @@ internal fun VideoDetailScreenStateHolder(
             )
         }
     }
+    // Settled 返回运动预算：保 LIVE 一镜到底，旁路减负。
+    // 注意：不在 composition 读 morph progress（会每帧重绘整棵详情树）；
+    // 相位只用 committed / exit 布尔信号；细粒度 alpha 仍在 graphicsLayer 内读 progress。
+    val returnSessionPhase = resolveVideoDetailReturnSessionPhase(
+        isCommittedCardReturn = isCommittedCardReturn,
+        isExitTransitionInProgress = isCardReturnExitInProgress,
+        settleProgress = when {
+            !isCommittedCardReturn -> 0f
+            // 退出过渡进行中：按 Morph 预算（弹幕/控制层减负，不停播）。
+            isCardReturnExitInProgress -> 0.4f
+            // 提交后过渡信号已结束：Settle，允许停播收尾。
+            else -> 1f
+        },
+    )
+    // 次要内容：committed 时 Freeze；quick return 正文 alpha 直接 0 时可 Detach。
+    val returnSecondaryContentAlphaPreview = when {
+        !isCommittedCardReturn -> 1f
+        isQuickReturningFromDetail -> 0f
+        else -> 0.5f // Freeze，不 Detach，避免壳高度跳变
+    }
+    val returnVisualBudget = resolveVideoDetailReturnVisualBudget(
+        phase = returnSessionPhase,
+        hasRenderableLiveFrame = hasRenderableLiveFrameForReturn,
+        reduceMotion = videoCardDepthBackgroundState.motionTierProvider() ==
+            com.android.purebilibili.core.ui.adaptive.MotionTier.Reduced,
+        secondaryContentAlpha = returnSecondaryContentAlphaPreview,
+    )
+    // Live morph 强制 playerMode=LiveMorph 时，有帧才 Live；无帧 Resident（与 ownership 一致）。
+    val effectiveDanmakuEnabledForDetail =
+        danmakuEnabledForDetail && !shouldPauseHideDanmakuForReturnBudget(returnVisualBudget)
+    val detachSecondaryContentForReturn =
+        shouldDetachSecondaryContentForReturnBudget(returnVisualBudget)
+    val suppressOverlayControlsForReturn =
+        shouldSuppressOverlayControlsForReturnBudget(returnVisualBudget)
     val routedCommentInteractionActive =
         openCommentRootRpidFromRoute > 0L &&
             (subReplyState.visible || subReplyState.isLoading)
@@ -2456,13 +2505,15 @@ internal fun VideoDetailScreenStateHolder(
             currentBvid = currentBvid
         )
     }
-    val shouldSuppressSubtitleOverlay = useSharedPortraitPlayer &&
+    val shouldSuppressSubtitleOverlay = suppressOverlayControlsForReturn || (
+        useSharedPortraitPlayer &&
         !isPortraitFullscreen &&
         pendingMainReloadBvidAfterPortrait != null &&
         (
             pendingMainReloadBvidAfterPortrait != uiSuccessState?.info?.bvid ||
                 (portraitSyncSnapshotCid > 0L && portraitSyncSnapshotCid != (uiSuccessState?.info?.cid ?: 0L))
             )
+        )
     val showDanmakuDialog by viewModel.showDanmakuDialog.collectAsStateWithLifecycle()
     val isSendingDanmaku by viewModel.isSendingDanmaku.collectAsStateWithLifecycle()
     val composerDrafts by viewModel.composerDrafts.collectAsStateWithLifecycle()
@@ -3128,7 +3179,14 @@ internal fun VideoDetailScreenStateHolder(
                                             )
                                         },
                                         clipInOverlayDuringTransition = OverlayClip(
-                                            RoundedCornerShape(activeVideoSharedTransitionVisualSpec.targetCornerDp.dp)
+                                            RoundedCornerShape(
+                                                resolveVideoDetailShellOverlayCornerDp(
+                                                    visualSpec = activeVideoSharedTransitionVisualSpec,
+                                                    liveReturnMorph = liveReturnMorph,
+                                                    isReturningVisualState =
+                                                        useReturningVideoDetailVisualState,
+                                                ).dp
+                                            )
                                         )
                                     )
                             }
@@ -3136,6 +3194,7 @@ internal fun VideoDetailScreenStateHolder(
                             Modifier
                         }
 
+                        // isLeaving：离开态（正文让位等）；封面/播放器 handoff 用 isCommittedCardReturn。
                         val isLeaving = useReturningVideoDetailVisualState
                         val crossfadeCoverUrl = remember(coverUrl) {
                             if (coverUrl.isNotBlank()) {
@@ -3224,7 +3283,7 @@ internal fun VideoDetailScreenStateHolder(
                                         .graphicsLayer {
                                             alpha = resolveVideoDetailReturnCoverAlpha(
                                                 transitionProgress = detailTransitionProgress.value,
-                                                isCommittedCardReturn = isLeaving,
+                                                isCommittedCardReturn = isCommittedCardReturn,
                                                 hasResidentCover = hasResidentReturnCover,
                                                 liveReturnMorph = liveReturnMorph,
                                             )
@@ -3239,7 +3298,7 @@ internal fun VideoDetailScreenStateHolder(
                                     .graphicsLayer {
                                         alpha = resolveVideoDetailReturnPlayerAlpha(
                                             transitionProgress = detailTransitionProgress.value,
-                                            isCommittedCardReturn = isLeaving,
+                                            isCommittedCardReturn = isCommittedCardReturn,
                                             hasResidentCover = hasResidentReturnCover,
                                             liveReturnMorph = liveReturnMorph,
                                         )
@@ -3371,7 +3430,7 @@ internal fun VideoDetailScreenStateHolder(
                                     } else {
                                         alpha = resolveVideoDetailReturnContentAlpha(
                                             transitionProgress = detailTransitionProgress.value,
-                                            isCommittedCardReturn = isLeaving,
+                                            isCommittedCardReturn = isCommittedCardReturn,
                                             holdFullyOpaqueAfterBackPreview = holdFullyOpaque,
                                             liveReturnMorph = false,
                                             isQuickReturn = isQuickReturningFromDetail,
@@ -3387,6 +3446,9 @@ internal fun VideoDetailScreenStateHolder(
                             // 错误态仍展示，避免黑屏无法重试。
                             when {
                                 suppressPhoneDetailBodyForDirectPortrait &&
+                                    uiState !is VideoPlaybackUiState.Error -> Unit
+                                // 返回 morph 次要内容 alpha 已近 0：跳过 composition，壳仍 fillMaxSize。
+                                detachSecondaryContentForReturn &&
                                     uiState !is VideoPlaybackUiState.Error -> Unit
                                 uiState is VideoPlaybackUiState.Loading -> {
                                     val loadingState = uiState as VideoPlaybackUiState.Loading
@@ -3452,7 +3514,7 @@ internal fun VideoDetailScreenStateHolder(
                                         isCommentThreadVisible = subReplyState.visible,
                                         showFavoriteFolderDialog = showFavoriteFolderDialog,
                                         downloadProgress = downloadProgress,
-                                        danmakuEnabledForDetail = danmakuEnabledForDetail,
+                                        danmakuEnabledForDetail = effectiveDanmakuEnabledForDetail,
                                         isQuickReturnLimitedForSharedElements =
                                             isReturningFromDetail && isQuickReturningFromDetail,
                                         transitionEnabled = detailChildTransitionEnabled,

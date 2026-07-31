@@ -30,8 +30,11 @@ import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.GesturePercentTransitionDirection
 import com.android.purebilibili.feature.video.ui.components.resolveGesturePercentTransitionDirection
 import com.android.purebilibili.feature.video.ui.components.shouldTriggerGesturePercentHaptic
+import com.android.purebilibili.feature.video.ui.components.applyPlayerViewResizeMode
 import com.android.purebilibili.feature.video.ui.components.resolveSafeVideoAspectRatio
 import com.android.purebilibili.feature.video.ui.components.resolveVideoViewportLayout
+import com.android.purebilibili.feature.video.ui.components.schedulePlayerViewViewportRefresh
+import com.android.purebilibili.feature.video.ui.components.shouldUseFillMaxPlayerViewport
 import com.android.purebilibili.feature.video.ui.components.toAnime4KDisplayScaleMode
 import com.android.purebilibili.feature.video.ui.components.toFullscreenAspectRatio
 import com.android.purebilibili.feature.video.ui.components.toVideoAspectRatio
@@ -46,6 +49,7 @@ import com.android.purebilibili.feature.video.ui.gesture.resolveTwoFingerGesture
 import com.android.purebilibili.feature.video.ui.gesture.resolveTwoFingerSpeedGestureMode
 import com.android.purebilibili.feature.video.playback.policy.resolveDisplayedQualityId
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
+import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
@@ -149,7 +153,6 @@ import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionP
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
-import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.Logger
@@ -1159,6 +1162,12 @@ fun VideoPlayerSection(
 
     // Changing forced aspect ratio invalidates free pinch/pan offsets from the prior frame.
     LaunchedEffect(currentAspectRatio) {
+        scale = 1f
+        panX = 0f
+        panY = 0f
+    }
+    // 上滑/按钮进全屏也必须清掉 free-form 缩放，否则残留 scale 会造成右/下黑边。
+    LaunchedEffect(isFullscreen, isPortraitFullscreen) {
         scale = 1f
         panX = 0f
         panY = 0f
@@ -2733,6 +2742,7 @@ fun VideoPlayerSection(
         // Anime4K 只切换输出 Surface，不能作为 key 重建 PlayerView，否则会触发播放器恢复路径并丢失进度。
         key(isFlippedHorizontal, isFlippedVertical, isPortraitFullscreen) {
             val viewportAspectRatio = if (isFullscreen) currentAspectRatio else VideoAspectRatio.FIT
+            val playerVideoSize = playerState.player.videoSize
             BoxWithConstraints(
                 modifier = playerContentModifier,
                 contentAlignment = Alignment.Center
@@ -2746,6 +2756,27 @@ fun VideoPlayerSection(
                             aspectRatio = viewportAspectRatio
                         )
                     }
+                }
+                val fillMaxViewport = shouldUseFillMaxPlayerViewport(viewportAspectRatio)
+                val targetResizeMode = viewportAspectRatio.playerResizeMode
+
+                // 上滑全屏 / 比例切换：容器尺寸与 resizeMode 可能不同步。
+                // Media3 仅在 mode 变化时 remeasure；FILL 右下黑边多为旧 measure 残留。
+                LaunchedEffect(
+                    playerViewRef,
+                    viewportLayout.width,
+                    viewportLayout.height,
+                    targetResizeMode,
+                    isFullscreen,
+                    isPortraitFullscreen,
+                    playerVideoSize.width,
+                    playerVideoSize.height,
+                ) {
+                    val playerView = playerViewRef ?: return@LaunchedEffect
+                    schedulePlayerViewViewportRefresh(
+                        playerView = playerView,
+                        resizeMode = targetResizeMode,
+                    )
                 }
 
                 AndroidView(
@@ -2776,7 +2807,11 @@ fun VideoPlayerSection(
                             setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                             useController = false
                             keepScreenOn = keepVideoPlaybackAwake
-                            resizeMode = viewportAspectRatio.playerResizeMode
+                            applyPlayerViewResizeMode(
+                                playerView = this,
+                                resizeMode = targetResizeMode,
+                                forceRelayout = false,
+                            )
                             visibility = if (!anime4kFrameVisible && shouldShowInlinePlayerView(
                                     isPortraitFullscreen = isPortraitFullscreen,
                                     forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation,
@@ -2797,7 +2832,11 @@ fun VideoPlayerSection(
                                 forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation
                             )
                         )
-                        playerView.resizeMode = viewportAspectRatio.playerResizeMode
+                        applyPlayerViewResizeMode(
+                            playerView = playerView,
+                            resizeMode = targetResizeMode,
+                            forceRelayout = false,
+                        )
                         playerView.keepScreenOn = keepVideoPlaybackAwake
                         playerView.visibility = if (!anime4kFrameVisible && shouldShowInlinePlayerView(
                                 isPortraitFullscreen = isPortraitFullscreen,
@@ -2811,11 +2850,15 @@ fun VideoPlayerSection(
                         }
                     },
                     modifier = with(density) {
-                        Modifier
-                            .size(
+                        val sizeModifier = if (fillMaxViewport) {
+                            Modifier.fillMaxSize()
+                        } else {
+                            Modifier.size(
                                 width = viewportLayout.width.toDp(),
                                 height = viewportLayout.height.toDp()
                             )
+                        }
+                        sizeModifier
                             .alpha(playerSurfaceAlpha)
                             .graphicsLayer {
                                 val revealAwareScaleX = scale * playerSurfaceScale
@@ -3093,8 +3136,11 @@ fun VideoPlayerSection(
             )
         }
     }
+    val transitionSourceCornerDp =
+        LocalVideoCardTransitionBackgroundState.current.sourceCornerDpProvider()
     val videoSharedTransitionVisualSpec = remember(
         sourceRouteForSharedElement,
+        transitionSourceCornerDp,
         forceCoverDuringReturnAnimation,
         playerState.player.currentPosition,
         isFullscreen,
@@ -3104,7 +3150,7 @@ fun VideoPlayerSection(
     ) {
         resolveVideoSharedTransitionVisualSpec(
             sourceRoute = sourceRouteForSharedElement,
-            sourceCornerDp = CardPositionManager.lastClickedVideoSourceCornerDp
+            sourceCornerDp = transitionSourceCornerDp
                 ?: resolveVideoSharedTransitionSourceCornerDp(sourceRouteForSharedElement),
             playbackIntent = videoSharedPlaybackIntent,
             fullscreen = isFullscreen && !isPortraitFullscreen,

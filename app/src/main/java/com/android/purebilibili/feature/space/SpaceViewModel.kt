@@ -1527,12 +1527,11 @@ class SpaceViewModel(
     }
 
     fun locatePlayedVideoContribution(targetBvid: String) {
-        val current = _uiState.value as? SpaceUiState.Success ?: return
         val normalizedBvid = targetBvid.trim()
         if (normalizedBvid.isBlank()) return
-
-        current.watchProgressByBvid[normalizedBvid]?.let(::locateVideo)
-            ?: openVideoContributionPosition(normalizedBvid)
+        // The navigation already carries the exact BVID. Searching by the history title is
+        // ambiguous and previously replaced the contribution list with an empty result.
+        openVideoContributionPosition(normalizedBvid)
     }
 
     private fun openVideoContributionPosition(targetBvid: String) {
@@ -1565,33 +1564,12 @@ class SpaceViewModel(
 
     private fun locateVideo(target: SpaceWatchProgress?) {
         val current = _uiState.value as? SpaceUiState.Success ?: return
-        if (target == null || target.title.isBlank()) {
+        val targetBvid = target?.bvid?.trim().orEmpty()
+        if (targetBvid.isBlank()) {
             _uiState.value = current.copy(locateMessage = "未找到可定位的最近观看视频")
             return
         }
-        val videoTab = current.contributionTabs.firstOrNull { it.subTab == SpaceSubTab.VIDEO }
-        if (videoTab == null) {
-            _uiState.value = current.copy(locateMessage = "该空间没有可定位的视频投稿")
-            return
-        }
-
-        currentTid = 0
-        currentOrder = VideoSortOrder.PUBDATE
-        currentKeyword = target.title
-        _selectedMainTab.value = mainTabToTabIndex(SpaceMainTab.CONTRIBUTION)
-        savedStateHandle[KEY_SELECTED_MAIN_TAB] = _selectedMainTab.value
-        _uiState.value = current.copy(
-            selectedTid = 0,
-            sortOrder = VideoSortOrder.PUBDATE,
-            selectedSubTab = SpaceSubTab.VIDEO,
-            selectedContributionTabId = videoTab.id,
-            isSearchMode = true,
-            searchQuery = target.title,
-            pendingLocateBvid = null,
-            locateMessage = null,
-            tabShellState = current.tabShellState.withSelectedTab(SpaceMainTab.CONTRIBUTION)
-        )
-        refreshVideoSearchResults(locateTarget = target)
+        openVideoContributionPosition(targetBvid)
     }
 
     fun consumePendingLocateBvid(bvid: String) {
@@ -2066,7 +2044,7 @@ class SpaceViewModel(
         return merged
     }
 
-    private fun refreshVideoSearchResults(locateTarget: SpaceWatchProgress? = null) {
+    private fun refreshVideoSearchResults() {
         val current = _uiState.value as? SpaceUiState.Success ?: return
         val requestGeneration = beginVideoListRequest()
         val requestTid = currentTid
@@ -2089,8 +2067,7 @@ class SpaceViewModel(
                     val currentState = _uiState.value as? SpaceUiState.Success ?: return@launch
                     _uiState.value = currentState.copy(
                         isLoadingMore = false,
-                        hasMoreVideos = false,
-                        locateMessage = locateTarget?.let { "未在该 UP 的投稿中找到最近观看的视频" }
+                        hasMoreVideos = false
                     )
                     return@launch
                 }
@@ -2108,37 +2085,21 @@ class SpaceViewModel(
                 val currentState = _uiState.value as? SpaceUiState.Success ?: return@launch
                 if (result != null) {
                     currentPage = result.resolvedPage
-                    val locatedBvid = resolveSpaceLocateSearchTarget(
-                        target = locateTarget,
-                        videos = result.data.list.vlist
+                    _uiState.value = currentState.copy(
+                        videos = result.data.list.vlist,
+                        totalVideos = result.data.page.count,
+                        hasMoreVideos = resolveNextSpaceVideoPage(
+                            order = requestOrder,
+                            currentPage = currentPage,
+                            totalCount = result.data.page.count,
+                            pageSize = pageSize
+                        ) != null,
+                        isLoadingMore = false
                     )
-                    _uiState.value = if (locateTarget != null) {
-                        currentState.copy(
-                            videos = result.data.list.vlist.filter { it.bvid == locatedBvid },
-                            totalVideos = locatedBvid?.let { 1 } ?: 0,
-                            hasMoreVideos = false,
-                            isLoadingMore = false,
-                            pendingLocateBvid = locatedBvid,
-                            locateMessage = if (locatedBvid == null) "未在该 UP 的投稿中找到最近观看的视频" else null
-                        )
-                    } else {
-                        currentState.copy(
-                            videos = result.data.list.vlist,
-                            totalVideos = result.data.page.count,
-                            hasMoreVideos = resolveNextSpaceVideoPage(
-                                order = requestOrder,
-                                currentPage = currentPage,
-                                totalCount = result.data.page.count,
-                                pageSize = pageSize
-                            ) != null,
-                            isLoadingMore = false
-                        )
-                    }
                 } else {
                     _uiState.value = currentState.copy(
                         isLoadingMore = false,
-                        hasMoreVideos = false,
-                        locateMessage = locateTarget?.let { "未在该 UP 的投稿中找到最近观看的视频" }
+                        hasMoreVideos = false
                     )
                 }
             } catch (e: Exception) {
@@ -2147,8 +2108,7 @@ class SpaceViewModel(
                 }
                 val currentState = _uiState.value as? SpaceUiState.Success ?: return@launch
                 _uiState.value = currentState.copy(
-                    isLoadingMore = false,
-                    locateMessage = locateTarget?.let { "未在该 UP 的投稿中找到最近观看的视频" }
+                    isLoadingMore = false
                 )
             }
         }

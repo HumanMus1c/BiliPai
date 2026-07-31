@@ -52,6 +52,7 @@ internal fun Modifier.videoCardShellReturnChromeAlpha(
         val progress = bgState.progressProvider()
         val quickReturn = isQuickReturnFromDetail ||
             bgState.isQuickReturnFromDetailProvider()
+        val preferWholeCardReturn = bgState.preferWholeCardReturnProvider()
         if (followShellMotion) {
             val frame = resolveHorizontalCardChromeMotionFrame(
                 useCardContainerSharedBounds = enabled,
@@ -62,6 +63,7 @@ internal fun Modifier.videoCardShellReturnChromeAlpha(
                 isSharedTransitionActive = transitionActive,
                 transitionBackgroundProgress = progress,
                 isQuickReturnFromDetail = quickReturn,
+                preferWholeCardReturn = preferWholeCardReturn,
             )
             alpha = frame.alpha
             translationY = if (bgState.motionTierProvider() == MotionTier.Reduced) {
@@ -79,6 +81,7 @@ internal fun Modifier.videoCardShellReturnChromeAlpha(
                 isSharedTransitionActive = transitionActive,
                 transitionBackgroundProgress = progress,
                 isQuickReturnFromDetail = quickReturn,
+                preferWholeCardReturn = preferWholeCardReturn,
             )
             translationY = 0f
         }

@@ -340,17 +340,28 @@ internal fun resolveReturnSessionLockedCoverOwnership(
 
 /**
  * 是否应对播放器强制封面-only（掐 live surface）。
- * live ownership 时永远 false，保证 shell morph 实时画面。
+ *
+ * - live ownership 时永远 false，保证 shell morph 实时画面
+ * - 仅 **已提交** 返回才 forceCover；预测 seek 离开态不能掐 surface
+ *   （否则手势一瞬间封面盖住播放器）
+ *
+ * [isCommittedCardReturn] 默认跟 [useReturningVisualState] 兼容旧调用；
+ * 详情接线应传入真正的提交信号（markReturning / isActuallyLeaving）。
  */
 internal fun shouldForceCoverOnlyForReturnOwnership(
     ownership: VideoCardReturnCoverOwnership,
     useReturningVisualState: Boolean,
     forceCoverOnlyOnReturn: Boolean,
+    isCommittedCardReturn: Boolean = useReturningVisualState,
 ): Boolean {
     if (isVideoCardLiveReturnMorphOwnership(ownership)) return false
-    if (forceCoverOnlyOnReturn) return true
-    return useReturningVisualState &&
-        ownership != VideoCardReturnCoverOwnership.LIVE_SURFACE
+    // 仅显式 forceCover；禁止「一点返回就 forceCover」掐掉 player surface。
+    // CoverFirst 的视觉交接靠 cover/player alpha，不靠 forceCoverOnly 布局折叠。
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredCommitted = isCommittedCardReturn
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredReturning = useReturningVisualState
+    return forceCoverOnlyOnReturn
 }
 
 /**
@@ -405,6 +416,7 @@ internal fun resolveVideoCardReturnDepthBlurRemainingDurationMs(
 /**
  * 是否允许 live morph（实时 surface 跟壳缩）。
  *
+ * 预测返回始终预览实时画面；仅在以下条件不满足时回落封面：
  * - 详情正文未就绪时关闭，避免 Loading 骨架被缩进卡片位
  * - 无首帧 / 强制封面 UI 时关闭，避免黑壳缩回（回落 RESIDENT handoff）
  */

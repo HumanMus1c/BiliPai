@@ -317,9 +317,12 @@ private fun SpaceDynamicRichText.toDynamicRichTextNode(): RichTextNode {
         type = type,
         // AT / text nodes sometimes only fill orig_text in space feeds.
         text = text.ifBlank { orig_text },
+        orig_text = orig_text.ifBlank { text },
         emoji = emoji?.let { emoji ->
             EmojiInfo(
                 icon_url = emoji.icon_url,
+                webp_url = emoji.webp_url,
+                gif_url = emoji.gif_url,
                 size = emoji.size,
                 text = emoji.text
             )

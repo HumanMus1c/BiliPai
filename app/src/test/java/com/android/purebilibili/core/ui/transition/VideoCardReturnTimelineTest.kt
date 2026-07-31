@@ -122,11 +122,47 @@ class VideoCardReturnTimelineTest {
                 forceCoverOnlyOnReturn = true,
             )
         )
-        assertTrue(
+        // 非 live 也不得仅因 returning 就 forceCover（会一返回掐 player）
+        assertFalse(
             shouldForceCoverOnlyForReturnOwnership(
                 ownership = VideoCardReturnCoverOwnership.RESIDENT_COVER,
                 useReturningVisualState = true,
                 forceCoverOnlyOnReturn = false,
+            )
+        )
+        assertTrue(
+            shouldForceCoverOnlyForReturnOwnership(
+                ownership = VideoCardReturnCoverOwnership.RESIDENT_COVER,
+                useReturningVisualState = true,
+                forceCoverOnlyOnReturn = true,
+            )
+        )
+    }
+
+    @Test
+    fun forceCoverOnly_onlyWhenExplicitlyRequestedNotOnCommitAlone() {
+        assertFalse(
+            shouldForceCoverOnlyForReturnOwnership(
+                ownership = VideoCardReturnCoverOwnership.RESIDENT_COVER,
+                useReturningVisualState = true,
+                forceCoverOnlyOnReturn = false,
+                isCommittedCardReturn = false,
+            )
+        )
+        assertFalse(
+            shouldForceCoverOnlyForReturnOwnership(
+                ownership = VideoCardReturnCoverOwnership.RESIDENT_COVER,
+                useReturningVisualState = true,
+                forceCoverOnlyOnReturn = false,
+                isCommittedCardReturn = true,
+            )
+        )
+        assertFalse(
+            shouldForceCoverOnlyForReturnOwnership(
+                ownership = VideoCardReturnCoverOwnership.LIVE_SURFACE,
+                useReturningVisualState = true,
+                forceCoverOnlyOnReturn = false,
+                isCommittedCardReturn = true,
             )
         )
     }
@@ -417,6 +453,32 @@ class VideoCardReturnTimelineTest {
         )
         assertEquals(0f, resolveVideoCardTimelineWindowProgress(0.68f, 0.68f, 1f))
         assertEquals(1f, resolveVideoCardTimelineWindowProgress(1f, 0.68f, 1f))
+    }
+
+    @Test
+    fun liveMorph_alwaysUsesLiveSurfaceWhenGateConditionsMet() {
+        assertTrue(
+            shouldUseVideoCardLiveReturnMorph(
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+                detailContentReady = true,
+                hasRenderableLiveFrame = true,
+            )
+        )
+        assertEquals(
+            VideoCardReturnCoverOwnership.LIVE_SURFACE,
+            resolveVideoCardReturnCoverOwnership(
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+                detailContentReady = true,
+                hasResidentCover = true,
+                hasRenderableLiveFrame = true,
+            ),
+        )
     }
 
     @Test

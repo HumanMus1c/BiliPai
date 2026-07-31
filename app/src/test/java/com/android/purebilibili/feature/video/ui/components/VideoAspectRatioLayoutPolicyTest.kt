@@ -4,7 +4,9 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import com.android.purebilibili.feature.anime4k.gl.Anime4KDisplayScaleMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class VideoAspectRatioLayoutPolicyTest {
 
@@ -30,6 +32,18 @@ class VideoAspectRatioLayoutPolicyTest {
 
         assertEquals(1920, layout.width)
         assertEquals(1080, layout.height)
+    }
+
+    @Test
+    fun `fixed 16 to 9 ratio should letterbox in 16 to 10 tablet fullscreen`() {
+        val layout = resolveVideoViewportLayout(
+            containerWidth = 2560,
+            containerHeight = 1600,
+            aspectRatio = VideoAspectRatio.RATIO_16_9
+        )
+
+        assertEquals(2560, layout.width)
+        assertEquals(1440, layout.height)
     }
 
     @Test
@@ -64,6 +78,27 @@ class VideoAspectRatioLayoutPolicyTest {
         assertEquals(1080, stretchLayout.height)
         assertNull(VideoAspectRatio.FILL.targetAspectRatio)
         assertNull(VideoAspectRatio.STRETCH.targetAspectRatio)
+        assertTrue(shouldUseFillMaxPlayerViewport(VideoAspectRatio.FILL))
+        assertTrue(shouldUseFillMaxPlayerViewport(VideoAspectRatio.STRETCH))
+        assertTrue(shouldUseFillMaxPlayerViewport(VideoAspectRatio.FIT))
+        assertFalse(shouldUseFillMaxPlayerViewport(VideoAspectRatio.RATIO_16_9))
+        assertFalse(shouldUseFillMaxPlayerViewport(VideoAspectRatio.RATIO_4_3))
+    }
+
+    @Test
+    fun `forced resize mode pivot differs from target so same-mode layout can remeasure`() {
+        assertEquals(
+            AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+            resolveForcedPlayerResizeModePivot(AspectRatioFrameLayout.RESIZE_MODE_FIT),
+        )
+        assertEquals(
+            AspectRatioFrameLayout.RESIZE_MODE_FIT,
+            resolveForcedPlayerResizeModePivot(AspectRatioFrameLayout.RESIZE_MODE_ZOOM),
+        )
+        assertEquals(
+            AspectRatioFrameLayout.RESIZE_MODE_FIT,
+            resolveForcedPlayerResizeModePivot(AspectRatioFrameLayout.RESIZE_MODE_FILL),
+        )
     }
 
     @Test

@@ -3,8 +3,11 @@ package com.android.purebilibili.feature.partition
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import com.android.purebilibili.core.util.resolveReplaceRefreshPage
 import com.android.purebilibili.data.model.response.BangumiType
+import com.android.purebilibili.feature.home.components.resolveTopTabCategoryIcon
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,6 +34,12 @@ class PartitionScreenStructureTest {
         assertFalse(source.contains("resolveSharedLiquidGlassChromeEnabled("))
         assertTrue(source.contains("BottomBarMatchedLiquidIndicator("))
         assertTrue(source.contains("liquidGlassIndicatorEnabled = liquidGlassIndicatorEnabled"))
+        assertTrue(source.contains("val railPageBackdrop = rememberLayerBackdrop()"))
+        assertTrue(source.contains(".bottomBarMatchedCaptureOverflow(captureSafeInset)"))
+        assertTrue(source.contains(".layerBackdrop(railPageBackdrop)"))
+        assertTrue(source.contains("contentBackdrop = backdrop"))
+        assertTrue(source.contains("backdrop = railPageBackdrop"))
+        assertFalse(source.contains(".layerBackdrop(railContentBackdrop)"))
         assertFalse(source.contains("partitionSideRailSweepSelection("))
         assertFalse(source.contains("PartitionVideoRow("))
         assertFalse(source.contains("videoTitleSharedElementKey("))
@@ -161,6 +170,18 @@ class PartitionScreenStructureTest {
     }
 
     @Test
+    fun `side rail icons follow the active top chrome icon family`() {
+        assertSameVectorAsset(
+            resolveTopTabCategoryIcon("游戏", AppSemanticIconFamily.CUPERTINO, selected = false),
+            resolvePartitionSideRailIcon(4, AppSemanticIconFamily.CUPERTINO, selected = false)
+        )
+        assertSameVectorAsset(
+            resolveTopTabCategoryIcon("科技", AppSemanticIconFamily.MATERIAL, selected = true),
+            resolvePartitionSideRailIcon(188, AppSemanticIconFamily.MATERIAL, selected = true)
+        )
+    }
+
+    @Test
     fun `side rail item content is centered without manual left spacer`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/partition/PartitionScreen.kt")
         val itemSource = source
@@ -220,5 +241,13 @@ class PartitionScreenStructureTest {
         ).firstOrNull { it.exists() }
         require(sourceFile != null) { "Cannot locate $path from ${File(".").absolutePath}" }
         return sourceFile.readText()
+    }
+
+    private fun assertSameVectorAsset(expected: ImageVector, actual: ImageVector) {
+        assertEquals(expected.name, actual.name)
+        assertEquals(expected.defaultWidth, actual.defaultWidth)
+        assertEquals(expected.defaultHeight, actual.defaultHeight)
+        assertEquals(expected.viewportWidth, actual.viewportWidth)
+        assertEquals(expected.viewportHeight, actual.viewportHeight)
     }
 }

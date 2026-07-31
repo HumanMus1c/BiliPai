@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.video.screen
 
+import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackgroundPhase
+
 import androidx.compose.animation.core.Easing
 import com.android.purebilibili.core.ui.transition.VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_START
 import com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership
@@ -41,6 +43,22 @@ internal fun shouldUseReturningVideoDetailVisualState(
     return forceCoverOnlyForReturn ||
         isCardReturnExitInProgress ||
         isSessionReturningToCard
+}
+
+/**
+ * 是否已**提交**卡片返回（可与封面做 landing handoff）。
+ *
+ * 与 [shouldUseReturningVideoDetailVisualState] 不同：
+ * - 预测返回 seek 中 `targetState=PostExit` 会让离开态为 true，但尚未松手提交
+ * - 封面/播放器 alpha 的 handoff **只认提交**，否则手势一开始封面会盖死实时画面
+ *
+ * 提交信号：按钮返回 [isActuallyLeaving]，或导航层 [isSessionReturningToCard]（markReturning）。
+ */
+internal fun shouldTreatVideoDetailCardReturnAsCommitted(
+    isActuallyLeaving: Boolean,
+    isSessionReturningToCard: Boolean,
+): Boolean {
+    return isActuallyLeaving || isSessionReturningToCard
 }
 
 /**
@@ -159,6 +177,7 @@ internal fun resolveVideoDetailReturnCoverAlpha(
     liveReturnMorph: Boolean = false,
 ): Float {
     if (!hasResidentCover) return 0f
+    // 一镜到底：仅 settle 末段抬封面，禁止一点返回就盖住实时播放器。
     if (liveReturnMorph) {
         return resolveVideoDetailLiveReturnLandingHandoffAlpha(
             transitionProgress = transitionProgress,
@@ -166,6 +185,7 @@ internal fun resolveVideoDetailReturnCoverAlpha(
         )
     }
     val progress = transitionProgress.coerceIn(0f, 1f)
+    // CoverFirst / 无 live 帧：提交后封面立即接管，避免黑壳。
     return if (isCommittedCardReturn) 1f else 1f - progress
 }
 
@@ -244,6 +264,21 @@ internal fun shouldTreatVideoDetailCardExitAsReturning(
     return isExitTransitionInProgress &&
         sharedBoundsActive &&
         !keepLoadedContentForBackPreview
+}
+
+/**
+ * Whether the detail page should treat the current frame as an exit/return morph.
+ *
+ * Primary signal: AnimatedVisibility [EnterExitState.PostExit].
+ * Fallback for Navigation3 1.2 + [ExitTransition.None]: AVS may settle without a durable
+ * PostExit observation, while [VideoCardTransitionBackgroundPhase.RETURNING] is still true.
+ */
+internal fun shouldTreatVideoDetailExitTransitionInProgress(
+    animatedVisibilityTargetIsPostExit: Boolean,
+    videoCardBackgroundPhase: VideoCardTransitionBackgroundPhase?,
+): Boolean {
+    if (animatedVisibilityTargetIsPostExit) return true
+    return videoCardBackgroundPhase == VideoCardTransitionBackgroundPhase.RETURNING
 }
 
 /**

@@ -35,6 +35,7 @@ class TopTabRefractionPolicyTest {
         assertTrue(source.contains("indicatorLayerScaleProgress = topTabIndicatorLayerScaleProgress"))
         assertTrue(source.contains("val topTabLensProgress = topTabIndicatorLayerScaleProgress"))
         assertTrue(source.contains("val topTabCaptureLensProgress = if (shouldUseLiquidGlassIndicator) 1f else 0f"))
+        assertFalse(source.contains(".bottomBarMatchedCaptureOverflow("))
         assertTrue(source.contains(".miuixDrawBackdrop("))
         assertTrue(source.contains(".drawBackdrop("))
         assertTrue(source.contains("miuixVibrancy()"))
@@ -191,7 +192,7 @@ class TopTabRefractionPolicyTest {
     }
 
     @Test
-    fun `top tab indicator uses bottom bar stretch ratio while sliding`() {
+    fun `top tab indicator reuses bottom bar stretch transform while sliding`() {
         val transform = resolveTopTabIndicatorLayerTransform(
             motionProgress = 1f,
             velocityItemsPerSecond = 0f,
@@ -205,8 +206,6 @@ class TopTabRefractionPolicyTest {
 
         assertEquals(bottom.scaleX, transform.scaleX, 0.001f)
         assertEquals(bottom.scaleY, transform.scaleY, 0.001f)
-        assertEquals(88f / 56f, transform.scaleX, 0.001f)
-        assertEquals(88f / 56f, transform.scaleY, 0.001f)
     }
 
     @Test

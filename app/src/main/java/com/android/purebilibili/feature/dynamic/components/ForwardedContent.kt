@@ -84,11 +84,12 @@ fun ForwardedContent(
         resolveDynamicDescForImages(desc, hasImages = contentHasImages)
     }
     val visibleOpusSummaryDesc = remember(content?.major?.opus?.summary, content?.major?.opus?.pics) {
-        content?.major?.opus?.summary?.let { summary ->
+        val opus = content?.major?.opus ?: return@remember null
+        opus.summary?.let { summary ->
             resolveDynamicOpusSummaryDescForImages(
                 text = summary.text,
                 richTextNodes = summary.rich_text_nodes,
-                hasImages = content.major.opus.pics.isNotEmpty()
+                hasImages = opus.pics.isNotEmpty()
             )
         }
     }
@@ -148,12 +149,19 @@ fun ForwardedContent(
             Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         }
         
-        // 原文字内容 - 使用 RichTextContent 支持表情
-        visibleDynamicDesc?.let { desc ->
+        // 原文字内容 - 使用 RichTextContent 支持表情；点空白文字打开原动态
+        val preferredDesc = resolvePreferredDynamicDesc(
+            primary = visibleDynamicDesc,
+            fallback = visibleOpusSummaryDesc
+        )
+        preferredDesc?.let { desc ->
             if (shouldRenderDynamicRichText(desc)) {
                 RichTextContent(
                     desc = desc,
-                    onUserClick = onUserClick
+                    onUserClick = onUserClick,
+                    onBlankTap = openOrigDynamic.takeIf {
+                        onDynamicDetailClick != null && origDynamicId.isNotEmpty()
+                    }
                 )
                 Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
             }
@@ -197,20 +205,8 @@ fun ForwardedContent(
             Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
         }
         
-        //  [新增] 原 Opus 图文动态
+        //  [新增] 原 Opus 图文动态（正文已在上方 preferredDesc 渲染，这里只补图）
         content?.major?.opus?.let { opus ->
-            // 显示文字摘要 (如果 desc 为空)
-            if (!shouldRenderDynamicRichText(visibleDynamicDesc)) {
-                visibleOpusSummaryDesc?.let { summary ->
-                    if (shouldRenderDynamicRichText(summary)) {
-                        RichTextContent(
-                            desc = summary,
-                            onUserClick = onUserClick
-                        )
-                        Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
-                    }
-                }
-            }
             // 显示图片
             if (opus.pics.isNotEmpty()) {
                 val drawItems = opus.pics.map { pic ->

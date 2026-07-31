@@ -10,6 +10,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
@@ -594,8 +595,10 @@ data class DynamicDesc(
 
 @Serializable
 data class RichTextNode(
-    val type: String = "", // TEXT, EMOJI, AT, TOPIC
+    val type: String = "", // TEXT, EMOJI, AT, TOPIC / RICH_TEXT_NODE_TYPE_*
     val text: String = "",
+    /** 部分接口只填 orig_text；渲染时与 text 互为兜底 */
+    val orig_text: String = "",
     val emoji: EmojiInfo? = null,
     val jump_url: String? = null,
     /** AT 节点对应用户 mid；API 可能给 number，用 flexible string 避免解析失败 */
@@ -605,7 +608,12 @@ data class RichTextNode(
 
 @Serializable
 data class EmojiInfo(
+    /** 主图；部分接口用 url 字段（评论/表情面板风格） */
+    @JsonNames("url")
     val icon_url: String = "",
+    val webp_url: String = "",
+    val gif_url: String = "",
+    @Serializable(with = FlexibleIntSerializer::class)
     val size: Int = 1,
     val text: String = ""
 )
