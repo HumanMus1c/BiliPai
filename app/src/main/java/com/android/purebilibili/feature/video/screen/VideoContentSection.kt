@@ -908,13 +908,10 @@ private fun VideoIntroTab(
                     isListScrolling = isRelatedListScrolling,
                     showUpBadge = showUpBadge,
                     onVideoClick = { video ->
-                        val navOptions = if (video.cid > 0L) {
-                            android.os.Bundle().apply {
-                                putLong(VIDEO_NAV_TARGET_CID_KEY, video.cid)
-                            }
-                        } else {
-                            null
-                        }
+                        val navOptions = buildVideoNavigationOptions(
+                            targetCid = video.cid,
+                            coverUrl = video.pic
+                        )
                         onRelatedVideoClick(video.bvid, navOptions)
                     },
                     onVideoHidden = { video ->

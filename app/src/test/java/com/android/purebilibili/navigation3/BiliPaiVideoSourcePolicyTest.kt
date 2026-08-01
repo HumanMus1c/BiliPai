@@ -35,13 +35,26 @@ class BiliPaiVideoSourcePolicyTest {
     fun relatedVideoNavigationUsesExplicitVideoSourceRouteForDetailToDetailSharedElement() {
         val source = resolveBiliPaiVideoSource(
             bvid = "BV2",
-            explicitSourceRoute = "video",
+            explicitSourceRoute = "video/BV1",
             currentKey = BiliPaiNavKey.VideoDetail(bvid = "BV1", sourceRoute = "home"),
             previousSourceRoute = "home"
         )
 
-        assertEquals("video", source.route)
-        assertEquals("video:BV2", source.key)
+        assertEquals("video/BV1", source.route)
+        assertEquals("video/BV1:BV2", source.key)
+    }
+
+    @Test
+    fun videoToVideoWithoutPreviousSourceFallsBackToParentVideoHost() {
+        val source = resolveBiliPaiVideoSource(
+            bvid = "BV2",
+            explicitSourceRoute = null,
+            currentKey = BiliPaiNavKey.VideoDetail(bvid = "BV1", sourceRoute = null),
+            previousSourceRoute = null
+        )
+
+        assertEquals("video/BV1", source.route)
+        assertEquals("video/BV1:BV2", source.key)
     }
 
     @Test

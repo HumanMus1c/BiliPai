@@ -37,7 +37,6 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
 import androidx.navigation3.scene.SceneInfo
-import androidx.navigation3.scene.SinglePaneSceneStrategy
 import androidx.navigation3.scene.rememberNavigationEventState
 import androidx.navigation3.scene.rememberSceneState
 import androidx.navigationevent.compose.NavigationBackHandler
@@ -606,20 +605,23 @@ internal fun BiliPaiNavDisplayHost(
         }
     }
     val preferWholeCardReturnProvider = rememberUpdatedState(preferWholeCardReturn)
+    // safeBackStack / sourceMetadata 等用 rememberUpdatedState，避免 pop 时重建
+    // entry content lambda → Scene/NavEntry 引用变化 → 预测松手 animateTo 重置 fraction。
+    val latestSafeBackStack = rememberUpdatedState(safeBackStack)
+    val latestSourceMetadata = rememberUpdatedState(sourceMetadata)
+    val latestIsLightBackground = rememberUpdatedState(isLightBackground)
+    val latestTransitionBackgroundMotionTier = rememberUpdatedState(transitionBackgroundMotionTier)
     val scopedContent: @Composable (BiliPaiNavKey) -> Unit = remember(
         content,
         application,
-        safeBackStack,
         videoCardClock,
         videoCardBackgroundProgressProvider,
         predictiveBackBackgroundProgressProvider,
-        transitionBackgroundMotionTier,
-        isLightBackground,
         quickReturnFromDetailProvider,
         preferWholeCardReturnProvider,
         morphProgressReporter,
         videoCardExposureProvider,
-        sourceMetadata,
+        videoCardSnapshotHandle,
     ) {
         { key ->
             val entryRoute = key.toLegacyRoute()
@@ -641,7 +643,7 @@ internal fun BiliPaiNavDisplayHost(
                             },
                             exposureProvider = videoCardExposureProvider,
                             sourceCornerDpProvider = {
-                                sourceMetadata.sourceCornerDp
+                                latestSourceMetadata.value.sourceCornerDp
                             },
                             snapshotHandle = videoCardSnapshotHandle,
                             isReturnGestureInProgressProvider = {
@@ -655,22 +657,23 @@ internal fun BiliPaiNavDisplayHost(
                                 preferWholeCardReturnProvider.value
                             },
                             motionTierProvider = {
-                                transitionBackgroundMotionTier
+                                latestTransitionBackgroundMotionTier.value
                             },
                             isLightBackgroundProvider = {
-                                isLightBackground
+                                latestIsLightBackground.value
                             },
                         ),
                         LocalPredictiveBackBackgroundState provides PredictiveBackBackgroundState(
                             progressProvider = predictiveBackBackgroundProgressProvider,
                             targetKeyProvider = {
-                                safeBackStack.getOrNull(safeBackStack.lastIndex - 1)
+                                val stack = latestSafeBackStack.value
+                                stack.getOrNull(stack.lastIndex - 1)
                             },
                             motionTierProvider = {
-                                transitionBackgroundMotionTier
+                                latestTransitionBackgroundMotionTier.value
                             },
                             isLightBackgroundProvider = {
-                                isLightBackground
+                                latestIsLightBackground.value
                             },
                         ),
                     ) {
@@ -729,7 +732,10 @@ internal fun BiliPaiNavDisplayHost(
     )
     val sceneState = rememberSceneState(
         entries = entries,
-        sceneStrategies = listOf(SinglePaneSceneStrategy()),
+        // Key-equal scenes: predictive seek target survives entry rebuild on pop,
+        // so animateTo continues from the current fraction instead of restarting
+        // the card morph from full-screen (second scale-down after release).
+        sceneStrategies = listOf(BiliPaiKeyEqualSceneStrategy()),
         sceneDecoratorStrategies = emptyList(),
         sharedTransitionScope = sharedTransitionScope,
         onBack = { performBack { } }

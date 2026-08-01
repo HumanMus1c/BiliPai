@@ -318,6 +318,40 @@ class AppTopLevelNavigationPolicyTest {
     }
 
     @Test
+    fun videoSourceRoute_acceptsNonBottomBarHostsLikeSearchAndSpace() {
+        assertEquals(
+            ScreenRoutes.Search.route,
+            resolveVideoCardSourceRouteForNavigation(
+                currentRoute = "main_host",
+                videoBvid = "BV1search",
+                lastClickedVideoSourceKey = "${ScreenRoutes.Search.route}:BV1search",
+                visibleBottomBarRoutes = setOf(
+                    ScreenRoutes.Home.route,
+                    ScreenRoutes.Dynamic.route
+                )
+            )
+        )
+        assertEquals(
+            "space/42",
+            resolveVideoCardSourceRouteForNavigation(
+                currentRoute = "main_host",
+                videoBvid = "BV1space",
+                lastClickedVideoSourceKey = "space/42:BV1space",
+                visibleBottomBarRoutes = setOf(ScreenRoutes.Home.route)
+            )
+        )
+        assertEquals(
+            "video/BV_PARENT",
+            resolveVideoCardSourceRouteForNavigation(
+                currentRoute = "main_host",
+                videoBvid = "BV_RELATED",
+                lastClickedVideoSourceKey = "video/BV_PARENT:BV_RELATED",
+                visibleBottomBarRoutes = setOf(ScreenRoutes.Home.route)
+            )
+        )
+    }
+
+    @Test
     fun mainHostUsesCurrentBottomPagerItemAsActiveBottomRoute() {
         assertEquals(
             ScreenRoutes.Home.route,

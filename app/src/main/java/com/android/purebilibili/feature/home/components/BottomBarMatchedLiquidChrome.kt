@@ -267,11 +267,16 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
  * When global reuse is disabled, [content] is emitted unchanged.
  */
 @Composable
+/**
+ * @param drawShellLens 底栏整壳可开 lens；搜索框/评论输入等小胶囊必须 false，
+ * 否则 refraction 边沿会出现「虾线」亮边（尤其 iOS 主题复用安卓原生液态玻璃时）。
+ */
 internal fun BottomBarMatchedReusableLiquidDock(
     shape: Shape,
     modifier: Modifier = Modifier,
     backdrop: Backdrop? = null,
     liquidGlassEffectsEnabled: Boolean = true,
+    drawShellLens: Boolean = true,
     isScrollInProgressProvider: () -> Boolean = { false },
     content: @Composable BoxScope.(liquidChromeActive: Boolean) -> Unit
 ) {
@@ -313,29 +318,45 @@ internal fun BottomBarMatchedReusableLiquidDock(
         blurIntensity = blurIntensity,
         liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset
     )
+    // 小胶囊关闭 shell lens 时不必做 capture overflow，减少边沿采样产生的亮线。
     val fullCaptureLensSpec = resolveBottomBarBackdropPresetCaptureLens(progress = 1f)
-    val captureSafeInset = resolveBottomBarCaptureSafeInsetDp(
-        indicatorWidthDp = 0f,
-        refractionHeightDp = fullCaptureLensSpec.refractionHeightDp,
-        refractionAmountDp = fullCaptureLensSpec.refractionAmountDp,
-        panelOffsetDp = 0f
-    ).dp
+    val captureSafeInset = if (drawShellLens) {
+        resolveBottomBarCaptureSafeInsetDp(
+            indicatorWidthDp = 0f,
+            refractionHeightDp = fullCaptureLensSpec.refractionHeightDp,
+            refractionAmountDp = fullCaptureLensSpec.refractionAmountDp,
+            panelOffsetDp = 0f
+        ).dp
+    } else {
+        0.dp
+    }
 
     Box(modifier = modifier) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .bottomBarMatchedCaptureOverflow(captureSafeInset)
-                .alpha(0f)
-                .layerBackdrop(localBackdrop)
-                .background(AppSurfaceTokens.background())
-        )
+        if (drawShellLens) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .bottomBarMatchedCaptureOverflow(captureSafeInset)
+                    .alpha(0f)
+                    .layerBackdrop(localBackdrop)
+                    .background(AppSurfaceTokens.background())
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .alpha(0f)
+                    .layerBackdrop(localBackdrop)
+                    .background(AppSurfaceTokens.background())
+            )
+        }
         BottomBarMatchedLiquidDock(
             backdrop = effectiveBackdrop,
             containerColor = containerColor,
             shape = shape,
             blurEnabled = true,
             glassEnabled = glassEnabled,
+            drawShellLens = drawShellLens,
             blurRadius = tuning.shellBlurRadiusDp.dp,
             modifier = Modifier.matchParentSize(),
             liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,

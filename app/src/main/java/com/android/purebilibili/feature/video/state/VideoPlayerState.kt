@@ -111,6 +111,30 @@ internal fun shouldReuseMiniPlayerAtEntry(
     return miniPlayerCid > 0L && miniPlayerCid == requestCid
 }
 
+/**
+ * 栈顶已不是本详情（合集列表再进另一集、详情压详情等）时，应立刻挂起本地 player，
+ * 否则上一级画面仍在后台出声，新详情只有封面/黑屏。
+ */
+internal fun shouldSuspendLocalPlaybackWhenSessionInactive(
+    playbackSessionActive: Boolean
+): Boolean = !playbackSessionActive
+
+/**
+ * 进入新详情时，若全局小窗/外部 player 仍在播「另一支」视频，应立即静音停播，
+ * 避免合集列表进详情时继续响上一级声音。
+ */
+internal fun shouldHaltForeignPlaybackOnVideoEntry(
+    incomingBvid: String,
+    activeBvid: String?,
+    isPlaybackLikelyActive: Boolean
+): Boolean {
+    val target = incomingBvid.trim()
+    if (target.isBlank() || !isPlaybackLikelyActive) return false
+    val active = activeBvid?.trim().orEmpty()
+    if (active.isBlank()) return false
+    return active != target
+}
+
 internal fun shouldRestoreCachedUiState(
     cachedBvid: String?,
     cachedCid: Long,
@@ -254,6 +278,20 @@ internal fun applyRenderedFirstFrameDebugInfo(
     return current.copy(
         firstFrame = "rendered",
         lastVideoEvent = "first frame rendered"
+    )
+}
+
+/**
+ * Media swap (合集换片 / setMediaItem) 后旧首帧标志必须清掉，
+ * 否则封面状态机误用「已出画」立刻揭开，露出黑屏只有声音。
+ */
+internal fun applyMediaTransitionFirstFrameReset(
+    current: PlaybackDebugInfo
+): PlaybackDebugInfo {
+    if (current.firstFrame.isBlank()) return current
+    return current.copy(
+        firstFrame = "",
+        lastVideoEvent = "media transition"
     )
 }
 
@@ -519,6 +557,16 @@ class VideoPlayerState(
                 "VideoPlayerState",
                 "USER_DBG onPlayWhenReadyChanged: playWhenReady=$playWhenReady, reason=$reason, " +
                     "state=${player.playbackState}, isPlaying=${player.isPlaying}, pos=${player.currentPosition}"
+            )
+        }
+
+        override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+            // 合集/页内换片：清掉旧 firstFrame，避免封面状态机误以为新片已出画。
+            _debugInfo.value = applyMediaTransitionFirstFrameReset(current = _debugInfo.value)
+            appendDiagnosticEvent("mediaItemTransition reason=$reason")
+            Logger.d(
+                "VideoPlayerState",
+                "USER_DBG onMediaItemTransition: reason=$reason, mediaId=${mediaItem?.mediaId}"
             )
         }
     }
@@ -1211,6 +1259,49 @@ fun rememberVideoPlayerState(
         player.addListener(listener)
         onDispose {
             player.removeListener(listener)
+        }
+    }
+
+    // 合集列表 / 详情压详情：本页不再是栈顶可见会话时立刻挂起本地 player。
+    // 仅「skip attach/load」不够——上一级 ExoPlayer 会继续出声，新详情像卡封面。
+    var suspendedByInactiveSession by remember(player) { mutableStateOf(false) }
+    var wasPlayingBeforeSessionSuspend by remember(player) { mutableStateOf(false) }
+    LaunchedEffect(playbackSessionActive, player) {
+        if (shouldSuspendLocalPlaybackWhenSessionInactive(playbackSessionActive)) {
+            val likelyActive = player.isPlaying ||
+                player.playWhenReady ||
+                player.mediaItemCount > 0
+            if (likelyActive) {
+                wasPlayingBeforeSessionSuspend =
+                    player.isPlaying || player.playWhenReady
+                player.volume = 0f
+                player.playWhenReady = false
+                if (player.isPlaying) {
+                    player.pause()
+                }
+                suspendedByInactiveSession = true
+                holder.recordDiagnosticEvent("sessionInactive -> suspendLocalPlayback")
+                Logger.d(
+                    "VideoPlayerState",
+                    "🔇 Session inactive: suspend local playback request=$bvid/$cid"
+                )
+            }
+            return@LaunchedEffect
+        }
+        if (suspendedByInactiveSession) {
+            com.android.purebilibili.core.player.PlayerVolumeController
+                .applyPreferredVolume(player)
+            if (wasPlayingBeforeSessionSuspend && entryTransitionFinished) {
+                player.playWhenReady = true
+                player.play()
+                holder.recordDiagnosticEvent("sessionActive -> resumeAfterSuspend")
+                Logger.d(
+                    "VideoPlayerState",
+                    "🔊 Session active again: resume local playback request=$bvid/$cid"
+                )
+            }
+            suspendedByInactiveSession = false
+            wasPlayingBeforeSessionSuspend = false
         }
     }
 

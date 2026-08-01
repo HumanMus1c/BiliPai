@@ -1,9 +1,11 @@
 package com.android.purebilibili.core.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.toggleable
@@ -1472,19 +1474,94 @@ fun AdaptiveSearchFieldRenderer(
             )
             return
         }
-        if (uiPreset == UiPreset.MD3 || topBarChrome) {
-            val textStyle = if (topBarChrome) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium
-            val showLeadingIcon = !topBarChrome || uiPreset == UiPreset.IOS
-            // topBar：固定高度，禁止 fillMaxHeight 吃掉父 Row/Column 剩余空间变成竖条。
-            val sizeModifier = if (topBarChrome) {
-                Modifier
+        // 顶栏固定高度不能用 OutlinedTextField：默认 contentPadding 会把字裁掉（平板尤其明显）。
+        // 用 BasicTextField + 可选聚焦描边，保证 44–56dp 内文字完整可见。
+        if (topBarChrome) {
+            val textStyle = MaterialTheme.typography.bodyLarge
+            val showLeadingIcon = uiPreset == UiPreset.IOS
+            val resolvedInteraction = interactionSource ?: remember { MutableInteractionSource() }
+            val isFocused by resolvedInteraction.collectIsFocusedAsState()
+            val fieldShape = RoundedCornerShape(searchBarCornerRadius)
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = modifier
                     .fillMaxWidth()
                     .height(resolvedHeight)
-            } else {
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = resolvedHeight)
-            }
+                    .clip(fieldShape)
+                    .background(resolvedContainerColor, fieldShape)
+                    .then(
+                        if (isFocused) {
+                            Modifier.border(
+                                width = 1.5.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = fieldShape,
+                            )
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .then(focusModifier),
+                textStyle = textStyle.copy(color = MaterialTheme.colorScheme.onSurface),
+                singleLine = true,
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+                interactionSource = resolvedInteraction,
+                decorationBox = { innerTextField ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
+                    ) {
+                        if (showLeadingIcon) {
+                            Icon(
+                                imageVector = CupertinoIcons.Default.MagnifyingGlass,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Box(
+                            contentAlignment = Alignment.CenterStart,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            if (query.isEmpty()) {
+                                Text(
+                                    text = placeholder,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    style = textStyle,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            innerTextField()
+                        }
+                        if (showClearAction && query.isNotEmpty()) {
+                            IconButton(
+                                onClick = onClear,
+                                modifier = Modifier.size(28.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
+                    }
+                },
+            )
+            return
+        }
+        if (uiPreset == UiPreset.MD3) {
+            val textStyle = MaterialTheme.typography.bodyMedium
+            val sizeModifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = resolvedHeight)
             OutlinedTextField(
                 value = query,
                 onValueChange = onQueryChange,
@@ -1499,14 +1576,14 @@ fun AdaptiveSearchFieldRenderer(
                         style = textStyle,
                     )
                 },
-                leadingIcon = if (showLeadingIcon) {{
+                leadingIcon = {
                     Icon(
-                        imageVector = if (uiPreset == UiPreset.IOS) CupertinoIcons.Default.MagnifyingGlass else Icons.Default.Search,
+                        imageVector = Icons.Default.Search,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp),
                     )
-                }} else null,
+                },
                 trailingIcon = if (showClearAction && query.isNotEmpty()) {
                     {
                         IconButton(onClick = onClear) {
@@ -1527,7 +1604,7 @@ fun AdaptiveSearchFieldRenderer(
                 ),
                 shape = RoundedCornerShape(searchBarCornerRadius),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = if (topBarChrome) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    focusedBorderColor = Color.Transparent,
                     unfocusedBorderColor = Color.Transparent,
                     disabledBorderColor = Color.Transparent,
                     focusedContainerColor = resolvedContainerColor,

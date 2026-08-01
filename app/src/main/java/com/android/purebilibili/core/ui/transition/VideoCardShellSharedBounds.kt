@@ -34,6 +34,41 @@ internal enum class VideoCardShellSharedBoundsRole {
 }
 
 /**
+ * 视频卡片/详情 sharedBounds 的缩放对齐。
+ *
+ * Compose 默认 `Alignment.Center` 会让中间态往屏幕中心挤，表现为非首页预测返回
+ * 「封面不往顶部走」。普通进详情/回列表一律 [ContentScale.FillWidth] + [Alignment.TopCenter]，
+ * 与顶部播放器落点一致；仅竖全屏直达用 Center。
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+internal fun resolveVideoCardSharedBoundsResizeMode(
+    fillFullscreenShell: Boolean = false,
+): SharedTransitionScope.ResizeMode {
+    return if (fillFullscreenShell) {
+        scaleToBounds(ContentScale.Crop, Alignment.Center)
+    } else {
+        scaleToBounds(ContentScale.FillWidth, Alignment.TopCenter)
+    }
+}
+
+/**
+ * 详情侧是否还要挂「封面 ↔ 播放器」cover sharedBounds。
+ * shell 已接管整卡 morph 时再挂 cover 会与默认 Center 路径抢戏，中间态往屏幕中心飞。
+ */
+internal fun shouldAttachVideoDetailCoverSharedBounds(
+    coverSharedBoundsEnabled: Boolean,
+    detailShellSharedBoundsEnabled: Boolean,
+    immediatePlayback: Boolean,
+    forceCoverOnlyForReturn: Boolean,
+): Boolean {
+    if (!coverSharedBoundsEnabled) return false
+    if (detailShellSharedBoundsEnabled) return false
+    if (!immediatePlayback) return false
+    if (forceCoverOnlyForReturn) return false
+    return true
+}
+
+/**
  * 返回时源卡延后淡入的起点（占 morph 总时长比例）。
  * 与 [VIDEO_CARD_RETURN_SOURCE_ENTER_FADE_DELAY_RATIO] 同源；当前为 0。
  */
@@ -200,12 +235,7 @@ internal fun Modifier.videoCardShellSharedBoundsOrEmpty(
         )
     }
     val resizeMode = remember(fillFullscreenShell) {
-        if (fillFullscreenShell) {
-            scaleToBounds(ContentScale.Crop, Alignment.Center)
-        } else {
-            // 默认 Center 会让卡片在飞行中往屏幕中心缩放，与详情页顶部播放器落点错位。
-            scaleToBounds(ContentScale.FillWidth, Alignment.TopCenter)
-        }
+        resolveVideoCardSharedBoundsResizeMode(fillFullscreenShell = fillFullscreenShell)
     }
     return then(
         with(sharedTransitionScope) {

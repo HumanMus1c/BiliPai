@@ -58,6 +58,7 @@ class RelatedVideoItemPolicyTest {
         assertEquals("video", resolveRelatedVideoSharedElementSourceRoute(""))
         assertEquals("video/BV1", resolveRelatedVideoSharedElementSourceRoute("video/BV1?from=related"))
         assertEquals("home", resolveRelatedVideoSharedElementSourceRoute("home"))
+        // Cover-only sharedBounds anchors remain host route + target bvid for morph matching.
     }
 
     @Test

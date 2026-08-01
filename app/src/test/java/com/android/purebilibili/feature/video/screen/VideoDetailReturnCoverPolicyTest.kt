@@ -997,13 +997,17 @@ class VideoDetailReturnCoverPolicyTest {
     fun `player container shared bounds are disabled during return to avoid cover key conflict`() {
         val source = File("src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt")
             .readText()
-        val playerContainerBlock = source
-            .substringAfter("val playerContainerModifier = if (")
-            .substringBefore(") {")
+        // shell 生效时不挂 cover sharedBounds；forceCoverOnly 也禁止，避免与返回封面 key 冲突。
+        assertTrue(source.contains("shouldAttachVideoDetailCoverSharedBounds("))
+        val attachBlock = source
+            .substringAfter("val attachPlayerCoverSharedBounds =")
+            .substringBefore("val playerContainerModifier =")
         assertTrue(
             "Player container must not claim the cover shared bounds during return; the forced return cover overlay owns that key.",
-            playerContainerBlock.contains("!forceCoverOnlyForReturn")
+            attachBlock.contains("forceCoverOnlyForReturn = forceCoverOnlyForReturn")
         )
+        assertTrue(attachBlock.contains("detailShellSharedBoundsEnabled = detailShellSharedBoundsEnabled"))
+        assertTrue(source.contains("resolveVideoCardSharedBoundsResizeMode("))
     }
 
     @Test

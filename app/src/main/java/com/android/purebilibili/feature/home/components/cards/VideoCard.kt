@@ -104,6 +104,7 @@ import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionO
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedBoundsResizeMode
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
@@ -776,6 +777,8 @@ internal fun ElegantVideoCard(
                             targetBounds = targetBounds,
                         )
                     },
+                    // 禁止默认 Center：非首页预测返回中间态会往屏幕中心飞。
+                    resizeMode = resolveVideoCardSharedBoundsResizeMode(),
                     clipInOverlayDuringTransition = OverlayClip(coverShape),
                 )
             }

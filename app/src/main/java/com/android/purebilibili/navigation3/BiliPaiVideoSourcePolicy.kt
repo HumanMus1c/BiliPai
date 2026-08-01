@@ -13,7 +13,15 @@ internal fun resolveBiliPaiVideoSource(
 ): BiliPaiVideoSource {
     val route = normalizeBiliPaiVideoSourceRoute(
         explicitSourceRoute ?: when (currentKey) {
-            is BiliPaiNavKey.VideoDetail -> previousSourceRoute
+            is BiliPaiNavKey.VideoDetail -> {
+                // Prefer explicit related host `video/{parent}` when provided by callers.
+                // Without explicit: keep list origin (home/search/…) so multi-hop returns
+                // still land on the original card, not an intermediate detail.
+                previousSourceRoute
+                    ?.takeIf { it.isNotBlank() }
+                    ?: currentKey.sourceRoute
+                    ?: "video/${currentKey.bvid}"
+            }
             null -> previousSourceRoute
             else -> currentKey.toLegacyRoute()
         }

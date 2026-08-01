@@ -92,7 +92,10 @@ class BottomBarMatchedLiquidChromeStructureTest {
         assertTrue(dynamicScreen.contains("BottomBarMatchedDockVisibility("))
         assertTrue(dynamicScreen.contains("edge = BottomBarMatchedDockEdge.TOP"))
         assertTrue(search.contains("BottomBarMatchedReusableLiquidDock("))
+        assertTrue(search.contains("drawShellLens = false"))
         assertTrue(bottomInput.contains("BottomBarMatchedReusableLiquidDock("))
+        // 评论底栏外层保留 shell lens 液态玻璃；搜索小胶囊仍关 lens 防虾线。
+        assertTrue(bottomInput.contains("drawShellLens = true"))
         assertFalse(bottomInput.contains("BottomBarMatchedLiquidDock("))
         assertFalse(bottomInput.contains(".kernelSuFloatingDockSurface("))
         assertTrue(partition.contains("rememberBottomBarMatchedLiquidChromeState("))

@@ -54,6 +54,22 @@ class BiliPaiNavDisplayHostStructureTest {
     }
 
     @Test
+    fun navDisplayHostUsesKeyEqualScenesSoPredictiveReleaseContinuesMorph() {
+        val source = navDisplayHostSource()
+        // 预测松手时 Scene equals 必须按 destination key，避免 entry 重建后
+        // animateTo 把 fraction 置 0，卡片从全屏再缩一次。
+        assertTrue(source.contains("BiliPaiKeyEqualSceneStrategy()"))
+        assertFalse(source.contains("SinglePaneSceneStrategy()"))
+        // scopedContent 不得把 safeBackStack 放进 remember key（pop 会换 content lambda）。
+        val scopedRemember = source
+            .substringAfter("val scopedContent: @Composable (BiliPaiNavKey) -> Unit = remember(")
+            .substringBefore(") {")
+        assertFalse(scopedRemember.contains("safeBackStack"))
+        assertTrue(source.contains("latestSafeBackStack"))
+        assertTrue(source.contains("rememberUpdatedState(safeBackStack)"))
+    }
+
+    @Test
     fun navDisplayHostHoistsNavigationEventStateIntoNavDisplay() {
         val source = navDisplayHostSource()
 
@@ -208,7 +224,7 @@ class BiliPaiNavDisplayHostStructureTest {
     fun navDisplayHostUsesRootClockWithoutPerFrameSnapshotBridge() {
         val source = navDisplayHostSource()
         assertTrue(source.contains("videoCardClock: VideoCardTransitionClock"))
-        assertTrue(source.contains("{ videoCardClock.depthProgress() }"))
+        assertTrue(source.contains("videoCardClock.depthProgress()"))
         assertFalse(source.contains("onVideoCardDepthFrame"))
         assertFalse(source.contains("snapshotFlow"))
     }
@@ -322,9 +338,12 @@ class BiliPaiNavDisplayHostStructureTest {
 
         assertTrue(source.contains("VideoCardTransitionNavBackdrop("))
         assertTrue(source.contains("shouldShowVideoCardTransitionNavBackdrop"))
-        assertTrue(source.contains("Box(modifier = modifier.fillMaxSize())"))
-        val boxBlock = source.substringAfter("Box(modifier = modifier.fillMaxSize())")
-            .substringBefore("}\n}\n\n@Composable\nprivate fun ProvideNavigation3ViewModelApplicationExtras")
+        // Root host Box is multi-line: modifier.fillMaxSize() + background token.
+        assertTrue(source.contains("modifier = modifier"))
+        assertTrue(source.contains(".fillMaxSize()"))
+        val boxBlock = source
+            .substringAfter("VideoCardTransitionHostDepthLayer(")
+            .substringBefore("@Composable\nprivate fun ProvideNavigation3ViewModelApplicationExtras")
         assertTrue(boxBlock.indexOf("VideoCardTransitionNavBackdrop") < boxBlock.indexOf("NavDisplay("))
     }
 

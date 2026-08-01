@@ -471,6 +471,8 @@ internal fun VideoDetailScreenStateHolder(
     // 🔄 [Seamless Playback] Internal BVID state to support seamless switching in portrait mode
     var currentBvid by presentationState.currentBvidState
     var currentBvidCid by presentationState.currentCidState
+    // Episode cover captured at collection/playlist in-page switch (survives Loading.Initial).
+    var pendingInPageSwitchCoverUrl by rememberSaveable { mutableStateOf("") }
     var isPipMode by presentationState.pipModeState
     var isPortraitFullscreen by presentationState.portraitFullscreenState
     var selectedVideoContentTabIndex by presentationState.selectedTabIndexState
@@ -565,6 +567,15 @@ internal fun VideoDetailScreenStateHolder(
         val success = uiState as? VideoPlaybackUiState.Success
         if (success?.info?.bvid == normalizedBvid && (safeCid <= 0L || success.info.cid == safeCid)) {
             return
+        }
+        // Capture episode cover before Success is replaced by Loading.
+        val switchedCover = resolveUgcSeasonEpisodeCoverUrl(
+            ugcSeason = success?.info?.ugc_season,
+            targetBvid = normalizedBvid,
+            targetCid = safeCid
+        )
+        if (switchedCover.isNotBlank()) {
+            pendingInPageSwitchCoverUrl = switchedCover
         }
         presentationState.switchVideo(normalizedBvid, safeCid)
         viewModel.loadVideo(
@@ -2498,11 +2509,44 @@ internal fun VideoDetailScreenStateHolder(
     )
 
     val uiSuccessState = uiState as? VideoPlaybackUiState.Success
-    val videoPlayerSectionTarget = remember(bvid, coverUrl, currentBvid) {
+    LaunchedEffect(uiSuccessState?.info?.bvid, currentBvid) {
+        // Loaded target matched; drop transitional cover.
+        if (
+            pendingInPageSwitchCoverUrl.isNotBlank() &&
+            uiSuccessState?.info?.bvid == currentBvid
+        ) {
+            pendingInPageSwitchCoverUrl = ""
+        }
+    }
+    val videoPlayerSectionTarget = remember(
+        bvid,
+        coverUrl,
+        currentBvid,
+        currentBvidCid,
+        pendingInPageSwitchCoverUrl,
+        uiSuccessState?.info?.ugc_season,
+        uiSuccessState?.info?.pic,
+        uiSuccessState?.info?.bvid
+    ) {
+        val successCover = uiSuccessState
+            ?.takeIf { it.info.bvid == currentBvid }
+            ?.info
+            ?.pic
+            .orEmpty()
+        val seasonCover = resolveUgcSeasonEpisodeCoverUrl(
+            ugcSeason = uiSuccessState?.info?.ugc_season,
+            targetBvid = currentBvid,
+            targetCid = currentBvidCid
+        )
         resolveVideoPlayerSectionTarget(
             routeBvid = bvid,
             routeCoverUrl = coverUrl,
-            currentBvid = currentBvid
+            currentBvid = currentBvid,
+            switchedCoverUrl = listOf(
+                pendingInPageSwitchCoverUrl,
+                seasonCover,
+                successCover
+            ).firstOrNull { it.isNotBlank() }.orEmpty()
         )
     }
     val shouldSuppressSubtitleOverlay = suppressOverlayControlsForReturn || (
@@ -2693,6 +2737,7 @@ internal fun VideoDetailScreenStateHolder(
                     // 🔗 [新增] 分享功能
                     bvid = videoPlayerSectionTarget.bvid,
                     coverUrl = videoPlayerSectionTarget.entryCoverUrl,
+                    sharedElementBvid = videoPlayerSectionTarget.sharedElementBvid,
                     //  实验性功能：双击点赞
                     onDoubleTapLike = { engagementViewModel.toggleLike() },
                     sponsorSegment = sponsorSegment,
@@ -3142,17 +3187,23 @@ internal fun VideoDetailScreenStateHolder(
                         )
 
                         //  为播放器容器添加共享元素标记（封面 ↔ 播放器区域映射）
+                        // shell 已接管时禁止再挂 cover sharedBounds（默认 Center 会往屏幕中心飞）。
                         val isFullscreenTarget = activeVideoSharedTransitionVisualSpec.fillTargetViewport
-                        val playerContainerModifier = if (
-                            shouldEnableVideoCoverSharedTransition(
-                                transitionEnabled = detailChildTransitionEnabled,
-                                hasSharedTransitionScope = sharedTransitionScope != null,
-                                hasAnimatedVisibilityScope = animatedVisibilityScope != null
-                            ) &&
-                            activeVideoSharedTransitionVisualSpec.useCoverSharedBounds &&
-                            videoSharedPlaybackIntent == VideoSharedTransitionPlaybackIntent.ImmediatePlayback &&
-                            !forceCoverOnlyForReturn
-                        ) {
+                        val attachPlayerCoverSharedBounds =
+                            com.android.purebilibili.core.ui.transition.shouldAttachVideoDetailCoverSharedBounds(
+                                coverSharedBoundsEnabled =
+                                    shouldEnableVideoCoverSharedTransition(
+                                        transitionEnabled = detailChildTransitionEnabled,
+                                        hasSharedTransitionScope = sharedTransitionScope != null,
+                                        hasAnimatedVisibilityScope = animatedVisibilityScope != null
+                                    ) &&
+                                        activeVideoSharedTransitionVisualSpec.useCoverSharedBounds,
+                                detailShellSharedBoundsEnabled = detailShellSharedBoundsEnabled,
+                                immediatePlayback = videoSharedPlaybackIntent ==
+                                    VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+                                forceCoverOnlyForReturn = forceCoverOnlyForReturn,
+                            )
+                        val playerContainerModifier = if (attachPlayerCoverSharedBounds) {
                             with(requireNotNull(sharedTransitionScope)) {
                                 Modifier
                                     .sharedBounds(
@@ -3178,6 +3229,10 @@ internal fun VideoDetailScreenStateHolder(
                                                 durationMillis = duration
                                             )
                                         },
+                                        resizeMode = com.android.purebilibili.core.ui.transition
+                                            .resolveVideoCardSharedBoundsResizeMode(
+                                                fillFullscreenShell = isFullscreenTarget,
+                                            ),
                                         clipInOverlayDuringTransition = OverlayClip(
                                             RoundedCornerShape(
                                                 resolveVideoDetailShellOverlayCornerDp(

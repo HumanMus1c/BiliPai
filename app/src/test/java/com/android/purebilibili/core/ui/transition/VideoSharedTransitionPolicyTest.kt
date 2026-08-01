@@ -379,10 +379,30 @@ class VideoSharedTransitionPolicyTest {
             "src/main/java/com/android/purebilibili/core/ui/transition/VideoCardShellSharedBounds.kt"
         ).readText()
 
+        // 统一走 resolveVideoCardSharedBoundsResizeMode，避免各 call-site 默认 Center
+        assertTrue(helperSource.contains("fun resolveVideoCardSharedBoundsResizeMode("))
         // 默认详情壳：FillWidth + TopCenter，对齐顶部播放器落点
         assertTrue(helperSource.contains("scaleToBounds(ContentScale.FillWidth, Alignment.TopCenter)"))
         // 竖屏全屏壳：FillBounds/Crop + Center（整卡展开）
         assertTrue(helperSource.contains("scaleToBounds(ContentScale.Crop, Alignment.Center)"))
+        // shell 生效时详情侧不得再挂 cover sharedBounds（默认 Center 会往中间飞）
+        assertTrue(helperSource.contains("fun shouldAttachVideoDetailCoverSharedBounds("))
+        assertFalse(
+            shouldAttachVideoDetailCoverSharedBounds(
+                coverSharedBoundsEnabled = true,
+                detailShellSharedBoundsEnabled = true,
+                immediatePlayback = true,
+                forceCoverOnlyForReturn = false,
+            )
+        )
+        assertTrue(
+            shouldAttachVideoDetailCoverSharedBounds(
+                coverSharedBoundsEnabled = true,
+                detailShellSharedBoundsEnabled = false,
+                immediatePlayback = true,
+                forceCoverOnlyForReturn = false,
+            )
+        )
     }
 
     @Test
@@ -701,11 +721,8 @@ class VideoSharedTransitionPolicyTest {
             relatedCardSource.indexOf(".onGloballyPositioned") <
                 relatedCardSource.indexOf(".videoCardShellSharedBoundsOrEmpty(")
         )
-        assertTrue(
-            relatedCardSource.indexOf(".videoCardShellSharedBoundsOrEmpty(") <
-                relatedCardSource.indexOf(".padding(8.dp)")
-        )
-        assertTrue(relatedCardSource.contains("clipShape = cardShape"))
+        // 相关横卡 shell 锚在封面矩形上（非整行），避免预测返回中间态落在行中心。
+        assertTrue(relatedCardSource.contains("clipShape = coverShape"))
         assertTrue(relatedCardSource.contains("crossfadeSourceContent = true"))
         assertFalse(relatedCardSource.contains("videoCardShellReturnChromeAlpha("))
         assertFalse(relatedCardSource.contains("followShellMotion = true"))

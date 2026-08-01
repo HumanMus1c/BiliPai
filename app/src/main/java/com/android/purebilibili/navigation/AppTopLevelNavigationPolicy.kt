@@ -140,13 +140,14 @@ internal fun resolveVideoCardSourceRouteForNavigation(
         ?.takeIf { route -> lastClickedVideoSourceKey == "$route:$videoBvid" }
     if (currentRouteMatch != null) return currentRouteMatch
 
-    return visibleBottomBarRoutes.firstOrNull { route ->
+    // Bottom-bar tabs first (MainHost top is not the card host).
+    visibleBottomBarRoutes.firstOrNull { route ->
         lastClickedVideoSourceKey == "$route:$videoBvid"
-    } ?: resolveClickedVideoSourceRoute(lastClickedVideoSourceKey, videoBvid)
-        ?.takeIf { route ->
-            val routeBaseForBottomBar = normalizeVideoCardNavigationSourceRoute(route)
-            routeBaseForBottomBar in visibleBottomBarRoutes
-        }
+    }?.let { return it }
+
+    // Search / Space / History / video-related / collection hosts are not bottom-bar routes.
+    // Still honor the recorded card key so predictive-back sharedBounds land on the same route.
+    return resolveClickedVideoSourceRoute(lastClickedVideoSourceKey, videoBvid)
 }
 
 private fun normalizeVideoCardNavigationSourceRoute(route: String?): String? {

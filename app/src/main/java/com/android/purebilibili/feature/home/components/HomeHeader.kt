@@ -1324,7 +1324,8 @@ internal fun Modifier.homeTopChromeSurface(
             motionTier = motionTier,
             isTransitionRunning = isTransitionRunning,
             forceLowBlurBudget = forceLowBlurBudget,
-            drawShellLens = true,
+            // 顶栏/搜索小胶囊关闭 shell lens，避免 iOS 主题复用安卓原生液态玻璃时的边沿虾线。
+            drawShellLens = false,
             isScrolling = isScrolling
         )
     }

@@ -886,6 +886,10 @@ fun AppNavigation(
                 )
                 .markDetailEntered(SystemClock.uptimeMillis())
             miniPlayerManager?.isNavigatingToVideo = true
+            // 合集列表 / 详情压详情：进新片前立刻挂起上一级仍在响的 player，避免只听见旧声音。
+            if (videoBvid.isNotBlank()) {
+                miniPlayerManager?.haltForeignPlaybackForIncomingVideo(videoBvid)
+            }
             miniPlayerManager?.exitMiniMode(animate = false)
             val key = when (parsedKey) {
                 is BiliPaiNavKey.VideoDetail -> {
@@ -1876,7 +1880,8 @@ fun AppNavigation(
                                                         resolvedCid,
                                                         cover,
                                                         resumePositionMs = resumePositionMs,
-                                                        initialVertical = isVertical
+                                                        initialVertical = isVertical,
+                                                        sourceRoute = ScreenRoutes.History.route
                                                     )
                                                 }
                                             }
@@ -1895,7 +1900,8 @@ fun AppNavigation(
                                                         resolvedCid,
                                                         cover,
                                                         resumePositionMs = resumePositionMs,
-                                                        initialVertical = isVertical
+                                                        initialVertical = isVertical,
+                                                        sourceRoute = ScreenRoutes.History.route
                                                     )
                                                 }
                                             }
@@ -1926,7 +1932,8 @@ fun AppNavigation(
                                                         resolvedCid,
                                                         cover,
                                                         resumePositionMs = resumePositionMs,
-                                                        initialVertical = isVertical
+                                                        initialVertical = isVertical,
+                                                        sourceRoute = ScreenRoutes.History.route
                                                     )
                                                 }
                                             }
@@ -1936,7 +1943,8 @@ fun AppNavigation(
                                                     resolvedCid,
                                                     cover,
                                                     resumePositionMs = resumePositionMs,
-                                                    initialVertical = isVertical
+                                                    initialVertical = isVertical,
+                                                    sourceRoute = ScreenRoutes.History.route
                                                 )
                                             }
                                         }
@@ -1945,7 +1953,14 @@ fun AppNavigation(
                             }
                         BiliPaiNavEntryContentRole.DYNAMIC -> DynamicScreen(
                             isCurrentPage = isBottomPagerPageActive,
-                            onVideoClick = { bvid -> navigateToVideoInNavigation3(bvid, 0L, "") },
+                            onVideoClick = { bvid ->
+                                navigateToVideoInNavigation3(
+                                    bvid = bvid,
+                                    cid = 0L,
+                                    coverUrl = "",
+                                    sourceRoute = ScreenRoutes.Dynamic.route
+                                )
+                            },
                             onBangumiClick = { seasonId, epId ->
                                 if (seasonId > 0L || epId > 0L) {
                                     pushNavigation3Route(ScreenRoutes.BangumiDetail.createRoute(seasonId, epId))
@@ -1986,11 +2001,11 @@ fun AppNavigation(
                                 },
                                 onBack = { performSystemBackAction() },
                                 onOpenTrending = { pushNavigation3Key(BiliPaiNavKey.SearchTrending) },
-                                onVideoClick = { bvid, cid ->
+                                onVideoClick = { bvid, cid, coverUrl ->
                                     navigateToVideoInNavigation3(
                                         bvid = bvid,
                                         cid = cid,
-                                        coverUrl = "",
+                                        coverUrl = coverUrl,
                                         sourceRoute = ScreenRoutes.Search.route
                                     )
                                 },
@@ -2228,10 +2243,13 @@ fun AppNavigation(
                                     val targetCid = options?.getLong(
                                         com.android.purebilibili.feature.video.screen.VIDEO_NAV_TARGET_CID_KEY
                                     ) ?: 0L
+                                    val coverUrl = options?.getString(
+                                        com.android.purebilibili.feature.video.screen.VIDEO_NAV_COVER_URL_KEY
+                                    ).orEmpty()
                                     navigateToVideoInNavigation3(
                                         bvid = vid,
                                         cid = targetCid,
-                                        coverUrl = "",
+                                        coverUrl = coverUrl,
                                         sourceRoute = "video/${videoKey.bvid}"
                                     )
                                 },
@@ -2464,15 +2482,22 @@ fun AppNavigation(
                                 com.android.purebilibili.feature.watchlater.WatchLaterScreen(
                                     onBack = { performSystemBackAction() },
                                     onVideoClick = { bvid, cid, resumePositionMs ->
-                                        navigateToVideoInNavigation3(bvid, cid, "", resumePositionMs = resumePositionMs)
+                                        navigateToVideoInNavigation3(
+                                            bvid = bvid,
+                                            cid = cid,
+                                            coverUrl = "",
+                                            resumePositionMs = resumePositionMs,
+                                            sourceRoute = ScreenRoutes.WatchLater.route
+                                        )
                                     },
                                     onPlayAllAudioClick = { bvid, cid, resumePositionMs ->
                                         navigateToVideoInNavigation3(
-                                            bvid,
-                                            cid,
-                                            "",
+                                            bvid = bvid,
+                                            cid = cid,
+                                            coverUrl = "",
                                             startAudio = true,
-                                            resumePositionMs = resumePositionMs
+                                            resumePositionMs = resumePositionMs,
+                                            sourceRoute = ScreenRoutes.WatchLater.route
                                         )
                                     },
                                     viewModel = watchLaterViewModel,
@@ -2684,7 +2709,8 @@ fun AppNavigation(
                                             bvid = bvid,
                                             cid = cid,
                                             coverUrl = cover,
-                                            initialVertical = isVertical
+                                            initialVertical = isVertical,
+                                            sourceRoute = ScreenRoutes.LikedVideos.route
                                         )
                                     }
                                 )
@@ -2893,10 +2919,11 @@ fun AppNavigation(
                                     onBack = { performSystemBackAction() },
                                     onVideoClick = { bvid, cid, resumePositionMs ->
                                         navigateToVideoInNavigation3(
-                                            bvid,
-                                            cid,
-                                            "",
-                                            resumePositionMs = resumePositionMs
+                                            bvid = bvid,
+                                            cid = cid,
+                                            coverUrl = "",
+                                            resumePositionMs = resumePositionMs,
+                                            sourceRoute = spaceKey.toLegacyRoute()
                                         )
                                     },
                                     onAudioClick = { sid ->
@@ -2912,11 +2939,12 @@ fun AppNavigation(
                                     },
                                     onPlayAllAudioClick = { bvid, resumePositionMs ->
                                         navigateToVideoInNavigation3(
-                                            bvid,
-                                            0L,
-                                            "",
+                                            bvid = bvid,
+                                            cid = 0L,
+                                            coverUrl = "",
                                             startAudio = true,
-                                            resumePositionMs = resumePositionMs
+                                            resumePositionMs = resumePositionMs,
+                                            sourceRoute = spaceKey.toLegacyRoute()
                                         )
                                     },
                                     onDynamicDetailClick = { dynamicId ->

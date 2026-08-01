@@ -210,11 +210,12 @@ private fun FloatingLiquidBottomInputBar(
             shape = shellShape,
             modifier = Modifier.fillMaxWidth(),
             backdrop = backdrop,
+            // 外层整条保留液态玻璃（含 shell lens）；内层提示框不再嵌套 liquid dock。
+            drawShellLens = true,
             isScrollInProgressProvider = isScrollInProgressProvider
         ) {
             FloatingLiquidBottomInputBarContentRow(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                backdrop = backdrop,
                 commentFieldShape = shellShape,
                 inputTextColor = inputTextColor,
                 isLiked = isLiked,
@@ -233,7 +234,6 @@ private fun FloatingLiquidBottomInputBar(
 @Composable
 private fun FloatingLiquidBottomInputBarContentRow(
     modifier: Modifier,
-    backdrop: Backdrop?,
     commentFieldShape: androidx.compose.ui.graphics.Shape,
     inputTextColor: Color,
     isLiked: Boolean,
@@ -255,22 +255,24 @@ private fun FloatingLiquidBottomInputBarContentRow(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        BottomBarMatchedReusableLiquidDock(
-            shape = commentFieldShape,
+        // 外层壳已是液态玻璃：内层提示框用实心半透明，禁止嵌套 liquid dock
+        // （嵌套 refraction 边沿会出现「虾线」，且 content padding 易丢失）。
+        Box(
             modifier = Modifier
                 .weight(1f)
                 .height(36.dp)
+                .clip(commentFieldShape)
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                 .clickable { onCommentClick() }
                 .padding(horizontal = 12.dp),
-            backdrop = backdrop
+            contentAlignment = Alignment.CenterStart
         ) {
             AppText(
                 text = "评论 UP 主和大家...",
                 color = inputTextColor,
                 fontSize = 14.sp,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.align(Alignment.CenterStart)
+                overflow = TextOverflow.Ellipsis
             )
         }
 

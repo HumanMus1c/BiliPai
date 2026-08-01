@@ -257,16 +257,6 @@ fun RelatedVideoItem(
             .onGloballyPositioned { coordinates ->
                 cardBoundsRef.value = coordinates.boundsInRoot()
             }
-            .videoCardShellSharedBoundsOrEmpty(
-                enabled = useCardShellSharedBounds,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-                bvid = video.bvid,
-                sourceRoute = sourceRoute,
-                motionSpec = cardSharedTransitionMotionSpec,
-                clipShape = cardShape,
-                crossfadeSourceContent = true
-            )
             .clip(cardShape)
             .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = triggerRelatedVideoClick)
@@ -274,10 +264,22 @@ fun RelatedVideoItem(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Anchor sharedBounds to the cover only (not the full horizontal row) so predictive-back
+        // lands on the same visual rect as home cards and avoids mid-row horizontal misalignment.
         Box(
             modifier = Modifier
                 .width(coverWidth)
                 .height(coverHeight)
+                .videoCardShellSharedBoundsOrEmpty(
+                    enabled = useCardShellSharedBounds,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    bvid = video.bvid,
+                    sourceRoute = sourceRoute,
+                    motionSpec = cardSharedTransitionMotionSpec,
+                    clipShape = coverShape,
+                    crossfadeSourceContent = true
+                )
                 .clip(coverShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {

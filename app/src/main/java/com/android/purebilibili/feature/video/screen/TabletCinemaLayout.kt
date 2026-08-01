@@ -431,6 +431,8 @@ private fun CinemaStagePlayer(
             Modifier.sharedBounds(
                 sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey(bvid)),
                 animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
+                resizeMode = com.android.purebilibili.core.ui.transition
+                    .resolveVideoCardSharedBoundsResizeMode(),
                 clipInOverlayDuringTransition = OverlayClip(
                     RoundedCornerShape(12.dp)
                 )
@@ -1394,10 +1396,12 @@ private fun CinemaRelatedPane(
                             android.app.ActivityOptions.makeSceneTransitionAnimation(it).toBundle()
                         }
                         val navOptions = android.os.Bundle(options ?: android.os.Bundle.EMPTY)
-                        if (video.cid > 0L) {
-                            navOptions.putLong(VIDEO_NAV_TARGET_CID_KEY, video.cid)
-                        }
-                        onRelatedVideoClick(video.bvid, navOptions)
+                        val withMedia = buildVideoNavigationOptions(
+                            base = navOptions,
+                            targetCid = video.cid,
+                            coverUrl = video.pic
+                        ) ?: navOptions
+                        onRelatedVideoClick(video.bvid, withMedia)
                     },
                     onVideoHidden = { video ->
                         hiddenRelatedBvids = hiddenRelatedBvids + video.bvid

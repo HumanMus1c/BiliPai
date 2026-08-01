@@ -2832,6 +2832,8 @@ private fun Modifier.spaceVideoCoverSharedBounds(
                     com.android.purebilibili.core.ui.motion.AppMotionTokens.spatialSpec()
                 }
             },
+            resizeMode = com.android.purebilibili.core.ui.transition
+                .resolveVideoCardSharedBoundsResizeMode(),
             clipInOverlayDuringTransition = OverlayClip(coverShape)
         )
     }

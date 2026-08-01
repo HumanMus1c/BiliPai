@@ -536,7 +536,7 @@ fun SearchScreen(
     onInitialKeywordConsumed: (String) -> Unit = {},
     onBack: () -> Unit,
     onOpenTrending: () -> Unit,
-    onVideoClick: (String, Long) -> Unit,
+    onVideoClick: (String, Long, String) -> Unit,
     onWebClick: (String, String) -> Unit,
     onUpClick: (Long) -> Unit,  //  点击UP主跳转到空间
     onBangumiClick: (Long) -> Unit, //  点击番剧/影视跳转详情
@@ -1040,7 +1040,7 @@ fun SearchScreen(
                                                     )
                                                 ) {
                                                     is SearchResultNavigationTarget.Video ->
-                                                        onVideoClick(target.bvid, 0)
+                                                        onVideoClick(target.bvid, 0, video.pic)
                                                     is SearchResultNavigationTarget.Web ->
                                                         onWebClick(target.url, target.title)
                                                     else -> Unit
@@ -1801,6 +1801,9 @@ fun SearchTopBar(
                         .weight(1f)
                         // 固定输入高度：禁止 fillMaxSize 吃掉 Column 剩余高度变成竖条胶囊。
                         .height(chromeSpec.inputHeightDp.dp),
+                    // 搜索小胶囊关闭 shell lens，避免安卓原生液态玻璃边沿「虾线」
+                    // （iOS/MD3 主题复用底栏玻璃时尤其明显）。
+                    drawShellLens = false,
                     isScrollInProgressProvider = isScrollInProgressProvider
                 ) { liquidChromeActive ->
                     AppSearchField(

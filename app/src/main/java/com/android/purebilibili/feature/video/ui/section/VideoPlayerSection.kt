@@ -395,6 +395,11 @@ fun VideoPlayerSection(
     // 🔗 [新增] 分享功能
     bvid: String = "",
     coverUrl: String = "",
+    /**
+     * Shared-element key identity. Prefer route-entry bvid during in-page collection switches so
+     * SharedTransition does not rekey the live player surface into a black frame.
+     */
+    sharedElementBvid: String = "",
     //  实验性功能：双击点赞
     onDoubleTapLike: () -> Unit = {},
     //  空降助手
@@ -752,6 +757,14 @@ fun VideoPlayerSection(
     var observedPlaybackSpeed by remember(playerState.player) {
         mutableFloatStateOf(playerState.player.playbackParameters.speed)
     }
+    // Player 的 playWhenReady/isPlaying 不是 Snapshot 状态：必须镜像进 Compose，
+    // 否则合集 halt / 换片后封面与 surface 可见性不会跟着刷新。
+    var observedPlayWhenReady by remember(playerState.player) {
+        mutableStateOf(playerState.player.playWhenReady)
+    }
+    var observedIsPlaying by remember(playerState.player) {
+        mutableStateOf(playerState.player.isPlaying)
+    }
     var keepVideoPlaybackAwake by remember(playerState.player) {
         mutableStateOf(
             shouldKeepVideoPlaybackAwake(
@@ -762,17 +775,20 @@ fun VideoPlayerSection(
         )
     }
     DisposableEffect(playerState.player) {
-        fun updateKeepScreenAwake() {
+        fun syncPlayerObservation() {
+            val player = playerState.player
+            observedPlayWhenReady = player.playWhenReady
+            observedIsPlaying = player.isPlaying
             keepVideoPlaybackAwake = shouldKeepVideoPlaybackAwake(
-                playWhenReady = playerState.player.playWhenReady,
-                isPlaying = playerState.player.isPlaying,
-                playbackState = playerState.player.playbackState
+                playWhenReady = player.playWhenReady,
+                isPlaying = player.isPlaying,
+                playbackState = player.playbackState
             )
         }
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 isBuffering = playbackState == Player.STATE_BUFFERING
-                updateKeepScreenAwake()
+                syncPlayerObservation()
                 val now = android.os.SystemClock.elapsedRealtime()
                 if (playbackState == Player.STATE_BUFFERING) {
                     if (bufferingStartedAtMs == 0L) {
@@ -801,23 +817,23 @@ fun VideoPlayerSection(
                 }
             }
 
-            override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
-                observedPlaybackSpeed = playbackParameters.speed
-            }
-
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                updateKeepScreenAwake()
+                syncPlayerObservation()
             }
 
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                updateKeepScreenAwake()
+                syncPlayerObservation()
+            }
+
+            override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+                observedPlaybackSpeed = playbackParameters.speed
             }
         }
         playerState.player.addListener(listener)
         // 初始化状态
         isBuffering = playerState.player.playbackState == Player.STATE_BUFFERING
         observedPlaybackSpeed = playerState.player.playbackParameters.speed
-        updateKeepScreenAwake()
+        syncPlayerObservation()
         onDispose {
             playerState.player.removeListener(listener)
         }
@@ -1020,7 +1036,10 @@ fun VideoPlayerSection(
     val anime4kSurfaceReady = shouldUseAnime4kPipeline && anime4kInputSurface != null
     val anime4kFrameVisible = anime4kSurfaceReady && anime4kDisplayedFirstFrame
     val shouldBindDirectPlayerView = shouldBindInlinePlayerView && !anime4kSurfaceReady
+    // In-page collection switches replace the player/router while reusing the same PlayerView.
+    // Key the effect by the router so the new player always receives the existing video surface.
     LaunchedEffect(
+        videoOutputRouter,
         playerViewRef,
         anime4kInputSurface,
         shouldBindInlinePlayerView,
@@ -1416,10 +1435,15 @@ fun VideoPlayerSection(
             hasAnimatedVisibilityScope = animatedVisibilityScope != null,
             forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation
         )
-    if (bvid.isNotEmpty() && livePlayerSharedElementEnabled) {
+    val resolvedSharedElementBvid = sharedElementBvid.trim().ifBlank { bvid }
+    if (resolvedSharedElementBvid.isNotEmpty() && livePlayerSharedElementEnabled) {
          with(requireNotNull(sharedTransitionScope)) {
              rootModifier = rootModifier.sharedElement(
-                 sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoPlayerSharedElementKey(bvid)),
+                 sharedContentState = rememberSharedContentState(
+                     key = com.android.purebilibili.core.ui.transition.videoPlayerSharedElementKey(
+                         resolvedSharedElementBvid
+                     )
+                 ),
                  animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                  boundsTransform = { _, _ ->
                      com.android.purebilibili.core.ui.motion.AppMotionTokens.spatialSpec()
@@ -2342,6 +2366,37 @@ fun VideoPlayerSection(
             }
         }
 
+        // 合集/页内换片：bvid 或 Success 媒体就绪后强制重绑 surface，避免只听声音、画面黑屏。
+        val successPlaybackIdentity = (uiState as? VideoPlaybackUiState.Success)?.let { success ->
+            "${success.info.bvid}_${success.info.cid}_${success.playUrl.hashCode()}"
+        }
+        LaunchedEffect(
+            bvid,
+            successPlaybackIdentity,
+            playerViewRef,
+            shouldBindInlinePlayerView,
+            isInPipMode
+        ) {
+            if (successPlaybackIdentity.isNullOrBlank()) return@LaunchedEffect
+            if (!shouldBindInlinePlayerView || isInPipMode) return@LaunchedEffect
+            val player = playerState.player
+            if (playerViewRef == null || player.mediaItemCount <= 0) return@LaunchedEffect
+            videoOutputRouter.rebindDirectSurfaceIfNeeded()
+            if (
+                shouldKickPlaybackAfterSurfaceRecovery(
+                    playWhenReady = player.playWhenReady,
+                    isPlaying = player.isPlaying,
+                    playbackState = player.playbackState,
+                    hasPlaybackResumeIntent = player.playWhenReady
+                )
+            ) {
+                player.play()
+            }
+            Logger.d("VideoPlayerSection") {
+                "🎬 In-page media switch surface rebind: bvid=$bvid identity=$successPlaybackIdentity"
+            }
+        }
+
         LaunchedEffect(
             predictiveBackCancelRecoveryGeneration,
             playerViewRef,
@@ -2576,22 +2631,32 @@ fun VideoPlayerSection(
             }
         }
         
-        //  [修复] 使用 LifecycleOwner 监听真正的 Activity 生命周期
-        // DisposableEffect(Unit) 会在横竖屏切换时触发，导致 player 引用被清除
-        //  [关键修复] 添加 ON_RESUME 事件，确保从其他视频返回后重新绑定弹幕播放器
-        DisposableEffect(lifecycleOwner, playerState.player) {
+        // Activity 生命周期监听必须只跟随 LifecycleOwner。合集内换片会替换 Player，若把 Player
+        // 作为 effect key，重新注册的 observer 会立刻收到当前 ON_RESUME，误触发前台 Surface 恢复。
+        val lifecyclePlayer by rememberUpdatedState(playerState.player)
+        val lifecycleIsPortraitFullscreen by rememberUpdatedState(isPortraitFullscreen)
+        val lifecycleIsInPipMode by rememberUpdatedState(isInPipMode)
+        val lifecyclePlayerView by rememberUpdatedState(playerViewRef)
+        val lifecycleVideoOutputRouter by rememberUpdatedState(videoOutputRouter)
+        DisposableEffect(lifecycleOwner) {
+            var hasObservedHostPause = false
             val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
                 when (event) {
                     androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
-                        //  [关键修复] 返回页面时重新绑定弹幕播放器
-                        // 解决导航到其他视频后返回，弹幕暂停失效的问题
                         android.util.Log.d("VideoPlayerSection", " ON_RESUME: Re-attaching danmaku player")
-                        danmakuManager.attachPlayer(playerState.player)
-                        val player = playerState.player
+                        val player = lifecyclePlayer
+                        danmakuManager.attachPlayer(player)
+                        if (!hasObservedHostPause) {
+                            Logger.d("VideoPlayerSection") {
+                                "ON_RESUME skipped foreground recovery (initial lifecycle sync)"
+                            }
+                            return@LifecycleEventObserver
+                        }
+                        hasObservedHostPause = false
                         if (!shouldBindInlinePlayerViewToPlayer(
-                                isPortraitFullscreen = isPortraitFullscreen,
+                                isPortraitFullscreen = lifecycleIsPortraitFullscreen,
                                 hostLifecycleStarted = true,
-                                isInPipMode = isInPipMode
+                                isInPipMode = lifecycleIsInPipMode
                             )
                         ) {
                             return@LifecycleEventObserver
@@ -2607,18 +2672,18 @@ fun VideoPlayerSection(
                             "🌅 ON_RESUME recovery start: pos=${player.currentPosition}, buffered=${player.bufferedPosition}, " +
                                 "state=${player.playbackState}, playing=${player.isPlaying}, playWhenReady=${player.playWhenReady}, " +
                                 "needsSurfaceRecovery=$needsSurfaceRecovery, " +
-                                "surface=${playerViewRef?.videoSurfaceView?.javaClass?.simpleName}"
+                                "surface=${lifecyclePlayerView?.videoSurfaceView?.javaClass?.simpleName}"
                         }
                         val shouldRebindSurface = shouldRebindPlayerSurfaceOnForeground(
-                            hasPlayerView = playerViewRef != null,
-                            isInPipMode = isInPipMode,
+                            hasPlayerView = lifecyclePlayerView != null,
+                            isInPipMode = lifecycleIsInPipMode,
                             videoWidth = player.videoSize.width,
                             videoHeight = player.videoSize.height,
                             needsSurfaceRecovery = needsSurfaceRecovery
                         )
                         if (shouldRebindSurface) {
-                            playerViewRef?.let { playerView ->
-                                videoOutputRouter.rebindDirectSurfaceIfNeeded()
+                            lifecyclePlayerView?.let {
+                                lifecycleVideoOutputRouter.rebindDirectSurfaceIfNeeded()
                                 Logger.d("VideoPlayerSection") {
                                     "🎬 ON_RESUME surface rebind applied"
                                 }
@@ -2646,6 +2711,9 @@ fun VideoPlayerSection(
                             playbackState = player.playbackState
                         )
                     }
+                    androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> {
+                        hasObservedHostPause = true
+                    }
                     androidx.lifecycle.Lifecycle.Event.ON_DESTROY -> {
                         android.util.Log.d("VideoPlayerSection", " ON_DESTROY: Clearing danmaku references")
                         danmakuManager.clearViewReference()
@@ -2670,13 +2738,13 @@ fun VideoPlayerSection(
         var hasManualStartPlaybackIntent by remember(bvid) {
             mutableStateOf(
                 playerState.player.mediaItemCount > 0 &&
-                    (playerState.player.playWhenReady || playerState.player.isPlaying)
+                    (observedPlayWhenReady || observedIsPlaying)
             )
         }
-        LaunchedEffect(uiState, playerState.player.playWhenReady, playerState.player.isPlaying) {
+        LaunchedEffect(uiState, observedPlayWhenReady, observedIsPlaying) {
             if (
                 playerState.player.mediaItemCount > 0 &&
-                (playerState.player.playWhenReady || playerState.player.isPlaying)
+                (observedPlayWhenReady || observedIsPlaying)
             ) {
                 hasManualStartPlaybackIntent = true
             }
@@ -2686,7 +2754,7 @@ fun VideoPlayerSection(
             playPlayerFromUserAction(playerState.player)
         }
         val keepCoverForManualStart = shouldKeepCoverForManualStart(
-            playWhenReady = playerState.player.playWhenReady,
+            playWhenReady = observedPlayWhenReady,
             currentPositionMs = playerState.player.currentPosition,
             autoPlayEnabled = autoPlayOnOpenEnabled,
             hasManualStartPlaybackIntent = hasManualStartPlaybackIntent
@@ -2795,8 +2863,9 @@ fun VideoPlayerSection(
                         }
                         basePlayerView.apply {
                             playerViewRef = this
-                            // 视频输出绑定统一由 VideoOutputRouter 管理，避免和 Anime4K 切换发生 Surface 竞态。
-                            player = null
+                            // 普通直出同步绑定 PlayerView；Anime4K 仅在输入 Surface 就绪后接管。
+                            // 合集换片会替换 Player，不能等待后续 effect 才补绑，否则解码器可能无输出窗口。
+                            player = if (shouldBindDirectPlayerView) playerState.player else null
                             setKeepContentOnPlayerReset(
                                 shouldKeepInlinePlayerContentOnReset(
                                     isPortraitFullscreen = isPortraitFullscreen,
@@ -2826,6 +2895,7 @@ fun VideoPlayerSection(
                     },
                     update = { playerView ->
                         playerViewRef = playerView
+                        playerView.player = if (shouldBindDirectPlayerView) playerState.player else null
                         playerView.setKeepContentOnPlayerReset(
                             shouldKeepInlinePlayerContentOnReset(
                                 isPortraitFullscreen = isPortraitFullscreen,
@@ -3005,6 +3075,13 @@ fun VideoPlayerSection(
         LaunchedEffect(coverBootstrapState) {
             if (coverBootstrapState.isFirstFrameRendered) {
                 isFirstFrameRendered = true
+            }
+        }
+        // Media swap 会清空 debug firstFrame；同步清掉揭开状态，避免旧首帧标志立刻揭开成黑屏。
+        LaunchedEffect(persistedRenderedFirstFrame, bvid) {
+            if (!persistedRenderedFirstFrame) {
+                isFirstFrameRendered = false
+                hasStartedSmoothReveal = false
             }
         }
         // 换片或返回强制封面时清掉揭开标记，保证下次进场重新走封面→画面。
@@ -3245,6 +3322,8 @@ fun VideoPlayerSection(
                             targetBounds = targetBounds
                         )
                     },
+                    resizeMode = com.android.purebilibili.core.ui.transition
+                        .resolveVideoCardSharedBoundsResizeMode(),
                     clipInOverlayDuringTransition = OverlayClip(coverCardShape)
                 )
             }
