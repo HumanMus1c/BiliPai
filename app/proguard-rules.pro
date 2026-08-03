@@ -70,6 +70,12 @@
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
 
+# Navigation3 / Miuix 的预编译代码会直接调用本地 vendored 的
+# NavigationEventHandlerKt.NavigationBackHandler。该顶层类及其重载不能被
+# R8 改名或裁剪，否则发布包会抛出 NoSuchMethodError。
+-keep class androidx.navigationevent.compose.** { *; }
+-keep class androidx.navigationevent.** { *; }
+
 # Android 16 ART can reject the heavily optimized dex for the large Compose
 # VideoDetailScreen entrypoint. Keep this class unoptimized while preserving
 # R8 for the rest of the release build.

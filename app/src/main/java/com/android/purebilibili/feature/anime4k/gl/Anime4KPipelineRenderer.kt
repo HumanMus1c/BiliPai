@@ -9,8 +9,12 @@ import android.util.Log
 import android.view.Surface
 import com.android.purebilibili.feature.anime4k.Anime4KConfig
 import com.android.purebilibili.feature.anime4k.Anime4KPreset
+import com.android.purebilibili.feature.anime4k.VideoEnhancementAlgorithm
 import com.android.purebilibili.feature.anime4k.resolveAnime4KInputSize
 import com.android.purebilibili.feature.anime4k.resolveAnime4KRenderProfile
+import com.android.purebilibili.feature.anime4k.resolveFsr1TargetSize
+import com.android.purebilibili.feature.anime4k.resolveFsrRcasSharpnessStops
+import com.android.purebilibili.feature.anime4k.shouldApplyFsr1Enhancement
 import kotlin.math.roundToInt
 
 internal class Anime4KPipelineRenderer(
@@ -55,6 +59,8 @@ internal class Anime4KPipelineRenderer(
     private var accumulatedRenderNs = 0L
     private var externalProgram = 0
     private var displayProgram = 0
+    private var fsrEasuProgram = 0
+    private var fsrRcasProgram = 0
 
     override fun onSurfaceCreated(
         unused: javax.microedition.khronos.opengles.GL10?,
@@ -71,21 +77,7 @@ internal class Anime4KPipelineRenderer(
             externalProgram = createProgram(Anime4KShaders.EXTERNAL_COPY, "OES 输入转换")
             displayProgram = createProgram(Anime4KShaders.DISPLAY_COPY, "最终画面输出")
 
-            // 实际创建附件比仅检查扩展字符串更可靠，部分驱动会将能力提升到核心但不再列出扩展。
-            val rgba16fProbe = fboManager.obtain(
-                width = 1,
-                height = 1,
-                precision = FboPrecision.RGBA16F
-            )
-            fboManager.obtain(
-                width = 1,
-                height = 1,
-                precision = FboPrecision.R16F,
-                protectedTextureIds = setOf(rgba16fProbe.texture)
-            )
-            fboManager.release()
-
-            prepareShaderChain(config.preset)
+            prepareRenderPipeline(config)
             ensureInputSurface()
             GLES30.glDisable(GLES30.GL_BLEND)
             GLES30.glClearColor(0f, 0f, 0f, 0f)
@@ -136,12 +128,16 @@ internal class Anime4KPipelineRenderer(
     }
 
     fun setConfig(value: Anime4KConfig) {
-        if (config.preset == value.preset) return
+        val pipelineChanged = config.algorithm != value.algorithm || config.preset != value.preset
+        if (!pipelineChanged && config.fsrSharpness == value.fsrSharpness) return
         try {
             config = value
+            // FSR 锐度是逐帧上传的 uniform，拖动滑条时无需重建 shader/FBO 管线。
+            if (!pipelineChanged) return
+            notifiedFirstFrame = false
             fboManager.release()
             resetPerformanceStats()
-            prepareShaderChain(value.preset)
+            prepareRenderPipeline(value)
             // 切模型只更换 GL pass，不能重建解码 Surface，否则播放器可能重新选择视频流。
             ensureInputSurface()
         } catch (error: Throwable) {
@@ -220,6 +216,10 @@ internal class Anime4KPipelineRenderer(
     }
 
     private fun renderFrame() {
+        if (config.algorithm == VideoEnhancementAlgorithm.FSR_1_0) {
+            renderFsrFrame()
+            return
+        }
         val profile = resolveAnime4KRenderProfile(config.preset)
         val sourceWidth = inputWidth.takeIf { it > 0 } ?: outputWidth
         val sourceHeight = inputHeight.takeIf { it > 0 } ?: outputHeight
@@ -240,6 +240,129 @@ internal class Anime4KPipelineRenderer(
             nativeTarget = nativeTarget
         )
         drawDisplay(mainTarget)
+    }
+
+    /**
+     * 公开 Android 视频实现已验证的 FSR 路径：OES 直接执行 EASU 到 RGBA8，
+     * RCAS 再直接写入展示 Surface，避免额外的 OES 拷贝和半浮点附件。
+     */
+    private fun renderFsrFrame() {
+        val sourceWidth = inputWidth.takeIf { it > 0 } ?: outputWidth
+        val sourceHeight = inputHeight.takeIf { it > 0 } ?: outputHeight
+        val displayTransform = resolveAnime4KDisplayTransform(
+            outputWidth = outputWidth,
+            outputHeight = outputHeight,
+            sourceWidth = sourceWidth,
+            sourceHeight = sourceHeight,
+            scaleMode = displayScaleMode
+        )
+        val requestedWidth = (outputWidth * displayTransform.scaleX).roundToInt()
+        val requestedHeight = (outputHeight * displayTransform.scaleY).roundToInt()
+        if (
+            !shouldApplyFsr1Enhancement(
+                sourceWidth = sourceWidth,
+                sourceHeight = sourceHeight,
+                outputWidth = requestedWidth,
+                outputHeight = requestedHeight
+            )
+        ) {
+            // 明显高于屏幕分辨率的视频已经有足够采样信息，避免额外 GPU 负载。
+            val nativeSize = resolveAnime4KInputSize(sourceWidth, sourceHeight, maxTextureSize)
+            val nativeTarget = fboManager.obtain(
+                width = nativeSize.first,
+                height = nativeSize.second,
+                precision = FboPrecision.RGBA8
+            )
+            drawExternal(nativeTarget)
+            drawDisplay(nativeTarget)
+            return
+        }
+        val targetSize = resolveFsrTargetSize(
+            sourceWidth = sourceWidth,
+            sourceHeight = sourceHeight,
+            requestedWidth = requestedWidth,
+            requestedHeight = requestedHeight
+        )
+        val easuTarget = fboManager.obtain(
+            width = targetSize.first,
+            height = targetSize.second,
+            precision = FboPrecision.RGBA8
+        )
+        drawFsrEasu(easuTarget, sourceWidth, sourceHeight)
+        drawFsrRcas(easuTarget)
+    }
+
+    private fun resolveFsrTargetSize(
+        sourceWidth: Int,
+        sourceHeight: Int,
+        requestedWidth: Int,
+        requestedHeight: Int
+    ): Pair<Int, Int> {
+        return resolveFsr1TargetSize(
+            sourceWidth = sourceWidth,
+            sourceHeight = sourceHeight,
+            requestedWidth = requestedWidth,
+            requestedHeight = requestedHeight,
+            glMaxTextureSize = maxTextureSize
+        )
+    }
+
+    private fun drawFsrEasu(target: FboTarget, sourceWidth: Int, sourceHeight: Int) {
+        bindTarget(target)
+        GLES30.glUseProgram(fsrEasuProgram)
+        bindTexture(
+            program = fsrEasuProgram,
+            uniform = "uTexture",
+            target = GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+            texture = externalTextureId,
+            unit = 0
+        )
+        GLES30.glUniform2f(
+            GLES30.glGetUniformLocation(fsrEasuProgram, "uInputSize"),
+            sourceWidth.toFloat(),
+            sourceHeight.toFloat()
+        )
+        setVertexUniforms(fsrEasuProgram, textureMatrix, flipHorizontal, flipVertical)
+        QuadRenderUtils.draw(fsrEasuProgram)
+    }
+
+    private fun drawFsrRcas(target: FboTarget) {
+        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
+        GLES30.glViewport(0, 0, outputWidth, outputHeight)
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
+        GLES30.glUseProgram(fsrRcasProgram)
+        bindTexture(
+            program = fsrRcasProgram,
+            uniform = "uTexture",
+            target = GLES30.GL_TEXTURE_2D,
+            texture = target.texture,
+            unit = 0
+        )
+        GLES30.glUniform2f(
+            GLES30.glGetUniformLocation(fsrRcasProgram, "uTextureSize"),
+            target.width.toFloat(),
+            target.height.toFloat()
+        )
+        GLES30.glUniform1f(
+            GLES30.glGetUniformLocation(fsrRcasProgram, "uSharpnessStops"),
+            resolveFsrRcasSharpnessStops(config.fsrSharpness)
+        )
+        val displayTransform = resolveAnime4KDisplayTransform(
+            outputWidth = outputWidth,
+            outputHeight = outputHeight,
+            sourceWidth = inputWidth.takeIf { it > 0 } ?: target.width,
+            sourceHeight = inputHeight.takeIf { it > 0 } ?: target.height,
+            scaleMode = displayScaleMode
+        )
+        setVertexUniforms(
+            program = fsrRcasProgram,
+            matrix = identityMatrix,
+            horizontalFlip = false,
+            verticalFlip = false,
+            positionScaleX = displayTransform.scaleX,
+            positionScaleY = displayTransform.scaleY
+        )
+        QuadRenderUtils.draw(fsrRcasProgram)
     }
 
     private fun executeShaderChain(
@@ -463,6 +586,36 @@ internal class Anime4KPipelineRenderer(
             }
     }
 
+    private fun prepareRenderPipeline(value: Anime4KConfig) {
+        when (value.algorithm) {
+            VideoEnhancementAlgorithm.ANIME4K -> {
+                // 实际创建附件比仅检查扩展字符串更可靠。
+                val rgba16fProbe = fboManager.obtain(
+                    width = 1,
+                    height = 1,
+                    precision = FboPrecision.RGBA16F
+                )
+                fboManager.obtain(
+                    width = 1,
+                    height = 1,
+                    precision = FboPrecision.R16F,
+                    protectedTextureIds = setOf(rgba16fProbe.texture)
+                )
+                fboManager.release()
+                prepareShaderChain(value.preset)
+            }
+
+            VideoEnhancementAlgorithm.FSR_1_0 -> {
+                if (fsrEasuProgram == 0) {
+                    fsrEasuProgram = createProgram(Fsr1Shaders.EASU, "AMD FSR 1.0 EASU")
+                }
+                if (fsrRcasProgram == 0) {
+                    fsrRcasProgram = createProgram(Fsr1Shaders.RCAS, "AMD FSR 1.0 RCAS")
+                }
+            }
+        }
+    }
+
     private fun bindTarget(target: FboTarget) {
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, target.framebuffer)
         GLES30.glViewport(0, 0, target.width, target.height)
@@ -559,11 +712,15 @@ internal class Anime4KPipelineRenderer(
         buildSet {
             add(externalProgram)
             add(displayProgram)
+            add(fsrEasuProgram)
+            add(fsrRcasProgram)
             compiledPasses.values.forEach { add(it.program) }
         }.filter { it != 0 }
             .forEach(GLES30::glDeleteProgram)
         externalProgram = 0
         displayProgram = 0
+        fsrEasuProgram = 0
+        fsrRcasProgram = 0
         compiledPasses.clear()
         if (releaseInput) releaseInputSurface()
     }
@@ -571,7 +728,7 @@ internal class Anime4KPipelineRenderer(
     private fun failPipeline(error: Throwable) {
         if (failed) return
         failed = true
-        Log.e(TAG, "Anime4K CNN 渲染失败", error)
+        Log.e(TAG, "画质增强渲染失败", error)
         runCatching { releaseInputSurface() }
         onPipelineError(error)
     }
@@ -583,7 +740,8 @@ internal class Anime4KPipelineRenderer(
             val averageMs = accumulatedRenderNs / renderSampleCount / 1_000_000.0
             Log.d(
                 TAG,
-                "Anime4K CNN preset=${config.preset}, averageSubmitMs=${"%.2f".format(averageMs)}"
+                "algorithm=${config.algorithm}, preset=${config.preset}, " +
+                    "averageSubmitMs=${"%.2f".format(averageMs)}"
             )
             renderSampleCount = 0
             accumulatedRenderNs = 0L

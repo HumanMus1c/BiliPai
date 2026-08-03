@@ -96,6 +96,7 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.android.purebilibili.core.store.TabletCommentPanelWidthPreset
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
 import com.android.purebilibili.core.util.ShareUtils
 import com.android.purebilibili.data.model.response.BgmInfo
@@ -134,6 +135,7 @@ import com.android.purebilibili.feature.video.ui.section.VideoNoteEditorSheet
 import com.android.purebilibili.feature.video.ui.section.shouldShowAiSummaryEntry
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
+import com.android.purebilibili.feature.video.viewmodel.SponsorContributionUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
@@ -188,7 +190,8 @@ internal fun TabletCinemaLayout(
         com.android.purebilibili.feature.video.player.PlayMode.SEQUENTIAL,
     onPlayModeClick: () -> Unit = {},
     forceCoverOnlyOnReturn: Boolean = false,
-    predictiveBackCancelRecoveryGeneration: Int = 0
+    predictiveBackCancelRecoveryGeneration: Int = 0,
+    sponsorContributionState: SponsorContributionUiState = SponsorContributionUiState(),
 ) {
     val appContext = LocalContext.current
     val policy = remember(configuration.screenWidthDp, tabletCommentPanelWidthPreset) {
@@ -290,7 +293,8 @@ internal fun TabletCinemaLayout(
                     onRelatedVideoClick = onRelatedVideoClick,
                     playerMaxWidth = policy.playerMaxWidthDp.dp,
                     forceCoverOnlyOnReturn = forceCoverOnlyOnReturn,
-                    predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration
+                    predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
+                    sponsorContributionState = sponsorContributionState,
                 )
 
                 if (success != null) {
@@ -415,11 +419,16 @@ private fun CinemaStagePlayer(
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
     playerMaxWidth: Dp,
     forceCoverOnlyOnReturn: Boolean,
-    predictiveBackCancelRecoveryGeneration: Int
+    predictiveBackCancelRecoveryGeneration: Int,
+    sponsorContributionState: SponsorContributionUiState,
 ) {
     val success = uiState as? VideoPlaybackUiState.Success
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
+    val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
+    val sharedCoverShape = remember(sourceRoute) {
+        RoundedCornerShape(resolveVideoSharedTransitionSourceCornerDp(sourceRoute).dp)
+    }
     val playerContainerModifier = if (
         shouldEnableVideoCoverSharedTransition(
             transitionEnabled = transitionEnabled,
@@ -433,9 +442,7 @@ private fun CinemaStagePlayer(
                 animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                 resizeMode = com.android.purebilibili.core.ui.transition
                     .resolveVideoCardSharedBoundsResizeMode(),
-                clipInOverlayDuringTransition = OverlayClip(
-                    RoundedCornerShape(12.dp)
-                )
+                clipInOverlayDuringTransition = OverlayClip(sharedCoverShape)
             )
         }
     } else {
@@ -522,7 +529,13 @@ private fun CinemaStagePlayer(
                 onCoin = engagementActions.openCoinDialog,
                 onToggleFavorite = engagementActions.toggleFavorite,
                 onTriple = engagementActions.doTripleAction,
-                onSubtitleTrackSelected = playbackActions.selectSubtitleTrack
+                onSubtitleTrackSelected = playbackActions.selectSubtitleTrack,
+                sponsorContributionState = sponsorContributionState,
+                onSponsorContributionMarkBoundary = playbackActions.markSponsorContributionBoundary,
+                onSponsorContributionCategoryChange = playbackActions.setSponsorContributionCategory,
+                onSponsorContributionActionTypeChange = playbackActions.setSponsorContributionActionType,
+                onSponsorContributionSubmit = playbackActions.submitSponsorContribution,
+                onSponsorContributionCancel = playbackActions.cancelSponsorContribution,
             )
         }
     }
@@ -1047,7 +1060,11 @@ private fun CinemaSideCurtain(
 
                             HorizontalPager(
                                 state = pagerState,
-                                userScrollEnabled = true,
+                                userScrollEnabled = shouldEnableVideoContentHorizontalPagerSwipe(
+                                    currentPage = pagerState.currentPage,
+                                    commentPageIndex = 0,
+                                    isPagerScrollInProgress = pagerState.isScrollInProgress,
+                                ),
                                 modifier = Modifier.fillMaxSize()
                             ) { page ->
                                 when {

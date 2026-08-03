@@ -141,6 +141,43 @@ class VideoDetailReturnLoadBudgetPolicyTest {
     }
 
     @Test
+    fun committedReturn_detachesNonSharedDetailContentBeforeSourceChromeReveals() {
+        val secondaryContentAlpha = resolveVideoDetailReturnSecondaryContentAlphaPreview(
+            isCommittedCardReturn = true,
+        )
+
+        assertEquals(0f, secondaryContentAlpha, 0.0001f)
+        assertTrue(
+            shouldDetachSecondaryContentForReturnBudget(
+                resolveVideoDetailReturnVisualBudget(
+                    phase = VideoDetailReturnSessionPhase.Commit,
+                    hasRenderableLiveFrame = true,
+                    secondaryContentAlpha = secondaryContentAlpha,
+                ),
+            ),
+        )
+        assertEquals(
+            VideoDetailReturnPlayerMode.LiveMorph,
+            resolveVideoDetailReturnVisualBudget(
+                phase = VideoDetailReturnSessionPhase.Commit,
+                hasRenderableLiveFrame = true,
+                secondaryContentAlpha = secondaryContentAlpha,
+            ).playerMode,
+        )
+    }
+
+    @Test
+    fun uncommittedReturn_keepsDetailContentForPredictiveBackCancellation() {
+        assertEquals(
+            1f,
+            resolveVideoDetailReturnSecondaryContentAlphaPreview(
+                isCommittedCardReturn = false,
+            ),
+            0.0001f,
+        )
+    }
+
+    @Test
     fun depthBlurQuantum_isCoarserInLiteMode() {
         val full = resolveVideoDetailReturnDepthBlurQuantumPx(
             VideoDetailReturnDepthBlurMode.Full,

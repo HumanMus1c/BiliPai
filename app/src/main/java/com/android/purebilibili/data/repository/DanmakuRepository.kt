@@ -624,6 +624,55 @@ object DanmakuRepository {
     }
 
     /**
+     * 提交打分弹幕 (x/v2/dm/command/grade/post)
+     *
+     * 互动投票/打分弹幕的提交端点；gradeScore 为偶数，最大 10。
+     * 若后续拿到投票弹幕 (VIDEO_VOTE_MSG) 的真实提交端点，只需修改本方法。
+     *
+     * @param aid 稿件 aid
+     * @param cid 分P cid
+     * @param progress 弹幕出现时间 (毫秒)
+     * @param gradeId 打分/投票 ID (voteId / grade_id)
+     * @param gradeScore 分数 (偶数 2~10)
+     */
+    suspend fun submitGradeDanmaku(
+        aid: Long,
+        cid: Long,
+        progress: Long,
+        gradeId: String,
+        gradeScore: Int
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
+            if (csrf.isNullOrEmpty()) {
+                return@withContext Result.failure(Exception("请先登录"))
+            }
+            val id = gradeId.toLongOrNull()
+            if (id == null) {
+                return@withContext Result.failure(Exception("缺少打分 ID"))
+            }
+            val response = api.gradeDanmaku(
+                aid = aid,
+                cid = cid,
+                progress = progress,
+                gradeId = id,
+                gradeScore = gradeScore,
+                csrf = csrf
+            )
+            if (response.code == 0) {
+                com.android.purebilibili.core.util.Logger.d("DanmakuRepo", "✅ Grade danmaku submitted: grade_id=$gradeId score=$gradeScore")
+                Result.success(Unit)
+            } else {
+                android.util.Log.e("DanmakuRepo", "❌ gradeDanmaku failed: ${response.code} - ${response.message}")
+                Result.failure(Exception(mapSendDanmakuErrorMessage(response.code, response.message)))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DanmakuRepo", "❌ submitGradeDanmaku exception: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
      * 撤回弹幕
      * 
      * 仅能撤回自己 2 分钟内的弹幕，每天 3 次机会

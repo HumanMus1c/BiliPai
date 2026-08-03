@@ -12,6 +12,8 @@ import com.android.purebilibili.feature.video.ui.components.GesturePercentMotion
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
+import com.android.purebilibili.core.store.DanmakuSettingsScope
+import com.android.purebilibili.core.store.resolveDanmakuSettingsScope
 import com.android.purebilibili.feature.video.playback.session.PlaybackSeekSessionState
 import com.android.purebilibili.feature.video.playback.session.shouldUsePlaybackSeekSessionPosition
 import kotlin.math.abs
@@ -35,6 +37,24 @@ private const val LONG_PRESS_SPEED_UNLOCK_HOLD_MS = 1_000L
 internal const val LONG_PRESS_SPEED_LOCK_ZONE_HEIGHT_DP = 96
 internal const val FOREGROUND_SURFACE_RECOVERY_DELAY_MS = 80L
 internal const val FOREGROUND_SURFACE_RECOVERY_TIMEOUT_MS = 1200L
+
+/**
+ * Shared card-return 期间，播放器内层封面必须与外层 shared shell 使用同一来源卡圆角。
+ *
+ * 否则外层 overlay 已按来源卡裁切、内层封面仍按播放器圆角裁切，卸层落位时会发生
+ * 一帧的双重形变，看起来像封面轻微抖动。
+ */
+internal fun resolveVideoPlayerCoverCornerDp(
+    sourceCornerDp: Int,
+    playerCornerDp: Int,
+    preserveSourceCardCornerDuringSharedReturn: Boolean,
+): Int {
+    return if (preserveSourceCardCornerDuringSharedReturn) {
+        sourceCornerDp.coerceAtLeast(0)
+    } else {
+        playerCornerDp.coerceAtLeast(0)
+    }
+}
 
 internal data class LongPressSpeedLockSensitivityPolicy(
     val lockZoneHeightDp: Int,
@@ -67,8 +87,26 @@ internal fun resolveLongPressSpeedLockZoneVisualPolicy(): LongPressSpeedLockZone
         edgeGradientHeightDp = 16,
         centerMarkerHeightDp = 4,
         centerMarkerWidthFraction = 0.22f,
-        bottomVisualOffsetDp = 10
+        bottomVisualOffsetDp = 0
     )
+}
+
+internal fun resolveSubtitleBottomOffsetPx(
+    isFullscreen: Boolean,
+    controlsVisible: Boolean,
+    navigationInsetPx: Int,
+    bottomControlsHeightPx: Int,
+    density: Float
+): Int {
+    val safeDensity = density.takeIf { it.isFinite() && it > 0f } ?: 1f
+    fun dp(value: Int): Int = (value * safeDensity).roundToInt()
+    if (!isFullscreen) return dp(48)
+    val safeInset = navigationInsetPx.coerceAtLeast(0)
+    return if (controlsVisible) {
+        maxOf(safeInset + bottomControlsHeightPx.coerceAtLeast(0) + dp(8), dp(56))
+    } else {
+        maxOf(safeInset + dp(16), dp(24))
+    }
 }
 
 internal fun resolveLongPressSpeedLockSensitivityPolicy(
@@ -452,6 +490,20 @@ internal fun shouldShowDanmakuLayers(
 }
 
 /**
+ * Fullscreen is not by itself an orientation. During the transition into or out of the
+ * portrait-fullscreen experience both flags can briefly be true, but those frames must keep
+ * reading and writing the portrait danmaku profile.
+ */
+internal fun resolveVideoPlayerDanmakuSettingsScope(
+    isFullscreen: Boolean,
+    isPortraitFullscreen: Boolean,
+): DanmakuSettingsScope {
+    return resolveDanmakuSettingsScope(
+        isLandscape = isFullscreen && !isPortraitFullscreen
+    )
+}
+
+/**
  * Portrait-only surface mode for detail player danmaku.
  * Landscape fullscreen always stays on the video viewport so horizontal playback is unchanged.
  */
@@ -598,15 +650,11 @@ internal fun shouldToggleAutoFullscreenForCurrentPlaybackSnapshot(
             com.android.purebilibili.core.store.AutoExitFullscreenMode.OFF
         },
 ): Boolean {
-    if (!allowPlaybackStateAutoFullscreen) return false
-
-    // 组合重建可能发生在上一集仍为 ENDED、下一集状态已进入 UI 之前。
-    // 自动退出只能响应真实的播放器结束事件，不能由这类快照触发。
-    return autoEnterFullscreenEnabled &&
-        playbackState == Player.STATE_READY &&
-        playWhenReady &&
-        !hasAutoEnteredFullscreen &&
-        !isFullscreen
+    // 这里的快照会在全屏/内嵌播放器切换时重新采样。若播放器仍处于
+    // READY + playWhenReady，退出全屏后会把一次「重新组合」误认成一次
+    // 「开始播放」，从而马上再次进入全屏。自动全屏只能由 Player 的实际
+    // 状态事件处理，不能从当前快照补发。
+    return false
 }
 
 internal fun shouldToggleAutoFullscreenForPlaybackEvent(

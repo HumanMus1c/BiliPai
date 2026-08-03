@@ -7,6 +7,7 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.DynamicFeed
+import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.GridView
@@ -114,6 +115,7 @@ internal fun resolveBottomBarTabIcon(
             "LIVE" -> Icons.Outlined.LiveTv
             "WATCHLATER" -> Icons.Outlined.WatchLater
             "SETTINGS" -> Icons.Outlined.Settings
+            "PLUGINS" -> Icons.Outlined.Extension
             else -> Icons.Outlined.Home
         }
         AppSemanticIconFamily.CUPERTINO -> when (id) {
@@ -127,6 +129,7 @@ internal fun resolveBottomBarTabIcon(
             "LIVE" -> CupertinoIcons.Default.Video
             "WATCHLATER" -> CupertinoIcons.Outlined.Clock
             "SETTINGS" -> CupertinoIcons.Default.Gearshape
+            "PLUGINS" -> CupertinoIcons.Default.Puzzlepiece
             else -> CupertinoIcons.Default.House
         }
     }
@@ -179,7 +182,8 @@ internal fun resolveAllBottomBarTabs(
     BottomBarTabConfig("FAVORITE", "收藏", resolveBottomBarTabIcon("FAVORITE", iconFamily), isDefault = false),
     BottomBarTabConfig("LIVE", "直播", resolveBottomBarTabIcon("LIVE", iconFamily), isDefault = false),
     BottomBarTabConfig("WATCHLATER", "稍后看", resolveBottomBarTabIcon("WATCHLATER", iconFamily), isDefault = false),
-    BottomBarTabConfig("SETTINGS", "设置", resolveBottomBarTabIcon("SETTINGS", iconFamily), isDefault = false)
+    BottomBarTabConfig("SETTINGS", "设置", resolveBottomBarTabIcon("SETTINGS", iconFamily), isDefault = false),
+    BottomBarTabConfig("PLUGINS", "插件中心", resolveBottomBarTabIcon("PLUGINS", iconFamily), isDefault = false)
 )
 
 private val defaultTopTabIds = listOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME", "PARTITION")
@@ -268,6 +272,8 @@ fun BottomBarSettingsContent(
     val homeTopRightAction by SettingsManager.getHomeTopRightAction(context)
         .collectAsStateWithLifecycle(initialValue = HomeTopRightAction.SETTINGS)
     val tabletUseSidebar by SettingsManager.getTabletUseSidebar(context).collectAsStateWithLifecycle(initialValue = false)
+    val sidebarAccountSwitcherEnabled by SettingsManager.getSidebarAccountSwitcherEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     
     // 可编辑的本地状态
     var localOrder by remember(order) { mutableStateOf(order) }
@@ -1130,6 +1136,18 @@ fun BottomBarSettingsContent(
                             onCheckedChange = { checked ->
                                 scope.launch {
                                     SettingsManager.setTabletUseSidebar(context, checked)
+                                }
+                            },
+                            iconTint = com.android.purebilibili.core.theme.iOSBlue
+                        )
+                        AppSwitchPreference(
+                            icon = CupertinoIcons.Outlined.ArrowLeftArrowRight,
+                            title = "侧边栏账号切换",
+                            subtitle = "在首页侧边栏底部显示账号切换按钮",
+                            checked = sidebarAccountSwitcherEnabled,
+                            onCheckedChange = { checked ->
+                                scope.launch {
+                                    SettingsManager.setSidebarAccountSwitcherEnabled(context, checked)
                                 }
                             },
                             iconTint = com.android.purebilibili.core.theme.iOSBlue

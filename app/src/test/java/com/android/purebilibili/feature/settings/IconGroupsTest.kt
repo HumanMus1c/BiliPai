@@ -14,6 +14,7 @@ class IconGroupsTest {
         assertEquals(
             setOf(
                 "icon_blue_snow_maid",
+                "icon_blue_snow_maid_announcement",
                 "icon_blue_snow_maid_front",
                 "icon_3d",
                 "icon_bilipai",
@@ -34,6 +35,10 @@ class IconGroupsTest {
         assertEquals(
             R.mipmap.ic_launcher_blue_snow_maid_front_light_round,
             resolveIconOptionPreviewRes("icon_blue_snow_maid_front", AppIconAppearance.LIGHT)
+        )
+        assertEquals(
+            R.mipmap.ic_launcher_blue_snow_maid_announcement_dark_round,
+            resolveIconOptionPreviewRes("icon_blue_snow_maid_announcement", AppIconAppearance.DARK)
         )
         assertEquals(
             R.mipmap.ic_launcher_bilipai_round,

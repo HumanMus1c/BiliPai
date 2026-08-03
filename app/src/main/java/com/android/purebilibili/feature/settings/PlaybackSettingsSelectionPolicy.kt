@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.settings
 
 import com.android.purebilibili.core.store.FullscreenAspectRatio
 import com.android.purebilibili.core.store.FullscreenMode
+import com.android.purebilibili.core.store.player.DEFAULT_AUDIO_QUALITY_FOLLOW_LAST
 import com.android.purebilibili.core.store.HomeFeedCardWidthPreset
 import com.android.purebilibili.core.store.PortraitPlayerCollapseMode
 import com.android.purebilibili.core.store.SettingsManager
@@ -60,6 +61,25 @@ internal fun resolveDefaultPlaybackQualityOptions(): List<AppSegmentOption<Int>>
         AppSegmentOption(32, "480P"),
         AppSegmentOption(16, "360P")
     )
+}
+
+internal fun resolveDefaultAudioQualityOptions(): List<AppSegmentOption<Int>> {
+    return listOf(
+        AppSegmentOption(DEFAULT_AUDIO_QUALITY_FOLLOW_LAST, "跟随上次"),
+        AppSegmentOption(30251, "Hi-Res 无损"),
+        AppSegmentOption(30250, "杜比全景声"),
+        AppSegmentOption(-1, "AAC")
+    )
+}
+
+internal fun normalizeDefaultAudioQualityOption(value: Int): Int {
+    return when (value) {
+        DEFAULT_AUDIO_QUALITY_FOLLOW_LAST,
+        -1,
+        30250,
+        30251 -> value
+        else -> -1
+    }
 }
 
 internal fun resolveDefaultQualitySubtitle(

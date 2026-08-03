@@ -932,8 +932,6 @@ object CommentRepository {
     private const val IMAGE_EXTRA_WAIT_MS = 10000L
     /** 删除判定前的二次确认等待 */
     private const val DELETE_CONFIRM_RETRY_DELAY_MS = 2200L
-    /** 根评论时间线探测最多翻页数，避免检测任务无限拉取评论区 */
-    private const val ROOT_TIMELINE_SCAN_MAX_PAGES = 3
 
     /**
      * [新增] 评论反诈检测 - 检查刚发送的评论是否被 ShadowBan / 秒删 / 审核
@@ -977,7 +975,7 @@ object CommentRepository {
             if (isReply) {
                 Result.success(checkReplyComment(aid, rpid, rootId))
             } else {
-                Result.success(checkRootComment(aid, rpid, sentAtSeconds))
+                Result.success(checkRootComment(aid, rpid))
             }
         } catch (e: Exception) {
             Logger.e("CommentFraud", "检测异常: ${e.message}", e)
@@ -1001,7 +999,11 @@ object CommentRepository {
         )
         if (guestProbe.requestSucceeded && guestProbe.found) {
             Logger.d("CommentFraud", "[回复] ✅ guest 已找到评论")
-            return CommentFraudStatus.NORMAL
+            return resolveReplyFraudStatus(
+                guestProbe = guestProbe,
+                authProbe = CommentPresenceProbe(requestSucceeded = true, found = true),
+                confirmedNotFoundAfterRetry = false
+            )
         }
 
         Logger.d("CommentFraud", "[回复] Step2: auth seek_rpid 检测 rpid=$rpid")
@@ -1036,133 +1038,76 @@ object CommentRepository {
 
     /**
      * 检查根评论的状态
-     * 流程:
-     * 1) guest 时间倒序翻主评论列表
-     * 2) auth 获取该评论回复页确认是否仍可见
-     * 3) auth 可见而 guest 回复页不可见时判 ShadowBan，双端可见时判疑似审核
-     * 4) 仅在 auth 回复页明确删除且二次确认后才判秒删
+     * 流程（对齐 biliSendCommAntifraud）:
+     * 1) guest seek_rpid 精确探测（x/v2/reply/wbi/main?mode=2&seek_rpid）
+     * 2) auth seek_rpid 精确探测
+     * 3) auth 可见而 guest 不可见时用 guest 回复页区分 ShadowBan / 疑似审核
+     * 4) 仅在双端持续未命中时才判秒删，避免瞬时延迟误判
      */
-    private suspend fun checkRootComment(aid: Long, rpid: Long, sentAtSeconds: Long): CommentFraudStatus {
-        Logger.d("CommentFraud", "[根评论] Step1: guest 时间线检测 rpid=$rpid sentAt=$sentAtSeconds")
-        val guestTimelineProbe = probeRootCommentPresenceByGuestTimeline(
+    private suspend fun checkRootComment(aid: Long, rpid: Long): CommentFraudStatus {
+        Logger.d("CommentFraud", "[根评论] Step1: guest seek_rpid 检测 rpid=$rpid")
+        val guestSeekProbe = probeCommentPresenceBySeekRpid(
+            apiClient = guestApi,
             aid = aid,
-            targetRpid = rpid,
-            sentAtSeconds = sentAtSeconds
+            targetRpid = rpid
         )
-        if (guestTimelineProbe.requestSucceeded && guestTimelineProbe.found) {
-            Logger.d("CommentFraud", "[根评论] ✅ guest 时间线已找到评论")
-            return CommentFraudStatus.NORMAL
+        if (guestSeekProbe.requestSucceeded && guestSeekProbe.found) {
+            Logger.d("CommentFraud", "[根评论] ✅ guest seek 已找到评论")
+            return resolveRootFraudStatus(
+                guestSeekProbe = guestSeekProbe,
+                authSeekProbe = CommentPresenceProbe(requestSucceeded = true, found = true),
+                guestReplyPageVisible = null,
+                confirmedNotFoundAfterRetry = false
+            )
         }
 
-        Logger.d("CommentFraud", "[根评论] Step2: auth 回复页检测 root=$rpid")
-        val authReplyPageProbe = probeCommentReplyPage(
+        Logger.d("CommentFraud", "[根评论] Step2: auth seek_rpid 检测 rpid=$rpid")
+        val authSeekProbe = probeCommentPresenceBySeekRpid(
             apiClient = api,
             aid = aid,
-            rootRpid = rpid
+            targetRpid = rpid
         )
 
-        val guestReplyPageProbe = if (authReplyPageProbe.requestSucceeded && authReplyPageProbe.visible) {
+        var guestReplyPageVisible: Boolean? = null
+        if (authSeekProbe.requestSucceeded && authSeekProbe.found) {
             Logger.d("CommentFraud", "[根评论] Step3: guest 回复页检测 root=$rpid")
-            probeCommentReplyPage(
+            val guestReplyPage = probeCommentReplyPage(
                 apiClient = guestApi,
                 aid = aid,
                 rootRpid = rpid
             )
-        } else {
-            null
+            if (guestReplyPage.requestSucceeded) {
+                guestReplyPageVisible = when {
+                    guestReplyPage.deletedHint -> false // guest 侧提示已删除 → 仅自己可见
+                    guestReplyPage.visible -> true      // 双端可见 → 疑似审核
+                    else -> null
+                }
+            }
         }
 
-        val confirmedDeletedAfterRetry = if (authReplyPageProbe.requestSucceeded && authReplyPageProbe.deletedHint) {
-            Logger.d("CommentFraud", "[根评论] Step4: auth 删除提示二次确认")
-            confirmRootDeletedByAuthReplyPage(aid = aid, rpid = rpid)
+        val confirmedNotFoundAfterRetry = if (guestSeekProbe.requestSucceeded &&
+            !guestSeekProbe.found &&
+            authSeekProbe.requestSucceeded &&
+            !authSeekProbe.found &&
+            !authSeekProbe.deletedHint
+        ) {
+            Logger.d("CommentFraud", "[根评论] Step4: 二次确认未命中，避免瞬时误判")
+            confirmDeletedBySecondProbe(aid = aid, rpid = rpid)
         } else {
             false
         }
 
-        val status = resolveRootFraudStatusFromTimeline(
-            guestTimelineProbe = guestTimelineProbe,
-            authReplyPageProbe = authReplyPageProbe,
-            guestReplyPageProbe = guestReplyPageProbe,
-            confirmedDeletedAfterRetry = confirmedDeletedAfterRetry
+        val status = resolveRootFraudStatus(
+            guestSeekProbe = guestSeekProbe,
+            authSeekProbe = authSeekProbe,
+            guestReplyPageVisible = guestReplyPageVisible,
+            confirmedNotFoundAfterRetry = confirmedNotFoundAfterRetry
         )
         Logger.d(
             "CommentFraud",
-            "[根评论] 判定结果=$status guestTimeline=$guestTimelineProbe authReply=$authReplyPageProbe guestReply=$guestReplyPageProbe retry=$confirmedDeletedAfterRetry"
+            "[根评论] 判定结果=$status guestSeek=$guestSeekProbe authSeek=$authSeekProbe guestReply=$guestReplyPageVisible retry=$confirmedNotFoundAfterRetry"
         )
         return status
-    }
-
-    private suspend fun probeRootCommentPresenceByGuestTimeline(
-        aid: Long,
-        targetRpid: Long,
-        sentAtSeconds: Long
-    ): CommentPresenceProbe {
-        var sawSuccessfulPage = false
-        for (page in 1..ROOT_TIMELINE_SCAN_MAX_PAGES) {
-            val response = try {
-                guestApi.getReplyListLegacy(
-                    oid = aid,
-                    type = 1,
-                    pn = page,
-                    ps = 20,
-                    sort = 0
-                )
-            } catch (e: Exception) {
-                Logger.e("CommentFraud", "root timeline probe exception: page=$page, ${e.message}")
-                return CommentPresenceProbe(
-                    requestSucceeded = false,
-                    found = false,
-                    deletedHint = false
-                )
-            }
-
-            if (response.code != 0) {
-                Logger.w(
-                    "CommentFraud",
-                    "root timeline probe failed: page=$page, code=${response.code}, message=${response.message}"
-                )
-                return CommentPresenceProbe(
-                    requestSucceeded = false,
-                    found = false,
-                    deletedHint = false
-                )
-            }
-
-            sawSuccessfulPage = true
-            val data = response.data
-            if (containsTargetRpid(data, targetRpid)) {
-                return CommentPresenceProbe(
-                    requestSucceeded = true,
-                    found = true,
-                    deletedHint = false
-                )
-            }
-
-            val replies = data?.replies.orEmpty()
-            if (replies.isEmpty()) {
-                return CommentPresenceProbe(
-                    requestSucceeded = true,
-                    found = false,
-                    deletedHint = false
-                )
-            }
-
-            val hasPassedSentTime = sentAtSeconds > 0 &&
-                replies.any { reply -> reply.ctime > 0 && reply.ctime < sentAtSeconds }
-            if (hasPassedSentTime) {
-                return CommentPresenceProbe(
-                    requestSucceeded = true,
-                    found = false,
-                    deletedHint = false
-                )
-            }
-        }
-
-        return CommentPresenceProbe(
-            requestSucceeded = false,
-            found = false,
-            deletedHint = false
-        )
     }
 
     private suspend fun probeCommentPresenceBySeekRpid(
@@ -1184,13 +1129,16 @@ object CommentRepository {
             val response = apiClient.getReplyList(signedParams)
             when (response.code) {
                 0 -> {
+                    val match = findTargetRpid(response.data, targetRpid)
                     CommentPresenceProbe(
                         requestSucceeded = true,
-                        found = containsTargetRpid(response.data, targetRpid),
-                        deletedHint = false
+                        found = match.found,
+                        deletedHint = false,
+                        invisible = match.invisible
                     )
                 }
-                12002, 12009 -> {
+                // 12022=评论已被删除，12009=评论内容不存在；12002=评论区关闭（不算删除）
+                12022, 12009 -> {
                     CommentPresenceProbe(
                         requestSucceeded = true,
                         found = false,
@@ -1216,24 +1164,26 @@ object CommentRepository {
         }
     }
 
-    private fun containsTargetRpid(data: ReplyData?, targetRpid: Long): Boolean {
-        if (targetRpid <= 0L || data == null) return false
-        val inReplies = data.replies.orEmpty().any { reply ->
-            reply.rpid == targetRpid ||
-                reply.replies.orEmpty().any { sub -> sub.rpid == targetRpid }
-        }
-        if (inReplies) return true
+    private data class CommentTargetMatch(
+        val found: Boolean,
+        val invisible: Boolean
+    )
 
-        val inHots = data.hots.orEmpty().any { reply ->
-            reply.rpid == targetRpid ||
-                reply.replies.orEmpty().any { sub -> sub.rpid == targetRpid }
-        }
-        if (inHots) return true
+    private fun findTargetRpid(data: ReplyData?, targetRpid: Long): CommentTargetMatch {
+        if (targetRpid <= 0L || data == null) return CommentTargetMatch(false, false)
 
-        return data.collectTopReplies().any { reply ->
-            reply.rpid == targetRpid ||
-                reply.replies.orEmpty().any { sub -> sub.rpid == targetRpid }
+        fun match(reply: ReplyItem): CommentTargetMatch? {
+            if (reply.rpid == targetRpid) return CommentTargetMatch(true, reply.invisible)
+            reply.replies.orEmpty().forEach { sub ->
+                if (sub.rpid == targetRpid) return CommentTargetMatch(true, sub.invisible)
+            }
+            return null
         }
+
+        data.replies.orEmpty().forEach { reply -> match(reply)?.let { return it } }
+        data.hots.orEmpty().forEach { reply -> match(reply)?.let { return it } }
+        data.collectTopReplies().forEach { reply -> match(reply)?.let { return it } }
+        return CommentTargetMatch(false, false)
     }
 
     private suspend fun probeCommentReplyPage(
@@ -1254,7 +1204,8 @@ object CommentRepository {
                     visible = true,
                     deletedHint = false
                 )
-                12002, 12009 -> CommentReplyPageProbe(
+                // 12022=评论已被删除，12009=评论内容不存在；12002=评论区关闭（不算删除）
+                12022, 12009 -> CommentReplyPageProbe(
                     requestSucceeded = true,
                     visible = false,
                     deletedHint = true
@@ -1276,16 +1227,6 @@ object CommentRepository {
                 deletedHint = false
             )
         }
-    }
-
-    private suspend fun confirmRootDeletedByAuthReplyPage(aid: Long, rpid: Long): Boolean {
-        delay(DELETE_CONFIRM_RETRY_DELAY_MS)
-        val authRetryProbe = probeCommentReplyPage(
-            apiClient = api,
-            aid = aid,
-            rootRpid = rpid
-        )
-        return authRetryProbe.requestSucceeded && authRetryProbe.deletedHint
     }
 
     private suspend fun confirmDeletedBySecondProbe(aid: Long, rpid: Long): Boolean {

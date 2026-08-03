@@ -44,6 +44,17 @@ class DynamicNeutralUiStructureTest {
         assertFalse(commentSource.contains("IOSModalBottomSheet("))
         assertTrue(commentSource.contains("AppTextField("))
         assertFalse(commentSource.contains("OutlinedTextField("))
+        assertTrue(commentSource.contains("shape = AppShapes.container(ContainerLevel.Pill)"))
+        assertFalse(commentSource.contains("shape = AppShapes.container(ContainerLevel.Sheet)"))
+    }
+
+    @Test
+    fun `dynamic empty state does not use the telegram mascot animation`() {
+        val source = File(sourceRoot, "DynamicScreen.kt").readText()
+
+        assertTrue(source.contains("DynamicEmptyState("))
+        assertFalse(source.contains("com.android.purebilibili.core.ui.EmptyState"))
+        assertFalse(Regex("(?m)^\\s*EmptyState\\(").containsMatchIn(source))
     }
 
     @Test

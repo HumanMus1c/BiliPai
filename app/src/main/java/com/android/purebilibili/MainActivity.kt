@@ -27,6 +27,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -91,6 +92,7 @@ import com.android.purebilibili.feature.plugin.EyeProtectionOverlay
 import com.android.purebilibili.feature.settings.AppUpdateAutoCheckGate
 import com.android.purebilibili.feature.settings.AppUpdateCheckResult
 import com.android.purebilibili.feature.settings.AppUpdateChecker
+import com.android.purebilibili.feature.settings.AppUpdateDialogHost
 import com.android.purebilibili.feature.settings.AppUpdateDownloadState
 import com.android.purebilibili.feature.settings.AppUpdateDownloadStatus
 import com.android.purebilibili.feature.settings.AppUpdateInstallAction
@@ -157,6 +159,7 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import kotlin.math.max
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private const val TAG = "MainActivity"
@@ -432,13 +435,22 @@ internal fun shouldClearPendingCrashLogAfterAction(
 ): Boolean = action != CrashLogPromptAction.IGNORE
 
 internal fun shouldUseRealtimeSplashBlur(sdkInt: Int): Boolean =
-    sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && sdkInt < 36
+    sdkInt >= Build.VERSION_CODES.S && sdkInt < 36
 
 internal fun resolveSplashIconResIdForComponentClassName(className: String?): Int {
     return when (className?.substringAfterLast('.')) {
         "MainActivityAliasBlueSnowMaid",
         "MainActivityAliasBlueSnowMaidNoIcon" -> R.mipmap.ic_launcher_blue_snow_maid
         "MainActivitySplashBlueSnowMaid" -> R.drawable.splash_icon_blue_snow_maid
+        "MainActivityAliasBlueSnowMaidAnnouncement",
+        "MainActivityAliasBlueSnowMaidAnnouncementNoIcon" -> R.mipmap.ic_launcher_blue_snow_maid_announcement
+        "MainActivitySplashBlueSnowMaidAnnouncement" -> R.drawable.splash_icon_blue_snow_maid_announcement
+        "MainActivityAliasBlueSnowMaidAnnouncementLight",
+        "MainActivityAliasBlueSnowMaidAnnouncementLightNoIcon" -> R.mipmap.ic_launcher_blue_snow_maid_announcement_light
+        "MainActivitySplashBlueSnowMaidAnnouncementLight" -> R.drawable.splash_icon_blue_snow_maid_announcement_light
+        "MainActivityAliasBlueSnowMaidAnnouncementDark",
+        "MainActivityAliasBlueSnowMaidAnnouncementDarkNoIcon" -> R.mipmap.ic_launcher_blue_snow_maid_announcement_dark
+        "MainActivitySplashBlueSnowMaidAnnouncementDark" -> R.drawable.splash_icon_blue_snow_maid_announcement_dark
         "MainActivityAliasBlueSnowMaidLight",
         "MainActivityAliasBlueSnowMaidLightNoIcon" -> R.mipmap.ic_launcher_blue_snow_maid_light
         "MainActivitySplashBlueSnowMaidLight" -> R.drawable.splash_icon_blue_snow_maid_light
@@ -557,25 +569,24 @@ internal fun shouldEnableSplashFlyoutAnimation(
 }
 
 internal fun shouldKeepSystemSplashForPreload(
-    runColdStartSplash: Boolean,
-    splashIconVisible: Boolean
+    runColdStartSplash: Boolean
 ): Boolean {
-    return runColdStartSplash && splashIconVisible
+    // The native splash background is still the cold-start handoff when both the optional
+    // launcher icon animation and custom wallpaper are disabled.
+    return runColdStartSplash
 }
 
 internal fun shouldApplySplashRealtimeBlur(
     useRealtimeBlur: Boolean,
     progress: Float
-): Boolean {
-    return useRealtimeBlur && progress > 0f
-}
+): Boolean = useRealtimeBlur && splashExitBlurProgress(progress) > 0f
 
 internal fun shouldRunColdStartSplash(savedInstanceStatePresent: Boolean): Boolean = !savedInstanceStatePresent
 
 internal fun splashExitDurationMs(): Long = 920L
 internal fun splashExitTranslateYDp(): Float = 220f
 internal fun splashExitScaleEnd(): Float = 1.12f
-internal fun splashExitBlurRadiusEnd(): Float = 32f
+internal fun splashExitBlurRadiusEnd(): Float = 24f
 internal fun splashMaxKeepOnScreenMs(): Long = 1000L
 internal fun customSplashHoldDurationMs(): Long = 1900L
 internal fun customSplashFadeDurationMs(): Int = 1450
@@ -617,7 +628,11 @@ internal fun splashExitTravelDistancePx(
 
 internal fun splashExitBlurProgress(progress: Float): Float {
     val normalized = progress.coerceIn(0f, 1f)
-    return normalized.pow(1.6f)
+    val sharpHoldProgress = 0.10f
+    if (normalized <= sharpHoldProgress) return 0f
+    val blurProgress = ((normalized - sharpHoldProgress) / (1f - sharpHoldProgress))
+        .coerceIn(0f, 1f)
+    return blurProgress.pow(1.45f)
 }
 
 internal fun splashExitIconAlpha(progress: Float): Float {
@@ -634,6 +649,26 @@ internal fun splashExitBackgroundAlpha(progress: Float): Float {
 
 internal fun splashFlyoutCornerRadiusPx(sizePx: Int): Float {
     return sizePx.coerceAtLeast(0) * 0.24f
+}
+
+internal fun resolveSplashFlyoutTargetSizePx(
+    systemIconWidthPx: Int,
+    systemIconHeightPx: Int,
+    density: Float,
+): Int {
+    val safeDensity = density.coerceAtLeast(0.1f)
+    val fallbackSizePx = (112f * safeDensity).roundToInt().coerceAtLeast(1)
+    if (systemIconWidthPx <= 0 || systemIconHeightPx <= 0) return fallbackSizePx
+
+    val shortSidePx = minOf(systemIconWidthPx, systemIconHeightPx)
+    val longSidePx = maxOf(systemIconWidthPx, systemIconHeightPx)
+    val isLauncherLikeSquare = longSidePx <= shortSidePx * 1.2f
+    val shortSideDp = shortSidePx / safeDensity
+    return if (isLauncherLikeSquare && shortSideDp in 72f..160f) {
+        shortSidePx
+    } else {
+        fallbackSizePx
+    }
 }
 
 private fun applySplashFlyoutRoundedClip(view: View) {
@@ -669,37 +704,29 @@ internal fun splashTrailSecondaryAlpha(progress: Float): Float {
 
 @RequiresApi(Build.VERSION_CODES.S)
 private fun applySplashRealtimeBlur(
-    splashView: View,
     animatedTarget: View,
     primaryTrailView: View?,
     secondaryTrailView: View?,
     radius: Float
 ) {
-    splashView.setRenderEffect(
-        RenderEffect.createBlurEffect(
-            radius * 0.55f,
-            radius * 0.55f,
-            Shader.TileMode.CLAMP
-        )
-    )
     animatedTarget.setRenderEffect(
         RenderEffect.createBlurEffect(
-            radius,
-            radius,
+            radius * 0.62f,
+            radius * 0.62f,
             Shader.TileMode.CLAMP
         )
     )
     primaryTrailView?.setRenderEffect(
         RenderEffect.createBlurEffect(
-            radius * 1.2f,
-            radius * 1.2f,
+            radius,
+            radius,
             Shader.TileMode.CLAMP
         )
     )
     secondaryTrailView?.setRenderEffect(
         RenderEffect.createBlurEffect(
-            radius * 1.45f,
-            radius * 1.45f,
+            radius * 1.2f,
+            radius * 1.2f,
             Shader.TileMode.CLAMP
         )
     )
@@ -707,12 +734,10 @@ private fun applySplashRealtimeBlur(
 
 @RequiresApi(Build.VERSION_CODES.S)
 private fun clearSplashRealtimeBlur(
-    splashView: View,
     animatedTarget: View,
     primaryTrailView: View?,
     secondaryTrailView: View?
 ) {
-    splashView.setRenderEffect(null)
     animatedTarget.setRenderEffect(null)
     primaryTrailView?.setRenderEffect(null)
     secondaryTrailView?.setRenderEffect(null)
@@ -857,8 +882,7 @@ open class MainActivity : AppCompatActivity() {
             splashIconAnimationEnabled = splashIconVisible
         )
         val keepSystemSplashForPreload = shouldKeepSystemSplashForPreload(
-            runColdStartSplash = runColdStartSplash,
-            splashIconVisible = splashIconVisible
+            runColdStartSplash = runColdStartSplash
         )
         val splashFlyoutIconResId = resolveLaunchIconResId(this, intent)
         splashFlyoutEnabledAtCreate = splashFlyoutEnabled
@@ -915,53 +939,44 @@ open class MainActivity : AppCompatActivity() {
                 splashExitCallbackTriggered = true
                 runCatching {
                     val splashView = splashScreenViewProvider.view
-                    val animatedTarget = splashScreenViewProvider.iconView
-                    applySplashFlyoutRoundedClip(animatedTarget)
-                    val targetType = resolveSplashFlyoutTargetType(
-                        hasSystemIcon = true,
-                        hasFallbackIcon = false
-                    )
-                    Logger.d(
-                        TAG,
-                        "🚀 Splash exit animation start. targetType=$targetType, hasSystemIcon=true, hasFallbackIcon=false"
-                    )
-                    if (targetType == SplashFlyoutTargetType.SPLASH_ROOT) {
-                        Logger.w(
-                            TAG,
-                            "⚠️ Splash flyout degraded to splash root animation (icon target unavailable)"
-                        )
-                    }
+                    val systemIconView = splashScreenViewProvider.iconView
                     val frameContainer = splashView as? FrameLayout
-                    val targetDrawableState = (animatedTarget as? ImageView)
+                        ?: error("Splash root is not a FrameLayout")
+                    val targetDrawableState = (systemIconView as? ImageView)
                         ?.drawable
                         ?.constantState
-                    val targetSizePx = if (animatedTarget.width > 0 && animatedTarget.height > 0) {
-                        minOf(animatedTarget.width, animatedTarget.height)
-                    } else {
-                        (112f * resources.displayMetrics.density).toInt()
-                    }
+                    val targetSizePx = resolveSplashFlyoutTargetSizePx(
+                        systemIconWidthPx = systemIconView.width,
+                        systemIconHeightPx = systemIconView.height,
+                        density = resources.displayMetrics.density,
+                    )
                     Logger.d(
                         TAG,
-                        "🚀 Splash exit target metrics. targetSizePx=$targetSizePx, hasFrameContainer=${frameContainer != null}, useRealtimeBlur=${shouldUseRealtimeSplashBlur(Build.VERSION.SDK_INT)}"
+                        "🚀 Splash exit target metrics. system=${systemIconView.width}x${systemIconView.height}, targetSizePx=$targetSizePx, useRealtimeBlur=${shouldUseRealtimeSplashBlur(Build.VERSION.SDK_INT)}"
                     )
-                    fun createTrailView(): ImageView? {
-                        val container = frameContainer ?: return null
-                        val drawable = targetDrawableState?.newDrawable(resources)?.mutate()
-                        if (drawable == null && splashFlyoutIconResId == 0) return null
+
+                    var nextInsertIndex = frameContainer.indexOfChild(systemIconView)
+                        .let { if (it >= 0) it + 1 else frameContainer.childCount }
+                    fun createFlyoutIconView(initialAlpha: Float): ImageView? {
+                        // Prefer the original high-density resource. The OEM iconView drawable can
+                        // already be a stretched/rasterized snapshot on customized Android builds.
+                        val drawable = if (splashFlyoutIconResId != 0) {
+                            AppCompatResources.getDrawable(
+                                this@MainActivity,
+                                splashFlyoutIconResId,
+                            )?.mutate()
+                        } else {
+                            targetDrawableState?.newDrawable(resources)?.mutate()
+                        } ?: return null
                         return ImageView(this).apply {
-                            scaleType = ImageView.ScaleType.FIT_CENTER
-                            alpha = 0f
+                            scaleType = ImageView.ScaleType.CENTER_INSIDE
+                            alpha = initialAlpha
+                            setLayerType(View.LAYER_TYPE_HARDWARE, null)
                             applySplashFlyoutRoundedClip(this)
-                            if (drawable != null) {
-                                setImageDrawable(drawable)
-                            } else {
-                                setImageResource(splashFlyoutIconResId)
-                            }
-                            val anchorIndex = container.indexOfChild(animatedTarget)
-                                .let { if (it >= 0) it else container.childCount }
-                            container.addView(
+                            setImageDrawable(drawable)
+                            frameContainer.addView(
                                 this,
-                                anchorIndex,
+                                nextInsertIndex++,
                                 FrameLayout.LayoutParams(
                                     targetSizePx,
                                     targetSizePx,
@@ -970,8 +985,22 @@ open class MainActivity : AppCompatActivity() {
                             )
                         }
                     }
-                    val primaryTrailView = createTrailView()
-                    val secondaryTrailView = createTrailView()
+                    val secondaryTrailView = createFlyoutIconView(initialAlpha = 0f)
+                    val primaryTrailView = createFlyoutIconView(initialAlpha = 0f)
+                    val animatedTarget = createFlyoutIconView(initialAlpha = 1f)
+                        ?: error("Unable to create a square splash flyout icon")
+                    // Never clip or animate the OEM iconView directly: some devices expose a
+                    // full-height rectangular container here, which produces the giant leaking
+                    // rounded card seen on first cold start.
+                    systemIconView.alpha = 0f
+                    val targetType = resolveSplashFlyoutTargetType(
+                        hasSystemIcon = false,
+                        hasFallbackIcon = true,
+                    )
+                    Logger.d(
+                        TAG,
+                        "🚀 Splash exit animation start. targetType=$targetType, dedicatedSquareIcon=true"
+                    )
                     val minTranslateYPx = splashExitTranslateYDp() * resources.displayMetrics.density
                     val translateYPx = splashExitTravelDistancePx(
                         splashHeightPx = splashView.height,
@@ -1016,7 +1045,6 @@ open class MainActivity : AppCompatActivity() {
                                 val radius = splashExitBlurRadiusEnd() * splashExitBlurProgress(progress)
                                 runCatching {
                                     applySplashRealtimeBlur(
-                                        splashView = splashView,
                                         animatedTarget = animatedTarget,
                                         primaryTrailView = primaryTrailView,
                                         secondaryTrailView = secondaryTrailView,
@@ -1026,7 +1054,6 @@ open class MainActivity : AppCompatActivity() {
                                     blurEffectEnabled = false
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                         clearSplashRealtimeBlur(
-                                            splashView = splashView,
                                             animatedTarget = animatedTarget,
                                             primaryTrailView = primaryTrailView,
                                             secondaryTrailView = secondaryTrailView
@@ -1040,14 +1067,14 @@ open class MainActivity : AppCompatActivity() {
                     animator.doOnEnd {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && supportsRealtimeBlur) {
                             clearSplashRealtimeBlur(
-                                splashView = splashView,
                                 animatedTarget = animatedTarget,
                                 primaryTrailView = primaryTrailView,
                                 secondaryTrailView = secondaryTrailView
                             )
                         }
-                        primaryTrailView?.let { frameContainer?.removeView(it) }
-                        secondaryTrailView?.let { frameContainer?.removeView(it) }
+                        frameContainer.removeView(animatedTarget)
+                        primaryTrailView?.let(frameContainer::removeView)
+                        secondaryTrailView?.let(frameContainer::removeView)
                         splashScreenViewProvider.remove()
                     }
                     animator.start()
@@ -1100,6 +1127,7 @@ open class MainActivity : AppCompatActivity() {
             val uriHandler = LocalUriHandler.current
             val scope = rememberCoroutineScope()
             var startupUpdateCheckResult by remember { mutableStateOf<AppUpdateCheckResult?>(null) }
+            // Legacy state remains only for the retired in-place dialog path below.
             var startupUpdateDownloadState by remember { mutableStateOf(AppUpdateDownloadState()) }
             var pendingCrashSnapshotPath by remember {
                 mutableStateOf(Logger.getPendingCrashSnapshotPath(context))
@@ -1724,6 +1752,14 @@ open class MainActivity : AppCompatActivity() {
                     )
 
                     startupUpdateCheckResult?.let { info ->
+                        AppUpdateDialogHost(
+                            update = info,
+                            onDismissRequest = { startupUpdateCheckResult = null },
+                        )
+                    }
+
+                    if (false) {
+                    startupUpdateCheckResult?.let { info ->
                         val resolvedReleaseNotes = remember(info.releaseNotes) {
                             resolveUpdateReleaseNotesText(info.releaseNotes)
                         }
@@ -1801,6 +1837,7 @@ open class MainActivity : AppCompatActivity() {
                                         Spacer(modifier = Modifier.height(6.dp))
                                         Text(
                                             text = when (startupUpdateDownloadState.status) {
+                                                AppUpdateDownloadStatus.QUEUED -> "等待网络后开始下载"
                                                 AppUpdateDownloadStatus.DOWNLOADING ->
                                                     "下载中 ${(startupUpdateDownloadState.progress * 100).toInt()}%"
                                                 AppUpdateDownloadStatus.COMPLETED -> "下载完成，正在准备安装"
@@ -1888,6 +1925,7 @@ open class MainActivity : AppCompatActivity() {
                                 }) { Text("稍后") }
                             }
                         )
+                    }
                     }
 
                     if (

@@ -71,6 +71,8 @@ import com.android.purebilibili.core.theme.BiliPink
 import com.android.purebilibili.core.ui.AppIcons
 import com.android.purebilibili.feature.video.danmaku.CommandDanmakuItem
 import com.android.purebilibili.feature.video.danmaku.CommandDanmakuType
+import com.android.purebilibili.feature.video.danmaku.VoteDanmakuKind
+import com.android.purebilibili.feature.video.danmaku.VoteOption
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -80,6 +82,7 @@ internal fun CommandDanmakuOverlay(
     player: Player,
     onFollowClick: () -> Unit,
     onTripleClick: () -> Unit,
+    onVoteSubmit: (CommandDanmakuItem, VoteOption) -> Unit = { _, _ -> },
     isFollowing: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -105,6 +108,7 @@ internal fun CommandDanmakuOverlay(
                     containerHeight = constraints.maxHeight,
                     onFollowClick = onFollowClick,
                     onTripleClick = onTripleClick,
+                    onVoteSubmit = onVoteSubmit,
                     isFollowing = isFollowing,
                     onDismiss = {
                         dismissedIds = dismissedIds + item.id
@@ -122,17 +126,20 @@ private fun CommandDanmakuCard(
     containerHeight: Int,
     onFollowClick: () -> Unit,
     onTripleClick: () -> Unit,
+    onVoteSubmit: (CommandDanmakuItem, VoteOption) -> Unit,
     isFollowing: Boolean,
     onDismiss: () -> Unit
 ) {
     val (xRatio, yRatio) = when (item.type) {
         CommandDanmakuType.ATTENTION -> mapAttentionPosition(item.posX, item.posY)
+        CommandDanmakuType.VOTE -> 0.08f to 0.10f
         CommandDanmakuType.UP -> 0.08f to 0.10f
         CommandDanmakuType.LINK -> 0.08f to 0.18f
         CommandDanmakuType.TEXT -> 0.08f to 0.10f
     }
     val cardWidthDp = when (item.type) {
         CommandDanmakuType.ATTENTION -> resolveAttentionCommandCardWidthDp(item.attentionType)
+        CommandDanmakuType.VOTE -> 240
         else -> 220
     }
     val density = LocalDensity.current
@@ -155,6 +162,10 @@ private fun CommandDanmakuCard(
                     isFollowing = isFollowing,
                     onFollowClick = onFollowClick,
                     onTripleClick = onTripleClick
+                )
+                CommandDanmakuType.VOTE -> VoteCommandCard(
+                    item = item,
+                    onVoteSubmit = onVoteSubmit
                 )
                 else -> InfoCommandCard(item)
             }
@@ -435,6 +446,86 @@ internal fun resolveCommandDanmakuContainerColor(type: CommandDanmakuType): Colo
     return when (type) {
         CommandDanmakuType.ATTENTION -> Color.Transparent
         else -> Color.Black.copy(alpha = 0.54f)
+    }
+}
+
+/**
+ * 投票/打分弹幕卡片：标题 + 选项按钮，点击后提交并显示已投票状态。
+ */
+@Composable
+private fun VoteCommandCard(
+    item: CommandDanmakuItem,
+    onVoteSubmit: (CommandDanmakuItem, VoteOption) -> Unit
+) {
+    var selectedOptionId by remember(item.id) { mutableStateOf<String?>(null) }
+    val isGrade = item.voteKind == VoteDanmakuKind.GRADE
+    val title = item.voteTitle.ifBlank { item.content }
+
+    Column(
+        modifier = Modifier.padding(start = 12.dp, top = 10.dp, end = 34.dp, bottom = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        AppText(
+            text = if (isGrade) "打分弹幕" else "互动投票",
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White.copy(alpha = 0.74f)
+        )
+        AppText(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        if (item.voteOptions.isEmpty()) {
+            AppText(
+                text = if (isGrade) "点击屏幕参与打分" else "点击屏幕参与投票",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.6f)
+            )
+        } else {
+            item.voteOptions.forEach { option ->
+                val isSelected = selectedOptionId == option.id
+                val isSubmitted = selectedOptionId != null
+                AppButton(
+                    onClick = {
+                        if (!isSubmitted) {
+                            selectedOptionId = option.id
+                            onVoteSubmit(item, option)
+                        }
+                    },
+                    enabled = !isSubmitted,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isSelected) BiliPink else Color.White.copy(alpha = 0.14f),
+                        contentColor = Color.White,
+                        disabledContainerColor = if (isSelected) BiliPink.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.10f),
+                        disabledContentColor = Color.White.copy(alpha = 0.85f)
+                    ),
+                    elevation = null,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(32.dp)
+                ) {
+                    AppText(
+                        text = option.label + if (isGrade) " 分" else "",
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            if (selectedOptionId != null) {
+                AppText(
+                    text = if (isGrade) "✓ 已打分" else "✓ 已投票",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+            }
+        }
     }
 }
 

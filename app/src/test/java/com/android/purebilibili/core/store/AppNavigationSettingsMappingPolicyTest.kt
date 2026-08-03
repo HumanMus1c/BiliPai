@@ -27,6 +27,7 @@ class AppNavigationSettingsMappingPolicyTest {
         )
         assertEquals(emptyMap(), result.bottomBarItemColors)
         assertFalse(result.tabletUseSidebar)
+        assertTrue(result.sidebarAccountSwitcherEnabled)
         assertTrue(result.predictiveBackEnabled)
         assertEquals("scale", result.predictiveBackAnimationStyle)
         assertEquals("auto", result.predictiveBackExitDirection)
@@ -39,7 +40,8 @@ class AppNavigationSettingsMappingPolicyTest {
             stringPreferencesKey("bottom_bar_order") to "PROFILE,HOME,DYNAMIC,HISTORY",
             stringPreferencesKey("bottom_bar_visible_tabs") to "HOME,PROFILE,HISTORY",
             stringPreferencesKey("bottom_bar_item_colors") to "HOME:2,PROFILE:4,INVALID:x,NO_COLON",
-            booleanPreferencesKey("tablet_use_sidebar") to true
+            booleanPreferencesKey("tablet_use_sidebar") to true,
+            booleanPreferencesKey("sidebar_account_switcher_enabled") to false,
         )
 
         val result = mapAppNavigationSettingsFromPreferences(prefs)
@@ -48,6 +50,7 @@ class AppNavigationSettingsMappingPolicyTest {
         assertEquals(listOf("PROFILE", "HOME", "HISTORY"), result.orderedVisibleTabIds)
         assertEquals(mapOf("HOME" to 2, "PROFILE" to 4, "INVALID" to 0), result.bottomBarItemColors)
         assertTrue(result.tabletUseSidebar)
+        assertFalse(result.sidebarAccountSwitcherEnabled)
     }
 
     @Test

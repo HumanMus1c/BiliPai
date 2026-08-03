@@ -38,8 +38,11 @@ class Anime4KGLSurfaceView @JvmOverloads constructor(
     }
 
     fun updateConfig(config: Anime4KConfig) {
-        queueEvent { pipelineRenderer.setConfig(config) }
-        requestRender()
+        queueEvent {
+            pipelineRenderer.setConfig(config)
+            // 切换算法或模型完成后再请求绘制，避免旧请求先被消费后画面停在透明帧。
+            requestRender()
+        }
     }
 
     fun updateInputSize(width: Int, height: Int) {

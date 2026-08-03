@@ -60,7 +60,7 @@ class HomeSettingsMappingPolicyTest {
         )
         assertFalse(result.smartVisualGuardEnabled)
         assertTrue(result.compactVideoStatsOnCover)
-        assertEquals(HomeFeedCardStyle.OFFICIAL, result.homeFeedCardStyle)
+        assertEquals(HomeFeedCardStyle.CURRENT, result.homeFeedCardStyle)
         assertEquals(HomeDurationStyle.OUTSIDE_COVER, result.homeDurationStyle)
         assertEquals(HomeWallpaperEffectMode.SOFT_BLUR, result.homeWallpaperEffectMode)
         assertEquals(HomeWallpaperEffectScope.HOME_ONLY, result.homeWallpaperEffectScope)

@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-9.9.8.9-007AFF?style=flat-square&labelColor=ffffff" alt="Release 9.9.8.9" />
+  <img src="https://img.shields.io/badge/Release-9.9.9.8.6-007AFF?style=flat-square&labelColor=ffffff" alt="Release 9.9.9.8.6" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -42,7 +42,7 @@
   </a>
 </p>
 
-<sub>README 更新：2026-07-31 · 当前构建版本以 app/build.gradle.kts 为准 · 已发布版本以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
+<sub>README 更新：2026-08-02 · 当前构建版本以 app/build.gradle.kts 为准 · 已发布版本以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
 
 </div>
 
@@ -200,13 +200,14 @@ cd BiliPai
 
 ## 最近更新
 
-当前开发构建为 `9.9.9.1 / versionCode 266`；最新有完整发布记录的版本为 `v9.9.8.9`。公开发布状态与下载请以 [GitHub Releases](https://github.com/jay3-yy/BiliPai/releases) 和 [CHANGELOG.md](CHANGELOG.md) 为准：
+当前构建为 `9.9.9.8.6 / versionCode 278`；最新完整发布记录为 `v9.9.9.8.6`。公开发布状态与下载请以 [GitHub Releases](https://github.com/jay3-yy/BiliPai/releases) 和 [CHANGELOG.md](CHANGELOG.md) 为准：
 
 - 构建基线升级至 AGP 9.3.1 / Gradle 9.5 / Compose BOM 2026.06.01。
 - Navigation3 runtime/UI 对齐至官方 `1.2.0-alpha07`，继续收敛预测返回真实来源页与整卡稳定性。
 - 视频详情整卡过渡新增冻结会话、稳态隐藏景深层和连续播放器返回策略，并扩展性能门槛。
 - 首页顶部、底部、分段控件和详情操作区复用同源液态玻璃 chrome。
 - 动态转发文本支持表情图片和原动态跳转；搜索顶栏与全屏 FILL 视口稳定性继续修复。
+- 平板首页侧边栏新增可开关的账号切换入口；横屏全屏可直接打开评论与楼中楼侧边面板。
 
 ## 路线图
 
@@ -240,6 +241,7 @@ BiliPai 依赖并参考了多个优秀开源项目：
 | [DanmakuRenderEngine](https://github.com/bytedance/DanmakuRenderEngine) | 高性能弹幕渲染参考 |
 | [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect) | B 站 API 文档 |
 | [PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus) | 播放链路与移动端体验参考 |
+| [Bili Pilot](https://github.com/siwei-yuan/bili-pilot) | 签名 CDN 候选、分片级选线与预缓存设计参考；BiliPai 为独立 Kotlin 实现，未复制其 JavaScript 代码 |
 | [BilibiliSponsorBlock](https://github.com/hanydd/BilibiliSponsorBlock) | 空降助手数据与 API |
 | [Haze](https://github.com/chrisbanes/haze) | 毛玻璃效果 |
 | [AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) | 液态玻璃效果 |

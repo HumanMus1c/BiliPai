@@ -30,8 +30,13 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.LoadControl
+import androidx.media3.exoplayer.analytics.PlayerId
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.TrackGroupArray
+import androidx.media3.exoplayer.trackselection.ExoTrackSelection
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
@@ -39,6 +44,7 @@ import coil.size.Scale
 import coil.transform.RoundedCornersTransformation
 import com.android.purebilibili.R
 import com.android.purebilibili.core.network.NetworkModule
+import com.android.purebilibili.core.player.HiResCompatibleRenderersFactory
 import com.android.purebilibili.core.player.PlaybackMediaCache
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.Logger
@@ -46,6 +52,7 @@ import com.android.purebilibili.core.util.NetworkUtils
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.PlaybackCompletionBehavior
 import com.android.purebilibili.feature.video.playback.policy.resolvePlaybackWakeMode
+import com.android.purebilibili.feature.video.playback.audio.isPremiumAudioPlaybackFailure
 import com.android.purebilibili.feature.video.playback.session.resolvePlaybackPauseDecision
 import com.android.purebilibili.feature.video.playback.session.resolvePlaybackResumeDecision
 import com.android.purebilibili.feature.video.playback.session.PendingPlaybackUserAction
@@ -76,7 +83,9 @@ internal data class PlayerBufferPolicy(
     val minBufferMs: Int,
     val maxBufferMs: Int,
     val bufferForPlaybackMs: Int,
-    val bufferForPlaybackAfterRebufferMs: Int
+    val bufferForPlaybackAfterRebufferMs: Int,
+    /** Keep the initial part of a video close to the viewer's actual progress. */
+    val earlyPlaybackMaxBufferMs: Int
 )
 
 internal fun resolvePlayerBufferPolicy(isOnWifi: Boolean): PlayerBufferPolicy {
@@ -85,16 +94,91 @@ internal fun resolvePlayerBufferPolicy(isOnWifi: Boolean): PlayerBufferPolicy {
             minBufferMs = 10000,
             maxBufferMs = 40000,
             bufferForPlaybackMs = 700,
-            bufferForPlaybackAfterRebufferMs = 1400
+            bufferForPlaybackAfterRebufferMs = 1400,
+            earlyPlaybackMaxBufferMs = 2000
         )
     } else {
         PlayerBufferPolicy(
             minBufferMs = 12000,
             maxBufferMs = 45000,
             bufferForPlaybackMs = 1000,
-            bufferForPlaybackAfterRebufferMs = 2200
+            bufferForPlaybackAfterRebufferMs = 2200,
+            earlyPlaybackMaxBufferMs = 2000
         )
     }
+}
+
+/**
+ * Avoid downloading far ahead until the viewer has committed to the first quarter of a VOD.
+ *
+ * Streams and media periods with an unknown duration keep the regular load-control behavior.
+ */
+internal fun shouldLimitEarlyPlaybackBuffer(
+    playbackPositionUs: Long,
+    mediaPeriodDurationUs: Long
+): Boolean {
+    if (playbackPositionUs < 0L || mediaPeriodDurationUs <= 0L) return false
+    return playbackPositionUs < mediaPeriodDurationUs / 4L
+}
+
+/**
+ * [DefaultLoadControl] has static duration thresholds. This wrapper caps only the forward
+ * buffer for the first quarter, then delegates to the regular fast-buffering policy.
+ */
+private class FirstQuarterAwareLoadControl(
+    private val delegate: LoadControl,
+    private val earlyPlaybackMaxBufferMs: Int
+) : LoadControl by delegate {
+    private val period = androidx.media3.common.Timeline.Period()
+
+    // Kotlin interface delegation does not forward Java default methods. Media3 invokes these
+    // PlayerId-based overloads directly, so forward them explicitly instead of falling back to
+    // the deprecated defaults that throw "not implemented".
+    override fun onPrepared(playerId: PlayerId) {
+        delegate.onPrepared(playerId)
+    }
+
+    override fun onTracksSelected(
+        parameters: LoadControl.Parameters,
+        trackGroups: TrackGroupArray,
+        trackSelections: Array<ExoTrackSelection?>
+    ) {
+        delegate.onTracksSelected(parameters, trackGroups, trackSelections)
+    }
+
+    override fun onStopped(playerId: PlayerId) {
+        delegate.onStopped(playerId)
+    }
+
+    override fun onReleased(playerId: PlayerId) {
+        delegate.onReleased(playerId)
+    }
+
+    override fun getBackBufferDurationUs(playerId: PlayerId): Long =
+        delegate.getBackBufferDurationUs(playerId)
+
+    override fun retainBackBufferFromKeyframe(playerId: PlayerId): Boolean =
+        delegate.retainBackBufferFromKeyframe(playerId)
+
+    override fun shouldContinueLoading(parameters: LoadControl.Parameters): Boolean {
+        val periodDurationUs = runCatching {
+            parameters.timeline
+                .getPeriodByUid(parameters.mediaPeriodId.periodUid, period)
+                .durationUs
+        }.getOrDefault(C.TIME_UNSET)
+        val limitEarlyBuffer = shouldLimitEarlyPlaybackBuffer(
+            playbackPositionUs = parameters.playbackPositionUs,
+            mediaPeriodDurationUs = periodDurationUs
+        )
+        return if (limitEarlyBuffer) {
+            parameters.bufferedDurationUs < earlyPlaybackMaxBufferMs * 1_000L
+        } else {
+            delegate.shouldContinueLoading(parameters)
+        }
+    }
+
+    override fun shouldStartPlayback(parameters: LoadControl.Parameters): Boolean =
+        delegate.shouldStartPlayback(parameters)
 }
 
 internal fun shouldReuseMiniPlayerAtEntry(
@@ -288,11 +372,23 @@ internal fun applyRenderedFirstFrameDebugInfo(
 internal fun applyMediaTransitionFirstFrameReset(
     current: PlaybackDebugInfo
 ): PlaybackDebugInfo {
-    if (current.firstFrame.isBlank()) return current
     return current.copy(
         firstFrame = "",
+        lastLoadError = "",
         lastVideoEvent = "media transition"
     )
+}
+
+internal fun applyPlaybackLoadErrorDebugInfo(
+    current: PlaybackDebugInfo,
+    errorCodeName: String,
+    message: String?
+): PlaybackDebugInfo {
+    val summary = listOf(errorCodeName.trim(), message.orEmpty().trim())
+        .filter { it.isNotBlank() }
+        .joinToString(": ")
+    if (summary.isBlank()) return current
+    return current.copy(lastLoadError = summary)
 }
 
 internal fun applyDroppedVideoFramesDebugInfo(
@@ -568,6 +664,15 @@ class VideoPlayerState(
                 "VideoPlayerState",
                 "USER_DBG onMediaItemTransition: reason=$reason, mediaId=${mediaItem?.mediaId}"
             )
+        }
+
+        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+            _debugInfo.value = applyPlaybackLoadErrorDebugInfo(
+                current = _debugInfo.value,
+                errorCodeName = error.errorCodeName,
+                message = error.message
+            )
+            appendDiagnosticEvent("playerError=${error.errorCodeName}")
         }
     }
 
@@ -883,17 +988,18 @@ fun rememberVideoPlayerState(
             Logger.d(
                 "VideoPlayerState",
                 "🎬 BufferPolicy: min=${bufferPolicy.minBufferMs}, max=${bufferPolicy.maxBufferMs}, " +
-                    "start=${bufferPolicy.bufferForPlaybackMs}, rebuffer=${bufferPolicy.bufferForPlaybackAfterRebufferMs}"
+                    "start=${bufferPolicy.bufferForPlaybackMs}, rebuffer=${bufferPolicy.bufferForPlaybackAfterRebufferMs}, " +
+                    "firstQuarterMax=${bufferPolicy.earlyPlaybackMaxBufferMs}"
             )
 
             //  根据设置选择 RenderersFactory
             val renderersFactory = if (hwDecodeEnabled) {
                 // 默认 Factory，优先使用硬件解码
-                androidx.media3.exoplayer.DefaultRenderersFactory(context)
+                HiResCompatibleRenderersFactory(context)
                     .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             } else {
                 // 强制使用软件解码
-                androidx.media3.exoplayer.DefaultRenderersFactory(context)
+                HiResCompatibleRenderersFactory(context)
                     .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
                     .setEnableDecoderFallback(true)
             }
@@ -901,17 +1007,20 @@ fun rememberVideoPlayerState(
             ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory)
                 .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
-                //  性能优化：自定义缓冲策略，改善播放流畅度
+                // 前 1/4 仅保留很短的前向缓冲，确认继续观看后再按常规策略快速预缓冲。
                 .setLoadControl(
-                    androidx.media3.exoplayer.DefaultLoadControl.Builder()
-                        .setBufferDurationsMs(
-                            bufferPolicy.minBufferMs,
-                            bufferPolicy.maxBufferMs,
-                            bufferPolicy.bufferForPlaybackMs,
-                            bufferPolicy.bufferForPlaybackAfterRebufferMs
-                        )
-                        .setPrioritizeTimeOverSizeThresholds(true)  // 优先保证播放时长
-                        .build()
+                    FirstQuarterAwareLoadControl(
+                        delegate = androidx.media3.exoplayer.DefaultLoadControl.Builder()
+                            .setBufferDurationsMs(
+                                bufferPolicy.minBufferMs,
+                                bufferPolicy.maxBufferMs,
+                                bufferPolicy.bufferForPlaybackMs,
+                                bufferPolicy.bufferForPlaybackAfterRebufferMs
+                            )
+                            .setPrioritizeTimeOverSizeThresholds(true)
+                            .build(),
+                        earlyPlaybackMaxBufferMs = bufferPolicy.earlyPlaybackMaxBufferMs
+                    )
                 )
                 //  [性能优化] 快速 Seek：跳转到最近的关键帧而非精确位置
                 .setSeekParameters(
@@ -1177,6 +1286,17 @@ fun rememberVideoPlayerState(
                 val currentState = viewModel.uiState.value
                 val hasCdnAlternatives = currentState is com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState.Success 
                     && currentState.cdnCount > 1
+                val exoPlaybackError = error as? ExoPlaybackException
+                val isPremiumAudioFailure =
+                    currentState is VideoPlaybackUiState.Success &&
+                        isPremiumAudioPlaybackFailure(
+                            errorCode = error.errorCode,
+                            selectedAudioQuality = currentState.selectedAudioQuality,
+                            rendererName = exoPlaybackError?.rendererName,
+                            rendererSampleMimeType = exoPlaybackError
+                                ?.rendererFormat
+                                ?.sampleMimeType
+                        )
 
                 val action = decidePlayerErrorRecovery(
                     errorCode = error.errorCode,
@@ -1188,10 +1308,15 @@ fun rememberVideoPlayerState(
                     isDecoderLikeFailure = isDecoderLikeFailure(
                         errorMessage = error.message,
                         causeClassName = causeName
-                    )
+                    ),
+                    isPremiumAudioFailure = isPremiumAudioFailure
                 )
 
                 when (action) {
+                    PlayerErrorRecoveryAction.FALLBACK_PREMIUM_AUDIO -> {
+                        viewModel.fallbackFromPremiumAudioPlaybackError()
+                    }
+
                     PlayerErrorRecoveryAction.SWITCH_CDN -> {
                         retryCountRef.cdnSwitchCount++
                         com.android.purebilibili.core.util.Logger.d(

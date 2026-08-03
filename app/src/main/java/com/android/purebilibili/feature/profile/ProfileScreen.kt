@@ -70,6 +70,7 @@ import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppPrimaryButton
 import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -256,6 +257,7 @@ fun ProfileScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val activeAccountMid by viewModel.activeAccountMid.collectAsStateWithLifecycle()
+    val playbackAccountMid by viewModel.playbackAccountMid.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val view = LocalView.current
     var showAccountSwitchDialog by remember { mutableStateOf(false) }
@@ -339,6 +341,7 @@ fun ProfileScreen(
         AccountSwitchDialog(
             accounts = accounts,
             activeAccountMid = activeAccountMid,
+            playbackAccountMid = playbackAccountMid,
             onDismiss = { showAccountSwitchDialog = false },
             onAddAccount = {
                 showAccountSwitchDialog = false
@@ -355,6 +358,15 @@ fun ProfileScreen(
                     onFailure = { message ->
                         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                     }
+                )
+            },
+            onSetPlayback = { mid ->
+                viewModel.setPlaybackAccount(
+                    mid = mid,
+                    onSuccess = {
+                        Toast.makeText(context, if (mid == null) "播放授权已跟随当前账号" else "已设置播放授权账号", Toast.LENGTH_SHORT).show()
+                    },
+                    onFailure = { message -> Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
                 )
             },
             onRemove = { mid ->
@@ -609,6 +621,7 @@ fun ProfileScreen(
                         onWatchLaterClick = onWatchLaterClick,
                         onInboxClick = onInboxClick,
                         onVideoClick = onVideoClick,
+                        onContributionRetry = viewModel::retryProfileContributions,
                         onDynamicDeleteClick = { action ->
                             viewModel.deleteProfileDynamic(action) { _, message ->
                                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -760,6 +773,7 @@ private fun ProfileSpaceContent(
     onWatchLaterClick: () -> Unit,
     onInboxClick: () -> Unit,
     onVideoClick: (String) -> Unit,
+    onContributionRetry: () -> Unit,
     onDynamicDeleteClick: (DynamicDeleteAction) -> Unit,
     onBangumiClick: (Long, Long) -> Unit,
     onBangumiMoreClick: () -> Unit,
@@ -934,6 +948,7 @@ private fun ProfileSpaceContent(
                     onBangumiClick = onBangumiClick,
                     onBangumiMoreClick = onBangumiMoreClick,
                     onVideoClick = onVideoClick,
+                    onContributionRetry = onContributionRetry,
                     onHistoryClick = onHistoryClick,
                     showHistoryService = showHistoryService,
                     onDownloadClick = onDownloadClick,
@@ -985,6 +1000,7 @@ private fun ProfileSpaceContent(
                             onBangumiClick = onBangumiClick,
                             onBangumiMoreClick = onBangumiMoreClick,
                             onVideoClick = onVideoClick,
+                            onContributionRetry = onContributionRetry,
                             onHistoryClick = onHistoryClick,
                             showHistoryService = showHistoryService,
                             onDownloadClick = onDownloadClick,
@@ -1035,6 +1051,7 @@ private fun ProfileSpaceFeedColumn(
     onBangumiClick: (Long, Long) -> Unit,
     onBangumiMoreClick: () -> Unit,
     onVideoClick: (String) -> Unit,
+    onContributionRetry: () -> Unit,
     onHistoryClick: () -> Unit,
     showHistoryService: Boolean,
     onDownloadClick: () -> Unit,
@@ -1066,6 +1083,7 @@ private fun ProfileSpaceFeedColumn(
                 onBangumiClick = onBangumiClick,
                 onBangumiMoreClick = onBangumiMoreClick,
                 onVideoClick = onVideoClick,
+                onContributionRetry = onContributionRetry,
                 onHistoryClick = onHistoryClick,
                 showHistoryService = showHistoryService,
                 onDownloadClick = onDownloadClick,
@@ -1487,6 +1505,7 @@ private fun ProfileSpaceTabBody(
     onBangumiClick: (Long, Long) -> Unit,
     onBangumiMoreClick: () -> Unit,
     onVideoClick: (String) -> Unit,
+    onContributionRetry: () -> Unit,
     onHistoryClick: () -> Unit,
     showHistoryService: Boolean,
     onDownloadClick: () -> Unit,
@@ -1524,7 +1543,12 @@ private fun ProfileSpaceTabBody(
             onVideoClick = onVideoClick,
             onDeleteClick = onDynamicDeleteClick
         )
-        ProfileSpaceMainTab.CONTRIBUTION -> ProfileVideoList(space.contributionVideos, onVideoClick)
+        ProfileSpaceMainTab.CONTRIBUTION -> ProfileVideoList(
+            videos = space.contributionVideos,
+            loadState = space.contributionLoadState,
+            onVideoClick = onVideoClick,
+            onRetry = onContributionRetry
+        )
         ProfileSpaceMainTab.FAVORITE -> ProfileFavoriteFolderList(user.mid, space.favoriteFolders, onFavoriteFolderClick)
         ProfileSpaceMainTab.BANGUMI -> ProfileBangumiList(space.bangumiItems, onBangumiClick)
     }
@@ -1929,10 +1953,36 @@ private fun ProfileBangumiList(items: List<FollowBangumiItem>, onBangumiClick: (
 }
 
 @Composable
-private fun ProfileVideoList(videos: List<SpaceVideoItem>, onVideoClick: (String) -> Unit) {
-    if (videos.isEmpty()) {
-        ProfileSpaceEmpty("暂无投稿")
-        return
+private fun ProfileVideoList(
+    videos: List<SpaceVideoItem>,
+    loadState: ProfileContributionLoadState,
+    onVideoClick: (String) -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    when (resolveProfileContributionContentState(loadState, videos.isNotEmpty())) {
+        ProfileContributionContentState.LOADING -> {
+            Box(modifier = modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                AppCircularProgressIndicator()
+            }
+            return
+        }
+        ProfileContributionContentState.EMPTY -> {
+            ProfileSpaceEmpty("暂无投稿")
+            return
+        }
+        ProfileContributionContentState.ERROR -> {
+            Column(
+                modifier = modifier.fillMaxWidth().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                AppText("投稿加载失败", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppOutlinedButton(onClick = onRetry) { AppText("重试") }
+            }
+            return
+        }
+        ProfileContributionContentState.CONTENT -> Unit
     }
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         videos.forEach { video ->
@@ -4009,25 +4059,82 @@ private fun ProfileFavoriteFolderMoreChip(
 }
 
 @Composable
-private fun AccountSwitchDialog(
+internal fun AccountSwitchDialog(
     accounts: List<StoredAccountSession>,
     activeAccountMid: Long?,
+    playbackAccountMid: Long?,
     onDismiss: () -> Unit,
     onAddAccount: () -> Unit,
     onSwitch: (Long) -> Unit,
+    onSetPlayback: (Long?) -> Unit,
     onRemove: (Long) -> Unit
 ) {
+    val activeAccount = accounts.firstOrNull { it.mid == activeAccountMid }
+    val playbackAccount = accounts.firstOrNull { it.mid == playbackAccountMid }
+    val activeIsVip = activeAccount?.isVip == true
+    val hasVipCandidate = accounts.any { it.isVip && it.mid != activeAccountMid }
+    val showPlaybackGuide = !activeIsVip && hasVipCandidate && playbackAccountMid == null
+
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { AppText("账号切换", fontWeight = FontWeight.Bold) },
+        title = { AppText("账号与播放", fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 360.dp)
+                    .heightIn(max = 380.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                AppText(
+                    text = "播放视频时，可以用另一个账号的大会员权限。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (playbackAccount != null) {
+                    AppSurface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AppText("🎬", fontSize = 16.sp)
+                            Spacer(Modifier.width(8.dp))
+                            AppText(
+                                text = "正在用「${playbackAccount.name.ifBlank { "UID ${playbackAccount.mid}" }}」${if (playbackAccount.isVip) "的大会员" else "的账号"}播放",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                } else if (showPlaybackGuide) {
+                    val guideAccount = accounts.firstOrNull { it.isVip && it.mid != activeAccountMid }
+                    AppSurface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AppText("💎", fontSize = 16.sp)
+                            Spacer(Modifier.width(8.dp))
+                            AppText(
+                                text = guideAccount?.let {
+                                    "「${it.name.ifBlank { "UID ${it.mid}" }}」是大会员，设为播放账号即可观看大会员视频"
+                                } ?: "可将大会员账号设为播放账号",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                }
+
                 if (accounts.isEmpty()) {
                     AppText(
                         text = "暂无已保存账号，先添加一个账号后即可快速切换。",
@@ -4036,15 +4143,21 @@ private fun AccountSwitchDialog(
                     )
                 } else {
                     accounts.forEach { account ->
+                        val isActive = account.mid == activeAccountMid
+                        val isPlayback = account.mid == playbackAccountMid
                         AppSurface(
                             shape = RoundedCornerShape(18.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f),
+                            color = if (isPlayback) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f)
+                            },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable(enabled = account.mid != activeAccountMid) {
+                                    .clickable(enabled = !isActive) {
                                         onSwitch(account.mid)
                                     }
                                     .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -4068,27 +4181,63 @@ private fun AccountSwitchDialog(
                                     AppText(
                                         text = buildString {
                                             append("UID ${account.mid}")
-                                            if (account.vipLabel.isNotBlank()) {
-                                                append(" · ${account.vipLabel}")
+                                            if (account.isVip) {
+                                                append(" · ")
+                                                append(account.vipLabel.ifBlank { "大会员" })
                                             }
                                         },
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (account.isVip) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
                                     )
                                 }
 
-                                if (account.mid == activeAccountMid) {
-                                    AppText(
-                                        text = "当前",
-                                        color = MaterialTheme.colorScheme.primary,
-                                        style = MaterialTheme.typography.labelLarge
-                                    )
-                                } else {
-                                    AppTextButton(onClick = { onSwitch(account.mid) }) {
-                                        AppText("切换")
+                                Column(horizontalAlignment = Alignment.End) {
+                                    if (isActive) {
+                                        AppText(
+                                            text = "当前",
+                                            color = MaterialTheme.colorScheme.primary,
+                                            style = MaterialTheme.typography.labelLarge
+                                        )
+                                    } else {
+                                        AppTextButton(onClick = { onSwitch(account.mid) }) {
+                                            AppText("切换")
+                                        }
+                                        AppTextButton(onClick = { onRemove(account.mid) }) {
+                                            AppText("移除", color = MaterialTheme.colorScheme.error)
+                                        }
                                     }
-                                    AppTextButton(onClick = { onRemove(account.mid) }) {
-                                        AppText("移除", color = MaterialTheme.colorScheme.error)
+                                    if (isPlayback) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            AppText(
+                                                text = "🎬 用于播放",
+                                                color = MaterialTheme.colorScheme.primary,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            AppTextButton(onClick = { onSetPlayback(null) }) {
+                                                AppText(
+                                                    text = "取消",
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        AppTextButton(onClick = {
+                                            onSetPlayback(account.mid)
+                                        }) {
+                                            AppText(
+                                                text = if (account.isVip) "设为播放(大会员)" else "设为播放",
+                                                color = if (account.isVip) {
+                                                    MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }

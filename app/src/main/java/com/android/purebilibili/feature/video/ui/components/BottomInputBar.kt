@@ -44,8 +44,13 @@ import com.android.purebilibili.core.ui.rememberAppCoinIcon
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
 import com.android.purebilibili.core.ui.rememberAppShareIcon
+import com.android.purebilibili.core.ui.blur.BlurSurfaceType
+import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
+import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
+import com.android.purebilibili.feature.home.components.resolveBottomBarSurfaceColor
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
+import dev.chrisbanes.haze.HazeState
 import top.yukonga.miuix.kmp.blur.Backdrop
 
 internal const val BOTTOM_INPUT_BAR_PLACEHOLDER_MIN_CONTRAST = 4.5f
@@ -72,6 +77,16 @@ internal fun shouldUseFloatingLiquidBottomInputBar(
     androidNativeLiquidGlassEnabled: Boolean
 ): Boolean = resolveGlobalLiquidGlassReuseEnabled(androidNativeLiquidGlassEnabled)
 
+/** The comment bar follows the bottom-bar blur preference when liquid glass is not active. */
+internal fun shouldUseFrostedBottomInputBar(
+    bottomBarBlurEnabled: Boolean,
+    floatingLiquidGlass: Boolean,
+    hasHazeState: Boolean
+): Boolean =
+    bottomBarBlurEnabled &&
+        !floatingLiquidGlass &&
+        hasHazeState
+
 internal fun resolveBottomInputBarContentBottomPadding(
     showBar: Boolean,
     floatingLiquidGlass: Boolean,
@@ -95,6 +110,7 @@ fun BottomInputBar(
     onShareClick: () -> Unit,
     onCommentClick: () -> Unit,
     backdrop: Backdrop? = null,
+    hazeState: HazeState? = null,
     isScrollInProgressProvider: () -> Boolean = { false },
 ) {
     val context = LocalContext.current
@@ -103,6 +119,11 @@ fun BottomInputBar(
         .collectAsStateWithLifecycle(initialValue = HomeSettings())
     val floatingLiquidGlass = shouldUseFloatingLiquidBottomInputBar(
         androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
+    )
+    val frostedBottomBar = shouldUseFrostedBottomInputBar(
+        bottomBarBlurEnabled = homeSettings.isBottomBarBlurEnabled,
+        floatingLiquidGlass = floatingLiquidGlass,
+        hasHazeState = hazeState != null
     )
 
     if (floatingLiquidGlass) {
@@ -122,6 +143,8 @@ fun BottomInputBar(
     } else {
         DockedSolidBottomInputBar(
             modifier = modifier,
+            hazeState = hazeState,
+            frostedBottomBar = frostedBottomBar,
             isLiked = isLiked,
             isFavorited = isFavorited,
             isCoined = isCoined,
@@ -137,6 +160,8 @@ fun BottomInputBar(
 @Composable
 private fun DockedSolidBottomInputBar(
     modifier: Modifier,
+    hazeState: HazeState?,
+    frostedBottomBar: Boolean,
     isLiked: Boolean,
     isFavorited: Boolean,
     isCoined: Boolean,
@@ -146,6 +171,12 @@ private fun DockedSolidBottomInputBar(
     onShareClick: () -> Unit,
     onCommentClick: () -> Unit,
 ) {
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val bottomBarColor = resolveBottomBarSurfaceColor(
+        surfaceColor = surfaceColor,
+        blurEnabled = frostedBottomBar,
+        blurIntensity = currentUnifiedBlurIntensity()
+    )
     val inputContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
     val inputTextColor = resolveBottomInputBarPlaceholderTextColor(
         inputContainerColor = inputContainerColor,
@@ -154,10 +185,21 @@ private fun DockedSolidBottomInputBar(
     )
 
     AppSurface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp,
-        shadowElevation = 8.dp,
-        modifier = modifier.fillMaxWidth()
+        color = bottomBarColor,
+        tonalElevation = if (frostedBottomBar) 0.dp else 8.dp,
+        shadowElevation = if (frostedBottomBar) 0.dp else 8.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (frostedBottomBar && hazeState != null) {
+                    Modifier.unifiedBlur(
+                        hazeState = hazeState,
+                        surfaceType = BlurSurfaceType.BOTTOM_BAR
+                    )
+                } else {
+                    Modifier
+                }
+            )
     ) {
         BottomInputBarContentRow(
             modifier = Modifier

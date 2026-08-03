@@ -226,6 +226,32 @@ class DynamicApiContractTest {
     }
 
     @Test
+    fun createDynamic_usesVcMultipartFormWithDefaults() {
+        val method = DynamicApi::class.java.methods.first { it.name == "createDynamic" }
+        val post = method.getAnnotation(POST::class.java)
+        assertEquals("https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/create", post?.value)
+
+        val fields = method.parameterAnnotations
+            .mapNotNull { annotations ->
+                annotations.filterIsInstance<retrofit2.http.Part>().firstOrNull()?.value
+            }
+        assertTrue("dynamic_id" in fields)
+        assertTrue("type" in fields)
+        assertTrue("content" in fields)
+        assertTrue("csrf" in fields)
+    }
+
+    @Test
+    fun getDynamicUplist_usesVcUplistEndpoint() {
+        val method = DynamicApi::class.java.methods.first { it.name == "getDynamicUplist" }
+        val get = method.getAnnotation(GET::class.java)
+        assertEquals(
+            "https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/w_dyn_uplist",
+            get?.value
+        )
+    }
+
+    @Test
     fun getPbpData_usesBilivideoPbpEndpoint() {
         val method = BilibiliApi::class.java.methods.first { it.name == "getPbpData" }
         val get = method.getAnnotation(GET::class.java)

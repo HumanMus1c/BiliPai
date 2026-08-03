@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.dynamic
 import com.android.purebilibili.data.model.response.DynamicAuthorModule
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.DynamicModules
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -218,6 +219,45 @@ class DynamicScreenStatePolicyTest {
 
         assertEquals(listOf("101"), updated.items.map { it.id_str })
         assertEquals(listOf("201"), updated.userItems.map { it.id_str })
+    }
+
+    @Test
+    fun `temp banned dynamic is filtered from all tab presentation`() {
+        val state = DynamicUiState(
+            items = listOf(
+                buildDynamicItem(id = "100"),
+                buildDynamicItem(id = "101"),
+                buildDynamicItem(id = "102")
+            ).toImmutableList(),
+            tempBannedDynamicIds = persistentSetOf("101")
+        )
+
+        val presentation = resolveDynamicPagePresentation(
+            state = state,
+            logicalTab = 0,
+            selectedUserId = null
+        )
+
+        assertEquals(listOf("100", "102"), presentation.items.map { it.id_str })
+    }
+
+    @Test
+    fun `temp banned dynamic is filtered from selected user presentation`() {
+        val state = DynamicUiState(
+            userItems = listOf(
+                buildDynamicItem(id = "200"),
+                buildDynamicItem(id = "201")
+            ).toImmutableList(),
+            tempBannedDynamicIds = persistentSetOf("201")
+        )
+
+        val presentation = resolveDynamicPagePresentation(
+            state = state,
+            logicalTab = 4,
+            selectedUserId = 1L
+        )
+
+        assertEquals(listOf("200"), presentation.items.map { it.id_str })
     }
 
     @Test

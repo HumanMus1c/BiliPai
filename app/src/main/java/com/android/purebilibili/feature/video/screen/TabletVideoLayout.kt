@@ -69,6 +69,7 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
+import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 
 /**
@@ -163,6 +164,10 @@ internal fun TabletVideoLayout(
                 //  尝试获取共享元素作用域
                 val sharedTransitionScope = LocalSharedTransitionScope.current
                 val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
+                val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
+                val sharedCoverShape = remember(sourceRoute) {
+                    RoundedCornerShape(resolveVideoSharedTransitionSourceCornerDp(sourceRoute).dp)
+                }
                 
                 //  为播放器容器添加共享元素标记（受开关控制）
                 val playerContainerModifier = if (
@@ -177,9 +182,7 @@ internal fun TabletVideoLayout(
                                 sharedContentState = rememberSharedContentState(key = com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey(bvid)),
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 boundsTransform = { _, _ -> com.android.purebilibili.core.ui.motion.AppMotionTokens.spatialSpec() },
-                                clipInOverlayDuringTransition = OverlayClip(
-                                    RoundedCornerShape(12.dp)
-                                )
+                                clipInOverlayDuringTransition = OverlayClip(sharedCoverShape)
                             )
                     }
                 } else {
@@ -508,7 +511,11 @@ private fun TabletSecondaryContent(
         
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = true,
+            userScrollEnabled = shouldEnableVideoContentHorizontalPagerSwipe(
+                currentPage = pagerState.currentPage,
+                commentPageIndex = 0,
+                isPagerScrollInProgress = pagerState.isScrollInProgress,
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)

@@ -295,7 +295,7 @@ internal fun resolveVideoSharedTransitionVisualSpec(
         else -> VideoSharedTransitionTargetMode.InlinePlayer
     }
     val targetCornerDp = when {
-        // 返回：详情壳保持播放器圆角（直角/小圆角），列表卡圆角在源卡 shell。
+        // 返回：播放器常态仍用自身圆角；shell / 内层封面的实际裁切由返回策略统一到来源卡。
         isReturning -> playerCornerDp.coerceAtLeast(0)
         targetMode == VideoSharedTransitionTargetMode.LandscapeFullscreen -> 0
         targetMode == VideoSharedTransitionTargetMode.PortraitFullscreen -> 0
@@ -318,8 +318,8 @@ internal fun resolveVideoSharedTransitionVisualSpec(
 
 /**
  * 详情壳 sharedBounds OverlayClip 圆角。
- * 一镜到底返回：飞行中用直角/播放器圆角，避免中途变成「首页列表圆角卡」。
- * 列表卡圆角由源卡 shell 自己承担落位。
+ * 返回全程保持来源卡的裁切形状，避免 shared overlay 卸层的最后一帧
+ * 从直角突然切回卡片圆角。播放器、驻留封面与来源卡因此在同一形状下交接。
  */
 internal fun resolveVideoDetailShellOverlayCornerDp(
     visualSpec: VideoSharedTransitionVisualSpec,
@@ -327,9 +327,13 @@ internal fun resolveVideoDetailShellOverlayCornerDp(
     isReturningVisualState: Boolean,
     playerCornerDp: Int = DEFAULT_VIDEO_PLAYER_CORNER_DP,
 ): Int {
-    // 返回飞行：直角播放器壳（0），列表卡圆角由源卡 shell 落位承担。
+    // live surface 返回也沿用来源卡圆角；不要在回程开始时切直角、落位时再切圆角。
     if (isReturningVisualState) {
-        return if (liveReturnMorph) 0 else playerCornerDp.coerceAtLeast(0)
+        return if (liveReturnMorph) {
+            visualSpec.sourceCornerDp.coerceAtLeast(0)
+        } else {
+            playerCornerDp.coerceAtLeast(0)
+        }
     }
     return visualSpec.targetCornerDp.coerceAtLeast(0)
 }

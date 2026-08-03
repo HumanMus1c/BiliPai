@@ -2,7 +2,6 @@ package com.android.purebilibili.feature.bangumi
 
 import java.io.File
 import kotlin.test.Test
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BangumiAnime4KStructureTest {
@@ -18,10 +17,16 @@ class BangumiAnime4KStructureTest {
         assertTrue(playerSource.contains("updateDisplayScaleMode(currentAspectRatio.toAnime4KDisplayScaleMode())"))
         assertTrue(playerSource.contains("width = playerFrameViewport.width.toDp()"))
         assertTrue(playerSource.contains("height = playerFrameViewport.height.toDp()"))
-        assertTrue(playerSource.contains("anime4kEnabled = anime4kPluginInfo?.enabled == true"))
-        assertFalse(playerSource.contains("view.player = exoPlayer"))
+        assertTrue(playerSource.contains("val videoEnhancementEnabled = anime4kPluginInfo?.enabled == true &&"))
+        assertTrue(playerSource.contains("view.player !== exoPlayer && !shouldRenderAnime4kPipeline"))
+        assertTrue(playerSource.contains("view.player = exoPlayer"))
         assertTrue(overlaySource.contains("anime4kBypassReason = anime4kBypassReason"))
+        assertTrue(overlaySource.contains("onVideoEnhancementAlgorithmChange = onVideoEnhancementAlgorithmChange"))
         assertTrue(overlaySource.contains("onAnime4kPresetChange = onAnime4kPresetChange"))
+        assertTrue(overlaySource.contains("fsrSharpness = fsrSharpness"))
+        assertTrue(overlaySource.contains("onFsrSharpnessChange = onFsrSharpnessChange"))
+        assertTrue(playerSource.contains("fsrSharpness = anime4kConfig.fsrSharpness"))
+        assertTrue(playerSource.contains("anime4kPlugin?.setFsrSharpness(sharpness)"))
     }
 
     private fun sourceOf(path: String): String =

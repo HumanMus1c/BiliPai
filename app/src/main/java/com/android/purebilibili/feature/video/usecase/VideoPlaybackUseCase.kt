@@ -22,9 +22,12 @@ import com.android.purebilibili.data.model.VideoLoadError
 import com.android.purebilibili.data.model.response.*
 import com.android.purebilibili.feature.video.playback.dash.AdaptiveDashPlaybackSource
 import com.android.purebilibili.feature.video.playback.dash.buildLocalDashManifest
+import com.android.purebilibili.feature.video.playback.audio.AudioFallbackReason
+import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
+import com.android.purebilibili.feature.video.playback.audio.collectAudioStreamCandidates
+import com.android.purebilibili.feature.video.playback.audio.resolveAudioStreamSelection
 import com.android.purebilibili.feature.video.playback.policy.PlaybackQualityMode
 import com.android.purebilibili.feature.video.playback.policy.buildAdaptiveDashTrackSet
-import com.android.purebilibili.feature.video.playback.policy.resolveSpeedCompatibleAudioQualityPreference
 import com.android.purebilibili.data.repository.ActionRepository
 import com.android.purebilibili.data.repository.VideoRepository
 import com.android.purebilibili.feature.video.controller.PlaybackProgressManager
@@ -60,6 +63,11 @@ sealed class VideoLoadResult {
         val switchableQualityIds: List<Int> = emptyList(),
         val cachedDashVideos: List<DashVideo>,
         val cachedDashAudios: List<DashAudio>,
+        val cachedDash: Dash? = null,
+        val requestedAudioQuality: Int = -1,
+        val selectedAudioQuality: Int = -1,
+        val availableAudioQualities: List<AudioQualityOption> = emptyList(),
+        val audioFallbackReason: AudioFallbackReason? = null,
         val emoteMap: Map<String, String>,
         val isLoggedIn: Boolean,
         val isVip: Boolean,
@@ -106,6 +114,11 @@ data class QualitySwitchResult(
     val adaptiveDashSource: AdaptiveDashPlaybackSource? = null,
     val cachedDashVideos: List<DashVideo>,
     val cachedDashAudios: List<DashAudio>,
+    val cachedDash: Dash? = null,
+    val requestedAudioQuality: Int = -1,
+    val selectedAudioQuality: Int = -1,
+    val availableAudioQualities: List<AudioQualityOption> = emptyList(),
+    val audioFallbackReason: AudioFallbackReason? = null,
     val switchableQualityIds: List<Int> = emptyList(),
     val qualityIds: List<Int> = emptyList(),
     val qualityLabels: List<String> = emptyList()
@@ -119,6 +132,11 @@ data class PlaybackSelectionResult(
     val adaptiveDashSource: AdaptiveDashPlaybackSource? = null,
     val cachedDashVideos: List<DashVideo>,
     val cachedDashAudios: List<DashAudio>,
+    val cachedDash: Dash? = null,
+    val requestedAudioQuality: Int = -1,
+    val selectedAudioQuality: Int = -1,
+    val availableAudioQualities: List<AudioQualityOption> = emptyList(),
+    val audioFallbackReason: AudioFallbackReason? = null,
     val switchableQualityIds: List<Int>,
     val qualityIds: List<Int>,
     val qualityLabels: List<String>,
@@ -524,17 +542,16 @@ class VideoPlaybackUseCase(
             
             return detailResult.fold(
                 onSuccess = { (info, playData) ->
-                    val isLogin = com.android.purebilibili.data.repository.resolveVideoPlaybackAuthState(
-                        hasSessionCookie = !com.android.purebilibili.core.store.TokenManager.sessDataCache.isNullOrEmpty(),
-                        hasAccessToken = !com.android.purebilibili.core.store.TokenManager.accessTokenCache.isNullOrEmpty()
-                    )
-                    var isVip = com.android.purebilibili.core.store.TokenManager.isVipCache
+                    val isLogin = com.android.purebilibili.data.repository.VideoRepository.isPlaybackLoggedIn()
+                    var isVip = com.android.purebilibili.data.repository.VideoRepository.isPlaybackVip()
                     if (isLogin && !isVip && com.android.purebilibili.data.repository.shouldRefreshVipStatusOnVideoLoad()) {
                         try {
-                            val navResult = VideoRepository.getNavInfo()
+                            val navResult = VideoRepository.getPlaybackNavInfo()
                             navResult.onSuccess { navData ->
                                 isVip = navData.vip.status == 1
-                                com.android.purebilibili.core.store.TokenManager.isVipCache = isVip
+                                if (!VideoRepository.isUsingDedicatedPlaybackAccount()) {
+                                    com.android.purebilibili.core.store.TokenManager.isVipCache = isVip
+                                }
                                 Logger.d("VideoPlaybackUseCase", " Refreshed VIP status: $isVip")
                             }
                         } catch (e: Exception) {
@@ -667,6 +684,11 @@ class VideoPlaybackUseCase(
                         switchableQualityIds = selection.switchableQualityIds,
                         cachedDashVideos = selection.cachedDashVideos,
                         cachedDashAudios = selection.cachedDashAudios,
+                        cachedDash = selection.cachedDash,
+                        requestedAudioQuality = selection.requestedAudioQuality,
+                        selectedAudioQuality = selection.selectedAudioQuality,
+                        availableAudioQualities = selection.availableAudioQualities,
+                        audioFallbackReason = selection.audioFallbackReason,
                         emoteMap = emoteMap,
                         isLoggedIn = isLogin,
                         isVip = isEffectiveVip, // Pass effective VIP status (true if actual VIP or Unlocked)
@@ -735,13 +757,20 @@ class VideoPlaybackUseCase(
      * Play video with DASH format
      */
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    fun playDashVideo(videoUrl: String, audioUrl: String?, seekTo: Long = 0L, playWhenReady: Boolean = true) {
+    fun playDashVideo(
+        videoUrl: String,
+        audioUrl: String?,
+        seekTo: Long = 0L,
+        playWhenReady: Boolean = true,
+        cdnCacheKeysByUrl: Map<String, String> = emptyMap()
+    ) {
         playDashVideo(
             videoUrl = videoUrl,
             audioUrl = audioUrl,
             adaptiveDashSource = null,
             seekTo = seekTo,
-            playWhenReady = playWhenReady
+            playWhenReady = playWhenReady,
+            cdnCacheKeysByUrl = cdnCacheKeysByUrl
         )
     }
 
@@ -751,7 +780,8 @@ class VideoPlaybackUseCase(
         audioUrl: String?,
         adaptiveDashSource: AdaptiveDashPlaybackSource?,
         seekTo: Long = 0L,
-        playWhenReady: Boolean = true
+        playWhenReady: Boolean = true,
+        cdnCacheKeysByUrl: Map<String, String> = emptyMap()
     ) {
         val player = exoPlayer ?: return
         com.android.purebilibili.core.player.PlayerVolumeController.applyPreferredVolume(player)
@@ -764,10 +794,10 @@ class VideoPlaybackUseCase(
                 dashSegmentRequestsEnabled = dashSegmentRequestsEnabled
             )
         ) {
-            createAdaptiveDashMediaSource(adaptiveDashSource)
-                ?: createLegacyDashMediaSource(videoUrl, audioUrl)
+            createAdaptiveDashMediaSource(adaptiveDashSource, cdnCacheKeysByUrl)
+                ?: createLegacyDashMediaSource(videoUrl, audioUrl, cdnCacheKeysByUrl)
         } else {
-            createLegacyDashMediaSource(videoUrl, audioUrl)
+            createLegacyDashMediaSource(videoUrl, audioUrl, cdnCacheKeysByUrl)
         }
 
         player.setMediaSource(finalSource)
@@ -813,6 +843,7 @@ class VideoPlaybackUseCase(
         qualityId: Int,
         cachedVideos: List<DashVideo>,
         cachedAudios: List<DashAudio>,
+        cachedDash: Dash? = null,
         currentPos: Long,
         durationMs: Long = 0L,
         playbackQualityMode: PlaybackQualityMode = PlaybackQualityMode.AUTO,
@@ -822,6 +853,8 @@ class VideoPlaybackUseCase(
         videoSecondCodecPreference: String = "avc1",
         isHevcSupported: Boolean = com.android.purebilibili.core.util.MediaUtils.isHevcSupported(),
         isAv1Supported: Boolean = com.android.purebilibili.core.util.MediaUtils.isAv1Supported(),
+        isDolbyAudioSupported: Boolean =
+            com.android.purebilibili.core.util.MediaUtils.isDolbyAtmosAudioSupported(),
         playWhenReady: Boolean = true
     ): QualitySwitchResult? {
         if (cachedVideos.isEmpty()) {
@@ -868,32 +901,28 @@ class VideoPlaybackUseCase(
         )
         val videoUrl = match.getValidUrl()
         
-        // [修复] 音频也应该重新选择最佳匹配，而不是盲目取第一个
-        val effectiveAudioQualityPreference = resolveSpeedCompatibleAudioQualityPreference(
+        val dashCatalog = cachedDash ?: Dash(video = cachedVideos, audio = cachedAudios)
+        val audioSelection = resolveAudioStreamSelection(
+            dash = dashCatalog,
             requestedAudioQuality = audioQualityPreference,
-            playbackSpeed = playbackSpeed
+            playbackSpeed = playbackSpeed,
+            isDolbyAudioSupported = isDolbyAudioSupported
         )
-
-        val dashAudio = if (effectiveAudioQualityPreference != -1) {
-            // 使用 Dash.getBestAudio 逻辑的简化版 (因为这里只有 List<DashAudio>)
-            cachedAudios.find { it.id == effectiveAudioQualityPreference }
-                ?: cachedAudios.minByOrNull { kotlin.math.abs(it.id - effectiveAudioQualityPreference) }
-        } else {
-            cachedAudios.maxByOrNull { it.bandwidth }
-        }
+        val dashAudio = audioSelection.selected?.track
          
         val audioUrl = dashAudio?.getValidUrl()
         val adaptiveDashSource = buildAdaptiveDashPlaybackSource(
             durationMs = durationMs,
             minBufferTimeMs = 1500L,
-            dash = Dash(video = cachedVideos, audio = cachedAudios),
+            dash = dashCatalog,
             targetQuality = requestedQuality,
-            audioQualityPreference = effectiveAudioQualityPreference,
+            audioQualityPreference = audioSelection.effectivePreferenceId,
             videoCodecPreference = videoCodecPreference,
             videoSecondCodecPreference = videoSecondCodecPreference,
             playbackQualityMode = effectivePlaybackQualityMode,
             isHevcSupported = isHevcSupported,
-            isAv1Supported = isAv1Supported
+            isAv1Supported = isAv1Supported,
+            isDolbyAudioSupported = isDolbyAudioSupported
         )
         if (videoUrl.isNotEmpty()) {
             playDashVideo(
@@ -910,7 +939,15 @@ class VideoPlaybackUseCase(
                 wasFallback = false,
                 adaptiveDashSource = adaptiveDashSource,
                 cachedDashVideos = cachedVideos,
-                cachedDashAudios = cachedAudios,
+                cachedDashAudios = collectAudioStreamCandidates(
+                    dash = dashCatalog,
+                    isDolbyAudioSupported = isDolbyAudioSupported
+                ).map { it.track },
+                cachedDash = dashCatalog,
+                requestedAudioQuality = audioSelection.requestedPreferenceId,
+                selectedAudioQuality = audioSelection.selectedPreferenceId,
+                availableAudioQualities = audioSelection.availableOptions,
+                audioFallbackReason = audioSelection.fallbackReason,
                 switchableQualityIds = availableIds
             )
         }
@@ -935,6 +972,8 @@ class VideoPlaybackUseCase(
         videoSecondCodecPreference: String = "avc1",
         isHevcSupported: Boolean = com.android.purebilibili.core.util.MediaUtils.isHevcSupported(),
         isAv1Supported: Boolean = com.android.purebilibili.core.util.MediaUtils.isAv1Supported(),
+        isDolbyAudioSupported: Boolean =
+            com.android.purebilibili.core.util.MediaUtils.isDolbyAtmosAudioSupported(),
         playWhenReady: Boolean = true
     ): QualitySwitchResult? {
         Logger.d("VideoPlaybackUseCase", " changeQualityFromApi: bvid=$bvid, cid=$cid, target=$qualityId")
@@ -967,7 +1006,8 @@ class VideoPlaybackUseCase(
             videoSecondCodecPreference = videoSecondCodecPreference,
             playbackQualityMode = effectivePlaybackQualityMode,
             isHevcSupported = isHevcSupported,
-            isAv1Supported = isAv1Supported
+            isAv1Supported = isAv1Supported,
+            isDolbyAudioSupported = isDolbyAudioSupported
         ) ?: run {
             Logger.d("VideoPlaybackUseCase", " Video URL is empty")
             return null
@@ -995,6 +1035,11 @@ class VideoPlaybackUseCase(
             adaptiveDashSource = selection.adaptiveDashSource,
             cachedDashVideos = selection.cachedDashVideos,
             cachedDashAudios = selection.cachedDashAudios,
+            cachedDash = selection.cachedDash,
+            requestedAudioQuality = selection.requestedAudioQuality,
+            selectedAudioQuality = selection.selectedAudioQuality,
+            availableAudioQualities = selection.availableAudioQualities,
+            audioFallbackReason = selection.audioFallbackReason,
             switchableQualityIds = selection.switchableQualityIds,
             qualityIds = selection.qualityIds,
             qualityLabels = selection.qualityLabels
@@ -1045,7 +1090,9 @@ class VideoPlaybackUseCase(
         videoSecondCodecPreference: String = "avc1",
         playbackQualityMode: PlaybackQualityMode = PlaybackQualityMode.AUTO,
         isHevcSupported: Boolean = com.android.purebilibili.core.util.MediaUtils.isHevcSupported(),
-        isAv1Supported: Boolean = com.android.purebilibili.core.util.MediaUtils.isAv1Supported()
+        isAv1Supported: Boolean = com.android.purebilibili.core.util.MediaUtils.isAv1Supported(),
+        isDolbyAudioSupported: Boolean =
+            com.android.purebilibili.core.util.MediaUtils.isDolbyAtmosAudioSupported()
     ): PlaybackSelectionResult? {
         val dashVideo = playUrlData.dash?.getBestVideo(
             targetQuality,
@@ -1054,11 +1101,15 @@ class VideoPlaybackUseCase(
             isHevcSupported = isHevcSupported,
             isAv1Supported = isAv1Supported
         )
-        val effectiveAudioQualityPreference = resolveSpeedCompatibleAudioQualityPreference(
-            requestedAudioQuality = audioQualityPreference,
-            playbackSpeed = playbackSpeed
-        )
-        val dashAudio = playUrlData.dash?.getBestAudio(effectiveAudioQualityPreference)
+        val audioSelection = playUrlData.dash?.let { dash ->
+            resolveAudioStreamSelection(
+                dash = dash,
+                requestedAudioQuality = audioQualityPreference,
+                playbackSpeed = playbackSpeed,
+                isDolbyAudioSupported = isDolbyAudioSupported
+            )
+        }
+        val dashAudio = audioSelection?.selected?.track
         val videoUrl = getValidVideoUrl(dashVideo, playUrlData)
         if (videoUrl.isBlank()) return null
 
@@ -1072,12 +1123,13 @@ class VideoPlaybackUseCase(
             minBufferTimeMs = playUrlData.dash?.minBufferTime?.times(1000f)?.toLong() ?: 1500L,
             dash = playUrlData.dash,
             targetQuality = targetQuality,
-            audioQualityPreference = effectiveAudioQualityPreference,
+            audioQualityPreference = audioSelection?.effectivePreferenceId ?: audioQualityPreference,
             videoCodecPreference = videoCodecPreference,
             videoSecondCodecPreference = videoSecondCodecPreference,
             playbackQualityMode = playbackQualityMode,
             isHevcSupported = isHevcSupported,
-            isAv1Supported = isAv1Supported
+            isAv1Supported = isAv1Supported,
+            isDolbyAudioSupported = isDolbyAudioSupported
         )
         return PlaybackSelectionResult(
             videoUrl = videoUrl,
@@ -1086,7 +1138,20 @@ class VideoPlaybackUseCase(
             isDashPlayback = dashVideo != null,
             adaptiveDashSource = adaptiveDashSource,
             cachedDashVideos = playUrlData.dash?.video ?: emptyList(),
-            cachedDashAudios = playUrlData.dash?.audio ?: emptyList(),
+            cachedDashAudios = playUrlData.dash
+                ?.let { dash ->
+                    collectAudioStreamCandidates(
+                        dash = dash,
+                        isDolbyAudioSupported = isDolbyAudioSupported
+                    )
+                }
+                ?.map { it.track }
+                .orEmpty(),
+            cachedDash = playUrlData.dash,
+            requestedAudioQuality = audioSelection?.requestedPreferenceId ?: audioQualityPreference,
+            selectedAudioQuality = audioSelection?.selectedPreferenceId ?: -1,
+            availableAudioQualities = audioSelection?.availableOptions.orEmpty(),
+            audioFallbackReason = audioSelection?.fallbackReason,
             switchableQualityIds = qualitySelectionState.switchableQualityIds,
             qualityIds = qualitySelectionState.qualityIds,
             qualityLabels = qualitySelectionState.qualityLabels,
@@ -1106,7 +1171,8 @@ class VideoPlaybackUseCase(
         videoSecondCodecPreference: String,
         playbackQualityMode: PlaybackQualityMode,
         isHevcSupported: Boolean,
-        isAv1Supported: Boolean
+        isAv1Supported: Boolean,
+        isDolbyAudioSupported: Boolean
     ): AdaptiveDashPlaybackSource? {
         val adaptiveTrackSet = dash?.let { sourceDash ->
             buildAdaptiveDashTrackSet(
@@ -1117,7 +1183,8 @@ class VideoPlaybackUseCase(
                 preferredVideoCodec = videoCodecPreference,
                 secondaryVideoCodec = videoSecondCodecPreference,
                 isHevcSupported = isHevcSupported,
-                isAv1Supported = isAv1Supported
+                isAv1Supported = isAv1Supported,
+                isDolbyAudioSupported = isDolbyAudioSupported
             )
         } ?: return null
 
@@ -1137,7 +1204,11 @@ class VideoPlaybackUseCase(
     }
 
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    private fun createLegacyDashMediaSource(videoUrl: String, audioUrl: String?): MediaSource {
+    private fun createLegacyDashMediaSource(
+        videoUrl: String,
+        audioUrl: String?,
+        cdnCacheKeysByUrl: Map<String, String>
+    ): MediaSource {
         val headers = mapOf(
             "Referer" to "https://www.bilibili.com",
             "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -1145,7 +1216,7 @@ class VideoPlaybackUseCase(
         val upstreamFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(
             NetworkModule.playbackOkHttpClient
         ).setDefaultRequestProperties(headers)
-        val dataSourceFactory = buildCachedPlaybackDataSourceFactory(upstreamFactory)
+        val dataSourceFactory = buildCachedPlaybackDataSourceFactory(upstreamFactory, cdnCacheKeysByUrl)
 
         val mediaSourceFactory = androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(dataSourceFactory)
         val videoSource = mediaSourceFactory.createMediaSource(MediaItem.fromUri(videoUrl))
@@ -1160,7 +1231,8 @@ class VideoPlaybackUseCase(
 
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     private fun createAdaptiveDashMediaSource(
-        adaptiveDashSource: AdaptiveDashPlaybackSource?
+        adaptiveDashSource: AdaptiveDashPlaybackSource?,
+        cdnCacheKeysByUrl: Map<String, String>
     ): MediaSource? {
         val source = adaptiveDashSource ?: return null
         val context = appContext ?: NetworkModule.appContext ?: return null
@@ -1174,7 +1246,11 @@ class VideoPlaybackUseCase(
         ).setDefaultRequestProperties(headers)
         val dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(
             context,
-            PlaybackMediaCache.buildCachedDataSourceFactory(context, upstreamFactory)
+            PlaybackMediaCache.buildCdnOptimizedDataSourceFactory(
+                context = context,
+                upstreamFactory = upstreamFactory,
+                cacheKeysByUrl = cdnCacheKeysByUrl
+            )
         )
         val mediaItem = MediaItem.Builder()
             .setUri(manifestUri)
@@ -1184,10 +1260,15 @@ class VideoPlaybackUseCase(
     }
 
     private fun buildCachedPlaybackDataSourceFactory(
-        upstreamFactory: DataSource.Factory
+        upstreamFactory: DataSource.Factory,
+        cdnCacheKeysByUrl: Map<String, String> = emptyMap()
     ): DataSource.Factory {
         val context = appContext ?: NetworkModule.appContext ?: return upstreamFactory
-        return PlaybackMediaCache.buildCachedDataSourceFactory(context, upstreamFactory)
+        return PlaybackMediaCache.buildCdnOptimizedDataSourceFactory(
+            context = context,
+            upstreamFactory = upstreamFactory,
+            cacheKeysByUrl = cdnCacheKeysByUrl
+        )
     }
 
     private fun resolveDashSegmentRequestsEnabled(): Boolean {

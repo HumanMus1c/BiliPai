@@ -80,6 +80,7 @@ fun getIconGroups(): List<IconGroup> {
             title = "精选",
             icons = listOf(
                 IconOption("icon_blue_snow_maid", "蓝雪女仆", "蓝白女仆主题", R.mipmap.ic_launcher_blue_snow_maid_round),
+                IconOption("icon_blue_snow_maid_announcement", "蓝雪女仆·喇叭", "居中扩音器主题", R.mipmap.ic_launcher_blue_snow_maid_announcement_round),
                 IconOption("icon_blue_snow_maid_front", "蓝雪女仆·正面", "正面微笑主题", R.mipmap.ic_launcher_blue_snow_maid_front_round),
                 IconOption("icon_3d", "3D立体", "全新3D设计", R.mipmap.ic_launcher_3d_foreground),
                 IconOption("icon_bilipai", "BiliPai", "全新品牌图标", R.mipmap.ic_launcher_bilipai_round),
@@ -100,6 +101,10 @@ internal fun resolveIconOptionPreviewRes(
             R.mipmap.ic_launcher_blue_snow_maid_light_round
         "icon_blue_snow_maid" to AppIconAppearance.DARK ->
             R.mipmap.ic_launcher_blue_snow_maid_dark_round
+        "icon_blue_snow_maid_announcement" to AppIconAppearance.LIGHT ->
+            R.mipmap.ic_launcher_blue_snow_maid_announcement_light_round
+        "icon_blue_snow_maid_announcement" to AppIconAppearance.DARK ->
+            R.mipmap.ic_launcher_blue_snow_maid_announcement_dark_round
         "icon_blue_snow_maid_front" to AppIconAppearance.LIGHT ->
             R.mipmap.ic_launcher_blue_snow_maid_front_light_round
         "icon_blue_snow_maid_front" to AppIconAppearance.DARK ->

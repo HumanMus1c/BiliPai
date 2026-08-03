@@ -101,8 +101,8 @@ fun GlassVideoCard(
     scrollLiteModeEnabled: Boolean = false,
     isDataSaverActive: Boolean = false,
     preferLowQualityCover: Boolean = false,
-    showCoverGlassBadges: Boolean = true,
-    showInfoGlassBadges: Boolean = true,
+    showCoverGlassBadges: Boolean = false,
+    showInfoGlassBadges: Boolean = false,
     showUpBadge: Boolean = true,
     onDismiss: (() -> Unit)? = null,    //  [新增] 删除/过滤回调（长按触发）
     onClick: (String, Long) -> Unit
@@ -335,6 +335,12 @@ fun GlassVideoCard(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .videoCardShellReturnCoverAlpha(
+                                enabled = useCardShellSharedBounds,
+                                bvid = video.bvid,
+                                sourceRoute = effectiveSharedElementSourceRoute,
+                                isReturningFromDetail = isReturningFromVideoDetail,
+                            )
                             .clip(RoundedCornerShape(coverCornerRadius))
                     ) {
                         // 由 AsyncImage 根据卡片布局约束选择解码尺寸。
@@ -347,7 +353,8 @@ fun GlassVideoCard(
                                 .diskCacheKey(coverCacheKey)
                                 .build(),
                             contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                         
@@ -498,7 +505,7 @@ fun GlassVideoCard(
                             badgeTextColor = onSurfaceVariant.copy(alpha = 0.85f),
                             badgeBackgroundColor = onSurfaceVariant.copy(alpha = 0.12f),
                             showUpBadge = showUpBadge,
-                            modifier = Modifier.weight(1f, fill = false)
+                            modifier = Modifier.weight(1f)
                         )
                         
                         Spacer(modifier = Modifier.width(AppSpacingTokens.Small))

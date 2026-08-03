@@ -151,6 +151,9 @@ fun SettingsScreen(
     val dynamicTopBarCollapseOnScroll by SettingsManager
         .getDynamicTopBarCollapseOnScroll(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    val dynamicFeedLayoutMode by SettingsManager
+        .getDynamicFeedLayoutMode(context)
+        .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.SettingsManager.DynamicFeedLayoutMode.WATERFALL)
     
     // Local UI State
     var showCacheDialog by remember { mutableStateOf(false) }
@@ -623,6 +626,14 @@ fun SettingsScreen(
     }
 
     updateCheckResult?.let { info ->
+        AppUpdateDialogHost(
+            update = info,
+            onDismissRequest = { updateCheckResult = null },
+        )
+    }
+
+    if (false) {
+    updateCheckResult?.let { info ->
         val resolvedReleaseNotes = remember(info.releaseNotes) {
             resolveUpdateReleaseNotesText(info.releaseNotes)
         }
@@ -700,6 +711,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(6.dp))
                         AppText(
                             text = when (updateDownloadState.status) {
+                                AppUpdateDownloadStatus.QUEUED -> "等待网络后开始下载"
                                 AppUpdateDownloadStatus.DOWNLOADING -> "下载中 ${(updateDownloadState.progress * 100).toInt()}%"
                                 AppUpdateDownloadStatus.COMPLETED -> "下载完成，正在准备安装"
                                 AppUpdateDownloadStatus.FAILED -> updateDownloadState.errorMessage ?: "下载失败"
@@ -787,6 +799,17 @@ fun SettingsScreen(
         )
     }
 
+    }
+
+    changelogCheckResult?.let { info ->
+        AppUpdateDialogHost(
+            update = info,
+            showReleaseNotesOnly = true,
+            onDismissRequest = { changelogCheckResult = null },
+        )
+    }
+
+    if (false) {
     changelogCheckResult?.let { info ->
         val resolvedReleaseNotes = remember(info.releaseNotes) {
             resolveUpdateReleaseNotesText(info.releaseNotes)
@@ -874,6 +897,8 @@ fun SettingsScreen(
                 }) { AppText("关闭") }
             }
         )
+    }
+
     }
 
     val onOpenLinksAction: () -> Unit = {
@@ -1043,6 +1068,12 @@ fun SettingsScreen(
                             SettingsManager.setDynamicTopBarCollapseOnScroll(context, enabled)
                         }
                     },
+                    dynamicFeedLayoutMode = dynamicFeedLayoutMode,
+                    onDynamicFeedLayoutModeChange = { mode ->
+                        scope.launch {
+                            SettingsManager.setDynamicFeedLayoutMode(context, mode)
+                        }
+                    },
                     dynamicVisibleTabIds = dynamicVisibleTabIds,
                     onDynamicTabVisibilityChange = { tabId ->
                         scope.launch {
@@ -1160,6 +1191,8 @@ private fun MobileSettingsNavLayout(
     onDynamicAllTabHorizontalUserListVisibleChange: (Boolean) -> Unit,
     dynamicTopBarCollapseOnScroll: Boolean,
     onDynamicTopBarCollapseOnScrollChange: (Boolean) -> Unit,
+    dynamicFeedLayoutMode: com.android.purebilibili.core.store.SettingsManager.DynamicFeedLayoutMode,
+    onDynamicFeedLayoutModeChange: (com.android.purebilibili.core.store.SettingsManager.DynamicFeedLayoutMode) -> Unit,
     dynamicVisibleTabIds: Set<String>,
     onDynamicTabVisibilityChange: (String) -> Unit,
     homeRefreshCount: Int,
@@ -1217,6 +1250,7 @@ private fun MobileSettingsNavLayout(
         onDynamicImagePreviewTextVisibleChange = onDynamicImagePreviewTextVisibleChange,
         onDynamicAllTabHorizontalUserListVisibleChange = onDynamicAllTabHorizontalUserListVisibleChange,
         onDynamicTopBarCollapseOnScrollChange = onDynamicTopBarCollapseOnScrollChange,
+        onDynamicFeedLayoutModeChange = onDynamicFeedLayoutModeChange,
         onDynamicTabVisibilityChange = onDynamicTabVisibilityChange,
         onHomeRefreshCountChange = onHomeRefreshCountChange,
     )
@@ -1248,6 +1282,7 @@ private fun MobileSettingsNavLayout(
         dynamicImagePreviewTextVisible = dynamicImagePreviewTextVisible,
         dynamicAllTabHorizontalUserListVisible = dynamicAllTabHorizontalUserListVisible,
         dynamicTopBarCollapseOnScroll = dynamicTopBarCollapseOnScroll,
+        dynamicFeedLayoutMode = dynamicFeedLayoutMode,
         dynamicVisibleTabIds = dynamicVisibleTabIds,
         homeRefreshCount = homeRefreshCount,
     )

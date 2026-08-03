@@ -8,21 +8,28 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.purebilibili.core.network.DynamicDeleteRequest
+import com.android.purebilibili.core.network.DynamicTopRequest
+import com.android.purebilibili.core.network.DynamicVisibilityRequest
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.network.buildDynamicRepostRequest
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.core.util.appendDistinctByKey
 import com.android.purebilibili.core.util.prependDistinctByKey
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.FollowingUser
 import com.android.purebilibili.data.model.response.LiveRoom
 import com.android.purebilibili.data.model.response.ReplyData
+import com.android.purebilibili.data.model.response.ReplyInteractionData
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.repository.ActionRepository
 import com.android.purebilibili.data.repository.CommentRepository
 import com.android.purebilibili.data.repository.DynamicFeedScope
 import com.android.purebilibili.data.repository.DynamicRepository
 import com.android.purebilibili.data.repository.LiveRepository
+import com.android.purebilibili.feature.dynamic.components.DynamicManageAction
+import com.android.purebilibili.feature.dynamic.components.buildDynamicVisibilityObjectId
+import com.android.purebilibili.feature.dynamic.components.resolveDynamicVisibilityAction
 import com.android.purebilibili.feature.video.viewmodel.resolveRoutedCommentRootReply
 import com.android.purebilibili.feature.video.viewmodel.resolveSubReplyLoadedTotalCount
 import com.android.purebilibili.feature.video.viewmodel.resolveSubReplyPageEnd
@@ -45,10 +52,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -147,6 +157,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         loadCachedDynamics()
         rebuildFollowedUsers()
         observeFollowStateChanges()
+        loadUplistUpdates()
     }
 
     fun activateStartupLoads() {
@@ -496,6 +507,8 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         _selectedUserId.value = uid
         
         if (uid != null) {
+            //  [新增] 点击 UP 后清除其未读红点
+            clearUplistUpdate(uid)
             val localMatchCount = _uiState.value.timelinePage("all").items.count { item ->
                 item.modules.module_author?.mid == uid
             }
@@ -818,7 +831,40 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 showRefreshIndicator = true,
                 selectedTab = selectedTab
             )
+            loadUplistUpdates()
         }
+    }
+
+    //  [新增] 拉取关注 UP 列表未读标记（红点数据源，尽力而为）
+    fun loadUplistUpdates() {
+        viewModelScope.launch {
+            try {
+                val csrf = TokenManager.csrfCache
+                if (csrf.isNullOrEmpty()) return@launch
+                val response = NetworkModule.dynamicApi.getDynamicUplist()
+                if (response.code != 0) return@launch
+                val mids = response.data?.items
+                    ?.filter { it.has_update == 1 }
+                    ?.mapNotNull { it.user_profile?.info?.uid }
+                    ?.filter { it > 0L }
+                    .orEmpty()
+                _uiState.value = _uiState.value.copy(
+                    uplistUpdateMids = mids.toImmutableSet()
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // 红点为尽力而为，失败静默
+            }
+        }
+    }
+
+    //  [新增] 点击 UP 后清除该用户红点
+    fun clearUplistUpdate(mid: Long) {
+        if (mid <= 0L) return
+        _uiState.value = _uiState.value.copy(
+            uplistUpdateMids = (_uiState.value.uplistUpdateMids - mid).toImmutableSet()
+        )
     }
     
     fun loadMore(selectedTab: Int = _selectedTab.value) {
@@ -1508,10 +1554,65 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                         )
                     )
                 if (response.code == 0) {
+                    val currentState = mapDynamicTimelineItems(_uiState.value) { items ->
+                        applyDynamicForwardCountIncrement(items, dynamicId)
+                    }
+                    _uiState.value = currentState.copy(
+                        userItems = applyDynamicForwardCountIncrement(
+                            items = currentState.userItems,
+                            dynamicId = dynamicId
+                        ).toImmutableList()
+                    )
                     onResult(true, "转发成功")
                 } else {
                     onResult(false, response.message.ifBlank { "转发失败" })
                 }
+            } catch (e: Exception) {
+                onResult(false, e.message ?: "网络错误")
+            }
+        }
+    }
+
+    //  [新增] 发布纯文本动态（对齐 PiliPlus 动态页发布入口，成功后延迟校验防 shadow-ban）
+    fun publishDynamic(content: String, onResult: (Boolean, String) -> Unit) {
+        val trimmed = content.trim()
+        if (trimmed.isEmpty()) {
+            onResult(false, "内容不能为空")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val csrf = TokenManager.csrfCache
+                if (csrf.isNullOrEmpty()) {
+                    onResult(false, "请先登录")
+                    return@launch
+                }
+                val response = NetworkModule.dynamicApi.createDynamic(
+                    content = trimmed,
+                    csrf = csrf
+                )
+                if (response.code == 0) {
+                    onResult(true, "发布成功")
+                    refresh(selectedTab = _selectedTab.value)
+                    //  防 shadow-ban：延迟后拉详情验证动态真实可见（对齐 PiliPlus checkCreatedDyn）
+                    val createdId = response.data?.dynamic_id_str
+                    if (createdId.isNullOrBlank()) return@launch
+                    try {
+                        delay(DYNAMIC_CREATE_ANTIFRAUD_DELAY_MS)
+                        val verify = NetworkModule.dynamicApi.getDynamicDetail(id = createdId)
+                        if (verify.code != 0 || verify.data?.item == null) {
+                            onResult(true, "发布成功，但动态可能暂未生效（可在网页端确认）")
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        // 发布已成功，后置校验失败不应把发布结果反转为失败。
+                    }
+                } else {
+                    onResult(false, response.message.ifBlank { "发布失败" })
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 onResult(false, e.message ?: "网络错误")
             }
@@ -1560,10 +1661,131 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    //  [新增] 更多菜单管理动作分发：置顶 / 可见范围 / 评论互动 / 临时屏蔽
+    fun handleManageAction(action: DynamicManageAction, onResult: (Boolean, String) -> Unit) {
+        when (action) {
+            is DynamicManageAction.ToggleTop -> toggleDynamicTop(action, onResult)
+            is DynamicManageAction.SetVisibility -> setDynamicVisibility(action, onResult)
+            is DynamicManageAction.SetReplySubject -> modifyReplySubject(action, onResult)
+            is DynamicManageAction.TempBlock -> tempBlockDynamic(action.dynamicId, onResult)
+        }
+    }
+
+    fun toggleDynamicTop(action: DynamicManageAction.ToggleTop, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                if (action.dynamicId.isBlank()) {
+                    onResult(false, "无法操作该动态")
+                    return@launch
+                }
+                val csrf = TokenManager.csrfCache
+                if (csrf.isNullOrEmpty()) {
+                    onResult(false, "请先登录")
+                    return@launch
+                }
+                val response = if (action.isCurrentlyTop) {
+                    NetworkModule.dynamicApi.removeDynamicTop(
+                        csrf = csrf,
+                        body = DynamicTopRequest(dyn_str = action.dynamicId)
+                    )
+                } else {
+                    NetworkModule.dynamicApi.setDynamicTop(
+                        csrf = csrf,
+                        body = DynamicTopRequest(dyn_str = action.dynamicId)
+                    )
+                }
+                if (response.code == 0) {
+                    onResult(true, if (action.isCurrentlyTop) "已取消置顶" else "已置顶")
+                } else {
+                    onResult(false, response.message.ifBlank { "操作失败" })
+                }
+            } catch (e: Exception) {
+                onResult(false, e.message ?: "网络错误")
+            }
+        }
+    }
+
+    fun setDynamicVisibility(action: DynamicManageAction.SetVisibility, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val csrf = TokenManager.csrfCache
+                if (csrf.isNullOrEmpty()) {
+                    onResult(false, "请先登录")
+                    return@launch
+                }
+                val response = NetworkModule.dynamicApi.setDynamicVisibility(
+                    csrf = csrf,
+                    body = DynamicVisibilityRequest(
+                        object_id = buildDynamicVisibilityObjectId(action.dynamicId, action.dynType),
+                        action = resolveDynamicVisibilityAction(action.isPrivate)
+                    )
+                )
+                if (response.code == 0) {
+                    onResult(true, if (action.isPrivate) "已设为仅自己可见" else "已设为公开")
+                } else {
+                    onResult(false, response.message.ifBlank { "设置失败" })
+                }
+            } catch (e: Exception) {
+                onResult(false, e.message ?: "网络错误")
+            }
+        }
+    }
+
+    fun loadReplyInteractionStatus(oid: Long, type: Int, onLoaded: (ReplyInteractionData?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = NetworkModule.dynamicApi.getReplyInteractionStatus(oid = oid, type = type)
+                onLoaded(if (response.code == 0) response.data else null)
+            } catch (e: Exception) {
+                onLoaded(null)
+            }
+        }
+    }
+
+    fun modifyReplySubject(action: DynamicManageAction.SetReplySubject, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val csrf = TokenManager.csrfCache
+                if (csrf.isNullOrEmpty()) {
+                    onResult(false, "请先登录")
+                    return@launch
+                }
+                val response = NetworkModule.dynamicApi.modifyReplySubject(
+                    oid = action.oid,
+                    type = action.replyType,
+                    action = action.action,
+                    csrf = csrf
+                )
+                if (response.code == 0) {
+                    onResult(true, "设置成功")
+                } else {
+                    onResult(false, response.message.ifBlank { "设置失败" })
+                }
+            } catch (e: Exception) {
+                onResult(false, e.message ?: "网络错误")
+            }
+        }
+    }
+
+    fun tempBlockDynamic(dynamicId: String, onResult: (Boolean, String) -> Unit) {
+        if (dynamicId.isBlank()) {
+            onResult(false, "无法屏蔽该动态")
+            return
+        }
+        _uiState.value = _uiState.value.copy(
+            tempBannedDynamicIds = (
+                _uiState.value.tempBannedDynamicIds + dynamicId
+            ).toImmutableSet()
+        )
+        onResult(true, "已临时屏蔽（重启后恢复）")
+    }
+
     companion object {
         private const val USER_SELECTION_DEBOUNCE_MS = 120L
         private const val PREFS_DYNAMIC_CACHE = "dynamic_cache"
         private const val PREFS_DYNAMIC_USERS = "dynamic_user_prefs"
+        //  发布动态后延迟校验时间（对齐 PiliPlus checkCreatedDyn 的 5 秒）
+        private const val DYNAMIC_CREATE_ANTIFRAUD_DELAY_MS = 5_000L
         private const val KEY_DYNAMIC_CACHE = "dynamic_items_cache"
         private const val KEY_DYNAMIC_CACHE_TIME = "dynamic_cache_time"
         private const val KEY_PINNED_USERS = "dynamic_pinned_users"
@@ -1604,7 +1826,11 @@ data class DynamicUiState(
     val incrementalRefreshBoundaryKey: String? = null,
     val incrementalPrependedCount: Int = 0,
     val errorSource: DynamicFeedErrorSource = DynamicFeedErrorSource.NONE,
-    val timelinePages: PersistentMap<String, DynamicTimelinePageState> = persistentMapOf()
+    val timelinePages: PersistentMap<String, DynamicTimelinePageState> = persistentMapOf(),
+    //  [新增] 临时屏蔽的动态 id（仅内存，重启恢复）
+    val tempBannedDynamicIds: ImmutableSet<String> = persistentSetOf(),
+    //  [新增] 关注 UP 列表未读（有更新的 mid 集合，来自 uplist 接口）
+    val uplistUpdateMids: ImmutableSet<Long> = persistentSetOf()
 )
 
 data class DynamicTimelinePageState(

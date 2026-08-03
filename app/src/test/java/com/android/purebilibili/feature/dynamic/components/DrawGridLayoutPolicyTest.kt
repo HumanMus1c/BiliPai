@@ -2,8 +2,27 @@ package com.android.purebilibili.feature.dynamic.components
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class DrawGridLayoutPolicyTest {
+
+    @Test
+    fun longImageBadge_showsForTallImage() {
+        assertTrue(shouldShowDrawGridLongImageBadge(width = 500, height = 1500))
+    }
+
+    @Test
+    fun longImageBadge_hidesForNormalImage() {
+        assertFalse(shouldShowDrawGridLongImageBadge(width = 500, height = 500))
+        assertFalse(shouldShowDrawGridLongImageBadge(width = 500, height = 900))
+    }
+
+    @Test
+    fun longImageBadge_hidesForInvalidOrTinyWidth() {
+        assertFalse(shouldShowDrawGridLongImageBadge(width = 0, height = 1500))
+        assertFalse(shouldShowDrawGridLongImageBadge(width = 50, height = 1500))
+    }
 
     @Test
     fun resolveSingleImageAspectRatio_matchesPiliPlusLongImageClamp() {

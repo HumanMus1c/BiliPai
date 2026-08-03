@@ -2,6 +2,7 @@
 package com.android.purebilibili.feature.video.ui.components
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppTextButton
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -23,8 +24,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.rememberAppClearIcon
+import com.android.purebilibili.data.model.response.SponsorCategory
+import com.android.purebilibili.feature.plugin.sponsorBlockAllowedActionTypes
 import com.android.purebilibili.data.model.response.SponsorSegment
+import com.android.purebilibili.feature.video.viewmodel.SponsorContributionPhase
+import com.android.purebilibili.feature.video.viewmodel.SponsorContributionUiState
 
 /**
  * 空降助手跳过按钮 UI
@@ -36,6 +42,7 @@ fun SponsorSkipButton(
     visible: Boolean,
     onSkip: () -> Unit,
     onDismiss: () -> Unit,
+    onVote: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val clearIcon = rememberAppClearIcon()
@@ -93,6 +100,8 @@ fun SponsorSkipButton(
                             )
                         }
                     }
+                    AppTextButton(onClick = { onVote(1) }) { AppText("有用") }
+                    AppTextButton(onClick = { onVote(-1) }) { AppText("不准确") }
                     
                     // 关闭按钮
                     AppIcon(
@@ -107,6 +116,174 @@ fun SponsorSkipButton(
             }
         }
     }
+}
+
+/**
+ * Explicit community-contribution control. The ViewModel owns the submission state; this
+ * composable only renders the current phase and forwards user intent.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun SponsorContributionOverlay(
+    state: SponsorContributionUiState,
+    onMarkBoundary: () -> Unit,
+    onCategoryChange: (String) -> Unit,
+    onActionTypeChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (state.showsMarkAction) {
+        val marking = state.phase == SponsorContributionPhase.MARKING
+        AppSurface(
+            modifier = modifier
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { onMarkBoundary() },
+            color = Color.Black.copy(alpha = 0.8f),
+            shadowElevation = 8.dp,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AppIcon(
+                    imageVector = CupertinoIcons.Default.Paperplane,
+                    contentDescription = null,
+                    tint = Color(0xFF7C9EFF),
+                    modifier = Modifier.size(18.dp),
+                )
+                Column {
+                    AppText(
+                        text = if (marking) "结束标记" else "标记片段",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    AppText(
+                        text = if (marking) {
+                            "起点 ${formatSponsorContributionTime(state.startMs ?: 0L)}"
+                        } else {
+                            "投稿前会再次确认"
+                        },
+                        color = Color.White.copy(alpha = 0.72f),
+                        fontSize = 11.sp,
+                    )
+                }
+            }
+        }
+    }
+
+    if (state.showsReview) {
+        AppAlertDialog(
+            onDismissRequest = {
+                if (state.phase != SponsorContributionPhase.SUBMITTING) onCancel()
+            },
+            title = {
+                AppText(
+                    when (state.phase) {
+                        SponsorContributionPhase.SUCCESS -> "社区片段已提交"
+                        SponsorContributionPhase.SUBMITTING -> "正在提交社区片段"
+                        else -> "确认提交社区片段"
+                    }
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AppText(
+                        text = "${formatSponsorContributionTime(state.startMs ?: 0L)} – ${formatSponsorContributionTime(state.endMs ?: 0L)}",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    if (state.phase != SponsorContributionPhase.SUCCESS) {
+                        AppText(
+                            text = "选择片段类别",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            SponsorCategory.ALL_CATEGORIES.forEach { category ->
+                                FilterChip(
+                                    selected = state.category == category,
+                                    onClick = { onCategoryChange(category) },
+                                    enabled = state.phase == SponsorContributionPhase.REVIEW,
+                                    label = { AppText(SponsorCategory.getCategoryName(category)) },
+                                )
+                            }
+                        }
+                        AppText(
+                            text = "动作类型",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            sponsorBlockAllowedActionTypes(state.category).forEach { actionType ->
+                                FilterChip(
+                                    selected = state.actionType == actionType,
+                                    onClick = { onActionTypeChange(actionType) },
+                                    enabled = state.phase == SponsorContributionPhase.REVIEW,
+                                    label = { AppText(sponsorActionTypeLabel(actionType)) },
+                                )
+                            }
+                        }
+                        AppText(
+                            text = "提交将发送类别、时间段、视频标识和社区用户 ID 至 ${state.serverBaseUrl}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    state.message?.let { message ->
+                        AppText(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (state.phase == SponsorContributionPhase.SUCCESS) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                when (state.phase) {
+                    SponsorContributionPhase.REVIEW -> {
+                        AppTextButton(onClick = onSubmit) { AppText("确认提交") }
+                    }
+                    SponsorContributionPhase.SUCCESS -> {
+                        AppTextButton(onClick = onCancel) { AppText("完成") }
+                    }
+                    SponsorContributionPhase.SUBMITTING -> AppText("提交中…")
+                    else -> Unit
+                }
+            },
+            dismissButton = {
+                if (state.phase == SponsorContributionPhase.REVIEW) {
+                    AppTextButton(onClick = onCancel) { AppText("取消") }
+                }
+            },
+        )
+    }
+}
+
+private fun sponsorActionTypeLabel(actionType: String): String = when (actionType) {
+    "skip" -> "跳过"
+    "mute" -> "静音"
+    "full" -> "整段标记"
+    "poi" -> "精彩时刻"
+    else -> actionType
+}
+
+private fun formatSponsorContributionTime(positionMs: Long): String {
+    val totalSeconds = (positionMs.coerceAtLeast(0L) / 1_000L)
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
 
 /**

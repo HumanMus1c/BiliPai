@@ -14,6 +14,7 @@ import com.android.purebilibili.data.model.response.ReplyRichTextOpus
 import com.android.purebilibili.data.model.response.ReplyVote
 import com.android.purebilibili.data.model.response.ReplySailingCardBg
 import com.android.purebilibili.data.model.response.ReplySailingFan
+import com.android.purebilibili.data.model.response.ReplySailingPendant
 import com.android.purebilibili.data.model.response.ReplyPicture
 import com.android.purebilibili.data.model.response.ReplyUpAction
 import com.android.purebilibili.data.model.response.ReplyUserSailing
@@ -675,7 +676,7 @@ class ReplyComponentsPolicyTest {
         assertEquals(36, policy.avatarSizeDp)
         assertEquals(8, policy.avatarContentSpacingDp)
         assertEquals(40, policy.actionButtonSizeDp)
-        assertEquals(78, policy.decorationWidthReserveDp)
+        assertEquals(64, policy.decorationWidthReserveDp)
         assertEquals(56, policy.dividerStartPaddingDp)
         assertEquals(
             292,
@@ -686,7 +687,7 @@ class ReplyComponentsPolicyTest {
             resolveReplyItemHeaderEndPaddingDp(hasPiliPlusDecoration = false, policy = policy)
         )
         assertEquals(
-            118,
+            104,
             resolveReplyItemHeaderEndPaddingDp(hasPiliPlusDecoration = true, policy = policy)
         )
         assertEquals(
@@ -746,6 +747,13 @@ class ReplyComponentsPolicyTest {
         assertEquals("CO.008502", resolveFanGroupLabelText("008502"))
         assertEquals("CO.008502", resolveFanGroupLabelText("8502"))
         assertEquals("", resolveFanGroupLabelText("abc"))
+    }
+
+    @Test
+    fun `fan group number keeps the API visible number for official no label`() {
+        assertEquals("008502", resolveFanGroupNumberText("8502"))
+        assertEquals("008502", resolveFanGroupNumberText("008502"))
+        assertEquals("", resolveFanGroupNumberText("abc"))
     }
 
     @Test
@@ -884,6 +892,23 @@ class ReplyComponentsPolicyTest {
     }
 
     @Test
+    fun `reply pendant prefers v2 enhanced frame before older pendant fields`() {
+        val image = resolveReplyMemberPendantImage(
+            ReplyMember(
+                pendant = ReplySailingPendant(image = "https://example.com/member.png"),
+                userSailing = ReplyUserSailing(
+                    pendant = ReplySailingPendant(imageEnhance = "https://example.com/legacy.webp")
+                ),
+                userSailingV2 = ReplyUserSailing(
+                    pendant = ReplySailingPendant(imageEnhanceFrame = "https://example.com/v2-frame.png")
+                )
+            )
+        )
+
+        assertEquals("https://example.com/v2-frame.png", image)
+    }
+
+    @Test
     fun `normalizeHttpImageUrl upgrades protocol relative and bare host urls`() {
         assertEquals(
             "https://i0.hdslb.com/bfs/garb/item.png",
@@ -916,14 +941,18 @@ class ReplyComponentsPolicyTest {
     }
 
     @Test
-    fun `fan group decoration image uses large cropped presentation for transparent garb assets`() {
+    fun `fan group decoration image fits complete official transparent asset`() {
         val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/ReplyComponents.kt")
             .readText()
         val decorationSource = source
             .substringAfter("@Composable\ninternal fun FanGroupDecorationBadge(")
             .substringBefore("@Composable\nprivate fun PiliPlusGarbCardDecoration(")
 
-        assertTrue(decorationSource.contains("contentScale = ContentScale.Crop"))
+        assertTrue(decorationSource.contains("contentScale = ContentScale.Fit"))
+        assertFalse(decorationSource.contains("contentScale = ContentScale.Crop"))
+        assertTrue(decorationSource.contains(".size(Size.ORIGINAL)"))
+        assertTrue(decorationSource.contains(".transformations(TransparentBoundsCropTransformation)"))
+        assertTrue(decorationSource.contains("text = \"NO.\""))
         assertTrue(decorationSource.contains("layoutPolicy.decorationImageWidthDp.dp"))
         assertTrue(decorationSource.contains("layoutPolicy.decorationImageHeightDp.dp"))
     }
@@ -1035,8 +1064,8 @@ class ReplyComponentsPolicyTest {
     }
 
     @Test
-    fun `sub reply preview expands by default when replies are already returned`() {
-        assertTrue(resolveInitialSubReplyPreviewExpanded(previewReplyCount = 2))
+    fun `sub reply preview starts collapsed so the configured preview limit applies`() {
+        assertFalse(resolveInitialSubReplyPreviewExpanded(previewReplyCount = 2))
         assertFalse(resolveInitialSubReplyPreviewExpanded(previewReplyCount = 0))
     }
 

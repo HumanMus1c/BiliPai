@@ -112,13 +112,13 @@ class DynamicLayoutPolicyTest {
     }
 
     @Test
-    fun `dynamic action text keeps comment count when slot is narrow`() {
+    fun `dynamic action text keeps share and comment counts when slot is narrow`() {
         assertEquals(
             "评论 1.2k",
             resolveDynamicActionButtonText(label = "评论", count = 1200, slotWidthDp = 96)
         )
         assertEquals(
-            "转发",
+            "转发 3万",
             resolveDynamicActionButtonText(label = "转发", count = 34000, slotWidthDp = 96)
         )
         assertEquals(

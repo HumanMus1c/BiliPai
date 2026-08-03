@@ -189,6 +189,11 @@ data class ReplyItem(
     @SerialName("reply_control")
     val replyControl: ReplyControl? = null,
 
+    // [新增] 隐身评论标记（数据存在但前端不展示，可能被 UP 拉黑）
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    @SerialName("invisible")
+    val invisible: Boolean = false,
+
     // 二级评论对话归属，用于“查看对话”筛选同一段回复链。
     val parent: Long = 0,
     val dialog: Long = 0,
@@ -258,6 +263,10 @@ data class ReplyMember(
 
     @SerialName("fans_detail")
     val fansDetail: ReplyFansDetail? = null,
+
+    // 评论接口同时返回传统 pendant 与 user_sailing(.v2).pendant。
+    // 前者使用 pid，后者使用 id；渲染时只需其图片字段，故共用同一可选模型。
+    val pendant: ReplySailingPendant? = null,
 
     val nameplate: ReplyNameplate? = null,
 

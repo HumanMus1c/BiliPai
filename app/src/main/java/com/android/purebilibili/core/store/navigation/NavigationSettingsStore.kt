@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.map
 
 object NavigationSettingsStore {
     private val keyTabletUseSidebar = booleanPreferencesKey("tablet_use_sidebar")
+    private val keySidebarAccountSwitcherEnabled =
+        booleanPreferencesKey("sidebar_account_switcher_enabled")
     private val keyPredictiveBackEnabled = booleanPreferencesKey("predictive_back_enabled")
     private val keyPredictiveBackAnimationStyle = stringPreferencesKey("predictive_back_animation_style")
     private val keyPredictiveBackExitDirection = stringPreferencesKey("predictive_back_exit_direction")
@@ -63,6 +65,12 @@ object NavigationSettingsStore {
     suspend fun setTabletUseSidebar(context: Context, useSidebar: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[keyTabletUseSidebar] = useSidebar
+        }
+    }
+
+    suspend fun setSidebarAccountSwitcherEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[keySidebarAccountSwitcherEnabled] = enabled
         }
     }
 

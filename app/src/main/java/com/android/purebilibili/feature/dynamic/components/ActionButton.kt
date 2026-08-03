@@ -9,7 +9,14 @@ import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.AppTypographyTokens
+import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.feature.dynamic.DynamicStatusPalette
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -29,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -91,6 +99,8 @@ fun ActionButton(
         isComment -> rememberAppCommentIcon()
         else -> rememberAppCommentIcon()
     }
+    val countFadeAnimationSpec = AppMotionTokens.standardSpec<Float>()
+    val countSlideAnimationSpec = AppMotionTokens.standardSpec<IntOffset>()
     BoxWithConstraints(modifier = modifier) {
         val slotWidthDp = maxWidth.value.toInt()
         val actionText = remember(label, count, slotWidthDp) {
@@ -128,16 +138,30 @@ fun ActionButton(
 
             if (actionText != null) {
                 Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
-                AppText(
-                    text = actionText,
-                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
-                    fontWeight = FontWeight.Medium,
-                    color = buttonColor,
-                    letterSpacing = AppTypographyTokens.ZeroLetterSpacing,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis
-                )
+                //  计数变化动画（对齐 PiliPlus AnimatedSwitcher + ScaleTransition）
+                AnimatedContent(
+                    targetState = actionText,
+                    transitionSpec = {
+                        (fadeIn(animationSpec = countFadeAnimationSpec) +
+                            slideInVertically(animationSpec = countSlideAnimationSpec) { it / 3 })
+                            .togetherWith(
+                                fadeOut(animationSpec = countFadeAnimationSpec) +
+                                    slideOutVertically(animationSpec = countSlideAnimationSpec) { -it / 3 }
+                            )
+                    },
+                    label = "actionButtonCount"
+                ) { text ->
+                    AppText(
+                        text = text,
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                        fontWeight = FontWeight.Medium,
+                        color = buttonColor,
+                        letterSpacing = AppTypographyTokens.ZeroLetterSpacing,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }

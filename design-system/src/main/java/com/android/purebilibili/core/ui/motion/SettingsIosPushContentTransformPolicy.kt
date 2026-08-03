@@ -4,6 +4,7 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -64,6 +65,11 @@ fun resolveSettingsIosPushPopContentTransform(
 /**
  * 设置预测式返回专用：目标页保持全屏，只横滑顶页。
  * 若对目标页再套 parallax 入场，手势 seek 时两页之间会露出 windowBackground 灰缝，并显得卡手。
+ *
+ * 跟手 seek 使用 LinearEasing：预测返回手势的 progress 由系统按手指位移给出，
+ * 非线性曲线（如 EaseInOut）会让页面位移滞后于手指（手势 30% 时页面只移动约 10%），
+ * 观感粘稠；线性映射才能 1:1 跟手。松手提交走 [resolveSettingsIosPushPopContentTransform]，
+ * 从当前 seek 位置平滑收尾，不受本 spec 影响。
  */
 fun resolveSettingsIosPredictivePopContentTransform(
     durationMillis: Int = SETTINGS_IOS_PUSH_DURATION_MS,
@@ -75,7 +81,7 @@ fun resolveSettingsIosPredictivePopContentTransform(
         targetContentEnter = EnterTransition.None,
         initialContentExit = slideOutHorizontally(
             targetOffsetX = { fullWidth -> fullWidth },
-            animationSpec = tween(durationMillis = durationMillis, easing = EaseInOut),
+            animationSpec = tween(durationMillis = durationMillis, easing = LinearEasing),
         ),
     )
 }

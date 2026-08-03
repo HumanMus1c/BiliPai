@@ -1,7 +1,10 @@
 // 文件路径: feature/dynamic/DynamicScreen.kt
 package com.android.purebilibili.feature.dynamic
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import com.android.purebilibili.core.ui.components.AppTextField
 
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
 import androidx.compose.animation.AnimatedContent
@@ -62,7 +65,6 @@ import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
-import com.android.purebilibili.core.ui.EmptyState
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -71,6 +73,7 @@ import com.android.purebilibili.core.ui.LoadingAnimation
 import com.android.purebilibili.core.ui.TopReadabilityChrome
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
+import com.android.purebilibili.core.ui.rememberAppDynamicIcon
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperChromeColor
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.util.responsiveContentWidth
@@ -168,6 +171,10 @@ fun DynamicScreen(
     //  [新增] 点赞/转发状态
     val likedDynamics by viewModel.likedDynamics.collectAsStateWithLifecycle()
     var showRepostDialog by remember { mutableStateOf<String?>(null) }  // 存储要转发的动态ID
+    var showPublishDialog by remember { mutableStateOf(false) }  // [新增] 发布动态弹窗
+    //  [新增] 动态 Feed 布局模式（瀑布流 / 列表）
+    val dynamicFeedLayoutMode by SettingsManager.getDynamicFeedLayoutMode(context)
+        .collectAsStateWithLifecycle(initialValue = SettingsManager.DynamicFeedLayoutMode.WATERFALL)
 
     val dynamicVisibleTabIds by SettingsManager.getDynamicTabVisibleTabs(context)
         .collectAsStateWithLifecycle(initialValue = defaultDynamicTabVisibleIds)
@@ -566,6 +573,7 @@ fun DynamicScreen(
                             onUserClick = handleUserSelection,
                             showHiddenUsers = showHiddenUsers,
                             hiddenCount = hiddenUserIds.size,
+                            uplistUpdateMids = state.uplistUpdateMids,
                             onToggleShowHidden = { viewModel.toggleShowHiddenUsers() },
                             onTogglePin = { viewModel.togglePinUser(it) },
                             onToggleHidden = { viewModel.toggleHiddenUser(it) },
@@ -655,6 +663,7 @@ fun DynamicScreen(
                                             }
                                         },
                                         likedDynamics = likedDynamics,
+                                        feedLayoutMode = dynamicFeedLayoutMode,
                                         modifier = Modifier
                                             .hazeSourceCompat(hazeState)
                                     )
@@ -680,6 +689,7 @@ fun DynamicScreen(
                                     },
                                     displayMode = displayMode,
                                     onDisplayModeChange = { viewModel.setDisplayMode(it) },
+                                    onPublishClick = { showPublishDialog = true },
                                     hazeState = hazeState,
                                     indicatorPositionProvider = dynamicTabIndicatorPositionProvider,
                                     isScrollInProgressProvider = {
@@ -789,7 +799,16 @@ fun DynamicScreen(
                                             android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
                                         }
                                     },
+                                    onManageAction = { action ->
+                                        viewModel.handleManageAction(action) { _, msg ->
+                                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onLoadReplyInteractionStatus = { oid, type, onLoaded ->
+                                        viewModel.loadReplyInteractionStatus(oid, type, onLoaded)
+                                    },
                                     likedDynamics = likedDynamics,
+                                    feedLayoutMode = dynamicFeedLayoutMode,
                                     modifier = Modifier
                                         .hazeSourceCompat(hazeState)
                                 )
@@ -841,6 +860,7 @@ fun DynamicScreen(
                                             },
                                             displayMode = displayMode,
                                             onDisplayModeChange = { viewModel.setDisplayMode(it) },
+                                            onPublishClick = { showPublishDialog = true },
                                             hazeState = hazeState,
                                             indicatorPositionProvider = dynamicTabIndicatorPositionProvider,
                                             isScrollInProgressProvider = {
@@ -861,6 +881,7 @@ fun DynamicScreen(
                                             listState = horizontalUserListState,
                                             showHiddenUsers = showHiddenUsers,
                                             hiddenCount = hiddenUserIds.size,
+                                            uplistUpdateMids = state.uplistUpdateMids,
                                             onUserClick = handleUserSelection,
                                             onToggleShowHidden = { viewModel.toggleShowHiddenUsers() },
                                             onTogglePin = { viewModel.togglePinUser(it) },
@@ -936,6 +957,41 @@ fun DynamicScreen(
             }
         )
     }
+
+    //  [新增] 发布动态弹窗（纯文本，对齐 PiliPlus 发布入口）
+    if (showPublishDialog) {
+        var publishContent by remember { mutableStateOf("") }
+        AppAlertDialog(
+            onDismissRequest = { showPublishDialog = false },
+            title = { AppText("发布动态") },
+            text = {
+                AppTextField(
+                    value = publishContent,
+                    onValueChange = { publishContent = it },
+                    placeholder = "说点什么吧…",
+                    singleLine = false,
+                    minLines = 4
+                )
+            },
+            confirmButton = {
+                AppDialogAction(
+                    onClick = {
+                        viewModel.publishDynamic(publishContent) { success, msg ->
+                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                            if (success) showPublishDialog = false
+                        }
+                    }
+                ) {
+                    AppText("发布")
+                }
+            },
+            dismissButton = {
+                AppDialogAction(onClick = { showPublishDialog = false }) {
+                    AppText("取消")
+                }
+            }
+        )
+    }
 }
 
 /**
@@ -969,7 +1025,10 @@ private fun DynamicList(
     onLikeClick: (String) -> Unit = {},
     onWatchLaterClick: (Long) -> Unit = {},
     onDeleteClick: (DynamicDeleteAction) -> Unit = {},
+    onManageAction: (com.android.purebilibili.feature.dynamic.components.DynamicManageAction) -> Unit = {},
+    onLoadReplyInteractionStatus: ((oid: Long, type: Int, onLoaded: (com.android.purebilibili.data.model.response.ReplyInteractionData?) -> Unit) -> Unit)? = null,
     likedDynamics: Set<String> = emptySet(),
+    feedLayoutMode: SettingsManager.DynamicFeedLayoutMode = SettingsManager.DynamicFeedLayoutMode.WATERFALL,
     modifier: Modifier = Modifier
 ) {
     val dynamicCard: @Composable (com.android.purebilibili.data.model.response.DynamicItem) -> Unit = { item ->
@@ -986,12 +1045,25 @@ private fun DynamicList(
             onLikeClick = onLikeClick,
             onWatchLaterClick = onWatchLaterClick,
             onDeleteClick = onDeleteClick,
+            onManageAction = onManageAction,
+            onLoadReplyInteractionStatus = onLoadReplyInteractionStatus,
             isLiked = likedDynamics.contains(item.id_str)
         )
     }
+    val showSkeleton = filteredItems.isEmpty() && activeLoading
+    val skeletonPulse = if (showSkeleton) {
+        com.android.purebilibili.feature.dynamic.components.rememberDynamicFeedSkeletonPulse()
+    } else {
+        0f
+    }
 
     LazyVerticalStaggeredGrid(
-        columns = StaggeredGridCells.Adaptive(resolveDynamicTimelineMinColumnWidth()),
+        columns = if (feedLayoutMode == SettingsManager.DynamicFeedLayoutMode.LIST) {
+            //  [新增] 列表模式：单列居中（对齐 PiliPlus dynamicsWaterfallFlow 的列表布局）
+            StaggeredGridCells.Fixed(1)
+        } else {
+            StaggeredGridCells.Adaptive(resolveDynamicTimelineMinColumnWidth())
+        },
         state = listState,
         contentPadding = PaddingValues(
             top = statusBarHeight + topPaddingExtra,
@@ -1003,6 +1075,19 @@ private fun DynamicList(
             .responsiveContentWidth(maxWidth = resolveDynamicTimelineMaxWidth())
             .fillMaxSize()
     ) {
+        // 首屏骨架屏（列表为空且加载中时显示，对齐 PiliPlus dynSkeleton）
+        if (showSkeleton) {
+            items(
+                count = com.android.purebilibili.feature.dynamic.components.DYNAMIC_FEED_SKELETON_ITEM_COUNT,
+                key = { index -> "dynamic_skeleton_$index" },
+                contentType = { "dynamic_skeleton" }
+            ) { _ ->
+                com.android.purebilibili.feature.dynamic.components.DynamicFeedSkeletonCard(
+                    pulse = skeletonPulse
+                )
+            }
+        }
+
         // 空状态
         if (filteredItems.isEmpty() && !activeLoading && activeError == null) {
             item(
@@ -1010,9 +1095,13 @@ private fun DynamicList(
                 contentType = "dynamic_empty_state",
                 span = StaggeredGridItemSpan.FullLine
             ) {
-                EmptyState(
-                    message = if (selectedTab == 4 && !isSelectedUserTabActive) "选择一个UP查看专属动态" else "暂无动态",
-                    actionText = if (selectedTab == 4 && !isSelectedUserTabActive) "从左侧或顶部 UP 列表中选择一个用户" else "登录后查看关注 UP主 的动态",
+                DynamicEmptyState(
+                    title = if (selectedTab == 4 && !isSelectedUserTabActive) "选择一个 UP 查看动态" else "暂无动态",
+                    subtitle = if (selectedTab == 4 && !isSelectedUserTabActive) {
+                        "从左侧或顶部的 UP 列表中选择一个用户"
+                    } else {
+                        "登录后即可查看关注 UP 主的最新动态"
+                    },
                     modifier = Modifier.height(AppSpacingTokens.TripleExtraLarge * 6 + AppSpacingTokens.Medium)
                 )
             }
@@ -1090,6 +1179,49 @@ private fun DynamicList(
 }
 
 @Composable
+private fun DynamicEmptyState(
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = AppSpacingTokens.ExtraLarge),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large)
+                .clip(CircleShape)
+                .background(AppSurfaceTokens.surfaceContainerHigh()),
+            contentAlignment = Alignment.Center,
+        ) {
+            AppIcon(
+                imageVector = rememberAppDynamicIcon(),
+                contentDescription = null,
+                modifier = Modifier.size(AppSpacingTokens.DoubleExtraLarge),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
+        AppText(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
+        AppText(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            color = AppSurfaceTokens.onSurfaceVariantActions(),
+        )
+    }
+}
+
+@Composable
 private fun OldContentDivider(label: String) {
     Row(
         modifier = Modifier
@@ -1124,6 +1256,7 @@ private fun HorizontalUserList(
     listState: androidx.compose.foundation.lazy.LazyListState,
     showHiddenUsers: Boolean,
     hiddenCount: Int,
+    uplistUpdateMids: Set<Long> = emptySet(),
     onUserClick: (Long?) -> Unit,
     onToggleShowHidden: () -> Unit,
     onTogglePin: (Long) -> Unit,
@@ -1220,6 +1353,16 @@ private fun HorizontalUserList(
                                     contentDescription = null,
                                     modifier = Modifier.fillMaxSize().clip(CircleShape),
                                     contentScale = ContentScale.Crop
+                                )
+                            }
+                            //  [新增] UP 未读红点（对齐 PiliPlus up_panel 8px 红点）
+                            if (user.uid in uplistUpdateMids) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(AppSpacingTokens.Small)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
                                 )
                             }
                         }

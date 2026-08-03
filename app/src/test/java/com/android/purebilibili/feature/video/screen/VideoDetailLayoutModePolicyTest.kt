@@ -374,6 +374,52 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
+    fun foldableInnerScreenDefaultsAutoFullscreenToPortrait() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            resolvePhoneVideoRequestedOrientation(
+                autoRotateEnabled = true,
+                fullscreenMode = FullscreenMode.AUTO,
+                isCompactDevice = false,
+                isOrientationDrivenFullscreen = false,
+                isFullscreenMode = true,
+                preferPortraitForFlatFoldable = true
+            )
+        )
+    }
+
+    @Test
+    fun tabletAutoFullscreenStillUsesLandscapeWhenVideoReportsVertical() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            resolvePhoneVideoRequestedOrientation(
+                autoRotateEnabled = true,
+                fullscreenMode = FullscreenMode.AUTO,
+                isCompactDevice = false,
+                isOrientationDrivenFullscreen = false,
+                isFullscreenMode = true,
+                isVerticalVideo = true,
+                preferPortraitForFlatFoldable = false
+            )
+        )
+    }
+
+    @Test
+    fun compactPhoneIgnoresFoldablePortraitPreference() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE,
+            resolvePhoneVideoRequestedOrientation(
+                autoRotateEnabled = false,
+                fullscreenMode = FullscreenMode.AUTO,
+                isCompactDevice = true,
+                isOrientationDrivenFullscreen = true,
+                isFullscreenMode = true,
+                preferPortraitForFlatFoldable = true
+            )
+        )
+    }
+
+    @Test
     fun phoneOrientationPolicy_autoRotateEnabled_defaultsToPortraitUntilSensorRequestsLandscape() {
         assertEquals(
             ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,

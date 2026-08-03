@@ -32,7 +32,9 @@ internal fun resolveDynamicPagePresentation(
             timelineItems = state.timelinePage("all").items,
             remoteUserItems = state.userItems,
             selectedUid = selectedUserId
-        ).distinctBy { it.id_str }
+        )
+            .filterNot { it.id_str in state.tempBannedDynamicIds }
+            .distinctBy { it.id_str }
         return DynamicPagePresentation(
             items = items,
             isLoading = state.userIsLoading,
@@ -52,7 +54,9 @@ internal fun resolveDynamicPagePresentation(
         2 -> page.items.filter(::shouldIncludeDynamicItemInPgcTab)
         3 -> page.items.filter(::shouldIncludeDynamicItemInArticleTab)
         else -> page.items
-    }.distinctBy { it.id_str }
+    }
+        .filterNot { it.id_str in state.tempBannedDynamicIds }
+        .distinctBy { it.id_str }
     return DynamicPagePresentation(
         items = items,
         isLoading = page.isLoading,

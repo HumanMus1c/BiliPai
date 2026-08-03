@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Shape
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeInputScale
 import dev.chrisbanes.haze.ExperimentalHazeApi
+import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.blurEffect
 import dev.chrisbanes.haze.hazeEffect
 
@@ -61,6 +62,7 @@ fun currentUnifiedBlurIntensity(): BlurIntensity {
  * 
  * @param hazeState Haze状态
  * @param enabled 是否启用模糊
+ * @param blurStyleOverride 不使用主题材质时的定制 Haze 样式
  * @return 应用了用户偏好模糊的Modifier
  */
 @Composable
@@ -72,12 +74,12 @@ fun Modifier.unifiedBlur(
     motionTier: MotionTier = MotionTier.Normal,
     isScrolling: Boolean = false,
     isTransitionRunning: Boolean = false,
-    forceLowBudget: Boolean = false
+    forceLowBudget: Boolean = false,
+    blurStyleOverride: HazeBlurStyle? = null,
 ): Modifier {
     if (!enabled) return this
     if (!shouldAllowRenderEffectBackedHazeEffect(Build.VERSION.SDK_INT)) return this
 
-    val blurIntensity = currentUnifiedBlurIntensity()
     // 运行时视觉守卫：连续掉帧时把毛玻璃/液态玻璃一并降级。调用点自带的
     // motionTier / forceLowBudget 语义正交，这里取更保守者而非覆盖。
     val guard = LocalRuntimeVisualGuard.current.value
@@ -100,8 +102,10 @@ fun Modifier.unifiedBlur(
         )
     }
 
-    // 根据用户选择获取对应的模糊样式（getBlurStyle 自身是 @Composable，内部读主题色）
-    val blurStyle = BlurStyles.getBlurStyle(blurIntensity, budget)
+    // 默认仍遵循用户的统一模糊偏好；播放画面等需要保真的场景可显式提供
+    // 无主题染色样式，避免 Material surface tint 改变原始画面颜色。
+    val blurStyle = blurStyleOverride
+        ?: BlurStyles.getBlurStyle(currentUnifiedBlurIntensity(), budget)
     val edgeTreatment = remember(shape) { resolveUnifiedBlurredEdgeTreatment(shape) }
     val inputScaleFactor = remember(budget, surfaceType) {
         resolveBlurInputScale(budget = budget, surfaceType = surfaceType)

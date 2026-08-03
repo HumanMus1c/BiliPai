@@ -10,6 +10,8 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
@@ -51,6 +53,7 @@ fun DynamicTopBarWithTabs(
     modifier: Modifier = Modifier,
     displayMode: DynamicDisplayMode = DynamicDisplayMode.SIDEBAR,
     onDisplayModeChange: (DynamicDisplayMode) -> Unit = {},
+    onPublishClick: (() -> Unit)? = null,
     hazeState: HazeState? = null,
     indicatorPositionProvider: (() -> Float)? = null,
     isScrollInProgressProvider: () -> Boolean = { false }
@@ -122,6 +125,21 @@ fun DynamicTopBarWithTabs(
                         tint = MaterialTheme.colorScheme.onSurface, // 自适应颜色
                         modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
                     )
+                }
+
+                //  发布动态入口（对齐 PiliPlus AppBar actions 的发布按钮）
+                if (onPublishClick != null) {
+                    AppIconButton(
+                        onClick = onPublishClick,
+                        modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = "发布动态",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
+                        )
+                    }
                 }
             }
         }

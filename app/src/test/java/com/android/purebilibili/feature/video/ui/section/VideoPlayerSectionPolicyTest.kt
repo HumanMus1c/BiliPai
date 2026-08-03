@@ -16,6 +16,45 @@ import kotlin.test.assertTrue
 class VideoPlayerSectionPolicyTest {
 
     @Test
+    fun autoFullscreen_snapshotDoesNotReenterAfterFullscreenPlayerIsRecreated() {
+        assertFalse(
+            shouldToggleAutoFullscreenForCurrentPlaybackSnapshot(
+                autoEnterFullscreenEnabled = true,
+                autoExitFullscreenEnabled = false,
+                allowPlaybackStateAutoFullscreen = true,
+                playbackState = Player.STATE_READY,
+                playWhenReady = true,
+                hasAutoEnteredFullscreen = false,
+                isFullscreen = false,
+            )
+        )
+    }
+
+    @Test
+    fun coverCorner_sharedReturnKeepsFrozenSourceCardCorner() {
+        assertEquals(
+            18,
+            resolveVideoPlayerCoverCornerDp(
+                sourceCornerDp = 18,
+                playerCornerDp = 12,
+                preserveSourceCardCornerDuringSharedReturn = true,
+            )
+        )
+    }
+
+    @Test
+    fun coverCorner_normalPlayerKeepsPlayerCorner() {
+        assertEquals(
+            12,
+            resolveVideoPlayerCoverCornerDp(
+                sourceCornerDp = 18,
+                playerCornerDp = 12,
+                preserveSourceCardCornerDuringSharedReturn = false,
+            )
+        )
+    }
+
+    @Test
     fun playerControls_areHiddenWhenEnteringVideo() {
         assertFalse(INITIAL_PLAYER_CONTROLS_VISIBLE)
         assertTrue(INITIAL_PLAYER_CHROME_AUTO_HIDE_HANDLED)
@@ -363,6 +402,31 @@ class VideoPlayerSectionPolicyTest {
                 portraitDisplayAreaMode =
                     com.android.purebilibili.core.store.PortraitDanmakuDisplayAreaMode.VIDEO_VIEWPORT,
                 isLandscapeFullscreen = false
+            )
+        )
+    }
+
+    @Test
+    fun danmakuSettingsScope_keepsPortraitProfileDuringPortraitFullscreenTransition() {
+        assertEquals(
+            com.android.purebilibili.core.store.DanmakuSettingsScope.LANDSCAPE,
+            resolveVideoPlayerDanmakuSettingsScope(
+                isFullscreen = true,
+                isPortraitFullscreen = false
+            )
+        )
+        assertEquals(
+            com.android.purebilibili.core.store.DanmakuSettingsScope.PORTRAIT,
+            resolveVideoPlayerDanmakuSettingsScope(
+                isFullscreen = true,
+                isPortraitFullscreen = true
+            )
+        )
+        assertEquals(
+            com.android.purebilibili.core.store.DanmakuSettingsScope.PORTRAIT,
+            resolveVideoPlayerDanmakuSettingsScope(
+                isFullscreen = false,
+                isPortraitFullscreen = false
             )
         )
     }
@@ -1321,7 +1385,39 @@ class VideoPlayerSectionPolicyTest {
         assertTrue(visual.centerMarkerAlpha > visual.edgeGradientAlpha)
         assertEquals(4, visual.centerMarkerHeightDp)
         assertEquals(0.22f, visual.centerMarkerWidthFraction)
-        assertEquals(10, visual.bottomVisualOffsetDp)
+        assertEquals(0, visual.bottomVisualOffsetDp)
+    }
+
+    @Test
+    fun subtitleBottomOffset_tracksChromeAndSafeInsetsAcrossScreenShapes() {
+        val density = 3f
+        val hidden = resolveSubtitleBottomOffsetPx(
+            isFullscreen = true,
+            controlsVisible = false,
+            navigationInsetPx = 0,
+            bottomControlsHeightPx = 180,
+            density = density
+        )
+        val visible = resolveSubtitleBottomOffsetPx(
+            isFullscreen = true,
+            controlsVisible = true,
+            navigationInsetPx = 24,
+            bottomControlsHeightPx = 132,
+            density = density
+        )
+
+        assertEquals(72, hidden)
+        assertEquals(180, visible)
+        assertEquals(
+            144,
+            resolveSubtitleBottomOffsetPx(
+                isFullscreen = false,
+                controlsVisible = false,
+                navigationInsetPx = 0,
+                bottomControlsHeightPx = 0,
+                density = density
+            )
+        )
     }
 
     @Test

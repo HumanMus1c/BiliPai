@@ -775,15 +775,17 @@ internal fun BiliPaiNavDisplayHost(
         reportPredictiveProgress = predictiveBackEnabled,
         onBackCompleted = performBack,
         onBackCancelled = { commitTransition ->
-            onNativeVideoBackCancelled(currentBackKey, targetBackKey)
             val cancelledVideoCardBlur = videoCardBackgroundProgressProvider()
             val cancelledPredictiveBlur = predictiveBackBackgroundProgressProvider()
             videoCardReturnGestureInProgress = false
             videoCardClock.endGesture()
-            // 手势取消：depth 复原到满值，与详情回弹一致。
-            if (isVideoCardTransitionBackgroundGesturePhase(videoCardClock.phase) &&
-                cancelledVideoCardBlur < 1f
-            ) {
+            val videoCardRestoreRunning =
+                isVideoCardTransitionBackgroundGesturePhase(videoCardClock.phase) &&
+                    cancelledVideoCardBlur < 1f
+            // 手势取消：depth 复原到满值，与详情回弹一致。播放器/系统栏恢复(onNativeVideoBackCancelled)
+            // 延迟到景深回弹完成后再回调，避免「视频先恢复、背景还糊着」的时序分裂；
+            // 无景深回弹(普通路由)时保持立即回调。
+            if (videoCardRestoreRunning) {
                 navigationScope.launch {
                     videoCardClock.beginGestureRestore()
                     try {
@@ -796,8 +798,11 @@ internal fun BiliPaiNavDisplayHost(
                         videoCardClock.markHeld()
                     } finally {
                         videoCardClock.endGestureRestore()
+                        onNativeVideoBackCancelled(currentBackKey, targetBackKey)
                     }
                 }
+            } else {
+                onNativeVideoBackCancelled(currentBackKey, targetBackKey)
             }
             if (predictiveBackGestureBlurEnabled && cancelledPredictiveBlur > 0f) {
                 navigationScope.launch {

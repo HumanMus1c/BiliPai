@@ -61,6 +61,9 @@ class MusicPlayerContentStructureTest {
     fun `lyrics expose progress playback controls and immersive chrome`() {
         val source = loadSource()
         val lyricsPage = source.substringAfter("private fun LyricsPage(")
+        val lyricsControls = source
+            .substringAfter("private fun LyricsPrimaryControls(")
+            .substringBefore("private fun formatLyricsOffset(")
         val topBar = source
             .substringAfter("private fun MusicTopBar(")
             .substringBefore("private fun GlassIconButton(")
@@ -78,6 +81,7 @@ class MusicPlayerContentStructureTest {
         assertTrue(topBar.contains("CupertinoIcons.Outlined.ChevronDown"))
         assertTrue(topBar.contains("CupertinoIcons.Outlined.Ellipsis"))
         assertTrue(source.contains("BottomBarMatchedReusableLiquidDock("))
+        assertTrue(lyricsControls.contains("drawShellLens = false"))
         assertTrue(!topBar.contains("?: Spacer"))
         assertTrue(!source.contains("private fun Modifier.musicGlassSurface("))
         assertTrue(!source.contains("bottomBarMatchedLiquidDockSurface("))

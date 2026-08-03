@@ -14,6 +14,10 @@ class MainHostTabBackHandlerStructureTest {
         assertTrue(source.contains("NavigationBackHandler("))
         assertTrue(source.contains("rememberNavigationEventState(NavigationEventInfo.None)"))
         assertTrue(source.contains("LocalPredictiveBackGestureEnabled.current"))
+        assertTrue(source.contains("NavigationEventTransitionState.InProgress"))
+        assertTrue(source.contains("onPredictiveProgress(predictiveProgress)"))
+        assertTrue(source.contains("onPredictiveCancelled()"))
+        assertTrue(source.contains("onPredictiveCompleted()"))
         assertTrue(source.contains("reportPredictiveProgress = predictiveBackGestureEnabled"))
         assertFalse(source.contains("import androidx.activity.compose.BackHandler"))
         // 仅需确认没有「直接注册 androidx.activity 的 BackHandler」。之前此处误用

@@ -53,8 +53,6 @@ import com.android.purebilibili.R
 import com.android.purebilibili.core.store.BottomBarSearchAutoExpandMode
 import com.android.purebilibili.core.store.BottomBarSearchLayoutMode
 import com.android.purebilibili.core.store.CommonListHeaderCollapseMode
-import com.android.purebilibili.core.store.HomeCardBadgeEffectMode
-import com.android.purebilibili.core.store.HomeCardInfoGlassMode
 import com.android.purebilibili.core.store.HomeDurationStyle
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode
@@ -420,12 +418,6 @@ fun AppearanceSettingsContent(
     val homeDurationStyle by SettingsManager
         .getHomeDurationStyle(context)
         .collectAsStateWithLifecycle(initialValue = HomeDurationStyle.OUTSIDE_COVER)
-    val homeCardBadgeEffectMode by SettingsManager
-        .getHomeCardBadgeEffectMode(context)
-        .collectAsStateWithLifecycle(initialValue = HomeCardBadgeEffectMode.SOFT_GLASS)
-    val homeCardInfoGlassMode by SettingsManager
-        .getHomeCardInfoGlassMode(context)
-        .collectAsStateWithLifecycle(initialValue = HomeCardInfoGlassMode.OFF)
     val homeFeedCardStyle by SettingsManager
         .getHomeFeedCardStyle(context)
         .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.CURRENT)
@@ -1503,44 +1495,9 @@ fun AppearanceSettingsContent(
                                     }
                                 }
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            AppSegmentedPreference(
-                                title = "卡片标签效果：${homeCardBadgeEffectMode.label}",
-                                subtitle = homeCardBadgeEffectMode.subtitle,
-                                options = HomeCardBadgeEffectMode.entries.map {
-                                    AppSegmentOption(it, it.label)
-                                },
-                                selectedValue = homeCardBadgeEffectMode,
-                                onSelectionChange = {
-                                    scope.launch {
-                                        SettingsManager.setHomeCardBadgeEffectMode(context, it)
-                                    }
-                                }
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            AppSegmentedPreference(
-                                title = "卡片信息区：${homeCardInfoGlassMode.label}",
-                                subtitle = homeCardInfoGlassMode.subtitle,
-                                options = HomeCardInfoGlassMode.entries.map {
-                                    AppSegmentOption(it, it.label)
-                                },
-                                selectedValue = homeCardInfoGlassMode,
-                                onSelectionChange = {
-                                    scope.launch {
-                                        SettingsManager.setHomeCardInfoGlassMode(context, it)
-                                    }
-                                }
-                            )
                         }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        // Wallpaper section: realtime card glass is WIP — keep default OFF.
-                        AppText(
-                            text = "壁纸与卡片实时模糊 / 实时液态玻璃仍在开发中，请勿使用相关选项（默认关闭）。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                        )
                         var showHomeWallpaperPicker by remember { mutableStateOf(false) }
                         Row(
                             modifier = Modifier
@@ -1800,8 +1757,7 @@ fun AppearanceSettingsContent(
             initialHex = state.md3CustomColorHex,
             onDismiss = { showMd3ColorPickerDialog = false },
             onConfirm = { hex ->
-                viewModel.setMd3ColorSource(Md3ColorSource.CUSTOM)
-                viewModel.setMd3CustomColorHex(hex)
+                viewModel.applyMd3CustomColor(hex)
                 showMd3ColorPickerDialog = false
             }
         )
@@ -1963,10 +1919,26 @@ private fun Md3CustomColorPickerDialog(
     val controller = rememberColorPickerController()
     val haptic = rememberHapticFeedback()
     var pendingHex by remember(initialHex) { mutableStateOf(normalizeMd3CustomColorHex(initialHex)) }
+    var lastValidHex by remember(initialHex) { mutableStateOf(normalizeMd3CustomColorHex(initialHex)) }
     var lastSelectionHapticAtMs by remember { mutableLongStateOf(0L) }
-    val pendingColor = remember(pendingHex) { parseMd3CustomColorHex(pendingHex) }
-    val invalidInput = normalizeMd3CustomColorHex(pendingHex) != pendingHex.uppercase()
+    val hasValidHex = isValidMd3CustomColorHex(pendingHex)
+    val pendingColor = remember(lastValidHex) { parseMd3CustomColorHex(lastValidHex) }
+    val invalidInput = pendingHex.isNotBlank() && !hasValidHex
     val sliderPositions = remember(pendingColor) { resolveMd3ColorPickerSliderPositions(pendingColor) }
+
+    fun updatePendingHex(value: String) {
+        val nextHex = value.uppercase().take(9)
+        pendingHex = nextHex
+        if (isValidMd3CustomColorHex(nextHex)) {
+            lastValidHex = normalizeMd3CustomColorHex(nextHex)
+        }
+    }
+
+    // HsvColorPicker only consumes initialColor during setup. Keep its controller in sync with
+    // manual HEX edits and presets so the next slider gesture cannot restore the initial blue.
+    LaunchedEffect(pendingColor) {
+        controller.selectByColor(pendingColor, fromUser = false)
+    }
 
     fun emitSelectionHapticIfNeeded() {
         val nowMs = SystemClock.elapsedRealtime()
@@ -1980,12 +1952,13 @@ private fun Md3CustomColorPickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             AppTextButton(
+                enabled = hasValidHex,
                 onClick = {
                     haptic(HapticType.LIGHT)
-                    onConfirm(normalizeMd3CustomColorHex(pendingHex))
+                    onConfirm(lastValidHex)
                 }
             ) {
-                AppText("确认")
+                AppText("保存并应用")
             }
         },
         dismissButton = {
@@ -2010,7 +1983,7 @@ private fun Md3CustomColorPickerDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     AppText(
-                        text = normalizeMd3CustomColorHex(pendingHex),
+                        text = if (hasValidHex) lastValidHex else pendingHex.ifBlank { "#RRGGBB" },
                         style = MaterialTheme.typography.titleMedium,
                         color = if (pendingColor.luminance() < 0.5f) Color.White else Color.Black,
                         fontWeight = FontWeight.Bold
@@ -2028,7 +2001,7 @@ private fun Md3CustomColorPickerDialog(
                         if (envelope.fromUser) {
                             val nextHex = formatMd3CustomColorHex(envelope.color)
                             if (nextHex != pendingHex) {
-                                pendingHex = nextHex
+                                updatePendingHex(nextHex)
                                 emitSelectionHapticIfNeeded()
                             }
                         }
@@ -2071,13 +2044,15 @@ private fun Md3CustomColorPickerDialog(
 
                 AppTextField(
                     value = pendingHex,
-                    onValueChange = { pendingHex = it.uppercase().take(9) },
-                    label = "HEX",
+                    onValueChange = ::updatePendingHex,
+                    label = "HEX（#RRGGBB）",
                     singleLine = true,
                     isError = invalidInput,
                     supportingText = {
                         if (invalidInput) {
-                            AppText("请输入 #RRGGBB 格式")
+                            AppText("请输入 6 位 RGB，例如 #BBCAAE")
+                        } else {
+                            AppText("点击“保存并应用”后会立即保存，下次启动仍生效")
                         }
                     }
                 )
@@ -2103,7 +2078,7 @@ private fun Md3CustomColorPickerDialog(
                                     shape = CircleShape
                                 )
                                 .clickable {
-                                    pendingHex = hex
+                                    updatePendingHex(hex)
                                     haptic(HapticType.SELECTION)
                                 }
                         )

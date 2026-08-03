@@ -101,8 +101,8 @@ internal fun StoryVideoCard(
     isDataSaverActive: Boolean = false,
     preferLowQualityCover: Boolean = false,
     coverRequestSpec: HomeCoverRequestSpec? = null,
-    showCoverGlassBadges: Boolean = true,
-    showInfoGlassBadges: Boolean = true,
+    showCoverGlassBadges: Boolean = false,
+    showInfoGlassBadges: Boolean = false,
     showUpBadge: Boolean = true,
     homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
     coverAspectRatio: Float = 4f / 3f,
@@ -320,6 +320,12 @@ internal fun StoryVideoCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .videoCardShellReturnCoverAlpha(
+                    enabled = useCardShellSharedBounds,
+                    bvid = video.bvid,
+                    sourceRoute = effectiveSharedElementSourceRoute,
+                    isReturningFromDetail = isReturningFromVideoDetail,
+                )
                 .testTag("home_story_video_cover")
                 .aspectRatio(coverAspectRatio)
                 .clip(coverShape)
@@ -409,16 +415,15 @@ internal fun StoryVideoCard(
         
         Spacer(modifier = Modifier.height(if (compactMetadata) AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro else AppSpacingTokens.Small))
         
-        // UP主信息 + 数据
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        // 作者和统计信息分行：双列卡片中三项统计不能再挤占作者名称的宽度。
+        Column(
             modifier = Modifier.fillMaxWidth()
         ) {
             val upClickMid = video.owner.mid.takeIf { it > 0L && onUpClick != null }
             val upNameModifier = if (upClickMid != null) {
-                Modifier.wrapContentSize().clickable { onUpClick?.invoke(upClickMid) }
+                Modifier.fillMaxWidth().clickable { onUpClick?.invoke(upClickMid) }
             } else {
-                Modifier.wrapContentSize()
+                Modifier.fillMaxWidth()
             }
             
             UpBadgeName(
@@ -452,12 +457,13 @@ internal fun StoryVideoCard(
             )
             
             // 数据行 (Play & Danmaku)
-             //  [重设计] 播放数据行 - 独立展示，精致风格
             if (scrollLitePolicy.showSecondaryStatsRow) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
-                    modifier = Modifier.padding(start = AppSpacingTokens.Large) // 与 UP 主信息分开
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
                 ) {
                     // 播放量
                     if (video.stat.view > 0) {
@@ -475,7 +481,10 @@ internal fun StoryVideoCard(
                                 AppText(
                                     text = FormatUtils.formatStat(video.stat.view.toLong()),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
+                                    style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -497,7 +506,10 @@ internal fun StoryVideoCard(
                                  AppText(
                                      text = FormatUtils.formatStat(video.stat.danmaku.toLong()),
                                      color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                     style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
+                                     style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
+                                     maxLines = 1,
+                                     softWrap = false,
+                                     overflow = TextOverflow.Ellipsis
                                  )
                              }
                          }
@@ -517,7 +529,10 @@ internal fun StoryVideoCard(
                             AppText(
                                 text = onlineCount,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
+                                style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

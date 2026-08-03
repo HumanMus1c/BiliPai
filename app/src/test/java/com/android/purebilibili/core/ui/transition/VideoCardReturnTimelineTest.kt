@@ -288,7 +288,6 @@ class VideoCardReturnTimelineTest {
         )
         assertTrue(target.pinCoverSource)
         assertFalse(target.enableCoilCrossfade)
-        assertFalse(target.hideCoverDuringShellMorph)
 
         val afterClearReturning = resolveVideoCardReturnListCoverContract(
             isSharedReturnTarget = true,
@@ -309,6 +308,14 @@ class VideoCardReturnTimelineTest {
         )
         assertFalse(normal.pinCoverSource)
         assertTrue(normal.enableCoilCrossfade)
+    }
+
+    @Test
+    fun liveReturnVisualHandoff_onlyRevealsSourceInFinalSettleWindow() {
+        assertEquals(0f, resolveVideoCardLiveReturnVisualHandoffAlpha(1f), 0.0001f)
+        assertEquals(0f, resolveVideoCardLiveReturnVisualHandoffAlpha(0.12f), 0.0001f)
+        assertEquals(0.5f, resolveVideoCardLiveReturnVisualHandoffAlpha(0.06f), 0.0001f)
+        assertEquals(1f, resolveVideoCardLiveReturnVisualHandoffAlpha(0f), 0.0001f)
     }
 
     @Test

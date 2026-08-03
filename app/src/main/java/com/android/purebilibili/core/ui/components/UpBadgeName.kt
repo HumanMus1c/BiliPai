@@ -65,7 +65,9 @@ fun UpBadgeName(
             }
 
             Column(
-                modifier = Modifier.weight(1f, fill = false),
+                // 名称列需要占用剩余空间；fill=false 会在带有头像、UP 标识和尾部槽位时
+                // 将可用宽度压缩到零，最终只留下省略号。
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(

@@ -18,6 +18,7 @@ import com.android.purebilibili.core.ui.transition.normalizeVideoSharedTransitio
 import com.android.purebilibili.core.store.home.HomeSettingsStore
 import com.android.purebilibili.core.store.navigation.NavigationSettingsStore
 import com.android.purebilibili.core.store.player.PlayerSettingsStore
+import com.android.purebilibili.core.store.player.defaultAudioQualityPreferenceKey
 import com.android.purebilibili.core.theme.AppFontSizePreset
 import com.android.purebilibili.core.theme.AppUiScalePreset
 import com.android.purebilibili.core.theme.AndroidNativeVariant
@@ -489,7 +490,7 @@ data class HomeSettings(
     val isHeaderCollapseEnabled: Boolean = true,
     val gridColumnCount: Int = 0, // [New] 网格列数 (0=自动, 1-6=固定)
     val homeFeedCardWidthPreset: HomeFeedCardWidthPreset = HomeFeedCardWidthPreset.AUTO,
-    val homeFeedCardStyle: HomeFeedCardStyle = HomeFeedCardStyle.OFFICIAL,
+    val homeFeedCardStyle: HomeFeedCardStyle = HomeFeedCardStyle.CURRENT,
     val homeHeroCarouselEnabled: Boolean = true,
     val homeHeroCarouselAutoplayEnabled: Boolean = false,
     val cardAnimationEnabled: Boolean = false,    //  卡片进场动画（默认关闭）
@@ -505,10 +506,10 @@ data class HomeSettings(
     val runtimeVisualGuardEnabled: Boolean = true,
     val compactVideoStatsOnCover: Boolean = true, //  播放量/评论数显示在封面底部（默认开启）
     val lowQualityHomeCoverInDataSaver: Boolean = false, // 省流量时首页封面使用低清晰度
-    val showHomeCoverGlassBadges: Boolean = true, // 兼容旧字段：由 [homeCardBadgeEffectMode] 推导
-    val showHomeInfoGlassBadges: Boolean = true, // 兼容旧字段：由 [homeCardBadgeEffectMode] 推导
-    val homeCardBadgeEffectMode: HomeCardBadgeEffectMode = HomeCardBadgeEffectMode.SOFT_GLASS,
-    /** Title/UP strip under cover — blur and liquid glass are independent. */
+    // 卡片标签 / 信息区玻璃效果已下线，保留字段仅为兼容旧数据结构。
+    val showHomeCoverGlassBadges: Boolean = false,
+    val showHomeInfoGlassBadges: Boolean = false,
+    val homeCardBadgeEffectMode: HomeCardBadgeEffectMode = HomeCardBadgeEffectMode.OFF,
     val homeCardInfoGlassMode: HomeCardInfoGlassMode = HomeCardInfoGlassMode.OFF,
     val homeWallpaperEffectMode: HomeWallpaperEffectMode = HomeWallpaperEffectMode.SOFT_BLUR,
     val homeWallpaperEffectScope: HomeWallpaperEffectScope = HomeWallpaperEffectScope.HOME_ONLY,
@@ -801,6 +802,7 @@ data class AppNavigationSettings(
     val orderedVisibleTabIds: List<String> = listOf("HOME", "DYNAMIC", "HISTORY", "LISTEN_VIDEO", "PROFILE"),
     val bottomBarItemColors: Map<String, Int> = emptyMap(),
     val tabletUseSidebar: Boolean = false,
+    val sidebarAccountSwitcherEnabled: Boolean = true,
     val predictiveBackEnabled: Boolean = true,
     val predictiveBackAnimationStyle: String = "scale",
     val predictiveBackExitDirection: String = "auto",
@@ -1398,7 +1400,7 @@ object SettingsManager {
                 preferences[KEY_HOME_FEED_CARD_WIDTH_PRESET] ?: HomeFeedCardWidthPreset.AUTO.value
             ),
             homeFeedCardStyle = HomeFeedCardStyle.fromValue(
-                preferences[KEY_HOME_FEED_CARD_STYLE] ?: HomeFeedCardStyle.OFFICIAL.value
+                preferences[KEY_HOME_FEED_CARD_STYLE] ?: HomeFeedCardStyle.CURRENT.value
             ),
             homeHeroCarouselEnabled = preferences[KEY_HOME_HERO_CAROUSEL_ENABLED] ?: true,
             homeHeroCarouselAutoplayEnabled =
@@ -1420,12 +1422,11 @@ object SettingsManager {
             compactVideoStatsOnCover = preferences[KEY_COMPACT_VIDEO_STATS_ON_COVER] ?: true,
             lowQualityHomeCoverInDataSaver =
                 preferences[KEY_LOW_QUALITY_HOME_COVER_IN_DATA_SAVER] ?: false,
-            showHomeCoverGlassBadges = resolveHomeCardBadgeEffectMode(preferences)
-                != HomeCardBadgeEffectMode.OFF,
-            showHomeInfoGlassBadges = resolveHomeCardBadgeEffectMode(preferences)
-                != HomeCardBadgeEffectMode.OFF,
-            homeCardBadgeEffectMode = resolveHomeCardBadgeEffectMode(preferences),
-            homeCardInfoGlassMode = resolveHomeCardInfoGlassMode(preferences),
+            // 已下线：忽略旧数据，确保历史上开启过实时模糊/液态玻璃的用户不会继续走该路径。
+            showHomeCoverGlassBadges = false,
+            showHomeInfoGlassBadges = false,
+            homeCardBadgeEffectMode = HomeCardBadgeEffectMode.OFF,
+            homeCardInfoGlassMode = HomeCardInfoGlassMode.OFF,
             homeWallpaperEffectMode = HomeWallpaperEffectMode.fromValue(
                 preferences[KEY_HOME_WALLPAPER_EFFECT_MODE] ?: HomeWallpaperEffectMode.SOFT_BLUR.value
             ),
@@ -1996,21 +1997,24 @@ object SettingsManager {
             )
         }
 
-    suspend fun setMd3ColorSource(context: Context, source: Md3ColorSource) {
-        context.settingsDataStore.edit { preferences ->
-            preferences[KEY_MD3_COLOR_SOURCE] = source.name
-            // 保持旧 key 同步，避免旧入口或导入旧配置时出现来源状态不一致。
-            preferences[KEY_DYNAMIC_COLOR] = source == Md3ColorSource.FOLLOW_WALLPAPER
-        }
+    suspend fun setMd3ColorSource(context: Context, source: Md3ColorSource) = context.settingsDataStore.edit { preferences ->
+        preferences[KEY_MD3_COLOR_SOURCE] = source.name
+        // 保持旧 key 同步，避免旧入口或导入旧配置时出现来源状态不一致。
+        preferences[KEY_DYNAMIC_COLOR] = source == Md3ColorSource.FOLLOW_WALLPAPER
     }
 
-    fun getMd3CustomColorHex(context: Context): Flow<String> = context.settingsDataStore.data
-        .map { preferences -> normalizeMd3CustomColorHex(preferences[KEY_MD3_CUSTOM_COLOR_HEX]) }
+    fun getMd3CustomColorHex(context: Context): Flow<String> = context.settingsDataStore.data.map {
+        normalizeMd3CustomColorHex(it[KEY_MD3_CUSTOM_COLOR_HEX])
+    }
 
-    suspend fun setMd3CustomColorHex(context: Context, hex: String) {
-        context.settingsDataStore.edit { preferences ->
-            preferences[KEY_MD3_CUSTOM_COLOR_HEX] = normalizeMd3CustomColorHex(hex)
-        }
+    suspend fun setMd3CustomColorHex(context: Context, hex: String) = context.settingsDataStore.edit { preferences ->
+        preferences[KEY_MD3_CUSTOM_COLOR_HEX] = normalizeMd3CustomColorHex(hex)
+    }
+
+    suspend fun applyMd3CustomColor(context: Context, hex: String) = context.settingsDataStore.edit { preferences ->
+        preferences[KEY_MD3_COLOR_SOURCE] = Md3ColorSource.CUSTOM.name
+        preferences[KEY_DYNAMIC_COLOR] = false
+        preferences[KEY_MD3_CUSTOM_COLOR_HEX] = normalizeMd3CustomColorHex(hex)
     }
 
     fun getThemeRoleOverrides(context: Context): Flow<ThemeRoleOverrides> =
@@ -2464,7 +2468,7 @@ object SettingsManager {
     fun getHomeFeedCardStyle(context: Context): Flow<HomeFeedCardStyle> =
         context.settingsDataStore.data.map { preferences ->
             HomeFeedCardStyle.fromValue(
-                preferences[KEY_HOME_FEED_CARD_STYLE] ?: HomeFeedCardStyle.OFFICIAL.value
+                preferences[KEY_HOME_FEED_CARD_STYLE] ?: HomeFeedCardStyle.CURRENT.value
             )
         }
 
@@ -3389,6 +3393,7 @@ object SettingsManager {
             "live" -> "LIVE"
             "watchlater", "watch_later" -> "WATCHLATER"
             "settings" -> "SETTINGS"
+            "plugins", "plugin", "plugin_center" -> "PLUGINS"
             else -> id.uppercase()
         }
     }
@@ -4889,11 +4894,6 @@ object SettingsManager {
         com.android.purebilibili.core.util.Logger.d("SettingsManager", "📻 setAudioQuality SharedPrefs committed: $value, success=$result")
     }
 
-    fun getAudioQualitySync(context: Context): Int {
-        return context.getSharedPreferences("quality_settings", Context.MODE_PRIVATE)
-            .getInt("audio_quality", -1)
-    }
-
     // --- 评论默认排序 (1=回复,2=最新,3=最热,4=点赞) ---
     fun getCommentDefaultSortMode(context: Context): Flow<Int> = context.settingsDataStore.data
         .map { preferences ->
@@ -6024,6 +6024,8 @@ object SettingsManager {
     // ========== 📱 平板导航模式 ==========
     
     private val KEY_TABLET_NAVIGATION_MODE = booleanPreferencesKey("tablet_use_sidebar")
+    private val KEY_SIDEBAR_ACCOUNT_SWITCHER_ENABLED =
+        booleanPreferencesKey("sidebar_account_switcher_enabled")
     private val KEY_PREDICTIVE_BACK_ENABLED = booleanPreferencesKey("predictive_back_enabled")
     private val KEY_PREDICTIVE_BACK_ANIMATION_STYLE = stringPreferencesKey("predictive_back_animation_style")
     private val KEY_PREDICTIVE_BACK_EXIT_DIRECTION = stringPreferencesKey("predictive_back_exit_direction")
@@ -6035,6 +6037,9 @@ object SettingsManager {
      */
     fun getTabletUseSidebar(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_TABLET_NAVIGATION_MODE] ?: false }  // 默认使用底栏
+
+    fun getSidebarAccountSwitcherEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_SIDEBAR_ACCOUNT_SWITCHER_ENABLED] ?: true }
 
     internal fun mapAppNavigationSettingsFromPreferences(preferences: Preferences): AppNavigationSettings {
         val orderString = preferences[KEY_BOTTOM_BAR_ORDER] ?: DEFAULT_BOTTOM_BAR_ORDER
@@ -6048,6 +6053,8 @@ object SettingsManager {
             orderedVisibleTabIds = resolveOrderedVisibleBottomTabs(order, visible),
             bottomBarItemColors = parseBottomBarItemColors(preferences[KEY_BOTTOM_BAR_ITEM_COLORS] ?: ""),
             tabletUseSidebar = preferences[KEY_TABLET_NAVIGATION_MODE] ?: false,
+            sidebarAccountSwitcherEnabled =
+                preferences[KEY_SIDEBAR_ACCOUNT_SWITCHER_ENABLED] ?: true,
             predictiveBackEnabled = preferences[KEY_PREDICTIVE_BACK_ENABLED] ?: true,
             predictiveBackAnimationStyle = preferences[KEY_PREDICTIVE_BACK_ANIMATION_STYLE] ?: "scale",
             predictiveBackExitDirection = preferences[KEY_PREDICTIVE_BACK_EXIT_DIRECTION] ?: "auto",
@@ -6070,6 +6077,10 @@ object SettingsManager {
 
     suspend fun setTabletUseSidebar(context: Context, useSidebar: Boolean) {
         NavigationSettingsStore.setTabletUseSidebar(context, useSidebar)
+    }
+
+    suspend fun setSidebarAccountSwitcherEnabled(context: Context, enabled: Boolean) {
+        NavigationSettingsStore.setSidebarAccountSwitcherEnabled(context, enabled)
     }
 
     suspend fun setPredictiveBackEnabled(context: Context, enabled: Boolean) {
@@ -6143,6 +6154,35 @@ object SettingsManager {
     suspend fun setDynamicLayoutDirection(context: Context, direction: DynamicLayoutDirection) {
         context.settingsDataStore.edit { preferences -> 
             preferences[KEY_DYNAMIC_PAGE_LAYOUT_DIRECTION] = direction.value 
+        }
+    }
+
+    // ========== [新增] 动态 Feed 布局模式（对齐 PiliPlus dynamicsWaterfallFlow） ==========
+
+    private val KEY_DYNAMIC_FEED_LAYOUT_MODE = intPreferencesKey("dynamic_feed_layout_mode")
+
+    /**
+     *  动态 Feed 布局模式
+     * - 0: 瀑布流（默认，多列自适应）
+     * - 1: 列表（单列居中）
+     */
+    enum class DynamicFeedLayoutMode(val value: Int, val label: String) {
+        WATERFALL(0, "瀑布流"),
+        LIST(1, "列表");
+
+        companion object {
+            fun fromValue(value: Int): DynamicFeedLayoutMode = entries.find { it.value == value } ?: WATERFALL
+        }
+    }
+
+    fun getDynamicFeedLayoutMode(context: Context): Flow<DynamicFeedLayoutMode> = context.settingsDataStore.data
+        .map { preferences ->
+            DynamicFeedLayoutMode.fromValue(preferences[KEY_DYNAMIC_FEED_LAYOUT_MODE] ?: 0)
+        }
+
+    suspend fun setDynamicFeedLayoutMode(context: Context, mode: DynamicFeedLayoutMode) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_DYNAMIC_FEED_LAYOUT_MODE] = mode.value
         }
     }
 
@@ -6350,6 +6390,7 @@ object SettingsManager {
             StringShareablePreferenceDefinition(KEY_VIDEO_CODEC, SettingsShareSection.PLAYBACK),
             StringShareablePreferenceDefinition(KEY_VIDEO_SECOND_CODEC, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_AUDIO_QUALITY, SettingsShareSection.PLAYBACK),
+            IntShareablePreferenceDefinition(defaultAudioQualityPreferenceKey, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_AUTO_HIGHEST_QUALITY, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_SPONSOR_BLOCK_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_SPONSOR_BLOCK_AUTO_SKIP, SettingsShareSection.PLAYBACK),
@@ -6454,6 +6495,10 @@ object SettingsManager {
             ),
             BooleanShareablePreferenceDefinition(KEY_HEADER_COLLAPSE_ENABLED, SettingsShareSection.NAVIGATION),
             BooleanShareablePreferenceDefinition(KEY_TABLET_NAVIGATION_MODE, SettingsShareSection.NAVIGATION),
+            BooleanShareablePreferenceDefinition(
+                KEY_SIDEBAR_ACCOUNT_SWITCHER_ENABLED,
+                SettingsShareSection.NAVIGATION
+            ),
             IntShareablePreferenceDefinition(KEY_DYNAMIC_PAGE_LAYOUT_DIRECTION, SettingsShareSection.NAVIGATION),
             IntShareablePreferenceDefinition(KEY_FEED_API_TYPE, SettingsShareSection.NAVIGATION),
             BooleanShareablePreferenceDefinition(KEY_INCREMENTAL_TIMELINE_REFRESH, SettingsShareSection.NAVIGATION),

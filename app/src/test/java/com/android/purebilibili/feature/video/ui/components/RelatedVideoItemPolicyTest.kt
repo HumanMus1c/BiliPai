@@ -58,11 +58,11 @@ class RelatedVideoItemPolicyTest {
         assertEquals("video", resolveRelatedVideoSharedElementSourceRoute(""))
         assertEquals("video/BV1", resolveRelatedVideoSharedElementSourceRoute("video/BV1?from=related"))
         assertEquals("home", resolveRelatedVideoSharedElementSourceRoute("home"))
-        // Cover-only sharedBounds anchors remain host route + target bvid for morph matching.
+        // Whole-card sharedBounds anchors remain host route + target bvid for morph matching.
     }
 
     @Test
-    fun `related detail uses single column horizontal card with transparent shell anchor`() {
+    fun `related detail uses single column horizontal card with whole card shell anchor`() {
         val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/RelatedVideoItem.kt")
             .readText()
 
@@ -76,6 +76,11 @@ class RelatedVideoItemPolicyTest {
         assertTrue(source.contains("modifier = Modifier.fillMaxWidth()"))
         assertTrue(source.contains("videoCardShellSharedBoundsOrEmpty("))
         assertFalse(source.contains("videoCoverSharedBoundsOrEmpty("))
+        assertTrue(source.contains("clipShape = cardShape"))
+        assertTrue(
+            source.indexOf(".videoCardShellSharedBoundsOrEmpty(") <
+                source.indexOf(".clip(cardShape)")
+        )
         assertTrue(source.contains("crossfadeSourceContent = true"))
         assertTrue(source.contains("RelatedVideoGridRow("))
         assertTrue(source.contains("chunkRelatedVideosForHomeStyleGrid("))

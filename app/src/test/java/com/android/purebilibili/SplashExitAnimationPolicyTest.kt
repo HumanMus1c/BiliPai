@@ -14,9 +14,9 @@ class SplashExitAnimationPolicyTest {
     }
 
     @Test
-    fun enablesRealtimeBlurOnlyOnAndroid14And15() {
-        assertFalse(shouldUseRealtimeSplashBlur(31))
-        assertFalse(shouldUseRealtimeSplashBlur(33))
+    fun enablesRealtimeBlurForSmallDedicatedIconLayersOnAndroid12Through15() {
+        assertTrue(shouldUseRealtimeSplashBlur(31))
+        assertTrue(shouldUseRealtimeSplashBlur(33))
         assertTrue(shouldUseRealtimeSplashBlur(34))
     }
 
@@ -26,8 +26,32 @@ class SplashExitAnimationPolicyTest {
     }
 
     @Test
-    fun disablesRealtimeBlurBelowAndroid14() {
+    fun disablesRealtimeBlurBelowAndroid12() {
         assertFalse(shouldUseRealtimeSplashBlur(30))
+    }
+
+    @Test
+    fun flyoutTargetSize_acceptsNormalSquareSystemIcon() {
+        assertEquals(
+            224,
+            resolveSplashFlyoutTargetSizePx(
+                systemIconWidthPx = 224,
+                systemIconHeightPx = 224,
+                density = 2f,
+            )
+        )
+    }
+
+    @Test
+    fun flyoutTargetSize_rejectsOemFullscreenRectangleAndUsesSquareFallback() {
+        assertEquals(
+            224,
+            resolveSplashFlyoutTargetSizePx(
+                systemIconWidthPx = 700,
+                systemIconHeightPx = 1536,
+                density = 2f,
+            )
+        )
     }
 
     @Test
@@ -53,6 +77,7 @@ class SplashExitAnimationPolicyTest {
     @Test
     fun appliesRealtimeBlurOnlyAfterAnimationProgressStarts() {
         assertFalse(shouldApplySplashRealtimeBlur(useRealtimeBlur = true, progress = 0f))
+        assertFalse(shouldApplySplashRealtimeBlur(useRealtimeBlur = true, progress = 0.1f))
         assertTrue(shouldApplySplashRealtimeBlur(useRealtimeBlur = true, progress = 0.12f))
         assertFalse(shouldApplySplashRealtimeBlur(useRealtimeBlur = false, progress = 0.5f))
     }

@@ -849,6 +849,7 @@ private fun LightweightHomeTopTabs(
     wrapDockWidth: Boolean? = null,
     isTransitionRunning: Boolean = false,
     showPartitionAction: Boolean = true,
+    isViewportSyncEnabled: Boolean = true,
     forceMaterialUnderline: Boolean = false
 ) {
     val chromePolicy = rememberAppTopChromePolicy()
@@ -1075,6 +1076,8 @@ private fun LightweightHomeTopTabs(
                 topTabDragState.value.coerceIn(0f, (categories.size - 1).coerceAtLeast(0).toFloat())
             }
         }
+        val topTabDragTargetIndex = topTabDragPosition.roundToInt()
+            .coerceIn(0, (categories.size - 1).coerceAtLeast(0))
         val topTabDragActive by remember(topTabDragState, topTabIndicatorDragEngaged) {
             derivedStateOf {
                 topTabIndicatorDragEngaged &&
@@ -1088,6 +1091,15 @@ private fun LightweightHomeTopTabs(
             selectedContentPosition
         } else {
             currentPosition
+        }
+        LaunchedEffect(topTabDragActive, topTabDragTargetIndex, isViewportSyncEnabled) {
+            if (!isViewportSyncEnabled || !topTabDragActive) return@LaunchedEffect
+            val visibleItems = listState.layoutInfo.visibleItemsInfo
+            val firstVisibleIndex = visibleItems.firstOrNull()?.index ?: return@LaunchedEffect
+            val lastVisibleIndex = visibleItems.lastOrNull()?.index ?: return@LaunchedEffect
+            if (topTabDragTargetIndex !in firstVisibleIndex..lastVisibleIndex) {
+                listState.scrollToItem(topTabDragTargetIndex)
+            }
         }
         val iosCapsulePosition = if (topTabDragActive) topTabDragPosition else selectedContentPosition
         val indicatorIsInteracting = pagerIsDragging || pagerIsScrolling || topTabDragActive
@@ -1301,6 +1313,7 @@ private fun LightweightHomeTopTabs(
             liquidGlassEnabled = shouldUseLiquidGlassIndicator,
             lensProgress = topTabLensProgress
         )
+        val topTabVisibleContentZIndex = if (useTopTabGlassColorPath) 0f else 2f
         val topTabThemeColor = MaterialTheme.colorScheme.primary
         val topTabExportTintColor = resolveAndroidNativeExportTintColor(
             themeColor = topTabThemeColor,
@@ -1547,7 +1560,10 @@ private fun LightweightHomeTopTabs(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .zIndex(0f),
+                        // At rest, keep glyphs visible above the idle capsule. During the
+                        // glass motion path they must sit below it, so exported tint moves
+                        // with the indicator instead of leaving the old glyph color on top.
+                        .zIndex(topTabVisibleContentZIndex),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start,
                     contentPadding = topTabContentPadding
@@ -1622,8 +1638,9 @@ private fun LightweightHomeTopTabs(
                         )
                     }
                 }
-                // Capsule above labels; panel offset is on parent so do NOT add again here.
-                // clip=false lets the bottom-bar motion transform exceed the dock chrome.
+                // Keep the indicator between its capture layer and the visible tab content.
+                // The parent owns the panel offset; clip=false lets the bottom-bar motion
+                // transform exceed the dock chrome.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -2084,6 +2101,7 @@ fun CategoryTabRow(
         wrapDockWidth = wrapDockWidth,
         isTransitionRunning = isTransitionRunning,
         showPartitionAction = showPartitionAction,
+        isViewportSyncEnabled = isViewportSyncEnabled,
         forceMaterialUnderline = forceMaterialUnderline
     )
 }

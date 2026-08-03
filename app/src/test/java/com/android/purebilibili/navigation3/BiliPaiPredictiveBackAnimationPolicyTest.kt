@@ -113,6 +113,27 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
     }
 
     @Test
+    fun defaultPredictivePop_honorsExitDirection() {
+        val source = defaultPredictiveBackSource()
+
+        assertTrue(source.contains("exitDirection: BiliPaiPredictiveBackExitDirection"))
+        assertTrue(source.contains("FOLLOW_GESTURE ->"))
+        assertTrue(source.contains("swipeEdge != NavigationEvent.EDGE_RIGHT"))
+        assertTrue(source.contains("offset -> -offset"))
+    }
+
+    @Test
+    fun defaultHandler_receivesResolvedExitDirection() {
+        val source = listOf(
+            File("app/src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiPredictiveBackAnimationPolicy.kt"),
+            File("src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiPredictiveBackAnimationPolicy.kt")
+        ).first { it.exists() }.readText()
+
+        assertTrue(source.contains("BiliPaiDefaultPredictiveBackAnimation(exitDirection = exitDirection)"))
+        assertFalse(source.contains("BiliPaiDefaultPredictiveBackAnimation()"))
+    }
+
+    @Test
     fun legacyScaleStyle_doesNotOverrideNavigationDefaults() {
         val handler = resolveBiliPaiPredictiveBackAnimationHandler(
             routeTransition = BiliPaiNavRouteTransition.CLASSIC_CARD,

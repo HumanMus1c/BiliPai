@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-07-31 · Development build: 9.9.9.1 · Latest documented release: v9.9.8.9</sub>
+  <sub>Last updated: 2026-08-02 · Current build: 9.9.9.8.6 · Latest documented release: v9.9.9.8.6</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-9.9.8.9-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-9.9.9.8.6-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -438,13 +438,12 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Latest (v9.9.8.9 · 2026-07-26)
+### Latest (v9.9.9.8.6 · 2026-08-02)
 
-- Anime4K CNN video enhancement plugin with budget-aware presets and stable surface switching.
-- Strict custom CDN mode, plus HDR TextureView, HEVC/hvc1, and DASH codec-selection fixes.
-- Faster home covers and transitions, single-column video lists, and reliable home-tab restoration.
-- Copy actions for UP profiles, plus dynamic forwarded-comment and pagination fixes.
-- The current development build is `9.9.9.1 / versionCode 266`; the latest fully documented release remains `v9.9.8.9`.
+- Tablet side navigation now offers an optional account-switcher button with the full account-and-playback selector.
+- Tablet fullscreen stays landscape; interactive landscape comment and thread panels keep playback visible.
+- Bangumi playback restores direct video output and can prefer HDR/HEVC when the device and playback account permit it.
+- The current build and latest documented release are `9.9.9.8.6 / versionCode 278`.
 
 ---
 
@@ -475,6 +474,7 @@ Issues and Pull Requests are welcome!
 | Project | Description |
 |-----|-----|
 | [PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus) | Playback flow, comment presentation, and mobile UX reference |
+| [Bili Pilot](https://github.com/siwei-yuan/bili-pilot) | Signed CDN candidate, segment-level routing, and prefetch design reference; independently implemented in Kotlin without copying its JavaScript |
 | [biliSendCommAntifraud](https://github.com/freedom-introvert/biliSendCommAntifraud) | Reference implementation for comment anti-fraud detection |
 | [BilibiliSponsorBlock](https://github.com/hanydd/BilibiliSponsorBlock) | Sponsor skip segment data and API reference |
 | [DanmakuRenderEngine](https://github.com/bytedance/DanmakuRenderEngine) | High-performance danmaku rendering engine |

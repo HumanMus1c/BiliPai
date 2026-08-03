@@ -55,6 +55,12 @@ fun CommentFraudResultDialog(
                 description = "您的评论可能正在等待审核，目前其他用户暂时无法看到。审核通过后将自动显示。",
                 color = FraudStatusColor.ORANGE
             )
+            CommentFraudStatus.INVISIBLE -> FraudDialogInfo(
+                icon = CupertinoIcons.Default.Eye,
+                title = "评论被前端隐藏",
+                description = "您的评论数据存在，但已被前端隐藏，其他用户看不到。这通常是因为被 UP 主拉黑或评论被标记为隐身。\n\n建议：删除此评论。",
+                color = FraudStatusColor.ORANGE
+            )
             CommentFraudStatus.UNKNOWN -> FraudDialogInfo(
                 icon = CupertinoIcons.Default.QuestionmarkCircle,
                 title = "检测结果未知",

@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
 class BottomInputBarStructureTest {
 
     @Test
-    fun bottomInputBar_keepsSolidDockedPathWhenLiquidReuseOff() {
+    fun bottomInputBar_keepsSolidDockedPathWhenLiquidReuseAndBlurAreOff() {
         val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/BottomInputBar.kt")
             .readText()
 
@@ -50,6 +50,49 @@ class BottomInputBarStructureTest {
     fun floatingLiquidGate_followsGlobalReuseMasterOnly() {
         assertTrue(shouldUseFloatingLiquidBottomInputBar(androidNativeLiquidGlassEnabled = true))
         assertFalse(shouldUseFloatingLiquidBottomInputBar(androidNativeLiquidGlassEnabled = false))
+    }
+
+    @Test
+    fun frostedCommentBar_followsBottomBarBlurPreferenceWhenLiquidGlassIsOff() {
+        assertTrue(
+            shouldUseFrostedBottomInputBar(
+                bottomBarBlurEnabled = true,
+                floatingLiquidGlass = false,
+                hasHazeState = true
+            )
+        )
+        assertFalse(
+            shouldUseFrostedBottomInputBar(
+                bottomBarBlurEnabled = false,
+                floatingLiquidGlass = false,
+                hasHazeState = true
+            )
+        )
+        assertFalse(
+            shouldUseFrostedBottomInputBar(
+                bottomBarBlurEnabled = true,
+                floatingLiquidGlass = true,
+                hasHazeState = true
+            )
+        )
+        assertFalse(
+            shouldUseFrostedBottomInputBar(
+                bottomBarBlurEnabled = true,
+                floatingLiquidGlass = false,
+                hasHazeState = false
+            )
+        )
+    }
+
+    @Test
+    fun frostedCommentBar_reusesHomeBottomBarBlurPipeline() {
+        val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/BottomInputBar.kt")
+            .readText()
+
+        assertTrue(source.contains("resolveBottomBarSurfaceColor("))
+        assertTrue(source.contains("Modifier.unifiedBlur("))
+        assertTrue(source.contains("surfaceType = BlurSurfaceType.BOTTOM_BAR"))
+        assertFalse(source.contains("HazeMaterials.ultraThin()"))
     }
 
     @Test

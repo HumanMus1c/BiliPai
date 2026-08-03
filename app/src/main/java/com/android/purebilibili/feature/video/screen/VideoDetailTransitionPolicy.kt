@@ -4,6 +4,7 @@ import com.android.purebilibili.core.ui.transition.VideoCardTransitionBackground
 
 import androidx.compose.animation.core.Easing
 import com.android.purebilibili.core.ui.transition.VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_START
+import com.android.purebilibili.core.ui.transition.resolveVideoCardLiveReturnVisualHandoffAlpha
 import com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.isVideoCardLiveReturnMorphOwnership
@@ -17,7 +18,6 @@ import com.android.purebilibili.core.ui.transition.shouldUseVideoCardLiveReturnM
 
 private const val COVER_TAKEOVER_PRE_BACK_DELAY_MILLIS = 0L
 /** 已提交返回的最后 12%：实时画面淡到驻留封面，掩盖 shared overlay 卸层。 */
-private const val LIVE_RETURN_COVER_HANDOFF_START = 0.88f
 internal const val VIDEO_CONTENT_COMMENT_TAB_INDEX = 1
 
 internal fun resolveForceCoverOnlyForReturn(
@@ -215,9 +215,9 @@ private fun resolveVideoDetailLiveReturnLandingHandoffAlpha(
     isCommittedCardReturn: Boolean,
 ): Float {
     if (!isCommittedCardReturn) return 0f
-    val settle = 1f - transitionProgress.coerceIn(0f, 1f)
-    return ((settle - LIVE_RETURN_COVER_HANDOFF_START) /
-        (1f - LIVE_RETURN_COVER_HANDOFF_START)).coerceIn(0f, 1f)
+    return resolveVideoCardLiveReturnVisualHandoffAlpha(
+        morphDepthProgress = transitionProgress,
+    )
 }
 
 internal fun resolveVideoDetailReturnContentAlpha(

@@ -201,5 +201,30 @@ private fun DrawGridImage(
                 )
             }
         }
+
+        //  [新增] 长图徽标（对齐 PiliPlus image_grid_view 右下角"长图"标记）
+        if (displayCount == 1 &&
+            shouldShowDrawGridLongImageBadge(width = item.width, height = item.height)
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(AppSpacingTokens.ExtraSmall)
+                    .background(
+                        MediaContrastPalette.Scrim.copy(alpha = 0.5f),
+                        RoundedCornerShape(AppSpacingTokens.ExtraSmall)
+                    )
+                    .padding(
+                        horizontal = AppSpacingTokens.ExtraSmall,
+                        vertical = AppSpacingTokens.Micro
+                    )
+            ) {
+                AppText(
+                    "长图",
+                    color = MediaContrastPalette.Foreground,
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize
+                )
+            }
+        }
     }
 }

@@ -248,10 +248,17 @@ class SettingsRootCategoryContentStructureTest {
         assertTrue(aboutSectionBlock.indexOf("AboutProjectOverviewCard(") < aboutSectionBlock.indexOf("SettingsCardGroup {"))
         assertTrue(source.contains("internal val AboutContributors = listOf("))
         assertTrue(source.contains("AboutContributor(\"jay3-yy\", \"jay3-yy\", R.drawable.avatar_jay3_yy)"))
+        assertTrue(source.contains("name = \"Piracola\""))
+        assertTrue(source.contains("githubLogin = \"Piracola\""))
         assertTrue(source.contains("AboutContributor(\"Chenx Dust\""))
         assertTrue(source.contains("AboutContributor(\"usontong\""))
         assertTrue(source.contains("AboutContributor(\"Leko\", \"lekoOwO\", R.drawable.avatar_lekoowo)"))
         assertTrue(source.contains("AboutContributor(\"qyo123oyq\", \"qyo123oyq\", R.drawable.avatar_qyo123oyq)"))
+        assertTrue(source.contains("name = \"maxzrb\""))
+        assertTrue(source.contains("githubLogin = \"maxzrb\""))
+        assertTrue(source.contains("name = \"xiaoniao427\""))
+        assertTrue(source.contains("name = \"zensu357\""))
+        assertTrue(source.contains("name = \"Kurarion\""))
     }
 
     @Test
@@ -263,7 +270,7 @@ class SettingsRootCategoryContentStructureTest {
 
         val contributorBlock = source
             .substringAfter("internal data class AboutContributor(")
-            .substringBefore("// ponytail: 静态列表避免关于页每次打开都请求 GitHub")
+            .substringBefore("// 默认使用本地头像以避免进入关于页时请求 GitHub")
         val overviewBlock = source
             .substringAfter("private fun AboutProjectOverviewCard(")
             .substringBefore("@Composable\nprivate fun AboutContributorItem(")
@@ -271,9 +278,10 @@ class SettingsRootCategoryContentStructureTest {
             .substringAfter("private fun AboutContributorItem(")
 
         assertTrue(contributorBlock.contains("val githubLogin: String"))
-        assertTrue(contributorBlock.contains("val avatarResId: Int"))
+        assertTrue(contributorBlock.contains("val avatarResId: Int?"))
         assertTrue(contributorBlock.contains("\"https://github.com/${'$'}githubLogin\""))
-        assertFalse(contributorBlock.contains("avatarUrl"))
+        assertTrue(contributorBlock.contains("val avatarUrl: String?"))
+        assertTrue(source.contains("https://avatars.githubusercontent.com/u/114979598?v=4"))
         assertTrue(overviewBlock.contains("text = \"贡献者\""))
         assertFalse(overviewBlock.contains("其他贡献者"))
         assertFalse(overviewBlock.contains("顺手"))
@@ -287,7 +295,9 @@ class SettingsRootCategoryContentStructureTest {
         assertTrue(itemBlock.contains("LocalUriHandler.current"))
         assertTrue(itemBlock.contains("uriHandler.openUri(contributor.profileUrl)"))
         assertTrue(itemBlock.contains("Box("))
-        assertTrue(itemBlock.contains("painterResource(id = contributor.avatarResId)"))
+        assertTrue(itemBlock.contains("AsyncImage("))
+        assertTrue(itemBlock.contains("model = avatarUrl"))
+        assertTrue(itemBlock.contains("painterResource(id = avatarResId)"))
         assertTrue(itemBlock.contains("contentScale = ContentScale.Crop"))
     }
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -208,6 +209,40 @@ private fun HomeFeedSkeletonBlock(
             .clip(resolvedShape)
             .background(color)
     )
+}
+
+/**
+ * 首页横幅（Hero Carousel）骨架占位。
+ * 与真实横幅 [HomeHeroCarousel] 对齐：垂直 padding、居中、最大宽度 840dp、
+ * 按容器宽度选择 16:9 / 2:1 / 21:9 比例、卡片圆角。
+ */
+@Composable
+internal fun HomeFeedHeroCarouselSkeleton(
+    pulse: Float,
+    modifier: Modifier = Modifier
+) {
+    val cardShape = AppShapes.container(ContainerLevel.Card)
+    val isDarkCardTheme = AppSurfaceTokens.chromeBackground().luminance() < 0.5f
+    val blockColor = rememberHomeFeedSkeletonBlockColor(
+        pulse = pulse,
+        isDarkTheme = isDarkCardTheme
+    )
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = AppSpacingTokens.ExtraSmall)
+    ) {
+        val carouselWidth = resolveHomeHeroCarouselWidthDp(maxWidth.value)
+        val aspectRatio = resolveHomeHeroCarouselAspectRatio(carouselWidth)
+        Box(
+            modifier = Modifier
+                .width(carouselWidth.dp)
+                .aspectRatio(aspectRatio)
+                .clip(cardShape)
+                .background(blockColor)
+                .align(Alignment.Center)
+        )
+    }
 }
 
 @Composable

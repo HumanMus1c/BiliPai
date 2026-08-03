@@ -133,7 +133,6 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import dev.chrisbanes.haze.HazeState
-import com.android.purebilibili.core.ui.LocalWallpaperHazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope  //  共享过渡
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
@@ -192,6 +191,7 @@ fun HomeScreen(
     onAvatarClick: () -> Unit,
     onProfileClick: () -> Unit,
     onLogout: (() -> Unit)? = null,
+    onAccountSwitchClick: (() -> Unit)? = null,
     onSettingsClick: () -> Unit,
     onSearchClick: () -> Unit,
     //  新增：动态页面回调
@@ -227,6 +227,7 @@ fun HomeScreen(
     onDownloadClick: () -> Unit = {},  // 离线缓存页面
     onInboxClick: () -> Unit = {},  // 私信页面
     onStoryClick: () -> Unit = {},  //  [新增] 竖屏短视频
+    onPluginsClick: () -> Unit = {},
     onSpaceClick: (Long) -> Unit = {},
     globalHazeState: dev.chrisbanes.haze.HazeState? = null,  //  [新增] 全局底栏模糊状态
     isTopLevelActive: Boolean = true,
@@ -651,7 +652,7 @@ fun HomeScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     val homeFeedCardStyle by SettingsManager
         .getHomeFeedCardStyle(context)
-        .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeFeedCardStyle.OFFICIAL,
+        .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeFeedCardStyle.CURRENT,
             context = kotlin.coroutines.EmptyCoroutineContext)
     val homeFeedCardLayout = remember(homeFeedCardStyle) {
         resolveHomeFeedCardLayout(homeFeedCardStyle)
@@ -1024,7 +1025,7 @@ fun HomeScreen(
         )
     }
     
-    if (!view.isInEditMode) {
+    if (!view.isInEditMode && shouldApplyHomeSystemBars(isTopLevelActive)) {
         SideEffect {
             val window = (context as? android.app.Activity)?.window ?: return@SideEffect
             val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, view)
@@ -1108,6 +1109,7 @@ fun HomeScreen(
             BottomNavItem.WATCHLATER -> onWatchLaterClick()
             BottomNavItem.STORY -> onStoryClick()
             BottomNavItem.SETTINGS -> onSettingsClick()
+            BottomNavItem.PLUGINS -> onPluginsClick()
         }
     }
     
@@ -1487,28 +1489,12 @@ fun HomeScreen(
                             // 首页使用 Pager + Lazy 子层，source 挂在外层容器更稳定。
                             .hazeSourceCompat(state = hazeState)
                     ) {
-                    // Wallpaper-only HazeSource (app LocalWallpaperHazeState): cards sample this
-                    // for frosted info glass. Must stay a sibling of feed content so hazeEffect
-                    // on cards is never nested inside its own source (prepareTree SO).
-                    val wallpaperHazeState = LocalWallpaperHazeState.current
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(
-                                if (wallpaperHazeState != null) {
-                                    Modifier.hazeSourceCompat(state = wallpaperHazeState)
-                                } else {
-                                    Modifier
-                                }
-                            )
-                    ) {
-                        HomeWallpaperBackdrop(
-                            wallpaperUri = homeWallpaperUri,
-                            appearance = homeWallpaperBackdropAppearance,
-                            baseColor = AppSurfaceTokens.chromeBackground(),
-                            isDataSaverActive = isDataSaverActive
-                        )
-                    }
+                    HomeWallpaperBackdrop(
+                        wallpaperUri = homeWallpaperUri,
+                        appearance = homeWallpaperBackdropAppearance,
+                        baseColor = AppSurfaceTokens.chromeBackground(),
+                        isDataSaverActive = isDataSaverActive
+                    )
                     // [Fix] Re-enabled default overscroll for better feedback
                         HorizontalPager(
                             state = pagerState,
@@ -1718,6 +1704,19 @@ fun HomeScreen(
                                      verticalArrangement = Arrangement.spacedBy(homeFeedCardLayout.verticalItemSpacingDp.dp),
                                      modifier = Modifier.fillMaxSize()
                                  ) {
+                                     // [新增] 用户启用首页横幅时，骨架顶部渲染横幅占位，
+                                     // 与加载完成后的 HomeHeroCarousel 布局对齐
+                                     if (category == HomeCategory.RECOMMEND && homeSettings.homeHeroCarouselEnabled) {
+                                         item(
+                                             key = "home_hero_carousel_skeleton",
+                                             contentType = "home_hero_carousel_skeleton",
+                                             span = { GridItemSpan(gridColumns) }
+                                         ) {
+                                             HomeFeedHeroCarouselSkeleton(
+                                                 pulse = skeletonPulse
+                                             )
+                                         }
+                                     }
                                      // [Fix] Dynamic skeleton count to fill tablet screens (at least 5 rows)
                                      val skeletonItemCount = gridColumns * 5
                                      items(
@@ -1813,9 +1812,9 @@ fun HomeScreen(
                                      smartVisualGuardEnabled = false,
                                      isDataSaverActive = isDataSaverActive,
                                      preferLowQualityCover = homeSettings.lowQualityHomeCoverInDataSaver,
-                                     compactStatsOnCover = false,
+                                     compactStatsOnCover = homeSettings.compactVideoStatsOnCover,
                                      showCoverGlassBadges = homeSettings.showHomeCoverGlassBadges,
-                                     // 统计行位于封面外时保持轻量，避免每个胶囊在滚动期持续采样 Haze。
+                                     // 信息区标签保持轻量；贴封面统计由卡片复用封面标签样式渲染。
                                      showInfoGlassBadges = false,
                                      badgeEffectMode = homeSettings.homeCardBadgeEffectMode,
                                      infoGlassMode = homeSettings.homeCardInfoGlassMode,
@@ -2263,6 +2262,7 @@ fun HomeScreen(
                         onInboxClick = onInboxClick,
                         onSettingsClick = onSettingsClick,
                         onProfileClick = onProfileClick,
+                        onAccountSwitchClick = onAccountSwitchClick,
                         hazeState = hazeState,
                         isBlurEnabled = isHeaderBlurEnabled,
                         bottomOverlayHeight = drawerBottomOverlayHeight

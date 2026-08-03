@@ -6,6 +6,7 @@ import com.android.purebilibili.core.ui.components.resolveAppSegmentedChrome
 import com.android.purebilibili.core.ui.components.resolveAppSegmentedLabelFontSizeSp
 import com.android.purebilibili.core.store.FullscreenAspectRatio
 import com.android.purebilibili.core.store.FullscreenMode
+import com.android.purebilibili.core.store.player.DEFAULT_AUDIO_QUALITY_FOLLOW_LAST
 import com.android.purebilibili.core.store.PortraitPlayerCollapseMode
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -14,6 +15,30 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaybackSettingsSelectionPolicyTest {
+
+    @Test
+    fun `default audio quality options expose follow last and supported preferences`() {
+        assertEquals(
+            listOf(
+                DEFAULT_AUDIO_QUALITY_FOLLOW_LAST,
+                30251,
+                30250,
+                -1
+            ),
+            resolveDefaultAudioQualityOptions().map { it.value }
+        )
+        assertEquals(
+            listOf("跟随上次", "Hi-Res 无损", "杜比全景声", "AAC"),
+            resolveDefaultAudioQualityOptions().map { it.label }
+        )
+    }
+
+    @Test
+    fun `legacy concrete AAC preference is normalized to high quality AAC`() {
+        assertEquals(-1, normalizeDefaultAudioQualityOption(30280))
+        assertEquals(-1, normalizeDefaultAudioQualityOption(30232))
+        assertEquals(-1, normalizeDefaultAudioQualityOption(30216))
+    }
 
     @Test
     fun `playback interaction and fullscreen blocks should be split into scene composables`() {

@@ -721,8 +721,12 @@ class VideoSharedTransitionPolicyTest {
             relatedCardSource.indexOf(".onGloballyPositioned") <
                 relatedCardSource.indexOf(".videoCardShellSharedBoundsOrEmpty(")
         )
-        // 相关横卡 shell 锚在封面矩形上（非整行），避免预测返回中间态落在行中心。
-        assertTrue(relatedCardSource.contains("clipShape = coverShape"))
+        // 相关横卡由整行承载 shell，使封面、标题和元数据沿卡片中心由下向上移动。
+        assertTrue(relatedCardSource.contains("clipShape = cardShape"))
+        assertTrue(
+            relatedCardSource.indexOf(".videoCardShellSharedBoundsOrEmpty(") <
+                relatedCardSource.indexOf(".clip(cardShape)")
+        )
         assertTrue(relatedCardSource.contains("crossfadeSourceContent = true"))
         assertFalse(relatedCardSource.contains("videoCardShellReturnChromeAlpha("))
         assertFalse(relatedCardSource.contains("followShellMotion = true"))
@@ -859,12 +863,12 @@ class VideoSharedTransitionPolicyTest {
         )
 
         assertEquals(VideoSharedTransitionTargetMode.InlineCover, spec.targetMode)
-        // 详情壳飞行用播放器圆角，不是列表卡 8dp
+        // 返回期共享层保持来源卡 8dp，避免落位时再从直角切回圆角。
         assertEquals(12, spec.targetCornerDp)
         assertFalse(spec.fillTargetViewport)
         assertTrue(spec.suppressCoverFade)
         assertEquals(
-            0,
+            8,
             resolveVideoDetailShellOverlayCornerDp(
                 visualSpec = spec,
                 liveReturnMorph = true,

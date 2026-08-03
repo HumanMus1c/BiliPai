@@ -1,6 +1,6 @@
 # BiliPai 路线图
 
-最后核对：2026-07-31（`main@77297454f` + 当前工作区）
+最后核对：2026-08-02（当前工作区与构建配置）
 
 本页描述当前开发方向，不等同于发布承诺。功能是否已经可用以当前源码为准；公开版本与用户可见变更以 `CHANGELOG.md` 和 GitHub Releases 为准。
 
@@ -8,8 +8,8 @@
 
 | 项目 | 当前状态 |
 | --- | --- |
-| 开发构建 | `9.9.9.1` / `versionCode 266` |
-| 最近完整发布记录 | `v9.9.8.9`（2026-07-26） |
+| 当前构建 | `9.9.9.8.6` / `versionCode 278` |
+| 最近完整发布记录 | `v9.9.9.8.6`（2026-08-02） |
 | Android | minSdk 26、targetSdk 35、compileSdk 37、arm64-v8a |
 | 构建工具 | AGP 9.3.1、Gradle 9.5、Kotlin 2.4、JDK 21 |
 | UI 与导航 | Compose BOM 2026.06.01、Navigation3 runtime/UI 1.2.0-alpha07、NavigationEvent 1.2.0-alpha03 |

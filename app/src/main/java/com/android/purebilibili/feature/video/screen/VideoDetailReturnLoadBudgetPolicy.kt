@@ -224,6 +224,14 @@ internal fun resolveVideoDetailReturnSecondaryContentMode(
     }
 }
 
+/**
+ * 已提交的返回不再保留详情正文：播放器/封面仍由共享 morph 接管，
+ * 但标题、统计和操作行必须在来源卡 chrome 露出前让位，避免短暂叠层。
+ */
+internal fun resolveVideoDetailReturnSecondaryContentAlphaPreview(
+    isCommittedCardReturn: Boolean,
+): Float = if (isCommittedCardReturn) 0f else 1f
+
 /** 返回预算是否要求隐藏/暂停弹幕绘制。 */
 internal fun shouldPauseHideDanmakuForReturnBudget(
     budget: VideoDetailReturnVisualBudget,

@@ -4,6 +4,7 @@ import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -44,6 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.size.Size
+import coil.transform.Transformation
 import coil.imageLoader
 //  已改用 MaterialTheme.colorScheme.primary
 import com.android.purebilibili.core.store.SettingsManager
@@ -117,6 +120,42 @@ const val COMMENT_VIEW_ALL_REPLIES_TAG_PREFIX = "comment_view_all_replies_"
 
 private val replyVideoTitleCache = ConcurrentHashMap<String, String>()
 
+/**
+ * 官方 cardbg 经常是 972×162 的透明画布，实际角色图案只占其中一小部分。
+ * 在解码线程裁掉全透明边缘，才能以官方预期的视觉尺寸显示内容而不裁掉图案。
+ */
+internal object TransparentBoundsCropTransformation : Transformation {
+    override val cacheKey: String = "comment_transparent_bounds_crop_v1"
+
+    override suspend fun transform(input: Bitmap, size: Size): Bitmap {
+        if (!input.hasAlpha()) return input
+
+        var left = input.width
+        var top = input.height
+        var right = -1
+        var bottom = -1
+        for (y in 0 until input.height) {
+            for (x in 0 until input.width) {
+                if ((input.getPixel(x, y) ushr 24) > 4) {
+                    left = minOf(left, x)
+                    top = minOf(top, y)
+                    right = maxOf(right, x)
+                    bottom = maxOf(bottom, y)
+                }
+            }
+        }
+        if (right < left || bottom < top) return input
+
+        val cropWidth = right - left + 1
+        val cropHeight = bottom - top + 1
+        return if (cropWidth == input.width && cropHeight == input.height) {
+            input
+        } else {
+            Bitmap.createBitmap(input, left, top, cropWidth, cropHeight)
+        }
+    }
+}
+
 internal data class ReplyItemLayoutPolicy(
     val horizontalPaddingDp: Int,
     val avatarSizeDp: Int,
@@ -139,10 +178,10 @@ internal fun resolveReplyItemLayoutPolicy(): ReplyItemLayoutPolicy {
         avatarSizeDp = 36,
         avatarContentSpacingDp = 8,
         actionButtonSizeDp = 40,
-        decorationWidthReserveDp = 78,
-        decorationImageWidthDp = 64,
-        decorationImageHeightDp = 46,
-        decorationMinWidthDp = 78
+        decorationWidthReserveDp = 64,
+        decorationImageWidthDp = 44,
+        decorationImageHeightDp = 36,
+        decorationMinWidthDp = 64
     )
 }
 
@@ -835,8 +874,8 @@ internal fun resolveVisibleSubReplies(
 }
 
 internal fun resolveInitialSubReplyPreviewExpanded(
-    previewReplyCount: Int
-): Boolean = previewReplyCount > 0
+    @Suppress("UNUSED_PARAMETER") previewReplyCount: Int
+): Boolean = false
 
 internal fun shouldShowInlineSubReplyToggle(
     previewReplyCount: Int,
@@ -874,6 +913,27 @@ internal fun resolveFanGroupDecorationCardBgs(member: ReplyMember): List<ReplySa
     )
 }
 
+/**
+ * 评论接口会同时携带传统 [ReplyMember.pendant] 与 user_sailing 的新挂件。
+ * 优先使用 v2 的增强帧，能保留官方透明挂件的完整轮廓；旧字段作为兼容回退。
+ */
+internal fun resolveReplyMemberPendantImage(member: ReplyMember): String? {
+    return sequenceOf(
+        member.userSailingV2?.pendant,
+        member.userSailing?.pendant,
+        member.pendant
+    )
+        .flatMap { pendant ->
+            sequenceOf(
+                pendant?.imageEnhanceFrame,
+                pendant?.imageEnhance,
+                pendant?.image
+            )
+        }
+        .map(::normalizeHttpImageUrl)
+        .firstOrNull { it.isNotBlank() }
+}
+
 internal fun resolveFanGroupTagVisual(
     fan: ReplySailingFan?,
     cardBgImage: String?,
@@ -895,6 +955,11 @@ internal fun resolveFanGroupLabelText(fanNumber: String): String {
     val digits = fanNumber.filter(Char::isDigit)
     if (digits.isBlank()) return ""
     return "CO.${digits.padStart(6, '0')}"
+}
+
+internal fun resolveFanGroupNumberText(fanNumber: String): String {
+    val digits = fanNumber.filter(Char::isDigit)
+    return digits.takeIf { it.isNotBlank() }?.padStart(6, '0').orEmpty()
 }
 
 internal fun resolveFanGroupLabelTextColor(
@@ -1306,18 +1371,12 @@ fun ReplyItemView(
             Column(modifier = Modifier.fillMaxWidth()) {
                 // User Info Header
                 Row() {
-                    // Avatar
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(FormatUtils.fixImageUrl(item.member.avatar))
-                            .crossfade(!lightweightMode)
-                            .build(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(layoutPolicy.avatarSizeDp.dp)
-                            .clip(CircleShape)
-                            .background(appearance.placeholderColor)
-                            .clickable { onAvatarClick(item.member.mid) }
+                    ReplyMemberAvatar(
+                        member = item.member,
+                        placeholderColor = appearance.placeholderColor,
+                        lightweightMode = lightweightMode,
+                        modifier = Modifier.size(layoutPolicy.avatarSizeDp.dp),
+                        onClick = { onAvatarClick(item.member.mid) }
                     )
 
                     Spacer(modifier = Modifier.width(layoutPolicy.avatarContentSpacingDp.dp))
@@ -2256,68 +2315,107 @@ private fun NameplateTag(imageUrl: String) {
 }
 
 @Composable
+internal fun ReplyMemberAvatar(
+    member: ReplyMember,
+    placeholderColor: Color,
+    lightweightMode: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
+) {
+    val pendantImageUrl = remember(member) { resolveReplyMemberPendantImage(member) }
+    Box(
+        modifier = modifier.then(
+            if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+        )
+    ) {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(FormatUtils.fixImageUrl(member.avatar))
+                .crossfade(!lightweightMode)
+                .build(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(placeholderColor)
+        )
+        if (!pendantImageUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(pendantImageUrl)
+                    .crossfade(!lightweightMode)
+                    .build(),
+                contentDescription = "Avatar pendant",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+@Composable
 internal fun FanGroupDecorationBadge(
     visual: FanGroupTagVisual,
     modifier: Modifier = Modifier
 ) {
     val layoutPolicy = remember { resolveReplyItemLayoutPolicy() }
-    val fallbackImageUrl = normalizeHttpImageUrl(visual.cardBgImageUrl)
     val primaryImageUrl = resolveDecorationImageUrl(visual.cardBgImageUrl)
-    var imageUrl by remember(primaryImageUrl, fallbackImageUrl) {
-        mutableStateOf(primaryImageUrl)
-    }
 
-    val labelText = remember(visual.fanNumber) { resolveFanGroupLabelText(visual.fanNumber) }
-    if (labelText.isBlank() && primaryImageUrl.isBlank()) return
-    val textColor = resolveFanGroupLabelTextColor(
-        fanColorHex = visual.fanColorHex,
-        backgroundColor = MaterialTheme.colorScheme.surface,
-        fallbackColor = MaterialTheme.colorScheme.onSurface
-    )
+    val fanNumberText = remember(visual.fanNumber) { resolveFanGroupNumberText(visual.fanNumber) }
+    if (fanNumberText.isBlank() && primaryImageUrl.isBlank()) return
     Row(
         modifier = modifier.widthIn(min = layoutPolicy.decorationMinWidthDp.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.End)
+        horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.End),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         if (primaryImageUrl.isNotBlank()) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(imageUrl)
-                    .listener(
-                        onError = { _, _ ->
-                            if (fallbackImageUrl.isNotBlank() && imageUrl != fallbackImageUrl) {
-                                imageUrl = fallbackImageUrl
-                            }
-                        }
-                    )
+                    .data(primaryImageUrl)
+                    // 先保留原始像素，再裁透明边缘；否则裁剪后的主体会被放大而发糊。
+                    .size(Size.ORIGINAL)
+                    .transformations(TransparentBoundsCropTransformation)
                     .crossfade(true)
                     .build(),
                 contentDescription = "Fan group decoration",
-                contentScale = ContentScale.Crop,
+                // cardbg 是包含编号与角色图案的透明整图，裁剪会截掉官方素材边缘。
+                contentScale = ContentScale.Fit,
                 alignment = Alignment.Center,
                 modifier = Modifier
                     .size(
                         width = layoutPolicy.decorationImageWidthDp.dp,
                         height = layoutPolicy.decorationImageHeightDp.dp
                     )
-                    .clip(RoundedCornerShape(2.dp))
             )
         }
-        AppSurface(
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
-            shape = RoundedCornerShape(5.dp),
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp
-        ) {
-            AppText(
-                text = labelText,
-                fontSize = 12.sp,
-                lineHeight = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = textColor,
-                maxLines = 1,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+        if (fanNumberText.isNotBlank()) {
+            val textColor = resolveFanGroupLabelTextColor(
+                fanColorHex = visual.fanColorHex,
+                backgroundColor = MaterialTheme.colorScheme.surface,
+                fallbackColor = MaterialTheme.colorScheme.onSurface
             )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                AppText(
+                    text = "NO.",
+                    fontSize = 7.sp,
+                    lineHeight = 8.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = textColor,
+                    maxLines = 1
+                )
+                AppText(
+                    text = fanNumberText,
+                    fontSize = 8.sp,
+                    lineHeight = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor,
+                    maxLines = 1
+                )
+            }
         }
     }
 }

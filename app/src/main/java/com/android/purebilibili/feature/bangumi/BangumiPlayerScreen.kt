@@ -7,6 +7,7 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.widget.Toast
+import com.android.purebilibili.core.player.HiResCompatibleRenderersFactory
 import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -94,9 +95,12 @@ fun BangumiPlayerScreen(
     
     // 创建 ExoPlayer
     val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            playWhenReady = true
-        }
+        ExoPlayer.Builder(context)
+            .setRenderersFactory(HiResCompatibleRenderersFactory(context))
+            .build()
+            .apply {
+                playWhenReady = true
+            }
     }
     val miniPlayerManager = remember(context) {
         MiniPlayerManager.getInstance(context.applicationContext)
@@ -513,6 +517,10 @@ fun BangumiPlayerScreen(
                     isLoggedIn = successState?.isLoggedIn == true,
                     isVip = successState?.isVip == true,
                     onQualityChange = { viewModel.changeQuality(it) },
+                    requestedAudioQuality = successState?.requestedAudioQuality ?: -1,
+                    selectedAudioQuality = successState?.selectedAudioQuality ?: -1,
+                    availableAudioQualities = successState?.availableAudioQualities.orEmpty(),
+                    onAudioQualityChange = viewModel::changeAudioQuality,
                     onBack = if (isFullscreenMode) { { toggleOrientation() } } else onBack,
                     onToggleFullscreen = { toggleOrientation() },
                     sponsorSegment = sponsorSegment,
@@ -521,7 +529,10 @@ fun BangumiPlayerScreen(
                     onSponsorDismiss = { viewModel.dismissSponsorSkipButton() },
                     //  倍速控制
                     currentSpeed = currentSpeed,
-                    onSpeedChange = { currentSpeed = it },
+                    onSpeedChange = {
+                        currentSpeed = it
+                        viewModel.applyPlaybackSpeedFromUi(it)
+                    },
                     //  弹幕设置
                     danmakuOpacity = danmakuOpacity,
                     danmakuFontScale = danmakuFontScale,

@@ -38,7 +38,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.imageLoader
 import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.AppSplitLayout
 import com.android.purebilibili.core.ui.AppTopBar
+import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.data.model.response.DynamicItem
@@ -104,7 +106,11 @@ fun DynamicDetailScreen(
     val commentSortMode by interactionViewModel.dynamicCommentSortMode.collectAsStateWithLifecycle()
     val subReplyState by interactionViewModel.subReplyState.collectAsStateWithLifecycle()
     var showRepostDialog by remember { mutableStateOf<String?>(null) }
+    var forwardCountDelta by remember(dynamicId) { mutableIntStateOf(0) }
     val detailListState = rememberLazyListState()
+    //  [新增] 大屏/横屏分栏：右栏评论列表
+    val commentListState = rememberLazyListState()
+    val useSplitLayout = LocalWindowSizeClass.current.shouldUseSplitLayout
     val detailScrollScope = rememberCoroutineScope()
     var showImagePreview by remember { mutableStateOf(false) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -172,14 +178,18 @@ fun DynamicDetailScreen(
 
                 LaunchedEffect(
                     detailListState,
+                    commentListState,
+                    useSplitLayout,
                     comments.size,
                     commentTotalCount,
                     commentsLoading,
                     commentsLoadingMore,
                 ) {
                     snapshotFlow {
-                        val lastVisibleIndex = detailListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-                        val itemCount = detailListState.layoutInfo.totalItemsCount
+                        //  [新增] 分栏时右栏列表负责触底加载，竖屏时主列表负责
+                        val activeState = if (useSplitLayout) commentListState else detailListState
+                        val lastVisibleIndex = activeState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                        val itemCount = activeState.layoutInfo.totalItemsCount
                         itemCount > 0 && lastVisibleIndex >= itemCount - 4
                     }
                         .distinctUntilChanged()
@@ -191,14 +201,8 @@ fun DynamicDetailScreen(
                         }
                 }
 
-                LazyColumn(
-                    state = detailListState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .responsiveContentWidth(maxWidth = resolveDynamicFeedMaxWidth()),
-                    contentPadding = PaddingValues(bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
-                ) {
+                //  [新增] 卡片与评论内容提取，供分栏/单列两种布局复用
+                val cardContent: androidx.compose.foundation.lazy.LazyListScope.() -> Unit = {
                     item {
                         DynamicCardV2(
                             item = state.item,
@@ -210,7 +214,13 @@ fun DynamicDetailScreen(
                             isDetail = true,
                             gifImageLoader = gifImageLoader,
                             onCommentClick = {
-                                detailScrollScope.launch { detailListState.animateScrollToItem(1) }
+                                detailScrollScope.launch {
+                                    if (useSplitLayout) {
+                                        commentListState.animateScrollToItem(0)
+                                    } else {
+                                        detailListState.animateScrollToItem(1)
+                                    }
+                                }
                             },
                             onRepostClick = { showRepostDialog = it },
                             onLikeClick = { targetDynamicId ->
@@ -224,9 +234,12 @@ fun DynamicDetailScreen(
                                     if (success) onBack()
                                 }
                             },
-                            isLiked = likedDynamics.contains(state.item.id_str)
+                            isLiked = likedDynamics.contains(state.item.id_str),
+                            forwardCountDelta = forwardCountDelta
                         )
                     }
+                }
+                val commentContent: androidx.compose.foundation.lazy.LazyListScope.() -> Unit = {
                     item(key = "dynamic_detail_comment_header") {
                         DynamicInlineCommentHeader(
                             totalCount = commentTotalCount,
@@ -258,6 +271,46 @@ fun DynamicDetailScreen(
                     }
                 }
 
+                if (useSplitLayout) {
+                    //  [新增] 大屏/横屏：左卡片 + 右评论（对齐 PiliPlus 横屏分栏）
+                    AppSplitLayout(
+                        primaryRatio = 0.5f,
+                        modifier = Modifier.padding(paddingValues),
+                        primaryContent = {
+                            LazyColumn(
+                                state = detailListState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .responsiveContentWidth(maxWidth = resolveDynamicFeedMaxWidth()),
+                                contentPadding = PaddingValues(bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
+                            ) {
+                                cardContent()
+                            }
+                        },
+                        secondaryContent = {
+                            LazyColumn(
+                                state = commentListState,
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
+                            ) {
+                                commentContent()
+                            }
+                        }
+                    )
+                } else {
+                    LazyColumn(
+                        state = detailListState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                            .responsiveContentWidth(maxWidth = resolveDynamicFeedMaxWidth()),
+                        contentPadding = PaddingValues(bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
+                    ) {
+                        cardContent()
+                        commentContent()
+                    }
+                }
+
                 DynamicSubReplyPreviewHost(
                     state = subReplyState,
                     onDismiss = interactionViewModel::closeSubReply,
@@ -283,7 +336,10 @@ fun DynamicDetailScreen(
                         onRepost = { content: String, onComplete: (Boolean) -> Unit ->
                             interactionViewModel.repostDynamic(repostDynamicId, content) { success, msg ->
                                 android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                if (success) showRepostDialog = null
+                                if (success) {
+                                    forwardCountDelta++
+                                    showRepostDialog = null
+                                }
                                 onComplete(success)
                             }
                         }

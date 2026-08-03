@@ -12,6 +12,7 @@ import com.android.purebilibili.core.ui.ContainerLevel
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -47,6 +48,12 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.common.CopySelectionDialog
 import com.android.purebilibili.core.ui.rememberAppMoreIcon
 import com.android.purebilibili.core.ui.rememberAppVisibilityOffIcon
+import com.android.purebilibili.core.ui.rememberAppWarningIcon
+import com.android.purebilibili.core.ui.rememberAppChevronDownIcon
+import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
+import com.android.purebilibili.core.ui.rememberAppCommentIcon
+import com.android.purebilibili.core.ui.rememberAppVisibilityOnIcon
+import com.android.purebilibili.core.ui.rememberAppShareIcon
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.rememberAppHistoryIcon
@@ -55,6 +62,7 @@ import com.android.purebilibili.core.ui.rememberAppLinkIcon
 import com.android.purebilibili.data.model.response.DynamicDesc
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.DrawItem
+import com.android.purebilibili.data.model.response.ReplyInteractionData
 import com.android.purebilibili.feature.dynamic.resolveDynamicActionButtonSlotWeight
 import com.android.purebilibili.feature.dynamic.resolveDynamicActionButtonSpacing
 import com.android.purebilibili.feature.dynamic.resolveDynamicCardContentPadding
@@ -87,7 +95,10 @@ fun DynamicCardV2(
     onLikeClick: (dynamicId: String) -> Unit = {},
     onWatchLaterClick: ((aid: Long) -> Unit)? = null,
     onDeleteClick: ((DynamicDeleteAction) -> Unit)? = null,
-    isLiked: Boolean = false
+    onManageAction: (DynamicManageAction) -> Unit = {},
+    onLoadReplyInteractionStatus: ((oid: Long, type: Int, onLoaded: (ReplyInteractionData?) -> Unit) -> Unit)? = null,
+    isLiked: Boolean = false,
+    forwardCountDelta: Int = 0
 ) {
     val author = item.modules.module_author
     val content = item.modules.module_dynamic
@@ -118,6 +129,11 @@ fun DynamicCardV2(
     val watchLaterAid = remember(item) { resolveDynamicWatchLaterAid(item) }
     val deleteAction = remember(item) { resolveDynamicDeleteAction(item) }
     var pendingDeleteAction by remember(item.id_str) { mutableStateOf<DynamicDeleteAction?>(null) }
+    //  [新增] 评论互动设置弹窗状态
+    var showReplyInteractionDialog by remember(item.id_str) { mutableStateOf<ReplyInteractionData?>(null) }
+    var replyInteractionOid by remember(item.id_str) { mutableStateOf(0L) }
+    var replyInteractionType by remember(item.id_str) { mutableStateOf(0) }
+    val isCurrentlyTop = item.modules.module_tag?.text == "置顶"
     val isPrimaryClickEnabled = remember(cardClickAction, onArticleClick, onDynamicDetailClick, onPrimaryClickOverride) {
         shouldEnableDynamicCardPrimaryClick(
             action = cardClickAction,
@@ -145,6 +161,94 @@ fun DynamicCardV2(
             dismissButton = {
                 AppDialogAction(onClick = { pendingDeleteAction = null }) {
                     AppText(action.cancelText)
+                }
+            }
+        )
+    }
+
+    //  [新增] 评论互动设置弹窗（评论精选 / 评论开关，对齐 PiliPlus）
+    showReplyInteractionDialog?.let { interactionData ->
+        val selection = interactionData.up_reply_selection
+        val reply = interactionData.up_reply
+        val selectionEnabled = selection?.status == 1
+        val replyEnabled = reply?.status == 1
+        AppAlertDialog(
+            onDismissRequest = { showReplyInteractionDialog = null },
+            title = { AppText("评论互动设置") },
+            text = {
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(AppShapes.container(ContainerLevel.Chip))
+                            .clickable(enabled = selection?.can_modify == true) {
+                                showReplyInteractionDialog = null
+                                onManageAction(
+                                    DynamicManageAction.SetReplySubject(
+                                        oid = replyInteractionOid,
+                                        replyType = replyInteractionType,
+                                        action = resolveDynamicReplySelectionAction(selectionEnabled)
+                                    )
+                                )
+                            }
+                            .padding(vertical = AppSpacingTokens.Medium),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AppIcon(
+                            rememberAppCommentIcon(),
+                            contentDescription = null,
+                            modifier = Modifier.size(AppSpacingTokens.Large),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
+                        AppText(
+                            if (selectionEnabled) "停止评论精选" else "开启评论精选",
+                            color = if (selection?.can_modify == true) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
+                            }
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(AppShapes.container(ContainerLevel.Chip))
+                            .clickable(enabled = reply?.can_modify == true) {
+                                showReplyInteractionDialog = null
+                                onManageAction(
+                                    DynamicManageAction.SetReplySubject(
+                                        oid = replyInteractionOid,
+                                        replyType = replyInteractionType,
+                                        action = resolveDynamicReplyOpenAction(replyEnabled)
+                                    )
+                                )
+                            }
+                            .padding(vertical = AppSpacingTokens.Medium),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AppIcon(
+                            rememberAppVisibilityOffIcon(),
+                            contentDescription = null,
+                            modifier = Modifier.size(AppSpacingTokens.Large),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
+                        AppText(
+                            if (replyEnabled) "关闭评论" else "恢复评论",
+                            color = if (reply?.can_modify == true) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
+                            }
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                AppDialogAction(onClick = { showReplyInteractionDialog = null }) {
+                    AppText("取消")
                 }
             }
         )
@@ -232,6 +336,29 @@ fun DynamicCardV2(
                     )
                 }
                 
+                //  置顶标（module_tag：B 站固定返回 "置顶"，对齐 PiliPlus 作者区头部样式）
+                if (shouldShowDynamicPinnedTag(item.modules.module_tag)) {
+                    Box(
+                        modifier = Modifier
+                            .padding(start = AppSpacingTokens.ExtraSmall)
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(
+                                horizontal = AppSpacingTokens.ExtraSmall,
+                                vertical = AppSpacingTokens.Micro
+                            )
+                    ) {
+                        AppText(
+                            item.modules.module_tag?.text.orEmpty(),
+                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                
                 //  [修复] 更多按钮 + 下拉菜单
                 Box {
                     AppIconButton(onClick = { showMoreMenu = true }) {
@@ -266,6 +393,36 @@ fun DynamicCardV2(
                                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText("动态链接", dynamicUrl))
                                 android.widget.Toast.makeText(context, "已复制链接", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        )
+
+                        //  [新增] 分享动态（系统分享，对齐 PiliPlus 分享面板）
+                        AppDropdownMenuItem(
+                            text = { AppText("分享动态", color = MaterialTheme.colorScheme.onSurface) },
+                            leadingIcon = {
+                                AppIcon(
+                                    rememberAppShareIcon(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onClick = {
+                                showMoreMenu = false
+                                val dynamicUrl = "https://t.bilibili.com/${item.id_str}"
+                                val descText = content?.desc?.text?.take(100).orEmpty()
+                                val shareText = if (descText.isNotBlank()) {
+                                    "$descText\n$dynamicUrl"
+                                } else {
+                                    "分享动态\n$dynamicUrl"
+                                }
+                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                    this.type = "text/plain"
+                                    putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                }
+                                context.startActivity(
+                                    android.content.Intent.createChooser(shareIntent, "分享动态")
+                                )
                             }
                         )
                         
@@ -321,10 +478,141 @@ fun DynamicCardV2(
                                 android.widget.Toast.makeText(context, "已标记为不感兴趣", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         )
+
+                        //  [新增] 置顶 / 取消置顶（对齐 PiliPlus morePanel）
+                        AppDropdownMenuItem(
+                            text = { AppText(resolveDynamicPinnedMenuLabel(isCurrentlyTop), color = MaterialTheme.colorScheme.onSurface) },
+                            leadingIcon = {
+                                AppIcon(
+                                    rememberAppChevronUpIcon(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onClick = {
+                                showMoreMenu = false
+                                onManageAction(DynamicManageAction.ToggleTop(item.id_str, isCurrentlyTop))
+                            }
+                        )
+
+                        //  [新增] 可见范围（公开 / 仅自己可见）
+                        AppDropdownMenuItem(
+                            text = { AppText(resolveDynamicVisibilityMenuLabel(isPrivate = false), color = MaterialTheme.colorScheme.onSurface) },
+                            leadingIcon = {
+                                AppIcon(
+                                    rememberAppVisibilityOnIcon(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onClick = {
+                                showMoreMenu = false
+                                onManageAction(
+                                    DynamicManageAction.SetVisibility(
+                                        dynamicId = item.id_str,
+                                        dynType = resolveDynamicDynType(item),
+                                        isPrivate = true
+                                    )
+                                )
+                            }
+                        )
+
+                        //  [新增] 评论互动设置（评论精选 / 评论开关）
+                        AppDropdownMenuItem(
+                            text = { AppText("评论互动设置", color = MaterialTheme.colorScheme.onSurface) },
+                            leadingIcon = {
+                                AppIcon(
+                                    rememberAppCommentIcon(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onClick = {
+                                showMoreMenu = false
+                                val oid = resolveDynamicReplySubjectOid(item)
+                                if (oid == null || onLoadReplyInteractionStatus == null) {
+                                    android.widget.Toast.makeText(context, "该动态暂不支持互动设置", android.widget.Toast.LENGTH_SHORT).show()
+                                } else {
+                                    onLoadReplyInteractionStatus(oid, resolveDynamicReplySubjectType(item)) { data ->
+                                        if (data == null) {
+                                            android.widget.Toast.makeText(context, "获取互动设置失败", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            replyInteractionOid = oid
+                                            replyInteractionType = resolveDynamicReplySubjectType(item)
+                                            showReplyInteractionDialog = data
+                                        }
+                                    }
+                                }
+                            }
+                        )
+
+                        //  [新增] 临时屏蔽（仅内存，重启恢复）
+                        AppDropdownMenuItem(
+                            text = { AppText("临时屏蔽", color = MaterialTheme.colorScheme.onSurface) },
+                            leadingIcon = {
+                                AppIcon(
+                                    rememberAppVisibilityOffIcon(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onClick = {
+                                showMoreMenu = false
+                                onManageAction(DynamicManageAction.TempBlock(item.id_str))
+                            }
+                        )
                     }
                 }
             }
             Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
+        }
+        
+        //  风险提示条（module_dispute：如“视频内含有危险行为，请勿模仿”，点击打开 jump_url）
+        item.modules.module_dispute?.let { dispute ->
+            if (shouldShowDynamicDispute(dispute)) {
+                val disputeClickModifier = if (dispute.jump_url.isNotBlank()) {
+                    Modifier.clickable {
+                        val target = if (dispute.jump_url.startsWith("//")) {
+                            "https:${dispute.jump_url}"
+                        } else {
+                            dispute.jump_url
+                        }
+                        uriHandler.openUri(target)
+                    }
+                } else {
+                    Modifier
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = AppSpacingTokens.Medium)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f))
+                        .then(disputeClickModifier)
+                        .padding(
+                            horizontal = AppSpacingTokens.Small,
+                            vertical = AppSpacingTokens.Small
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AppIcon(
+                        rememberAppWarningIcon(),
+                        contentDescription = null,
+                        modifier = Modifier.size(AppSpacingTokens.Small + AppSpacingTokens.Micro),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
+                    AppText(
+                        dispute.title.ifBlank { dispute.desc },
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
         }
         
         //  动态内容文字（支持@高亮 / 表情）；优先可渲染表情的 desc 或 opus summary
@@ -697,7 +985,7 @@ fun DynamicCardV2(
         ) {
             // 转发按钮
             ActionButton(
-                count = statModule.forward.count,
+                count = (statModule.forward.count + forwardCountDelta).coerceAtLeast(0),
                 label = "转发",
                 enabled = !statModule.forward.forbidden,
                 onClick = { onRepostClick(item.id_str) },
@@ -721,6 +1009,56 @@ fun DynamicCardV2(
                 onClick = { onLikeClick(item.id_str) },
                 modifier = Modifier.weight(actionButtonWeight)
             )
+        }
+        
+        //  相关动态折叠条（module_fold：如“展开3条相关动态”，点击进动态详情）
+        if (!isDetail && onDynamicDetailClick != null) {
+            val foldStatement = resolveDynamicFoldStatement(item.modules.module_fold)
+            if (foldStatement != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onDynamicDetailClick(item.id_str) }
+                        .padding(vertical = AppSpacingTokens.Small),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val foldUsers = item.modules.module_fold?.users.orEmpty().take(3)
+                    if (foldUsers.isNotEmpty()) {
+                        Box(modifier = Modifier.height(22.dp)) {
+                            foldUsers.forEachIndexed { index, user ->
+                                AsyncImage(
+                                    model = coil.request.ImageRequest.Builder(LocalContext.current)
+                                        .data(user.face.let { if (it.startsWith("http://")) it.replace("http://", "https://") else it })
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .offset(x = (index * 14).dp)
+                                        .size(22.dp)
+                                        .clip(CircleShape)
+                                        .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
+                    }
+                    AppText(
+                        foldStatement,
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
+                    AppIcon(
+                        rememberAppChevronDownIcon(),
+                        contentDescription = null,
+                        modifier = Modifier.size(AppSpacingTokens.Small + AppSpacingTokens.ExtraSmall),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
         }
 

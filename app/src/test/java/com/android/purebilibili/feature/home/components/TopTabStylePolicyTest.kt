@@ -356,6 +356,30 @@ class TopTabStylePolicyTest {
     }
 
     @Test
+    fun `liquid top tab glyphs switch below indicator while glass is moving`() {
+        val source = sourceText("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
+        val visibleTabsBlock = source
+            .substringAfter("LazyRow(\n                    state = listState,")
+            .substringBefore("// Keep the indicator between its capture layer")
+        val indicatorLayerBlock = source
+            .substringAfter("// Keep the indicator between its capture layer")
+            .substringBefore("} // shared panel-offset group")
+
+        assertTrue(source.contains("val topTabVisibleContentZIndex = if (useTopTabGlassColorPath) 0f else 2f"))
+        assertTrue(visibleTabsBlock.contains(".zIndex(topTabVisibleContentZIndex)"))
+        assertTrue(indicatorLayerBlock.contains(".zIndex(1f)"))
+    }
+
+    @Test
+    fun `dragging an offscreen top tab synchronizes its viewport`() {
+        val source = sourceText("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
+
+        assertTrue(source.contains("val topTabDragTargetIndex = topTabDragPosition.roundToInt()"))
+        assertTrue(source.contains("LaunchedEffect(topTabDragActive, topTabDragTargetIndex, isViewportSyncEnabled)"))
+        assertTrue(source.contains("listState.scrollToItem(topTabDragTargetIndex)"))
+    }
+
+    @Test
     fun `ios lightweight top tab capsule uses gray white while content keeps theme primary`() {
         val colorScheme = lightColorScheme(primary = Color(0xFF2D6A4F))
         val capsuleColor = resolveIosTopTabCapsuleContainerColor(

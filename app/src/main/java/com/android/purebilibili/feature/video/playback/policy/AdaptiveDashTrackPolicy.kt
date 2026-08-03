@@ -3,6 +3,10 @@ package com.android.purebilibili.feature.video.playback.policy
 import com.android.purebilibili.data.model.response.Dash
 import com.android.purebilibili.data.model.response.DashAudio
 import com.android.purebilibili.data.model.response.DashVideo
+import com.android.purebilibili.feature.video.playback.audio.AUDIO_QUALITY_AUTO
+import com.android.purebilibili.feature.video.playback.audio.AudioStreamKind
+import com.android.purebilibili.feature.video.playback.audio.collectAudioStreamCandidates
+import com.android.purebilibili.feature.video.playback.audio.resolveAudioStreamSelection
 import com.android.purebilibili.feature.video.viewmodel.normalizeCodecFamilyKey
 
 data class AdaptiveDashTrackSet(
@@ -56,7 +60,8 @@ fun buildAdaptiveDashTrackSet(
     preferredVideoCodec: String,
     secondaryVideoCodec: String,
     isHevcSupported: Boolean,
-    isAv1Supported: Boolean
+    isAv1Supported: Boolean,
+    isDolbyAudioSupported: Boolean = true
 ): AdaptiveDashTrackSet {
     val preferredCodec = normalizeCodecFamilyKey(preferredVideoCodec)
     val secondaryCodec = normalizeCodecFamilyKey(secondaryVideoCodec)
@@ -105,14 +110,18 @@ fun buildAdaptiveDashTrackSet(
             .thenByDescending { it.bandwidth }
     )
 
-    val sortedAudios = dash.audio
-        .orEmpty()
-        .filter { it.getValidUrl().isNotBlank() }
-        .sortedWith(
-            compareByDescending<DashAudio> {
-                if (preferredAudioQuality > 0 && it.id == preferredAudioQuality) 1 else 0
-            }.thenByDescending { it.bandwidth }
-        )
+    val sortedAudios = if (preferredAudioQuality == AUDIO_QUALITY_AUTO) {
+        collectAudioStreamCandidates(dash)
+            .filter { it.kind == AudioStreamKind.STANDARD }
+            .map { it.track }
+            .sortedByDescending { it.bandwidth }
+    } else {
+        resolveAudioStreamSelection(
+            dash = dash,
+            requestedAudioQuality = preferredAudioQuality,
+            isDolbyAudioSupported = isDolbyAudioSupported
+        ).selected?.track?.let(::listOf).orEmpty()
+    }
 
     return AdaptiveDashTrackSet(
         videoTracks = sortedVideos,

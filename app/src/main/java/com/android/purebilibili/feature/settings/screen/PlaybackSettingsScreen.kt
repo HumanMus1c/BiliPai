@@ -39,6 +39,7 @@ import com.android.purebilibili.core.store.DEFAULT_PLAYER_DIAGNOSTIC_LOGGING_ENA
 import com.android.purebilibili.core.store.DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ENABLED
 import com.android.purebilibili.core.store.DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ONCE_ENABLED
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.store.player.DEFAULT_AUDIO_QUALITY_FOLLOW_LAST
 import com.android.purebilibili.core.store.player.PlayerSettingsStore
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.store.BottomProgressBehavior
@@ -749,20 +750,33 @@ fun PlaybackSettingsContent(
                         .getWifiQuality(context).collectAsStateWithLifecycle(initialValue = 80)
                     val mobileQuality by com.android.purebilibili.core.store.SettingsManager
                         .getMobileQuality(context).collectAsStateWithLifecycle(initialValue = 64)
+                    val defaultAudioQuality by PlayerSettingsStore
+                        .getDefaultAudioQuality(context)
+                        .collectAsStateWithLifecycle(
+                            initialValue = DEFAULT_AUDIO_QUALITY_FOLLOW_LAST
+                        )
                     val autoHighestQualityEnabled by com.android.purebilibili.core.store.SettingsManager
                         .getAutoHighestQuality(context).collectAsStateWithLifecycle(initialValue = false)
                     val directedTrafficEnabled by com.android.purebilibili.core.store.SettingsManager
                         .getBiliDirectedTrafficEnabled(context).collectAsStateWithLifecycle(initialValue = false)
-                    val isLoggedIn = !TokenManager.sessDataCache.isNullOrEmpty() ||
-                        !TokenManager.accessTokenCache.isNullOrEmpty()
-                    val isVip = TokenManager.isVipCache
+                    val isLoggedIn = com.android.purebilibili.data.repository.VideoRepository.isPlaybackLoggedIn()
+                    val isVip = com.android.purebilibili.data.repository.VideoRepository.isPlaybackVip()
 
                     val qualityOptions = resolveDefaultPlaybackQualityOptions()
+                    val audioQualityOptions = resolveDefaultAudioQualityOptions()
+                    val normalizedDefaultAudioQuality =
+                        normalizeDefaultAudioQualityOption(defaultAudioQuality)
 
                     fun getQualityLabel(id: Int): String = resolveSelectionLabel(
                         options = qualityOptions,
                         selectedValue = id,
                         fallbackLabel = "720P"
+                    )
+
+                    fun getAudioQualityLabel(id: Int): String = resolveSelectionLabel(
+                        options = audioQualityOptions,
+                        selectedValue = id,
+                        fallbackLabel = "跟随上次"
                     )
 
                     AppPreferenceGroup {
@@ -863,6 +877,28 @@ fun PlaybackSettingsContent(
                                 scope.launch {
                                     com.android.purebilibili.core.store.SettingsManager
                                         .setMobileQuality(context, qualityId)
+                                }
+                            }
+                        )
+
+                        AppPreferenceDivider()
+
+                        AppSegmentedPreference(
+                            title = "默认音质：${getAudioQualityLabel(normalizedDefaultAudioQuality)}",
+                            subtitle = if (
+                                normalizedDefaultAudioQuality ==
+                                DEFAULT_AUDIO_QUALITY_FOLLOW_LAST
+                            ) {
+                                "新视频跟随播放器上次手动选择"
+                            } else {
+                                "具体默认音质优先于上次手动选择；当前视频仍可临时切换"
+                            },
+                            options = audioQualityOptions,
+                            selectedValue = normalizedDefaultAudioQuality,
+                            onSelectionChange = { audioQuality ->
+                                scope.launch {
+                                    PlayerSettingsStore
+                                        .setDefaultAudioQuality(context, audioQuality)
                                 }
                             }
                         )
@@ -1769,7 +1805,7 @@ private fun PlaybackFullscreenGestureSettingsSection(
         val horizontalAdaptationEnabled by com.android.purebilibili.core.store.SettingsManager
             .getHorizontalAdaptationEnabled(context)
             .collectAsStateWithLifecycle(initialValue = isLargeScreenDevice)
-        val hideVideoPageStatusBar by com.android.purebilibili.core.store.SettingsManager
+        val immersiveVideoPageStatusBar by com.android.purebilibili.core.store.SettingsManager
             .getHideVideoPageStatusBar(context)
             .collectAsStateWithLifecycle(initialValue = false)
         val tabletCommentPanelWidthPreset by com.android.purebilibili.core.store.SettingsManager
@@ -1904,14 +1940,14 @@ private fun PlaybackFullscreenGestureSettingsSection(
         )
         AppPreferenceDivider()
 	        AppSwitchPreference(
-	            icon = rememberSettingsSemanticIcon(SettingsIconRole.HIDE_STATUS_BAR),
-            title = "播放页隐藏状态栏",
-            subtitle = if (hideVideoPageStatusBar) {
-                "隐藏顶部系统状态栏，画面与顶栏控件贴顶沉浸；底部手势条保持显示"
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.IMMERSIVE_STATUS_BAR),
+            title = "播放页沉浸状态栏",
+            subtitle = if (immersiveVideoPageStatusBar) {
+                "状态栏保留；顶部实时 Haze 模糊并跟随视频画面变化，底部手势条保持显示"
             } else {
-                "显示系统状态栏；画面仍沉浸到状态栏下，播放器顶栏自动避让不重叠"
+                "显示普通透明状态栏；播放器顶栏自动避让，不与系统图标重叠"
             },
-            checked = hideVideoPageStatusBar,
+            checked = immersiveVideoPageStatusBar,
             onCheckedChange = {
                 scope.launch {
                     com.android.purebilibili.core.store.SettingsManager

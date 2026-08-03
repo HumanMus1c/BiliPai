@@ -114,6 +114,7 @@ fun DynamicSidebar(
     onUserClick: (Long?) -> Unit,
     showHiddenUsers: Boolean,
     hiddenCount: Int,
+    uplistUpdateMids: Set<Long> = emptySet(),
     onToggleShowHidden: () -> Unit,
     onTogglePin: (Long) -> Unit,
     onToggleHidden: (Long) -> Unit,
@@ -210,6 +211,7 @@ fun DynamicSidebar(
                                 user = user,
                                 isSelected = selectedUserId == user.uid,
                                 showLabel = isExpanded,
+                                showUnreadBadge = user.uid in uplistUpdateMids,
                                 onClick = { onUserClick(user.uid) },
                                 onTogglePin = { onTogglePin(user.uid) },
                                 onToggleHidden = { onToggleHidden(user.uid) }
@@ -355,6 +357,7 @@ fun SidebarUserItem(
     user: SidebarUser,
     isSelected: Boolean,
     showLabel: Boolean,
+    showUnreadBadge: Boolean = false,
     onClick: () -> Unit,
     onTogglePin: () -> Unit,
     onToggleHidden: () -> Unit
@@ -418,6 +421,15 @@ fun SidebarUserItem(
                             .fillMaxSize()
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop
+                    )
+                }
+                if (showUnreadBadge) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(AppSpacingTokens.Small)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                 }
             }

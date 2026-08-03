@@ -752,6 +752,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
+    fun applyMd3CustomColor(hex: String) {
+        viewModelScope.launch {
+            val normalizedHex = normalizeMd3CustomColorHex(hex)
+            SettingsManager.applyMd3CustomColor(context, normalizedHex)
+            val overrides = SettingsManager.getThemeRoleOverrides(context).first()
+            val syncedOverrides = syncThemeRoleControlAccent(overrides, normalizedHex)
+            if (syncedOverrides != overrides) {
+                SettingsManager.setThemeRoleOverrides(context, syncedOverrides)
+            }
+        }
+    }
     fun setThemeColorStyle(style: PaletteStyle) {
         viewModelScope.launch { SettingsManager.setThemeColorStyle(context, style) }
     }

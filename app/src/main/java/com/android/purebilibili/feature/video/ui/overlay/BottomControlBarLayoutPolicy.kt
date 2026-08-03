@@ -40,6 +40,24 @@ internal fun resolveBottomControlBarBottomPaddingDp(
     }
 }
 
+/**
+ * Keeps the inline detail player's scrubber anchored to the video edge.
+ *
+ * The phone detail player is always drawn edge-to-edge, including when the transparent system
+ * status bar remains visible. Placing the progress bar above the controls makes it appear in
+ * the middle of the video frame.
+ */
+internal fun resolveVideoDetailProgressPlacement(
+    requestedPlacement: PlayerProgressPlacement,
+    isFullscreen: Boolean
+): PlayerProgressPlacement {
+    return if (!isFullscreen) {
+        PlayerProgressPlacement.BOTTOM_EDGE
+    } else {
+        requestedPlacement
+    }
+}
+
 fun resolveBottomControlBarLayoutPolicy(
     widthDp: Int
 ): BottomControlBarLayoutPolicy {

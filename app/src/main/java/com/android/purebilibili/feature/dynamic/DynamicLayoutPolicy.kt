@@ -96,11 +96,7 @@ internal fun resolveDynamicActionButtonText(
             listOfNotNull(label, countText).joinToString(separator = " ")
         }
         "转发" -> {
-            if (slotWidthDp != null && slotWidthDp in 1 until 120) {
-                label
-            } else {
-                listOfNotNull(label, countText).joinToString(separator = " ")
-            }
+            listOfNotNull(label, countText).joinToString(separator = " ")
         }
         else -> countText
     }

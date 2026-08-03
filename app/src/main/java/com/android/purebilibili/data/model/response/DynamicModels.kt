@@ -41,6 +41,23 @@ data class DynamicFeedData(
     val update_num: Int = 0
 )
 
+/**
+ * 动态未读数（红点）轻量接口
+ * API: x/polymer/web-dynamic/v1/feed/all/update
+ * 只返回本次更新基线以上的新动态条数，避免轮询时拉全量 feed。
+ */
+@Serializable
+data class DynamicUpdateCountResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: DynamicUpdateCountData? = null
+)
+
+@Serializable
+data class DynamicUpdateCountData(
+    val update_num: Int = 0
+)
+
 @Serializable
 data class DynamicDetailResponse(
     val code: Int = 0,
@@ -162,7 +179,10 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
                         module_author = parsed.module_author ?: merged.module_author,
                         module_dynamic = parsed.module_dynamic ?: merged.module_dynamic,
                         module_more = parsed.module_more ?: merged.module_more,
-                        module_stat = parsed.module_stat ?: merged.module_stat
+                        module_stat = parsed.module_stat ?: merged.module_stat,
+                        module_fold = parsed.module_fold ?: merged.module_fold,
+                        module_tag = parsed.module_tag ?: merged.module_tag,
+                        module_dispute = parsed.module_dispute ?: merged.module_dispute
                     )
 
                     val moduleType = obj["module_type"]?.jsonPrimitive?.contentOrNull.orEmpty()
@@ -514,7 +534,105 @@ data class DynamicModules(
     val module_author: DynamicAuthorModule? = null,
     val module_dynamic: DynamicContentModule? = null,
     val module_more: DynamicMoreModule? = null,
-    val module_stat: DynamicStatModule? = null
+    val module_stat: DynamicStatModule? = null,
+    // 相关动态折叠条（"展开x条相关动态"）
+    val module_fold: DynamicFoldModule? = null,
+    // 置顶标记（text == "置顶" 时置顶）
+    val module_tag: DynamicTagModule? = null,
+    // 违规/风险提示条
+    val module_dispute: DynamicDisputeModule? = null
+)
+
+@Serializable
+data class DynamicFoldModule(
+    val ids: List<String> = emptyList(),
+    val statement: String = "",
+    val users: List<DynamicFoldUser> = emptyList()
+)
+
+@Serializable
+data class DynamicFoldUser(
+    val mid: Long = 0,
+    val face: String = ""
+)
+
+@Serializable
+data class DynamicTagModule(
+    val text: String = ""
+)
+
+@Serializable
+data class DynamicDisputeModule(
+    val title: String = "",
+    val desc: String = "",
+    val jump_url: String = ""
+)
+
+// --- 评论互动设置（评论精选 / 评论开关） ---
+// API: x/v2/reply/subject/interaction-status
+@Serializable
+data class ReplyInteractionResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: ReplyInteractionData? = null
+)
+
+@Serializable
+data class ReplyInteractionData(
+    val up_reply_selection: ReplyInteractionStatus? = null,
+    val up_reply: ReplyInteractionStatus? = null
+)
+
+@Serializable
+data class ReplyInteractionStatus(
+    val status: Int = 0, // 1 = 开启中
+    val can_modify: Boolean = false
+)
+
+// --- 关注 UP 列表（含未读标记，供 UP 列表红点） ---
+// API: dynamic_svr/v1/dynamic_svr/w_dyn_uplist
+@Serializable
+data class UplistResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: UplistData? = null
+)
+
+@Serializable
+data class UplistData(
+    val items: List<UplistItem> = emptyList()
+)
+
+@Serializable
+data class UplistItem(
+    val user_profile: UplistUserProfile? = null,
+    @SerialName("has_update") val has_update: Int = 0
+)
+
+@Serializable
+data class UplistUserProfile(
+    val info: UplistUserInfo? = null
+)
+
+@Serializable
+data class UplistUserInfo(
+    val uid: Long = 0,
+    val uname: String = "",
+    val face: String = ""
+)
+
+// --- 发布纯文本动态响应（防 shadow-ban 校验用） ---
+// API: dynamic_svr/v1/dynamic_svr/create
+@Serializable
+data class DynamicCreateResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: DynamicCreateData? = null
+)
+
+@Serializable
+data class DynamicCreateData(
+    @SerialName("dynamic_id_str") val dynamic_id_str: String = ""
 )
 
 @Serializable

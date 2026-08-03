@@ -68,6 +68,7 @@ import com.android.purebilibili.core.util.WindowWidthSizeClass
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import dev.chrisbanes.haze.HazeState
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
+import io.github.alexzhirkevich.cupertino.icons.outlined.ArrowLeftArrowRight
 import io.github.alexzhirkevich.cupertino.icons.outlined.SidebarRight
 import kotlinx.coroutines.launch
 
@@ -98,7 +99,8 @@ fun FrostedSideBar(
     ),
     itemColorIndices: Map<String, Int> = emptyMap(),
     uiSkinDecoration: BottomBarUiSkinDecoration? = null,
-    onToggleSidebar: (() -> Unit)? = null
+    onToggleSidebar: (() -> Unit)? = null,
+    onAccountSwitchClick: (() -> Unit)? = null,
 ) {
     if (rememberAppNavigationCapabilities().usePlatformSideRail) {
             MiuixSideBar(
@@ -110,7 +112,8 @@ fun FrostedSideBar(
                 onHomeDoubleTap = onHomeDoubleTap,
                 visibleItems = visibleItems,
                 uiSkinDecoration = uiSkinDecoration,
-                onToggleSidebar = onToggleSidebar
+                onToggleSidebar = onToggleSidebar,
+                onAccountSwitchClick = onAccountSwitchClick,
             )
     } else {
             FrostedSideBarContent(
@@ -122,7 +125,8 @@ fun FrostedSideBar(
                 onHomeDoubleTap = onHomeDoubleTap,
                 visibleItems = visibleItems,
                 uiSkinDecoration = uiSkinDecoration,
-                onToggleSidebar = onToggleSidebar
+                onToggleSidebar = onToggleSidebar,
+                onAccountSwitchClick = onAccountSwitchClick,
             )
     }
 }
@@ -137,7 +141,8 @@ private fun MiuixSideBar(
     onHomeDoubleTap: () -> Unit,
     visibleItems: List<BottomNavItem>,
     uiSkinDecoration: BottomBarUiSkinDecoration?,
-    onToggleSidebar: (() -> Unit)?
+    onToggleSidebar: (() -> Unit)?,
+    onAccountSwitchClick: (() -> Unit)?,
 ) {
     val haptic = rememberHapticFeedback()
     val isExpandedWidthClass =
@@ -227,6 +232,14 @@ private fun MiuixSideBar(
             }
         }
 
+        if (onAccountSwitchClick != null) {
+            Spacer(modifier = Modifier.weight(1f))
+            SideBarAccountSwitchButton(
+                onClick = onAccountSwitchClick,
+                tint = AppSurfaceTokens.onSurfaceVariantSummary(),
+            )
+        }
+
         if (onToggleSidebar != null) {
             Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
             val sidebarLabel = stringResource(R.string.sidebar_toggle)
@@ -304,7 +317,8 @@ private fun FrostedSideBarContent(
     onHomeDoubleTap: () -> Unit,
     visibleItems: List<BottomNavItem>,
     uiSkinDecoration: BottomBarUiSkinDecoration?,
-    onToggleSidebar: (() -> Unit)?
+    onToggleSidebar: (() -> Unit)?,
+    onAccountSwitchClick: (() -> Unit)?,
 ) {
     val haptic = rememberHapticFeedback()
     val scope = rememberCoroutineScope()
@@ -485,6 +499,14 @@ private fun FrostedSideBarContent(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            if (onAccountSwitchClick != null) {
+                SideBarAccountSwitchButton(
+                    onClick = onAccountSwitchClick,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                )
+                Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
+            }
+
             if (onToggleSidebar != null) {
                 val sidebarLabel = stringResource(R.string.sidebar_toggle)
                 Box(
@@ -507,5 +529,31 @@ private fun FrostedSideBarContent(
                 Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraLarge))
             }
         }
+    }
+}
+
+@Composable
+private fun SideBarAccountSwitchButton(
+    onClick: () -> Unit,
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    val haptic = rememberHapticFeedback()
+    Box(
+        modifier = modifier
+            .size(AppChromeSizeTokens.MinimumTouchTarget)
+            .clip(AppShapes.container(ContainerLevel.Card))
+            .clickable {
+                haptic(HapticType.LIGHT)
+                onClick()
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        AppIcon(
+            CupertinoIcons.Outlined.ArrowLeftArrowRight,
+            contentDescription = "切换账号",
+            tint = tint,
+            modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro),
+        )
     }
 }

@@ -25,7 +25,9 @@ class BiliPaiNavDisplayHostNativeTransitionStructureTest {
             .substringBefore(") {")
 
         assertTrue(scopedContentRememberKeys.contains("videoCardExposureProvider"))
-        assertTrue(scopedContentRememberKeys.contains("sourceMetadata"))
+        // sourceMetadata 经 rememberUpdatedState 保持最新且不触发 scopedContent 重建，
+        // 不再作为 remember key（避免预测返回期间 entry lambda 重建打断 seek）。
+        assertTrue(source.contains("rememberUpdatedState(sourceMetadata)"))
     }
 
     private fun loadSource(): String {

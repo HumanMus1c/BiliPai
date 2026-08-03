@@ -117,9 +117,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     key(success.info.bvid) {
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .hazeSourceCompat(hazeState)
+                modifier = Modifier.fillMaxSize()
             ) {
                 val detailContentRevealEnter = fadeIn(
                     tween(
@@ -157,7 +155,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                             androidNativeLiquidGlassEnabled = androidNativeLiquidGlassEnabled
                         )
                         // Capture scrolling detail content only; BottomInputBar stays outside
-                        // so drawBackdrop does not self-sample (same contract as tab chrome).
+                        // the source so neither blur nor backdrop samples the bar itself.
                         val bottomInputBarBackdrop = rememberLayerBackdrop()
                         val showExternalPlaylistQueueBarOnCurrentTab =
                             shouldShowExternalPlaylistQueueBarOnContentTab(
@@ -184,13 +182,16 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                             .coerceAtLeast(0)
 
                         Box(
-                            modifier = if (floatingLiquidBottomInputBar) {
-                                Modifier
-                                    .fillMaxSize()
-                                    .layerBackdrop(bottomInputBarBackdrop)
-                            } else {
-                                Modifier.fillMaxSize()
-                            }
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(
+                                    if (floatingLiquidBottomInputBar) {
+                                        Modifier.layerBackdrop(bottomInputBarBackdrop)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .hazeSourceCompat(hazeState)
                         ) {
                             VideoContentSection(
                                 info = engagementSuccess.info,
@@ -356,6 +357,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 } else {
                                     null
                                 },
+                                hazeState = hazeState,
                                 isScrollInProgressProvider = {
                                     introListState.isScrollInProgress ||
                                         commentListState.isScrollInProgress ||

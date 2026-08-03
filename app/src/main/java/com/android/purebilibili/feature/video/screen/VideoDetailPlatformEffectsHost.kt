@@ -10,6 +10,7 @@ import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -161,8 +162,11 @@ internal fun VideoDetailSystemBarsEffect(
     spec: VideoDetailSystemBarsApplySpec,
     reapplyGeneration: Int = 0,
 ) {
-    LaunchedEffect(view, window, insetsController, isScreenActive, spec, reapplyGeneration) {
-        if (view.isInEditMode || !isScreenActive || window == null || insetsController == null) return@LaunchedEffect
-        applyVideoDetailSystemBarsSpec(window, insetsController, spec)
+    // The generation re-commits the same policy after a cancelled return or a retained route
+    // becomes topmost again.
+    val effectiveSpec = remember(spec, reapplyGeneration) { spec }
+    SideEffect {
+        if (view.isInEditMode || !isScreenActive || window == null || insetsController == null) return@SideEffect
+        applyVideoDetailSystemBarsSpec(window, insetsController, effectiveSpec)
     }
 }

@@ -16,8 +16,8 @@ import com.android.purebilibili.core.util.CardPositionManager
 
 /**
  * 源卡信息区（标题/UP 等）在 shell morph 时的 chrome 视觉。
- * 封面保持可见；返回末段按景深进度淡入字，避免叠实时画面又落后封面；
- * 横卡可选择随主进度短距离移动；快速返回不藏字。
+ * 返回末段与封面使用同一交接进度淡入，避免叠实时画面又落后封面；
+ * 横卡可选择随主进度短距离移动；快速返回若仍保留 live surface 也走同一交接。
  * 所有进度都在绘制阶段读取，避免整卡重组。
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -85,5 +85,43 @@ internal fun Modifier.videoCardShellReturnChromeAlpha(
             )
             translationY = 0f
         }
+    }
+}
+
+/**
+ * 保留来源卡封面资源，但让其像素与详情 live surface 使用同一返回交接窗口。
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+internal fun Modifier.videoCardShellReturnCoverAlpha(
+    enabled: Boolean,
+    bvid: String,
+    sourceRoute: String?,
+    isReturningFromDetail: Boolean = false,
+): Modifier {
+    if (!enabled || bvid.isBlank()) return this
+    val bgState = LocalVideoCardTransitionBackgroundState.current
+    val isSharedMorphSourceCard = remember(
+        bvid,
+        sourceRoute,
+        CardPositionManager.lastClickedVideoSourceKey,
+    ) {
+        isVideoCardSharedReturnTarget(
+            bvid = bvid,
+            sourceRoute = sourceRoute,
+            lastClickedVideoSourceKey = CardPositionManager.lastClickedVideoSourceKey,
+        )
+    }
+    return graphicsLayer {
+        alpha = resolveHomeCardReturnSourceVisualAlpha(
+            useCardContainerSharedBounds = enabled,
+            isSharedMorphSourceCard = isSharedMorphSourceCard,
+            isReturningFromDetail = isReturningFromDetail,
+            transitionBackgroundPhase = bgState.phaseProvider(),
+            isVideoCardReturnGestureInProgress = bgState.isReturnGestureInProgressProvider(),
+            transitionBackgroundProgress = bgState.progressProvider(),
+            // 快速返回仍可能是 LIVE surface；只有显式整卡回退才允许提前全显。
+            preferWholeCardReturn = bgState.preferWholeCardReturnProvider(),
+        )
     }
 }

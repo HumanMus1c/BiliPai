@@ -5,7 +5,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.exoplayer.ExoPlayer
 import com.android.purebilibili.core.player.BasePlayerViewModel
 import com.android.purebilibili.core.network.NetworkModule
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.TokenManager
+import com.android.purebilibili.core.store.player.PlayerSettingsStore
+import com.android.purebilibili.core.util.MediaUtils
+import com.android.purebilibili.core.plugin.PluginManager
 import com.android.purebilibili.data.model.response.*
 import com.android.purebilibili.data.repository.ActionRepository
 import com.android.purebilibili.data.repository.BangumiRepository
@@ -13,7 +17,13 @@ import com.android.purebilibili.feature.video.player.ExternalPlaylistSource
 import com.android.purebilibili.feature.video.player.PlaylistItem
 import com.android.purebilibili.feature.video.player.PlaylistManager
 import com.android.purebilibili.feature.video.controller.PlaybackProgressManager
+import com.android.purebilibili.feature.video.playback.audio.AudioFallbackReason
+import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
+import com.android.purebilibili.feature.video.playback.audio.resolveAudioStreamSelection
+import com.android.purebilibili.feature.video.playback.audio.resolveRequestedAudioQuality
+import com.android.purebilibili.feature.video.playback.policy.shouldRefreshPremiumAudioForPlaybackSpeedChange
 import com.android.purebilibili.feature.video.usecase.VideoInteractionUseCase
+import com.android.purebilibili.feature.plugin.PlaybackCdnPlugin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -68,6 +78,11 @@ sealed class BangumiPlayerState {
         val quality: Int,
         val acceptQuality: List<Int>,
         val acceptDescription: List<String>,
+        val cachedDash: Dash? = null,
+        val requestedAudioQuality: Int = -1,
+        val selectedAudioQuality: Int = -1,
+        val availableAudioQualities: List<AudioQualityOption> = emptyList(),
+        val audioFallbackReason: AudioFallbackReason? = null,
         val isLoggedIn: Boolean = false,
         val isVip: Boolean = false,
         val isLiked: Boolean = false,
@@ -138,6 +153,14 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
 
     private val _userCoinBalance = MutableStateFlow<Double?>(null)
     val userCoinBalance = _userCoinBalance.asStateFlow()
+
+    private fun resolveConfiguredAudioQuality(): Int {
+        val context = NetworkModule.appContext ?: return -1
+        return resolveRequestedAudioQuality(
+            defaultAudioQuality = PlayerSettingsStore.getCachedDefaultAudioQuality(context),
+            rememberedAudioQuality = PlayerSettingsStore.getCachedLastSelectedAudioQuality(context)
+        )
+    }
     
     private var currentSeasonId: Long = 0
     private var currentEpId: Long = 0
@@ -328,6 +351,28 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
     }
     
     /**
+     * 番剧视频编码偏好：设备支持 HEVC 时优先 hev1（HDR/杜比视界轨道基本为 HEVC），
+     * 不支持时回退 avc1 保证可解码。
+     */
+    private fun resolveBangumiPreferredCodec(): String =
+        if (MediaUtils.isHevcSupported()) "hev1" else "avc1"
+
+    /**
+     * 番剧首次加载的请求画质：会员且设备支持 HDR/HEVC 时直接上探 HDR 档，
+     * 与普通视频的自动最高画质行为对齐；无权限时服务端会自然降档返回。
+     */
+    private fun resolveBangumiInitialQuality(): Int {
+        val isVip = com.android.purebilibili.data.repository.VideoRepository.isPlaybackVip()
+        val isLoggedIn = com.android.purebilibili.data.repository.VideoRepository.isPlaybackLoggedIn()
+        return when {
+            isVip && MediaUtils.isHdrSupported() && MediaUtils.isHevcSupported() -> 125
+            isVip -> 112
+            isLoggedIn -> 80
+            else -> 64
+        }
+    }
+
+    /**
      * 获取播放地址
      */
     private suspend fun fetchPlayUrl(
@@ -339,6 +384,7 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
         com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", "🎬 fetchPlayUrl: epId=${episode.id}, cid=${episode.cid}")
         val playUrlResult = BangumiRepository.getBangumiPlayUrl(
             epId = episode.id,
+            qn = resolveBangumiInitialQuality(),
             cid = episode.cid,
             bvid = episode.bvid,
             seasonId = detail.seasonId
@@ -351,13 +397,22 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
             var videoUrl: String? = null
             var audioUrl: String? = null
             var durlSegmentUrls: List<String> = emptyList()
+            val requestedAudioQuality = resolveConfiguredAudioQuality()
+            val audioSelection = playData.dash?.let { dash ->
+                resolveAudioStreamSelection(
+                    dash = dash,
+                    requestedAudioQuality = requestedAudioQuality,
+                    playbackSpeed = exoPlayer?.playbackParameters?.speed ?: 1.0f,
+                    isDolbyAudioSupported = MediaUtils.isDolbyAtmosAudioSupported()
+                )
+            }
             
             if (playData.dash != null) {
                 // DASH 格式
                 val dash = playData.dash
-                //  [修复] 优先使用 AVC 编码，确保所有设备都能解码
-                val video = dash.getBestVideo(playData.quality, preferCodec = "avc1")
-                val audio = dash.getBestAudio()
+                //  设备支持 HEVC 时优先 hev1（HDR/杜比视界轨道基本为 HEVC），否则回退 avc1 保证可解码
+                val video = dash.getBestVideo(playData.quality, preferCodec = resolveBangumiPreferredCodec())
+                val audio = audioSelection?.selected?.track
                 
                 com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", "📹 DASH videos: ${dash.video.size}, audios: ${dash.audio?.size ?: 0}")
                 
@@ -372,6 +427,24 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 if (audioUrl.isNullOrEmpty() && audio?.backupUrl?.isNotEmpty() == true) {
                     audioUrl = audio.backupUrl.firstOrNull()
                 }
+
+                // Keep the complete signed playurl candidates intact. The CDN plugin may only
+                // reorder these addresses in its safe mode; it never synthesizes a new host.
+                PluginManager.getEnabledPlugins(PlaybackCdnPlugin::class).firstOrNull()
+                    ?.rewritePlaybackCandidates(
+                        videoUrls = buildList {
+                            videoUrl?.takeIf { it.isNotBlank() }?.let(::add)
+                            video?.backupUrl.orEmpty().filter { it.isNotBlank() }.forEach(::add)
+                        },
+                        audioUrls = buildList {
+                            audioUrl?.takeIf { it.isNotBlank() }?.let(::add)
+                            audio?.backupUrl.orEmpty().filter { it.isNotBlank() }.forEach(::add)
+                        }
+                    )
+                    ?.let { rewrite ->
+                        videoUrl = rewrite.videoUrls.firstOrNull() ?: videoUrl
+                        audioUrl = rewrite.audioUrls.firstOrNull()?.takeIf { it.isNotBlank() } ?: audioUrl
+                    }
                 
                 com.android.purebilibili.core.util.Logger.d("BangumiPlayerVM", " DASH: video=${videoUrl?.take(60)}..., audio=${audioUrl?.take(40)}...")
                 
@@ -430,9 +503,9 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 )
             )
             val (isLoggedIn, isVip) = resolveBangumiPlaybackAuthState(
-                hasSessionCookie = !TokenManager.sessDataCache.isNullOrEmpty(),
-                hasAccessToken = !TokenManager.accessTokenCache.isNullOrEmpty(),
-                cachedIsVip = TokenManager.isVipCache,
+                hasSessionCookie = com.android.purebilibili.data.repository.VideoRepository.hasPlaybackSessionCookie(),
+                hasAccessToken = !com.android.purebilibili.data.repository.VideoRepository.playbackAccessToken().isNullOrEmpty(),
+                cachedIsVip = com.android.purebilibili.data.repository.VideoRepository.isPlaybackVip(),
                 seasonUserVip = detail.userStatus?.vip == 1
             )
 
@@ -445,6 +518,11 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 quality = playData.quality,
                 acceptQuality = playData.acceptQuality ?: emptyList(),
                 acceptDescription = playData.acceptDescription ?: emptyList(),
+                cachedDash = playData.dash,
+                requestedAudioQuality = audioSelection?.requestedPreferenceId ?: requestedAudioQuality,
+                selectedAudioQuality = audioSelection?.selectedPreferenceId ?: -1,
+                availableAudioQualities = audioSelection?.availableOptions.orEmpty(),
+                audioFallbackReason = audioSelection?.fallbackReason,
                 isLoggedIn = isLoggedIn,
                 isVip = isVip
             )
@@ -550,11 +628,20 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 val videoUrl: String?
                 val audioUrl: String?
                 val durlSegmentUrls: List<String>
+                val dash = playData.dash
+                val audioSelection = dash?.let {
+                    resolveAudioStreamSelection(
+                        dash = it,
+                        requestedAudioQuality = currentState.requestedAudioQuality,
+                        playbackSpeed = exoPlayer?.playbackParameters?.speed ?: 1.0f,
+                        isDolbyAudioSupported = MediaUtils.isDolbyAtmosAudioSupported()
+                    )
+                }
                 
-                if (playData.dash != null) {
-                    //  [修复] 优先使用 AVC 编码，确保所有设备都能解码
-                    val video = playData.dash.getBestVideo(qualityId, preferCodec = "avc1")
-                    val audio = playData.dash.getBestAudio()
+                if (dash != null) {
+                    //  设备支持 HEVC 时优先 hev1（HDR/杜比视界轨道基本为 HEVC），否则回退 avc1 保证可解码
+                    val video = dash.getBestVideo(qualityId, preferCodec = resolveBangumiPreferredCodec())
+                    val audio = audioSelection?.selected?.track
                     videoUrl = video?.getValidUrl()
                     audioUrl = audio?.getValidUrl()
                     durlSegmentUrls = emptyList()
@@ -575,11 +662,17 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 _uiState.value = currentState.copy(
                     playUrl = videoUrl,
                     audioUrl = audioUrl,
-                    quality = playData.quality
+                    quality = playData.quality,
+                    cachedDash = dash,
+                    requestedAudioQuality = currentState.requestedAudioQuality,
+                    selectedAudioQuality = audioSelection?.selectedPreferenceId ?: -1,
+                    availableAudioQualities = audioSelection?.availableOptions.orEmpty(),
+                    audioFallbackReason = audioSelection?.fallbackReason
                 )
                 
                 //  [修复] 切换清晰度时使用 resetPlayer=false 减少闪烁，并传入 Referer
                 val referer = "https://www.bilibili.com/bangumi/play/ep${currentState.currentEpisode.id}"
+                val playWhenReady = exoPlayer?.playWhenReady ?: true
                 if (audioUrl.isNullOrEmpty() && durlSegmentUrls.size > 1) {
                     playSegmentedVideo(
                         segmentUrls = durlSegmentUrls,
@@ -590,8 +683,107 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                 } else {
                     playDashVideo(videoUrl, audioUrl, currentPos, resetPlayer = false, referer = referer)
                 }
+                exoPlayer?.playWhenReady = playWhenReady
             }
         }
+    }
+
+    /**
+     * 切换音质。只有播放器源成功替换后才写入长期记忆。
+     */
+    fun changeAudioQuality(audioQuality: Int) {
+        viewModelScope.launch {
+            val switched = switchAudioQuality(audioQuality)
+            if (!switched) {
+                _toastEvent.send("音质切换失败，请稍后重试")
+                return@launch
+            }
+
+            NetworkModule.appContext?.let { context ->
+                SettingsManager.setAudioQuality(context, audioQuality)
+            }
+            sendAudioSelectionToast()
+        }
+    }
+
+    /**
+     * 处理 Hi-Res/杜比在高倍速下的临时回退，并在回到兼容倍速时恢复用户选择。
+     */
+    fun applyPlaybackSpeedFromUi(speed: Float) {
+        val player = exoPlayer ?: return
+        val previousSpeed = player.playbackParameters.speed
+        val normalizedSpeed = speed.coerceAtLeast(0.1f)
+        player.setPlaybackSpeed(normalizedSpeed)
+
+        val currentState = _uiState.value as? BangumiPlayerState.Success ?: return
+        if (!shouldRefreshPremiumAudioForPlaybackSpeedChange(
+                requestedAudioQuality = currentState.requestedAudioQuality,
+                previousPlaybackSpeed = previousSpeed,
+                nextPlaybackSpeed = normalizedSpeed
+            )
+        ) {
+            return
+        }
+
+        viewModelScope.launch {
+            switchAudioQuality(currentState.requestedAudioQuality)
+        }
+    }
+
+    private fun switchAudioQuality(audioQuality: Int): Boolean {
+        val currentState = _uiState.value as? BangumiPlayerState.Success ?: return false
+        val player = exoPlayer ?: return false
+        val dash = currentState.cachedDash ?: return false
+        val videoUrl = currentState.playUrl?.takeIf { it.isNotBlank() } ?: return false
+        val selection = resolveAudioStreamSelection(
+            dash = dash,
+            requestedAudioQuality = audioQuality,
+            playbackSpeed = player.playbackParameters.speed,
+            isDolbyAudioSupported = MediaUtils.isDolbyAtmosAudioSupported()
+        )
+        val audioUrl = selection.selected?.track?.getValidUrl()
+            ?.takeIf { it.isNotBlank() }
+            ?: return false
+        val currentPosition = player.currentPosition.coerceAtLeast(0L)
+        val playWhenReady = player.playWhenReady
+        val referer =
+            "https://www.bilibili.com/bangumi/play/ep${currentState.currentEpisode.id}"
+
+        playDashVideo(
+            videoUrl = videoUrl,
+            audioUrl = audioUrl,
+            seekToMs = currentPosition,
+            resetPlayer = false,
+            referer = referer
+        )
+        player.playWhenReady = playWhenReady
+        _uiState.value = currentState.copy(
+            audioUrl = audioUrl,
+            requestedAudioQuality = audioQuality,
+            selectedAudioQuality = selection.selectedPreferenceId,
+            availableAudioQualities = selection.availableOptions,
+            audioFallbackReason = selection.fallbackReason
+        )
+        return true
+    }
+
+    private suspend fun sendAudioSelectionToast() {
+        val state = _uiState.value as? BangumiPlayerState.Success ?: return
+        val selectedLabel = state.availableAudioQualities
+            .firstOrNull { it.preferenceId == state.selectedAudioQuality }
+            ?.label
+            ?: "AAC"
+        val message = when (state.audioFallbackReason) {
+            AudioFallbackReason.SPEED_INCOMPATIBLE ->
+                "当前倍速暂不支持所选音质，已临时使用 $selectedLabel"
+            AudioFallbackReason.REQUESTED_UNAVAILABLE ->
+                "当前视频不支持所选音质，已使用 $selectedLabel"
+            AudioFallbackReason.DECODER_ERROR ->
+                "当前设备无法稳定解码所选音质，已临时使用 $selectedLabel"
+            AudioFallbackReason.NO_PLAYABLE_AUDIO -> "当前视频没有可用音轨"
+            null -> "✓ 已切换至 $selectedLabel"
+        }
+        _toastEvent.send(message)
     }
     
     /**

@@ -84,6 +84,8 @@ class SideBarRendererPolicyTest {
         assertTrue(source.contains("shouldUseExpandableMiuixSideBar("))
         assertTrue(source.contains("shouldUseMiuixOfficialSideBarItem(skinIconPath)"))
         assertTrue(source.contains("MiuixSideBarSkinItem("))
+        assertTrue(source.contains("SideBarAccountSwitchButton("))
+        assertTrue(source.contains("onAccountSwitchClick"))
         assertTrue(source.contains("resolveHomeSideBarClickAction("))
         assertFalse(source.contains("import top.yukonga.miuix.kmp.basic.NavigationRail as MiuixNavigationRail"))
         assertFalse(source.contains("import top.yukonga.miuix.kmp.basic.NavigationRailItem as MiuixNavigationRailItem"))

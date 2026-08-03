@@ -9,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -42,6 +41,8 @@ import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.MoreVert
 import com.android.purebilibili.feature.video.ui.components.PlaybackSpeed
+import com.android.purebilibili.feature.video.ui.components.DolbyBadge
+import com.android.purebilibili.feature.video.ui.components.HiResBadge
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
 import com.android.purebilibili.core.theme.BiliPink
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
@@ -113,6 +114,9 @@ fun PortraitFullscreenOverlay(
     // 控制状态
     currentSpeed: Float,
     currentQualityLabel: String,
+    currentAudioQualityLabel: String,
+    isHiResAudioSelected: Boolean,
+    isDolbyAudioSelected: Boolean,
     currentRatio: VideoAspectRatio,
     danmakuEnabled: Boolean,
     isStatusBarHidden: Boolean,
@@ -136,6 +140,7 @@ fun PortraitFullscreenOverlay(
     onSeekDragCancel: () -> Unit = {},
     onSpeedClick: () -> Unit,
     onQualityClick: () -> Unit,
+    onAudioQualityClick: () -> Unit,
     onRatioClick: () -> Unit,
     showSubtitleChip: Boolean = false,
     subtitleEnabled: Boolean = false,
@@ -200,10 +205,6 @@ fun PortraitFullscreenOverlay(
                     onBack = onBack,
                     onHomeClick = onHomeClick,
                     viewCount = statView,
-                    danmakuEnabled = danmakuEnabled,
-                    onDanmakuToggle = onDanmakuToggle,
-                    isStatusBarHidden = isStatusBarHidden,
-                    onToggleStatusBar = onToggleStatusBar,
                     onSearchClick = onSearchClick,
                     onMoreClick = onMoreClick,
                     modifier = Modifier.graphicsLayer {
@@ -266,11 +267,15 @@ fun PortraitFullscreenOverlay(
                         timeLabel = progressTimeLabel,
                         currentSpeed = currentSpeed,
                         currentQualityLabel = currentQualityLabel,
+                        currentAudioQualityLabel = currentAudioQualityLabel,
+                        isHiResAudioSelected = isHiResAudioSelected,
+                        isDolbyAudioSelected = isDolbyAudioSelected,
                         currentRatioLabel = currentRatio.displayName,
                         showSubtitleChip = showSubtitleChip,
                         subtitleEnabled = subtitleEnabled,
                         onSpeedClick = onSpeedClick,
                         onQualityClick = onQualityClick,
+                        onAudioQualityClick = onAudioQualityClick,
                         onRatioClick = onRatioClick,
                         onSubtitleClick = onSubtitleClick,
                         modifier = Modifier
@@ -319,6 +324,8 @@ fun PortraitFullscreenOverlay(
                 // 4. 底部输入栏 (Input Bar) - Keep strict bottom alignment (Overlay)
                 PortraitBottomInputBar(
                     onInputClick = onDanmakuInputClick,
+                    danmakuEnabled = danmakuEnabled,
+                    onDanmakuToggle = onDanmakuToggle,
                     onRotateClick = onRotateToLandscape,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -415,11 +422,15 @@ private fun PortraitProgressControlStrip(
     timeLabel: String,
     currentSpeed: Float,
     currentQualityLabel: String,
+    currentAudioQualityLabel: String,
+    isHiResAudioSelected: Boolean,
+    isDolbyAudioSelected: Boolean,
     currentRatioLabel: String,
     showSubtitleChip: Boolean = false,
     subtitleEnabled: Boolean = false,
     onSpeedClick: () -> Unit,
     onQualityClick: () -> Unit,
+    onAudioQualityClick: () -> Unit,
     onRatioClick: () -> Unit,
     onSubtitleClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -443,6 +454,14 @@ private fun PortraitProgressControlStrip(
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
+        PortraitChromeChip(
+            label = currentAudioQualityLabel,
+            highlighted = false,
+            showHiResBadge = isHiResAudioSelected,
+            showDolbyBadge = isDolbyAudioSelected,
+            onClick = onAudioQualityClick
+        )
+        Spacer(modifier = Modifier.width(8.dp))
         PortraitChromeChip(
             label = currentQualityLabel,
             highlighted = false,
@@ -468,7 +487,9 @@ private fun PortraitChromeChip(
     label: String,
     highlighted: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showHiResBadge: Boolean = false,
+    showDolbyBadge: Boolean = false
 ) {
     AppSurface(
         onClick = onClick,
@@ -481,14 +502,26 @@ private fun PortraitChromeChip(
             Color.White
         }
     ) {
-        AppText(
-            text = label,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AppText(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (showHiResBadge) {
+                Spacer(modifier = Modifier.width(4.dp))
+                HiResBadge()
+            }
+            if (showDolbyBadge) {
+                Spacer(modifier = Modifier.width(4.dp))
+                DolbyBadge()
+            }
+        }
     }
 }
 
@@ -501,10 +534,6 @@ private fun PortraitTopControlBar(
     onBack: () -> Unit,
     onHomeClick: () -> Unit,
     viewCount: Int,
-    danmakuEnabled: Boolean,
-    onDanmakuToggle: () -> Unit,
-    isStatusBarHidden: Boolean,
-    onToggleStatusBar: () -> Unit,
     onSearchClick: () -> Unit,
     onMoreClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -563,34 +592,6 @@ private fun PortraitTopControlBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(layoutPolicy.topActionSpacingDp.dp)
         ) {
-            val danmakuToggleInteraction = remember { MutableInteractionSource() }
-            val danmakuActiveColor = MaterialTheme.colorScheme.primary
-            val danmakuInactiveColor = Color.White.copy(alpha = 0.74f)
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (danmakuEnabled) {
-                            danmakuActiveColor.copy(alpha = 0.2f)
-                        } else {
-                            danmakuInactiveColor.copy(alpha = 0.14f)
-                        }
-                    )
-                    .clickable(
-                        interactionSource = danmakuToggleInteraction,
-                        indication = null,
-                        onClick = onDanmakuToggle
-                    )
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AppIcon(
-                    imageVector = if (danmakuEnabled) CupertinoIcons.Filled.TextBubble else CupertinoIcons.Outlined.TextBubble,
-                    contentDescription = if (danmakuEnabled) "关闭弹幕" else "开启弹幕",
-                    tint = if (danmakuEnabled) danmakuActiveColor else danmakuInactiveColor,
-                    modifier = Modifier.size(layoutPolicy.topActionIconSizeDp.dp)
-                )
-            }
             AppIconButton(onClick = onSearchClick) {
                 AppIcon(
                     imageVector = Icons.Rounded.Search,

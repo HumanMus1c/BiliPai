@@ -349,7 +349,8 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertTrue(source.contains("val predictiveBackEnabled = appNavigationSettings.predictiveBackEnabled"))
         assertTrue(source.contains("LocalPredictiveBackGestureEnabled provides predictiveBackEnabled"))
         assertTrue(source.contains("isQuickReturnFromDetail = navigation3ReturnSession.isQuickReturnFromDetail"))
-        assertTrue(source.contains("BiliPaiPredictiveBackAnimationStyle.DEFAULT"))
+        assertTrue(source.contains("BiliPaiPredictiveBackAnimationStyle.fromStorageValue("))
+        assertTrue(source.contains("appNavigationSettings.predictiveBackAnimationStyle"))
         assertFalse(source.contains("shouldUseClassicBackHandler"))
     }
 

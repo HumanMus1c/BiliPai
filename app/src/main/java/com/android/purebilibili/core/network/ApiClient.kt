@@ -8,6 +8,8 @@ import com.android.purebilibili.core.network.policy.resolveHardcodedDnsFallback
 import com.android.purebilibili.core.network.policy.resolveHomeFeedCookieAnonymizerDecision
 import com.android.purebilibili.core.network.policy.shouldEnableTrustAllCertificates
 import com.android.purebilibili.core.store.TokenManager
+import com.android.purebilibili.core.store.AccountSessionStore
+import com.android.purebilibili.core.store.StoredAccountSession
 import com.android.purebilibili.data.model.response.*
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
@@ -110,6 +112,18 @@ private class AppSessionCookieJar : okhttp3.CookieJar {
             )
         }
 
+        TokenManager.midCache?.takeIf { it > 0L }?.let { mid ->
+            if (cookies.none { it.name == "DedeUserID" }) {
+                cookies.add(
+                    okhttp3.Cookie.Builder()
+                        .domain(biliBiliDomain)
+                        .name("DedeUserID")
+                        .value(mid.toString())
+                        .build()
+                )
+            }
+        }
+
         if (url.encodedPath.contains("playurl") || url.encodedPath.contains("pgc/view")) {
             com.android.purebilibili.core.util.Logger.d(
                 "CookieJar",
@@ -123,6 +137,32 @@ private class AppSessionCookieJar : okhttp3.CookieJar {
     fun clear() {
         synchronized(cookieLock) {
             cookieStore.clear()
+        }
+    }
+}
+
+/** A cookie jar isolated from the main account, used only for playback authorization. */
+private class PlaybackAccountCookieJar(account: StoredAccountSession) : okhttp3.CookieJar {
+    private val cookieLock = Any()
+    private val cookies = mutableMapOf(
+        "SESSDATA" to account.sessData,
+        "bili_jct" to account.csrf,
+        "DedeUserID" to account.mid.toString(),
+        "buvid3" to account.buvid3
+    ).filterValues { it.isNotBlank() }.toMutableMap()
+
+    override fun saveFromResponse(url: okhttp3.HttpUrl, responseCookies: List<okhttp3.Cookie>) {
+        synchronized(cookieLock) {
+            responseCookies.forEach { cookie -> cookies[cookie.name] = cookie.value }
+        }
+    }
+
+    override fun loadForRequest(url: okhttp3.HttpUrl): List<okhttp3.Cookie> {
+        val domain = if (url.host.endsWith("bilibili.com")) "bilibili.com" else url.host
+        return synchronized(cookieLock) {
+            cookies.map { (name, value) ->
+                okhttp3.Cookie.Builder().domain(domain).name(name).value(value).build()
+            }
         }
     }
 }
@@ -805,6 +845,19 @@ interface BilibiliApi {
     @GET
     suspend fun getDanmakuSpecialDm(@retrofit2.http.Url url: String): ResponseBody
 
+    // [新增] 打分弹幕提交 (x/v2/dm/command/grade/post)
+    // 互动投票/打分弹幕的提交端点；grade_score 为偶数，最大 10
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("x/v2/dm/command/grade/post")
+    suspend fun gradeDanmaku(
+        @retrofit2.http.Field("aid") aid: Long,               // 稿件 aid
+        @retrofit2.http.Field("cid") cid: Long,               // 分P cid
+        @retrofit2.http.Field("progress") progress: Long,      // 弹幕出现时间 (毫秒)
+        @retrofit2.http.Field("grade_id") gradeId: Long,       // 打分/投票 ID
+        @retrofit2.http.Field("grade_score") gradeScore: Int,  // 分数 (偶数，最大 10)
+        @retrofit2.http.Field("csrf") csrf: String
+    ): com.android.purebilibili.data.model.response.SimpleApiResponse
+
     // [新增] 撤回弹幕 (2分钟内可撤回，每天3次)
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("x/dm/recall")
@@ -1369,6 +1422,19 @@ data class DynamicDeleteRequest(
     val rid_str: String? = null
 )
 
+@kotlinx.serialization.Serializable
+data class DynamicTopRequest(
+    val dyn_str: String
+)
+
+// 动态可见范围设置：object_id 为 JSON 字符串 {"dyn_id":"...","dyn_type":N}，
+// action 取 "private_pub"（仅自己）/ "public_pub"（公开）。
+@kotlinx.serialization.Serializable
+data class DynamicVisibilityRequest(
+    val object_id: String,
+    val action: String
+)
+
 internal fun buildDynamicRepostRequest(
     dynamicId: String,
     content: String
@@ -1422,6 +1488,15 @@ interface DynamicApi {
     suspend fun getUserDynamicFeed(
         @QueryMap params: Map<String, String>
     ): DynamicFeedResponse
+
+    //  [新增] 动态未读数（红点）轻量接口：只返回更新基线以上的新动态条数，
+    //  供底部导航轮询使用，避免每次拉全量 feed。
+    @GET("x/polymer/web-dynamic/v1/feed/all/update")
+    suspend fun getDynamicUpdateCount(
+        @Query("type") type: String = "all",
+        @Query("update_baseline") updateBaseline: String,
+        @Query("web_location") webLocation: String = "333.1365"
+    ): DynamicUpdateCountResponse
 
     //  [新增] 获取单条动态详情（桌面端详情接口）
     @GET("x/polymer/web-dynamic/desktop/v1/detail")
@@ -1500,11 +1575,65 @@ interface DynamicApi {
         @retrofit2.http.Body body: DynamicRepostRequest
     ): SimpleApiResponse
 
+    //  发布纯文本动态（multipart form，type=4 表示纯文本）
+    @retrofit2.http.Multipart
+    @retrofit2.http.POST("https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/create")
+    suspend fun createDynamic(
+        @retrofit2.http.Part("dynamic_id") dynamicId: Int = 0,
+        @retrofit2.http.Part("type") type: Int = 4,
+        @retrofit2.http.Part("rid") rid: Int = 0,
+        @retrofit2.http.Part("content") content: String,
+        @retrofit2.http.Part("csrf") csrf: String
+    ): DynamicCreateResponse
+
+    //  关注 UP 列表（含未读标记 has_update，供 UP 列表红点使用）
+    @GET("https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/w_dyn_uplist")
+    suspend fun getDynamicUplist(): UplistResponse
+
     @retrofit2.http.POST("x/dynamic/feed/operate/remove")
     suspend fun deleteDynamic(
         @Query("csrf") csrf: String,
         @Query("platform") platform: String = "web",
         @retrofit2.http.Body body: DynamicDeleteRequest
+    ): SimpleApiResponse
+
+    //  置顶 / 取消置顶动态（仅自己的动态，JSON body {"dyn_str": "..."}）
+    @retrofit2.http.POST("x/dynamic/feed/space/set_top")
+    suspend fun setDynamicTop(
+        @Query("csrf") csrf: String,
+        @retrofit2.http.Body body: DynamicTopRequest
+    ): SimpleApiResponse
+
+    @retrofit2.http.POST("x/dynamic/feed/space/rm_top")
+    suspend fun removeDynamicTop(
+        @Query("csrf") csrf: String,
+        @retrofit2.http.Body body: DynamicTopRequest
+    ): SimpleApiResponse
+
+    //  动态可见范围（公开 / 仅自己）
+    @retrofit2.http.POST("x/dynamic/feed/dyn/private_pub_setting")
+    suspend fun setDynamicVisibility(
+        @Query("csrf") csrf: String,
+        @Query("platform") platform: String = "web",
+        @retrofit2.http.Body body: DynamicVisibilityRequest
+    ): SimpleApiResponse
+
+    //  评论互动状态（评论精选 / 评论开关），oid 取 basic.comment_id_str
+    @GET("x/v2/reply/subject/interaction-status")
+    suspend fun getReplyInteractionStatus(
+        @Query("oid") oid: Long,
+        @Query("type") type: Int,
+        @Query("web_location") webLocation: Double = 333.1369
+    ): ReplyInteractionResponse
+
+    //  修改评论互动：action 1=开启精选 2=停止精选 3=关闭评论 4=恢复评论
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("x/v2/reply/subject/modify")
+    suspend fun modifyReplySubject(
+        @retrofit2.http.Field("oid") oid: Long,
+        @retrofit2.http.Field("type") type: Int,
+        @retrofit2.http.Field("action") action: Int,
+        @retrofit2.http.Field("csrf") csrf: String
     ): SimpleApiResponse
 }
 
@@ -2065,6 +2194,9 @@ interface MessageApi {
 object NetworkModule {
     internal var appContext: Context? = null
     private val appSessionCookieJar = AppSessionCookieJar()
+    private var playbackAccountKey: String? = null
+    private var playbackAccountApi: BilibiliApi? = null
+    private var playbackAccountBangumiApi: BangumiApi? = null
 
     fun init(context: Context) {
         appContext = context.applicationContext
@@ -2072,6 +2204,60 @@ object NetworkModule {
 
     fun clearRuntimeCookies() {
         appSessionCookieJar.clear()
+    }
+
+    @Synchronized
+    fun clearPlaybackAccountClient() {
+        playbackAccountKey = null
+        playbackAccountApi = null
+        playbackAccountBangumiApi = null
+    }
+
+    fun playbackAccount(): StoredAccountSession? =
+        appContext?.let(AccountSessionStore::getPlaybackAccount)
+
+    /**
+     * Returns a client scoped to the optional playback account. It never changes
+     * the app's primary account or grants entitlements locally: Bilibili still
+     * decides access from the selected account's own server-side session.
+     */
+    @Synchronized
+    fun playbackApi(): BilibiliApi {
+        val context = appContext ?: return api
+        val account = AccountSessionStore.getPlaybackAccount(context) ?: return api
+        if (account.mid == TokenManager.midCache) return api
+
+        val key = "${account.mid}:${account.sessData.hashCode()}:${account.buvid3.hashCode()}"
+        ensurePlaybackAccountClients(account, key)
+        return requireNotNull(playbackAccountApi)
+    }
+
+    @Synchronized
+    fun playbackBangumiApi(): BangumiApi {
+        val context = appContext ?: return bangumiApi
+        val account = AccountSessionStore.getPlaybackAccount(context) ?: return bangumiApi
+        if (account.mid == TokenManager.midCache) return bangumiApi
+
+        val key = "${account.mid}:${account.sessData.hashCode()}:${account.buvid3.hashCode()}"
+        ensurePlaybackAccountClients(account, key)
+        return requireNotNull(playbackAccountBangumiApi)
+    }
+
+    private fun ensurePlaybackAccountClients(account: StoredAccountSession, key: String) {
+        if (playbackAccountKey == key && playbackAccountApi != null && playbackAccountBangumiApi != null) {
+            return
+        }
+        val client = okHttpClient.newBuilder()
+            .cookieJar(PlaybackAccountCookieJar(account))
+            .build()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://api.bilibili.com/")
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+        playbackAccountApi = retrofit.create(BilibiliApi::class.java)
+        playbackAccountBangumiApi = retrofit.create(BangumiApi::class.java)
+        playbackAccountKey = key
     }
 
     private val json = Json {

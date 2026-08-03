@@ -82,9 +82,12 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     val accounts = _accounts.asStateFlow()
     private val _activeAccountMid = MutableStateFlow<Long?>(null)
     val activeAccountMid = _activeAccountMid.asStateFlow()
+    private val _playbackAccountMid = MutableStateFlow<Long?>(null)
+    val playbackAccountMid = _playbackAccountMid.asStateFlow()
     private var hasLoadedProfileOnce = false
     private var isProfileLoadInFlight = false
     private var profileLoadGeneration = 0L
+    private var currentProfileWbiImg: WbiImg? = null
 
     init {
         refreshSavedAccounts()
@@ -94,6 +97,16 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         val context = getApplication<Application>()
         _accounts.value = AccountSessionStore.getAccounts(context)
         _activeAccountMid.value = AccountSessionStore.getActiveAccountMid(context)
+        _playbackAccountMid.value = AccountSessionStore.getPlaybackAccountMid(context)
+    }
+
+    fun setPlaybackAccount(mid: Long?, onSuccess: () -> Unit, onFailure: (String) -> Unit) {
+        if (AccountSessionStore.setPlaybackAccountMid(getApplication(), mid)) {
+            refreshSavedAccounts()
+            onSuccess()
+        } else {
+            onFailure("播放账号不可用，请重新登录后再试")
+        }
     }
 
     fun loadProfile(force: Boolean = false) {
@@ -139,6 +152,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                 return
             }
             showProfileIdentity(generation, data, customBgUri)
+            currentProfileWbiImg = data.wbi_img
             profileRequestOrNull { persistProfileSession(data) }
             loadProfileEnrichment(generation, data.mid, data.wbi_img)
         } catch (e: CancellationException) {
@@ -178,8 +192,14 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = ProfileUiState.Success(
             user = user,
             favoriteFolders = cached?.favoriteFolders.orEmpty(),
-            space = cached?.space?.copy(isLoading = true, message = null)
-                ?: ProfileSpaceUiState(isLoading = true),
+            space = cached?.space?.copy(
+                isLoading = true,
+                message = null,
+                contributionLoadState = ProfileContributionLoadState.LOADING
+            ) ?: ProfileSpaceUiState(
+                isLoading = true,
+                contributionLoadState = ProfileContributionLoadState.LOADING
+            ),
             editableAccount = cached?.editableAccount
                 ?: resolveProfileEditableAccountState(account = null, user = user)
         )
@@ -203,7 +223,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     launch { loadProfileStats(generation, mid) },
                     launch { loadProfileAccount(generation, mid) },
                     launch { loadProfileSpaceInfo(generation, mid, wbiImg) },
-                    launch { loadProfileAggregate(generation, mid, wbiImg) },
+                    launch { loadProfileAggregate(generation, mid) },
+                    launch { loadProfileContributions(generation, mid, wbiImg) },
                     launch { loadProfileFavoriteFolders(generation, mid) },
                     launch { loadProfileBangumi(generation, mid) },
                     launch { loadProfileDynamics(generation, mid) }
@@ -259,7 +280,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private suspend fun loadProfileAggregate(generation: Long, mid: Long, wbiImg: WbiImg?) {
+    private suspend fun loadProfileAggregate(generation: Long, mid: Long) {
         val aggregate = profileRequestOrNull {
             NetworkModule.spaceApi.getSpaceAggregate(mid).data
         } ?: return
@@ -275,29 +296,33 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                 )
             )
         }
-        hydrateProfileContributionVideos(generation, mid, wbiImg)
     }
 
-    private suspend fun hydrateProfileContributionVideos(
+    private suspend fun loadProfileContributions(
         generation: Long,
         mid: Long,
         wbiImg: WbiImg?
     ) {
-        val current = _uiState.value as? ProfileUiState.Success ?: return
-        if (!shouldApplyProfileLoadResult(generation, profileLoadGeneration, mid, current.user.mid)) {
-            return
-        }
-        if (
-            !shouldHydrateProfileContributionVideos(
-                contributionVideoCount = current.space.contributionVideoCount,
-                seededVideoCount = current.space.contributionVideos.size
+        updateProfileSuccess(generation, mid) { current ->
+            current.copy(
+                space = current.space.copy(
+                    contributionLoadState = ProfileContributionLoadState.LOADING
+                )
             )
-        ) {
-            return
         }
         val videos = profileRequestOrNull {
             fetchProfileContributionVideos(mid, wbiImg)
-        } ?: return
+        }
+        if (videos == null) {
+            updateProfileSuccess(generation, mid) { current ->
+                current.copy(
+                    space = current.space.copy(
+                        contributionLoadState = ProfileContributionLoadState.ERROR
+                    )
+                )
+            }
+            return
+        }
         updateProfileSuccess(generation, mid) { latest ->
             latest.copy(
                 space = mergeProfileContributionVideoState(
@@ -305,6 +330,18 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     videos = videos.first,
                     totalCount = videos.second
                 )
+            )
+        }
+    }
+
+    fun retryProfileContributions() {
+        val current = _uiState.value as? ProfileUiState.Success ?: return
+        val generation = profileLoadGeneration
+        viewModelScope.launch {
+            loadProfileContributions(
+                generation = generation,
+                mid = current.user.mid,
+                wbiImg = currentProfileWbiImg
             )
         }
     }

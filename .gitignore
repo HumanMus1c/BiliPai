@@ -100,3 +100,7 @@ docs/*
 !docs/wiki/
 !docs/wiki/*.md
 .omx/
+
+# Local Reasonix session settings and metadata
+.reasonix/
+reasonix.toml

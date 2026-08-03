@@ -89,6 +89,8 @@ import top.yukonga.miuix.kmp.preference.ArrowPreference as MiuixArrowPreference
 import top.yukonga.miuix.kmp.preference.SliderPreference as MiuixSliderPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference as MiuixSwitchPreference
 import top.yukonga.miuix.kmp.basic.InputField
+import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults as MiuixTextFieldDefaults
 import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.max
@@ -1827,14 +1829,22 @@ fun AdaptiveTextFieldRenderer(
     val androidNativeVariant = LocalAndroidNativeVariant.current
     if (shouldUseNativeMiuixSearchBar(uiPreset, androidNativeVariant)) {
         Column(modifier = modifier.fillMaxWidth()) {
-            InputField(
-                query = value,
-                onQueryChange = onValueChange,
-                onSearch = {},
-                expanded = true,
-                onExpandedChange = {},
+            MiuixTextField(
+                value = value,
+                onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth(),
                 label = label ?: placeholder.orEmpty(),
+                useLabelAsPlaceholder = label == null,
+                singleLine = singleLine,
+                minLines = minLines,
+                maxLines = maxLines,
+                colors = MiuixTextFieldDefaults.textFieldColors(
+                    borderColor = if (isError) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MiuixTheme.colorScheme.primary
+                    },
+                ),
             )
             supportingText?.invoke()
         }

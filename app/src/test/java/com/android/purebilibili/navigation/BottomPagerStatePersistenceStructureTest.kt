@@ -32,17 +32,29 @@ class BottomPagerStatePersistenceStructureTest {
     }
 
     @Test
-    fun `main bottom pager switches content without page motion`() {
+    fun `ordinary bottom tab selection keeps its existing page motion path`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/MainBottomPagerState.kt")
         val switchNavigationSource = source
             .substringAfter("fun switchToPage(")
-            .substringBefore("fun syncPage(")
+            .substringBefore("Applies the system predictive-back progress")
 
         assertTrue(source.contains("navigationStartPage"))
         assertTrue(switchNavigationSource.contains("pagerState.scrollToPage(safeTargetIndex)"))
-        assertFalse(source.contains("pagerState.animateScrollBy("))
-        assertFalse(source.contains("pagerState.animateScrollToPage("))
+        assertTrue(switchNavigationSource.contains("animatePageChange(safeTargetIndex)"))
+        assertFalse(switchNavigationSource.contains("pagerState.animateScrollBy("))
+        assertFalse(switchNavigationSource.contains("pagerState.animateScrollToPage("))
         assertFalse(switchNavigationSource.contains("tween("))
+    }
+
+    @Test
+    fun `predictive tab return drives pager progress and settles only the remainder`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/MainBottomPagerState.kt")
+
+        assertTrue(source.contains("suspend fun seekPredictiveReturnToPage("))
+        assertTrue(source.contains("pagerState.scroll(scrollPriority = MutatePriority.UserInput)"))
+        assertTrue(source.contains("scrollBy(deltaPx)"))
+        assertTrue(source.contains("progressDistance = 1f - session.lastProgress"))
+        assertTrue(source.contains("progressDistance = session.lastProgress"))
     }
 
     @Test

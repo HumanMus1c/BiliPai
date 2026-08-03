@@ -19,14 +19,16 @@ import com.android.purebilibili.core.ui.adaptive.MotionTier
  * 源卡 sharedBounds Enter 延后淡入比例（遗留字段）。
  *
  * **当前策略：始终 0 / 不延后整壳 Enter。**
- * 封面在列表位全程待命；标题/UP 仅靠 [VIDEO_CARD_RETURN_CHROME_REVEAL_START]。
+ * 封面资源在列表位全程待命；实际像素由
+ * [resolveVideoCardLiveReturnVisualHandoffAlpha] 在返回末段交接。
  * 整壳 delayed fadeIn 会在 overlay 卸层瞬间与封面二次叠化，是落位闪烁主因。
  */
 internal const val VIDEO_CARD_RETURN_SOURCE_ENTER_FADE_DELAY_RATIO = 0f
 
 /**
  * 源卡 chrome（标题/UP）在返回 settle 进度上的淡入起点。
- * live 正文在此点起让位；封面始终可见，与实时画面/稳定封面共存。
+ * live 正文在此点起让位。该字段保留给详情页次要 chrome；来源卡像素改由
+ * [resolveVideoCardLiveReturnVisualHandoffAlpha] 控制。
  */
 internal object VideoCardTransitionVisualTimeline {
     const val DETAIL_CHROME_ENTER_START = 0.18f
@@ -49,6 +51,26 @@ internal const val VIDEO_CARD_RETURN_CHROME_REVEAL_START =
 internal const val VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_START = 0f
 internal const val VIDEO_CARD_RETURN_LIVE_CONTENT_YIELD_END =
     VideoCardTransitionVisualTimeline.DETAIL_CONTENT_RETURN_END
+
+/**
+ * 实时画面缩回时，详情/来源卡常驻封面开始接管的落位进度。
+ * 0 = 刚开始从详情缩回，1 = 已回到来源卡。
+ */
+internal const val VIDEO_CARD_LIVE_RETURN_VISUAL_HANDOFF_START = 0.88f
+
+/**
+ * live surface → 常驻封面/来源卡视觉的唯一交接 alpha。
+ *
+ * 资源可以全程驻留，但在实时画面主导阶段必须保持透明；否则列表封面会与 player
+ * surface 叠层。详情侧 resident cover、首页封面和来源卡 chrome 都必须使用此值。
+ */
+internal fun resolveVideoCardLiveReturnVisualHandoffAlpha(
+    morphDepthProgress: Float,
+): Float {
+    val settle = resolveVideoCardReturnSettleFromMorphDepth(morphDepthProgress)
+    return ((settle - VIDEO_CARD_LIVE_RETURN_VISUAL_HANDOFF_START) /
+        (1f - VIDEO_CARD_LIVE_RETURN_VISUAL_HANDOFF_START)).coerceIn(0f, 1f)
+}
 
 internal data class VideoCardSecondaryContentVisualFrame(
     val alpha: Float,
@@ -144,14 +166,12 @@ internal enum class VideoCardReturnCoverOwnership {
 }
 
 /**
- * 列表源卡在返回落位期间的封面契约。
- * 保证：始终有一层像素在卡片位待命，且 URL 不在卸层瞬间重建。
+ * 列表源卡在返回落位期间的封面资源契约。
+ * 保证：请求与缓存始终待命，且 URL 不在卸层瞬间重建；像素可见性另由 live handoff 决定。
  */
 internal data class VideoCardReturnListCoverContract(
     val pinCoverSource: Boolean,
     val enableCoilCrossfade: Boolean,
-    /** 始终 false：列表封面在 overlay 下待命，避免卸层露 surfaceVariant */
-    val hideCoverDuringShellMorph: Boolean,
 )
 
 /**
@@ -496,7 +516,7 @@ internal fun isVideoCardLiveReturnMorphOwnership(
 ): Boolean = ownership == VideoCardReturnCoverOwnership.LIVE_SURFACE
 
 /**
- * 列表源卡封面契约：pin 源、关 crossfade、不藏封面。
+ * 列表源卡封面资源契约：pin 源、关 crossfade；可见 alpha 由 live handoff 统一裁决。
  */
 internal fun resolveVideoCardReturnListCoverContract(
     isSharedReturnTarget: Boolean,
@@ -514,7 +534,6 @@ internal fun resolveVideoCardReturnListCoverContract(
     return VideoCardReturnListCoverContract(
         pinCoverSource = pin,
         enableCoilCrossfade = crossfade,
-        hideCoverDuringShellMorph = false,
     )
 }
 

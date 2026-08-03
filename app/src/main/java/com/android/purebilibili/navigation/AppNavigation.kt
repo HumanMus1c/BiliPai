@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect // 新增
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -51,6 +52,7 @@ import com.android.purebilibili.feature.home.shouldExposeGlobalHomeWallpaperChro
 import com.android.purebilibili.feature.home.shouldRenderGlobalHomeWallpaperBackdrop
 import com.android.purebilibili.feature.login.LoginScreen
 import com.android.purebilibili.feature.profile.ProfileScreen
+import com.android.purebilibili.feature.profile.AccountSwitchDialog
 import com.android.purebilibili.feature.search.ArticleNavigationTarget
 import com.android.purebilibili.feature.search.resolveArticleNavigationTarget
 import com.android.purebilibili.feature.search.SearchEntryMotionSource
@@ -90,6 +92,9 @@ import com.android.purebilibili.feature.dynamic.LocalDynamicScrollChannel
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewOverlayHost
 import com.android.purebilibili.feature.live.shouldStopLivePlaybackOnRouteDispose
 import com.android.purebilibili.core.util.CardPositionManager
+import com.android.purebilibili.core.util.HomeCoverReturnPrefetchRegistry
+import com.android.purebilibili.core.util.prefetchHomeCoverImages
+import com.android.purebilibili.core.util.resolveHomeCoverReturnPrefetchCandidates
 import com.android.purebilibili.core.util.BilibiliNavigationTarget
 import com.android.purebilibili.core.util.BilibiliNavigationTargetParser
 import com.android.purebilibili.resolveShortcutRoute
@@ -157,6 +162,7 @@ import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisi
 import com.android.purebilibili.feature.home.components.rememberBottomBarUiSkinDecoration
 import com.android.purebilibili.feature.profile.shouldShowProfileHistoryService
 import com.android.purebilibili.core.store.AppNavigationSettings
+import com.android.purebilibili.core.store.AccountSessionStore
 import com.android.purebilibili.core.store.HomeWallpaperEffectScope
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.navigation.NavigationSettingsStore
@@ -539,6 +545,26 @@ fun AppNavigation(
         val appNavigationSettings by SettingsManager.getAppNavigationSettings(context).collectAsStateWithLifecycle(initialValue = AppNavigationSettings(),
             context = kotlin.coroutines.EmptyCoroutineContext
         )
+        var sidebarAccountSwitcherVisible by rememberSaveable { mutableStateOf(false) }
+        var sidebarAccountSessionGeneration by remember { mutableIntStateOf(0) }
+        val sidebarAccounts = remember(
+            accountSessionRefreshGeneration,
+            sidebarAccountSessionGeneration,
+        ) {
+            AccountSessionStore.getAccounts(context)
+        }
+        val sidebarActiveAccountMid = remember(
+            accountSessionRefreshGeneration,
+            sidebarAccountSessionGeneration,
+        ) {
+            AccountSessionStore.getActiveAccountMid(context)
+        }
+        val sidebarPlaybackAccountMid = remember(
+            accountSessionRefreshGeneration,
+            sidebarAccountSessionGeneration,
+        ) {
+            AccountSessionStore.getPlaybackAccountMid(context)
+        }
         val playerInteractionSettings by SettingsManager.getPlayerInteractionSettings(context)
             .collectAsStateWithLifecycle(
                 initialValue = com.android.purebilibili.core.store.PlayerInteractionSettings(),
@@ -659,15 +685,31 @@ fun AppNavigation(
             cardFullyVisible = CardPositionManager.isCardFullyVisible,
             isSingleColumnCard = CardPositionManager.isSingleColumnCard,
         )
+        var lastVideoDetailOpenId by remember { mutableLongStateOf(0L) }
         fun pushNavigation3KeyDirect(key: BiliPaiNavKey) {
-            navigation3BackStack = when (key) {
+            val sessionScopedKey = when (key) {
+                is BiliPaiNavKey.VideoDetail -> {
+                    if (key.openId > 0L) {
+                        key
+                    } else {
+                        val nextOpenId = maxOf(
+                            SystemClock.uptimeMillis(),
+                            lastVideoDetailOpenId + 1L,
+                        )
+                        lastVideoDetailOpenId = nextOpenId
+                        key.copy(openId = nextOpenId)
+                    }
+                }
+                else -> key
+            }
+            navigation3BackStack = when (sessionScopedKey) {
                 is BiliPaiNavKey.SettingsCategory -> pushOrReplaceSettingsCategoryNavKey(
                     currentStack = navigation3BackStack,
-                    key = key,
+                    key = sessionScopedKey,
                 )
                 else -> pushBiliPaiNavKey(
                     currentStack = navigation3BackStack,
-                    key = key,
+                    key = sessionScopedKey,
                 )
             }
         }
@@ -1077,8 +1119,29 @@ fun AppNavigation(
             )
         }
         val predictiveBackEnabled = appNavigationSettings.predictiveBackEnabled
-        val predictiveBackAnimationStyle = BiliPaiPredictiveBackAnimationStyle.DEFAULT
-        val predictiveBackExitDirection = "auto"
+        // 返回封面预热：每次进入详情(栈顶 key 变化)重置一次，预测手势首帧 / 返回提交
+        // 各触发一次。Coil 对相同 cacheKey 幂等，重复调用无网络开销。
+        val homeCoverPrefetchTriggered = remember(currentNavigation3Key) {
+            mutableStateOf(false)
+        }
+        fun maybePrefetchHomeCoversForVideoReturn() {
+            if (homeCoverPrefetchTriggered.value) return
+            homeCoverPrefetchTriggered.value = true
+            val sourceBvid = (currentNavigation3Key as? BiliPaiNavKey.VideoDetail)?.bvid
+            val candidates = resolveHomeCoverReturnPrefetchCandidates(
+                visibleEntries = HomeCoverReturnPrefetchRegistry.snapshot(),
+                sourceBvid = sourceBvid,
+            )
+            prefetchHomeCoverImages(context = context, entries = candidates)
+        }
+        // 预测返回样式/方向从设置读取。style 为 legacy 存储值(默认 "scale"),
+        // 经 fromStorageValue 归一化后由策略层按 routeTransition 分发,不再改变 handler 选择;
+        // exitDirection 默认 "auto" 时走 autoDerived(卡片来源方向),显式值(follow_gesture /
+        // always_left / always_right)直接覆盖。
+        val predictiveBackAnimationStyle = BiliPaiPredictiveBackAnimationStyle.fromStorageValue(
+            appNavigationSettings.predictiveBackAnimationStyle,
+        )
+        val predictiveBackExitDirection = appNavigationSettings.predictiveBackExitDirection
         val shouldInterceptTabBack = backGestureDecision.interceptSystemBack
         val isVideoDetailDestination = isVideoDetailRoute(currentRoute)
         val bottomBarMountRoute = if (isVideoDetailDestination) {
@@ -1394,27 +1457,6 @@ fun AppNavigation(
         // Capture the wallpaper and navigation content together so transparent wallpaper-aware
         // pages feed the same background into the floating dock as Home.
         val bottomBarBackdrop = rememberMiuixLayerBackdrop()
-        // Wallpaper-only Haze source for card badge frosted glass. Must stay separate from
-        // mainHazeState: badges live inside the main content source tree, and reusing that
-        // state for hazeEffect causes HWUI prepareTree stack overflow.
-        //
-        // 条件挂载：这个 state 只有卡片角标实时模糊 / 信息区实时模糊两个消费者，
-        // 两者默认都关闭。为 null 时，本文件与 HomeScreen 里的两处 hazeSourceCompat
-        // 会一并跳过——默认档因此省掉两层全屏 record。判定见
-        // HomeWallpaperHazeSourcePolicy。
-        val wallpaperHazeSourceEnabled = com.android.purebilibili.feature.home
-            .shouldMountWallpaperHazeSource(
-                badgeEffectMode = effectiveHomeSettings.homeCardBadgeEffectMode,
-                infoGlassMode = effectiveHomeSettings.homeCardInfoGlassMode
-            )
-        val wallpaperHazeState = if (mainHazeState != null && wallpaperHazeSourceEnabled) {
-            com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState(
-                initialBlurEnabled = true
-            )
-        } else {
-            null
-        }
-
         CompositionLocalProvider(
             LocalSetBottomBarVisible provides setBottomBarVisible,
             LocalBottomBarVisible provides finalBottomBarVisible,
@@ -1422,7 +1464,8 @@ fun AppNavigation(
             LocalGlobalWallpaperBackdropVisible provides exposeGlobalHomeWallpaperChrome,
             LocalPredictiveBackGestureEnabled provides predictiveBackEnabled,
             com.android.purebilibili.core.ui.LocalMainHazeState provides mainHazeState,
-            com.android.purebilibili.core.ui.LocalWallpaperHazeState provides wallpaperHazeState,
+            // 卡片标签 / 信息区实时玻璃效果已下线，不再为首页建立额外 Haze 录制树。
+            com.android.purebilibili.core.ui.LocalWallpaperHazeState provides null,
             com.android.purebilibili.feature.home.LocalHomeScrollChannel provides homeScrollChannel,
             LocalDynamicScrollChannel provides dynamicScrollChannel,
             com.android.purebilibili.feature.home.LocalHomeScrollOffset provides scrollOffsetState,
@@ -1489,6 +1532,49 @@ fun AppNavigation(
                     AppSystemBackAction.FINISH_ACTIVITY -> context.findActivity()?.finish()
                 }
             }
+            if (sidebarAccountSwitcherVisible) {
+                AccountSwitchDialog(
+                    accounts = sidebarAccounts,
+                    activeAccountMid = sidebarActiveAccountMid,
+                    playbackAccountMid = sidebarPlaybackAccountMid,
+                    onDismiss = { sidebarAccountSwitcherVisible = false },
+                    onAddAccount = {
+                        sidebarAccountSwitcherVisible = false
+                        pushNavigation3Key(BiliPaiNavKey.Login)
+                    },
+                    onSwitch = { mid ->
+                        coroutineScope.launch {
+                            if (!AccountSessionStore.activateAccount(context, mid)) {
+                                Toast.makeText(context, "切换账号失败", Toast.LENGTH_SHORT).show()
+                                return@launch
+                            }
+                            sidebarAccountSessionGeneration += 1
+                            accountSessionRefreshGeneration += 1
+                            homeViewModel.refresh()
+                            sidebarAccountSwitcherVisible = false
+                            Toast.makeText(context, "已切换账号", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onSetPlayback = { mid ->
+                        if (AccountSessionStore.setPlaybackAccountMid(context, mid)) {
+                            sidebarAccountSessionGeneration += 1
+                        } else {
+                            Toast.makeText(context, "播放账号不可用，请重新登录后再试", Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                    },
+                    onRemove = { mid ->
+                        if (mid == sidebarActiveAccountMid) {
+                            Toast.makeText(context, "请先切换到其他账号后再移除当前账号", Toast.LENGTH_SHORT)
+                                .show()
+                        } else if (AccountSessionStore.removeAccount(context, mid)) {
+                            sidebarAccountSessionGeneration += 1
+                        } else {
+                            Toast.makeText(context, "移除账号失败", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                )
+            }
             Box(modifier = Modifier.fillMaxSize()) {
             Row(modifier = Modifier.fillMaxSize()) {
                 if (windowSizeClass.shouldUseSideNavigation && isBottomBarDestination) {
@@ -1517,7 +1603,14 @@ fun AppNavigation(
                                 coroutineScope.launch {
                                     SettingsManager.setTabletUseSidebar(context, false)
                                 }
-                            }
+                            },
+                            onAccountSwitchClick = if (
+                                appNavigationSettings.sidebarAccountSwitcherEnabled
+                            ) {
+                                { sidebarAccountSwitcherVisible = true }
+                            } else {
+                                null
+                            },
                         )
                     }
                 }
@@ -1538,38 +1631,23 @@ fun AppNavigation(
                         // 必须添加 hazeSource，否则底栏的 hazeEffect 无法获取背景内容，导致模糊失效
                         .then(if (mainHazeState != null) Modifier.hazeSourceCompat(mainHazeState) else Modifier)
                 ) {
-                    // Wallpaper-only source for card badge realtime blur (not nested under
-                    // the badge effect). Bottom bar still samples via mainHazeState above.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(
-                                if (wallpaperHazeState != null) {
-                                    Modifier.hazeSourceCompat(wallpaperHazeState)
-                                } else {
-                                    Modifier
-                                }
-                            )
-                    ) {
-                        DepthSyncedGlobalHomeWallpaperBackdrop(
-                            wallpaperUri = globalHomeWallpaperUri,
-                            appearance = globalHomeWallpaperAppearance,
-                            baseColor = backgroundColor,
-                            depthProgressProvider = {
-                                videoCardTransitionClock.depthProgress()
-                            },
-                            depthPhaseProvider = {
-                                videoCardTransitionClock.phase
-                            },
-                            depthGestureRestoreProvider = {
-                                videoCardTransitionClock.gestureRestoreInProgress
-                            },
-                            isDataSaverActive = isDataSaverActiveForGlobalWallpaper,
-                            isLightBackground = isLightBackground,
-                            // Transition depth blur is independent of badge haze sampling.
-                            realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
-                        )
-                    }
+                    DepthSyncedGlobalHomeWallpaperBackdrop(
+                        wallpaperUri = globalHomeWallpaperUri,
+                        appearance = globalHomeWallpaperAppearance,
+                        baseColor = backgroundColor,
+                        depthProgressProvider = {
+                            videoCardTransitionClock.depthProgress()
+                        },
+                        depthPhaseProvider = {
+                            videoCardTransitionClock.phase
+                        },
+                        depthGestureRestoreProvider = {
+                            videoCardTransitionClock.gestureRestoreInProgress
+                        },
+                        isDataSaverActive = isDataSaverActiveForGlobalWallpaper,
+                        isLightBackground = isLightBackground,
+                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
+                    )
                 fun bottomPagerNavKeyForItem(item: BottomNavItem): BiliPaiNavKey {
                     return when (item) {
                         BottomNavItem.HOME -> BiliPaiNavKey.Home
@@ -1582,6 +1660,7 @@ fun AppNavigation(
                         BottomNavItem.LIVE -> BiliPaiNavKey.LiveList
                         BottomNavItem.WATCHLATER -> BiliPaiNavKey.WatchLater
                         BottomNavItem.SETTINGS -> BiliPaiNavKey.Settings
+                        BottomNavItem.PLUGINS -> BiliPaiNavKey.PluginsSettings()
                     }
                 }
 
@@ -1763,7 +1842,15 @@ fun AppNavigation(
                                         homeViewModel.refresh()
                                     }
                                 },
+                                onAccountSwitchClick = if (
+                                    appNavigationSettings.sidebarAccountSwitcherEnabled
+                                ) {
+                                    { sidebarAccountSwitcherVisible = true }
+                                } else {
+                                    null
+                                },
                                 onSettingsClick = { pushNavigation3Route(ScreenRoutes.Settings.route) },
+                                onPluginsClick = { pushNavigation3Key(BiliPaiNavKey.PluginsSettings()) },
                                 onDynamicClick = { pushNavigation3Route(ScreenRoutes.Dynamic.route) },
                                 onHistoryClick = { pushNavigation3Route(ScreenRoutes.History.route) },
                                 onPartitionClick = { pushNavigation3Key(BiliPaiNavKey.Partition) },
@@ -3133,6 +3220,12 @@ fun AppNavigation(
                     sourceMetadata = navigation3SourceMetadata,
                     programmaticBackDispatcher = navigation3ProgrammaticBackDispatcher,
                     onBack = { performSystemBackAction() },
+                    onNativeVideoBackProgress = { _, _, progress ->
+                        // 手势首帧即预热首页封面，为松手落位争取网络/磁盘加载时间。
+                        if (progress > 0f) {
+                            maybePrefetchHomeCoversForVideoReturn()
+                        }
+                    },
                     onNativeVideoBackCancelled = { currentKey, targetKey ->
                         if (shouldRecoverVideoPlayerAfterBackCancellation(currentKey, targetKey)) {
                             predictiveBackCancelRecoveryGeneration += 1
@@ -3142,6 +3235,8 @@ fun AppNavigation(
                     // 预测返回始终预览实时画面（一镜到底）；不再提供「封面整体落位」开关。
                     preferWholeCardReturn = false,
                     onPrepareVideoCardSharedReturn = {
+                        // 普通返回(顶部按钮/系统手势提交)兜底预热。
+                        maybePrefetchHomeCoversForVideoReturn()
                         val previousKey =
                             navigation3BackStack.getOrNull(navigation3BackStack.lastIndex - 1)
                         markNavigation3VideoReturnBeforeBackAction(targetKey = previousKey)
@@ -3257,6 +3352,20 @@ fun AppNavigation(
 
             MainHostTabBackHandler(
                 enabled = shouldInterceptTabBack,
+                onPredictiveProgress = { progress ->
+                    val homeIndex = visibleBottomBarItems.indexOf(BottomNavItem.HOME)
+                    if (homeIndex >= 0) {
+                        mainBottomPagerState.seekPredictiveReturnToPage(
+                            targetIndex = homeIndex,
+                            progress = progress,
+                        )
+                    }
+                },
+                onPredictiveCancelled = mainBottomPagerState::cancelPredictiveReturn,
+                onPredictiveCompleted = {
+                    val homeIndex = visibleBottomBarItems.indexOf(BottomNavItem.HOME)
+                    homeIndex >= 0 && mainBottomPagerState.commitPredictiveReturnToPage(homeIndex)
+                },
                 onReturnToHomeTab = {
                     val homeIndex = visibleBottomBarItems.indexOf(BottomNavItem.HOME)
                     if (homeIndex >= 0) {

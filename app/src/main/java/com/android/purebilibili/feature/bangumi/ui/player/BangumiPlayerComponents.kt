@@ -51,7 +51,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
-import androidx.media3.common.PlaybackParameters
 import androidx.media3.ui.PlayerView
 import com.android.purebilibili.core.plugin.PluginManager
 import com.android.purebilibili.data.model.response.Page
@@ -60,6 +59,7 @@ import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.feature.anime4k.Anime4KConfig
 import com.android.purebilibili.feature.anime4k.gl.Anime4KGLSurfaceView
 import com.android.purebilibili.feature.anime4k.isAnime4KGles3Available
+import com.android.purebilibili.feature.anime4k.resolveInitialVideoEnhancementEnabled
 import com.android.purebilibili.feature.anime4k.resolveAnime4KOutputDecision
 import com.android.purebilibili.feature.video.danmaku.DanmakuManager
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
@@ -74,6 +74,8 @@ import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelKind
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlaySpec
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle
 import com.android.purebilibili.feature.video.ui.overlay.PlaybackDebugInfo
+import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
+import com.android.purebilibili.feature.video.ui.section.resolveLongPressPlaybackParameters
 import com.android.purebilibili.feature.video.ui.section.VideoOutputRouter
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import com.android.purebilibili.feature.video.ui.section.resolveSystemStreamVolumeFromGesture
@@ -124,6 +126,10 @@ fun BangumiPlayerView(
     isLoggedIn: Boolean = false,
     isVip: Boolean = false,
     onQualityChange: (Int) -> Unit = {},
+    requestedAudioQuality: Int = -1,
+    selectedAudioQuality: Int = -1,
+    availableAudioQualities: List<AudioQualityOption> = emptyList(),
+    onAudioQualityChange: (Int) -> Unit = {},
     onBack: () -> Unit,
     onToggleFullscreen: () -> Unit,
     sponsorSegment: SponsorSegment? = null,
@@ -194,19 +200,32 @@ fun BangumiPlayerView(
     var anime4kInputSurface by remember(exoPlayer) { mutableStateOf<Surface?>(null) }
     var anime4kDisplayedFirstFrame by remember(currentVideoUrl, exoPlayer) { mutableStateOf(false) }
     var anime4kSurfaceViewRef by remember(exoPlayer) { mutableStateOf<Anime4KGLSurfaceView?>(null) }
+    var videoEnhancementSessionOverride by remember(currentVideoUrl, exoPlayer) {
+        mutableStateOf<Boolean?>(null)
+    }
+    val videoEnhancementSessionRequested = videoEnhancementSessionOverride
+        ?: resolveInitialVideoEnhancementEnabled(
+            pluginEnabled = anime4kPluginInfo?.enabled == true,
+            config = anime4kConfig
+        )
+    val videoEnhancementEnabled = anime4kPluginInfo?.enabled == true &&
+        videoEnhancementSessionRequested
+    LaunchedEffect(anime4kConfig.algorithm) {
+        anime4kPipelineFailed = false
+    }
     var videoInputFormat by remember(exoPlayer) { mutableStateOf<Format?>(null) }
     var videoSizeState by remember(exoPlayer) {
         mutableStateOf(exoPlayer.videoSize.let { it.width to it.height })
     }
     val anime4kOutputDecision = remember(
-        anime4kPluginInfo?.enabled,
+        videoEnhancementEnabled,
         anime4kGlesAvailable,
         anime4kPipelineFailed,
         videoInputFormat,
         lifecycleState
     ) {
         resolveAnime4KOutputDecision(
-            pluginEnabled = anime4kPluginInfo?.enabled == true,
+            pluginEnabled = videoEnhancementEnabled,
             glAvailable = anime4kGlesAvailable && !anime4kPipelineFailed,
             colorTransfer = videoInputFormat?.colorInfo?.colorTransfer ?: 0,
             sampleMimeType = videoInputFormat?.sampleMimeType,
@@ -318,12 +337,15 @@ fun BangumiPlayerView(
     Box(
         modifier = modifier
             .background(Color.Black)
-            .pointerInput(isScreenLocked, longPressSpeed, exoPlayer) {
+            .pointerInput(isScreenLocked, longPressSpeed, requestedAudioQuality, exoPlayer) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
                         if (isScreenLocked) return@detectDragGesturesAfterLongPress
                         longPressOriginalPlaybackParameters = exoPlayer.playbackParameters
-                        exoPlayer.playbackParameters = PlaybackParameters(longPressSpeed)
+                        exoPlayer.playbackParameters = resolveLongPressPlaybackParameters(
+                            requestedSpeed = longPressSpeed,
+                            currentAudioQuality = requestedAudioQuality
+                        )
                     },
                     onDragEnd = {
                         exoPlayer.playbackParameters = longPressOriginalPlaybackParameters
@@ -460,7 +482,9 @@ fun BangumiPlayerView(
                     android.util.Log.w("BangumiPlayer", "🎬 PlayerView FACTORY: creating new view, player=${exoPlayer.hashCode()}, isFullscreen=$isFullscreen")
                     PlayerView(ctx).apply {
                         playerViewRef = this
-                        player = null
+                        // 普通直出必须显式绑定 player，否则未启用 Anime4K 时无视频输出
+                        //（只有音频）。Anime4K 启用后由 VideoOutputRouter 主动解除本绑定并接管 surface。
+                        player = exoPlayer
                         useController = false
                         keepScreenOn = true
                         resizeMode = currentAspectRatio.playerResizeMode
@@ -472,6 +496,11 @@ fun BangumiPlayerView(
                     playerViewRef = view
                     view.resizeMode = currentAspectRatio.playerResizeMode
                     view.visibility = if (anime4kFrameVisible) View.INVISIBLE else View.VISIBLE
+                    // MediaSource/Player 变化后确保直出绑定仍与播放器同步；
+                    // Anime4K 接管期间不抢回绑定，避免与路由争抢 Surface。
+                    if (view.player !== exoPlayer && !shouldRenderAnime4kPipeline) {
+                        view.player = exoPlayer
+                    }
                 },
                 modifier = with(density) {
                     Modifier.requiredSize(
@@ -606,6 +635,11 @@ fun BangumiPlayerView(
             isLoggedIn = isLoggedIn,
             isVip = isVip,
             onQualityChange = onQualityChange,
+            requestedAudioQuality = requestedAudioQuality,
+            selectedAudioQuality = selectedAudioQuality,
+            availableAudioQualities = availableAudioQualities,
+            onAudioQualityChange = onAudioQualityChange,
+            onPlaybackSpeedChange = onSpeedChange,
             onBack = onBack,
             onToggleFullscreen = onToggleFullscreen,
             danmakuEnabled = danmakuEnabled,
@@ -651,18 +685,30 @@ fun BangumiPlayerView(
                 }
             },
             onReloadVideo = onReloadVideo,
-            anime4kEnabled = anime4kPluginInfo?.enabled == true,
+            anime4kEnabled = videoEnhancementEnabled,
             anime4kAvailable = anime4kGlesAvailable,
             anime4kBypassReason = anime4kBypassReason,
+            videoEnhancementAlgorithm = anime4kConfig.algorithm,
             anime4kPreset = anime4kConfig.preset,
+            fsrSharpness = anime4kConfig.fsrSharpness,
             onAnime4kToggle = { enabled ->
                 anime4kPipelineFailed = false
+                videoEnhancementSessionOverride = enabled
                 scope.launch {
-                    PluginManager.setEnabled(Anime4KPlugin.PLUGIN_ID, enabled)
+                    if (enabled && anime4kPluginInfo?.enabled != true) {
+                        PluginManager.setEnabled(Anime4KPlugin.PLUGIN_ID, true)
+                    }
+                    Anime4KPlugin.getInstance()?.rememberCurrentVideoEnabled(enabled)
                 }
+            },
+            onVideoEnhancementAlgorithmChange = { algorithm ->
+                anime4kPlugin?.setAlgorithm(algorithm)
             },
             onAnime4kPresetChange = { preset ->
                 anime4kPlugin?.setPreset(preset)
+            },
+            onFsrSharpnessChange = { sharpness ->
+                anime4kPlugin?.setFsrSharpness(sharpness)
             },
             onShowMessage = onShowMessage
         )
