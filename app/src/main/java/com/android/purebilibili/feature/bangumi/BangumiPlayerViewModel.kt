@@ -403,7 +403,8 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                     dash = dash,
                     requestedAudioQuality = requestedAudioQuality,
                     playbackSpeed = exoPlayer?.playbackParameters?.speed ?: 1.0f,
-                    isDolbyAudioSupported = MediaUtils.isDolbyAtmosAudioSupported()
+                    isDolbyAudioSupported = MediaUtils.isDolbyAtmosAudioSupported(),
+                    isDolbyAudioSoftwareDecoded = MediaUtils.isDolbySoftwareAudioDecoderRequired()
                 )
             }
             
@@ -634,7 +635,8 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
                         dash = it,
                         requestedAudioQuality = currentState.requestedAudioQuality,
                         playbackSpeed = exoPlayer?.playbackParameters?.speed ?: 1.0f,
-                        isDolbyAudioSupported = MediaUtils.isDolbyAtmosAudioSupported()
+                        isDolbyAudioSupported = MediaUtils.isDolbyAtmosAudioSupported(),
+                        isDolbyAudioSoftwareDecoded = MediaUtils.isDolbySoftwareAudioDecoderRequired()
                     )
                 }
                 
@@ -739,7 +741,8 @@ class BangumiPlayerViewModel : BasePlayerViewModel() {
             dash = dash,
             requestedAudioQuality = audioQuality,
             playbackSpeed = player.playbackParameters.speed,
-            isDolbyAudioSupported = MediaUtils.isDolbyAtmosAudioSupported()
+            isDolbyAudioSupported = MediaUtils.isDolbyAtmosAudioSupported(),
+            isDolbyAudioSoftwareDecoded = MediaUtils.isDolbySoftwareAudioDecoderRequired()
         )
         val audioUrl = selection.selected?.track?.getValidUrl()
             ?.takeIf { it.isNotBlank() }

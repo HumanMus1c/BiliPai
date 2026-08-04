@@ -66,7 +66,8 @@ fun DynamicCommentOverlayHost(
     viewModel: DynamicViewModel,
     primaryItems: List<DynamicItem>,
     secondaryItems: List<DynamicItem> = emptyList(),
-    toastContext: Context
+    toastContext: Context,
+    onUserClick: (Long) -> Unit,
 ) {
     val selectedDynamicId by viewModel.selectedDynamicId.collectAsStateWithLifecycle()
     val comments by viewModel.comments.collectAsStateWithLifecycle()
@@ -107,14 +108,16 @@ fun DynamicCommentOverlayHost(
                 }
             },
             onViewReplies = { reply -> viewModel.openSubReply(reply) },
-            onLoadMore = { viewModel.loadMoreComments() }
+            onLoadMore = { viewModel.loadMoreComments() },
+            onUserClick = onUserClick,
         )
     }
 
     DynamicSubReplyPreviewHost(
         state = subReplyState,
         onDismiss = { viewModel.closeSubReply() },
-        onLoadMore = { viewModel.loadMoreSubReplies() }
+        onLoadMore = { viewModel.loadMoreSubReplies() },
+        onUserClick = onUserClick,
     )
 }
 
@@ -133,7 +136,8 @@ fun DynamicCommentSheet(
     onSortModeChange: (CommentSortMode) -> Unit = {},
     onPostComment: (String) -> Unit,
     onViewReplies: (ReplyItem) -> Unit = {},
-    onLoadMore: () -> Unit = {}
+    onLoadMore: () -> Unit = {},
+    onUserClick: (Long) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var commentText by remember { mutableStateOf("") }
@@ -294,6 +298,7 @@ fun DynamicCommentSheet(
                         CommentItem(
                             reply = reply,
                             onViewReplies = onViewReplies,
+                            onUserClick = onUserClick,
                             onImagePreview = { images, index, rect, textContent ->
                                 previewImages = images
                                 previewInitialIndex = index
@@ -433,6 +438,7 @@ fun LazyListScope.dynamicInlineCommentItems(
     isLoading: Boolean,
     isLoadingMore: Boolean,
     onViewReplies: (ReplyItem) -> Unit,
+    onUserClick: (Long) -> Unit,
     onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
 ) {
     when {
@@ -462,6 +468,7 @@ fun LazyListScope.dynamicInlineCommentItems(
             CommentItem(
                 reply = reply,
                 onViewReplies = onViewReplies,
+                onUserClick = onUserClick,
                 onImagePreview = onImagePreview,
                 modifier = Modifier.padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small),
             )
@@ -539,6 +546,7 @@ private fun DynamicCommentComposer(
 private fun CommentItem(
     reply: ReplyItem,
     onViewReplies: (ReplyItem) -> Unit,
+    onUserClick: (Long) -> Unit,
     onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -604,7 +612,9 @@ private fun CommentItem(
                 text = reply.content.message,
                 fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 color = MaterialTheme.colorScheme.onSurface,
-                emoteMap = emoteMap
+                emoteMap = emoteMap,
+                content = reply.content,
+                onUserClick = onUserClick,
             )
 
             // 评论图片
@@ -675,7 +685,9 @@ private fun CommentItem(
                                             fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             emoteMap = subEmoteMap,
-                                            maxLines = 2
+                                            content = subReply.content,
+                                            maxLines = 2,
+                                            onUserClick = onUserClick,
                                         )
                                     }
                                 }

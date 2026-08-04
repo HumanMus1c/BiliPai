@@ -6,6 +6,7 @@ internal fun resolveSettingsSearchNavigation(result: SettingsSearchResult): Bili
     resolveSettingsSceneDetailFocus(result.target)?.let { detailFocus ->
         return when (detailFocus.target) {
             SettingsSearchTarget.APPEARANCE -> BiliPaiNavKey.AppearanceSettings
+            SettingsSearchTarget.HOME_FEED -> BiliPaiNavKey.HomeSettings
             SettingsSearchTarget.ANIMATION -> BiliPaiNavKey.AnimationSettings
             SettingsSearchTarget.PLAYBACK -> BiliPaiNavKey.PlaybackSettings
             SettingsSearchTarget.BOTTOM_BAR -> BiliPaiNavKey.BottomBarSettings

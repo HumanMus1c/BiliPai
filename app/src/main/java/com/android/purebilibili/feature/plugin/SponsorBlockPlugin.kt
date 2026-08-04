@@ -55,7 +55,7 @@ import com.android.purebilibili.data.model.response.SponsorBlockMarkerMode
 import com.android.purebilibili.data.model.response.SponsorSegment
 import com.android.purebilibili.data.model.response.SponsorProgressMarker
 import com.android.purebilibili.data.repository.SponsorBlockRepository
-import com.android.purebilibili.feature.settings.AppSegmentedPreference
+import com.android.purebilibili.feature.settings.SettingsSingleChoicePreference
 import io.github.alexzhirkevich.cupertino.CupertinoSwitch
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -621,7 +621,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
             }
 
             SponsorBlockSettingsSection(title = "进度条") {
-                AppSegmentedPreference(
+                SettingsSingleChoicePreference(
                     title = "进度条提示：${markerMode.label}",
                     subtitle = "关闭、仅提示恰饭，或显示全部可跳过片段",
                     options = markerOptions,

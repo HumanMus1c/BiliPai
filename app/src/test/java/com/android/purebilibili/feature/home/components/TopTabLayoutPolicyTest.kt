@@ -44,12 +44,50 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
+    fun textOnlyTabsKeepRoomForTwoChineseCharactersOnNarrowScreens() {
+        // 52dp minus each side's 8dp item padding leaves 36dp for a two-character label.
+        assertEquals(
+            52f,
+            resolveMd3TopTabItemWidthDp(
+                containerWidthDp = 248f,
+                visibleSlots = 5,
+                labelMode = 2
+            ),
+            0.001f
+        )
+    }
+
+    @Test
     fun `md3 top tabs use compact scrollable item widths instead of fixed four slots`() {
         assertEquals(3, resolveMd3TopTabVisibleSlots())
         assertEquals(106.666f, resolveMd3TopTabItemWidthDp(containerWidthDp = 320f), 0.001f)
         assertEquals(120f, resolveMd3TopTabItemWidthDp(containerWidthDp = 360f), 0.001f)
         assertEquals(213.333f, resolveMd3TopTabItemWidthDp(containerWidthDp = 640f), 0.001f)
         assertEquals(60f, resolveMd3TopTabItemWidthDp(containerWidthDp = 360f, visibleSlots = 6), 0.001f)
+    }
+
+    @Test
+    fun `icon and text tabs reserve enough width for Chinese labels`() {
+        assertEquals(80f, resolveTopTabWrapItemWidthDp(labelMode = 0, isFloatingStyle = false), 0.001f)
+        assertEquals(84f, resolveTopTabWrapItemWidthDp(labelMode = 0, isFloatingStyle = true), 0.001f)
+        assertEquals(
+            80f,
+            resolveMd3TopTabItemWidthDp(
+                containerWidthDp = 360f,
+                visibleSlots = 6,
+                labelMode = 0
+            ),
+            0.001f
+        )
+        assertEquals(
+            80f,
+            resolveIosTopTabItemWidthDp(
+                containerWidthDp = 360f,
+                categoryCount = 6,
+                labelMode = 0
+            ),
+            0.001f
+        )
     }
 
     @Test
@@ -200,8 +238,8 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
-    fun `ios top tabs show all six tabs for every label mode`() {
-        listOf(0, 1, 2).forEach { labelMode ->
+    fun `ios icon-only and text-only tabs show all six tabs inline`() {
+        listOf(1, 2).forEach { labelMode ->
             assertEquals(
                 6,
                 resolveIosTopTabLayoutVisibleSlots(
@@ -219,8 +257,8 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
-    fun `ios top tabs fit five inline tabs within phone width`() {
-        listOf(0, 1, 2).forEach { labelMode ->
+    fun `ios icon-only and text-only tabs fit five inline tabs within phone width`() {
+        listOf(1, 2).forEach { labelMode ->
             assertEquals(
                 5,
                 resolveIosTopTabLayoutVisibleSlots(
@@ -256,6 +294,28 @@ class TopTabLayoutPolicyTest {
                 categoryCount = 8,
                 labelMode = 2,
                 showPartitionAction = false
+            )
+        )
+    }
+
+    @Test
+    fun `md3 top tabs become scrollable instead of truncating labels at large font scale`() {
+        assertEquals(
+            4,
+            resolveMd3TopTabLayoutVisibleSlots(
+                categoryCount = 6,
+                labelMode = 2,
+                showPartitionAction = false,
+                fontScale = 1.3f
+            )
+        )
+        assertEquals(
+            6,
+            resolveMd3TopTabLayoutVisibleSlots(
+                categoryCount = 6,
+                labelMode = 2,
+                showPartitionAction = false,
+                fontScale = 1.15f
             )
         )
     }
@@ -306,14 +366,14 @@ class TopTabLayoutPolicyTest {
 
     @Test
     fun `wrap dock width follows preferred item width times tab count`() {
-        // Icon + text floating: 74 × 5 = 370, fits in 400 → wrap to 370
-        assertEquals(74f, resolveTopTabWrapItemWidthDp(labelMode = 0, isFloatingStyle = true), 0.001f)
+        // Icon + text floating: 84 × 5 = 420, fits in 440 → wrap to 420
+        assertEquals(84f, resolveTopTabWrapItemWidthDp(labelMode = 0, isFloatingStyle = true), 0.001f)
         assertEquals(
-            370f,
+            420f,
             resolveTopTabDockWrapWidthDp(
-                itemWidthDp = 74f,
+                itemWidthDp = 84f,
                 categoryCount = 5,
-                maxWidthDp = 400f
+                maxWidthDp = 440f
             ),
             0.001f
         )
@@ -324,7 +384,7 @@ class TopTabLayoutPolicyTest {
             resolveTopTabDockWrapWidthDp(
                 itemWidthDp = 56f,
                 categoryCount = 6,
-                maxWidthDp = 400f
+                maxWidthDp = 440f
             ),
             0.001f
         )
@@ -335,7 +395,7 @@ class TopTabLayoutPolicyTest {
             resolveTopTabDockWrapWidthDp(
                 itemWidthDp = 66f,
                 categoryCount = 5,
-                maxWidthDp = 400f
+                maxWidthDp = 440f
             ),
             0.001f
         )
@@ -343,7 +403,7 @@ class TopTabLayoutPolicyTest {
         assertEquals(
             300f,
             resolveTopTabDockWrapWidthDp(
-                itemWidthDp = 74f,
+                itemWidthDp = 84f,
                 categoryCount = 5,
                 maxWidthDp = 300f
             ),
@@ -357,7 +417,7 @@ class TopTabLayoutPolicyTest {
         assertEquals(
             preferred,
             resolveTopTabDockItemWidthDp(
-                maxWidthDp = 400f,
+                maxWidthDp = 440f,
                 categoryCount = 5,
                 labelMode = 0,
                 isFloatingStyle = true,
@@ -383,7 +443,7 @@ class TopTabLayoutPolicyTest {
         assertEquals(
             72f,
             resolveTopTabDockItemWidthDp(
-                maxWidthDp = 400f,
+                maxWidthDp = 440f,
                 categoryCount = 5,
                 labelMode = 0,
                 isFloatingStyle = true,
@@ -403,13 +463,13 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
-    fun `top tab item content policy avoids clipping icon plus text`() {
-        assertEquals(42f, resolveTopTabContentMinHeightDp(labelMode = 0), 0.001f)
-        assertEquals(42f, resolveTopTabContentMinHeightDp(labelMode = 1), 0.001f)
-        assertEquals(42f, resolveTopTabContentMinHeightDp(labelMode = 2), 0.001f)
-        assertEquals(2f, resolveTopTabContentVerticalPaddingDp(labelMode = 0), 0.001f)
-        assertEquals(4f, resolveTopTabContentVerticalPaddingDp(labelMode = 1), 0.001f)
-        assertEquals(4f, resolveTopTabContentVerticalPaddingDp(labelMode = 2), 0.001f)
+    fun `top tab item content policy keeps icon plus text inside the compact background`() {
+        assertEquals(30f, resolveTopTabContentMinHeightDp(labelMode = 0), 0.001f)
+        assertEquals(30f, resolveTopTabContentMinHeightDp(labelMode = 1), 0.001f)
+        assertEquals(30f, resolveTopTabContentMinHeightDp(labelMode = 2), 0.001f)
+        assertEquals(5f, resolveTopTabContentVerticalPaddingDp(labelMode = 0), 0.001f)
+        assertEquals(5f, resolveTopTabContentVerticalPaddingDp(labelMode = 1), 0.001f)
+        assertEquals(5f, resolveTopTabContentVerticalPaddingDp(labelMode = 2), 0.001f)
     }
 
     @Test
@@ -431,4 +491,3 @@ class TopTabLayoutPolicyTest {
         )
     }
 }
-

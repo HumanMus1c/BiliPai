@@ -22,6 +22,38 @@ abstract class PrepareKspGeneratedDirsTask : org.gradle.api.DefaultTask() {
     }
 }
 
+abstract class ExportBiliPaiApkTask : org.gradle.api.DefaultTask() {
+    @get:org.gradle.api.tasks.InputDirectory
+    @get:org.gradle.api.tasks.PathSensitive(org.gradle.api.tasks.PathSensitivity.RELATIVE)
+    abstract val packagedApkDirectory: org.gradle.api.file.DirectoryProperty
+
+    @get:org.gradle.api.tasks.Input
+    abstract val outputFileName: org.gradle.api.provider.Property<String>
+
+    @get:org.gradle.api.tasks.OutputDirectory
+    abstract val outputDirectory: org.gradle.api.file.DirectoryProperty
+
+    @org.gradle.api.tasks.TaskAction
+    fun export() {
+        val sourceApks = packagedApkDirectory.get().asFile
+            .walkTopDown()
+            .filter { file -> file.isFile && file.extension.equals("apk", ignoreCase = true) }
+            .toList()
+        check(sourceApks.size == 1) {
+            "Expected exactly one packaged APK, found ${sourceApks.size}: ${sourceApks.joinToString()}"
+        }
+
+        val destinationDirectory = outputDirectory.get().asFile.apply { mkdirs() }
+        destinationDirectory.listFiles()
+            ?.filter { file -> file.isFile && file.extension.equals("apk", ignoreCase = true) }
+            ?.forEach { staleApk -> staleApk.delete() }
+        sourceApks.single().copyTo(
+            target = destinationDirectory.resolve(outputFileName.get()),
+            overwrite = true
+        )
+    }
+}
+
 fun String.toBuildConfigStringLiteral(): String {
     val escaped = this
         .replace("\\", "\\\\")
@@ -79,8 +111,8 @@ android {
         targetSdk = 35  // 保持35以避免Android 16的新运行时行为
         // 🔥🔥 [版本号] 发布新版前记得更新！格式：versionCode +1, versionName 递增
         // 更新日志：CHANGELOG.md
-        versionCode = 280
-        versionName = "9.9.9.8.6"
+        versionCode = 282
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -210,27 +242,31 @@ android {
     }
 }
 
-// AGP 9 removed applicationVariants / outputFileName.
-// Rename only PackageApplication outputs; keep values configuration-cache friendly
-// (no Project/android extension captured inside task actions).
+// Keep AGP's internal APK untouched and export a stable, user-facing artifact.
 val biliApkVersionName: String = android.defaultConfig.versionName ?: "0"
-val biliApkOutputsDir = layout.buildDirectory.dir("outputs/apk")
-tasks.withType(com.android.build.gradle.tasks.PackageApplication::class.java).configureEach {
-    val versionName = biliApkVersionName
-    val apkOutputs = biliApkOutputsDir
-    doLast {
-        val outputsDir = apkOutputs.get().asFile
-        if (!outputsDir.exists()) return@doLast
-        outputsDir.walkTopDown()
-            .filter { it.isFile && it.extension == "apk" && !it.name.startsWith("BiliPai-") }
-            .forEach { apk ->
-                val variantFolder = apk.parentFile.name
-                val target = File(apk.parentFile, "BiliPai-$variantFolder-$versionName.apk")
-                if (apk.absolutePath != target.absolutePath) {
-                    if (target.exists()) target.delete()
-                    apk.renameTo(target)
-                }
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        val variantName = variant.name.lowercase()
+        if (variantName == "release" || variantName == "dev") {
+            val capitalizedVariantName = variant.name.replaceFirstChar { character ->
+                character.uppercaseChar()
             }
+            val exportedVersionName = when (variantName) {
+                "release" -> biliApkVersionName
+                else -> "$biliApkVersionName-$variantName"
+            }
+            val exportTask = tasks.register<ExportBiliPaiApkTask>(
+                "export${capitalizedVariantName}Apk"
+            ) {
+                group = "build"
+                description = "Exports the $variantName APK with the canonical BiliPai file name."
+                packagedApkDirectory.set(variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.APK))
+                outputFileName.set("BiliPai-$exportedVersionName.apk")
+                outputDirectory.set(layout.buildDirectory.dir("outputs/bilipai/$variantName"))
+            }
+            tasks.matching { task -> task.name == "assemble$capitalizedVariantName" }
+                .configureEach { dependsOn(exportTask) }
+        }
     }
 }
 
@@ -402,6 +438,7 @@ dependencies {
     implementation("androidx.media3:media3-datasource:$media3Version")
     implementation("androidx.media3:media3-datasource-okhttp:$media3Version")
     implementation("androidx.media3:media3-session:$media3Version")
+    implementation(project(":dolby-ffmpeg-decoder"))
 
     // --- 5. Danmaku (弹幕引擎) ---
     // 🔥 使用 ByteDance DanmakuRenderEngine - 轻量级高性能弹幕渲染引擎

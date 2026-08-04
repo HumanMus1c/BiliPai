@@ -8,9 +8,9 @@ on:
         type: choice
         description: '选择编译类型'
         required: true
-        default: 'debug'
+        default: 'dev'
         options:
-          - 'debug'
+          - 'dev'
           - 'release'
 
 permissions:
@@ -18,6 +18,10 @@ permissions:
   actions: read
   attestations: write
   id-token: write
+
+# Temporary distribution policy: GitHub mirrors source only; APKs are published in Telegram.
+env:
+  GITHUB_APK_DISTRIBUTION_ENABLED: "false"
 
 jobs:
   quality-guards:
@@ -44,6 +48,9 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :app:testDebugUnitTest \
+            --tests 'com.android.purebilibili.feature.settings.AppUpdateCheckerTest' \
+            --tests 'com.android.purebilibili.feature.settings.AppVersionPolicyTest' \
+            --tests 'com.android.purebilibili.feature.settings.ApkArtifactNamingPolicyTest' \
             --tests 'com.android.purebilibili.core.store.PreferenceKeyUniquenessTest' \
             --tests 'com.android.purebilibili.core.ui.lint.HardcodedColorLintTest' \
             --tests 'com.android.purebilibili.core.ui.lint.HardcodedSpacingLintTest' \
@@ -88,7 +95,7 @@ jobs:
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             echo "build_type=release" >> $GITHUB_OUTPUT
           else
-            echo "build_type=debug" >> $GITHUB_OUTPUT
+            echo "build_type=dev" >> $GITHUB_OUTPUT
           fi
           echo "构建类型已设置"
   
@@ -132,13 +139,14 @@ jobs:
           if [ "${{ steps.set_build_type.outputs.build_type }}" = "release" ]; then
             ./gradlew "${COMMON_ARGS[@]}" assembleRelease
           else
-            ./gradlew "${COMMON_ARGS[@]}" assembleDebug
+            ./gradlew "${COMMON_ARGS[@]}" assembleDev
           fi
   
       - name: Collect release evidence
         id: collect_release_assets
         run: |
-          APK_FILES=$(find ${{ github.workspace }}/app/build/outputs/apk/ -name "*.apk" -type f)
+          APK_DIR="${{ github.workspace }}/app/build/outputs/bilipai/${{ steps.set_build_type.outputs.build_type }}"
+          APK_FILES=$(find "$APK_DIR" -maxdepth 1 -name "BiliPai-*.apk" -type f)
           if [ -z "$APK_FILES" ]; then
             echo "No APK files found"
             exit 1
@@ -204,14 +212,14 @@ jobs:
 
       - name: Generate artifact attestation
         id: attest_release
-        if: startsWith(github.ref, 'refs/tags/v') && steps.set_build_type.outputs.build_type == 'release'
+        if: env.GITHUB_APK_DISTRIBUTION_ENABLED == 'true' && startsWith(github.ref, 'refs/tags/v') && steps.set_build_type.outputs.build_type == 'release'
         uses: actions/attest-build-provenance@v3
         with:
           subject-checksums: ${{ github.workspace }}/build/release-evidence/checksums.txt
           show-summary: true
 
       - name: Collect attestation evidence
-        if: startsWith(github.ref, 'refs/tags/v') && steps.set_build_type.outputs.build_type == 'release'
+        if: env.GITHUB_APK_DISTRIBUTION_ENABLED == 'true' && startsWith(github.ref, 'refs/tags/v') && steps.set_build_type.outputs.build_type == 'release'
         env:
           DIST_DIR: ${{ github.workspace }}/build/release-evidence
           ATTESTATION_URL: ${{ steps.attest_release.outputs.attestation-url }}
@@ -242,6 +250,7 @@ jobs:
           PY
       
       - name: Upload Build Artifacts
+        if: env.GITHUB_APK_DISTRIBUTION_ENABLED == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: BiliPai
@@ -250,7 +259,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub Release Assets
-        if: startsWith(github.ref, 'refs/tags/v') && steps.set_build_type.outputs.build_type == 'release'
+        if: env.GITHUB_APK_DISTRIBUTION_ENABLED == 'true' && startsWith(github.ref, 'refs/tags/v') && steps.set_build_type.outputs.build_type == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}

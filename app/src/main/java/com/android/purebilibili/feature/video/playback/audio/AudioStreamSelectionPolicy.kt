@@ -26,7 +26,8 @@ fun normalizeAudioQualityPreference(preferenceId: Int): Int {
 
 fun collectAudioStreamCandidates(
     dash: Dash,
-    isDolbyAudioSupported: Boolean = true
+    isDolbyAudioSupported: Boolean = true,
+    isDolbyAudioSoftwareDecoded: Boolean = false
 ): List<AudioStreamCandidate> {
     val standard = dash.audio.orEmpty()
         .filter { it.getValidUrl().isNotBlank() }
@@ -52,8 +53,9 @@ fun collectAudioStreamCandidates(
                 AudioStreamCandidate(
                     preferenceId = AUDIO_QUALITY_DOLBY,
                     kind = AudioStreamKind.DOLBY,
-                    label = "杜比全景声",
-                    track = track
+                    label = if (isDolbyAudioSoftwareDecoded) "杜比音频" else "杜比全景声",
+                    track = track,
+                    isSoftwareDecoded = isDolbyAudioSoftwareDecoded
                 )
             }
     } else {
@@ -103,7 +105,8 @@ fun buildAvailableAudioQualityOptions(
                 kind = candidate.kind,
                 label = candidate.label,
                 isHiRes = candidate.kind == AudioStreamKind.HI_RES,
-                isDolby = candidate.kind == AudioStreamKind.DOLBY
+                isDolby = candidate.kind == AudioStreamKind.DOLBY,
+                isSoftwareDecoded = candidate.isSoftwareDecoded
             )
         }
 
@@ -125,12 +128,14 @@ fun resolveAudioStreamSelection(
     dash: Dash,
     requestedAudioQuality: Int,
     playbackSpeed: Float = 1.0f,
-    isDolbyAudioSupported: Boolean = true
+    isDolbyAudioSupported: Boolean = true,
+    isDolbyAudioSoftwareDecoded: Boolean = false
 ): AudioSelectionDecision {
     val normalizedRequestedAudioQuality = normalizeAudioQualityPreference(requestedAudioQuality)
     val candidates = collectAudioStreamCandidates(
         dash = dash,
-        isDolbyAudioSupported = isDolbyAudioSupported
+        isDolbyAudioSupported = isDolbyAudioSupported,
+        isDolbyAudioSoftwareDecoded = isDolbyAudioSoftwareDecoded
     )
     val availableOptions = buildAvailableAudioQualityOptions(candidates)
     if (candidates.isEmpty()) {
@@ -184,7 +189,7 @@ fun resolveAudioQualityControlPresentation(
     val selectedOption = options.firstOrNull { it.preferenceId == selectedAudioQuality }
     val label = when (selectedOption?.preferenceId) {
         AUDIO_QUALITY_HI_RES -> "Hi-Res"
-        AUDIO_QUALITY_DOLBY -> "杜比"
+        AUDIO_QUALITY_DOLBY -> if (selectedOption.isSoftwareDecoded) "杜比音频" else "杜比"
         else -> selectedOption?.label?.takeIf { it.isNotBlank() } ?: "音质"
     }
     return AudioQualityControlPresentation(

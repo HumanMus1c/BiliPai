@@ -19,6 +19,8 @@ import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppNavigationDrawerItem
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContentColor
+import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContainerColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -36,6 +38,7 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.feature.settings.SettingsHomeSearchEntry
 import com.android.purebilibili.feature.settings.SettingsRootCategory
+import com.android.purebilibili.feature.settings.canonicalSettingsRootCategory
 import com.android.purebilibili.feature.settings.rememberSettingsEntryVisual
 import com.android.purebilibili.feature.settings.resolveSettingsRootCategoryOrder
 import com.android.purebilibili.feature.settings.resolveSettingsTabletLayoutPolicy
@@ -90,7 +93,9 @@ fun SettingsTabletShell(
                 ) {
                     items(categories) { category ->
                         val visual = rememberSettingsEntryVisual(category.searchTarget)
-                        val selected = selectedCategory == category
+                        val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(visual.iconTint)
+                        val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
+                        val selected = selectedCategory?.let(::canonicalSettingsRootCategory) == category
                         AppNavigationDrawerItem(
                             label = {
                                 Column {
@@ -110,14 +115,14 @@ fun SettingsTabletShell(
                                     modifier = Modifier
                                         .size(resolveSettingsVisualSpec().categoryIconBubbleSize)
                                         .clip(AppShapes.container(ContainerLevel.Field))
-                                        .background(visual.iconTint.copy(alpha = 0.16f)),
+                                        .background(effectiveIconTint),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (visual.icon != null) {
                                         AppIcon(
                                             imageVector = visual.icon,
                                             contentDescription = null,
-                                            tint = visual.iconTint,
+                                            tint = iconContentColor,
                                             modifier = Modifier.size(resolveSettingsVisualSpec().categoryIconSize),
                                         )
                                     }

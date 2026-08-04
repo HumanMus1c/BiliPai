@@ -11,6 +11,7 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.Instant
 
 data class AppUpdateAsset(
     val name: String,
@@ -100,7 +101,10 @@ object AppUpdateChecker {
     private const val READ_TIMEOUT_MS = 8000
     private val releaseJson = Json { ignoreUnknownKeys = true }
 
-    suspend fun check(currentVersion: String): Result<AppUpdateCheckResult> = withContext(Dispatchers.IO) {
+    suspend fun check(
+        currentVersion: String,
+        currentVersionCode: Int
+    ): Result<AppUpdateCheckResult> = withContext(Dispatchers.IO) {
         runCatching {
             val release = fetchRemoteText(RELEASES_API, required = false)
                 ?.let(::selectLatestReleaseCandidate)
@@ -130,7 +134,12 @@ object AppUpdateChecker {
                     fetchRemoteText(metadataUrl, required = false)
                 }
                 ?.let(::parseVerificationMetadata)
-            val updateAvailable = isRemoteNewer(currentVersion, latestVersion)
+            val updateAvailable = shouldOfferUpdate(
+                currentVersion = currentVersion,
+                currentVersionCode = currentVersionCode,
+                latestVersion = latestVersion,
+                buildMetadata = buildMetadata
+            )
             val message = if (updateAvailable) {
                 "发现新版本 v$latestVersion"
             } else {
@@ -192,6 +201,24 @@ object AppUpdateChecker {
             localVersion = normalizeVersion(localVersion),
             remoteVersion = normalizeVersion(remoteVersion)
         ) < 0
+    }
+
+    internal fun shouldOfferUpdate(
+        currentVersion: String,
+        currentVersionCode: Int,
+        latestVersion: String,
+        buildMetadata: AppReleaseBuildMetadata?
+    ): Boolean {
+        val remoteVersionCode = buildMetadata?.versionCode ?: 0
+        if (currentVersionCode > 0 && remoteVersionCode > 0) {
+            return remoteVersionCode > currentVersionCode
+        }
+
+        val currentEpoch = parseVersionParts(normalizeVersion(currentVersion)).firstOrNull()
+        val latestEpoch = parseVersionParts(normalizeVersion(latestVersion)).firstOrNull()
+        return currentEpoch != null &&
+            currentEpoch == latestEpoch &&
+            isRemoteNewer(currentVersion, latestVersion)
     }
 
     internal fun parseVersionParts(version: String): List<Int> {
@@ -263,24 +290,27 @@ object AppUpdateChecker {
     }
 
     internal fun selectLatestReleaseCandidate(
-        rawReleaseJson: String,
-        currentVersion: String = ""
+        rawReleaseJson: String
     ): AppUpdateReleaseCandidate? {
         val releasesJson = runCatching {
             releaseJson.parseToJsonElement(rawReleaseJson).jsonArray
         }.getOrNull() ?: return null
 
-        return releasesJson
+        val candidates = releasesJson
             .mapNotNull { releaseElement ->
                 parseReleaseCandidateElement(releaseElement)
             }
             .filter { !it.isPrerelease && it.assets.any(AppUpdateAsset::isApk) }
-            .maxWithOrNull { left, right ->
-                compareVersions(
-                    localVersion = normalizeVersion(left.tagName),
-                    remoteVersion = normalizeVersion(right.tagName)
-                )
+
+        return candidates
+            .mapNotNull { candidate ->
+                candidate.publishedAt
+                    ?.let { publishedAt -> runCatching { Instant.parse(publishedAt) }.getOrNull() }
+                    ?.let { publishedAt -> candidate to publishedAt }
             }
+            .maxByOrNull { (_, publishedAt) -> publishedAt }
+            ?.first
+            ?: candidates.firstOrNull()
     }
 
     private fun parseReleaseCandidateElement(

@@ -66,6 +66,7 @@ class HomeSettingsMappingPolicyTest {
         assertEquals(HomeWallpaperEffectScope.HOME_ONLY, result.homeWallpaperEffectScope)
         assertFalse(result.lowQualityHomeCoverInDataSaver)
         assertTrue(result.showHomeUpBadges)
+        assertTrue(result.showHomeUpAvatars)
         assertFalse(result.easterEggEnabled)
         assertFalse(result.crashTrackingConsentShown)
     }
@@ -107,6 +108,7 @@ class HomeSettingsMappingPolicyTest {
             intPreferencesKey("home_wallpaper_effect_scope") to HomeWallpaperEffectScope.GLOBAL.value,
             booleanPreferencesKey("low_quality_home_cover_in_data_saver") to true,
             booleanPreferencesKey("home_up_badges_visible") to false,
+            booleanPreferencesKey("home_up_avatars_visible") to false,
             booleanPreferencesKey("easter_egg_enabled") to true,
             booleanPreferencesKey("crash_tracking_consent_shown") to true
         )
@@ -154,6 +156,7 @@ class HomeSettingsMappingPolicyTest {
         assertEquals(HomeWallpaperEffectScope.GLOBAL, result.homeWallpaperEffectScope)
         assertTrue(result.lowQualityHomeCoverInDataSaver)
         assertFalse(result.showHomeUpBadges)
+        assertFalse(result.showHomeUpAvatars)
         assertTrue(result.easterEggEnabled)
         assertTrue(result.crashTrackingConsentShown)
     }

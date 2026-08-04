@@ -9,7 +9,7 @@ internal fun isSettingsSubtreeNavKey(key: BiliPaiNavKey): Boolean {
 internal fun resolveSettingsTabletShellCategory(key: BiliPaiNavKey): SettingsRootCategory? {
     return when (key) {
         BiliPaiNavKey.Settings -> null
-        is BiliPaiNavKey.SettingsCategory -> key.category
+        is BiliPaiNavKey.SettingsCategory -> canonicalSettingsRootCategory(key.category)
         else -> resolveSettingsRootCategoryForNavKey(key)
     }
 }

@@ -90,6 +90,7 @@ internal fun biliPaiNavEntryProvider(
         entry<BiliPaiNavKey.SettingsCategory>(metadata = entryMetadata, content = content)
         entry<BiliPaiNavKey.OpenSourceLicenses>(metadata = entryMetadata, content = content)
         entry<BiliPaiNavKey.AppearanceSettings>(metadata = entryMetadata, content = content)
+        entry<BiliPaiNavKey.HomeSettings>(metadata = entryMetadata, content = content)
         entry<BiliPaiNavKey.IconSettings>(metadata = entryMetadata, content = content)
         entry<BiliPaiNavKey.AnimationSettings>(metadata = entryMetadata, content = content)
         entry<BiliPaiNavKey.PlaybackSettings>(metadata = entryMetadata, content = content)

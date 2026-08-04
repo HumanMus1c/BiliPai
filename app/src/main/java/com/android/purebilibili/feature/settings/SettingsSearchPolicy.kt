@@ -67,16 +67,16 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.HOME_FEED,
         title = "首页与推荐",
-        subtitle = "首页展示、推荐流、刷新数量、动态栏位、动态顶栏折叠、首页壁纸与底栏搜索入口",
+        subtitle = "首页展示、推荐流、刷新数量、动态栏位、动态顶栏折叠与首页壁纸",
         section = "设置",
-        aliases = listOf("首页", "推荐", "推荐流", "首页展示", "首页壁纸", "壁纸效果", "刷新数量", "动态栏位", "动态顶栏", "动态顶栏下滑折叠", "底栏搜索入口", "搜索入口")
+        aliases = listOf("首页", "推荐", "推荐流", "首页展示", "首页壁纸", "壁纸效果", "刷新数量", "动态栏位", "动态顶栏", "动态顶栏下滑折叠")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.NAVIGATION,
         title = "导航与标签",
         subtitle = "底栏、顶部标签、平板侧边栏与底栏项目顺序",
         section = "设置",
-        aliases = listOf("导航", "底栏", "底部栏", "顶部标签", "顶部标签页", "首页搜索框", "搜索框折叠", "标签排序", "平板侧边栏", "侧边导航栏", "底栏顺序", "底栏项目")
+        aliases = listOf("导航", "底栏", "底部栏", "顶部标签", "顶部标签页", "首页搜索框", "搜索框折叠", "标签排序", "平板侧边栏", "侧边导航栏", "底栏顺序", "底栏项目", "底栏搜索入口", "搜索入口", "悬浮搜索")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK_QUALITY,
@@ -116,9 +116,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.DIAGNOSTICS,
         title = "诊断与开发",
-        subtitle = "崩溃追踪、统计、播放器诊断日志、画质降档弹窗、插件与导出日志",
+        subtitle = "崩溃追踪、使用情况统计、播放器诊断与导出日志",
         section = "设置",
-        aliases = listOf("诊断", "开发", "崩溃追踪", "使用情况统计", "播放器诊断日志", "画质降档诊断弹窗", "降档弹窗", "仅提示一次", "仅弹窗一次", "插件", "导出日志", "日志")
+        aliases = listOf("诊断", "开发", "崩溃追踪", "使用情况统计", "播放器诊断日志", "画质降档诊断弹窗", "降档弹窗", "仅提示一次", "仅弹窗一次", "导出日志", "日志")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.ABOUT_SUPPORT,
@@ -130,23 +130,12 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.APPEARANCE,
         title = "外观设置",
-        subtitle = "主题、图标、动画效果",
+        subtitle = "主题、字体、缩放、开屏与应用图标",
         section = "常规",
         aliases = listOf(
             "外观",
             "主题",
             "图标",
-            "动画",
-            "动画与效果",
-            "过渡动画",
-            "进场动画",
-            "触感反馈",
-            "震动",
-            "haptic",
-            "底栏搜索",
-            "底栏搜索入口",
-            "搜索入口",
-            "悬浮搜索",
             "模糊",
             "皮肤",
             "玻璃",
@@ -156,9 +145,6 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
             "全局液态玻璃",
             "评论区液态玻璃",
             "毛玻璃",
-            "推荐流卡片宽度",
-            "卡片宽度",
-            "首页卡片宽度",
             "动态取色",
             "自定义md3颜色",
             "自定义 MD3 颜色",
@@ -184,8 +170,6 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
             "开屏壁纸",
             "自定义壁纸",
             "相册壁纸",
-            "首页壁纸",
-            "首页壁纸效果",
             "随机壁纸",
             "开屏图标遮罩动画",
             "图标遮罩动画",
@@ -193,11 +177,6 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
             "隐藏开屏图标",
             "开屏图标动画",
             "应用图标",
-            "统计信息贴封面",
-            "up主标识",
-            "up标识",
-            "UP主标识",
-            "UP标识",
             "md3",
             "material",
             "android",
@@ -538,18 +517,18 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.ANIMATION,
         title = "动画与效果 / 触感反馈",
-        subtitle = "动画、触感反馈、底栏搜索入口",
-        section = "外观设置",
-        aliases = listOf("动画与效果", "触感反馈", "动画设置", "应用图标", "底栏搜索", "底栏搜索入口", "搜索入口", "悬浮搜索"),
+        subtitle = "页面动画、玻璃效果与触感反馈",
+        section = "动画与效果",
+        aliases = listOf("动画与效果", "触感反馈", "动画设置", "页面动画", "玻璃效果"),
         focusId = SettingsSearchFocusIds.ANIMATION_VISUAL_EFFECTS
     ),
     SettingsSearchEntry(
-        target = SettingsSearchTarget.APPEARANCE,
+        target = SettingsSearchTarget.HOME_FEED,
         title = "首页与列表",
         subtitle = "展示样式、列表顶部栏、首页壁纸效果、推荐流卡片宽度",
-        section = "外观设置",
-        aliases = listOf("首页展示", "首页与列表", "展示样式", "列表顶部栏", "历史记录顶部栏", "收藏夹顶部栏", "折叠", "首页壁纸", "首页壁纸效果", "原图壁纸", "壁纸模糊", "强模糊", "推荐流卡片宽度", "首页卡片宽度", "卡片宽度", "统计信息贴封面", "UP主标识", "UP标识", "up主标识", "up标识"),
-        focusId = SettingsSearchFocusIds.APPEARANCE_HOME
+        section = "首页设置",
+        aliases = listOf("首页展示", "首页与列表", "展示样式", "列表顶部栏", "历史记录顶部栏", "收藏夹顶部栏", "折叠", "首页壁纸", "首页壁纸效果", "原图壁纸", "壁纸模糊", "强模糊", "推荐流卡片宽度", "首页卡片宽度", "卡片宽度", "统计信息贴封面", "UP主标识", "UP标识", "up主标识", "up标识", "UP主头像", "UP头像", "up主头像", "up头像", "隐藏头像"),
+        focusId = SettingsSearchFocusIds.HOME_OVERVIEW
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
@@ -622,6 +601,22 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
         section = "播放设置",
         aliases = listOf("播放器诊断日志", "详细统计信息", "调试", "日志"),
         focusId = SettingsSearchFocusIds.PLAYBACK_DEBUG
+    ),
+    SettingsSearchEntry(
+        target = SettingsSearchTarget.BOTTOM_BAR,
+        title = "悬浮底栏 / 底栏搜索入口",
+        subtitle = "底栏形态、搜索入口、搜索布局与自动展开",
+        section = "导航设置",
+        aliases = listOf(
+            "悬浮底栏",
+            "底栏搜索",
+            "底栏搜索入口",
+            "搜索入口",
+            "悬浮搜索",
+            "底栏搜索布局",
+            "搜索框自动展开",
+        ),
+        focusId = SettingsSearchFocusIds.BOTTOM_BAR_BEHAVIOR
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.BOTTOM_BAR,

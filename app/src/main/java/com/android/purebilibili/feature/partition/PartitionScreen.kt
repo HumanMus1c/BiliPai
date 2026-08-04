@@ -25,6 +25,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 //  Cupertino Icons - iOS SF Symbols 风格图标
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
+import io.github.alexzhirkevich.cupertino.icons.filled.Cpu as FilledCupertinoCpu
+import io.github.alexzhirkevich.cupertino.icons.filled.Gamecontroller as FilledCupertinoGamecontroller
+import io.github.alexzhirkevich.cupertino.icons.filled.House as FilledCupertinoHouse
+import io.github.alexzhirkevich.cupertino.icons.filled.Lightbulb as FilledCupertinoLightbulb
+import io.github.alexzhirkevich.cupertino.icons.filled.Tv as FilledCupertinoTv
+import io.github.alexzhirkevich.cupertino.icons.outlined.Cpu as OutlinedCupertinoCpu
+import io.github.alexzhirkevich.cupertino.icons.outlined.Gamecontroller as OutlinedCupertinoGamecontroller
+import io.github.alexzhirkevich.cupertino.icons.outlined.House as OutlinedCupertinoHouse
+import io.github.alexzhirkevich.cupertino.icons.outlined.Lightbulb as OutlinedCupertinoLightbulb
+import io.github.alexzhirkevich.cupertino.icons.outlined.Tv as OutlinedCupertinoTv
 import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import io.github.alexzhirkevich.cupertino.icons.filled.*
 import androidx.compose.material.icons.Icons
@@ -42,7 +52,12 @@ import androidx.compose.material.icons.filled.OndemandVideo
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.TheaterComedy
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.outlined.Animation
 import androidx.compose.material.icons.outlined.Checkroom
 import androidx.compose.material.icons.outlined.DirectionsCar
@@ -57,7 +72,12 @@ import androidx.compose.material.icons.outlined.OndemandVideo
 import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.SportsSoccer
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.SmartToy
+import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.TheaterComedy
+import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -123,7 +143,6 @@ import com.android.purebilibili.feature.home.components.resolveBottomBarRefracti
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import com.android.purebilibili.feature.home.components.rememberBottomBarIndicatorDragScaleProgress
 import com.android.purebilibili.feature.home.components.normalizeTopTabLabelMode
-import com.android.purebilibili.feature.home.components.resolveTopTabCategoryIcon
 import com.android.purebilibili.feature.home.components.resolveSegmentedControlMotionProgress
 import com.android.purebilibili.feature.home.components.resolveSegmentedControlMotionSpec
 import com.android.purebilibili.feature.home.components.shouldShowTopTabIcon
@@ -220,23 +239,23 @@ internal fun resolvePartitionSideRailIcon(
     AppSemanticIconFamily.MATERIAL -> when (partitionId) {
         0 -> if (selected) Icons.Filled.GridView else Icons.Outlined.GridView
         1 -> if (selected) Icons.Filled.Animation else Icons.Outlined.Animation
-        13 -> resolveTopTabCategoryIcon("番剧", iconFamily, selected)
+        13 -> if (selected) Icons.Filled.Tv else Icons.Outlined.Tv
         167 -> if (selected) Icons.Filled.Flag else Icons.Outlined.Flag
         3 -> if (selected) Icons.Filled.MusicNote else Icons.Outlined.MusicNote
         129 -> if (selected) Icons.Filled.DirectionsRun else Icons.Outlined.DirectionsRun
-        4 -> resolveTopTabCategoryIcon("游戏", iconFamily, selected)
-        36 -> resolveTopTabCategoryIcon("知识", iconFamily, selected)
-        188 -> resolveTopTabCategoryIcon("科技", iconFamily, selected)
+        4 -> if (selected) Icons.Filled.SportsEsports else Icons.Outlined.SportsEsports
+        36 -> if (selected) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb
+        188 -> if (selected) Icons.Filled.SmartToy else Icons.Outlined.SmartToy
         234 -> if (selected) Icons.Filled.SportsSoccer else Icons.Outlined.SportsSoccer
         223 -> if (selected) Icons.Filled.DirectionsCar else Icons.Outlined.DirectionsCar
-        160 -> resolveTopTabCategoryIcon("推荐", iconFamily, selected)
+        160 -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
         211 -> if (selected) Icons.Filled.Restaurant else Icons.Outlined.Restaurant
         217 -> if (selected) Icons.Filled.Pets else Icons.Outlined.Pets
         119, 5 -> if (selected) Icons.Filled.TheaterComedy else Icons.Outlined.TheaterComedy
         155 -> if (selected) Icons.Filled.Checkroom else Icons.Outlined.Checkroom
         202 -> if (selected) Icons.Filled.Newspaper else Icons.Outlined.Newspaper
         23 -> if (selected) Icons.Filled.Movie else Icons.Outlined.Movie
-        11 -> resolveTopTabCategoryIcon("番剧", iconFamily, selected)
+        11 -> if (selected) Icons.Filled.Tv else Icons.Outlined.Tv
         177 -> if (selected) Icons.Filled.OndemandVideo else Icons.Outlined.OndemandVideo
         181 -> if (selected) Icons.Filled.LocalMovies else Icons.Outlined.LocalMovies
         else -> if (selected) Icons.Filled.GridView else Icons.Outlined.GridView
@@ -244,16 +263,16 @@ internal fun resolvePartitionSideRailIcon(
     AppSemanticIconFamily.CUPERTINO -> when (partitionId) {
         0 -> CupertinoIcons.Outlined.Grid
         1, 23 -> if (selected) CupertinoIcons.Filled.Film else CupertinoIcons.Outlined.Film
-        13, 11 -> resolveTopTabCategoryIcon("番剧", iconFamily, selected)
+        13, 11 -> if (selected) CupertinoIcons.Filled.FilledCupertinoTv else CupertinoIcons.Outlined.OutlinedCupertinoTv
         167 -> if (selected) CupertinoIcons.Filled.Flag else CupertinoIcons.Outlined.Flag
         3 -> CupertinoIcons.Outlined.MusicNote
         129 -> CupertinoIcons.Outlined.FigureWalk
-        4 -> resolveTopTabCategoryIcon("游戏", iconFamily, selected)
-        36 -> resolveTopTabCategoryIcon("知识", iconFamily, selected)
-        188 -> resolveTopTabCategoryIcon("科技", iconFamily, selected)
+        4 -> if (selected) CupertinoIcons.Filled.FilledCupertinoGamecontroller else CupertinoIcons.Outlined.OutlinedCupertinoGamecontroller
+        36 -> if (selected) CupertinoIcons.Filled.FilledCupertinoLightbulb else CupertinoIcons.Outlined.OutlinedCupertinoLightbulb
+        188 -> if (selected) CupertinoIcons.Filled.FilledCupertinoCpu else CupertinoIcons.Outlined.OutlinedCupertinoCpu
         234 -> CupertinoIcons.Outlined.Soccerball
         223 -> if (selected) CupertinoIcons.Filled.Car else CupertinoIcons.Outlined.Car
-        160 -> resolveTopTabCategoryIcon("推荐", iconFamily, selected)
+        160 -> if (selected) CupertinoIcons.Filled.FilledCupertinoHouse else CupertinoIcons.Outlined.OutlinedCupertinoHouse
         211 -> CupertinoIcons.Outlined.ForkKnife
         217 -> if (selected) CupertinoIcons.Filled.Pawprint else CupertinoIcons.Outlined.Pawprint
         119, 5 -> if (selected) CupertinoIcons.Filled.Theatermasks else CupertinoIcons.Outlined.Theatermasks

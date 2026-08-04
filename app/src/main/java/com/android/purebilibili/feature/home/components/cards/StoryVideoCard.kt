@@ -104,6 +104,7 @@ internal fun StoryVideoCard(
     showCoverGlassBadges: Boolean = false,
     showInfoGlassBadges: Boolean = false,
     showUpBadge: Boolean = true,
+    showUpAvatar: Boolean = true,
     homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
     coverAspectRatio: Float = 4f / 3f,
     cardHorizontalPadding: Dp = AppSpacingTokens.None,
@@ -432,7 +433,7 @@ internal fun StoryVideoCard(
                     followerCount = upFollowerCount,
                     videoCount = upVideoCount
                 ),
-                leadingContent = if (video.owner.face.isNotEmpty()) {
+                leadingContent = if (showUpAvatar && video.owner.face.isNotEmpty()) {
                     {
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
@@ -448,7 +449,7 @@ internal fun StoryVideoCard(
                     }
                 } else null,
                 nameStyle = contentTypography.author.copy(fontWeight = FontWeight.Medium),
-                nameColor = MaterialTheme.colorScheme.primary,
+                nameColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 metaColor = MaterialTheme.colorScheme.primary,
                 badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 badgeBackgroundColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),

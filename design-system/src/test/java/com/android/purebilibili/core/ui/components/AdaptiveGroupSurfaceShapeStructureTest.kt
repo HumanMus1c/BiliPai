@@ -55,6 +55,23 @@ class AdaptiveGroupSurfaceShapeStructureTest {
     }
 
     @Test
+    fun `md3 clickable item uses measured wrapping text instead of basic component`() {
+        val source = loadSource("design-system/src/main/java/com/android/purebilibili/core/ui/components/AdaptivePreferenceComponents.kt")
+        val clickableItemSource = source
+            .substringAfter("fun AdaptivePreferenceContent(")
+            .substringBefore("@Composable\nfun AdaptiveSearchFieldRenderer")
+        val md3Block = clickableItemSource
+            .substringAfter("if (clickableRenderer == AppClickableItemRenderer.MD3_BASIC)")
+            .substringBefore("if (clickableRenderer == AppClickableItemRenderer.MIUIX_BASIC)")
+
+        assertTrue(md3Block.contains("Column(modifier = Modifier.weight(1f))"))
+        assertTrue(md3Block.contains("text = title"))
+        assertTrue(md3Block.contains("text = subtitle"))
+        assertFalse(md3Block.contains("maxLines"))
+        assertFalse(md3Block.contains("BasicComponent("))
+    }
+
+    @Test
     fun `miuix switch item respects app haptic setting`() {
         val source = loadSource("design-system/src/main/java/com/android/purebilibili/core/ui/components/AdaptivePreferenceComponents.kt")
         val switchItemSource = source

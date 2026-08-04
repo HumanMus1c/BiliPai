@@ -4,6 +4,8 @@
 
 ## 背景
 
+本页记录 Miuix 技术接入状态；面向设计与页面实施的正式规则见 [UI 设计规范](ui-design/README.md)。两者发生差异时，前者回答“当前接入到哪里”，后者回答“目标应该怎样”。
+
 本仓库通过 Maven Central 引入 `top.yukonga.miuix.kmp`（当前钉扎 **0.9.3**），并在
 `AndroidNativeVariant.MIUIX` 下经由 `PresetPrimitiveRenderer.MIUIX_BRIDGED` 分发到官方组件。
 

@@ -1,12 +1,12 @@
 # 架构说明
 
-最后更新：2026-08-02（按当前工作区与构建配置校对）
+最后更新：2026-08-04（按当前工作区与构建配置校对）
 
 ## 构建与运行基线
 
 | 项目 | 当前值 |
 | --- | --- |
-| 应用版本 | 当前构建与最近完整发布记录 `v9.9.9.8.6` / `versionCode 278` |
+| 应用版本 | 当前构建与最近完整发布记录 `v0.1.0` / `versionCode 282` |
 | Android | minSdk 26、targetSdk 35、compileSdk 37、arm64-v8a |
 | 工具链 | AGP 9.3.1、Gradle 9.5、Kotlin 2.4、JDK 21 |
 | Compose | BOM 2026.06.01、Material3 1.5.0-alpha25、Lifecycle 2.11.0 |
@@ -79,6 +79,8 @@ Feature UI
 - PiP、后台播放与系统媒体控制通过 MediaSession/通知继续共享播放状态。
 
 ## 视觉与自适应
+
+正式 UI 设计合同、三风格边界、组件入口和页面档案见 [UI 设计规范](ui-design/README.md)。本页继续说明技术架构，不重复设计规则。
 
 - `design-system` 提供 MD3、Miuix 与 iOS facade，feature 只消费语义 token 和能力接口。
 - Haze、Miuix blur 与 Backdrop 都受平台能力、运行时视觉预算和转场安全门控约束。

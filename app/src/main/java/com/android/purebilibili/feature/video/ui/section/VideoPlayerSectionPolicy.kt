@@ -289,6 +289,12 @@ internal fun shouldShowLongPressSpeedLockHint(
     return hintRequested && !isLongPressing && !isInPipMode
 }
 
+internal fun shouldShowLongPressSpeedFeedback(
+    isLongPressing: Boolean,
+    isPlaybackSurfaceActive: Boolean,
+    hintDismissed: Boolean,
+): Boolean = isLongPressing && isPlaybackSurfaceActive && !hintDismissed
+
 internal fun shouldEnableLongPressSpeedGesture(
     isScreenLocked: Boolean,
     scale: Float,

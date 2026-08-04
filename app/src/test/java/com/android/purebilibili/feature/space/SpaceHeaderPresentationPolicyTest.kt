@@ -33,4 +33,10 @@ class SpaceHeaderPresentationPolicyTest {
 
         assertEquals(listOf(0L, 0L, 0L), metrics.map { it.value })
     }
+
+    @Test
+    fun `header actions stay below transparent top chrome`() {
+        assertEquals(72f, resolveSpaceHeaderActionTopPaddingDp(topChromeInsetDp = 64f))
+        assertEquals(8f, resolveSpaceHeaderActionTopPaddingDp(topChromeInsetDp = -10f))
+    }
 }

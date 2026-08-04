@@ -16,6 +16,7 @@ class SettingsNavHierarchyPolicyTest {
         assertTrue(isSettingsSubtreeRoute("settings_category"))
         assertTrue(isSettingsSubtreeRoute("settings_search"))
         assertTrue(isSettingsSubtreeRoute("appearance_settings"))
+        assertTrue(isSettingsSubtreeRoute("home_settings"))
         assertFalse(isSettingsSubtreeRoute("home"))
     }
 
@@ -24,13 +25,15 @@ class SettingsNavHierarchyPolicyTest {
         assertEquals(0, resolveSettingsNavDepth("settings"))
         assertEquals(1, resolveSettingsNavDepth("settings_category"))
         assertEquals(2, resolveSettingsNavDepth("appearance_settings"))
+        assertEquals(2, resolveSettingsNavDepth("home_settings"))
         assertEquals(3, resolveSettingsNavDepth("icon_settings"))
-        assertEquals(3, resolveSettingsNavDepth("animation_settings"))
+        assertEquals(2, resolveSettingsNavDepth("animation_settings"))
     }
 
     @Test
-    fun resolveSettingsNavParentRoute_animationUnderAppearance() {
-        assertEquals("appearance_settings", resolveSettingsNavParentRoute("animation_settings"))
+    fun resolveSettingsNavParentRoute_keepsIndependentCategoriesAtRootDetailDepth() {
+        assertEquals("settings_category", resolveSettingsNavParentRoute("animation_settings"))
+        assertEquals("settings_category", resolveSettingsNavParentRoute("home_settings"))
         assertEquals("appearance_settings", resolveSettingsNavParentRoute("icon_settings"))
         assertEquals("settings_category", resolveSettingsNavParentRoute("appearance_settings"))
     }
@@ -67,7 +70,7 @@ class SettingsNavHierarchyPolicyTest {
                 childRoute = "playback_settings",
             )
         )
-        assertTrue(
+        assertFalse(
             isSettingsNavHierarchyTransition(
                 parentRoute = "appearance_settings",
                 childRoute = "animation_settings",
@@ -131,7 +134,7 @@ class SettingsNavHierarchyPolicyTest {
             BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP,
             resolveSettingsNavRouteTransition(
                 fromRoute = "animation_settings",
-                toRoute = "appearance_settings",
+                toRoute = "settings_category",
                 forward = false,
             )
         )
@@ -174,9 +177,10 @@ class SettingsNavHierarchyPolicyTest {
 
     @Test
     fun resolveSettingsRootCategoryForNavKey_readsCategoryKey() {
+        @Suppress("DEPRECATION")
         val category = resolveSettingsRootCategoryForNavKey(
             BiliPaiNavKey.SettingsCategory(SettingsRootCategory.CONTENT_PLAYBACK)
         )
-        assertEquals(SettingsRootCategory.CONTENT_PLAYBACK, category)
+        assertEquals(SettingsRootCategory.PLAYBACK_QUALITY, category)
     }
 }

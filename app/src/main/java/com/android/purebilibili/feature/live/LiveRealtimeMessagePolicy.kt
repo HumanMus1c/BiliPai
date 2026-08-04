@@ -143,7 +143,8 @@ private fun parseLiveSuperChat(json: JsonObject): LiveRealtimeAction {
             data["background_bottom_color"] ?: data["background_color"]
         ),
         superChatToken = data.string("token"),
-        superChatReportTs = data.long("ts").takeIf { it > 0L } ?: data.long("start_time")
+        superChatReportTs = data.long("ts").takeIf { it > 0L } ?: data.long("start_time"),
+        superChatDuration = data.int("duration").takeIf { it > 0 } ?: 0
     )
     return LiveRealtimeAction.EmitSuperChat(item, id)
 }

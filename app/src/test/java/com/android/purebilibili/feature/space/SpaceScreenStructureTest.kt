@@ -129,6 +129,14 @@ class SpaceScreenStructureTest {
     }
 
     @Test
+    fun `space follow actions account for transparent top chrome`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+
+        assertTrue(source.contains("topChromeInset = scaffoldPadding.calculateTopPadding()"))
+        assertTrue(source.contains("resolveSpaceHeaderActionTopPaddingDp("))
+    }
+
+    @Test
     fun `played video locate prompt is configurable and scoped to each space visit`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 

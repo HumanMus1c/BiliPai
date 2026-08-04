@@ -58,6 +58,7 @@ import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.data.model.response.ViewPoint
 import com.android.purebilibili.feature.video.progress.PbpProgressData
@@ -737,6 +738,7 @@ fun VideoPlayerSection(
     var originalPlaybackParameters by remember(bvid) { mutableStateOf(PlaybackParameters.DEFAULT) }
     var effectiveLongPressSpeed by remember { mutableFloatStateOf(longPressSpeed) }
     var longPressSpeedFeedbackVisible by remember { mutableStateOf(false) }
+    var longPressSpeedHintDismissed by remember(bvid) { mutableStateOf(false) }
     var longPressSpeedLocked by remember(bvid) { mutableStateOf(false) }
     var lockedLongPressSpeed by remember(bvid) { mutableFloatStateOf(1.0f) }
     var longPressSpeedEndedAtMs by remember { mutableLongStateOf(0L) }
@@ -1405,6 +1407,7 @@ fun VideoPlayerSection(
         longPressSpeedStartedAtMs = android.os.SystemClock.elapsedRealtime()
         longPressSpeedStartX = startOffset?.x ?: -1f
         longPressSpeedStartY = startOffset?.y ?: -1f
+        longPressSpeedHintDismissed = false
         longPressSpeedFeedbackVisible = true
         gestureMode = VideoGestureMode.None
         isGestureVisible = false
@@ -4341,7 +4344,11 @@ fun VideoPlayerSection(
 
         // 长按倍速提示保持轻量，避免遮挡视频主体内容。
         AnimatedVisibility(
-            visible = isLongPressing && !isInPipMode,
+            visible = shouldShowLongPressSpeedFeedback(
+                isLongPressing = isLongPressing,
+                isPlaybackSurfaceActive = !isInPipMode,
+                hintDismissed = longPressSpeedHintDismissed,
+            ),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 16.dp),
@@ -4356,17 +4363,30 @@ fun VideoPlayerSection(
                 contentColor = Color.White,
                 tonalElevation = 0.dp
             ) {
-                AppText(
-                    text = if (longPressSpeedLocked) {
-                        "已锁定 ${effectiveLongPressSpeed}x"
-                    } else {
-                        "倍速播放中 ${effectiveLongPressSpeed}x"
-                    },
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AppText(
+                        text = if (longPressSpeedLocked) {
+                            "已锁定 ${effectiveLongPressSpeed}x"
+                        } else {
+                            "倍速播放中 ${effectiveLongPressSpeed}x"
+                        },
+                        modifier = Modifier.padding(start = 14.dp, end = 2.dp, top = 8.dp, bottom = 8.dp),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
-                )
+                    AppIconButton(
+                        onClick = { longPressSpeedHintDismissed = true },
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        AppIcon(
+                            imageVector = CupertinoIcons.Default.Xmark,
+                            contentDescription = "关闭倍速提示",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
             }
         }
 

@@ -158,7 +158,7 @@ class PlaybackSettingsSelectionPolicyTest {
 
     @Test
     fun `ios liquid segmented control default label size matches tall indicator`() {
-        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/settings/AppSegmentedComponents.kt")
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/settings/AppSegmentedControl.kt")
 
         assertTrue(source.contains("labelFontSize: TextUnit = 14.sp"))
         assertFalse(source.contains("labelFontSize: TextUnit = 12.sp"))

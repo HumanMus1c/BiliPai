@@ -10,7 +10,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,7 +29,6 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +51,7 @@ import com.android.purebilibili.core.ui.rememberAppWarningIcon
 import com.android.purebilibili.core.ui.rememberAppAnalyticsIcon
 import com.android.purebilibili.core.ui.animation.entrance
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.adaptiveSquircleBackground
 import com.android.purebilibili.core.ui.AppSemanticAccentRole
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -66,6 +65,8 @@ import com.android.purebilibili.core.ui.components.AppAdaptiveSwitch
 import com.android.purebilibili.core.ui.components.AppCard
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContentColor
+import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContainerColor
 import com.android.purebilibili.core.ui.components.rememberAdaptiveSemanticIconTint
 import com.android.purebilibili.core.ui.components.rememberAdaptiveListVisualCapabilities
 import androidx.compose.ui.res.stringResource
@@ -93,7 +94,8 @@ import com.android.purebilibili.core.ui.components.AppSwitchPreference as Settin
 import com.android.purebilibili.core.ui.components.AppPreference as SettingClickableItem
 import com.android.purebilibili.core.ui.common.rememberClipboardCopyHandler
 import com.android.purebilibili.core.ui.components.AppPreferenceDivider as SettingsDivider
-import com.android.purebilibili.core.ui.components.AppSliderPreference as SettingSliderItem
+import com.android.purebilibili.core.ui.components.AppSliderDialogPreference as SettingSliderItem
+import com.android.purebilibili.core.ui.components.AppPreferenceGroupPresentation
 
 
 
@@ -111,25 +113,8 @@ private fun SettingsAdaptiveDivider() {
 private fun SettingsCardGroup(
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val listCapabilities = rememberAdaptiveListVisualCapabilities()
-    val isDark = AppSurfaceTokens.groupedListContainer().luminance() < 0.45f
-    val darkTintBase = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-    val baseCardContainer = AppSurfaceTokens.cardContainer()
-    val containerColor = if (isDark) {
-        darkTintBase.compositeOver(baseCardContainer)
-    } else {
-        baseCardContainer
-    }
-    val borderColor = if (isDark) {
-        Color.White.copy(alpha = 0.06f)
-    } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.32f)
-    }
-
     SettingsGroup(
-        containerColor = containerColor,
-        shape = listCapabilities.adaptGroupShape(AppShapes.container(ContainerLevel.Dialog)),
-        border = BorderStroke(0.6.dp, borderColor)
+        presentation = AppPreferenceGroupPresentation.FLAT,
     ) {
         content()
     }
@@ -169,7 +154,7 @@ fun GeneralSection(
             icon = appearanceVisual.icon,
             iconPainter = appearanceVisual.iconResId?.let { painterResource(id = it) },
             title = "外观设置",
-            value = "主题、图标、模糊效果",
+            value = "界面风格、颜色、字体和显示大小",
             onClick = onAppearanceClick,
             iconTint = appearanceVisual.iconTint
         )
@@ -178,7 +163,7 @@ fun GeneralSection(
             icon = playbackVisual.icon,
             iconPainter = playbackVisual.iconResId?.let { painterResource(id = it) },
             title = "播放设置",
-            value = "解码、手势、后台播放",
+            value = "清晰度、倍速、小窗、后台播放和全屏操作",
             onClick = onPlaybackClick,
             iconTint = playbackVisual.iconTint
         )
@@ -187,7 +172,7 @@ fun GeneralSection(
             icon = bottomBarVisual.icon,
             iconPainter = bottomBarVisual.iconResId?.let { painterResource(id = it) },
             title = "导航设置",
-            value = "底栏、顶部标签、平板侧边栏",
+            value = "底栏、顶部入口、图标文字和排列顺序",
             onClick = onBottomBarClick,
             iconTint = bottomBarVisual.iconTint
         )
@@ -198,11 +183,13 @@ internal data class SettingsDetailEntry(
     val target: SettingsSearchTarget,
     val title: String,
     val value: String,
+    val openFocus: SettingsSceneDetailFocus? = null,
     val onClick: () -> Unit
 )
 
 internal data class SettingsRootCategoryActions(
     val onAppearanceClick: () -> Unit,
+    val onHomeClick: () -> Unit,
     val onAnimationClick: () -> Unit,
     val onPlaybackClick: () -> Unit,
     val onBottomBarClick: () -> Unit,
@@ -288,7 +275,8 @@ internal fun SettingsRootCategoryNavigationSection(
     state: SettingsRootCategoryState
 ) {
     val visual = rememberSettingsEntryVisual(category.searchTarget)
-    val effectiveIconTint = rememberAdaptiveSemanticIconTint(visual.iconTint)
+    val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(visual.iconTint)
+    val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
     val chevronRotation by animateFloatAsState(
         targetValue = if (isExpanded) 90f else 0f,
         animationSpec = tween(durationMillis = 200),
@@ -309,20 +297,20 @@ internal fun SettingsRootCategoryNavigationSection(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(AppShapes.container(ContainerLevel.Chip))
-                        .background(effectiveIconTint.copy(alpha = 0.14f)),
+                        .background(effectiveIconTint),
                     contentAlignment = Alignment.Center
                 ) {
                     when {
                         visual.icon != null -> AppIcon(
                             imageVector = visual.icon,
                             contentDescription = null,
-                            tint = effectiveIconTint,
+                            tint = iconContentColor,
                             modifier = Modifier.size(22.dp)
                         )
                         visual.iconResId != null -> AppIcon(
                             painter = painterResource(id = visual.iconResId),
                             contentDescription = null,
-                            tint = effectiveIconTint,
+                            tint = iconContentColor,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -338,9 +326,7 @@ internal fun SettingsRootCategoryNavigationSection(
                     AppText(
                         text = category.subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
@@ -377,23 +363,19 @@ internal fun SettingsRootCategoryListSection(
     categories: List<SettingsRootCategory>,
     onCategoryClick: (SettingsRootCategory) -> Unit
 ) {
-    val visualSpec = resolveSettingsVisualSpec()
-
-    SettingsDetailGroup(title = "分类") {
-        SettingsCardGroup {
-            categories.forEachIndexed { index, category ->
-                val visual = rememberSettingsEntryVisual(category.searchTarget)
-                SettingsRootCategoryRow(
-                    title = category.title,
-                    subtitle = category.subtitle,
-                    icon = visual.icon,
-                    iconPainter = visual.iconResId?.let { painterResource(id = it) },
-                    iconTint = visual.iconTint,
-                    onClick = { onCategoryClick(category) },
-                )
-                if (index != categories.lastIndex) {
-                    SettingsAdaptiveDivider()
-                }
+    SettingsCardGroup {
+        categories.forEachIndexed { index, category ->
+            val visual = rememberSettingsEntryVisual(category.searchTarget)
+            SettingsRootCategoryRow(
+                title = category.title,
+                subtitle = category.subtitle,
+                icon = visual.icon,
+                iconPainter = visual.iconResId?.let { painterResource(id = it) },
+                iconTint = visual.iconTint,
+                onClick = { onCategoryClick(category) },
+            )
+            if (index != categories.lastIndex) {
+                SettingsAdaptiveDivider()
             }
         }
     }
@@ -407,10 +389,13 @@ private fun SettingsRootCategoryRow(
     iconPainter: androidx.compose.ui.graphics.painter.Painter?,
     iconTint: Color,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val visualSpec = resolveSettingsVisualSpec()
+    val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(iconTint)
+    val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(
@@ -423,20 +408,20 @@ private fun SettingsRootCategoryRow(
             modifier = Modifier
                 .size(visualSpec.categoryIconBubbleSize)
                 .clip(AppShapes.container(ContainerLevel.Field))
-                .background(iconTint.copy(alpha = 0.16f)),
+                .background(effectiveIconTint),
             contentAlignment = Alignment.Center,
         ) {
             when {
                 iconPainter != null -> AppIcon(
                     painter = iconPainter,
                     contentDescription = null,
-                    tint = iconTint,
+                    tint = iconContentColor,
                     modifier = Modifier.size(visualSpec.categoryIconSize),
                 )
                 icon != null -> AppIcon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = iconTint,
+                    tint = iconContentColor,
                     modifier = Modifier.size(visualSpec.categoryIconSize),
                 )
             }
@@ -453,8 +438,6 @@ private fun SettingsRootCategoryRow(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
             )
         }
         AppIcon(
@@ -587,9 +570,9 @@ internal fun SettingsDetailEntrySection(
                 title = entry.title,
                 subtitle = entry.value,
                 onClick = {
-                    resolveSettingsSceneDetailFocus(entry.target)?.let { detailFocus ->
+                    entry.openFocus?.let { detailFocus ->
                         SettingsSearchFocusController.submit(detailFocus.target, detailFocus.focusId)
-                    }
+                    } ?: SettingsSearchFocusController.clear()
                     entry.onClick()
                 },
                 iconTint = visual.iconTint
@@ -616,8 +599,192 @@ internal fun SettingsRootCategoryContent(
     actions: SettingsRootCategoryActions,
     state: SettingsRootCategoryState
 ) {
+    val resolvedCategory = canonicalSettingsRootCategory(category)
     Column {
-        when (category) {
+        when (resolvedCategory) {
+            SettingsRootCategory.APPEARANCE_THEME -> {
+                SettingsRootCategoryEntranceSection {
+                    SettingsDetailGroup(title = "外观与主题") {
+                        SettingsDetailEntrySection(
+                            entries = listOf(
+                                SettingsDetailEntry(
+                                    target = SettingsSearchTarget.INTERFACE_THEME,
+                                    title = "外观设置",
+                                    value = "选择界面风格、颜色、字体、显示大小和启动画面",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.APPEARANCE,
+                                        SettingsSearchFocusIds.APPEARANCE_THEME,
+                                    ),
+                                    onClick = actions.onAppearanceClick,
+                                ),
+                            ),
+                        )
+                    }
+                }
+            }
+            SettingsRootCategory.PLAYBACK_QUALITY -> {
+                SettingsRootCategoryEntranceSection {
+                    SettingsDetailGroup(title = "播放与画质") {
+                        SettingsDetailEntrySection(
+                            entries = listOf(
+                                SettingsDetailEntry(
+                                    target = SettingsSearchTarget.PLAYBACK_QUALITY,
+                                    title = "播放器设置",
+                                    value = "调整解码、清晰度、倍速、小窗和全屏操作",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.PLAYBACK,
+                                        SettingsSearchFocusIds.PLAYBACK_DECODER,
+                                    ),
+                                    onClick = actions.onPlaybackClick,
+                                ),
+                            ),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsRootCategoryEntranceSection {
+                    SettingsDetailGroup(title = "互动与评论") {
+                        SettingsDetailEntrySection(
+                            entries = listOf(
+                                SettingsDetailEntry(
+                                    target = SettingsSearchTarget.INTERACTION_COMMENT,
+                                    title = "互动、评论与内容预览",
+                                    value = "调整评论显示、点赞操作、视频简介和内容入口",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.PLAYBACK,
+                                        SettingsSearchFocusIds.PLAYBACK_INTERACTION,
+                                    ),
+                                    onClick = actions.onPlaybackClick,
+                                ),
+                            ),
+                        )
+                    }
+                }
+            }
+            SettingsRootCategory.HOME_RECOMMENDATION -> {
+                SettingsRootCategoryEntranceSection {
+                    SettingsDetailGroup(title = "首页展示") {
+                        SettingsDetailEntrySection(
+                            entries = listOf(
+                                SettingsDetailEntry(
+                                    target = SettingsSearchTarget.HOME_FEED,
+                                    title = "首页样式与推荐卡片",
+                                    value = "调整卡片布局、壁纸、UP 信息和视频时长",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.HOME_FEED,
+                                        SettingsSearchFocusIds.HOME_OVERVIEW,
+                                    ),
+                                    onClick = actions.onHomeClick,
+                                ),
+                            ),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsRootCategoryEntranceSection {
+                    SettingsDetailGroup(title = "推荐流与动态") {
+                        FeedApiSection(
+                            feedApiType = state.feedApiType,
+                            onFeedApiTypeChange = actions.onFeedApiTypeChange,
+                            incrementalTimelineRefreshEnabled = state.incrementalTimelineRefreshEnabled,
+                            onIncrementalTimelineRefreshChange = actions.onIncrementalTimelineRefreshChange,
+                            dynamicImagePreviewTextVisible = state.dynamicImagePreviewTextVisible,
+                            onDynamicImagePreviewTextVisibleChange = actions.onDynamicImagePreviewTextVisibleChange,
+                            dynamicAllTabHorizontalUserListVisible = state.dynamicAllTabHorizontalUserListVisible,
+                            onDynamicAllTabHorizontalUserListVisibleChange =
+                                actions.onDynamicAllTabHorizontalUserListVisibleChange,
+                            dynamicTopBarCollapseOnScroll = state.dynamicTopBarCollapseOnScroll,
+                            onDynamicTopBarCollapseOnScrollChange =
+                                actions.onDynamicTopBarCollapseOnScrollChange,
+                            dynamicFeedLayoutMode = state.dynamicFeedLayoutMode,
+                            onDynamicFeedLayoutModeChange = actions.onDynamicFeedLayoutModeChange,
+                            dynamicVisibleTabIds = state.dynamicVisibleTabIds,
+                            onDynamicTabVisibilityChange = actions.onDynamicTabVisibilityChange,
+                            homeRefreshCount = state.homeRefreshCount,
+                            onHomeRefreshCountChange = actions.onHomeRefreshCountChange,
+                        )
+                    }
+                }
+            }
+            SettingsRootCategory.NAVIGATION_INTERACTION -> {
+                SettingsRootCategoryEntranceSection {
+                    SettingsDetailGroup(title = "导航") {
+                        SettingsDetailEntrySection(
+                            entries = listOf(
+                                SettingsDetailEntry(
+                                    target = SettingsSearchTarget.NAVIGATION,
+                                    title = "导航与标签",
+                                    value = "选择底栏和顶部入口，并调整图标、文字和顺序",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.BOTTOM_BAR,
+                                        SettingsSearchFocusIds.BOTTOM_BAR_START,
+                                    ),
+                                    onClick = actions.onBottomBarClick,
+                                ),
+                            ),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsRootCategoryEntranceSection {
+                    SettingsDetailGroup(title = "交互与动效") {
+                        SettingsDetailEntrySection(
+                            entries = listOf(
+                                SettingsDetailEntry(
+                                    target = SettingsSearchTarget.ANIMATION,
+                                    title = "动效与触感",
+                                    value = "控制页面动画、视频转场、振动反馈和玻璃效果",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.ANIMATION,
+                                        SettingsSearchFocusIds.ANIMATION_START,
+                                    ),
+                                    onClick = actions.onAnimationClick,
+                                ),
+                            ),
+                        )
+                    }
+                }
+            }
+            SettingsRootCategory.PRIVACY_PERMISSION -> {
+                SettingsRootCategoryEntranceSection {
+                    SettingsDetailGroup(title = "隐私与权限") {
+                        PrivacySection(
+                            privacyModeEnabled = state.privacyModeEnabled,
+                            privacyContentAuthenticationEnabled = state.privacyContentAuthenticationEnabled,
+                            onPrivacyModeChange = actions.onPrivacyModeChange,
+                            onPrivacyContentAuthenticationChange = actions.onPrivacyContentAuthenticationChange,
+                            onPermissionClick = actions.onPermissionClick,
+                            onBlockedListClick = actions.onBlockedListClick,
+                        )
+                    }
+                }
+            }
+            SettingsRootCategory.STORAGE_BACKUP -> {
+                SettingsRootCategoryEntranceSection {
+                    SettingsDetailGroup(title = "存储与备份") {
+                        DataStorageSection(
+                            customDownloadPath = state.customDownloadPath,
+                            customImageSavePath = state.customImageSavePath,
+                            cacheSize = state.cacheSize,
+                            onSettingsShareClick = actions.onSettingsShareClick,
+                            onWebDavBackupClick = actions.onWebDavBackupClick,
+                            onDownloadPathClick = actions.onDownloadPathClick,
+                            onImageSavePathClick = actions.onImageSavePathClick,
+                            onClearCacheClick = actions.onClearCacheClick,
+                        )
+                    }
+                }
+            }
+            SettingsRootCategory.PLUGINS_EXTENSIONS -> {
+                SettingsRootCategoryEntranceSection {
+                    SettingsDetailGroup(title = "插件与扩展") {
+                        PluginCenterSection(
+                            pluginCount = state.pluginCount,
+                            onPluginsClick = actions.onPluginsClick,
+                        )
+                    }
+                }
+            }
             SettingsRootCategory.APPEARANCE_INTERACTION -> {
                 SettingsRootCategoryEntranceSection {
                     SettingsDetailGroup(title = "显示与交互") {
@@ -626,7 +793,11 @@ internal fun SettingsRootCategoryContent(
                                 SettingsDetailEntry(
                                     target = SettingsSearchTarget.INTERFACE_THEME,
                                     title = "外观设置",
-                                    value = "UI 预设、主题、字体、DPI、动态图标与开屏",
+                                    value = "选择界面风格、颜色、字体、显示大小和启动画面",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.APPEARANCE,
+                                        SettingsSearchFocusIds.APPEARANCE_THEME,
+                                    ),
                                     onClick = actions.onAppearanceClick
                                 )
                             )
@@ -641,7 +812,11 @@ internal fun SettingsRootCategoryContent(
                                 SettingsDetailEntry(
                                     target = SettingsSearchTarget.ANIMATION,
                                     title = "动效与图标",
-                                    value = "过渡动画、触感反馈、动态图标与底栏搜索入口",
+                                    value = "控制页面动画、视频转场、振动反馈和玻璃效果",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.ANIMATION,
+                                        SettingsSearchFocusIds.ANIMATION_START,
+                                    ),
                                     onClick = actions.onAnimationClick
                                 )
                             )
@@ -656,7 +831,11 @@ internal fun SettingsRootCategoryContent(
                                 SettingsDetailEntry(
                                     target = SettingsSearchTarget.NAVIGATION,
                                     title = "导航与标签",
-                                    value = "底栏、顶部标签、平板侧边栏与底栏项目顺序",
+                                    value = "选择底栏和顶部入口，并调整图标、文字和顺序",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.BOTTOM_BAR,
+                                        SettingsSearchFocusIds.BOTTOM_BAR_START,
+                                    ),
                                     onClick = actions.onBottomBarClick
                                 )
                             )
@@ -671,7 +850,11 @@ internal fun SettingsRootCategoryContent(
                                 SettingsDetailEntry(
                                     target = SettingsSearchTarget.FULLSCREEN_GESTURE,
                                     title = "全屏与手势",
-                                    value = "在播放设置内 · 全屏方向与手势控制",
+                                    value = "设置自动横屏、亮度音量手势和全屏返回方式",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.PLAYBACK,
+                                        SettingsSearchFocusIds.PLAYBACK_FULLSCREEN,
+                                    ),
                                     onClick = actions.onPlaybackClick
                                 )
                             )
@@ -687,8 +870,12 @@ internal fun SettingsRootCategoryContent(
                                 SettingsDetailEntry(
                                     target = SettingsSearchTarget.HOME_FEED,
                                     title = "首页样式与壁纸",
-                                    value = "卡片样式、壁纸效果与推荐流宽度",
-                                    onClick = actions.onAppearanceClick
+                                    value = "调整卡片布局、壁纸、UP 信息和视频时长",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.HOME_FEED,
+                                        SettingsSearchFocusIds.HOME_OVERVIEW,
+                                    ),
+                                    onClick = actions.onHomeClick
                                 )
                             )
                         )
@@ -727,7 +914,11 @@ internal fun SettingsRootCategoryContent(
                                 SettingsDetailEntry(
                                     target = SettingsSearchTarget.PLAYBACK_QUALITY,
                                     title = "播放与画质",
-                                    value = "在播放设置内 · 解码、画质与倍速",
+                                    value = "选择解码方式、默认清晰度、音质和播放速度",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.PLAYBACK,
+                                        SettingsSearchFocusIds.PLAYBACK_NETWORK,
+                                    ),
                                     onClick = actions.onPlaybackClick
                                 )
                             )
@@ -742,7 +933,11 @@ internal fun SettingsRootCategoryContent(
                                 SettingsDetailEntry(
                                     target = SettingsSearchTarget.INTERACTION_COMMENT,
                                     title = "互动与评论",
-                                    value = "在播放设置内 · 评论、点赞与简介",
+                                    value = "调整评论显示、点赞操作、视频简介和内容入口",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.PLAYBACK,
+                                        SettingsSearchFocusIds.PLAYBACK_INTERACTION,
+                                    ),
                                     onClick = actions.onPlaybackClick
                                 )
                             )
@@ -781,26 +976,37 @@ internal fun SettingsRootCategoryContent(
             }
             SettingsRootCategory.SYSTEM_ABOUT -> {
                 SettingsRootCategoryEntranceSection {
-                    SettingsDetailGroup(title = "诊断与插件") {
+                    SettingsDetailGroup(title = "系统诊断") {
+                        DiagnosticsSection(
+                            crashTrackingEnabled = state.crashTrackingEnabled,
+                            analyticsEnabled = state.analyticsEnabled,
+                            onCrashTrackingChange = actions.onCrashTrackingChange,
+                            onAnalyticsChange = actions.onAnalyticsChange,
+                            onExportLogsClick = actions.onExportLogsClick,
+                        )
+                        SettingsAdaptiveDivider()
                         SettingsDetailEntrySection(
                             entries = listOf(
                                 SettingsDetailEntry(
                                     target = SettingsSearchTarget.DIAGNOSTICS,
                                     title = "播放器诊断",
-                                    value = "在播放设置内 · 诊断日志与统计",
+                                    value = "出现黑屏、卡顿或画质切换失败时用于排查问题",
+                                    openFocus = SettingsSceneDetailFocus(
+                                        SettingsSearchTarget.PLAYBACK,
+                                        SettingsSearchFocusIds.PLAYBACK_DEBUG,
+                                    ),
                                     onClick = actions.onPlaybackClick
                                 )
                             )
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        DeveloperSection(
-                            crashTrackingEnabled = state.crashTrackingEnabled,
-                            analyticsEnabled = state.analyticsEnabled,
-                            pluginCount = state.pluginCount,
-                            onCrashTrackingChange = actions.onCrashTrackingChange,
-                            onAnalyticsChange = actions.onAnalyticsChange,
-                            onPluginsClick = actions.onPluginsClick,
-                            onExportLogsClick = actions.onExportLogsClick
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsRootCategoryEntranceSection {
+                    SettingsDetailGroup(title = "帮助与系统") {
+                        SupportToolsSection(
+                            onTipsClick = actions.onTipsClick,
+                            onOpenLinksClick = actions.onOpenLinksClick,
                         )
                     }
                 }
@@ -842,13 +1048,6 @@ internal fun SettingsRootCategoryContent(
                         onGithubClick = actions.onGithubClick,
                         onTelegramClick = actions.onTelegramClick,
                         onDisclaimerClick = actions.onDisclaimerClick
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                SettingsRootCategoryEntranceSection {
-                    SupportToolsSection(
-                        onTipsClick = actions.onTipsClick,
-                        onOpenLinksClick = actions.onOpenLinksClick
                     )
                 }
             }
@@ -1048,45 +1247,20 @@ fun FeedApiSection(
     val previewTextIcon = rememberSettingsSemanticIcon(SettingsIconRole.DYNAMIC_PREVIEW_TEXT)
     val topBarCollapseIcon = rememberSettingsSemanticIcon(SettingsIconRole.NAVIGATION)
     SettingsCardGroup {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AppIcon(
-                    imageVector = feedIcon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = feedTint
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    AppText(
-                        text = "推荐流类型",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    AppText(
-                        text = feedApiType.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            AppSegmentedControl(
-                options = resolveFeedApiSegmentOptions(),
-                selectedValue = feedApiType,
-                onSelectionChange = onFeedApiTypeChange
-            )
-        }
+        SettingsSingleChoicePreference(
+            title = "首页推荐来源",
+            subtitle = feedApiType.description,
+            options = resolveFeedApiSegmentOptions(),
+            selectedValue = feedApiType,
+            icon = feedIcon,
+            iconTint = feedTint,
+            onSelectionChange = onFeedApiTypeChange,
+        )
         SettingsAdaptiveDivider()
         SettingSwitchItem(
             icon = refreshIcon,
-            title = "动态增量刷新",
-            subtitle = "下拉刷新时不重置列表，仅在顶部插入新内容",
+            title = "刷新时保留当前列表",
+            subtitle = "下拉刷新只把新动态加到顶部，不重新排列已看到的内容",
             checked = incrementalTimelineRefreshEnabled,
             onCheckedChange = onIncrementalTimelineRefreshChange,
             iconTint = incrementalRefreshTint
@@ -1103,8 +1277,8 @@ fun FeedApiSection(
         SettingsAdaptiveDivider()
         SettingSwitchItem(
             icon = visibilityIcon,
-            title = "全部动态显示 UP 主栏",
-            subtitle = "关闭后，“全部”tab 顶部不再弹出 UP 主横向栏，UP tab 仍可选择关注用户",
+            title = "“全部”页显示关注用户栏",
+            subtitle = "关闭后隐藏顶部横向用户列表，“UP主”页仍可选择关注用户",
             checked = dynamicAllTabHorizontalUserListVisible,
             onCheckedChange = onDynamicAllTabHorizontalUserListVisibleChange,
             iconTint = feedTint
@@ -1112,7 +1286,7 @@ fun FeedApiSection(
         SettingsAdaptiveDivider()
         SettingSwitchItem(
             icon = topBarCollapseIcon,
-            title = "动态顶栏下滑折叠",
+            title = "浏览动态时收起顶部栏",
             subtitle = if (dynamicTopBarCollapseOnScroll) {
                 "列表下滑时折叠 Tab 顶栏；横向 UP 主栏仍会单独收起"
             } else {
@@ -1123,33 +1297,9 @@ fun FeedApiSection(
             iconTint = feedTint
         )
         SettingsAdaptiveDivider()
-        //  [新增] 动态 Feed 布局模式（对齐 PiliPlus dynamicsWaterfallFlow）
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AppIcon(
-                imageVector = feedIcon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = feedTint
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                AppText(
-                    text = "动态 Feed 布局",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                AppText(
-                    text = "瀑布流多列自适应；列表单列居中",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        AppSegmentedControl(
+        SettingsSingleChoicePreference(
+            title = "动态页面布局",
+            subtitle = "瀑布流会按屏幕宽度显示多列；列表模式固定为单列",
             options = com.android.purebilibili.core.store.SettingsManager.DynamicFeedLayoutMode.entries.map { mode ->
                 com.android.purebilibili.core.ui.components.AppSegmentOption(
                     value = mode,
@@ -1157,7 +1307,9 @@ fun FeedApiSection(
                 )
             },
             selectedValue = dynamicFeedLayoutMode,
-            onSelectionChange = onDynamicFeedLayoutModeChange
+            icon = feedIcon,
+            iconTint = feedTint,
+            onSelectionChange = onDynamicFeedLayoutModeChange,
         )
         SettingsAdaptiveDivider()
         FeedDynamicTabVisibilityItem(
@@ -1175,7 +1327,7 @@ fun FeedApiSection(
             onValueChange = { value -> onHomeRefreshCountChange(value.roundToInt()) },
             valueRange = resolveHomeRefreshSliderRange(),
             steps = resolveHomeRefreshSliderSteps(),
-            valueLabel = homeRefreshCount.toString(),
+            valueFormatter = { value -> value.roundToInt().toString() },
             iconTint = incrementalRefreshTint
         )
     }
@@ -1191,6 +1343,8 @@ private fun FeedDynamicTabVisibilityItem(
     val listCapabilities = rememberAdaptiveListVisualCapabilities()
     val visualSpec = listCapabilities.componentSpec
     val rowSpec = listCapabilities.rowSpec
+    val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(iconTint)
+    val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1203,14 +1357,16 @@ private fun FeedDynamicTabVisibilityItem(
             Box(
                 modifier = Modifier
                     .size(visualSpec.iconContainerSizeDp.dp)
-                    .clip(RoundedCornerShape(visualSpec.iconCornerRadiusDp.dp))
-                    .background(iconTint.copy(alpha = visualSpec.iconBackgroundAlpha)),
+                    .adaptiveSquircleBackground(
+                        color = effectiveIconTint,
+                        cornerRadius = visualSpec.iconCornerRadiusDp.dp,
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 AppIcon(
                     icon,
                     contentDescription = null,
-                    tint = iconTint,
+                    tint = iconContentColor,
                     modifier = Modifier.size(visualSpec.iconGlyphSizeDp.dp)
                 )
             }
@@ -1384,6 +1540,65 @@ fun DataStorageSection(
             onClick = onClearCacheClick,
             iconTint = clearCacheVisual.iconTint,
             showChevron = showExplicitActionChevron
+        )
+    }
+}
+
+@Composable
+private fun PluginCenterSection(
+    pluginCount: Int,
+    onPluginsClick: () -> Unit,
+) {
+    val pluginsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.PLUGINS)
+    SettingsCardGroup {
+        SettingClickableItem(
+            icon = pluginsVisual.icon,
+            iconPainter = pluginsVisual.iconResId?.let { painterResource(id = it) },
+            title = "插件中心",
+            value = "$pluginCount 个已启用",
+            onClick = onPluginsClick,
+            iconTint = pluginsVisual.iconTint,
+        )
+    }
+}
+
+@Composable
+private fun DiagnosticsSection(
+    crashTrackingEnabled: Boolean,
+    analyticsEnabled: Boolean,
+    onCrashTrackingChange: (Boolean) -> Unit,
+    onAnalyticsChange: (Boolean) -> Unit,
+    onExportLogsClick: () -> Unit,
+) {
+    val crashTrackingTint = rememberSettingsEntryTint(AppSemanticAccentRole.SECONDARY, iOSTeal)
+    val analyticsTint = rememberSettingsEntryTint(AppSemanticAccentRole.PRIMARY, iOSBlue)
+    val exportLogsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.EXPORT_LOGS)
+    SettingsCardGroup {
+        SettingSwitchItem(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.CRASH_TRACKING),
+            title = "崩溃追踪",
+            subtitle = "默认开启，仅用于定位崩溃与严重故障",
+            checked = crashTrackingEnabled,
+            onCheckedChange = onCrashTrackingChange,
+            iconTint = crashTrackingTint,
+        )
+        SettingsAdaptiveDivider()
+        SettingSwitchItem(
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.ANALYTICS),
+            title = "使用情况统计",
+            subtitle = "默认开启，用于匿名统计每日活跃与基础使用情况",
+            checked = analyticsEnabled,
+            onCheckedChange = onAnalyticsChange,
+            iconTint = analyticsTint,
+        )
+        SettingsAdaptiveDivider()
+        SettingClickableItem(
+            icon = exportLogsVisual.icon,
+            iconPainter = exportLogsVisual.iconResId?.let { painterResource(id = it) },
+            title = "导出日志",
+            value = "播放器诊断与问题反馈",
+            onClick = onExportLogsClick,
+            iconTint = exportLogsVisual.iconTint,
         )
     }
 }

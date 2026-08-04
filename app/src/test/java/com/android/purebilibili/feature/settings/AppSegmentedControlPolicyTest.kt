@@ -46,11 +46,11 @@ class AppSegmentedControlPolicyTest {
     @Test
     fun liquidHostPreservesCustomSizingAndBottomBarInjection() {
         val source = loadSource(
-            "app/src/main/java/com/android/purebilibili/feature/settings/AppSegmentedComponents.kt",
+            "app/src/main/java/com/android/purebilibili/feature/settings/AppSegmentedControl.kt",
         )
 
         assertTrue(source.contains("itemWidth = null"))
-        assertTrue(source.contains("modifier = modifier.fillMaxWidth()"))
+        assertTrue(source.contains("modifier = modifier"))
         assertTrue(source.contains("height = resolvedHeight"))
         assertTrue(source.contains("indicatorHeight = resolvedIndicatorHeight"))
         assertTrue(source.contains("labelFontSize = resolvedLabelFontSize"))

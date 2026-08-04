@@ -97,6 +97,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
@@ -439,6 +440,7 @@ fun SpaceScreen(
                         SpaceContent(
                             state = state,
                             gridState = gridState,
+                            topChromeInset = scaffoldPadding.calculateTopPadding(),
                             onVideoClick = onVideoClick,
                             videoProgressLookup = videoProgressLookup,
                             onAudioClick = onAudioClick,
@@ -502,7 +504,8 @@ fun SpaceScreen(
                         DynamicCommentOverlayHost(
                             viewModel = dynamicInteractionViewModel,
                             primaryItems = dynamicCardItems,
-                            toastContext = context
+                            toastContext = context,
+                            onUserClick = onUserClick,
                         )
                     }
                 }
@@ -762,6 +765,7 @@ private fun SpacePlayedVideoLocatePrompt(
 private fun SpaceContent(
     state: SpaceUiState.Success,
     gridState: LazyGridState,
+    topChromeInset: Dp,
     onVideoClick: (String, Long, Long) -> Unit,
     videoProgressLookup: (String) -> Long,
     onAudioClick: (Long) -> Unit,
@@ -1048,6 +1052,7 @@ private fun SpaceContent(
                     userInfo = state.headerState.userInfo ?: state.userInfo,
                     relationStat = state.headerState.relationStat ?: state.relationStat,
                     upStat = state.headerState.upStat ?: state.upStat,
+                    topChromeInset = topChromeInset,
                     collapseFraction = headerCollapseFraction.value,
                     onFollowClick = onFollowClick,
                     onTopPhotoClick = onTopPhotoClick,
@@ -2007,6 +2012,7 @@ private fun SpaceHeader(
     userInfo: SpaceUserInfo,
     relationStat: RelationStatData?,
     upStat: UpStatData?,
+    topChromeInset: Dp,
     collapseFraction: Float,
     onFollowClick: () -> Unit,
     onTopPhotoClick: () -> Unit,
@@ -2124,7 +2130,13 @@ private fun SpaceHeader(
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(
+                            start = 12.dp,
+                            top = resolveSpaceHeaderActionTopPaddingDp(
+                                topChromeInsetDp = topChromeInset.value,
+                            ).dp,
+                            end = 12.dp,
+                        ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AppSurface(

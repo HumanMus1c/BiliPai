@@ -1,0 +1,313 @@
+package com.android.purebilibili.core.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.android.purebilibili.core.ui.AppDialogAction
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
+import kotlin.math.round
+
+@Immutable
+data class AppChoiceOption<T>(
+    val value: T,
+    val label: String,
+    val description: String? = null,
+)
+
+@Composable
+fun <T> AppSingleChoicePreference(
+    title: String,
+    selectedValue: T,
+    options: List<AppChoiceOption<T>>,
+    onValueChange: (T) -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    subtitle: String? = null,
+    enabled: Boolean = true,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
+    dialogTitle: String = title,
+) {
+    var dialogVisible by rememberSaveable { mutableStateOf(false) }
+    val selectedLabel = options.firstOrNull { it.value == selectedValue }?.label
+
+    Box(modifier = modifier.alpha(if (enabled) 1f else 0.6f)) {
+        AppPreference(
+            icon = icon,
+            title = title,
+            subtitle = subtitle,
+            value = selectedLabel,
+            onClick = if (enabled) ({ dialogVisible = true }) else null,
+            iconTint = iconTint,
+            showChevron = enabled,
+        )
+    }
+
+    if (dialogVisible) {
+        AppSingleChoiceDialog(
+            title = dialogTitle,
+            selectedValue = selectedValue,
+            options = options,
+            onValueSelected = { value ->
+                if (shouldDispatchAppChoiceSelection(selectedValue, value)) {
+                    onValueChange(value)
+                }
+                dialogVisible = false
+            },
+            onDismissRequest = { dialogVisible = false },
+        )
+    }
+}
+
+@Composable
+fun <T> AppSingleChoiceDialog(
+    title: String,
+    selectedValue: T,
+    options: List<AppChoiceOption<T>>,
+    onValueSelected: (T) -> Unit,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val configuration = LocalConfiguration.current
+    val maxDialogHeight = (configuration.screenHeightDp * 0.8f).dp
+
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .widthIn(min = 280.dp, max = 420.dp)
+                .heightIn(max = maxDialogHeight),
+            shape = AppShapes.container(ContainerLevel.Dialog),
+            color = AppSurfaceTokens.cardContainer(),
+            tonalElevation = 6.dp,
+        ) {
+            Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    options.forEach { option ->
+                        val selected = option.value == selectedValue
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .selectable(
+                                    selected = selected,
+                                    role = Role.RadioButton,
+                                    onClick = { onValueSelected(option.value) },
+                                )
+                                .semantics(mergeDescendants = true) {
+                                    stateDescription = if (selected) "已选中" else "未选中"
+                                }
+                                .padding(horizontal = 18.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AppRadioButton(
+                                selected = selected,
+                                onClick = null,
+                                modifier = Modifier.size(48.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = option.label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                option.description?.let { description ->
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AppSliderDialogPreference(
+    title: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    subtitle: String? = null,
+    steps: Int = 0,
+    enabled: Boolean = true,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
+    valueFormatter: (Float) -> String = { it.toString() },
+    dialogTitle: String = title,
+) {
+    var dialogVisible by rememberSaveable { mutableStateOf(false) }
+
+    Box(modifier = modifier.alpha(if (enabled) 1f else 0.6f)) {
+        AppPreference(
+            icon = icon,
+            title = title,
+            subtitle = subtitle,
+            value = valueFormatter(value),
+            onClick = if (enabled) ({ dialogVisible = true }) else null,
+            iconTint = iconTint,
+            showChevron = enabled,
+        )
+    }
+
+    if (dialogVisible) {
+        AppSliderDialog(
+            title = dialogTitle,
+            value = value,
+            valueRange = valueRange,
+            steps = steps,
+            valueFormatter = valueFormatter,
+            onConfirm = { resolvedValue ->
+                onValueChange(resolvedValue)
+                dialogVisible = false
+            },
+            onDismissRequest = { dialogVisible = false },
+        )
+    }
+}
+
+@Composable
+fun AppSliderDialog(
+    title: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onConfirm: (Float) -> Unit,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    steps: Int = 0,
+    valueFormatter: (Float) -> String = { it.toString() },
+) {
+    var draftValue by remember(value, valueRange, steps) {
+        mutableFloatStateOf(resolveAppSliderDialogValue(value, valueRange, steps))
+    }
+
+    Dialog(onDismissRequest = onDismissRequest) {
+        Surface(
+            modifier = modifier.widthIn(min = 280.dp, max = 420.dp),
+            shape = AppShapes.container(ContainerLevel.Dialog),
+            color = AppSurfaceTokens.cardContainer(),
+            tonalElevation = 6.dp,
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Text(
+                    text = valueFormatter(draftValue),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                AppSlider(
+                    value = draftValue,
+                    onValueChange = { draftValue = it },
+                    valueRange = valueRange,
+                    steps = steps,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AppDialogAction(onClick = onDismissRequest) {
+                        Text("取消")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    AppDialogAction(
+                        onClick = {
+                            onConfirm(resolveAppSliderDialogValue(draftValue, valueRange, steps))
+                        },
+                    ) {
+                        Text("确定")
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun <T> shouldDispatchAppChoiceSelection(
+    selectedValue: T,
+    requestedValue: T,
+): Boolean = selectedValue != requestedValue
+
+fun resolveAppSliderDialogValue(
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+): Float {
+    val start = valueRange.start
+    val end = valueRange.endInclusive
+    if (end <= start) return start
+
+    val clamped = value.coerceIn(start, end)
+    val intervalCount = steps.coerceAtLeast(0) + 1
+    if (intervalCount <= 1) return clamped
+
+    val interval = (end - start) / intervalCount
+    return (start + round((clamped - start) / interval) * interval).coerceIn(start, end)
+}

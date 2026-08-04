@@ -681,7 +681,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     val digest = async { calculateInstalledApkSha256(context) }
                     val release = async {
                         AppUpdateChecker
-                            .check(com.android.purebilibili.BuildConfig.VERSION_NAME)
+                            .check(
+                                currentVersion = com.android.purebilibili.BuildConfig.VERSION_NAME,
+                                currentVersionCode = com.android.purebilibili.BuildConfig.VERSION_CODE
+                            )
                             .getOrNull()
                     }
                     digest.await() to release.await()

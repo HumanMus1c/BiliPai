@@ -464,6 +464,19 @@ internal fun BiliPaiNavDisplayHost(
             val newBackJob = navigationScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
             VideoCardTransitionDiagnostics.onNavigationBackJobChanged(active = true)
             try {
+            val isVideoCardActiveReturn = videoCardDepthEffectEnabled &&
+                (
+                    videoCardClock.phase == VideoCardTransitionBackgroundPhase.HELD ||
+                        videoCardClock.phase == VideoCardTransitionBackgroundPhase.OPENING
+                    ) &&
+                isCardMorphDestinationNavKey(currentBackKey)
+            // Commit card ownership before NavDisplay finishes the predictive pop. This removes
+            // detail-only content before a short 16:9 source card exposes the area below player.
+            val quickReturnForDepthClear = if (isVideoCardActiveReturn) {
+                onPrepareVideoCardSharedReturn()
+            } else {
+                false
+            }
             val predictiveBlurAtCommit = predictiveBackBackgroundProgressProvider()
             val shouldFadePredictiveBlur = shouldApplyPredictiveBackGestureBlur(
                 routeTransition = popRouteTransition,
@@ -492,18 +505,11 @@ internal fun BiliPaiNavDisplayHost(
                 currentPageKey = safeBackStack.lastOrNull(),
             )
             predictiveBlurFadeJob?.join()
-            val isVideoCardActiveReturn = videoCardDepthEffectEnabled &&
-                (
-                    videoCardClock.phase == VideoCardTransitionBackgroundPhase.HELD ||
-                        videoCardClock.phase == VideoCardTransitionBackgroundPhase.OPENING
-                    ) &&
-                isCardMorphDestinationNavKey(currentBackKey)
             if (isVideoCardActiveReturn) {
                 cancelVideoCardDepthAnimation()
             }
             val videoBlurFadeJob = if (isVideoCardActiveReturn) {
                 val morphSource = resolveCardMorphDestinationSourceRoute(currentBackKey)
-                val quickReturnForDepthClear = onPrepareVideoCardSharedReturn()
                 if (
                     shouldSnapClearVideoCardDepthBlurOnQuickReturn(
                         isQuickReturnFromDetail = quickReturnForDepthClear,
@@ -782,12 +788,17 @@ internal fun BiliPaiNavDisplayHost(
             val videoCardRestoreRunning =
                 isVideoCardTransitionBackgroundGesturePhase(videoCardClock.phase) &&
                     cancelledVideoCardBlur < 1f
-            // 手势取消：depth 复原到满值，与详情回弹一致。播放器/系统栏恢复(onNativeVideoBackCancelled)
-            // 延迟到景深回弹完成后再回调，避免「视频先恢复、背景还糊着」的时序分裂；
-            // 无景深回弹(普通路由)时保持立即回调。
+            if (videoCardRestoreRunning) {
+                // Set synchronously before NavDisplay starts its cancel transition. Launching this
+                // state change in the coroutine leaves one draw frame where the cover can reappear.
+                videoCardClock.beginGestureRestore()
+            }
+            // Rebind the live player surface immediately. Waiting for the independent depth
+            // restore animation lets the resident cover own one frame over the player.
+            onNativeVideoBackCancelled(currentBackKey, targetBackKey)
+            // 手势取消：depth 独立复原到满值，与详情页回弹一致。
             if (videoCardRestoreRunning) {
                 navigationScope.launch {
-                    videoCardClock.beginGestureRestore()
                     try {
                         videoCardClock.snapFallback(cancelledVideoCardBlur)
                         videoCardClock.animateFallbackTo(
@@ -798,11 +809,8 @@ internal fun BiliPaiNavDisplayHost(
                         videoCardClock.markHeld()
                     } finally {
                         videoCardClock.endGestureRestore()
-                        onNativeVideoBackCancelled(currentBackKey, targetBackKey)
                     }
                 }
-            } else {
-                onNativeVideoBackCancelled(currentBackKey, targetBackKey)
             }
             if (predictiveBackGestureBlurEnabled && cancelledPredictiveBlur > 0f) {
                 navigationScope.launch {

@@ -96,6 +96,7 @@ class BiliPaiNavKeyMappingPolicyTest {
     fun settingsSecondaryRoutes_mapToNavigation3Keys() {
         assertEquals(BiliPaiNavKey.OpenSourceLicenses, legacyRouteToBiliPaiNavKey(ScreenRoutes.OpenSourceLicenses.route))
         assertEquals(BiliPaiNavKey.AppearanceSettings, legacyRouteToBiliPaiNavKey(ScreenRoutes.AppearanceSettings.route))
+        assertEquals(BiliPaiNavKey.HomeSettings, legacyRouteToBiliPaiNavKey(ScreenRoutes.HomeSettings.route))
         assertEquals(BiliPaiNavKey.IconSettings, legacyRouteToBiliPaiNavKey(ScreenRoutes.IconSettings.route))
         assertEquals(BiliPaiNavKey.AnimationSettings, legacyRouteToBiliPaiNavKey(ScreenRoutes.AnimationSettings.route))
         assertEquals(BiliPaiNavKey.PlaybackSettings, legacyRouteToBiliPaiNavKey(ScreenRoutes.PlaybackSettings.route))

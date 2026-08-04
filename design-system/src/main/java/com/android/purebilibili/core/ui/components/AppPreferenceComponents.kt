@@ -23,18 +23,25 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun AppPreferenceSectionTitle(title: String) = AdaptivePreferenceSectionTitleRenderer(title)
 
+enum class AppPreferenceGroupPresentation {
+    CARD,
+    FLAT,
+}
+
 @Composable
 fun AppPreferenceGroup(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surface,
     shape: Shape? = null,
     border: BorderStroke? = null,
+    presentation: AppPreferenceGroupPresentation = AppPreferenceGroupPresentation.CARD,
     content: @Composable ColumnScope.() -> Unit,
 ) = AdaptivePreferenceGroupRenderer(
     modifier = modifier,
     containerColor = containerColor,
     shape = shape,
     border = border,
+    presentation = presentation,
     content = content,
 )
 

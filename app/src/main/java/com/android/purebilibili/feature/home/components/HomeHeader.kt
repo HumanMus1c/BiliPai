@@ -4,7 +4,6 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
-import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import com.android.purebilibili.core.ui.AppTopChromePolicy
 import com.android.purebilibili.core.ui.AppTopTabPresentation
 import com.android.purebilibili.core.ui.resolveAppChromeLiquidGlassEnabled
@@ -16,8 +15,6 @@ import com.android.purebilibili.core.ui.OpticalContrastPalette
 import com.android.purebilibili.feature.home.HomeVisualPalette
 
 import android.os.Build
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,10 +27,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.input.pointer.pointerInput
@@ -75,8 +68,6 @@ import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
-import com.android.purebilibili.core.ui.rememberAppInboxIcon
-import com.android.purebilibili.core.ui.rememberAppSettingsIcon
 import com.android.purebilibili.core.store.HomeHeaderBlurMode
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.HomeTopLayoutOrder
@@ -93,6 +84,10 @@ import com.android.purebilibili.feature.home.resolveHomeGlassPillStyle
 import com.android.purebilibili.core.store.resolveHomeHeaderBlurEnabled
 import com.android.purebilibili.navigation.resolveAppNavigationAppearance
 import java.io.File
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Messages
+import top.yukonga.miuix.kmp.icon.extended.Search
+import top.yukonga.miuix.kmp.icon.extended.Settings
 
 private const val HOME_HEADER_LIQUID_GLASS_ALPHA = 0.10f
 
@@ -498,7 +493,10 @@ internal fun resolveHomeTopSearchRowHorizontalPadding(
 internal fun resolveHomeTopSearchPillHeight(
     chromePolicy: AppTopChromePolicy,
 ): Dp {
-    return resolveHomeTopPresetStyle(chromePolicy, labelMode = 2).searchPillHeight
+    // Keep the search field compact enough to match the smaller edge controls.
+    return resolveHomeTopPresetStyle(chromePolicy, labelMode = 2)
+        .searchPillHeight
+        .coerceAtMost(52.dp)
 }
 
 internal fun resolveHomeTopSearchContentHorizontalPadding(
@@ -535,17 +533,19 @@ internal fun resolveHomeTopEdgeButtonShape(
     }
 }
 
-internal fun resolveHomeTopAvatarOuterSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small
+internal fun resolveHomeTopAvatarOuterSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall
 
-internal fun resolveHomeTopAvatarInnerSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small
+internal fun resolveHomeTopAvatarInnerSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall
 
 internal fun resolveHomeTopSettingsButtonSize(
     chromePolicy: AppTopChromePolicy,
 ): Dp {
     return if (chromePolicy.tabPresentation == AppTopTabPresentation.TONAL_CAPSULE) {
-        resolveHomeTopPresetStyle(chromePolicy, labelMode = 2).actionButtonSizeDocked
+        resolveHomeTopPresetStyle(chromePolicy, labelMode = 2)
+            .actionButtonSizeDocked
+            .coerceAtMost(40.dp)
     } else {
-        AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small
+        AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall
     }
 }
 
@@ -553,9 +553,11 @@ internal fun resolveHomeTopSettingsIconSize(
     chromePolicy: AppTopChromePolicy,
 ): Dp {
     return if (chromePolicy.tabPresentation == AppTopTabPresentation.TONAL_CAPSULE) {
-        resolveHomeTopPresetStyle(chromePolicy, labelMode = 2).actionIconSizeDocked
+        resolveHomeTopPresetStyle(chromePolicy, labelMode = 2)
+            .actionIconSizeDocked
+            .coerceAtMost(18.dp)
     } else {
-        AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall
+        AppSpacingTokens.Large + AppSpacingTokens.Micro
     }
 }
 
@@ -1432,14 +1434,10 @@ fun HomeHeader(
     }
     val edgeButtonShape = resolveHomeTopEdgeButtonShape(topChromePolicy)
     val searchContainerShape = resolveHomeTopSearchContainerShape(topChromePolicy)
-    val searchIcon = if (semanticVisualPolicy.iconFamily == AppSemanticIconFamily.MATERIAL) {
-        Icons.Outlined.Search
-    } else {
-        CupertinoIcons.Default.MagnifyingGlass
-    }
+    val searchIcon = MiuixIcons.Search
     val topRightAction = homeSettings?.homeTopRightAction ?: HomeTopRightAction.SETTINGS
-    val settingsIcon = rememberAppSettingsIcon()
-    val inboxIcon = rememberAppInboxIcon()
+    val settingsIcon = MiuixIcons.Settings
+    val inboxIcon = MiuixIcons.Messages
     val topRightActionIcon = if (topRightAction == HomeTopRightAction.INBOX) inboxIcon else settingsIcon
     val topRightActionContentDescription = resolveHomeTopRightActionContentDescription(
         action = topRightAction,

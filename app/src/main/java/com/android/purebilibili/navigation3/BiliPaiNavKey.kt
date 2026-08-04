@@ -73,6 +73,11 @@ internal sealed interface BiliPaiNavKey : NavKey {
     }
 
     @Serializable
+    data object HomeSettings : BiliPaiNavKey {
+        override val routeBase: String = "home_settings"
+    }
+
+    @Serializable
     data object IconSettings : BiliPaiNavKey {
         override val routeBase: String = "icon_settings"
     }

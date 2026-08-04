@@ -94,6 +94,7 @@ sealed class ScreenRoutes(val route: String) {
     
     //  二级设置页面
     object AppearanceSettings : ScreenRoutes("appearance_settings")
+    object HomeSettings : ScreenRoutes("home_settings")
     object PlaybackSettings : ScreenRoutes("playback_settings")
     object PermissionSettings : ScreenRoutes("permission_settings")  //  权限管理
     object PluginsSettings : ScreenRoutes("plugins_settings?importUrl={importUrl}") {  //  插件中心

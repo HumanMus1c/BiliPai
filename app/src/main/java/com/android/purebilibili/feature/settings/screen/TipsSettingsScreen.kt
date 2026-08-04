@@ -28,6 +28,8 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
 import com.android.purebilibili.core.ui.animation.EntranceGroup
 import com.android.purebilibili.core.ui.animation.entrance
+import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContentColor
+import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContainerColor
 import com.android.purebilibili.core.ui.components.rememberAdaptiveSemanticIconTint
 import com.android.purebilibili.core.ui.components.AppPreferenceSectionTitle
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
@@ -215,21 +217,28 @@ private fun TipItem(
     title: String,
     content: String
 ) {
-    val effectiveIconTint = rememberAdaptiveSemanticIconTint(iconTint)
+    val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(iconTint)
+    val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
         verticalAlignment = Alignment.Top
     ) {
-        AppIcon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = effectiveIconTint,
+        Box(
             modifier = Modifier
-                .size(20.dp)
-                .padding(top = 2.dp)
-        )
+                .size(36.dp)
+                .clip(AppShapes.container(ContainerLevel.Field))
+                .background(effectiveIconTint),
+            contentAlignment = Alignment.Center,
+        ) {
+            AppIcon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconContentColor,
+                modifier = Modifier.size(20.dp),
+            )
+        }
         Spacer(modifier = Modifier.width(12.dp))
         Column {
             AppText(

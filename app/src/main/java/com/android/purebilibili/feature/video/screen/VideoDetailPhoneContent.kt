@@ -242,7 +242,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 onPageSelect = playbackActions.switchPage,
                                 onUpClick = navigateToUserSpaceFromVideo,
                                 onRelatedVideoClick = navigateToRelatedVideo,
-                                onSubReplyClick = { reply, _ -> commentActions.openSubReply(reply) },
+                                onSubReplyClick = commentActions.openSubReply,
                                 onCommentReplyClick = playbackActions.replyTo,
                                 onLoadMoreReplies = commentActions.loadComments,
                                 onCommentUrlClick = openCommentUrl,

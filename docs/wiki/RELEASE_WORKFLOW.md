@@ -1,21 +1,26 @@
 # 发布流程（维护版）
 
-最后更新：2026-08-02（按当前文档链路校对）
+最后更新：2026-08-04（按当前文档链路校对）
 
 ## 目标
 
 统一版本发布动作，避免出现“代码已发版但 README/Wiki 未同步”的情况。
 
+> [!IMPORTANT]
+> 临时分发策略：GitHub 仅同步源码，不上传 APK Artifact 或 Release 附件。最新 APK 仅发布到[官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9)，并随消息提供版本、文件名、源码提交和 SHA-256。
+
 ## 标准步骤
 
 1. 更新版本号  
    - 文件：`app/build.gradle.kts`
-   - 规则：`versionCode + 1`，`versionName` 递增
+   - 规则：`versionCode + 1`，`versionName` 按 [版本规范](VERSIONING.md) 递增
+   - 标签：稳定版标签必须为 `v<versionName>`，例如 `v0.1.0`
    - 注意：若 `versionName` 已领先公开文档，发布前必须补齐 `CHANGELOG.md` 与 README/Wiki
 
 2. 更新发布日志  
    - 文件：`CHANGELOG.md`
-   - 要求：新增本版本段落，记录核心能力、修复点、验证结果
+   - 格式：遵循 [更新日志撰写规范](CHANGELOG_GUIDE.md)
+   - 要求：以 GitHub 上一个实际发布标签为比较基准，根据完整提交范围归纳用户可感知能力、修复、兼容性和发布变化
 
 3. 同步 README  
    - 文件：`README.md`、`README_EN.md`
@@ -38,6 +43,7 @@
    - 至少执行一次 QA 基础检查清单（见 `docs/wiki/QA.md`）
    - 推荐：`./gradlew :app:testDebugUnitTest`
    - 需要生成可安装测试包时使用 `./gradlew :app:assembleDev`；不要把 `debug` 或 `smooth` 产物作为测试交付包
+   - Dev 交付包必须出现在 `app/build/outputs/bilipai/dev/`，Release 交付包必须出现在 `app/build/outputs/bilipai/release/`
 
 8. 提交与推送
    - 建议拆分为：
@@ -48,7 +54,10 @@
 ## 发布检查清单
 
 - [ ] `app/build.gradle.kts` 版本号正确
+- [ ] Git 标签、Changelog、构建元数据与 APK 文件名使用同一 `versionName`
+- [ ] GitHub Actions 与 GitHub Releases 未上传 APK；Telegram 发布消息包含规范文件名、源码提交和 SHA-256
 - [ ] `CHANGELOG.md` 新版本段存在
+- [ ] 更新范围使用上一个 GitHub Release 标签，未把未发布的中间版本误作基准
 - [ ] `README.md` 已同步最新版本与已完成功能
 - [ ] `README_EN.md` 已同步最新版本与 Latest
 - [ ] `docs/wiki/ROADMAP.md` 已同步当前优先级和完成条件

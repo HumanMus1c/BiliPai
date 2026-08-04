@@ -88,11 +88,11 @@ class AdaptiveListComponentPolicyTest {
     }
 
     @Test
-    fun `md3 preset should map legacy ios accent tints to semantic colors`() {
+    fun `md3 preset should map all settings icon tints to theme primary`() {
         val colorScheme = darkColorScheme()
 
         assertEquals(
-            colorScheme.secondary,
+            colorScheme.primary,
             resolveAdaptiveSemanticIconTint(iOSBlue, UiPreset.MD3, colorScheme)
         )
         assertEquals(
@@ -100,16 +100,45 @@ class AdaptiveListComponentPolicyTest {
             resolveAdaptiveSemanticIconTint(iOSGreen, UiPreset.MD3, colorScheme)
         )
         assertEquals(
-            colorScheme.tertiary,
+            colorScheme.primary,
             resolveAdaptiveSemanticIconTint(iOSPurple, UiPreset.MD3, colorScheme)
         )
         assertEquals(
-            colorScheme.error,
+            colorScheme.primary,
             resolveAdaptiveSemanticIconTint(iOSRed, UiPreset.MD3, colorScheme)
         )
         assertEquals(
-            colorScheme.onSurfaceVariant,
+            colorScheme.primary,
             resolveAdaptiveSemanticIconTint(iOSSystemGray, UiPreset.MD3, colorScheme)
+        )
+    }
+
+    @Test
+    fun `filled settings icons should use opaque containers and contrasting glyphs`() {
+        val colorScheme = lightColorScheme(primary = Color(0xFF3366CC))
+
+        assertEquals(
+            1f,
+            resolveAdaptivePreferenceIconBackgroundAlpha(
+                treatment = AppPreferenceIconTreatment.FILLED,
+                tonalAlpha = 0.14f,
+            ),
+        )
+        assertEquals(
+            colorScheme.onPrimary,
+            resolveAdaptivePreferenceIconContentColor(colorScheme.primary, colorScheme),
+        )
+        assertEquals(
+            Color.White,
+            resolveAdaptivePreferenceIconContentColor(iOSBlue, colorScheme),
+        )
+        assertEquals(
+            colorScheme.secondary,
+            resolveAdaptivePreferenceIconContainerColor(
+                iconTint = iOSBlue,
+                semanticTint = colorScheme.secondary,
+                treatment = AppPreferenceIconTreatment.FILLED,
+            ),
         )
     }
 
@@ -130,11 +159,11 @@ class AdaptiveListComponentPolicyTest {
             resolveAdaptiveSemanticIconTint(iOSGreen, UiPreset.MD3, colorScheme, useSemanticAccentRoles = false)
         )
         assertEquals(
-            colorScheme.error,
+            colorScheme.primary,
             resolveAdaptiveSemanticIconTint(iOSRed, UiPreset.MD3, colorScheme, useSemanticAccentRoles = false)
         )
         assertEquals(
-            colorScheme.onSurfaceVariant,
+            colorScheme.primary,
             resolveAdaptiveSemanticIconTint(iOSSystemGray, UiPreset.MD3, colorScheme, useSemanticAccentRoles = false)
         )
     }
@@ -146,6 +175,30 @@ class AdaptiveListComponentPolicyTest {
         assertEquals(
             iOSBlue,
             resolveAdaptiveSemanticIconTint(iOSBlue, UiPreset.IOS, colorScheme)
+        )
+    }
+
+    @Test
+    fun `miuix variant should preserve colorful settings icon tints`() {
+        val colorScheme = darkColorScheme()
+
+        assertEquals(
+            iOSPurple,
+            resolveAdaptiveSemanticIconTint(
+                iconTint = iOSPurple,
+                uiPreset = UiPreset.MD3,
+                colorScheme = colorScheme,
+                androidNativeVariant = AndroidNativeVariant.MIUIX,
+            ),
+        )
+        assertEquals(
+            iOSRed,
+            resolveAdaptiveSemanticIconTint(
+                iconTint = iOSRed,
+                uiPreset = UiPreset.MD3,
+                colorScheme = colorScheme,
+                androidNativeVariant = AndroidNativeVariant.MIUIX,
+            ),
         )
     }
 

@@ -30,10 +30,13 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
+import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -102,6 +105,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackParameters
 import com.android.purebilibili.feature.video.ui.section.shouldKeepVideoPlaybackAwake
+import com.android.purebilibili.feature.video.ui.section.shouldShowLongPressSpeedFeedback
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.usecase.togglePlayerPlaybackFromUserAction
 import androidx.media3.common.VideoSize
@@ -564,7 +568,12 @@ fun PortraitVideoPager(
     val exoPlayer = sharedPlayer ?: remember(context) {
         val audioFocusEnabled = SettingsManager.getAudioFocusEnabledSync(context)
         ExoPlayer.Builder(context)
-            .setRenderersFactory(HiResCompatibleRenderersFactory(context))
+            .setRenderersFactory(
+                HiResCompatibleRenderersFactory(context)
+                    .setExtensionRendererMode(
+                        androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+                    )
+            )
             .setAudioAttributes(
                 androidx.media3.common.AudioAttributes.Builder()
                     .setUsage(androidx.media3.common.C.USAGE_MEDIA)
@@ -2012,6 +2021,7 @@ private fun VideoPageItem(
     var longPressOriginPlaybackParameters by remember { mutableStateOf(PlaybackParameters.DEFAULT) }
     var effectiveLongPressSpeed by remember { mutableFloatStateOf(longPressSpeed) }
     var showLongPressSpeedFeedback by remember { mutableStateOf(false) }
+    var longPressSpeedHintDismissed by remember(bvid) { mutableStateOf(false) }
     var seekFeedbackText by remember { mutableStateOf<String?>(null) }
     var seekFeedbackVisible by remember { mutableStateOf(false) }
     var seekFeedbackGeneration by remember { mutableLongStateOf(0L) }
@@ -2221,6 +2231,7 @@ private fun VideoPageItem(
                         effectiveLongPressSpeed = longPressPlaybackParameters.speed
                         applyPortraitTemporaryPlaybackParameters(longPressPlaybackParameters)
                         isLongPressing = true
+                        longPressSpeedHintDismissed = false
                         showLongPressSpeedFeedback = true
                     },
                     onPress = {
@@ -2534,7 +2545,11 @@ private fun VideoPageItem(
 
         // 长按倍速提示（透明背景 + 循环箭头动画，位于视频上方）
         AnimatedVisibility(
-            visible = isLongPressing && isCurrentPage,
+            visible = shouldShowLongPressSpeedFeedback(
+                isLongPressing = isLongPressing,
+                isPlaybackSurfaceActive = isCurrentPage,
+                hintDismissed = longPressSpeedHintDismissed,
+            ),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 48.dp),
@@ -2623,6 +2638,17 @@ private fun VideoPageItem(
                         )
                     )
                 )
+                AppIconButton(
+                    onClick = { longPressSpeedHintDismissed = true },
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    AppIcon(
+                        imageVector = CupertinoIcons.Default.Xmark,
+                        contentDescription = "关闭倍速提示",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
 

@@ -71,6 +71,7 @@ internal enum class SettingsIconRole {
     HOME_WALLPAPER,
     WALLPAPER_EFFECT,
     HOME_UP_BADGES,
+    HOME_UP_AVATAR,
     ONLINE_COUNT,
     GRID_COLUMNS,
     HOME_CARD_WIDTH,
@@ -247,6 +248,7 @@ private fun resolveMd3SettingsSemanticIcon(role: SettingsIconRole): ImageVector 
     SettingsIconRole.HOME_WALLPAPER -> Icons.Outlined.Image
     SettingsIconRole.WALLPAPER_EFFECT -> Icons.Outlined.BlurOn
     SettingsIconRole.HOME_UP_BADGES -> Icons.Outlined.PersonAdd
+    SettingsIconRole.HOME_UP_AVATAR -> Icons.Outlined.AccountCircle
     SettingsIconRole.ONLINE_COUNT -> Icons.Outlined.OnlinePrediction
     SettingsIconRole.GRID_COLUMNS -> Icons.Outlined.GridView
     SettingsIconRole.HOME_CARD_WIDTH -> Icons.Outlined.WidthNormal
@@ -366,6 +368,7 @@ private fun resolveIosSettingsSemanticIcon(role: SettingsIconRole): ImageVector 
     SettingsIconRole.HOME_WALLPAPER -> CupertinoIcons.Outlined.PhotoStack
     SettingsIconRole.WALLPAPER_EFFECT -> CupertinoIcons.Outlined.CameraFilters
     SettingsIconRole.HOME_UP_BADGES -> CupertinoIcons.Outlined.PersonTextRectangle
+    SettingsIconRole.HOME_UP_AVATAR -> CupertinoIcons.Outlined.PersonCropCircle
     SettingsIconRole.ONLINE_COUNT -> CupertinoIcons.Outlined.DotRadiowavesUpForward
     SettingsIconRole.GRID_COLUMNS -> CupertinoIcons.Outlined.ListBulletCircle
     SettingsIconRole.HOME_CARD_WIDTH -> CupertinoIcons.Outlined.Ruler

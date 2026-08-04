@@ -368,7 +368,7 @@ fun CinematicVideoCard(
                              }
                          } else null,
                          nameStyle = contentTypography.author,
-                         nameColor = MediaContrastPalette.Foreground.copy(alpha = 0.9f),
+                         nameColor = MediaContrastPalette.Foreground.copy(alpha = 0.78f),
                          badgeTextColor = MediaContrastPalette.Foreground.copy(alpha = 0.92f),
                          badgeBorderColor = MediaContrastPalette.Foreground.copy(alpha = 0.45f),
                          showUpBadge = showUpBadge,

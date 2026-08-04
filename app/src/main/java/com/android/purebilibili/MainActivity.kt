@@ -1138,7 +1138,10 @@ open class MainActivity : AppCompatActivity() {
                 val autoCheckUpdateEnabled = SettingsManager.getAutoCheckAppUpdate(context).first()
                 val gateAllowsCheck = AppUpdateAutoCheckGate.tryMarkChecked()
                 if (shouldRunAppEntryAutoCheck(autoCheckUpdateEnabled, gateAllowsCheck)) {
-                    AppUpdateChecker.check(BuildConfig.VERSION_NAME).onSuccess { info ->
+                    AppUpdateChecker.check(
+                        currentVersion = BuildConfig.VERSION_NAME,
+                        currentVersionCode = BuildConfig.VERSION_CODE
+                    ).onSuccess { info ->
                         if (info.isUpdateAvailable) {
                             startupUpdateCheckResult = info
                         }

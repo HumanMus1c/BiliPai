@@ -3,6 +3,8 @@ package com.android.purebilibili.feature.live.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -262,6 +264,7 @@ fun LiveDmBlockSheet(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LiveRuleSection(
     shieldInfo: LiveShieldInfo?,
@@ -270,7 +273,8 @@ private fun LiveRuleSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
         AppText("规则", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
+        // FlowRow：5 个规则 chip 在窄屏自动换行
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
             AppFilterChip(
                 selected = (shieldInfo?.level ?: 0) > 0,
                 enabled = enabled,
@@ -288,6 +292,18 @@ private fun LiveRuleSection(
                 enabled = enabled,
                 onClick = { onSetRule("verify", if ((shieldInfo?.verify ?: 0) > 0) 0 else 1) },
                 label = { AppText("认证") }
+            )
+            AppFilterChip(
+                selected = (shieldInfo?.rank ?: 0) > 0,
+                enabled = enabled,
+                onClick = { onSetRule("rank", if ((shieldInfo?.rank ?: 0) > 0) 0 else 1) },
+                label = { AppText("非正式会员") }
+            )
+            AppFilterChip(
+                selected = (shieldInfo?.phone ?: 0) > 0,
+                enabled = enabled,
+                onClick = { onSetRule("phone", if ((shieldInfo?.phone ?: 0) > 0) 0 else 1) },
+                label = { AppText("未绑定手机") }
             )
         }
     }

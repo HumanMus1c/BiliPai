@@ -214,9 +214,11 @@ internal fun parseLiveShieldInfo(rawJson: String): Result<LiveShieldInfo> {
             ?: shieldInfo.optJSONObject("shield_rules")
             ?: shieldInfo
         LiveShieldInfo(
-            level = firstPositiveInt(rules, "level", "rank"),
+            level = firstPositiveInt(rules, "level"),
             medal = firstPositiveInt(rules, "medal", "medal_level"),
             verify = firstPositiveInt(rules, "verify", "verify_level", "shield_verify"),
+            rank = firstPositiveInt(rules, "rank"),
+            phone = firstPositiveInt(rules, "phone"),
             keywords = parseLiveShieldKeywords(
                 shieldInfo.optJSONArray("keyword_list")
                     ?: shieldInfo.optJSONArray("keywords")
@@ -1096,9 +1098,11 @@ object LiveRepository {
                                     emoji = emotion.emoji,
                                     url = emotion.url,
                                     description = emotion.des,
+                                    emoticonUnique = emotion.emoticon_unique,
                                     emoticonOptions = buildLiveEmoticonOptions(
                                         emoji = emotion.emoji,
-                                        url = emotion.url
+                                        url = emotion.url,
+                                        emoticonUnique = emotion.emoticon_unique
                                     )
                                 )
                             }
@@ -1118,10 +1122,11 @@ object LiveRepository {
 
     private fun buildLiveEmoticonOptions(
         emoji: String,
-        url: String
+        url: String,
+        emoticonUnique: String = ""
     ): String {
         return JSONObject()
-            .put("emoticon_unique", emoji)
+            .put("emoticon_unique", emoticonUnique.ifBlank { emoji })
             .put("bulge_display", 0)
             .put(
                 "emoticon_player",

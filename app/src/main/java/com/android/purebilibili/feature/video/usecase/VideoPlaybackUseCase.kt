@@ -855,6 +855,8 @@ class VideoPlaybackUseCase(
         isAv1Supported: Boolean = com.android.purebilibili.core.util.MediaUtils.isAv1Supported(),
         isDolbyAudioSupported: Boolean =
             com.android.purebilibili.core.util.MediaUtils.isDolbyAtmosAudioSupported(),
+        isDolbyAudioSoftwareDecoded: Boolean =
+            com.android.purebilibili.core.util.MediaUtils.isDolbySoftwareAudioDecoderRequired(),
         playWhenReady: Boolean = true
     ): QualitySwitchResult? {
         if (cachedVideos.isEmpty()) {
@@ -906,7 +908,8 @@ class VideoPlaybackUseCase(
             dash = dashCatalog,
             requestedAudioQuality = audioQualityPreference,
             playbackSpeed = playbackSpeed,
-            isDolbyAudioSupported = isDolbyAudioSupported
+            isDolbyAudioSupported = isDolbyAudioSupported,
+            isDolbyAudioSoftwareDecoded = isDolbyAudioSoftwareDecoded
         )
         val dashAudio = audioSelection.selected?.track
          
@@ -941,7 +944,8 @@ class VideoPlaybackUseCase(
                 cachedDashVideos = cachedVideos,
                 cachedDashAudios = collectAudioStreamCandidates(
                     dash = dashCatalog,
-                    isDolbyAudioSupported = isDolbyAudioSupported
+                    isDolbyAudioSupported = isDolbyAudioSupported,
+                    isDolbyAudioSoftwareDecoded = isDolbyAudioSoftwareDecoded
                 ).map { it.track },
                 cachedDash = dashCatalog,
                 requestedAudioQuality = audioSelection.requestedPreferenceId,
@@ -974,6 +978,8 @@ class VideoPlaybackUseCase(
         isAv1Supported: Boolean = com.android.purebilibili.core.util.MediaUtils.isAv1Supported(),
         isDolbyAudioSupported: Boolean =
             com.android.purebilibili.core.util.MediaUtils.isDolbyAtmosAudioSupported(),
+        isDolbyAudioSoftwareDecoded: Boolean =
+            com.android.purebilibili.core.util.MediaUtils.isDolbySoftwareAudioDecoderRequired(),
         playWhenReady: Boolean = true
     ): QualitySwitchResult? {
         Logger.d("VideoPlaybackUseCase", " changeQualityFromApi: bvid=$bvid, cid=$cid, target=$qualityId")
@@ -1007,7 +1013,8 @@ class VideoPlaybackUseCase(
             playbackQualityMode = effectivePlaybackQualityMode,
             isHevcSupported = isHevcSupported,
             isAv1Supported = isAv1Supported,
-            isDolbyAudioSupported = isDolbyAudioSupported
+            isDolbyAudioSupported = isDolbyAudioSupported,
+            isDolbyAudioSoftwareDecoded = isDolbyAudioSoftwareDecoded
         ) ?: run {
             Logger.d("VideoPlaybackUseCase", " Video URL is empty")
             return null
@@ -1092,7 +1099,9 @@ class VideoPlaybackUseCase(
         isHevcSupported: Boolean = com.android.purebilibili.core.util.MediaUtils.isHevcSupported(),
         isAv1Supported: Boolean = com.android.purebilibili.core.util.MediaUtils.isAv1Supported(),
         isDolbyAudioSupported: Boolean =
-            com.android.purebilibili.core.util.MediaUtils.isDolbyAtmosAudioSupported()
+            com.android.purebilibili.core.util.MediaUtils.isDolbyAtmosAudioSupported(),
+        isDolbyAudioSoftwareDecoded: Boolean =
+            com.android.purebilibili.core.util.MediaUtils.isDolbySoftwareAudioDecoderRequired()
     ): PlaybackSelectionResult? {
         val dashVideo = playUrlData.dash?.getBestVideo(
             targetQuality,
@@ -1106,7 +1115,8 @@ class VideoPlaybackUseCase(
                 dash = dash,
                 requestedAudioQuality = audioQualityPreference,
                 playbackSpeed = playbackSpeed,
-                isDolbyAudioSupported = isDolbyAudioSupported
+                isDolbyAudioSupported = isDolbyAudioSupported,
+                isDolbyAudioSoftwareDecoded = isDolbyAudioSoftwareDecoded
             )
         }
         val dashAudio = audioSelection?.selected?.track
@@ -1142,7 +1152,8 @@ class VideoPlaybackUseCase(
                 ?.let { dash ->
                     collectAudioStreamCandidates(
                         dash = dash,
-                        isDolbyAudioSupported = isDolbyAudioSupported
+                        isDolbyAudioSupported = isDolbyAudioSupported,
+                        isDolbyAudioSoftwareDecoded = isDolbyAudioSoftwareDecoded
                     )
                 }
                 ?.map { it.track }

@@ -1,11 +1,5 @@
 package com.android.purebilibili.feature.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -17,7 +11,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
-import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.components.AppNativeSegmentedControl
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppSegmentedChrome
@@ -29,48 +22,6 @@ import com.android.purebilibili.feature.home.components.BOTTOM_BAR_LIQUID_SEGMEN
 import com.android.purebilibili.feature.home.components.BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_INDICATOR_HEIGHT_DP
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.kyant.backdrop.Backdrop
-
-@Composable
-internal fun <T> AppSegmentedPreference(
-    title: String,
-    options: List<AppSegmentOption<T>>,
-    selectedValue: T,
-    modifier: Modifier = Modifier,
-    subtitle: String? = null,
-    enabled: Boolean = true,
-    onSelectionChange: (T) -> Unit,
-) {
-    val policy = rememberAppSegmentedControlPolicy()
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        AppText(
-            text = title,
-            style = if (policy.usesEmphasizedTitle) {
-                MaterialTheme.typography.titleMedium
-            } else {
-                MaterialTheme.typography.bodyLarge
-            },
-            color = AppSurfaceTokens.onSurface(),
-        )
-        if (!subtitle.isNullOrBlank()) {
-            AppText(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = AppSurfaceTokens.onSurfaceVariantSummary(),
-            )
-        }
-        AppSegmentedControl(
-            options = options,
-            selectedValue = selectedValue,
-            enabled = enabled,
-            onSelectionChange = onSelectionChange,
-        )
-    }
-}
 
 @Composable
 internal fun <T> AppSegmentedControl(
@@ -169,7 +120,7 @@ private fun <T> AppLiquidSegmentedControlHost(
         onSelected = { index ->
             options.getOrNull(index)?.let { onSelectionChange(it.value) }
         },
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
         enabled = enabled,
         itemWidth = null,
         height = resolvedHeight,

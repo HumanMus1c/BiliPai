@@ -31,14 +31,16 @@ internal fun switchPortraitPlaybackAudioSource(
     targetVideoQuality: Int,
     mediaId: String,
     cdnPlugin: PlaybackCdnPlugin?,
-    isDolbyAudioSupported: Boolean = MediaUtils.isDolbyAtmosAudioSupported()
+    isDolbyAudioSupported: Boolean = MediaUtils.isDolbyAtmosAudioSupported(),
+    isDolbyAudioSoftwareDecoded: Boolean = MediaUtils.isDolbySoftwareAudioDecoderRequired()
 ): PortraitAudioSourceSwitchResult? {
     if (currentVideoUrl.isBlank() || mediaId.isBlank()) return null
     val selection = resolveAudioStreamSelection(
         dash = dash,
         requestedAudioQuality = requestedAudioQuality,
         playbackSpeed = player.playbackParameters.speed,
-        isDolbyAudioSupported = isDolbyAudioSupported
+        isDolbyAudioSupported = isDolbyAudioSupported,
+        isDolbyAudioSoftwareDecoded = isDolbyAudioSoftwareDecoded
     )
     val selectedAudioUrl = selection.selected?.track?.getValidUrl()
         ?.takeIf { it.isNotBlank() }

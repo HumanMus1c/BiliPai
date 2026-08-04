@@ -1276,7 +1276,7 @@ private fun CinemaCommentsPane(
                     isPinned = reply.rpid in commentState.pinnedReplyIds,
                     emoteMap = success.emoteMap,
                     onClick = {},
-                    onSubClick = { reply, _ -> commentActions.openSubReply(reply) },
+                    onSubClick = commentActions.openSubReply,
                     onTimestampClick = { positionMs ->
                         seekPlayerFromUserAction(playerState.player, positionMs)
                     },

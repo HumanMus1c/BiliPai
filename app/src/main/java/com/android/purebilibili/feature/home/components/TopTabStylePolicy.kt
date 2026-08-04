@@ -157,7 +157,8 @@ internal fun resolveHomeTopPresetStyle(
                 ),
                 spacing = HomeTopSpacingStyle(
                     edgeControlGap = 6.dp,
-                    embeddedTabHorizontalPadding = 0.dp,
+                    // Align the category strip with the avatar/search/settings row.
+                    embeddedTabHorizontalPadding = 14.dp,
                     searchToTabs = 6.dp,
                     tabsToContent = 6.dp,
                     searchCollapseExtra = 0.dp,
@@ -165,14 +166,13 @@ internal fun resolveHomeTopPresetStyle(
                 ),
                 tabs = HomeTopTabsStyle(
                     horizontalPadding = HomeTopDpPair(docked = 0.dp, floating = 2.dp),
-                    // Match resolveIosTopTabRowHeight so header chrome and tab row share one height.
                     rowHeight = HomeTopDpPair(
-                        docked = if (isIconAndText) 58.dp else 54.dp,
-                        floating = if (isIconAndText) 62.dp else 56.dp
+                        docked = 36.dp,
+                        floating = 40.dp
                     ),
                     md3VisualSpec = resolveMd3TopTabVisualSpec(
                         false,
-                        AppTopTabPresentation.MATERIAL_UNDERLINE,
+                        AppTopTabPresentation.TONAL_CAPSULE,
                         normalizedLabelMode
                     )
                 ),
@@ -194,12 +194,12 @@ internal fun resolveHomeTopPresetStyle(
         }
         AppTopTabPresentation.TONAL_CAPSULE -> {
             HomeTopPresetStyle(
-                // The existing home implementation routes this profile through the material
-                // tab path; the tonal metrics remain available in [tabs].
+                // The home renderer routes this preset through its moving MD3 capsule,
+                // which can reuse the same liquid-glass indicator as the bottom bar.
                 presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
                 indicatorStyle = TopTabIndicatorStyle.MATERIAL,
                 search = HomeTopSearchStyle(
-                    barHeight = 50.dp,
+                    barHeight = 48.dp,
                     revealDeadZone = 0.dp,
                     rowHorizontalPadding = 14.dp,
                     pillHeight = compactChrome.primaryHeightDp.dp,
@@ -218,7 +218,8 @@ internal fun resolveHomeTopPresetStyle(
                 ),
                 spacing = HomeTopSpacingStyle(
                     edgeControlGap = 7.dp,
-                    embeddedTabHorizontalPadding = 0.dp,
+                    // Align the category strip with the avatar/search/settings row.
+                    embeddedTabHorizontalPadding = 14.dp,
                     searchToTabs = 6.dp,
                     tabsToContent = 6.dp,
                     searchCollapseExtra = 5.dp,
@@ -226,10 +227,9 @@ internal fun resolveHomeTopPresetStyle(
                 ),
                 tabs = HomeTopTabsStyle(
                     horizontalPadding = HomeTopDpPair(docked = 0.dp, floating = 2.dp),
-                    // Align with resolveMd3TopTabVisualSpec(MIUIX) used by the tab row.
                     rowHeight = HomeTopDpPair(
-                        docked = if (isIconAndText) 58.dp else 52.dp,
-                        floating = if (isIconAndText) 64.dp else 56.dp
+                        docked = 36.dp,
+                        floating = 40.dp
                     ),
                     md3VisualSpec = resolveMd3TopTabVisualSpec(
                         false,
@@ -258,7 +258,7 @@ internal fun resolveHomeTopPresetStyle(
                 presentation = chromePolicy.tabPresentation,
                 indicatorStyle = TopTabIndicatorStyle.MATERIAL,
                 search = HomeTopSearchStyle(
-                    barHeight = 52.dp,
+                    barHeight = 48.dp,
                     revealDeadZone = 0.dp,
                     rowHorizontalPadding = 16.dp,
                     pillHeight = compactChrome.primaryHeightDp.dp,
@@ -277,7 +277,8 @@ internal fun resolveHomeTopPresetStyle(
                 ),
                 spacing = HomeTopSpacingStyle(
                     edgeControlGap = 8.dp,
-                    embeddedTabHorizontalPadding = 0.dp,
+                    // Align the category strip with the avatar/search/settings row.
+                    embeddedTabHorizontalPadding = 16.dp,
                     searchToTabs = 6.dp,
                     tabsToContent = 6.dp,
                     searchCollapseExtra = 5.dp,
@@ -286,10 +287,7 @@ internal fun resolveHomeTopPresetStyle(
                 tabs = HomeTopTabsStyle(
                     horizontalPadding = HomeTopDpPair(docked = 0.dp, floating = 2.dp),
                     // Align with resolveMd3TopTabVisualSpec used by the tab row.
-                    rowHeight = HomeTopDpPair(
-                        docked = if (isIconAndText) 62.dp else 54.dp,
-                        floating = if (isIconAndText) 64.dp else 56.dp
-                    ),
+                    rowHeight = HomeTopDpPair(docked = 36.dp, floating = 40.dp),
                     md3VisualSpec = resolveMd3TopTabVisualSpec(
                         false,
                         AppTopTabPresentation.MATERIAL_UNDERLINE,
@@ -348,8 +346,8 @@ enum class TopTabIndicatorStyle {
 
 // Bottom-bar capsule is 56dp; top dock is shorter, so rest height sits near dock fill
 // while drag scale (88/56) still slightly overflows the chrome like the bottom bar.
-internal const val CompactTopTabIndicatorHeightDp = 48f
-internal const val CompactTopTabIndicatorCornerDp = CompactTopTabIndicatorHeightDp / 2f
+internal const val CompactTopTabIndicatorHeightDp = 30f
+internal const val CompactTopTabIndicatorCornerDp = 9f
 
 data class TopTabVisualTuning(
     val nonFloatingIndicatorHeightDp: Float = CompactTopTabIndicatorHeightDp,
@@ -364,10 +362,10 @@ data class TopTabVisualTuning(
     val floatingIndicatorHeightDp: Float = CompactTopTabIndicatorHeightDp,
     val tabTextSizeSp: Float = 15f,
     val tabTextLineHeightSp: Float = 20f,
-    val tabContentMinHeightDp: Float = 42f,
-    val tabIconWithTextSizeDp: Float = 24f,
-    val tabIconOnlySizeDp: Float = 24f,
-    val tabIconTextSpacingDp: Float = 3f
+    val tabContentMinHeightDp: Float = 30f,
+    val tabIconWithTextSizeDp: Float = 18f,
+    val tabIconOnlySizeDp: Float = 18f,
+    val tabIconTextSpacingDp: Float = 6f
 )
 
 data class TopTabVisualState(
@@ -405,10 +403,10 @@ fun resolveTopTabVisualTuning(presentation: AppTopTabPresentation): TopTabVisual
             floatingIndicatorHeightDp = CompactTopTabIndicatorHeightDp,
             tabTextSizeSp = 15f,
             tabTextLineHeightSp = 20f,
-            tabContentMinHeightDp = 42f,
-            tabIconWithTextSizeDp = 24f,
-            tabIconOnlySizeDp = 24f,
-            tabIconTextSpacingDp = 3f
+            tabContentMinHeightDp = 30f,
+            tabIconWithTextSizeDp = 18f,
+            tabIconOnlySizeDp = 18f,
+            tabIconTextSpacingDp = 6f
         )
         AppTopTabPresentation.MATERIAL_UNDERLINE,
         AppTopTabPresentation.TONAL_CAPSULE -> resolveTopTabVisualTuning()
@@ -434,7 +432,7 @@ internal fun resolveTopTabContentScale(
 
 internal fun resolveMd3TopTabVisualSpec(
     isFloatingStyle: Boolean,
-    presentation: AppTopTabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+    presentation: AppTopTabPresentation = AppTopTabPresentation.TONAL_CAPSULE,
     labelMode: Int = 2
 ): Md3TopTabVisualSpec {
     val normalizedLabelMode = normalizeTopTabLabelMode(labelMode)
@@ -442,29 +440,29 @@ internal fun resolveMd3TopTabVisualSpec(
     if (presentation == AppTopTabPresentation.TONAL_CAPSULE) {
         return if (isFloatingStyle) {
             Md3TopTabVisualSpec(
-                rowHeight = if (showIconAndText) 64.dp else 56.dp,
-                selectedCapsuleHeight = 36.dp,
-                selectedCapsuleCornerRadius = 18.dp,
+                rowHeight = 40.dp,
+                selectedCapsuleHeight = 30.dp,
+                selectedCapsuleCornerRadius = 9.dp,
                 selectedCapsuleTonalElevation = 0.dp,
                 selectedCapsuleShadowElevation = 0.dp,
-                itemHorizontalPadding = 12.dp,
-                iconSize = 24.dp,
+                itemHorizontalPadding = 10.dp,
+                iconSize = 18.dp,
                 labelTextSize = 15.sp,
                 labelLineHeight = 20.sp,
-                iconLabelSpacing = 3.dp
+                iconLabelSpacing = if (showIconAndText) 6.dp else 0.dp
             )
         } else {
             Md3TopTabVisualSpec(
-                rowHeight = if (showIconAndText) 58.dp else 52.dp,
-                selectedCapsuleHeight = 34.dp,
-                selectedCapsuleCornerRadius = 17.dp,
+                rowHeight = 36.dp,
+                selectedCapsuleHeight = 30.dp,
+                selectedCapsuleCornerRadius = 9.dp,
                 selectedCapsuleTonalElevation = 0.dp,
                 selectedCapsuleShadowElevation = 0.dp,
-                itemHorizontalPadding = 12.dp,
-                iconSize = 22.dp,
+                itemHorizontalPadding = 10.dp,
+                iconSize = 18.dp,
                 labelTextSize = 15.sp,
                 labelLineHeight = 20.sp,
-                iconLabelSpacing = 3.dp
+                iconLabelSpacing = if (showIconAndText) 6.dp else 0.dp
             )
         }
     }
@@ -594,15 +592,15 @@ fun resolveTopTabLabelLineHeightSp(labelMode: Int): Float {
 
 fun resolveTopTabContentMinHeightDp(labelMode: Int = 2): Float {
     return when (normalizeTopTabLabelMode(labelMode)) {
-        0 -> 42f
+        0 -> 30f
         else -> resolveTopTabVisualTuning().tabContentMinHeightDp
     }
 }
 
 fun resolveTopTabContentVerticalPaddingDp(labelMode: Int): Float {
     return when (normalizeTopTabLabelMode(labelMode)) {
-        0 -> 2f
-        else -> 4f
+        0 -> 5f
+        else -> 5f
     }
 }
 

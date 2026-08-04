@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-08-02 · Current build: 9.9.9.8.6 · Latest documented release: v9.9.9.8.6</sub>
+  <sub>Last updated: 2026-08-04 · Current build: 0.1.0 · Latest documented release: v0.1.0</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-9.9.9.8.6-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-0.1.0-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <a href="https://t.me/BiliPai"><img src="https://img.shields.io/badge/Telegram-Join-2CA5E0?style=flat-square&logo=telegram" alt="Telegram"></a>
+  <a href="https://t.me/+x5K_TmoFXso3MGM9"><img src="https://img.shields.io/badge/APK-Telegram%20Group-2CA5E0?style=flat-square&logo=telegram" alt="Telegram APK group"></a>
   <a href="https://x.com/YangY_0x00"><img src="https://img.shields.io/badge/X-Follow-000000?style=flat-square&logo=x" alt="X"></a>
 </p>
 
@@ -31,9 +31,16 @@
 
 | Category | Entry |
 | --- | --- |
-| Get Started | [Download Releases](https://github.com/jay3-yy/BiliPai/releases) · [Changelog](CHANGELOG.md) |
+| Get Started | [APK on Telegram](https://t.me/+x5K_TmoFXso3MGM9) · [Changelog](CHANGELOG.md) |
 | Docs | [Roadmap](docs/wiki/ROADMAP.md) · [Wiki Home](docs/wiki/README.md) · [User FAQ](docs/wiki/FAQ.md) · [AI / LLM Entry](llms.txt) |
 | Developer Reference | [JSON Plugin Guide](docs/PLUGIN_DEVELOPMENT.md) · [Native Plugin Guide](docs/NATIVE_PLUGIN_DEVELOPMENT.md) |
+
+> [!IMPORTANT]
+> ## Temporary distribution change
+>
+> BiliPai currently uses GitHub for source-code updates only. The latest APK is no longer distributed through GitHub Releases or GitHub Actions.
+>
+> APK updates are available exclusively from the [official Telegram group](https://t.me/+x5K_TmoFXso3MGM9). Do not install builds from unverified sources, and verify the file name, source commit and SHA-256 published with each build.
 
 > [!CAUTION]
 > `README`, `AI.txt`, `llm.txt`, `llms.txt`, and the Wiki are maintained periodically, but fast-moving main-branch changes can still make parts of them stale. Treat them as reference only; verify current behavior with source, `CHANGELOG.md`, and real builds.
@@ -64,7 +71,7 @@
 | **Playback Speed** | 0.5x / 0.75x / 1.0x / 1.25x / 1.5x / 2.0x, with swipe-up lock while long-press speed is active |
 | **Picture-in-Picture** | Floating window playback for multitasking |
 | **Audio Mode** | 🆕 Dedicated audio player with immersive/vinyl modes, lyrics, playlists, and a sleep timer |
-| **In-app Update** | 🆕 Check updates, download APK in-app, and hand off to the system installer |
+| **In-app Update** | Temporarily unavailable while APK distribution is Telegram-only |
 | **Background Play** | Continue listening when screen is off or in background, with dedicated background-play and audio-focus toggles plus more reliable prev/next controls from notifications and system media controls |
 | **Playback Order** | Supports Stop After Current / In-order / Single Loop / List Loop / Auto Continue, with quick toggle in landscape and portrait |
 | **Portrait Interaction Fixes** | Fixes like/favorite actions after swiping to the next portrait video, and favorites now open the folder picker directly |
@@ -319,9 +326,11 @@ A lightweight plugin format requiring **no coding**, just a simple JSON file to 
 
 ## 📦 Download & Install
 
-<a href="https://github.com/jay3-yy/BiliPai/releases">
-  <img src="https://img.shields.io/badge/Download-Latest%20Release-fb7299?style=for-the-badge&logo=github" alt="Download">
+<a href="https://t.me/+x5K_TmoFXso3MGM9">
+  <img src="https://img.shields.io/badge/APK-Telegram%20Group-2CA5E0?style=for-the-badge&logo=telegram" alt="Get APK from Telegram">
 </a>
+
+GitHub currently mirrors source code only. Historical Releases remain available for reference, while the newest APK is published exclusively in the official Telegram group.
 
 ### Requirements
 
@@ -334,7 +343,7 @@ A lightweight plugin format requiring **no coding**, just a simple JSON file to 
 
 ### Installation
 
-1. Download the latest APK from [Releases](https://github.com/jay3-yy/BiliPai/releases)
+1. Download the latest APK from the [official Telegram group](https://t.me/+x5K_TmoFXso3MGM9)
 2. Install on your device (Unknown Sources permission may be required)
 3. Open the app and sign in with TV QR, phone/password, SMS verification, or cookie import
 4. Enjoy the pure Bilibili experience!
@@ -422,7 +431,7 @@ BiliPai/
 ## 🗺️ Roadmap
 
 > [!TIP]
-> This summary reflects the current direction. For implemented behavior and release status, prefer the code, `CHANGELOG.md`, and GitHub Releases.
+> This summary reflects the current direction. For implemented behavior and source status, prefer the code and `CHANGELOG.md`; APK distribution is Telegram-only for now.
 
 | Status | Direction |
 | --- | --- |
@@ -438,12 +447,13 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Latest (v9.9.9.8.6 · 2026-08-02)
+### Latest (v0.1.0 · 2026-08-04)
 
 - Tablet side navigation now offers an optional account-switcher button with the full account-and-playback selector.
 - Tablet fullscreen stays landscape; interactive landscape comment and thread panels keep playback visible.
 - Bangumi playback restores direct video output and can prefer HDR/HEVC when the device and playback account permit it.
-- The current build and latest documented release are `9.9.9.8.6 / versionCode 278`.
+- BiliPai now starts a new `0.x` version epoch at `0.1.0 / versionCode 282`; Android version codes continue increasing.
+- Existing 9.x users need one manual APK installation to enter the new epoch; APK updates are temporarily distributed through Telegram only.
 
 ---
 
@@ -454,6 +464,8 @@ git clone https://github.com/jay3-yy/BiliPai.git
 cd BiliPai
 ./gradlew :app:assembleDev
 ```
+
+The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.1.0-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.1.0.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
 
 ---
 

@@ -100,7 +100,13 @@ internal fun Path.addContinuousRoundRect(
     val bottomEnd = radii.bottomEnd.coerceIn(0f, maxRadius)
     val bottomStart = radii.bottomStart.coerceIn(0f, maxRadius)
     val smooth = smoothing.coerceIn(0f, 1f)
-    val controlInset = 1f - smooth * 0.22f
+    // A quarter-circle uses an end-relative control inset of roughly 0.448.
+    // Moving the control points farther towards the corner as smoothing increases
+    // produces the flatter edge transition of Apple's continuous corners.  The
+    // previous formula resolved to 0.879 at the default smoothing value, which
+    // made the cubic almost a straight diagonal and rendered small icon bubbles
+    // as visibly chamfered octagons.
+    val controlInset = resolveIosContinuousCornerControlInset(smooth)
 
     reset()
     moveTo(0f, topStart)
@@ -148,4 +154,9 @@ internal fun Path.addContinuousRoundRect(
         )
     }
     close()
+}
+
+internal fun resolveIosContinuousCornerControlInset(smoothing: Float): Float {
+    val smooth = smoothing.coerceIn(0f, 1f)
+    return (0.4477f - smooth * 0.12f).coerceIn(0.30f, 0.4477f)
 }

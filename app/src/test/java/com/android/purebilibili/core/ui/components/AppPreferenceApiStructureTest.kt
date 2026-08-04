@@ -17,6 +17,7 @@ class AppPreferenceApiStructureTest {
         assertTrue(source.contains("fun AppSwitchPreference("))
         assertTrue(source.contains("fun AppSliderPreference("))
         assertTrue(source.contains("fun AppPreferenceGroup("))
+        assertTrue(source.contains("AppPreferenceGroupPresentation"))
         assertTrue(source.contains("fun AppPreferenceSectionTitle("))
         assertTrue(source.contains("fun AppPreferenceDivider("))
         assertTrue(source.contains("fun AppTextField("))
@@ -58,9 +59,9 @@ class AppPreferenceApiStructureTest {
         )
 
         val requiredNeutralCalls = mapOf(
-            pilotPaths[0] to listOf("AppPreferenceGroup", "AppSegmentedControl", "AppAlertDialog"),
-            pilotPaths[1] to listOf("AppPreferenceGroup", "AppSegmentedPreference", "AppTextField"),
-            pilotPaths[2] to listOf("AppPreferenceGroup", "AppSwitchPreference", "AppAlertDialog"),
+            pilotPaths[0] to listOf("AppPreferenceGroup", "SettingsSingleChoicePreference", "AppAlertDialog"),
+            pilotPaths[1] to listOf("AppPreferenceGroup", "SettingsSingleChoicePreference", "AppTextField"),
+            pilotPaths[2] to listOf("AppPreferenceGroup", "AppSliderDialogPreference", "AppAlertDialog"),
             pilotPaths[3] to listOf("AppTextField"),
         )
 
@@ -71,6 +72,35 @@ class AppPreferenceApiStructureTest {
                 assertTrue(source.contains(neutralCall), "$neutralCall is missing from $path")
             }
         }
+    }
+
+    @Test
+    fun settingsSelectionApi_usesDialogPreferencesWithoutInlineSegments() {
+        val settingsRoot = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/settings"),
+            File("src/main/java/com/android/purebilibili/feature/settings"),
+        ).first(File::isDirectory)
+        val selectionSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/settings/SettingsSelectionComponents.kt"
+        )
+        val appearanceSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/settings/screen/AppearanceSettingsScreen.kt"
+        )
+        val settingsComponentsSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/settings/ui/SettingsComponents.kt"
+        )
+        val screenSources = settingsRoot.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" && it.name.endsWith("SettingsScreen.kt") }
+            .joinToString("\n") { it.readText() }
+
+        assertTrue(selectionSource.contains("AppSingleChoicePreference("))
+        assertFalse(screenSources.contains("AppSegmentedPreference("))
+        assertFalse(screenSources.contains("AppSegmentedControl("))
+        assertFalse(screenSources.contains("AppSlider("))
+        assertTrue(screenSources.contains("AppSliderDialogPreference("))
+        assertFalse(appearanceSource.contains("ThemePresetDropdownSetting("))
+        assertFalse(appearanceSource.contains("AppDropdownMenu("))
+        assertTrue(settingsComponentsSource.contains("SettingsSingleChoicePreference("))
     }
 
     @Test

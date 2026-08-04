@@ -90,6 +90,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenSourceLicensesClick: () -> Unit,
     onAppearanceClick: () -> Unit = {},
+    onHomeClick: () -> Unit = {},
     onAnimationClick: () -> Unit = {},
     onPlaybackClick: () -> Unit = {},
     onPermissionClick: () -> Unit = {},
@@ -381,7 +382,10 @@ fun SettingsScreen(
         if (!silent) {
             updateStatusText = "检查中..."
         }
-        val result = AppUpdateChecker.check(com.android.purebilibili.BuildConfig.VERSION_NAME)
+        val result = AppUpdateChecker.check(
+            currentVersion = com.android.purebilibili.BuildConfig.VERSION_NAME,
+            currentVersionCode = com.android.purebilibili.BuildConfig.VERSION_CODE
+        )
         result.onSuccess { info ->
             viewModel.recordReleaseEvidence(info)
             updateStatusText = info.message
@@ -975,6 +979,7 @@ fun SettingsScreen(
                     onCategoryClick = onCategoryClick,
                     onSearchOpen = onSearchOpen,
                     onAppearanceClick = onAppearanceClick,
+                    onHomeClick = onHomeClick,
                     onAnimationClick = onAnimationClick,
                     onPlaybackClick = onPlaybackClick,
                     onPermissionClick = onPermissionClick,
@@ -1123,6 +1128,7 @@ private fun MobileSettingsNavLayout(
     onCategoryClick: (SettingsRootCategory) -> Unit,
     onSearchOpen: () -> Unit,
     onAppearanceClick: () -> Unit,
+    onHomeClick: () -> Unit,
     onAnimationClick: () -> Unit,
     onPlaybackClick: () -> Unit,
     onPermissionClick: () -> Unit,
@@ -1212,6 +1218,7 @@ private fun MobileSettingsNavLayout(
     val backLabel = stringResource(R.string.common_back)
     val rootCategoryActions = SettingsRootCategoryActions(
         onAppearanceClick = onAppearanceClick,
+        onHomeClick = onHomeClick,
         onAnimationClick = onAnimationClick,
         onPlaybackClick = onPlaybackClick,
         onBottomBarClick = onNavigateToBottomBarSettings,
@@ -1299,13 +1306,6 @@ private fun MobileSettingsNavLayout(
                             onCategoryClick = onCategoryClick,
                         )
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SettingsAboutHomeSection(
-                        onGithubClick = onGithubClick,
-                        onTelegramClick = onTelegramClick,
-                        onCheckUpdateClick = onCheckUpdateClick,
-                        onDonateClick = onDonateClick,
-                    )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }

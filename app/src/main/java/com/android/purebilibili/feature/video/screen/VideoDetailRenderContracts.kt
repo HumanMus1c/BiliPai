@@ -73,7 +73,7 @@ internal data class VideoDetailCommentActions(
     val deleteComment: (Long) -> Unit,
     val startDissolve: (Long) -> Unit,
     val loadMoreSubReplies: () -> Unit,
-    val openSubReply: (ReplyItem) -> Unit,
+    val openSubReply: (ReplyItem, Long) -> Unit,
     val openSubReplyConversation: (ReplyItem) -> Unit,
     val closeSubReplyConversation: () -> Unit,
     val closeSubReply: () -> Unit,

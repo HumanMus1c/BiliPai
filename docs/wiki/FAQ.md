@@ -110,7 +110,7 @@ A：通知权限用于后台播放、下载任务和媒体控制提示。拒绝�
 
 ### Q：为什么需要安装未知应用权限？
 
-A：只有使用应用内更新并安装下载好的 APK 时才需要。你也可以选择手动去 GitHub Releases 下载和安装。
+A：安装 APK 时可能需要。现阶段最新 APK 仅通过[官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9)发布，GitHub 暂时只同步源码。
 
 ### Q：为什么会出现位置、附近设备或 Wi-Fi 相关权限？
 
@@ -128,11 +128,11 @@ A：不能完全离线。在线播放、搜索、动态、直播、登录、插�
 
 ### Q：怎么确认我正在用最新版本？
 
-A：以 GitHub Releases、应用内更新检查和 `CHANGELOG.md` 为准。README 和 Wiki 会定期维护，但主分支变化很快，遇到不一致时优先看最新 release 和源码版本号。
+A：源码版本以 GitHub 仓库和 `CHANGELOG.md` 为准；最新 APK 以[官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9)的置顶或管理员发布消息为准。
 
 ### Q：应用内更新失败怎么办？
 
-A：检查网络、GitHub 访问情况、存储空间和“安装未知应用”权限。也可以直接打开 GitHub Releases 手动下载 APK。
+A：GitHub APK 与应用内下载目前暂停更新。请前往[官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9)手动下载最新 APK，并核对发布消息中的文件名、源码提交与 SHA-256。
 
 ### Q：反馈问题时需要提供什么？
 

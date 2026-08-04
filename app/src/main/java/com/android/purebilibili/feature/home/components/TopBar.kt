@@ -28,7 +28,6 @@ import androidx.compose.material.icons.outlined.LiveTv
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.SportsEsports
-import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.Tv
 
 import androidx.compose.animation.*
@@ -54,10 +53,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.isSystemInDarkTheme
-//  Cupertino Icons - iOS SF Symbols 风格图标
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import io.github.alexzhirkevich.cupertino.icons.filled.*
+import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
@@ -122,6 +120,9 @@ import top.yukonga.miuix.kmp.blur.blur as miuixBlur
 import top.yukonga.miuix.kmp.blur.drawBackdrop as miuixDrawBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Search
+import top.yukonga.miuix.kmp.icon.extended.Settings
 import dev.chrisbanes.haze.HazeState
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -157,7 +158,10 @@ internal fun resolveTopTabRowHorizontalPaddingDp(
 internal fun resolveTopTabDockIndicatorHorizontalGapDp(hasOuterChromeSurface: Boolean): Float =
     if (hasOuterChromeSurface) 2f else 2f
 
-internal fun resolveTopTabDockIndicatorVerticalGapDp(hasOuterChromeSurface: Boolean): Float = 1f
+/**
+ * 顶部 Tab 的视觉背景保持 30dp 高；36dp 行高留出上下各 3dp 的呼吸空间。
+ */
+internal fun resolveTopTabDockIndicatorVerticalGapDp(hasOuterChromeSurface: Boolean): Float = 3f
 
 internal fun resolveTopTabDockIndicatorWidthDp(
     itemWidthDp: Float,
@@ -196,7 +200,9 @@ internal fun resolveTopTabWrapItemWidthDp(
     isFloatingStyle: Boolean = true
 ): Float {
     return when (normalizeTopTabLabelMode(labelMode)) {
-        0 -> if (isFloatingStyle) 74f else 70f // icon + text
+        // 图文混合模式至少要容纳 18dp 图标、6dp 间距和两三个汉字，
+        // 否则文字会退化为单独的省略号。
+        0 -> if (isFloatingStyle) 84f else 80f // icon + text
         1 -> if (isFloatingStyle) 56f else 52f // icon only
         else -> if (isFloatingStyle) 66f else 62f // text only
     }
@@ -279,11 +285,16 @@ internal fun resolveMd3TopTabVisibleSlots(): Int = 3
 internal fun resolveMd3TopTabLayoutVisibleSlots(
     categoryCount: Int,
     labelMode: Int,
-    showPartitionAction: Boolean
+    showPartitionAction: Boolean,
+    fontScale: Float = 1f
 ): Int {
     val hasSupportedLabelMode = normalizeTopTabLabelMode(labelMode) in 0..2
     return if (!showPartitionAction && hasSupportedLabelMode && categoryCount >= 4) {
-        categoryCount.coerceAtMost(6)
+        if (fontScale > 1.15f) {
+            categoryCount.coerceAtMost(4)
+        } else {
+            categoryCount.coerceAtMost(6)
+        }
     } else {
         resolveMd3TopTabVisibleSlots()
     }
@@ -305,15 +316,21 @@ internal fun resolveIosTopTabItemWidthDp(
 ): Float = resolveMd3TopTabItemWidthDp(
     containerWidthDp = (containerWidthDp - IOS_TOP_TAB_CONTENT_PADDING_DP * 2f)
         .coerceAtLeast(0f),
-    visibleSlots = resolveIosTopTabLayoutVisibleSlots(categoryCount, labelMode)
+    visibleSlots = resolveIosTopTabLayoutVisibleSlots(categoryCount, labelMode),
+    labelMode = labelMode
 )
 
 internal fun resolveMd3TopTabItemWidthDp(
     containerWidthDp: Float,
-    visibleSlots: Int = resolveMd3TopTabVisibleSlots()
+    visibleSlots: Int = resolveMd3TopTabVisibleSlots(),
+    labelMode: Int = 2
 ): Float {
     if (containerWidthDp <= 0f) return 96f
-    if (visibleSlots >= 5) return (containerWidthDp / visibleSlots).coerceIn(52f, 72f)
+    if (visibleSlots >= 5) {
+        val minWidth = if (normalizeTopTabLabelMode(labelMode) == 0) 80f else 52f
+        val maxWidth = if (normalizeTopTabLabelMode(labelMode) == 0) 96f else 72f
+        return (containerWidthDp / visibleSlots).coerceIn(minWidth, maxWidth)
+    }
     return (containerWidthDp / visibleSlots.coerceAtLeast(1)).coerceAtLeast(88f)
 }
 
@@ -707,7 +724,7 @@ fun FluidHomeTopBar(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AppIcon(
-                            CupertinoIcons.Default.MagnifyingGlass,
+                            MiuixIcons.Search,
                             null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f),
                             modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
@@ -731,7 +748,7 @@ fun FluidHomeTopBar(
                     modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)
                 ) {
                     AppIcon(
-                        CupertinoIcons.Default.Gearshape,
+                        MiuixIcons.Settings,
                         contentDescription = "设置",
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
@@ -965,6 +982,7 @@ private fun LightweightHomeTopTabs(
     val pagerScrollingProvider = remember(pagerState) {
         { pagerState?.isScrollInProgress == true }
     }
+    val density = LocalDensity.current
 
     LaunchedEffect(selectedIndex, categories.size) {
         selectedItemLeftInWindowPx = Float.NaN
@@ -978,7 +996,7 @@ private fun LightweightHomeTopTabs(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .height(rowHeight)
+            .heightIn(min = rowHeight)
             .padding(
                 horizontal = resolveTopTabRowHorizontalPaddingDp(
                     isFloatingStyle = isFloatingStyle,
@@ -1004,8 +1022,10 @@ private fun LightweightHomeTopTabs(
                 visibleSlots = resolveMd3TopTabLayoutVisibleSlots(
                     categoryCount = categories.size,
                     labelMode = normalizedLabelMode,
-                    showPartitionAction = showPartitionAction
-                )
+                    showPartitionAction = showPartitionAction,
+                    fontScale = density.fontScale
+                ),
+                labelMode = normalizedLabelMode
             )
         }
         val itemWidthDp = resolveTopTabDockItemWidthDp(
@@ -1027,7 +1047,6 @@ private fun LightweightHomeTopTabs(
         } else {
             maxWidth.value
         }
-        val density = LocalDensity.current
         // Match the bottom bar's actual app-surface luminance. The system theme can differ
         // from the active app theme and previously produced a dark gray capture on light pages.
         val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background())
@@ -1621,7 +1640,12 @@ private fun LightweightHomeTopTabs(
                                     shouldUseMd3LiquidCapsule ||
                                     shouldUseMd3DockBackedCapsule
                             ),
-                            colorMode = if (useTopTabGlassColorPath) {
+                            // Tonal capsule 自己渲染选中背景；不能走仅供独立玻璃指示器使用的
+                            // GLASS_VISIBLE 路径，否则会同时失去背景和选中色。
+                            colorMode = if (
+                                useTopTabGlassColorPath &&
+                                    effectivePresentation != AppTopTabPresentation.TONAL_CAPSULE
+                            ) {
                                 TopTabLiquidColorMode.GLASS_VISIBLE
                             } else {
                                 TopTabLiquidColorMode.NORMAL
@@ -1749,25 +1773,20 @@ private fun LightweightHomeTopTabs(
                     } else {
                         MaterialTheme.colorScheme.primary
                     }
-                    val indicatorBottomPadding = if (skinPlainStyle) {
-                        resolveHomeSkinTopTabIndicatorBottomPadding()
-                    } else {
-                        resolveMd3TopTabIndicatorBottomPadding()
-                    }
                     if (!shouldUseMd3DockBackedCapsule && !shouldUseMd3LiquidCapsule) {
+                        // A soft rounded rectangle makes the selected tab clear without the harsh underline.
                         Box(
                             modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(bottom = indicatorBottomPadding)
+                                .align(Alignment.CenterStart)
                                 .graphicsLayer {
-                                    translationX = md3IndicatorTranslationXPx
+                                    translationX = md3LiquidCapsuleTranslationXPx
                                     scaleX = topTabIndicatorLayerTransform.scaleX
                                     scaleY = topTabIndicatorLayerTransform.scaleY
                                 }
-                                .width(md3IndicatorWidth)
-                                .height(AppSpacingTokens.Micro)
-                                .clip(AppShapes.container(ContainerLevel.Pill))
-                                .background(indicatorColor)
+                                .width(md3LiquidCapsuleWidth)
+                                .height(dockIndicatorHeight)
+                                .clip(RoundedCornerShape(CompactTopTabIndicatorCornerDp.dp))
+                                .background(indicatorColor.copy(alpha = 0.12f))
                         )
                     }
                 }
@@ -1911,14 +1930,22 @@ private fun LightweightTopTabItem(
                 selectionFraction = selectionFraction
             )
         presentation == AppTopTabPresentation.MATERIAL_UNDERLINE -> Color.Transparent
+        // 即使启用了液态玻璃，Tonal 栏目也由自身提供稳定的圆角选中态。
+        presentation == AppTopTabPresentation.TONAL_CAPSULE ->
+            colorScheme.secondaryContainer.copy(alpha = 0.70f * selectionFraction)
         colorMode == TopTabLiquidColorMode.GLASS_VISIBLE -> Color.Transparent
-        else -> colorScheme.secondaryContainer.copy(alpha = 0.70f * selectionFraction)
+        else -> Color.Transparent
     }
     val itemShape = when {
         skinPlainStyle -> androidx.compose.ui.graphics.RectangleShape
         presentation == AppTopTabPresentation.MOVING_CAPSULE -> resolveSharedBottomBarCapsuleShape()
         presentation == AppTopTabPresentation.MATERIAL_UNDERLINE -> androidx.compose.ui.graphics.RectangleShape
-        else -> AppShapes.container(ContainerLevel.Dialog)
+        else -> RoundedCornerShape(CompactTopTabIndicatorCornerDp.dp)
+    }
+    val itemContentHorizontalPadding = if (showIcon && showText) {
+        AppSpacingTokens.ExtraSmall
+    } else {
+        AppSpacingTokens.Small
     }
 
     Box(
@@ -1930,7 +1957,7 @@ private fun LightweightTopTabItem(
                 vertical = if (hasSkinStickerIcon) {
                     resolveTopTabSkinStickerItemVerticalPadding(showText = showText)
                 } else {
-                    AppSpacingTokens.ExtraSmall
+                    resolveTopTabDockIndicatorVerticalGapDp(hasOuterChromeSurface = false).dp
                 }
             )
             .clip(itemShape)
@@ -1942,12 +1969,12 @@ private fun LightweightTopTabItem(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = AppSpacingTokens.Small),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(horizontal = itemContentHorizontalPadding),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             if (showIcon) {
                 if (!skinIconPath.isNullOrBlank()) {
@@ -1970,7 +1997,7 @@ private fun LightweightTopTabItem(
                 }
             }
             if (showIcon && showText) {
-                Spacer(modifier = Modifier.height(resolveTopTabIconTextSpacingDp(0).dp))
+                Spacer(modifier = Modifier.width(resolveTopTabIconTextSpacingDp(0).dp))
             }
             if (showText) {
                 val labelMode = when {
@@ -2017,6 +2044,15 @@ private fun TopTabBlendedIcon(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
+        if (unselectedIcon == selectedIcon) {
+            AppIcon(
+                imageVector = unselectedIcon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.matchParentSize()
+            )
+            return
+        }
         AppIcon(
             imageVector = unselectedIcon,
             contentDescription = null,
@@ -2564,9 +2600,9 @@ fun CategoryTabItem(
          contentAlignment = Alignment.Center
      ) {
          if (showIcon && showText) {
-             Column(
-                 horizontalAlignment = Alignment.CenterHorizontally,
-                 verticalArrangement = Arrangement.Center,
+             Row(
+                 horizontalArrangement = Arrangement.Center,
+                 verticalAlignment = Alignment.CenterVertically,
                  modifier = Modifier.graphicsLayer {
                      scaleX = targetScale
                      scaleY = targetScale
@@ -2578,11 +2614,9 @@ fun CategoryTabItem(
                      selectedIcon = selectedIcon,
                      selectedAlpha = selectionFraction,
                      tint = contentColor,
-                     modifier = Modifier
-                         .size(iconSize)
-                         .offset(y = (-0.5).dp)
+                     modifier = Modifier.size(iconSize)
                  )
-                 Spacer(modifier = Modifier.height(iconTextSpacing))
+                 Spacer(modifier = Modifier.width(iconTextSpacing))
                  AppText(
                      text = category,
                      color = contentColor,
@@ -2594,9 +2628,9 @@ fun CategoryTabItem(
                  )
              }
          } else if (showIcon) {
-             TopTabBlendedIcon(
-                 unselectedIcon = unselectedIcon,
-                 selectedIcon = selectedIcon,
+            TopTabBlendedIcon(
+                unselectedIcon = unselectedIcon,
+                selectedIcon = selectedIcon,
                  selectedAlpha = selectionFraction,
                  tint = contentColor,
                  modifier = Modifier

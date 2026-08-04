@@ -22,6 +22,7 @@ import com.android.purebilibili.feature.plugin.PlaybackCdnPlugin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.network.socket.DanmakuProtocol
@@ -62,7 +63,9 @@ data class LiveDanmakuItem(
     val reportTs: Long = 0,
     val reportSign: String = "",
     val superChatToken: String = "",
-    val superChatReportTs: Long = 0
+    val superChatReportTs: Long = 0,
+    // SC 展示时长（秒），用于全屏大字浮层自动消失
+    val superChatDuration: Int = 0
 )
 
 /**
@@ -146,6 +149,10 @@ class LivePlayerViewModel : ViewModel() {
 
     private val _superChatItems = MutableStateFlow<List<LiveDanmakuItem>>(emptyList())
     val superChatItems = _superChatItems.asStateFlow()
+
+    // [新增] 实时 SC 事件流（仅 WS 实时到达的新 SC，不含历史预加载），驱动全屏大字浮层
+    private val _superChatFlashFlow = MutableSharedFlow<LiveDanmakuItem>(extraBufferCapacity = 4)
+    val superChatFlashFlow: SharedFlow<LiveDanmakuItem> = _superChatFlashFlow
 
     private val _events = MutableSharedFlow<LivePlayerEvent>(extraBufferCapacity = 16)
     val events = _events.asSharedFlow()
@@ -621,6 +628,37 @@ class LivePlayerViewModel : ViewModel() {
         }
     }
 
+    /**
+     * 当前播放候选快照（供手动线路选择 UI 使用）
+     */
+    internal fun playbackCandidatesSnapshot(): List<LivePlaybackCandidate> {
+        return resolvedPlayback?.candidates.orEmpty()
+    }
+
+    fun currentPlaybackPosition(): Pair<Int, Int> {
+        return activeCandidateIndex to activeUrlIndex
+    }
+
+    /**
+     * 手动切换播放候选（协议/格式/编码/线路）
+     * 更新 playUrl 后，LivePlayerScreen 的 LaunchedEffect(playUrl) 会自动重建播放源
+     */
+    fun switchPlaybackCandidate(candidateIndex: Int, urlIndex: Int) {
+        val currentState = _uiState.value as? LivePlayerState.Success ?: return
+        val playback = resolvedPlayback ?: return
+        val candidate = playback.candidates.getOrNull(candidateIndex) ?: return
+        val url = candidate.urls.getOrNull(urlIndex) ?: return
+        activeCandidateIndex = candidateIndex
+        activeUrlIndex = urlIndex
+        android.util.Log.d("LivePlayer", " Manual switch source (candidate=$candidateIndex, url=$urlIndex): ${url.take(80)}...")
+        CrashReporter.markLivePlaybackStage("manual_switch_source_${candidateIndex}_${urlIndex}")
+        _uiState.value = currentState.copy(
+            playUrl = url,
+            allPlayUrls = candidate.urls,
+            currentUrlIndex = urlIndex
+        )
+    }
+
     private fun publishResolvedPlayback(
         data: com.android.purebilibili.data.model.response.LivePlayUrlData,
         requestedQn: Int,
@@ -835,8 +873,11 @@ class LivePlayerViewModel : ViewModel() {
     
     /**
      * 发送弹幕
+     *
+     * @param color 弹幕颜色（RGB，默认白色 16777215）
+     * @param mode 弹幕模式（1=滚动，4=底部，5=顶部，默认滚动）
      */
-    fun sendDanmaku(text: String) {
+    fun sendDanmaku(text: String, color: Int = 16777215, mode: Int = 1) {
         if (text.isBlank() || currentRoomId == 0L) return
         val currentPermission = (_uiState.value as? LivePlayerState.Success)?.danmakuPermission
         if (currentPermission != null) {
@@ -865,6 +906,8 @@ class LivePlayerViewModel : ViewModel() {
             val request = LiveDanmakuSendRequest(
                 roomId = currentRoomId,
                 message = text,
+                color = color,
+                mode = mode,
                 replyMid = reply?.uid ?: 0L,
                 replyAttr = if (reply != null) 1 else 0,
                 replyUname = reply?.uname.orEmpty(),
@@ -877,12 +920,12 @@ class LivePlayerViewModel : ViewModel() {
                 recentSentTime = System.currentTimeMillis()
                 _replyTarget.value = null
                 
-                // 发送成功，模拟一条本地弹幕立即上屏
+                // 发送成功，模拟一条本地弹幕立即上屏（沿用所选颜色与模式）
                 val mid = com.android.purebilibili.core.store.TokenManager.midCache ?: 0L
                 val item = LiveDanmakuItem(
                     text = text,
-                    color = 16777215, // White
-                    mode = 1, // Scroll
+                    color = color,
+                    mode = mode,
                     uid = mid,
                     uname = "我",
                     isSelf = true
@@ -1146,6 +1189,7 @@ class LivePlayerViewModel : ViewModel() {
                 _superChatItems.value = listOf(action.item) + _superChatItems.value
                     .filterNot { it.superChatId > 0L && it.superChatId == action.id }
                 emitLiveChatItem(action.item)
+                _superChatFlashFlow.tryEmit(action.item)
             }
             is LiveRealtimeAction.RemoveSuperChats -> {
                 val ids = action.ids.toSet()

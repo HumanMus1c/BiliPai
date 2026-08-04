@@ -161,8 +161,9 @@ class TopTabStylePolicyTest {
         val material3 = topStyle(UiPreset.MD3, AndroidNativeVariant.MATERIAL3)
         val miuix = topStyle(UiPreset.MD3, AndroidNativeVariant.MIUIX)
 
-        assertNotEquals(ios.searchBarHeight, material3.searchBarHeight)
-        assertNotEquals(material3.searchBarHeight, miuix.searchBarHeight)
+        assertEquals(ios.searchBarHeight, material3.searchBarHeight)
+        assertEquals(material3.searchBarHeight, miuix.searchBarHeight)
+        assertNotEquals(material3.unifiedPanelCornerRadius, miuix.unifiedPanelCornerRadius)
         assertEquals(AppTopTabPresentation.MOVING_CAPSULE, ios.presentation)
         assertEquals(AppTopTabPresentation.MATERIAL_UNDERLINE, material3.presentation)
         assertEquals(AppTopTabPresentation.MATERIAL_UNDERLINE, miuix.presentation)
@@ -172,13 +173,13 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `miuix icon modes keep miuix dimensions while falling back to shared md3 renderer`() {
+    fun `miuix icon modes use the shared compact top tab geometry`() {
         val iconAndText = topStyle(UiPreset.MD3, AndroidNativeVariant.MIUIX, labelMode = 0)
 
         assertEquals(AppTopTabPresentation.MATERIAL_UNDERLINE, iconAndText.presentation)
-        assertEquals(58.dp, iconAndText.tabRowHeightDocked)
-        assertEquals(64.dp, iconAndText.tabRowHeightFloating)
-        assertEquals(34.dp, iconAndText.md3VisualSpec.selectedCapsuleHeight)
+        assertEquals(36.dp, iconAndText.tabRowHeightDocked)
+        assertEquals(40.dp, iconAndText.tabRowHeightFloating)
+        assertEquals(30.dp, iconAndText.md3VisualSpec.selectedCapsuleHeight)
         assertEquals(44.dp, iconAndText.actionButtonSizeDocked)
     }
 
@@ -207,42 +208,42 @@ class TopTabStylePolicyTest {
     @Test
     fun `miuix top settings button follows action button metrics while other presets keep existing size`() {
         assertEquals(
-            40.dp,
+            36.dp,
             resolveHomeTopSettingsButtonSize(
                 uiPreset = UiPreset.IOS,
                 androidNativeVariant = AndroidNativeVariant.MATERIAL3
             )
         )
         assertEquals(
-            40.dp,
+            36.dp,
             resolveHomeTopSettingsButtonSize(
                 uiPreset = UiPreset.MD3,
                 androidNativeVariant = AndroidNativeVariant.MATERIAL3
             )
         )
         assertEquals(
-            44.dp,
+            40.dp,
             resolveHomeTopSettingsButtonSize(
                 uiPreset = UiPreset.MD3,
                 androidNativeVariant = AndroidNativeVariant.MIUIX
             )
         )
         assertEquals(
-            20.dp,
+            18.dp,
             resolveHomeTopSettingsIconSize(
                 uiPreset = UiPreset.IOS,
                 androidNativeVariant = AndroidNativeVariant.MATERIAL3
             )
         )
         assertEquals(
-            20.dp,
+            18.dp,
             resolveHomeTopSettingsIconSize(
                 uiPreset = UiPreset.MD3,
                 androidNativeVariant = AndroidNativeVariant.MATERIAL3
             )
         )
         assertEquals(
-            22.dp,
+            18.dp,
             resolveHomeTopSettingsIconSize(
                 uiPreset = UiPreset.MD3,
                 androidNativeVariant = AndroidNativeVariant.MIUIX
@@ -264,29 +265,29 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `ios top tab tuning uses enlarged bottom-bar-like footprint adapted for top dock`() {
+    fun `ios top tab tuning uses the compact shared top tab footprint`() {
         val tuning = resolveTopTabVisualTuning(AppTopTabPresentation.MOVING_CAPSULE)
 
-        assertEquals(48f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
-        assertEquals(24f, tuning.nonFloatingIndicatorCornerDp, 0.001f)
+        assertEquals(30f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
+        assertEquals(9f, tuning.nonFloatingIndicatorCornerDp, 0.001f)
         assertEquals(1.18f, tuning.nonFloatingIndicatorWidthRatio, 0.001f)
         assertEquals(84f, tuning.nonFloatingIndicatorMinWidthDp, 0.001f)
         assertEquals(0f, tuning.nonFloatingIndicatorHorizontalInsetDp, 0.001f)
-        assertEquals(48f, tuning.floatingIndicatorHeightDp, 0.001f)
+        assertEquals(30f, tuning.floatingIndicatorHeightDp, 0.001f)
         assertEquals(15f, tuning.tabTextSizeSp, 0.001f)
         assertEquals(20f, tuning.tabTextLineHeightSp, 0.001f)
-        assertEquals(42f, tuning.tabContentMinHeightDp, 0.001f)
-        assertEquals(24f, tuning.tabIconWithTextSizeDp, 0.001f)
-        assertEquals(24f, tuning.tabIconOnlySizeDp, 0.001f)
+        assertEquals(30f, tuning.tabContentMinHeightDp, 0.001f)
+        assertEquals(18f, tuning.tabIconWithTextSizeDp, 0.001f)
+        assertEquals(18f, tuning.tabIconOnlySizeDp, 0.001f)
     }
 
     @Test
-    fun `md3 capsule top tab tuning also uses enlarged top dock shape`() {
+    fun `md3 top tab tuning uses the compact shared top tab shape`() {
         val tuning = resolveTopTabVisualTuning(AppTopTabPresentation.MATERIAL_UNDERLINE)
 
-        assertEquals(48f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
-        assertEquals(24f, tuning.nonFloatingIndicatorCornerDp, 0.001f)
-        assertEquals(48f, tuning.floatingIndicatorHeightDp, 0.001f)
+        assertEquals(30f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
+        assertEquals(9f, tuning.nonFloatingIndicatorCornerDp, 0.001f)
+        assertEquals(30f, tuning.floatingIndicatorHeightDp, 0.001f)
         assertEquals(15f, tuning.tabTextSizeSp, 0.001f)
     }
 
@@ -401,9 +402,9 @@ class TopTabStylePolicyTest {
 
     @Test
     fun `ios top tab icon modes use readable glyph sizes`() {
-        assertEquals(24f, resolveTopTabIconSizeDp(labelMode = 0), 0.001f)
-        assertEquals(24f, resolveTopTabIconSizeDp(labelMode = 1), 0.001f)
-        assertEquals(3f, resolveTopTabIconTextSpacingDp(labelMode = 0), 0.001f)
+        assertEquals(18f, resolveTopTabIconSizeDp(labelMode = 0), 0.001f)
+        assertEquals(18f, resolveTopTabIconSizeDp(labelMode = 1), 0.001f)
+        assertEquals(6f, resolveTopTabIconTextSpacingDp(labelMode = 0), 0.001f)
         assertEquals(54.dp, resolveIosTopTabRowHeight(isFloatingStyle = false))
         assertEquals(56.dp, resolveIosTopTabRowHeight(isFloatingStyle = true))
         assertEquals(44.dp, resolveIosTopTabActionButtonSize(isFloatingStyle = false))
@@ -421,17 +422,17 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `md3 top tabs should use compact text first underline sizing`() {
+    fun `md3 top tabs use compact rounded rectangle sizing`() {
         val spec = resolveMd3TopTabVisualSpec(isFloatingStyle = false)
 
-        assertEquals(54.dp, spec.rowHeight)
-        assertEquals(2.dp, spec.selectedCapsuleHeight)
-        assertEquals(1.dp, spec.selectedCapsuleCornerRadius)
-        assertEquals(22.dp, spec.iconSize)
+        assertEquals(36.dp, spec.rowHeight)
+        assertEquals(30.dp, spec.selectedCapsuleHeight)
+        assertEquals(9.dp, spec.selectedCapsuleCornerRadius)
+        assertEquals(18.dp, spec.iconSize)
         assertEquals(15.sp, spec.labelTextSize)
         assertEquals(20.sp, spec.labelLineHeight)
         assertEquals(0.dp, spec.iconLabelSpacing)
-        assertEquals(12.dp, spec.itemHorizontalPadding)
+        assertEquals(10.dp, spec.itemHorizontalPadding)
         assertEquals(0.dp, spec.selectedCapsuleShadowElevation)
         assertEquals(0.dp, spec.selectedCapsuleTonalElevation)
     }
@@ -443,10 +444,10 @@ class TopTabStylePolicyTest {
             labelMode = 0
         )
 
-        assertEquals(62.dp, spec.rowHeight)
-        assertEquals(8.dp, spec.itemHorizontalPadding)
-        assertEquals(3.dp, spec.iconLabelSpacing)
-        assertEquals(22.dp, spec.iconSize)
+        assertEquals(36.dp, spec.rowHeight)
+        assertEquals(10.dp, spec.itemHorizontalPadding)
+        assertEquals(6.dp, spec.iconLabelSpacing)
+        assertEquals(18.dp, spec.iconSize)
         assertEquals(15.sp, spec.labelTextSize)
         assertTrue(spec.labelLineHeight >= spec.labelTextSize)
     }
@@ -458,11 +459,11 @@ class TopTabStylePolicyTest {
             presentation = AppTopTabPresentation.TONAL_CAPSULE
         )
 
-        assertEquals(52.dp, spec.rowHeight)
-        assertEquals(34.dp, spec.selectedCapsuleHeight)
-        assertEquals(17.dp, spec.selectedCapsuleCornerRadius)
-        assertEquals(12.dp, spec.itemHorizontalPadding)
-        assertEquals(3.dp, spec.iconLabelSpacing)
+        assertEquals(36.dp, spec.rowHeight)
+        assertEquals(30.dp, spec.selectedCapsuleHeight)
+        assertEquals(9.dp, spec.selectedCapsuleCornerRadius)
+        assertEquals(10.dp, spec.itemHorizontalPadding)
+        assertEquals(0.dp, spec.iconLabelSpacing)
         assertEquals(15.sp, spec.labelTextSize)
     }
 
@@ -760,10 +761,9 @@ class TopTabStylePolicyTest {
         assertTrue(itemSource.contains("alpha(selectionFraction)"))
         assertTrue(itemSource.indexOf("AsyncImage(") < itemSource.indexOf("TopTabBlendedIcon("))
         assertTrue(itemSource.contains("else {"))
-        assertTrue(itemSource.contains("resolveTopTabCategoryIcon("))
-        assertTrue(itemSource.contains("selected = false"))
-        assertTrue(itemSource.contains("selected = true"))
-        assertTrue(rowCallSource.contains("iconFamily = topTabIconFamily"))
+        assertTrue(itemSource.contains("resolveTopTabMaterialIcon(categoryKey)"))
+        assertFalse(itemSource.contains("resolveMiuixPreferredTopTabCategoryIcon("))
+        assertFalse(rowCallSource.contains("iconFamily = topTabIconFamily"))
     }
 
     @Test

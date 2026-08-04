@@ -10,6 +10,6 @@ internal fun resolveSettingsNavDestinationTitle(destination: SettingsNavDestinat
     return when (destination) {
         SettingsNavDestination.Home -> "设置"
         SettingsNavDestination.Search -> "搜索"
-        is SettingsNavDestination.Category -> destination.category.title
+        is SettingsNavDestination.Category -> canonicalSettingsRootCategory(destination.category).title
     }
 }

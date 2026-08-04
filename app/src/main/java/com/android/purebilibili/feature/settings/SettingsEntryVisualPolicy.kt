@@ -29,51 +29,9 @@ internal fun rememberSettingsEntryTint(
     role: AppSemanticAccentRole,
     iosTint: Color,
 ): Color {
-    val policy = rememberAppSemanticVisualPolicy()
-    return remember(role, iosTint, policy) {
-        policy.resolveAccent(role, fallback = iosTint)
+    return remember(role, iosTint) {
+        iosTint
     }
-}
-
-private fun resolveMd3SettingsEntryTintRole(
-    target: SettingsSearchTarget
-): AppSemanticAccentRole = when (target) {
-    SettingsSearchTarget.INTERFACE_THEME,
-    SettingsSearchTarget.HOME_FEED,
-    SettingsSearchTarget.NAVIGATION,
-    SettingsSearchTarget.APPEARANCE,
-    SettingsSearchTarget.ANIMATION,
-    SettingsSearchTarget.PLUGINS,
-    SettingsSearchTarget.OPEN_SOURCE_HOME,
-    SettingsSearchTarget.REPLAY_ONBOARDING,
-    SettingsSearchTarget.TIPS -> AppSemanticAccentRole.TERTIARY
-
-    SettingsSearchTarget.PLAYBACK_QUALITY,
-    SettingsSearchTarget.FULLSCREEN_GESTURE,
-    SettingsSearchTarget.INTERACTION_COMMENT,
-    SettingsSearchTarget.DATA_BACKUP,
-    SettingsSearchTarget.PLAYBACK,
-    SettingsSearchTarget.BOTTOM_BAR,
-    SettingsSearchTarget.SETTINGS_SHARE,
-    SettingsSearchTarget.WEBDAV_BACKUP,
-    SettingsSearchTarget.DOWNLOAD_PATH,
-    SettingsSearchTarget.IMAGE_SAVE_PATH,
-    SettingsSearchTarget.EXPORT_LOGS,
-    SettingsSearchTarget.OPEN_SOURCE_LICENSES,
-    SettingsSearchTarget.VIEW_RELEASE_NOTES,
-    SettingsSearchTarget.OPEN_LINKS,
-    SettingsSearchTarget.PERMISSION -> AppSemanticAccentRole.SECONDARY
-
-    SettingsSearchTarget.PRIVACY_PERMISSION,
-    SettingsSearchTarget.DIAGNOSTICS,
-    SettingsSearchTarget.ABOUT_SUPPORT,
-    SettingsSearchTarget.CHECK_UPDATE,
-    SettingsSearchTarget.DONATE,
-    SettingsSearchTarget.TELEGRAM,
-    SettingsSearchTarget.TWITTER,
-    SettingsSearchTarget.DISCLAIMER,
-    SettingsSearchTarget.BLOCKED_LIST,
-    SettingsSearchTarget.CLEAR_CACHE -> AppSemanticAccentRole.PRIMARY
 }
 
 private fun resolveIosSettingsEntryTint(
@@ -129,10 +87,7 @@ internal fun resolveSettingsEntryVisual(
     target: SettingsSearchTarget,
     policy: AppSemanticVisualPolicy = AppSemanticVisualPolicy.Cupertino,
 ): SettingsEntryVisual {
-    val iconTint = policy.resolveAccent(
-        role = resolveMd3SettingsEntryTintRole(target),
-        fallback = resolveIosSettingsEntryTint(target),
-    )
+    val iconTint = resolveIosSettingsEntryTint(target)
     return when (target) {
         SettingsSearchTarget.TELEGRAM -> SettingsEntryVisual(
             iconResId = R.drawable.ic_telegram_mono,

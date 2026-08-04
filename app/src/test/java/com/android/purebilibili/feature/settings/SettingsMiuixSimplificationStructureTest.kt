@@ -30,14 +30,14 @@ class SettingsMiuixSimplificationStructureTest {
 
         assertFalse(source.contains("previewLiquidGlassProgress"))
         assertFalse(source.contains("通透到磨砂"))
-        assertTrue(source.contains("顶部 Dock 液态玻璃"))
+        assertTrue(source.contains("顶部标签栏液态玻璃"))
         assertTrue(source.contains("toggleTopBarLiquidGlass("))
         assertTrue(source.contains("首页搜索框液态玻璃"))
         assertTrue(source.contains("toggleHomeSearchLiquidGlass("))
         assertTrue(source.contains("底栏液态玻璃"))
         assertFalse(source.contains("title = \"安卓原生液态玻璃\""))
         assertFalse(source.contains("toggleAndroidNativeLiquidGlass("))
-        assertTrue(source.contains("过渡动画实时模糊"))
+        assertTrue(source.contains("转场时模糊背景"))
         assertTrue(source.contains("toggleVideoTransitionRealtimeBlur("))
         assertTrue(source.contains("SettingsPageScaffold("))
     }
@@ -47,7 +47,7 @@ class SettingsMiuixSimplificationStructureTest {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/settings/screen/AnimationSettingsScreen.kt")
 
         assertTrue(
-            Regex("""icon = rememberSettingsSemanticIcon\(SettingsIconRole\.TOP_DOCK_GLASS\),\s*title = "顶部 Dock 液态玻璃"""")
+            Regex("""icon = rememberSettingsSemanticIcon\(SettingsIconRole\.TOP_DOCK_GLASS\),\s*title = "顶部标签栏液态玻璃"""")
                 .containsMatchIn(source)
         )
         assertTrue(

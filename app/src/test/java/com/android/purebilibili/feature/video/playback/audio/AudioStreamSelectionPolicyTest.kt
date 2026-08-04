@@ -218,6 +218,41 @@ class AudioStreamSelectionPolicyTest {
     }
 
     @Test
+    fun `software decoded dolby uses dolby audio label`() {
+        val decision = resolveAudioStreamSelection(
+            dash = fullDash(),
+            requestedAudioQuality = AUDIO_QUALITY_DOLBY,
+            isDolbyAudioSupported = true,
+            isDolbyAudioSoftwareDecoded = true
+        )
+
+        val dolbyOption = decision.availableOptions.first { it.preferenceId == AUDIO_QUALITY_DOLBY }
+        val presentation = resolveAudioQualityControlPresentation(
+            options = decision.availableOptions,
+            selectedAudioQuality = AUDIO_QUALITY_DOLBY
+        )
+
+        assertEquals("杜比音频", dolbyOption.label)
+        assertTrue(dolbyOption.isSoftwareDecoded)
+        assertEquals("杜比音频", presentation.label)
+        assertTrue(presentation.showDolbyBadge)
+    }
+
+    @Test
+    fun `platform decoded dolby keeps atmos label`() {
+        val decision = resolveAudioStreamSelection(
+            dash = fullDash(),
+            requestedAudioQuality = AUDIO_QUALITY_DOLBY,
+            isDolbyAudioSupported = true,
+            isDolbyAudioSoftwareDecoded = false
+        )
+
+        val dolbyOption = decision.availableOptions.first { it.preferenceId == AUDIO_QUALITY_DOLBY }
+        assertEquals("杜比全景声", dolbyOption.label)
+        assertTrue(!dolbyOption.isSoftwareDecoded)
+    }
+
+    @Test
     fun `audio quality control keeps a visible fallback when options are empty`() {
         val presentation = resolveAudioQualityControlPresentation(
             options = emptyList(),

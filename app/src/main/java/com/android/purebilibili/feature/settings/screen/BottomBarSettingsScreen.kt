@@ -4,23 +4,6 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.TrendingUp
-import androidx.compose.material.icons.outlined.DynamicFeed
-import androidx.compose.material.icons.outlined.Extension
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.GridView
-import androidx.compose.material.icons.outlined.Lightbulb
-import androidx.compose.material.icons.outlined.LibraryMusic
-import androidx.compose.material.icons.outlined.LiveTv
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.PlayCircleOutline
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.SmartToy
-import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material.icons.outlined.Tv
-import androidx.compose.material.icons.outlined.WatchLater
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -63,6 +46,8 @@ import com.android.purebilibili.core.store.HomeHeaderBlurMode
 import com.android.purebilibili.core.store.HomeHeaderCollapseMode
 import com.android.purebilibili.core.store.HomeTopLayoutOrder
 import com.android.purebilibili.core.store.HomeTopRightAction
+import com.android.purebilibili.core.store.BottomBarSearchAutoExpandMode
+import com.android.purebilibili.core.store.BottomBarSearchLayoutMode
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.resolveHomeHeaderCollapseModeForSearch
 import com.android.purebilibili.core.store.resolveHomeHeaderCollapseModeForTopTabs
@@ -102,70 +87,12 @@ data class TopTabConfig(
 internal fun resolveBottomBarTabIcon(
     id: String,
     iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
-): ImageVector {
-    return when (iconFamily) {
-        AppSemanticIconFamily.MATERIAL -> when (id) {
-            "HOME" -> Icons.Outlined.Home
-            "DYNAMIC" -> Icons.Outlined.DynamicFeed
-            "STORY" -> Icons.Outlined.PlayCircleOutline
-            "HISTORY" -> Icons.Outlined.History
-            "LISTEN_VIDEO" -> Icons.Outlined.LibraryMusic
-            "PROFILE" -> Icons.Outlined.Person
-            "FAVORITE" -> Icons.Outlined.StarBorder
-            "LIVE" -> Icons.Outlined.LiveTv
-            "WATCHLATER" -> Icons.Outlined.WatchLater
-            "SETTINGS" -> Icons.Outlined.Settings
-            "PLUGINS" -> Icons.Outlined.Extension
-            else -> Icons.Outlined.Home
-        }
-        AppSemanticIconFamily.CUPERTINO -> when (id) {
-            "HOME" -> CupertinoIcons.Default.House
-            "DYNAMIC" -> CupertinoIcons.Default.RectangleStack
-            "STORY" -> CupertinoIcons.Default.PlayCircle
-            "HISTORY" -> CupertinoIcons.Default.Clock
-            "LISTEN_VIDEO" -> CupertinoIcons.Default.MusicNote
-            "PROFILE" -> CupertinoIcons.Default.PersonCircle
-            "FAVORITE" -> CupertinoIcons.Default.Star
-            "LIVE" -> CupertinoIcons.Default.Video
-            "WATCHLATER" -> CupertinoIcons.Outlined.Clock
-            "SETTINGS" -> CupertinoIcons.Default.Gearshape
-            "PLUGINS" -> CupertinoIcons.Default.Puzzlepiece
-            else -> CupertinoIcons.Default.House
-        }
-    }
-}
+): ImageVector = resolveSettingsNavigationPreviewIcon(id, iconFamily, selected = false)
 
 internal fun resolveTopTabIcon(
     id: String,
     iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
-): ImageVector {
-    return when (iconFamily) {
-        AppSemanticIconFamily.MATERIAL -> when (id) {
-            "RECOMMEND" -> Icons.Outlined.Home
-            "FOLLOW" -> Icons.Outlined.Person
-            "POPULAR" -> Icons.AutoMirrored.Outlined.TrendingUp
-            "LIVE" -> Icons.Outlined.LiveTv
-            "ANIME" -> Icons.Outlined.Tv
-            "GAME" -> Icons.Outlined.PlayCircleOutline
-            "PARTITION" -> Icons.Outlined.GridView
-            "KNOWLEDGE" -> Icons.Outlined.Lightbulb
-            "TECH" -> Icons.Outlined.SmartToy
-            else -> Icons.Outlined.Home
-        }
-        AppSemanticIconFamily.CUPERTINO -> when (id) {
-            "RECOMMEND" -> CupertinoIcons.Default.House
-            "FOLLOW" -> CupertinoIcons.Default.PersonCropCircleBadgePlus
-            "POPULAR" -> CupertinoIcons.Default.ChartBar
-            "LIVE" -> CupertinoIcons.Default.Video
-            "ANIME" -> CupertinoIcons.Default.Tv
-            "GAME" -> CupertinoIcons.Default.PlayCircle
-            "PARTITION" -> CupertinoIcons.Outlined.Grid
-            "KNOWLEDGE" -> CupertinoIcons.Default.Lightbulb
-            "TECH" -> CupertinoIcons.Default.Cpu
-            else -> CupertinoIcons.Default.House
-        }
-    }
-}
+): ImageVector = resolveSettingsNavigationPreviewIcon(id, iconFamily, selected = false)
 
 /**
  * 所有可用的底栏项目
@@ -271,6 +198,14 @@ fun BottomBarSettingsContent(
         .collectAsStateWithLifecycle(initialValue = HomeHeaderCollapseMode.BOTH)
     val homeTopRightAction by SettingsManager.getHomeTopRightAction(context)
         .collectAsStateWithLifecycle(initialValue = HomeTopRightAction.SETTINGS)
+    val isBottomBarFloating by SettingsManager.getBottomBarFloating(context)
+        .collectAsStateWithLifecycle(initialValue = true)
+    val bottomBarSearchEnabled by SettingsManager.getBottomBarSearchEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val bottomBarSearchAutoExpandMode by SettingsManager.getBottomBarSearchAutoExpandMode(context)
+        .collectAsStateWithLifecycle(initialValue = BottomBarSearchAutoExpandMode.DISABLED)
+    val bottomBarSearchLayoutMode by SettingsManager.getBottomBarSearchLayoutMode(context)
+        .collectAsStateWithLifecycle(initialValue = BottomBarSearchLayoutMode.FULL_DOCK)
     val tabletUseSidebar by SettingsManager.getTabletUseSidebar(context).collectAsStateWithLifecycle(initialValue = false)
     val sidebarAccountSwitcherEnabled by SettingsManager.getSidebarAccountSwitcherEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
@@ -373,6 +308,67 @@ fun BottomBarSettingsContent(
                     )
                 }
             }
+
+            item {
+                Box(modifier = Modifier.entrance()) {
+                    AppPreferenceSectionTitle("导航行为")
+                }
+            }
+            item {
+                Box(modifier = Modifier.entrance()) {
+                    AppPreferenceGroup {
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.FLOATING_BOTTOM_BAR),
+                            title = "悬浮底栏",
+                            subtitle = "关闭后底栏沉浸式贴底显示",
+                            checked = isBottomBarFloating,
+                            onCheckedChange = { enabled ->
+                                scope.launch { SettingsManager.setBottomBarFloating(context, enabled) }
+                            },
+                            iconTint = com.android.purebilibili.core.theme.iOSPurple,
+                        )
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.OPEN_LINKS),
+                            title = "底栏搜索入口",
+                            subtitle = "在悬浮底栏右侧显示搜索入口",
+                            checked = bottomBarSearchEnabled,
+                            onCheckedChange = { enabled ->
+                                scope.launch { SettingsManager.setBottomBarSearchEnabled(context, enabled) }
+                            },
+                            iconTint = com.android.purebilibili.core.theme.iOSTeal,
+                        )
+                        AppPreferenceDivider()
+                        SettingsSingleChoicePreference(
+                            title = "底栏搜索布局",
+                            subtitle = "选择显示完整导航，或只保留首页和搜索两个入口",
+                            options = BottomBarSearchLayoutMode.entries.map { mode ->
+                                AppSegmentOption(mode, mode.label)
+                            },
+                            selectedValue = bottomBarSearchLayoutMode,
+                            enabled = bottomBarSearchEnabled,
+                            onSelectionChange = { mode ->
+                                scope.launch { SettingsManager.setBottomBarSearchLayoutMode(context, mode) }
+                            },
+                        )
+                        AppPreferenceDivider()
+                        SettingsSingleChoicePreference(
+                            title = "搜索框自动展开",
+                            subtitle = "选择在回到首页顶部或开始浏览内容时展开搜索框",
+                            options = BottomBarSearchAutoExpandMode.entries.map { mode ->
+                                AppSegmentOption(mode, mode.label)
+                            },
+                            selectedValue = bottomBarSearchAutoExpandMode,
+                            enabled = bottomBarSearchEnabled,
+                            onSelectionChange = { mode ->
+                                scope.launch {
+                                    SettingsManager.setBottomBarSearchAutoExpandMode(context, mode)
+                                }
+                            },
+                        )
+                    }
+                }
+            }
             
             // 底部导航
             item {
@@ -384,180 +380,36 @@ fun BottomBarSettingsContent(
             item {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
-                        val scope = rememberCoroutineScope()
                         val visibilityMode by SettingsManager.getBottomBarVisibilityMode(context).collectAsStateWithLifecycle(initialValue = SettingsManager.BottomBarVisibilityMode.ALWAYS_VISIBLE)
                         val labelMode by SettingsManager.getBottomBarLabelMode(context).collectAsStateWithLifecycle(initialValue = 0)
-                        
-                        //  底栏显示模式选择（抽屉式）
-                        var visibilityModeExpanded by remember { mutableStateOf(false) }
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(AppShapes.container(ContainerLevel.Field))
-                                    .clickable { visibilityModeExpanded = !visibilityModeExpanded }
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                AppIcon(
-                                    CupertinoIcons.Default.Eye,
-                                    contentDescription = null,
-                                    tint = com.android.purebilibili.core.theme.iOSOrange,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    AppText(
-                                        text = "显示模式",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    AppText(
-                                        text = visibilityMode.label,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                AppIcon(
-                                    imageVector = if (visibilityModeExpanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            
-                            // 展开后的选项
-                            androidx.compose.animation.AnimatedVisibility(
-                                visible = visibilityModeExpanded,
-                                enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
-                                exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(top = 8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    com.android.purebilibili.core.store.SettingsManager.BottomBarVisibilityMode.entries.forEach { mode ->
-                                        val isSelected = mode == visibilityMode
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(AppShapes.container(ContainerLevel.Field))
-                                                .background(
-                                                    if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                                                )
-                                                .clickable {
-                                                    scope.launch {
-                                                        SettingsManager.setBottomBarVisibilityMode(context, mode)
-                                                    }
-                                                    visibilityModeExpanded = false
-                                                }
-                                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                AppText(
-                                                    mode.label,
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                                    color = if (isSelected) MaterialTheme.colorScheme.primary 
-                                                            else MaterialTheme.colorScheme.onSurface
-                                                )
-                                                AppText(
-                                                    mode.description,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                                )
-                                            }
-                                            if (isSelected) {
-                                                AppIcon(
-                                                    CupertinoIcons.Default.Checkmark,
-                                                    contentDescription = "已选择",
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
+                        SettingsSingleChoicePreference(
+                            icon = CupertinoIcons.Default.Eye,
+                            iconTint = com.android.purebilibili.core.theme.iOSOrange,
+                            title = "显示模式",
+                            subtitle = visibilityMode.description,
+                            options = SettingsManager.BottomBarVisibilityMode.entries.map { mode ->
+                                AppSegmentOption(mode, mode.label)
+                            },
+                            selectedValue = visibilityMode,
+                            onSelectionChange = { mode ->
+                                scope.launch { SettingsManager.setBottomBarVisibilityMode(context, mode) }
+                            },
+                        )
                         AppPreferenceDivider()
-                        
-                        //  底栏标签样式（选择器）
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                AppIcon(
-                                    CupertinoIcons.Default.Tag,
-                                    contentDescription = null,
-                                    tint = com.android.purebilibili.core.theme.iOSPurple,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    AppText(
-                                        text = "标签样式",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    AppText(
-                                        text = when(labelMode) {
-                                            0 -> "图标 + 文字"
-                                            2 -> "仅文字"
-                                            else -> "仅图标"
-                                        },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                // 三种模式选择按钮
-                                listOf(
-                                    Triple(0, "图标+文字", CupertinoIcons.Default.House),
-                                    Triple(1, "仅图标", CupertinoIcons.Default.HandThumbsup),
-                                    Triple(2, "仅文字", CupertinoIcons.Default.Character)
-                                ).forEach { (mode, label, icon) ->
-                                    val isSelected = labelMode == mode
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .clip(AppShapes.container(ContainerLevel.Card))
-                                            .clickable { 
-                                                scope.launch { SettingsManager.setBottomBarLabelMode(context, mode) }
-                                            }
-                                            .background(
-                                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                                else Color.Transparent
-                                            )
-                                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    ) {
-                                        AppIcon(
-                                            icon,
-                                            contentDescription = null,
-                                            tint = if (isSelected) MaterialTheme.colorScheme.primary
-                                                   else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        AppText(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary
-                                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
+                        SettingsSingleChoicePreference(
+                            icon = CupertinoIcons.Default.Tag,
+                            iconTint = com.android.purebilibili.core.theme.iOSPurple,
+                            title = "标签样式",
+                            options = listOf(
+                                AppSegmentOption(0, "图标 + 文字"),
+                                AppSegmentOption(1, "仅图标"),
+                                AppSegmentOption(2, "仅文字"),
+                            ),
+                            selectedValue = labelMode,
+                            onSelectionChange = { mode ->
+                                scope.launch { SettingsManager.setBottomBarLabelMode(context, mode) }
+                            },
+                        )
                     }
                 }
             }
@@ -572,437 +424,106 @@ fun BottomBarSettingsContent(
             item {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                AppIcon(
-                                    CupertinoIcons.Default.ListBullet,
-                                    contentDescription = null,
-                                    tint = com.android.purebilibili.core.theme.iOSBlue,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    AppText(
-                                        text = "顶部标签样式",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
+                            SettingsSingleChoicePreference(
+                                icon = CupertinoIcons.Default.ListBullet,
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue,
+                                title = "顶部标签样式",
+                                options = listOf(
+                                    AppSegmentOption(SettingsManager.TopTabLabelMode.ICON_AND_TEXT, "图标 + 文字"),
+                                    AppSegmentOption(SettingsManager.TopTabLabelMode.ICON_ONLY, "仅图标"),
+                                    AppSegmentOption(SettingsManager.TopTabLabelMode.TEXT_ONLY, "仅文字"),
+                                ),
+                                selectedValue = topTabLabelMode,
+                                onSelectionChange = { mode ->
+                                    scope.launch { SettingsManager.setTopTabLabelMode(context, mode) }
+                                },
+                            )
+                            AppPreferenceDivider()
+                            SettingsSingleChoicePreference(
+                                icon = if (homeTopRightAction == HomeTopRightAction.INBOX) {
+                                    CupertinoIcons.Outlined.Envelope
+                                } else {
+                                    CupertinoIcons.Default.Gearshape
+                                },
+                                iconTint = com.android.purebilibili.core.theme.iOSOrange,
+                                title = "首页右上角入口",
+                                options = HomeTopRightAction.entries.map { action ->
+                                    AppSegmentOption(action, action.label)
+                                },
+                                selectedValue = homeTopRightAction,
+                                onSelectionChange = { action ->
+                                    scope.launch { SettingsManager.setHomeTopRightAction(context, action) }
+                                },
+                            )
+                            AppPreferenceDivider()
+                            SettingsSingleChoicePreference(
+                                icon = CupertinoIcons.Default.Drop,
+                                iconTint = com.android.purebilibili.core.theme.iOSTeal,
+                                title = "顶部模糊",
+                                options = listOf(
+                                    AppSegmentOption(HomeHeaderBlurMode.FOLLOW_PRESET, "跟随预设"),
+                                    AppSegmentOption(HomeHeaderBlurMode.ALWAYS_ON, "始终开启"),
+                                    AppSegmentOption(HomeHeaderBlurMode.ALWAYS_OFF, "始终关闭"),
+                                ),
+                                selectedValue = headerBlurMode,
+                                onSelectionChange = { mode ->
+                                    scope.launch { SettingsManager.setHomeHeaderBlurMode(context, mode) }
+                                },
+                            )
+                            AppPreferenceDivider()
+                            SettingsSingleChoicePreference(
+                                icon = CupertinoIcons.Default.ListBullet,
+                                iconTint = com.android.purebilibili.core.theme.iOSPurple,
+                                title = "首页顶部布局",
+                                options = HomeTopLayoutOrder.entries.map { order ->
+                                    AppSegmentOption(order, order.label)
+                                },
+                                selectedValue = homeTopLayoutOrder,
+                                onSelectionChange = { order ->
+                                    scope.launch { SettingsManager.setHomeTopLayoutOrder(context, order) }
+                                },
+                            )
+                            AppPreferenceDivider()
+                            SettingsSingleChoicePreference(
+                                icon = CupertinoIcons.Outlined.MagnifyingGlass,
+                                iconTint = com.android.purebilibili.core.theme.iOSTeal,
+                                title = "首页搜索框",
+                                options = listOf(
+                                    AppSegmentOption(true, "下滑折叠"),
+                                    AppSegmentOption(false, "不折叠"),
+                                ),
+                                selectedValue = homeHeaderCollapseMode.collapseSearch,
+                                onSelectionChange = { collapseSearch ->
+                                    val nextMode = resolveHomeHeaderCollapseModeForSearch(
+                                        currentMode = homeHeaderCollapseMode,
+                                        collapseSearch = collapseSearch,
                                     )
-                                    AppText(
-                                        text = when (topTabLabelMode) {
-                                            SettingsManager.TopTabLabelMode.ICON_AND_TEXT -> "图标 + 文字"
-                                            SettingsManager.TopTabLabelMode.ICON_ONLY -> "仅图标"
-                                            else -> "仅文字"
-                                        },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    scope.launch { SettingsManager.setHomeHeaderCollapseMode(context, nextMode) }
+                                },
+                            )
+                            AppPreferenceDivider()
+                            SettingsSingleChoicePreference(
+                                icon = CupertinoIcons.Outlined.ArrowUpArrowDown,
+                                iconTint = com.android.purebilibili.core.theme.iOSBlue,
+                                title = "首页标签页",
+                                options = listOf(
+                                    AppSegmentOption(true, "下滑折叠"),
+                                    AppSegmentOption(false, "不折叠"),
+                                ),
+                                selectedValue = homeHeaderCollapseMode.collapseTabs,
+                                onSelectionChange = { collapseTabs ->
+                                    val nextMode = resolveHomeHeaderCollapseModeForTopTabs(
+                                        currentMode = homeHeaderCollapseMode,
+                                        collapseTabs = collapseTabs,
                                     )
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                listOf(
-                                    Triple(SettingsManager.TopTabLabelMode.ICON_AND_TEXT, "图标+文字", CupertinoIcons.Default.ListBullet),
-                                    Triple(SettingsManager.TopTabLabelMode.ICON_ONLY, "仅图标", CupertinoIcons.Default.Tag),
-                                    Triple(SettingsManager.TopTabLabelMode.TEXT_ONLY, "仅文字", CupertinoIcons.Default.Character)
-                                ).forEach { (mode, label, icon) ->
-                                    val isSelected = topTabLabelMode == mode
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .clip(AppShapes.container(ContainerLevel.Card))
-                                            .clickable {
-                                                scope.launch { SettingsManager.setTopTabLabelMode(context, mode) }
-                                            }
-                                            .background(
-                                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                                else Color.Transparent
-                                            )
-                                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    ) {
-                                        AppIcon(
-                                            icon,
-                                            contentDescription = null,
-                                            tint = if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        AppText(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                                        )
-                                    }
-                                }
-                            }
-
+                                    scope.launch { SettingsManager.setHomeHeaderCollapseMode(context, nextMode) }
+                                },
+                            )
                             AppHorizontalDivider()
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                AppIcon(
-                                    imageVector = if (homeTopRightAction == HomeTopRightAction.INBOX) {
-                                        CupertinoIcons.Outlined.Envelope
-                                    } else {
-                                        CupertinoIcons.Default.Gearshape
-                                    },
-                                    contentDescription = null,
-                                    tint = com.android.purebilibili.core.theme.iOSOrange,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    AppText(
-                                        text = "首页右上角入口",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    AppText(
-                                        text = homeTopRightAction.label,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                listOf(
-                                    Triple(HomeTopRightAction.SETTINGS, "设置", CupertinoIcons.Default.Gearshape),
-                                    Triple(HomeTopRightAction.INBOX, "消息", CupertinoIcons.Outlined.Envelope)
-                                ).forEach { (action, label, icon) ->
-                                    val isSelected = homeTopRightAction == action
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .clip(AppShapes.container(ContainerLevel.Card))
-                                            .clickable {
-                                                scope.launch {
-                                                    SettingsManager.setHomeTopRightAction(context, action)
-                                                }
-                                            }
-                                            .background(
-                                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                                else Color.Transparent
-                                            )
-                                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    ) {
-                                        AppIcon(
-                                            icon,
-                                            contentDescription = null,
-                                            tint = if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        AppText(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                                        )
-                                    }
-                                }
-                            }
-
-                            AppHorizontalDivider()
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                AppIcon(
-                                    CupertinoIcons.Default.Drop,
-                                    contentDescription = null,
-                                    tint = com.android.purebilibili.core.theme.iOSTeal,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    AppText(
-                                        text = "顶部模糊",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    AppText(
-                                        text = when (headerBlurMode) {
-                                            HomeHeaderBlurMode.FOLLOW_PRESET -> "跟随预设"
-                                            HomeHeaderBlurMode.ALWAYS_ON -> "始终开启"
-                                            HomeHeaderBlurMode.ALWAYS_OFF -> "始终关闭"
-                                        },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                listOf(
-                                    HomeHeaderBlurMode.FOLLOW_PRESET to "跟随预设",
-                                    HomeHeaderBlurMode.ALWAYS_ON to "始终开",
-                                    HomeHeaderBlurMode.ALWAYS_OFF to "始终关"
-                                ).forEach { (mode, label) ->
-                                    val isSelected = headerBlurMode == mode
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .clip(AppShapes.container(ContainerLevel.Card))
-                                            .clickable {
-                                                scope.launch {
-                                                    SettingsManager.setHomeHeaderBlurMode(context, mode)
-                                                }
-                                            }
-                                            .background(
-                                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                                else Color.Transparent
-                                            )
-                                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    ) {
-                                        AppText(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        AppText(
-                                            text = when (mode) {
-                                                HomeHeaderBlurMode.FOLLOW_PRESET -> "iOS 开 / MD3 开"
-                                                HomeHeaderBlurMode.ALWAYS_ON -> "两套都开"
-                                                HomeHeaderBlurMode.ALWAYS_OFF -> "两套都关"
-                                            },
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
-                                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                        )
-                                    }
-                                }
-                            }
-
-                            AppHorizontalDivider()
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                AppIcon(
-                                    CupertinoIcons.Default.ListBullet,
-                                    contentDescription = null,
-                                    tint = com.android.purebilibili.core.theme.iOSPurple,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    AppText(
-                                        text = "首页顶部布局",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    AppText(
-                                        text = homeTopLayoutOrder.label,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                listOf(
-                                    HomeTopLayoutOrder.SEARCH_THEN_TABS to "搜索在上",
-                                    HomeTopLayoutOrder.TABS_THEN_SEARCH to "标签在上"
-                                ).forEach { (order, label) ->
-                                    val isSelected = homeTopLayoutOrder == order
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .clip(AppShapes.container(ContainerLevel.Card))
-                                            .clickable {
-                                                scope.launch {
-                                                    SettingsManager.setHomeTopLayoutOrder(context, order)
-                                                }
-                                            }
-                                            .background(
-                                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                                else Color.Transparent
-                                            )
-                                            .padding(horizontal = 18.dp, vertical = 9.dp)
-                                    ) {
-                                        AppText(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
-                                        )
-                                    }
-                                }
-                            }
-
-                            AppHorizontalDivider()
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                AppIcon(
-                                    CupertinoIcons.Outlined.MagnifyingGlass,
-                                    contentDescription = null,
-                                    tint = com.android.purebilibili.core.theme.iOSTeal,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    AppText(
-                                        text = "首页搜索框",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    AppText(
-                                        text = if (homeHeaderCollapseMode.collapseSearch) {
-                                            "列表下滑时折叠搜索框"
-                                        } else {
-                                            "搜索框固定在顶部"
-                                        },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                listOf(true to "下滑折叠", false to "不折叠").forEach { (collapseSearch, label) ->
-                                    val isSelected = homeHeaderCollapseMode.collapseSearch == collapseSearch
-                                    Column(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clip(AppShapes.container(ContainerLevel.Card))
-                                            .clickable {
-                                                val nextMode = resolveHomeHeaderCollapseModeForSearch(
-                                                    currentMode = homeHeaderCollapseMode,
-                                                    collapseSearch = collapseSearch
-                                                )
-                                                scope.launch {
-                                                    SettingsManager.setHomeHeaderCollapseMode(context, nextMode)
-                                                }
-                                            }
-                                            .background(
-                                                if (isSelected) {
-                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                                } else {
-                                                    Color.Transparent
-                                                }
-                                            )
-                                            .heightIn(min = 48.dp)
-                                            .padding(horizontal = 12.dp, vertical = 9.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        AppText(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = if (isSelected) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
-                                            fontWeight = if (isSelected) {
-                                                FontWeight.SemiBold
-                                            } else {
-                                                FontWeight.Medium
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            AppHorizontalDivider()
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                AppIcon(
-                                    CupertinoIcons.Outlined.ArrowUpArrowDown,
-                                    contentDescription = null,
-                                    tint = com.android.purebilibili.core.theme.iOSBlue,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    AppText(
-                                        text = "首页标签页",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    AppText(
-                                        text = if (homeHeaderCollapseMode.collapseTabs) {
-                                            "列表下滑时折叠标签页"
-                                        } else {
-                                            "标签页固定在顶部"
-                                        },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                listOf(true to "下滑折叠", false to "不折叠").forEach { (collapseTabs, label) ->
-                                    val isSelected = homeHeaderCollapseMode.collapseTabs == collapseTabs
-                                    Column(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clip(AppShapes.container(ContainerLevel.Card))
-                                            .clickable {
-                                                val nextMode = resolveHomeHeaderCollapseModeForTopTabs(
-                                                    currentMode = homeHeaderCollapseMode,
-                                                    collapseTabs = collapseTabs
-                                                )
-                                                scope.launch {
-                                                    SettingsManager.setHomeHeaderCollapseMode(context, nextMode)
-                                                }
-                                            }
-                                            .background(
-                                                if (isSelected) {
-                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                                } else {
-                                                    Color.Transparent
-                                                }
-                                            )
-                                            .heightIn(min = 48.dp)
-                                            .padding(horizontal = 12.dp, vertical = 9.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        AppText(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = if (isSelected) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
-                                            fontWeight = if (isSelected) {
-                                                FontWeight.SemiBold
-                                            } else {
-                                                FontWeight.Medium
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            AppHorizontalDivider()
-
                             AppText(
                                 text = "可调整顶部标签的显示/隐藏和顺序，第一位会直接显示在首页顶部。",
                                 style = MaterialTheme.typography.bodySmall,
@@ -1407,6 +928,7 @@ private fun BottomBarTabItem(
 ) {
     //  获取项目当前颜色
     val itemColor = BottomBarColors.getColorByIndex(colorIndex)
+    val iconContentColor = rememberAdaptivePreferenceIconContentColor(itemColor)
     
     //  颜色选择弹窗状态
     var showColorPicker by remember { mutableStateOf(false) }
@@ -1422,14 +944,14 @@ private fun BottomBarTabItem(
             modifier = Modifier
                 .size(36.dp)
                 .clip(AppShapes.container(ContainerLevel.Field))
-                .background(itemColor.copy(alpha = 0.12f))
+                .background(itemColor)
                 .clickable { showColorPicker = true },
             contentAlignment = Alignment.Center
         ) {
             AppIcon(
                 imageVector = tab.icon,
                 contentDescription = null,
-                tint = itemColor,
+                tint = iconContentColor,
                 modifier = Modifier.size(20.dp)
             )
         }

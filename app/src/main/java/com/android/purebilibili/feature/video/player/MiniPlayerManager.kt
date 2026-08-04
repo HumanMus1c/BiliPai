@@ -1673,7 +1673,12 @@ class MiniPlayerManager private constructor(private val context: Context) :
             val audioFocusEnabled = SettingsManager.getAudioFocusEnabledSync(context)
 
             _player = ExoPlayer.Builder(context)
-                .setRenderersFactory(HiResCompatibleRenderersFactory(context))
+                .setRenderersFactory(
+                    HiResCompatibleRenderersFactory(context)
+                        .setExtensionRendererMode(
+                            androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+                        )
+                )
                 .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
                 .setAudioAttributes(
                     audioAttributes,

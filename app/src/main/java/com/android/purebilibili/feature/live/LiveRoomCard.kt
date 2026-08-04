@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.live
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -49,6 +51,7 @@ internal data class LiveRoomCardUiModel(
 internal fun LiveRoomCard(
     model: LiveRoomCardUiModel,
     onClick: () -> Unit,
+    onLongPress: (() -> Unit)? = null,
     enableSharedCoverTransition: Boolean = false,
 ) {
     val topChromePolicy = rememberAppTopChromePolicy()
@@ -58,8 +61,16 @@ internal fun LiveRoomCard(
     val animatedVisibilityScope = LocalAnimatedVisibilityScope.current
     val palette = rememberLiveChromePalette()
 
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress,
+                role = Role.Button
+            )
+    ) {
     AppSurface(
-        onClick = onClick,
         shape = AppShapes.borderedContainer(ContainerLevel.Card),
         color = AppSurfaceTokens.cardContainer(),
         border = BorderStroke(AppSurfaceTokens.OutlineWidth, palette.border),
@@ -160,5 +171,6 @@ internal fun LiveRoomCard(
                 )
             }
         }
+    }
     }
 }

@@ -25,7 +25,8 @@ data class AudioStreamCandidate(
     val preferenceId: Int,
     val kind: AudioStreamKind,
     val label: String,
-    val track: DashAudio
+    val track: DashAudio,
+    val isSoftwareDecoded: Boolean = false
 )
 
 data class AudioQualityOption(
@@ -33,7 +34,8 @@ data class AudioQualityOption(
     val kind: AudioStreamKind?,
     val label: String,
     val isHiRes: Boolean = false,
-    val isDolby: Boolean = false
+    val isDolby: Boolean = false,
+    val isSoftwareDecoded: Boolean = false
 )
 
 data class AudioQualityControlPresentation(

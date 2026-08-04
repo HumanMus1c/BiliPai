@@ -205,10 +205,12 @@ internal data class HomeVideoCardMetadataColors(
 )
 
 internal fun resolveHomeVideoCardMetadataColors(
-    onSurfaceColor: Color
+    onSurfaceColor: Color,
+    onSurfaceVariantColor: Color,
 ): HomeVideoCardMetadataColors {
     return HomeVideoCardMetadataColors(
-        upNameColor = onSurfaceColor,
+        // 作者信息降为次级语义色，让标题保持卡片内的第一视觉层级。
+        upNameColor = onSurfaceVariantColor,
         upMetaColor = onSurfaceColor.copy(alpha = 0.82f),
         upBadgeTextColor = onSurfaceColor.copy(alpha = 0.68f),
         upBadgeBackgroundColor = onSurfaceColor.copy(alpha = 0.10f),
@@ -237,6 +239,7 @@ private fun VideoCardOwnerMetadata(
     video: VideoItem,
     isFollowing: Boolean,
     showUpBadge: Boolean,
+    showUpAvatar: Boolean,
     upFollowerCount: Int?,
     upVideoCount: Int?,
     infoBadgeStyle: HomeVideoBadgeStyle,
@@ -296,7 +299,7 @@ private fun VideoCardOwnerMetadata(
         } else {
             null
         },
-        leadingContent = if (video.owner.face.isNotEmpty()) {
+        leadingContent = if (showUpAvatar && video.owner.face.isNotEmpty()) {
             {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -487,6 +490,7 @@ internal fun ElegantVideoCard(
     wallpaperTintEnabled: Boolean = false,
     wallpaperEffectMode: HomeWallpaperEffectMode = HomeWallpaperEffectMode.SOFT_BLUR,
     showUpBadge: Boolean = true,
+    showUpAvatar: Boolean = true,
     homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
     // 默认跟官方双列 4:3；首页会传入 resolveHomeFeedCardLayout 的比例覆盖
     coverAspectRatio: Float = 4f / 3f,
@@ -843,6 +847,12 @@ internal fun ElegantVideoCard(
         val cardShellShape = remember(cardCornerRadius) {
             RoundedCornerShape(cardCornerRadius)
         }
+        // 卡片表面留在首页布局层，不进入 sharedBounds overlay；否则打开详情时
+        // 主题 surface 色会随整卡形变并盖住播放器实时画面，表现为灰色色块。
+        val cardSurfaceModifier = Modifier
+            .fillMaxWidth()
+            .clip(cardShellShape)
+            .background(AppSurfaceTokens.cardContainer())
         val cardContainerModifier = Modifier
             .fillMaxWidth()
             .videoCardShellSharedBoundsOrEmpty(
@@ -854,9 +864,10 @@ internal fun ElegantVideoCard(
                 motionSpec = homeSharedTransitionMotionSpec,
                 clipShape = cardShellShape
             )
-        Column(
-            modifier = cardContainerModifier
-        ) {
+        Box(modifier = cardSurfaceModifier) {
+            Column(
+                modifier = cardContainerModifier
+            ) {
         //  [性能优化] 封面圆角形状缓存（避免重组时重复创建）
         val coverShape = remember(cardCornerRadius) {
             RoundedCornerShape(
@@ -1327,13 +1338,15 @@ internal fun ElegantVideoCard(
             modifier = resolveVideoCardMetadataModifier(hasTrailingCardAction)
         ) {
         val metadataColors = resolveHomeVideoCardMetadataColors(
-            onSurfaceColor = MaterialTheme.colorScheme.onSurface
+            onSurfaceColor = MaterialTheme.colorScheme.onSurface,
+            onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         VideoCardOwnerMetadata(
             video = video,
             isFollowing = isFollowing,
             showUpBadge = showUpBadge,
+            showUpAvatar = showUpAvatar,
             upFollowerCount = upFollowerCount,
             upVideoCount = upVideoCount,
             infoBadgeStyle = badgeStylePolicy.infoStyle,
@@ -1490,7 +1503,8 @@ internal fun ElegantVideoCard(
             }
         }
 
-    }
+            }
+        }
     }
         
         // 菜单需要挂在一个本地小锚点上，避免 DropdownMenu 在整张卡片根节点右侧 fallback 时反向偏移。

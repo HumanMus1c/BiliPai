@@ -217,7 +217,7 @@ private fun MiuixSideBar(
                 AppPlatformNavigationRailItem(
                     selected = isSelected,
                     onClick = onItemTap,
-                    icon = resolveMaterialBottomBarIcon(item, isSelected),
+                    icon = resolveHomeNavigationBarIcon(item, isSelected),
                     label = itemLabel,
                     modifier = itemModifier
                 )

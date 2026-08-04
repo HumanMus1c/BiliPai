@@ -78,6 +78,9 @@ TMessagesProj/
 # Backup directory
 BiliPai_BusinessCode_Backup/
 
+# Local icon references used during UI icon planning
+/icons/
+
 # Docs / plans should not be pushed
 docs/
 **/docs/
@@ -99,6 +102,8 @@ docs/*
 !docs/images/screenshot*.png
 !docs/wiki/
 !docs/wiki/*.md
+!docs/wiki/ui-design/
+!docs/wiki/ui-design/**/*.md
 .omx/
 
 # Local Reasonix session settings and metadata

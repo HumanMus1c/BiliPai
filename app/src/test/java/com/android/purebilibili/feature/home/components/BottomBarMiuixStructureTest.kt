@@ -385,7 +385,7 @@ class BottomBarMiuixStructureTest {
             .substringBefore("@Composable\nprivate fun KernelSuBottomBarShell(")
         val itemRendererSource = source
             .substringAfter("private fun RowScope.AndroidNativeBottomBarItem(")
-            .substringBefore("private fun resolveMaterialBottomBarIcon(")
+            .substringBefore("internal fun resolveHomeNavigationBarIcon(")
 
         assertTrue(kernelSuRendererSource.contains("resolveKernelSuBottomBarItemSlotWidth("))
         assertTrue(kernelSuRendererSource.contains("itemWidth = indicatorWidth"))

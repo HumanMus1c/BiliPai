@@ -180,7 +180,7 @@ fun AnimationSettingsContent(
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_ENTRANCE_ANIMATION),
                             title = "界面入场动画",
-                            subtitle = "设置等页面进入时内容逐条淡入；等导航转场落定后播放，不抢过渡",
+                            subtitle = "进入设置等页面时，让内容依次淡入；关闭后页面会直接显示",
                             checked = uiEntranceAnimationEnabled,
                             onCheckedChange = { value ->
                                 scope.launch {
@@ -188,6 +188,15 @@ fun AnimationSettingsContent(
                                 }
                             },
                             iconTint = iOSGreen
+                        )
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_GESTURE),
+                            title = "触感反馈",
+                            subtitle = "为导航、切换与关键操作提供触感反馈",
+                            checked = state.hapticFeedbackEnabled,
+                            onCheckedChange = viewModel::toggleHapticFeedback,
+                            iconTint = iOSBlue,
                         )
                         if (entranceDowngradedBySystem) {
                             AppPreferenceDivider()
@@ -219,7 +228,7 @@ fun AnimationSettingsContent(
 	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_ENTRANCE_ANIMATION),
                             title = "进场动画",
-                            subtitle = "首页首屏卡片淡入；滚动复用不播，与过渡动画并存时仅淡入不改几何",
+                            subtitle = "打开首页时让首屏卡片依次淡入，正常滚动时不会重复播放",
                             checked = state.cardAnimationEnabled,
                             onCheckedChange = { viewModel.toggleCardAnimation(it) },
                             iconTint = iOSPink
@@ -228,7 +237,7 @@ fun AnimationSettingsContent(
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.CARD_TRANSITION_ANIMATION),
                             title = "过渡动画",
-                            subtitle = "全局视频卡片与详情页的共享元素过渡效果",
+                            subtitle = "点击视频卡片时，让封面和标题自然移动到详情页",
                             checked = state.cardTransitionEnabled,
                             onCheckedChange = { viewModel.toggleCardTransition(it) },
                             iconTint = iOSTeal
@@ -236,8 +245,8 @@ fun AnimationSettingsContent(
                         AppPreferenceDivider()
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.WALLPAPER_EFFECT),
-                            title = "过渡动画实时模糊",
-                            subtitle = "过渡期间对背景使用实时模糊效果，关闭可降低 GPU 负载",
+                            title = "转场时模糊背景",
+                            subtitle = "让视频转场更有层次；关闭可减少性能和耗电开销",
                             checked = videoTransitionRealtimeBlurEnabled,
                             onCheckedChange = { viewModel.toggleVideoTransitionRealtimeBlur(it) },
                             iconTint = iOSTeal
@@ -256,54 +265,32 @@ fun AnimationSettingsContent(
                             iconTint = iOSTeal
                         )
                         AppPreferenceDivider()
-                        AppSegmentedPreference(
-                            title = "共享元素速度：${state.videoSharedTransitionSpeed.label}",
-                            subtitle = "连续性缓出 + 柔和回弹；自定义只调整时长",
+                        SettingsSingleChoicePreference(
+                            title = "视频转场速度：${state.videoSharedTransitionSpeed.label}",
+                            subtitle = "选择封面进入详情页和返回卡片时的动画速度",
                             options = sharedTransitionSpeedOptions,
                             selectedValue = state.videoSharedTransitionSpeed,
                             onSelectionChange = viewModel::setVideoSharedTransitionSpeed
                         )
                         if (state.videoSharedTransitionSpeed == VideoSharedTransitionSpeed.CUSTOM) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 10.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    AppText(
-                                        text = "自定义时长",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    AppText(
-                                        text = "${customTransitionDurationMillis}ms",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                                AppSlider(
-                                    value = customTransitionDurationMillis.toFloat(),
-                                    onValueChange = { value ->
-                                        customTransitionDurationMillis = snapCustomTransitionDuration(value)
-                                    },
-                                    onValueChangeFinished = {
-                                        viewModel.setVideoSharedTransitionCustomDurationMillis(
-                                            customTransitionDurationMillis
-                                        )
-                                    },
-                                    valueRange = VIDEO_SHARED_TRANSITION_CUSTOM_MIN_MILLIS.toFloat()..
-                                        VIDEO_SHARED_TRANSITION_CUSTOM_MAX_MILLIS.toFloat(),
-                                    steps = (
-                                        (VIDEO_SHARED_TRANSITION_CUSTOM_MAX_MILLIS -
-                                            VIDEO_SHARED_TRANSITION_CUSTOM_MIN_MILLIS) / 20
-                                        ) - 1
-                                )
-                            }
+                            AppPreferenceDivider()
+                            AppSliderDialogPreference(
+                                title = "自定义时长",
+                                subtitle = "数值越大，视频转场越慢",
+                                value = customTransitionDurationMillis.toFloat(),
+                                onValueChange = { value ->
+                                    val snappedValue = snapCustomTransitionDuration(value)
+                                    customTransitionDurationMillis = snappedValue
+                                    viewModel.setVideoSharedTransitionCustomDurationMillis(snappedValue)
+                                },
+                                valueRange = VIDEO_SHARED_TRANSITION_CUSTOM_MIN_MILLIS.toFloat()..
+                                    VIDEO_SHARED_TRANSITION_CUSTOM_MAX_MILLIS.toFloat(),
+                                steps = (
+                                    (VIDEO_SHARED_TRANSITION_CUSTOM_MAX_MILLIS -
+                                        VIDEO_SHARED_TRANSITION_CUSTOM_MIN_MILLIS) / 20
+                                    ) - 1,
+                                valueFormatter = { value -> "${value.roundToInt()}ms" },
+                            )
                         }
                         AppPreferenceDivider()
                         Column(
@@ -352,8 +339,8 @@ fun AnimationSettingsContent(
                         if (isLiquidGlassAvailable) {
                             AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_DOCK_GLASS),
-                                title = "顶部 Dock 液态玻璃",
-                                subtitle = "首页顶部 dock 栏的独立液态玻璃效果",
+                                title = "顶部标签栏液态玻璃",
+                                subtitle = "为首页顶部的搜索框和标签栏增加折射与滑动效果",
                                 checked = state.topBarLiquidGlassEnabled,
                                 onCheckedChange = { viewModel.toggleTopBarLiquidGlass(it) },
                                 iconTint = iOSBlue
@@ -390,7 +377,7 @@ fun AnimationSettingsContent(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         AppText(
-                                            text = "开启「安卓原生液态玻璃」后，顶部 Dock、搜索框、分段控件与底栏统一使用同一套底栏液态玻璃材质。",
+                                            text = "开启全局液态玻璃后，顶部栏、搜索框、选择控件和底栏会统一使用同一套玻璃效果。",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -426,27 +413,6 @@ fun AnimationSettingsContent(
                                 onIntensityChange = { viewModel.setBlurIntensity(it) }
                             )
                         }
-                    }
-                }
-            }
-            
-            // 📐 底栏样式
-            item {
-                Box(modifier = Modifier.entrance()) {
-                    AppPreferenceSectionTitle("底栏入口")
-                }
-            }
-            item {
-                Box(modifier = Modifier.entrance()) {
-                    AppPreferenceGroup {
-	                        AppSwitchPreference(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.FLOATING_BOTTOM_BAR),
-                            title = "悬浮底栏",
-                            subtitle = "关闭后底栏将沉浸式贴底显示",
-                            checked = state.isBottomBarFloating,
-                            onCheckedChange = { viewModel.toggleBottomBarFloating(it) },
-                            iconTint = iOSPurple
-                        )
                     }
                 }
             }

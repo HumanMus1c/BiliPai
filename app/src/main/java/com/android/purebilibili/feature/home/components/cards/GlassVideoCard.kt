@@ -501,7 +501,7 @@ fun GlassVideoCard(
                                 }
                             } else null,
                             nameStyle = contentTypography.author,
-                            nameColor = MaterialTheme.colorScheme.primary,
+                            nameColor = onSurfaceVariant,
                             badgeTextColor = onSurfaceVariant.copy(alpha = 0.85f),
                             badgeBackgroundColor = onSurfaceVariant.copy(alpha = 0.12f),
                             showUpBadge = showUpBadge,

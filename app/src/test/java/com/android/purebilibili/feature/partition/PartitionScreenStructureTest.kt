@@ -1,13 +1,16 @@
 package com.android.purebilibili.feature.partition
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import com.android.purebilibili.core.util.resolveReplaceRefreshPage
 import com.android.purebilibili.data.model.response.BangumiType
-import com.android.purebilibili.feature.home.components.resolveTopTabCategoryIcon
+import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
+import io.github.alexzhirkevich.cupertino.icons.outlined.Gamecontroller as OutlinedCupertinoGamecontroller
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -172,11 +175,11 @@ class PartitionScreenStructureTest {
     @Test
     fun `side rail icons follow the active top chrome icon family`() {
         assertSameVectorAsset(
-            resolveTopTabCategoryIcon("游戏", AppSemanticIconFamily.CUPERTINO, selected = false),
+            CupertinoIcons.Outlined.OutlinedCupertinoGamecontroller,
             resolvePartitionSideRailIcon(4, AppSemanticIconFamily.CUPERTINO, selected = false)
         )
         assertSameVectorAsset(
-            resolveTopTabCategoryIcon("科技", AppSemanticIconFamily.MATERIAL, selected = true),
+            Icons.Filled.SmartToy,
             resolvePartitionSideRailIcon(188, AppSemanticIconFamily.MATERIAL, selected = true)
         )
     }

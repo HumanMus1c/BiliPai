@@ -190,18 +190,17 @@ class HomeHeaderVisualPolicyTest {
     @Test
     fun `home header trims top chrome heights for better content density`() {
         assertEquals(48.dp, resolveHomeTopSearchBarHeight())
-        assertEquals(52.dp, resolveHomeTopSearchBarHeight(UiPreset.MD3))
-        // Enlarged top dock (bottom-bar-like capsule fill + drag overflow headroom).
-        assertEquals(56.dp, resolveHomeTopTabRowHeight(isTabFloating = true))
-        assertEquals(56.dp, resolveHomeTopTabRowHeight(isTabFloating = true, uiPreset = UiPreset.MD3))
-        assertEquals(54.dp, resolveHomeTopTabRowHeight(isTabFloating = false))
-        assertEquals(54.dp, resolveHomeTopTabRowHeight(isTabFloating = false, uiPreset = UiPreset.MD3))
+        assertEquals(48.dp, resolveHomeTopSearchBarHeight(UiPreset.MD3))
+        assertEquals(40.dp, resolveHomeTopTabRowHeight(isTabFloating = true))
+        assertEquals(40.dp, resolveHomeTopTabRowHeight(isTabFloating = true, uiPreset = UiPreset.MD3))
+        assertEquals(36.dp, resolveHomeTopTabRowHeight(isTabFloating = false))
+        assertEquals(36.dp, resolveHomeTopTabRowHeight(isTabFloating = false, uiPreset = UiPreset.MD3))
     }
 
     @Test
     fun `md3 home header expands top tab row for icon plus text`() {
         assertEquals(
-            62.dp,
+            36.dp,
             resolveHomeTopTabRowHeight(
                 isTabFloating = false,
                 uiPreset = UiPreset.MD3,
@@ -209,7 +208,7 @@ class HomeHeaderVisualPolicyTest {
             )
         )
         assertEquals(
-            64.dp,
+            40.dp,
             resolveHomeTopTabRowHeight(
                 isTabFloating = true,
                 uiPreset = UiPreset.MD3,
@@ -221,7 +220,7 @@ class HomeHeaderVisualPolicyTest {
     @Test
     fun `ios home header expands docked top tab row for icon plus text`() {
         assertEquals(
-            58.dp,
+            36.dp,
             resolveHomeTopTabRowHeight(
                 isTabFloating = false,
                 uiPreset = UiPreset.IOS,
@@ -229,7 +228,7 @@ class HomeHeaderVisualPolicyTest {
             )
         )
         assertEquals(
-            62.dp,
+            40.dp,
             resolveHomeTopTabRowHeight(
                 isTabFloating = true,
                 uiPreset = UiPreset.IOS,
@@ -510,7 +509,7 @@ class HomeHeaderVisualPolicyTest {
         assertEquals(14.dp, resolveHomeTopSearchRowHorizontalPadding())
         assertEquals(16.dp, resolveHomeTopSearchRowHorizontalPadding(UiPreset.MD3))
         assertEquals(44.dp, resolveHomeTopSearchPillHeight())
-        assertEquals(56.dp, resolveHomeTopSearchPillHeight(UiPreset.MD3))
+        assertEquals(52.dp, resolveHomeTopSearchPillHeight(UiPreset.MD3))
         assertEquals(2.dp, resolveHomeTopTabHorizontalPadding(isTabFloating = true))
         assertEquals(2.dp, resolveHomeTopTabHorizontalPadding(isTabFloating = true, uiPreset = UiPreset.MD3))
         assertEquals(6.dp, resolveHomeTopSearchToTabsSpacing())
@@ -562,8 +561,8 @@ class HomeHeaderVisualPolicyTest {
                 androidNativeVariant = AndroidNativeVariant.MIUIX
             )
         )
-        assertEquals(0.dp, resolveHomeTopEmbeddedTabHorizontalPadding())
-        assertEquals(0.dp, resolveHomeTopEmbeddedTabHorizontalPadding(UiPreset.MD3))
+        assertEquals(14.dp, resolveHomeTopEmbeddedTabHorizontalPadding())
+        assertEquals(16.dp, resolveHomeTopEmbeddedTabHorizontalPadding(UiPreset.MD3))
     }
 
     @Test
@@ -573,8 +572,8 @@ class HomeHeaderVisualPolicyTest {
         val miuix = resolveHomeTopPresetStyle(UiPreset.MD3, AndroidNativeVariant.MIUIX, labelMode = 2)
 
         assertEquals(48.dp, ios.searchBarHeight)
-        assertEquals(52.dp, material3.searchBarHeight)
-        assertEquals(50.dp, miuix.searchBarHeight)
+        assertEquals(48.dp, material3.searchBarHeight)
+        assertEquals(48.dp, miuix.searchBarHeight)
         assertEquals(32.dp, ios.unifiedPanelCornerRadius)
         assertEquals(16.dp, material3.unifiedPanelCornerRadius)
         assertEquals(18.dp, miuix.unifiedPanelCornerRadius)
@@ -672,13 +671,13 @@ class HomeHeaderVisualPolicyTest {
 
     @Test
     fun `home header uses symmetrical edge controls around search bar`() {
-        assertEquals(40.dp, resolveHomeTopAvatarOuterSize())
-        assertEquals(40.dp, resolveHomeTopSettingsButtonSize())
+        assertEquals(36.dp, resolveHomeTopAvatarOuterSize())
+        assertEquals(36.dp, resolveHomeTopSettingsButtonSize())
         assertEquals(
             resolveHomeTopSettingsButtonSize(),
             resolveHomeTopAvatarInnerSize()
         )
-        assertEquals(20.dp, resolveHomeTopSettingsIconSize())
+        assertEquals(18.dp, resolveHomeTopSettingsIconSize())
         assertEquals(6.dp, resolveHomeTopEdgeControlGap())
         assertEquals(8.dp, resolveHomeTopEdgeControlGap(UiPreset.MD3))
     }
@@ -699,7 +698,7 @@ class HomeHeaderVisualPolicyTest {
         assertTrue(searchShape is RoundedCornerShape)
         assertTrue(edgeShape is RoundedCornerShape)
         assertNotEquals(CircleShape, edgeShape)
-        assertEquals(56.dp, resolveHomeTopSearchPillHeight(UiPreset.MD3))
+        assertEquals(52.dp, resolveHomeTopSearchPillHeight(UiPreset.MD3))
         assertEquals(16.dp, resolveHomeTopSearchContentHorizontalPadding(UiPreset.MD3))
         assertEquals(12.dp, resolveHomeTopSearchIconTextGap(UiPreset.MD3))
     }
@@ -718,7 +717,7 @@ class HomeHeaderVisualPolicyTest {
         assertTrue(searchShape is RoundedCornerShape)
         assertTrue(edgeShape is RoundedCornerShape)
         assertEquals(
-            50.dp,
+            48.dp,
             resolveHomeTopSearchBarHeight(
                 uiPreset = UiPreset.MD3,
                 androidNativeVariant = AndroidNativeVariant.MIUIX

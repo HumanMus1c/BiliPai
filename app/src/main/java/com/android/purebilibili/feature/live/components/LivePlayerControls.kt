@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -63,7 +64,11 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayCircleOutline
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.LockOpen
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SettingsInputComponent
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.feature.live.rememberLiveChromePalette
@@ -133,11 +138,21 @@ private fun LivePlayerIconButton(
 /**
  * 直播播放器控制层
  * 支持：
- * 1. 左侧亮度调节手势
- * 2. 右侧音量调节手势
- * 3. 单击显示/隐藏控制器
- * 4. 双击暂停/播放
+ * 1. 左 1/3 亮度调节手势
+ * 2. 右 1/3 音量调节手势
+ * 3. 中间 1/3 上下滑切换全屏
+ * 4. 单击显示/隐藏控制器
+ * 5. 双击暂停/播放
+ * 6. 全屏锁定/解锁、截图
  */
+
+// 手势分区
+private enum class LiveGestureZone {
+    None,
+    Brightness,
+    Volume,
+    FullscreenToggle
+}
 @Composable
 fun LivePlayerControls(
     isPlaying: Boolean,
@@ -170,21 +185,38 @@ fun LivePlayerControls(
     onVideoFitClick: () -> Unit = {},
     currentQualityDesc: String = "",
     onQualityClick: () -> Unit = {},
+    // [新增] 手动线路切换
+    currentSourceDesc: String = "",
+    onSourceClick: () -> Unit = {},
     showPipButton: Boolean = false,
     onEnterPip: () -> Unit = {},
     applyTopSystemBarPadding: Boolean = true,
     applyBottomSystemBarPadding: Boolean = true,
-    bottomControlsBottomPadding: Dp = AppSpacingTokens.None
+    bottomControlsBottomPadding: Dp = AppSpacingTokens.None,
+    // [新增] 全屏锁屏：锁定后隐藏控制栏并禁用全部手势，仅保留解锁按钮
+    showLockButton: Boolean = false,
+    // [新增] 截图当前帧并保存到相册
+    onCaptureScreenshot: () -> Unit = {}
 ) {
     var isControlsVisible by remember { mutableStateOf(true) }
+    // 全屏锁屏状态（仅 showLockButton 场景生效）
+    var isLocked by rememberSaveable { mutableStateOf(false) }
     val palette = rememberLiveChromePalette()
     val controlVisualSpec = remember { resolveLivePlayerControlVisualSpec() }
     
-    // 自动隐藏控制器
-    LaunchedEffect(isControlsVisible, isPlaying) {
-        if (isControlsVisible && isPlaying) {
+    // 自动隐藏控制器（锁定时保持隐藏）
+    LaunchedEffect(isControlsVisible, isPlaying, isLocked) {
+        if (isControlsVisible && !isLocked && isPlaying) {
             kotlinx.coroutines.delay(3000)
             isControlsVisible = false
+        }
+    }
+
+    // 退出全屏时自动解锁，避免非全屏卡在锁定状态
+    LaunchedEffect(isFullscreen) {
+        if (!isFullscreen) {
+            isLocked = false
+            isControlsVisible = true
         }
     }
     
@@ -206,111 +238,150 @@ fun LivePlayerControls(
     }
     var gestureKind by remember { mutableStateOf(GestureLevelKind.Volume) }
     var gesturePercent by remember { mutableFloatStateOf(0f) }
+    // [新增] 手势分区：左 1/3 亮度、右 1/3 音量、中间 1/3 上下滑切换全屏
+    var gestureZone by remember { mutableStateOf(LiveGestureZone.None) }
+    var centerDragAccumulator by remember { mutableFloatStateOf(0f) }
     
+    // 锁定时控制栏强制隐藏
+    val effectiveControlsVisible = isControlsVisible && !isLocked
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { isControlsVisible = !isControlsVisible },
-                    onDoubleTap = { onPlayPause() }
-                )
-            }
-            .pointerInput(Unit) {
-                val screenHeight = size.height.toFloat()
-                val screenWidth = size.width.toFloat()
-                
-                // 使用 Float 累积变化量，解决"不跟手"问题
-                var volumeAccumulator = 0f
-                var brightnessAccumulator = 0f
-                
-                var maxVolume = 0
-                
-                detectVerticalDragGestures(
-                    onDragStart = { offset ->
-                        if (offset.x < screenWidth / 2) {
-                            // 左侧：亮度
-                            val windowAttr = activity?.window?.attributes?.screenBrightness ?: -1f
-                            brightnessAccumulator = if (windowAttr >= 0) {
-                                windowAttr
-                            } else {
-                                try {
-                                    val sysBrightness = android.provider.Settings.System.getInt(
-                                        context.contentResolver,
-                                        android.provider.Settings.System.SCREEN_BRIGHTNESS
-                                    )
-                                    sysBrightness / 255f
-                                } catch (e: Exception) {
-                                    0.5f
-                                }
-                            }
-                        } else {
-                            // 右侧：音量
-                            val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                            maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                            volumeAccumulator = currentVol.toFloat()
-                        }
-                        isGestureVisible = true
-                    },
-                    onDragEnd = {
-                        isGestureVisible = false
-                    },
-                    onVerticalDrag = { change, dragAmount ->
-                        // 灵敏度基于屏幕高度: 拖动全屏高度 = 100% 调整
-                        val sensitivity = screenHeight 
-                        val delta = -dragAmount / sensitivity
-                        
-                        if (change.position.x < screenWidth / 2) {
-                            // 调节亮度
-                            // 亮度范围 0.0 ~ 1.0 (增加拖动系数使调节稍快一点，比如 1.5 倍)
-                            val targetBrightness = (brightnessAccumulator + delta * 1.5f).coerceIn(0.01f, 1f)
-                            brightnessAccumulator = targetBrightness // 更新累积值以保持连续性
-                            
-                            val lp = activity?.window?.attributes
-                            lp?.screenBrightness = targetBrightness
-                            activity?.window?.attributes = lp
-                            
-                            gestureKind = GestureLevelKind.Brightness
-                            gesturePercent = targetBrightness
-                            gestureIcon = resolveGestureLevelIcon(
-                                style = gestureLevelOverlayStyle,
-                                kind = GestureLevelKind.Brightness,
-                                percent = targetBrightness
+            // 锁定时移除全部手势（单击/双击/亮度/音量拖拽）
+            .then(
+                if (isLocked) {
+                    Modifier
+                } else {
+                    Modifier
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { isControlsVisible = !isControlsVisible },
+                                onDoubleTap = { onPlayPause() }
                             )
-                            gestureText = "${(targetBrightness * 100).toInt()}%"
-                        } else {
-                            // 调节音量 (maxVolume 比如 15)
-                            if (maxVolume > 0) {
-                                // 音量需要映射到 0~maxVolume
-                                val targetVolFloat = (volumeAccumulator + delta * maxVolume * 1.2f).coerceIn(0f, maxVolume.toFloat())
-                                volumeAccumulator = targetVolFloat
-                                
-                                val newVolInt = targetVolFloat.toInt()
-                                val currentVolInt = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                
-                                if (newVolInt != currentVolInt) {
-                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolInt, 0)
-                                    // 注意：不要在这里重置 volumeAccumulator，否则会丢失小数部分导致卡顿
-                                }
-                                
-                                val volumePercent = if (maxVolume > 0) {
-                                    newVolInt.toFloat() / maxVolume.toFloat()
-                                } else {
-                                    0f
-                                }
-                                gestureKind = GestureLevelKind.Volume
-                                gesturePercent = volumePercent
-                                gestureIcon = resolveGestureLevelIcon(
-                                    style = gestureLevelOverlayStyle,
-                                    kind = GestureLevelKind.Volume,
-                                    percent = volumePercent
-                                )
-                                gestureText = "${(newVolInt * 100 / maxVolume)}%"
-                            }
                         }
-                    }
-                )
-            }
+                        .pointerInput(Unit) {
+                            val screenHeight = size.height.toFloat()
+                            val screenWidth = size.width.toFloat()
+
+                            // 使用 Float 累积变化量，解决"不跟手"问题
+                            var volumeAccumulator = 0f
+                            var brightnessAccumulator = 0f
+
+                            var maxVolume = 0
+
+                            detectVerticalDragGestures(
+                                onDragStart = { offset ->
+                                    // 三分区：左 1/3 亮度、右 1/3 音量、中间 1/3 上下滑切换全屏
+                                    gestureZone = when {
+                                        offset.x < screenWidth / 3f -> LiveGestureZone.Brightness
+                                        offset.x > 2f * screenWidth / 3f -> LiveGestureZone.Volume
+                                        else -> LiveGestureZone.FullscreenToggle
+                                    }
+                                    centerDragAccumulator = 0f
+                                    when (gestureZone) {
+                                        LiveGestureZone.Brightness -> {
+                                            // 左侧：亮度
+                                            val windowAttr = activity?.window?.attributes?.screenBrightness ?: -1f
+                                            brightnessAccumulator = if (windowAttr >= 0) {
+                                                windowAttr
+                                            } else {
+                                                try {
+                                                    val sysBrightness = android.provider.Settings.System.getInt(
+                                                        context.contentResolver,
+                                                        android.provider.Settings.System.SCREEN_BRIGHTNESS
+                                                    )
+                                                    sysBrightness / 255f
+                                                } catch (e: Exception) {
+                                                    0.5f
+                                                }
+                                            }
+                                        }
+                                        LiveGestureZone.Volume -> {
+                                            // 右侧：音量
+                                            val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                            maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                            volumeAccumulator = currentVol.toFloat()
+                                        }
+                                        else -> {}
+                                    }
+                                    isGestureVisible = gestureZone != LiveGestureZone.FullscreenToggle
+                                },
+                                onDragEnd = {
+                                    // 中间区域：上下滑动超过阈值则切换全屏
+                                    if (gestureZone == LiveGestureZone.FullscreenToggle &&
+                                        kotlin.math.abs(centerDragAccumulator) > screenHeight * 0.15f
+                                    ) {
+                                        onToggleFullscreen()
+                                    }
+                                    isGestureVisible = false
+                                    gestureZone = LiveGestureZone.None
+                                },
+                                onVerticalDrag = { _, dragAmount ->
+                                    // 灵敏度基于屏幕高度: 拖动全屏高度 = 100% 调整
+                                    val sensitivity = screenHeight
+                                    val delta = -dragAmount / sensitivity
+
+                                    when (gestureZone) {
+                                        LiveGestureZone.Brightness -> {
+                                            // 调节亮度
+                                            // 亮度范围 0.0 ~ 1.0 (增加拖动系数使调节稍快一点，比如 1.5 倍)
+                                            val targetBrightness = (brightnessAccumulator + delta * 1.5f).coerceIn(0.01f, 1f)
+                                            brightnessAccumulator = targetBrightness // 更新累积值以保持连续性
+
+                                            val lp = activity?.window?.attributes
+                                            lp?.screenBrightness = targetBrightness
+                                            activity?.window?.attributes = lp
+
+                                            gestureKind = GestureLevelKind.Brightness
+                                            gesturePercent = targetBrightness
+                                            gestureIcon = resolveGestureLevelIcon(
+                                                style = gestureLevelOverlayStyle,
+                                                kind = GestureLevelKind.Brightness,
+                                                percent = targetBrightness
+                                            )
+                                            gestureText = "${(targetBrightness * 100).toInt()}%"
+                                        }
+                                        LiveGestureZone.Volume -> {
+                                            // 调节音量 (maxVolume 比如 15)
+                                            if (maxVolume > 0) {
+                                                // 音量需要映射到 0~maxVolume
+                                                val targetVolFloat = (volumeAccumulator + delta * maxVolume * 1.2f).coerceIn(0f, maxVolume.toFloat())
+                                                volumeAccumulator = targetVolFloat
+
+                                                val newVolInt = targetVolFloat.toInt()
+                                                val currentVolInt = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+
+                                                if (newVolInt != currentVolInt) {
+                                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolInt, 0)
+                                                    // 注意：不要在这里重置 volumeAccumulator，否则会丢失小数部分导致卡顿
+                                                }
+
+                                                val volumePercent = if (maxVolume > 0) {
+                                                    newVolInt.toFloat() / maxVolume.toFloat()
+                                                } else {
+                                                    0f
+                                                }
+                                                gestureKind = GestureLevelKind.Volume
+                                                gesturePercent = volumePercent
+                                                gestureIcon = resolveGestureLevelIcon(
+                                                    style = gestureLevelOverlayStyle,
+                                                    kind = GestureLevelKind.Volume,
+                                                    percent = volumePercent
+                                                )
+                                                gestureText = "${(newVolInt * 100 / maxVolume)}%"
+                                            }
+                                        }
+                                        LiveGestureZone.FullscreenToggle -> {
+                                            centerDragAccumulator += dragAmount
+                                        }
+                                        LiveGestureZone.None -> {}
+                                    }
+                                }
+                            )
+                        }
+                }
+            )
     ) {
         // 主题原生音量/亮度反馈
         if (isGestureVisible) {
@@ -348,7 +419,7 @@ fun LivePlayerControls(
         
         // 2. 顶部栏 (返回 + 标题)
         AnimatedVisibility(
-            visible = showTopBar && isControlsVisible,
+            visible = showTopBar && effectiveControlsVisible,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.TopStart)
@@ -405,6 +476,15 @@ fun LivePlayerControls(
                     horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (showLockButton) {
+                        LivePlayerIconButton(
+                            icon = Icons.Outlined.LockOpen,
+                            label = "锁定",
+                            selected = false,
+                            enabled = true,
+                            onClick = { isLocked = true }
+                        )
+                    }
                     if (showPipButton) {
                         LivePlayerIconButton(
                             icon = Icons.Outlined.PictureInPictureAlt,
@@ -450,7 +530,7 @@ fun LivePlayerControls(
         
         // 3. 底部栏 (播放暂停 + 进度(直播无进度) + 全屏)
         AnimatedVisibility(
-            visible = isControlsVisible,
+            visible = effectiveControlsVisible,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
@@ -485,7 +565,7 @@ fun LivePlayerControls(
                     enabled = true,
                     onClick = onPlayPause
                 )
-                
+
                 Spacer(Modifier.width(AppSpacingTokens.Large))
                 
                 // [新增] 刷新按钮
@@ -496,7 +576,7 @@ fun LivePlayerControls(
                     enabled = true,
                     onClick = onRefresh
                 )
-                
+
                 Spacer(Modifier.width(AppSpacingTokens.Medium))
 
                 LivePlayerIconButton(
@@ -516,6 +596,14 @@ fun LivePlayerControls(
                     horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // [新增] 截图当前帧（放入可横滚区域，避免窄屏挤压固定按钮）
+                    LivePlayerIconButton(
+                        icon = Icons.Outlined.PhotoCamera,
+                        label = "截图",
+                        selected = false,
+                        enabled = true,
+                        onClick = onCaptureScreenshot
+                    )
                     LivePlayerIconButton(
                         icon = Icons.Outlined.Block,
                         label = "屏蔽设置",
@@ -635,6 +723,33 @@ fun LivePlayerControls(
                         }
                     }
 
+                    if (currentSourceDesc.isNotBlank()) {
+                        AppSurface(
+                            onClick = onSourceClick,
+                            shape = AppShapes.container(ContainerLevel.Pill),
+                            color = palette.scrim.copy(alpha = 0.42f),
+                            modifier = Modifier.height(controlVisualSpec.rowHeightDp.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = AppSpacingTokens.Medium)
+                            ) {
+                                AppIcon(
+                                    imageVector = Icons.Outlined.SettingsInputComponent,
+                                    contentDescription = null,
+                                    tint = LiveStatusPalette.MediaContent,
+                                    modifier = Modifier.size(controlVisualSpec.iconSizeDp.dp)
+                                )
+                                Spacer(Modifier.width(AppSpacingTokens.ExtraSmall))
+                                AppText(
+                                    text = currentSourceDesc,
+                                    color = LiveStatusPalette.MediaContent,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
+
                     if (currentQualityDesc.isNotBlank()) {
                         AppSurface(
                             onClick = onQualityClick,
@@ -667,6 +782,24 @@ fun LivePlayerControls(
                     onClick = onToggleFullscreen
                 )
             }
+        }
+
+        // 4. 锁定状态解锁按钮（垂直居左，始终可见）
+        if (isLocked) {
+            LivePlayerIconButton(
+                icon = Icons.Outlined.Lock,
+                label = "解锁",
+                selected = true,
+                enabled = true,
+                onClick = {
+                    isLocked = false
+                    isControlsVisible = true
+                },
+                stateDescription = "已锁定，点击解锁",
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = AppSpacingTokens.Large)
+            )
         }
     }
 }

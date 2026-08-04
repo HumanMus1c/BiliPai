@@ -96,7 +96,12 @@ fun BangumiPlayerScreen(
     // 创建 ExoPlayer
     val exoPlayer = remember {
         ExoPlayer.Builder(context)
-            .setRenderersFactory(HiResCompatibleRenderersFactory(context))
+            .setRenderersFactory(
+                HiResCompatibleRenderersFactory(context)
+                    .setExtensionRendererMode(
+                        androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+                    )
+            )
             .build()
             .apply {
                 playWhenReady = true

@@ -70,7 +70,7 @@ class MiuixV2MigrationStructureTest {
             "app/src/main/java/com/android/purebilibili/feature/message/InboxScreen.kt",
             "app/src/main/java/com/android/purebilibili/feature/message/feed/MessageFeedCommon.kt",
             "app/src/main/java/com/android/purebilibili/feature/video/ui/components/VideoSettingsPanel.kt",
-            "app/src/main/java/com/android/purebilibili/feature/settings/AppSegmentedComponents.kt"
+            "app/src/main/java/com/android/purebilibili/feature/settings/AppSegmentedControl.kt"
         ).filter { path ->
             loadSource(path).contains("MiuixTheme.colorScheme")
         }

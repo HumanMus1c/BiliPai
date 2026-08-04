@@ -24,6 +24,10 @@ import com.bytedance.danmaku.render.engine.utils.LAYER_TYPE_SCROLL
 import com.bytedance.danmaku.render.engine.utils.LAYER_TYPE_TOP_CENTER
 import com.bytedance.danmaku.render.engine.DanmakuView
 import com.bytedance.danmaku.render.engine.render.draw.bitmap.BitmapData
+import com.android.purebilibili.core.store.DanmakuSettings
+import com.android.purebilibili.feature.video.danmaku.DanmakuTypeFilterSettings
+import com.android.purebilibili.feature.video.danmaku.resolveDanmakuScrollDurationMillis
+import com.android.purebilibili.feature.video.danmaku.shouldDisplayStandardDanmaku
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -36,11 +40,13 @@ import kotlinx.coroutines.isActive
  * - 使用 mutableStateOf 替代 object 管理状态
  * - 添加 isActive 检查防止协程泄漏
  * - 添加 try-catch 防止崩溃
+ * - 接入 DanmakuSettings：字号缩放/透明度/滚动速度/类型屏蔽
  */
 @Composable
 fun LiveDanmakuOverlay(
     danmakuFlow: SharedFlow<LiveDanmakuItem>,
     displayArea: Float = 1f,
+    danmakuSettings: DanmakuSettings = DanmakuSettings(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -99,6 +105,16 @@ fun LiveDanmakuOverlay(
                     ctrl.start(currentTime)
                     isStarted = true
                 }
+                // 应用渲染参数（透明度/滚动速度）；设置变化触发重组时即时生效
+                if (ctrl != null && isStarted) {
+                    ctrl.config.common.alpha = (danmakuSettings.opacity.coerceIn(0f, 1f) * 255).toInt()
+                    ctrl.config.scroll.moveTime = resolveDanmakuScrollDurationMillis(
+                        scrollDurationSeconds = danmakuSettings.scrollDurationSeconds,
+                        speedFactor = danmakuSettings.speed,
+                        scrollFixedVelocity = danmakuSettings.scrollFixedVelocity,
+                        viewportWidthPx = it.width
+                    )
+                }
             } catch (e: Exception) {
                 android.util.Log.e("LiveDanmakuOverlay", "Update failed: ${e.message}")
             }
@@ -122,8 +138,9 @@ fun LiveDanmakuOverlay(
                     }
 
                     if (pendingItemsBeforeStart.isNotEmpty()) {
+                        val textSize = 34f * danmakuSettings.fontScale.coerceIn(0.3f, 2.0f)
                         pendingItemsBeforeStart.forEach { item ->
-                            val danmakuData = createDanmakuData(item, currentTime, context, controller)
+                            val danmakuData = createDanmakuData(item, currentTime, context, controller, textSize)
                             pendingDanmaku.add(danmakuData)
                         }
                         pendingItemsBeforeStart.clear()
@@ -178,8 +195,25 @@ fun LiveDanmakuOverlay(
     
     // 监听弹幕流
     LaunchedEffect(danmakuFlow) {
+        val typeFilter = DanmakuTypeFilterSettings(
+            allowScroll = danmakuSettings.allowScroll,
+            allowTop = danmakuSettings.allowTop,
+            allowBottom = danmakuSettings.allowBottom,
+            allowColorful = danmakuSettings.allowColorful,
+            allowSpecial = danmakuSettings.allowSpecial
+        )
         danmakuFlow.collect { item ->
             try {
+                // 类型屏蔽：SC 消息始终展示，普通弹幕按设置过滤
+                if (!item.isSuperChat &&
+                    !shouldDisplayStandardDanmaku(
+                        danmakuType = item.mode,
+                        color = item.color,
+                        settings = typeFilter
+                    )
+                ) {
+                    return@collect
+                }
                 if (!isStarted || controller == null || startTime == 0L) {
                     if (pendingItemsBeforeStart.size >= maxPendingItemsBeforeStart) {
                         pendingItemsBeforeStart.removeAt(0)
@@ -190,7 +224,8 @@ fun LiveDanmakuOverlay(
 
                 // 计算当前相对时间（使用单调时钟，避免系统时间调整导致漂移）
                 val currentTime = SystemClock.elapsedRealtime() - startTime
-                val danmakuData = createDanmakuData(item, currentTime, context, controller)
+                val textSize = 34f * danmakuSettings.fontScale.coerceIn(0.3f, 2.0f)
+                val danmakuData = createDanmakuData(item, currentTime, context, controller, textSize)
                 if (pendingDanmaku.size >= maxPendingDanmaku) {
                     val dropped = pendingDanmaku.removeAt(0)
                     releaseLiveDanmakuData(
@@ -238,12 +273,12 @@ fun LiveDanmakuOverlay(
 
 
 private fun createDanmakuData(
-    item: LiveDanmakuItem, 
-    currentTime: Long, 
+    item: LiveDanmakuItem,
+    currentTime: Long,
     context: android.content.Context,
-    controller: DanmakuController?
+    controller: DanmakuController?,
+    textSize: Float
 ): DanmakuData {
-    val textSize = 34f
     val layerType = when (item.mode) {
         4 -> LAYER_TYPE_BOTTOM_CENTER
         5 -> LAYER_TYPE_TOP_CENTER

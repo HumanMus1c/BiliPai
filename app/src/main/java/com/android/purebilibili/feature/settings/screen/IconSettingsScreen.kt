@@ -226,7 +226,7 @@ fun IconSettingsContent(
                         .clip(AppShapes.container(ContainerLevel.Card))
                         .background(AppSurfaceTokens.cardContainer())
                 ) {
-                    AppSegmentedPreference(
+                    SettingsSingleChoicePreference(
                         title = "女仆图标外观",
                         subtitle = "可跟随系统，或在任意系统主题下固定明亮、暗黑外壳",
                         options = listOf(

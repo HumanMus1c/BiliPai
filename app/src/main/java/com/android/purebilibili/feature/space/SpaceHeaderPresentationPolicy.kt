@@ -18,3 +18,8 @@ internal fun resolveSpaceHeaderMetricItems(
         SpaceHeaderMetricItem("获赞", upStat?.likes ?: 0L)
     )
 }
+
+internal fun resolveSpaceHeaderActionTopPaddingDp(
+    topChromeInsetDp: Float,
+    contentSpacingDp: Float = 8f,
+): Float = topChromeInsetDp.coerceAtLeast(0f) + contentSpacingDp.coerceAtLeast(0f)

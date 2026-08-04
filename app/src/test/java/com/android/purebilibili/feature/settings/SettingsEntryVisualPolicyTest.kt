@@ -18,6 +18,8 @@ import io.github.alexzhirkevich.cupertino.icons.outlined.HandTap
 import io.github.alexzhirkevich.cupertino.icons.outlined.House
 import io.github.alexzhirkevich.cupertino.icons.outlined.TextBubble
 import io.github.alexzhirkevich.cupertino.icons.outlined.XmarkCircle
+import com.android.purebilibili.core.theme.iOSBlue
+import com.android.purebilibili.core.theme.iOSPink
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -134,30 +136,30 @@ class SettingsEntryVisualPolicyTest {
     }
 
     @Test
-    fun `md3 preset should derive settings entry tints from theme palette roles`() {
+    fun `md3 preset should keep settings entry category colors distinct`() {
         assertEquals(
-            materialPalette.tertiary,
+            iOSPink,
             resolveSettingsEntryVisual(
                 SettingsSearchTarget.APPEARANCE,
                 materialPolicy
             ).iconTint
         )
         assertEquals(
-            materialPalette.secondary,
+            com.android.purebilibili.core.theme.iOSTeal,
             resolveSettingsEntryVisual(
                 SettingsSearchTarget.PERMISSION,
                 materialPolicy
             ).iconTint
         )
         assertEquals(
-            materialPalette.primary,
+            iOSBlue,
             resolveSettingsEntryVisual(
                 SettingsSearchTarget.TELEGRAM,
                 materialPolicy
             ).iconTint
         )
         assertEquals(
-            materialPalette.primary,
+            iOSBlue,
             resolveSettingsEntryVisual(
                 SettingsSearchTarget.CLEAR_CACHE,
                 materialPolicy
@@ -166,7 +168,7 @@ class SettingsEntryVisualPolicyTest {
     }
 
     @Test
-    fun `md3 preset without dynamic color should collapse non error entry tints to primary`() {
+    fun `md3 preset without dynamic color should still keep category colors`() {
         val staticPalette = resolveAppSemanticAccentPalette(
             colorScheme = androidx.compose.material3.lightColorScheme(
                 primary = Color(0xFFAA3366),
@@ -179,21 +181,21 @@ class SettingsEntryVisualPolicyTest {
         val staticPolicy = AppSemanticVisualPolicy.material(staticPalette)
 
         assertEquals(
-            staticPalette.primary,
+            iOSPink,
             resolveSettingsEntryVisual(
                 SettingsSearchTarget.APPEARANCE,
                 staticPolicy
             ).iconTint
         )
         assertEquals(
-            staticPalette.primary,
+            com.android.purebilibili.core.theme.iOSTeal,
             resolveSettingsEntryVisual(
                 SettingsSearchTarget.PERMISSION,
                 staticPolicy
             ).iconTint
         )
         assertEquals(
-            staticPalette.primary,
+            iOSBlue,
             resolveSettingsEntryVisual(
                 SettingsSearchTarget.CLEAR_CACHE,
                 staticPolicy

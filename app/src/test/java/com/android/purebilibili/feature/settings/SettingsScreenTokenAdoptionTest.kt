@@ -25,7 +25,8 @@ class SettingsScreenTokenAdoptionTest {
      * regressions, this test blocks accidental re-additions to the allowlist.
      */
     private val migratedSettingsFiles = listOf(
-        "src/main/java/com/android/purebilibili/feature/settings/AppSegmentedComponents.kt",
+        "src/main/java/com/android/purebilibili/feature/settings/AppSegmentedControl.kt",
+        "src/main/java/com/android/purebilibili/feature/settings/SettingsSelectionComponents.kt",
         "src/main/java/com/android/purebilibili/feature/settings/screen/AnimationSettingsScreen.kt",
         "src/main/java/com/android/purebilibili/feature/settings/screen/AppearanceSettingsScreen.kt",
         "src/main/java/com/android/purebilibili/feature/settings/screen/BottomBarSettingsScreen.kt",

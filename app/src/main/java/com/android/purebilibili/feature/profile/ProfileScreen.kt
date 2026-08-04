@@ -65,7 +65,6 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.feature.home.UserState
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
-import com.android.purebilibili.core.ui.LoadingAnimation
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppPrimaryButton
@@ -387,14 +386,7 @@ fun ProfileScreen(
     val currentUiState = state
     when (currentUiState) {
         is ProfileUiState.Loading -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .globalWallpaperAwareBackground(),
-                contentAlignment = Alignment.Center
-            ) {
-                LoadingAnimation(size = 80.dp)
-            }
+            ProfileLoadingSkeleton()
         }
         is ProfileUiState.LoggedOut -> {
             // [Modified] 游客模式：复用统一 UI，但使用虚拟游客数据

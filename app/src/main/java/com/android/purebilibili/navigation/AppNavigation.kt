@@ -2382,6 +2382,7 @@ fun AppNavigation(
                                     onBack = { performSystemBackAction() },
                                     onOpenSourceLicensesClick = { pushNavigation3Key(BiliPaiNavKey.OpenSourceLicenses) },
                                     onAppearanceClick = { pushNavigation3Key(BiliPaiNavKey.AppearanceSettings) },
+                                    onHomeClick = { pushNavigation3Key(BiliPaiNavKey.HomeSettings) },
                                     onAnimationClick = { pushNavigation3Key(BiliPaiNavKey.AnimationSettings) },
                                     onPlaybackClick = { pushNavigation3Key(BiliPaiNavKey.PlaybackSettings) },
                                     onPermissionClick = { pushNavigation3Key(BiliPaiNavKey.PermissionSettings) },
@@ -2409,6 +2410,7 @@ fun AppNavigation(
                                     onBack = { performSystemBackAction() },
                                     onOpenSourceLicensesClick = { pushNavigation3Key(BiliPaiNavKey.OpenSourceLicenses) },
                                     onAppearanceClick = { pushNavigation3Key(BiliPaiNavKey.AppearanceSettings) },
+                                    onHomeClick = { pushNavigation3Key(BiliPaiNavKey.HomeSettings) },
                                     onAnimationClick = { pushNavigation3Key(BiliPaiNavKey.AnimationSettings) },
                                     onPlaybackClick = { pushNavigation3Key(BiliPaiNavKey.PlaybackSettings) },
                                     onPermissionClick = { pushNavigation3Key(BiliPaiNavKey.PermissionSettings) },
@@ -2455,9 +2457,13 @@ fun AppNavigation(
                                     viewModel = settingsViewModel,
                                     onBack = { performSystemBackAction() },
                                     onNavigateToIconSettings = { pushNavigation3Key(BiliPaiNavKey.IconSettings) },
-                                    onNavigateToAnimationSettings = {
-                                        pushNavigation3Key(BiliPaiNavKey.AnimationSettings)
-                                    },
+                                )
+                            }
+                        BiliPaiNavEntryContentRole.HOME_SETTINGS ->
+                            SettingsTabletEntry {
+                                com.android.purebilibili.feature.settings.HomeSettingsScreen(
+                                    viewModel = settingsViewModel,
+                                    onBack = { performSystemBackAction() },
                                 )
                             }
                         BiliPaiNavEntryContentRole.ICON_SETTINGS ->
@@ -2621,6 +2627,14 @@ fun AppNavigation(
                                     pushNavigation3Key(BiliPaiNavKey.Live(roomId = roomId.toString(), title = title, uname = uname))
                                 },
                                 onSearchClick = { pushNavigation3Key(BiliPaiNavKey.LiveSearch) },
+                                onMatchClick = {
+                                    pushNavigation3Key(
+                                        BiliPaiNavKey.Web(
+                                            url = "https://www.bilibili.com/match/",
+                                            title = "电竞赛事"
+                                        )
+                                    )
+                                },
                                 onAreaListClick = { pushNavigation3Key(BiliPaiNavKey.LiveArea) },
                                 onFollowingClick = { pushNavigation3Key(BiliPaiNavKey.LiveFollowing) },
                                 onAreaDetailClick = { parentAreaId, areaId, title ->

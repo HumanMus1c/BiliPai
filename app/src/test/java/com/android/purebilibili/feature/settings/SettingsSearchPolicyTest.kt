@@ -56,20 +56,20 @@ class SettingsSearchPolicyTest {
     }
 
     @Test
-    fun queryByUpBadgeKeyword_hitsAppearanceEntry() {
+    fun queryByUpBadgeKeyword_hitsHomeEntry() {
         val results = resolveSettingsSearchResults("UP主标识")
 
-        assertTrue(results.any { it.target == SettingsSearchTarget.APPEARANCE })
+        assertTrue(results.any { it.target == SettingsSearchTarget.HOME_FEED })
     }
 
     @Test
-    fun queryByHomeFeedCardWidth_hitsAppearanceHomeEntry() {
+    fun queryByHomeFeedCardWidth_hitsHomeEntry() {
         val results = resolveSettingsSearchResults("推荐流卡片宽度")
 
         assertTrue(
             results.any {
-                it.target == SettingsSearchTarget.APPEARANCE &&
-                    it.focusId == SettingsSearchFocusIds.APPEARANCE_HOME
+                it.target == SettingsSearchTarget.HOME_FEED &&
+                    it.focusId == SettingsSearchFocusIds.HOME_OVERVIEW
             }
         )
     }
@@ -81,8 +81,8 @@ class SettingsSearchPolicyTest {
 
         assertTrue(
             results.none {
-                it.target == SettingsSearchTarget.APPEARANCE &&
-                    it.focusId == SettingsSearchFocusIds.APPEARANCE_HOME
+                it.target == SettingsSearchTarget.HOME_FEED &&
+                    it.focusId == SettingsSearchFocusIds.HOME_OVERVIEW
             }
         )
     }

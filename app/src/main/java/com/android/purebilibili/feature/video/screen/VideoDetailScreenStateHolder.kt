@@ -2737,7 +2737,7 @@ internal fun VideoDetailScreenStateHolder(
                             dissolvingIds = commentState.dissolvingIds, likedComments = commentState.likedComments,
                             onSortModeChange = commentActions.setSortMode, onUpOnlyToggle = commentActions.toggleUpOnly,
                             onUpClick = navigateToUserSpaceFromVideo,
-                            onSubReplyClick = { reply, _ -> commentActions.openSubReply(reply) },
+                            onSubReplyClick = commentActions.openSubReply,
                             onCommentReplyClick = playbackActions.replyTo, onLoadMoreReplies = commentActions.loadComments,
                             onDeleteComment = commentActions.deleteComment, onDissolveStart = commentActions.startDissolve,
                             onCommentLike = commentActions.likeComment, onCommentUrlClick = openCommentUrl,
@@ -2964,7 +2964,7 @@ internal fun VideoDetailScreenStateHolder(
                             onSortModeChange = commentActions.setSortMode,
                             onUpOnlyToggle = commentActions.toggleUpOnly,
                             onUpClick = navigateToUserSpaceFromVideo,
-                            onSubReplyClick = { reply, _ -> commentActions.openSubReply(reply) },
+                            onSubReplyClick = commentActions.openSubReply,
                             onCommentReplyClick = playbackActions.replyTo,
                             onLoadMoreReplies = commentActions.loadComments,
                             onDeleteComment = commentActions.deleteComment,
@@ -3511,8 +3511,8 @@ internal fun VideoDetailScreenStateHolder(
                                     videoPlayerBounds = nextBounds
                                 }
                         ) {
-                            // 常驻封面叠层：CoverFirst / 非 live morph 时改 alpha；
-                            // ImmediatePlayback live morph 保持 cover=0、player=1 一镜到底。
+                            // 常驻封面叠层：仅已提交的 CoverFirst 返回才接管；预测 seek / cancel
+                            // 始终保持 cover=0、player=1，避免回到详情页时闪出一帧封面。
                             if (residentCoverImageRequest != null) {
                                 AsyncImage(
                                     model = residentCoverImageRequest,
@@ -3521,10 +3521,23 @@ internal fun VideoDetailScreenStateHolder(
                                         .fillMaxSize()
                                         .graphicsLayer {
                                             alpha = resolveVideoDetailReturnCoverAlpha(
-                                                transitionProgress = detailTransitionProgress.value,
+                                                transitionProgress =
+                                                    resolveVideoDetailReturnVisualProgress(
+                                                        animatedVisibilityProgress =
+                                                            detailTransitionProgress.value,
+                                                        morphDepthProgress =
+                                                            videoCardDepthBackgroundState
+                                                                .progressProvider(),
+                                                        liveReturnMorph = liveReturnMorph,
+                                                    ),
                                                 isCommittedCardReturn = isCommittedCardReturn,
                                                 hasResidentCover = hasResidentReturnCover,
                                                 liveReturnMorph = liveReturnMorph,
+                                                keepLivePlayerForPredictiveBack =
+                                                    videoCardDepthBackgroundState
+                                                        .isReturnGestureInProgressProvider() ||
+                                                        videoCardDepthBackgroundState
+                                                            .isGestureRestoreInProgressProvider(),
                                             )
                                         },
                                     contentScale = ContentScale.Crop
@@ -3535,10 +3548,23 @@ internal fun VideoDetailScreenStateHolder(
                                     .fillMaxSize()
                                     .graphicsLayer {
                                         alpha = resolveVideoDetailReturnPlayerAlpha(
-                                            transitionProgress = detailTransitionProgress.value,
+                                            transitionProgress =
+                                                resolveVideoDetailReturnVisualProgress(
+                                                    animatedVisibilityProgress =
+                                                        detailTransitionProgress.value,
+                                                    morphDepthProgress =
+                                                        videoCardDepthBackgroundState
+                                                            .progressProvider(),
+                                                    liveReturnMorph = liveReturnMorph,
+                                                ),
                                             isCommittedCardReturn = isCommittedCardReturn,
                                             hasResidentCover = hasResidentReturnCover,
                                             liveReturnMorph = liveReturnMorph,
+                                            keepLivePlayerForPredictiveBack =
+                                                videoCardDepthBackgroundState
+                                                    .isReturnGestureInProgressProvider() ||
+                                                    videoCardDepthBackgroundState
+                                                        .isGestureRestoreInProgressProvider(),
                                         )
                                     }
                             ) {

@@ -54,14 +54,17 @@ class LivePlayerControlsStructureTest {
             "发送弹幕",
             "屏蔽设置",
             "弹幕设置",
+            "锁定",
+            "截图",
+            "解锁",
         )
 
         expectedLabels.forEach { label ->
             assertTrue(source.contains("label = \"$label\""), "Missing label: $label")
         }
-        assertEquals(12, Regex("""LivePlayerIconButton\(""").findAll(source).count() - 1)
-        assertEquals(12, Regex("""\blabel\s*=""").findAll(source).count())
-        assertEquals(12, Regex("""\benabled\s*=\s*true""").findAll(source).count())
+        assertEquals(15, Regex("""LivePlayerIconButton\(""").findAll(source).count() - 1)
+        assertEquals(15, Regex("""\blabel\s*=""").findAll(source).count())
+        assertEquals(15, Regex("""\benabled\s*=\s*true""").findAll(source).count())
         assertTrue(source.contains("label = if (isPlaying) \"暂停\" else \"播放\""))
         assertTrue(source.contains("label = if (isFullscreen) \"退出全屏\" else \"进入全屏\""))
         assertTrue(source.contains("selected = isAudioOnly"))

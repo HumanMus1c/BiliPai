@@ -14,7 +14,8 @@ import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 fun DynamicSubReplyPreviewHost(
     state: SubReplyUiState,
     onDismiss: () -> Unit,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
+    onUserClick: (Long) -> Unit,
 ) {
     var showImagePreview by remember { mutableStateOf(false) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -40,6 +41,7 @@ fun DynamicSubReplyPreviewHost(
         emoteMap = emptyMap(),
         onDismiss = onDismiss,
         onLoadMore = onLoadMore,
+        onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) },
         onImagePreview = { images, index, rect, textContent ->
             previewImages = images
             previewInitialIndex = index

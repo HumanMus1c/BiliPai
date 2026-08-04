@@ -1468,6 +1468,31 @@ class VideoPlayerSectionPolicyTest {
     }
 
     @Test
+    fun longPressSpeedFeedback_canBeDismissedWithoutChangingGestureState() {
+        assertTrue(
+            shouldShowLongPressSpeedFeedback(
+                isLongPressing = true,
+                isPlaybackSurfaceActive = true,
+                hintDismissed = false,
+            )
+        )
+        assertFalse(
+            shouldShowLongPressSpeedFeedback(
+                isLongPressing = true,
+                isPlaybackSurfaceActive = true,
+                hintDismissed = true,
+            )
+        )
+        assertFalse(
+            shouldShowLongPressSpeedFeedback(
+                isLongPressing = true,
+                isPlaybackSurfaceActive = false,
+                hintDismissed = false,
+            )
+        )
+    }
+
+    @Test
     fun longPressSpeedLockHint_promptActionsMarkLocalHintAsShownImmediately() {
         val source = loadVideoPlayerSectionSource()
         val hintPrompt = source

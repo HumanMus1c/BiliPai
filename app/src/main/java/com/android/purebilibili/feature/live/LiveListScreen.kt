@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -15,8 +16,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Search
+import android.widget.Toast
 import com.android.purebilibili.core.ui.components.AppBadge
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +57,7 @@ import coil.compose.AsyncImage
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
@@ -256,12 +262,14 @@ fun LiveListScreen(
     onAreaListClick: () -> Unit,
     onFollowingClick: () -> Unit,
     onAreaDetailClick: (Int, Int, String) -> Unit,
+    onMatchClick: () -> Unit = {},
     viewModel: LiveListViewModel = viewModel(),
     globalHazeState: HazeState? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val palette = rememberLiveChromePalette()
+    val coroutineScope = rememberCoroutineScope()
 
     DisposableEffect(Unit) {
         val window = (context as? android.app.Activity)?.window
@@ -345,7 +353,23 @@ fun LiveListScreen(
                             onAreaSelected = viewModel::selectHomeArea,
                             onAreaDetailClick = onAreaDetailClick,
                             onAreaListClick = onAreaListClick,
-                            onFollowingClick = onFollowingClick
+                            onFollowingClick = onFollowingClick,
+                            onMatchClick = onMatchClick,
+                            onLongPressCard = { card ->
+                                coroutineScope.launch {
+                                    val success = com.android.purebilibili.feature.download.DownloadManager
+                                        .saveImageToGallery(
+                                            context = context,
+                                            url = card.coverUrl,
+                                            title = card.title
+                                        )
+                                    Toast.makeText(
+                                        context,
+                                        if (success) "封面已保存到相册" else "封面保存失败，请稍后重试",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
                         )
                     }
                 }
@@ -371,7 +395,9 @@ private fun LiveHomeContent(
     onAreaSelected: (Int) -> Unit,
     onAreaDetailClick: (Int, Int, String) -> Unit,
     onAreaListClick: () -> Unit,
-    onFollowingClick: () -> Unit
+    onFollowingClick: () -> Unit,
+    onMatchClick: () -> Unit = {},
+    onLongPressCard: (LiveRoomCardUiModel) -> Unit = {}
 ) {
     val selectedArea = areaList.firstOrNull { it.id == selectedAreaId }
     val contentItems = if (selectedAreaId == 0) recommendItems else areaItems
@@ -388,6 +414,9 @@ private fun LiveHomeContent(
         horizontalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp),
         verticalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp)
     ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            LiveMatchEntry(onClick = onMatchClick)
+        }
         if (followItems.isNotEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 LiveFollowHeader(
@@ -430,7 +459,8 @@ private fun LiveHomeContent(
                 LiveRoomCard(
                     model = item.toLiveRoomCardUiModel(),
                     enableSharedCoverTransition = true,
-                    onClick = { onLiveClick(item.roomId, item.title, item.uname) }
+                    onClick = { onLiveClick(item.roomId, item.title, item.uname) },
+                    onLongPress = { onLongPressCard(item.toLiveRoomCardUiModel()) }
                 )
             }
         }
@@ -858,3 +888,55 @@ private fun LiveRoomItem.toLiveRoomCardUiModel() = LiveRoomCardUiModel(
     viewerCount = online,
     areaName = areaName,
 )
+
+/**
+ * 赛事入口（打开官方比赛中心 Web 页）
+ */
+@Composable
+private fun LiveMatchEntry(
+    onClick: () -> Unit
+) {
+    val palette = rememberLiveChromePalette()
+    AppSurface(
+        onClick = onClick,
+        shape = AppShapes.borderedContainer(ContainerLevel.Card),
+        color = AppSurfaceTokens.cardContainer(),
+        border = BorderStroke(AppSurfaceTokens.OutlineWidth, palette.border),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(
+                horizontal = AppSpacingTokens.Large,
+                vertical = AppSpacingTokens.Medium
+            ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AppIcon(
+                imageVector = Icons.Outlined.EmojiEvents,
+                contentDescription = null,
+                tint = palette.accentStrong,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.width(AppSpacingTokens.Medium))
+            Column(modifier = Modifier.weight(1f)) {
+                AppText(
+                    text = "电竞赛事",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                AppText(
+                    text = "热门赛事直播聚合",
+                    color = palette.secondaryText,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            AppIcon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = palette.secondaryText,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}

@@ -67,6 +67,7 @@ import com.android.purebilibili.feature.settings.SettingsLocalBackHandler
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
+import com.android.purebilibili.core.ui.adaptiveSquircleBackground
 import com.android.purebilibili.core.ui.components.AppAdaptiveSwitch
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -74,6 +75,8 @@ import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextField
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContentColor
+import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIconContainerColor
 import com.android.purebilibili.core.ui.components.rememberAdaptiveSemanticIconTint
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.rememberNotificationPermissionState
@@ -337,7 +340,14 @@ fun PluginsContent(
     var testingPluginId by remember { mutableStateOf<String?>(null) }
     var testResult by remember { mutableStateOf<Triple<Int, Int, List<com.android.purebilibili.data.model.response.VideoItem>>?>(null) }
     var testingSampleVideos by remember { mutableStateOf<List<com.android.purebilibili.data.model.response.VideoItem>>(emptyList()) }
-    val importTint = rememberAdaptiveSemanticIconTint(iOSBlue)
+    val importTint = rememberAdaptivePreferenceIconContainerColor(iOSBlue)
+    val jsImportTint = rememberAdaptivePreferenceIconContainerColor(iOSTeal)
+    val kotlinPackageTint = rememberAdaptivePreferenceIconContainerColor(MaterialTheme.colorScheme.primary)
+    val uiSkinTint = rememberAdaptivePreferenceIconContainerColor(MaterialTheme.colorScheme.tertiary)
+    val importIconContentColor = rememberAdaptivePreferenceIconContentColor(importTint)
+    val jsImportIconContentColor = rememberAdaptivePreferenceIconContentColor(jsImportTint)
+    val kotlinPackageIconContentColor = rememberAdaptivePreferenceIconContentColor(kotlinPackageTint)
+    val uiSkinIconContentColor = rememberAdaptivePreferenceIconContentColor(uiSkinTint)
     val kotlinPackagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -587,14 +597,13 @@ fun PluginsContent(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(importTint.copy(alpha = 0.12f)),
+                                .adaptiveSquircleBackground(importTint, 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             AppIcon(
                                 imageVector = CupertinoIcons.Default.IcloudAndArrowDown,
                                 contentDescription = null,
-                                tint = importTint,
+                                tint = importIconContentColor,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -640,14 +649,13 @@ fun PluginsContent(
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(iOSTeal.copy(alpha = 0.12f)),
+                                    .adaptiveSquircleBackground(jsImportTint, 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 AppIcon(
                                     imageVector = CupertinoIcons.Default.Terminal,
                                     contentDescription = null,
-                                    tint = iOSTeal,
+                                    tint = jsImportIconContentColor,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -758,14 +766,13 @@ fun PluginsContent(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
+                                .adaptiveSquircleBackground(kotlinPackageTint, 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             AppIcon(
                                 imageVector = CupertinoIcons.Filled.Shield,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = kotlinPackageIconContentColor,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -892,14 +899,13 @@ fun PluginsContent(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.10f)),
+                                .adaptiveSquircleBackground(uiSkinTint, 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             AppIcon(
                                 imageVector = CupertinoIcons.Filled.Paintbrush,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary,
+                                tint = uiSkinIconContentColor,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -1946,7 +1952,8 @@ private fun PluginItem(
     onOpen: () -> Unit
 ) {
     val plugin = pluginInfo.plugin
-    val effectiveIconTint = rememberAdaptiveSemanticIconTint(iconTint)
+    val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(iconTint)
+    val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
     
     Column {
         // 主行
@@ -1961,14 +1968,13 @@ private fun PluginItem(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(effectiveIconTint.copy(alpha = 0.12f)),
+                    .adaptiveSquircleBackground(effectiveIconTint, 10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 AppIcon(
                     imageVector = plugin.icon ?: CupertinoIcons.Default.Puzzlepiece,
                     contentDescription = null,
-                    tint = effectiveIconTint,
+                    tint = iconContentColor,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -2266,6 +2272,8 @@ private fun JsonPluginStatsNotificationSection(
     onEnabledChange: (Boolean) -> Unit,
     onSendTest: () -> Unit
 ) {
+    val notificationIconTint = rememberAdaptivePreferenceIconContainerColor(iOSPurple)
+    val notificationIconContentColor = rememberAdaptivePreferenceIconContentColor(notificationIconTint)
     AppSurface(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -2283,14 +2291,13 @@ private fun JsonPluginStatsNotificationSection(
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(iOSPurple.copy(alpha = 0.12f)),
+                        .adaptiveSquircleBackground(notificationIconTint, 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     AppIcon(
                         imageVector = CupertinoIcons.Default.Bell,
                         contentDescription = null,
-                        tint = iOSPurple,
+                        tint = notificationIconContentColor,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -2351,7 +2358,8 @@ private fun JsonPluginItem(
     val plugin = loaded.plugin
     var showDeleteDialog by remember { mutableStateOf(false) }
     var isExpanded by remember { mutableStateOf(false) }
-    val jsonPluginTint = rememberAdaptiveSemanticIconTint(iOSPurple)
+    val jsonPluginTint = rememberAdaptivePreferenceIconContainerColor(iOSPurple)
+    val jsonPluginIconContentColor = rememberAdaptivePreferenceIconContentColor(jsonPluginTint)
     
     Column {
         Row(
@@ -2365,8 +2373,7 @@ private fun JsonPluginItem(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(jsonPluginTint.copy(alpha = 0.12f)),
+                    .adaptiveSquircleBackground(jsonPluginTint, 10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (!plugin.iconUrl.isNullOrBlank()) {
@@ -2381,7 +2388,7 @@ private fun JsonPluginItem(
                     AppIcon(
                         imageVector = CupertinoIcons.Default.Terminal,
                         contentDescription = null,
-                        tint = jsonPluginTint,
+                        tint = jsonPluginIconContentColor,
                         modifier = Modifier.size(20.dp)
                     )
                 }

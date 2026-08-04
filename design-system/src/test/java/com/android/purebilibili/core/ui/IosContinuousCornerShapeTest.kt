@@ -11,6 +11,13 @@ import kotlin.test.assertTrue
 
 class IosContinuousCornerShapeTest {
 
+    @Test
+    fun `default continuous corner controls stay curved instead of chamfered`() {
+        val inset = resolveIosContinuousCornerControlInset(IOS_CONTINUOUS_CORNER_SMOOTHING)
+
+        assertTrue(inset in 0.30f..0.50f)
+    }
+
     private val density = Density(1f)
 
     @Test

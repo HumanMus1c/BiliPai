@@ -152,28 +152,28 @@ class TopTabIndicatorGeometryTest {
     }
 
     @Test
-    fun `top tab dock indicator leaves only a small gap with outer chrome`() {
+    fun `top tab dock indicator leaves compact vertical breathing space with outer chrome`() {
         assertEquals(
             2f,
             resolveTopTabDockIndicatorHorizontalGapDp(hasOuterChromeSurface = true),
             0.01f
         )
         assertEquals(
-            1f,
+            3f,
             resolveTopTabDockIndicatorVerticalGapDp(hasOuterChromeSurface = true),
             0.01f
         )
     }
 
     @Test
-    fun `top tab dock indicator uses the same small gap without outer dock`() {
+    fun `top tab dock indicator uses the same compact gap without outer dock`() {
         assertEquals(
             2f,
             resolveTopTabDockIndicatorHorizontalGapDp(hasOuterChromeSurface = false),
             0.01f
         )
         assertEquals(
-            1f,
+            3f,
             resolveTopTabDockIndicatorVerticalGapDp(hasOuterChromeSurface = false),
             0.01f
         )
@@ -192,24 +192,23 @@ class TopTabIndicatorGeometryTest {
             horizontalGapDp = horizontalGap
         )
         val height = resolveTopTabDockIndicatorHeightDp(
-            rowHeightDp = 56f,
+            rowHeightDp = 36f,
             verticalGapDp = verticalGap,
-            minHeightDp = 48f
+            minHeightDp = 30f
         )
 
         assertEquals(92f, width, 0.01f)
-        // Near-full dock fill at rest when width is unbounded; drag scale still overflows chrome.
-        assertEquals(54f, height, 0.01f)
+        assertEquals(30f, height, 0.01f)
     }
 
     @Test
-    fun `top tab dock indicator keeps bottom bar capsule aspect ratio with min floor`() {
+    fun `top tab dock indicator keeps compact rounded rectangle height with min floor`() {
         assertEquals(
-            48f,
+            30f,
             resolveTopTabDockIndicatorHeightDp(
-                rowHeightDp = 56f,
-                verticalGapDp = 1f,
-                minHeightDp = 48f,
+                rowHeightDp = 36f,
+                verticalGapDp = 3f,
+                minHeightDp = 30f,
                 indicatorWidthDp = 54f
             ),
             0.01f

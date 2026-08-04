@@ -50,6 +50,7 @@ class BiliPaiNavEntryContentPolicyTest {
         assertEquals(BiliPaiNavEntryContentRole.NATIVE_MUSIC, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.NativeMusic("背景音乐", "BV1", 3L)))
         assertEquals(BiliPaiNavEntryContentRole.OPEN_SOURCE_LICENSES, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.OpenSourceLicenses))
         assertEquals(BiliPaiNavEntryContentRole.APPEARANCE_SETTINGS, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.AppearanceSettings))
+        assertEquals(BiliPaiNavEntryContentRole.HOME_SETTINGS, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.HomeSettings))
         assertEquals(BiliPaiNavEntryContentRole.ICON_SETTINGS, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.IconSettings))
         assertEquals(BiliPaiNavEntryContentRole.ANIMATION_SETTINGS, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.AnimationSettings))
         assertEquals(BiliPaiNavEntryContentRole.PLAYBACK_SETTINGS, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.PlaybackSettings))

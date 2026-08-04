@@ -118,15 +118,20 @@ class VideoCardScrollLiteVisualPolicyTest {
     }
 
     @Test
-    fun `elegant video card groups the cover and metadata in one card surface`() {
+    fun `elegant video card keeps its surface outside the shared transition layer`() {
         val source = File("src/main/java/com/android/purebilibili/feature/home/components/cards/VideoCard.kt")
             .readText()
 
+        val cardSurfaceBlock = source
+            .substringAfter("val cardSurfaceModifier = Modifier")
+            .substringBefore("val cardContainerModifier = Modifier")
         val cardContainerBlock = source
             .substringAfter("val cardContainerModifier = Modifier")
-            .substringBefore("Column(\n            modifier = cardContainerModifier")
-        assertTrue(cardContainerBlock.contains(".clip(cardShellShape)"))
-        assertTrue(cardContainerBlock.contains(".background(AppSurfaceTokens.cardContainer())"))
+            .substringBefore("Box(modifier = cardSurfaceModifier)")
+        assertTrue(cardSurfaceBlock.contains(".clip(cardShellShape)"))
+        assertTrue(cardSurfaceBlock.contains(".background(AppSurfaceTokens.cardContainer())"))
+        assertFalse(cardContainerBlock.contains(".background(AppSurfaceTokens.cardContainer())"))
+        assertTrue(source.contains("Box(modifier = cardSurfaceModifier)"))
 
         val coverShapeBlock = source
             .substringAfter("val coverShape = remember(cardCornerRadius)")
@@ -249,11 +254,15 @@ class VideoCardScrollLiteVisualPolicyTest {
     }
 
     @Test
-    fun `home video metadata uses on surface colors for readable up and publish text`() {
+    fun `home video metadata keeps creator secondary to title`() {
         val onSurface = Color(0xFF1D1B20)
-        val colors = resolveHomeVideoCardMetadataColors(onSurface)
+        val onSurfaceVariant = Color(0xFF49454F)
+        val colors = resolveHomeVideoCardMetadataColors(
+            onSurfaceColor = onSurface,
+            onSurfaceVariantColor = onSurfaceVariant,
+        )
 
-        assertEquals(onSurface, colors.upNameColor)
+        assertEquals(onSurfaceVariant, colors.upNameColor)
         assertEquals(onSurface.copy(alpha = 0.82f), colors.upMetaColor)
         assertEquals(onSurface.copy(alpha = 0.68f), colors.upBadgeTextColor)
         assertEquals(onSurface.copy(alpha = 0.10f), colors.upBadgeBackgroundColor)

@@ -36,6 +36,22 @@ class VideoDetailScreenMethodSizeStructureTest {
     }
 
     @Test
+    fun subReplyPreviewClicksForwardTargetIdToThreadDetail() {
+        val contract = loadSource("VideoDetailRenderContracts.kt")
+        val renderers = listOf(
+            "VideoDetailPhoneContent.kt",
+            "TabletVideoLayout.kt",
+            "TabletCinemaLayout.kt",
+            "VideoDetailScreenStateHolder.kt",
+        ).joinToString(separator = "\n") { loadSource(it) }
+
+        assertTrue(contract.contains("val openSubReply: (ReplyItem, Long) -> Unit"))
+        assertFalse(renderers.contains("{ reply, _ -> commentActions.openSubReply(reply) }"))
+        assertTrue(renderers.contains("onSubReplyClick = commentActions.openSubReply"))
+        assertTrue(renderers.contains("onSubClick = commentActions.openSubReply"))
+    }
+
+    @Test
     fun playerAndDetailContentShareTheRootTransitionProgress() {
         val holder = loadSource("VideoDetailScreenStateHolder.kt")
         val transitionHost = loadSource("VideoDetailTransitionHost.kt")

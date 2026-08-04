@@ -252,6 +252,7 @@ fun DynamicDetailScreen(
                         isLoading = commentsLoading,
                         isLoadingMore = commentsLoadingMore,
                         onViewReplies = { reply -> interactionViewModel.openSubReply(reply) },
+                        onUserClick = onUserClick,
                         onImagePreview = { images, index, sourceRect, textContent ->
                             previewImages = images
                             previewInitialIndex = index
@@ -315,6 +316,7 @@ fun DynamicDetailScreen(
                     state = subReplyState,
                     onDismiss = interactionViewModel::closeSubReply,
                     onLoadMore = interactionViewModel::loadMoreSubReplies,
+                    onUserClick = onUserClick,
                 )
 
                 if (showImagePreview && previewImages.isNotEmpty()) {

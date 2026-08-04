@@ -941,7 +941,8 @@ fun DynamicScreen(
         viewModel = viewModel,
         primaryItems = filteredItems,
         secondaryItems = state.userItems,
-        toastContext = context
+        toastContext = context,
+        onUserClick = onUserClick,
     )
 
     //  [新增] 转发弹窗

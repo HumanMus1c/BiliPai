@@ -9,7 +9,7 @@ object SettingsSearchFocusIds {
     const val APPEARANCE_SPLASH = "appearance_splash"
     const val APPEARANCE_PERSONALIZATION = "appearance_personalization"
     const val APPEARANCE_TABLET = "appearance_tablet"
-    const val APPEARANCE_HOME = "appearance_home"
+    const val HOME_OVERVIEW = "home_overview"
 
     const val PLAYBACK_DECODER = "playback_decoder"
     const val PLAYBACK_SPEED = "playback_speed"
@@ -21,6 +21,8 @@ object SettingsSearchFocusIds {
     const val PLAYBACK_NETWORK = "playback_network"
     const val PLAYBACK_DATA_SAVER = "playback_data_saver"
 
+    const val BOTTOM_BAR_BEHAVIOR = "bottom_bar_behavior"
+    const val BOTTOM_BAR_START = "bottom_bar_start"
     const val BOTTOM_BAR_DISPLAY = "bottom_bar_display"
     const val BOTTOM_BAR_TOP_TABS = "bottom_bar_top_tabs"
     const val BOTTOM_BAR_TABLET = "bottom_bar_tablet"
@@ -28,6 +30,7 @@ object SettingsSearchFocusIds {
     const val BOTTOM_BAR_AVAILABLE = "bottom_bar_available"
 
     const val ANIMATION_VISUAL_EFFECTS = "animation_visual_effects"
+    const val ANIMATION_START = "animation_start"
 }
 
 data class SettingsSearchFocusRequest(
@@ -71,9 +74,13 @@ internal fun resolveAppearanceSettingsScrollIndex(
         SettingsSearchFocusIds.APPEARANCE_SPLASH -> 4
         SettingsSearchFocusIds.APPEARANCE_PERSONALIZATION -> 6
         SettingsSearchFocusIds.APPEARANCE_TABLET -> null
-        SettingsSearchFocusIds.APPEARANCE_HOME -> 8
         else -> null
     }
+}
+
+internal fun resolveHomeSettingsScrollIndex(focusId: String): Int? = when (focusId) {
+    SettingsSearchFocusIds.HOME_OVERVIEW -> 0
+    else -> null
 }
 
 internal fun resolvePlaybackSettingsScrollIndex(
@@ -97,11 +104,13 @@ internal fun resolveBottomBarSettingsScrollIndex(
     focusId: String
 ): Int? {
     return when (focusId) {
-        SettingsSearchFocusIds.BOTTOM_BAR_DISPLAY -> 1
-        SettingsSearchFocusIds.BOTTOM_BAR_TOP_TABS -> 3
-        SettingsSearchFocusIds.BOTTOM_BAR_TABLET -> 5
-        SettingsSearchFocusIds.BOTTOM_BAR_CURRENT -> 7
-        SettingsSearchFocusIds.BOTTOM_BAR_AVAILABLE -> 9
+        SettingsSearchFocusIds.BOTTOM_BAR_START -> 0
+        SettingsSearchFocusIds.BOTTOM_BAR_BEHAVIOR -> 1
+        SettingsSearchFocusIds.BOTTOM_BAR_DISPLAY -> 3
+        SettingsSearchFocusIds.BOTTOM_BAR_TOP_TABS -> 5
+        SettingsSearchFocusIds.BOTTOM_BAR_TABLET -> 7
+        SettingsSearchFocusIds.BOTTOM_BAR_CURRENT -> 9
+        SettingsSearchFocusIds.BOTTOM_BAR_AVAILABLE -> 11
         else -> null
     }
 }
@@ -110,6 +119,7 @@ internal fun resolveAnimationSettingsScrollIndex(
     focusId: String
 ): Int? {
     return when (focusId) {
+        SettingsSearchFocusIds.ANIMATION_START -> 0
         SettingsSearchFocusIds.ANIMATION_VISUAL_EFFECTS -> 4
         else -> null
     }
@@ -123,8 +133,8 @@ internal fun resolveSettingsSceneDetailFocus(
         focusId = SettingsSearchFocusIds.APPEARANCE_THEME
     )
     SettingsSearchTarget.HOME_FEED -> SettingsSceneDetailFocus(
-        target = SettingsSearchTarget.APPEARANCE,
-        focusId = SettingsSearchFocusIds.APPEARANCE_HOME
+        target = SettingsSearchTarget.HOME_FEED,
+        focusId = SettingsSearchFocusIds.HOME_OVERVIEW
     )
     SettingsSearchTarget.NAVIGATION -> SettingsSceneDetailFocus(
         target = SettingsSearchTarget.BOTTOM_BAR,

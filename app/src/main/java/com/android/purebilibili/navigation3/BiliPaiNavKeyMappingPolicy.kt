@@ -37,6 +37,7 @@ internal fun BiliPaiNavKey.toLegacyRoute(): String {
         BiliPaiNavKey.SettingsSearch -> "settings_search"
         BiliPaiNavKey.OpenSourceLicenses -> ScreenRoutes.OpenSourceLicenses.route
         BiliPaiNavKey.AppearanceSettings -> ScreenRoutes.AppearanceSettings.route
+        BiliPaiNavKey.HomeSettings -> ScreenRoutes.HomeSettings.route
         BiliPaiNavKey.IconSettings -> ScreenRoutes.IconSettings.route
         BiliPaiNavKey.AnimationSettings -> ScreenRoutes.AnimationSettings.route
         BiliPaiNavKey.PlaybackSettings -> ScreenRoutes.PlaybackSettings.route
@@ -135,12 +136,13 @@ internal fun legacyRouteToBiliPaiNavKey(route: String?): BiliPaiNavKey {
         normalized == ScreenRoutes.Settings.route -> BiliPaiNavKey.Settings
         routeBase == "settings_category" && segments.size >= 2 -> {
             val category = SettingsRootCategory.entries.firstOrNull { it.name == segments[1] }
-                ?: SettingsRootCategory.APPEARANCE_INTERACTION
+                ?: SettingsRootCategory.APPEARANCE_THEME
             BiliPaiNavKey.SettingsCategory(category = category)
         }
         normalized == "settings_search" -> BiliPaiNavKey.SettingsSearch
         normalized == ScreenRoutes.OpenSourceLicenses.route -> BiliPaiNavKey.OpenSourceLicenses
         normalized == ScreenRoutes.AppearanceSettings.route -> BiliPaiNavKey.AppearanceSettings
+        normalized == ScreenRoutes.HomeSettings.route -> BiliPaiNavKey.HomeSettings
         normalized == ScreenRoutes.IconSettings.route -> BiliPaiNavKey.IconSettings
         normalized == ScreenRoutes.AnimationSettings.route -> BiliPaiNavKey.AnimationSettings
         normalized == ScreenRoutes.PlaybackSettings.route -> BiliPaiNavKey.PlaybackSettings

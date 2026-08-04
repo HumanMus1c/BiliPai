@@ -13,6 +13,7 @@ internal val SETTINGS_SUBTREE_ROUTE_BASES: Set<String> = setOf(
     SETTINGS_CATEGORY_ROUTE_BASE,
     SETTINGS_SEARCH_ROUTE_BASE,
     "appearance_settings",
+    "home_settings",
     "icon_settings",
     "animation_settings",
     "playback_settings",
@@ -29,6 +30,8 @@ internal val SETTINGS_SUBTREE_ROUTE_BASES: Set<String> = setOf(
 
 private val SETTINGS_DEPTH2_ROUTE_BASES: Set<String> = setOf(
     "appearance_settings",
+    "home_settings",
+    "animation_settings",
     "playback_settings",
     "permission_settings",
     "plugins_settings",
@@ -41,7 +44,6 @@ private val SETTINGS_DEPTH2_ROUTE_BASES: Set<String> = setOf(
 
 private val SETTINGS_DEPTH3_ROUTE_BASES: Set<String> = setOf(
     "icon_settings",
-    "animation_settings",
     "js_plugin",
 )
 
@@ -49,9 +51,8 @@ private val SETTINGS_DEPTH4_ROUTE_BASES: Set<String> = setOf(
     "external_media",
 )
 
-/** settings / search / category 可直达的二级页；动画页虽挂在外观下，搜索与快捷入口也可直达。 */
-private val SETTINGS_DIRECT_REACH_FROM_ROOT_CHILDREN: Set<String> =
-    SETTINGS_DEPTH2_ROUTE_BASES + setOf("animation_settings")
+/** settings / search / category 可直达的二级页。 */
+private val SETTINGS_DIRECT_REACH_FROM_ROOT_CHILDREN: Set<String> = SETTINGS_DEPTH2_ROUTE_BASES
 
 private val SETTINGS_DIRECT_REACH_PARENTS: Set<String> = setOf(
     SETTINGS_ROUTE_BASE,
@@ -60,17 +61,18 @@ private val SETTINGS_DIRECT_REACH_PARENTS: Set<String> = setOf(
 )
 
 private val ROUTE_TO_CATEGORY: Map<String, SettingsRootCategory> = mapOf(
-    "appearance_settings" to SettingsRootCategory.APPEARANCE_INTERACTION,
-    "animation_settings" to SettingsRootCategory.APPEARANCE_INTERACTION,
-    "icon_settings" to SettingsRootCategory.APPEARANCE_INTERACTION,
-    "bottom_bar_settings" to SettingsRootCategory.APPEARANCE_INTERACTION,
-    "playback_settings" to SettingsRootCategory.CONTENT_PLAYBACK,
-    "permission_settings" to SettingsRootCategory.PRIVACY_STORAGE,
-    "settings_share" to SettingsRootCategory.PRIVACY_STORAGE,
-    "webdav_backup" to SettingsRootCategory.PRIVACY_STORAGE,
-    "plugins_settings" to SettingsRootCategory.SYSTEM_ABOUT,
-    "js_plugin" to SettingsRootCategory.SYSTEM_ABOUT,
-    "external_media" to SettingsRootCategory.SYSTEM_ABOUT,
+    "appearance_settings" to SettingsRootCategory.APPEARANCE_THEME,
+    "home_settings" to SettingsRootCategory.HOME_RECOMMENDATION,
+    "animation_settings" to SettingsRootCategory.NAVIGATION_INTERACTION,
+    "icon_settings" to SettingsRootCategory.APPEARANCE_THEME,
+    "bottom_bar_settings" to SettingsRootCategory.NAVIGATION_INTERACTION,
+    "playback_settings" to SettingsRootCategory.PLAYBACK_QUALITY,
+    "permission_settings" to SettingsRootCategory.PRIVACY_PERMISSION,
+    "settings_share" to SettingsRootCategory.STORAGE_BACKUP,
+    "webdav_backup" to SettingsRootCategory.STORAGE_BACKUP,
+    "plugins_settings" to SettingsRootCategory.PLUGINS_EXTENSIONS,
+    "js_plugin" to SettingsRootCategory.PLUGINS_EXTENSIONS,
+    "external_media" to SettingsRootCategory.PLUGINS_EXTENSIONS,
     "tips_settings" to SettingsRootCategory.SYSTEM_ABOUT,
     "open_source_licenses" to SettingsRootCategory.SYSTEM_ABOUT,
 )
@@ -102,8 +104,7 @@ internal fun resolveSettingsNavParentRoute(childRoute: String?): String? {
         SETTINGS_CATEGORY_ROUTE_BASE,
         SETTINGS_SEARCH_ROUTE_BASE -> SETTINGS_ROUTE_BASE
         in SETTINGS_DEPTH2_ROUTE_BASES -> SETTINGS_CATEGORY_ROUTE_BASE
-        "icon_settings",
-        "animation_settings" -> "appearance_settings"
+        "icon_settings" -> "appearance_settings"
         "js_plugin" -> "plugins_settings"
         "external_media" -> "js_plugin"
         else -> null
@@ -121,7 +122,7 @@ internal fun resolveSettingsRootCategoryForRoute(routeBase: String?): SettingsRo
 
 internal fun resolveSettingsRootCategoryForNavKey(key: BiliPaiNavKey): SettingsRootCategory? {
     return when (key) {
-        is BiliPaiNavKey.SettingsCategory -> key.category
+        is BiliPaiNavKey.SettingsCategory -> canonicalSettingsRootCategory(key.category)
         else -> resolveSettingsRootCategoryForRoute(key.routeBase)
     }
 }

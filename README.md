@@ -14,24 +14,18 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-9.9.9.8.6-007AFF?style=flat-square&labelColor=ffffff" alt="Release 9.9.9.8.6" />
+  <img src="https://img.shields.io/badge/Release-0.1.0-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.1.0" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=FF9500&labelColor=ffffff" alt="Stars" />
-  <a href="https://github.com/jay3-yy/BiliPai/releases">
-    <img src="https://img.shields.io/github/downloads/jay3-yy/BiliPai/total?style=flat-square&color=34C759&label=%E6%80%BB%E4%B8%8B%E8%BD%BD%E9%87%8F&labelColor=ffffff" alt="总下载量" />
-  </a>
-  <a href="https://github.com/jay3-yy/BiliPai/releases/latest">
-    <img src="https://img.shields.io/github/downloads/jay3-yy/BiliPai/latest/total?style=flat-square&color=5AC8FA&label=%E6%9C%80%E6%96%B0%E5%B7%B2%E5%8F%91%E5%B8%83%E7%89%88%E6%9C%AC%E4%B8%8B%E8%BD%BD%E9%87%8F&labelColor=ffffff" alt="最新已发布版本下载量" />
-  </a>
 </p>
 
 <p>
-  <a href="https://github.com/jay3-yy/BiliPai/releases">
-    <img src="https://img.shields.io/badge/Download-Latest_Release-007AFF?style=for-the-badge&labelColor=ffffff" alt="Download latest release" />
+  <a href="https://t.me/+x5K_TmoFXso3MGM9">
+    <img src="https://img.shields.io/badge/APK-Telegram_群组-007AFF?style=for-the-badge&logo=telegram&logoColor=white" alt="从 Telegram 群组获取 APK" />
   </a>
-  <a href="https://t.me/BiliPaii">
+  <a href="https://t.me/+x5K_TmoFXso3MGM9">
     <img src="https://img.shields.io/badge/Telegram-交流群-5AC8FA?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram group" />
   </a>
   <a href="https://t.me/BiliPai">
@@ -42,11 +36,18 @@
   </a>
 </p>
 
-<sub>README 更新：2026-08-02 · 当前构建版本以 app/build.gradle.kts 为准 · 已发布版本以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
+<sub>README 更新：2026-08-04 · 当前构建版本以 app/build.gradle.kts 为准 · 已发布版本以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
 
 </div>
 
 ---
+
+> [!IMPORTANT]
+> ## 发布方式临时调整
+>
+> BiliPai 现阶段暂时只通过 GitHub 同步源码，GitHub Releases 和 GitHub Actions 不再提供最新 APK。
+>
+> 最新 APK 仅在[官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9)更新。请勿从未经确认的渠道下载安装包，并建议核对群组发布消息中的文件名、源码提交和 SHA-256。
 
 ## 项目定位
 
@@ -80,13 +81,15 @@ BiliPai 是一个基于 Kotlin 与 Jetpack Compose 的第三方 Bilibili Android
 
 | 项目 | 说明 |
 | --- | --- |
-| 最新版本 | [GitHub Releases](https://github.com/jay3-yy/BiliPai/releases) |
+| 源码更新 | GitHub 仓库持续同步 |
+| 最新 APK | [BiliPai 官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9) |
+| GitHub Releases | 暂停提供最新 APK，仅保留历史发布记录 |
 | 系统要求 | Android 8.0+ / API 26+ |
 | 推荐系统 | Android 12+，可获得更完整的 Material You 与动态取色体验 |
 | CPU 架构 | 以 Release 实际产物为准，优先面向 64 位设备 |
 | 登录方式 | TV 扫码、手机号密码、短信验证码、Cookie 导入 |
 
-安装 APK 时可能需要允许“安装未知来源应用”。如果遇到播放画质、登录状态或缓存问题，请先确认当前版本、网络环境和账号权限。
+安装 APK 时可能需要允许“安装未知来源应用”。最新安装包请以 Telegram 群组置顶或管理员发布消息为准；如果遇到播放画质、登录状态或缓存问题，请先确认当前版本、网络环境和账号权限。
 
 ## 核心能力
 
@@ -182,6 +185,8 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
+完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.1.0-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.1.0.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
+
 `google-services.json` 是可选项：放入 `app/` 后启用 Firebase Crashlytics / Analytics；缺失时构建脚本会跳过相关能力。
 
 ## 文档入口
@@ -196,11 +201,12 @@ cd BiliPai
 | QA 手册 | [docs/wiki/QA.md](docs/wiki/QA.md) |
 | 用户问答 | [docs/wiki/FAQ.md](docs/wiki/FAQ.md) |
 | 发布流程 | [docs/wiki/RELEASE_WORKFLOW.md](docs/wiki/RELEASE_WORKFLOW.md) |
+| 版本规范 | [docs/wiki/VERSIONING.md](docs/wiki/VERSIONING.md) |
 | 变更日志 | [CHANGELOG.md](CHANGELOG.md) |
 
 ## 最近更新
 
-当前构建为 `9.9.9.8.6 / versionCode 278`；最新完整发布记录为 `v9.9.9.8.6`。公开发布状态与下载请以 [GitHub Releases](https://github.com/jay3-yy/BiliPai/releases) 和 [CHANGELOG.md](CHANGELOG.md) 为准：
+当前构建为 `0.1.0 / versionCode 282`；最新完整发布记录为 `v0.1.0`。这是 BiliPai 的全新 `0.x` 版本纪元；源码状态以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准，APK 仅通过[官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9)更新：
 
 - 构建基线升级至 AGP 9.3.1 / Gradle 9.5 / Compose BOM 2026.06.01。
 - Navigation3 runtime/UI 对齐至官方 `1.2.0-alpha07`，继续收敛预测返回真实来源页与整卡稳定性。

@@ -994,13 +994,13 @@ fun rememberVideoPlayerState(
 
             //  根据设置选择 RenderersFactory
             val renderersFactory = if (hwDecodeEnabled) {
-                // 默认 Factory，优先使用硬件解码
+                // 平台解码器优先；平台不支持 E-AC-3 时才使用应用内置 FFmpeg。
                 HiResCompatibleRenderersFactory(context)
-                    .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+                    .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             } else {
-                // 强制使用软件解码
+                // 关闭硬件视频偏好时仍保留 E-AC-3 软件音频兜底。
                 HiResCompatibleRenderersFactory(context)
-                    .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+                    .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
                     .setEnableDecoderFallback(true)
             }
 
