@@ -3,44 +3,18 @@ package com.android.purebilibili.navigation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/**
+ * KernelSU 底栏返回不跟手 seek，只在 onBackCompleted 用 animateScrollBy 切页。
+ * 这里只保留与 KernelSU 一致的 duration 策略断言。
+ */
 class MainBottomPagerPredictiveBackPolicyTest {
 
     @Test
-    fun `predictive return maps system progress to a linear pager delta`() {
-        assertEquals(
-            -360f,
-            resolvePredictivePagerScrollDeltaPx(
-                startPage = 3,
-                targetPage = 0,
-                pageStepPx = 400f,
-                previousProgress = 0.2f,
-                progress = 0.5f,
-            ),
-        )
-    }
-
-    @Test
-    fun `predictive return clamps out of range progress`() {
-        assertEquals(
-            -800f,
-            resolvePredictivePagerScrollDeltaPx(
-                startPage = 2,
-                targetPage = 0,
-                pageStepPx = 400f,
-                previousProgress = -1f,
-                progress = 2f,
-            ),
-        )
-    }
-
-    @Test
-    fun `predictive return only settles its remaining distance after release`() {
-        assertEquals(
-            80,
-            resolvePredictivePagerSettleDurationMillis(
-                maxDurationMillis = 160,
-                progressDistance = 0.5f,
-            ),
-        )
+    fun `kernelSu style duration scales with page distance`() {
+        // KernelSU: duration = 100 * max(distance, 2) + 100
+        assertEquals(300, resolveBottomPagerNavigationDurationMillis(pageDistance = 1))
+        assertEquals(300, resolveBottomPagerNavigationDurationMillis(pageDistance = 2))
+        assertEquals(400, resolveBottomPagerNavigationDurationMillis(pageDistance = 3))
+        assertEquals(500, resolveBottomPagerNavigationDurationMillis(pageDistance = 4))
     }
 }

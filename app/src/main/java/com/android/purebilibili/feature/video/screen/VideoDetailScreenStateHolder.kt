@@ -3479,6 +3479,14 @@ internal fun VideoDetailScreenStateHolder(
                                     inlineHeight = inlinePlayerHeight,
                                     fullscreenHeight = fullscreenPlayerHeight,
                                     enabled = continuousFullscreenTransitionEnabled,
+                                    // 横屏 16:9：按真实布局宽度算高度，消除 vivo 等机型左右黑边。
+                                    preferLayoutWidth16x9Inline = !useOfficialInlinePortraitDetailExperience &&
+                                        !suppressPhoneDetailBodyForDirectPortrait,
+                                    inlineTopInset = if (!useOfficialInlinePortraitDetailExperience) {
+                                        playerTopInset
+                                    } else {
+                                        0.dp
+                                    },
                                 )
                                 .background(Color.Black)  // 黑色背景
                                 .clipToBounds()

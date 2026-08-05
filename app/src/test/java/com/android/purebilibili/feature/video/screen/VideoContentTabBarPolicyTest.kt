@@ -5,9 +5,150 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class VideoContentTabBarPolicyTest {
+
+    @Test
+    fun `comment list at top only when first item and zero offset`() {
+        assertTrue(isVideoContentCommentListAtTop(0, 0))
+        assertFalse(isVideoContentCommentListAtTop(0, 1))
+        assertFalse(isVideoContentCommentListAtTop(1, 0))
+    }
+
+    @Test
+    fun `collapse progress follows nested collapse px and snaps full when list leaves top`() {
+        assertEquals(
+            0f,
+            resolveVideoContentTabBarCollapseProgress(
+                collapsePx = 20f,
+                maxCollapsePx = 80f,
+                selectedTabIndex = 0,
+                listAtTop = true,
+            ),
+        )
+        assertEquals(
+            0.25f,
+            resolveVideoContentTabBarCollapseProgress(
+                collapsePx = 20f,
+                maxCollapsePx = 80f,
+                selectedTabIndex = 1,
+                listAtTop = true,
+            ),
+        )
+        assertEquals(
+            1f,
+            resolveVideoContentTabBarCollapseProgress(
+                collapsePx = 10f,
+                maxCollapsePx = 80f,
+                selectedTabIndex = 1,
+                listAtTop = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `preScroll collapses with downward content scroll and can reverse expand at top`() {
+        val collapse = reduceVideoContentTabBarCollapseOnPreScroll(
+            collapsePx = 10f,
+            maxCollapsePx = 80f,
+            availableY = -30f,
+            listAtTop = true,
+            enabled = true,
+        )
+        assertEquals(40f, collapse!!.nextCollapsePx)
+        assertEquals(-30f, collapse.consumedY)
+
+        val expand = reduceVideoContentTabBarCollapseOnPreScroll(
+            collapsePx = 40f,
+            maxCollapsePx = 80f,
+            availableY = 25f,
+            listAtTop = true,
+            enabled = true,
+        )
+        assertEquals(15f, expand!!.nextCollapsePx)
+        assertEquals(25f, expand.consumedY)
+    }
+
+    @Test
+    fun `preScroll expand is ignored when list not at top so browsing can keep chrome hidden`() {
+        assertNull(
+            reduceVideoContentTabBarCollapseOnPreScroll(
+                collapsePx = 80f,
+                maxCollapsePx = 80f,
+                availableY = 40f,
+                listAtTop = false,
+                enabled = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `preScroll is interruptible mid collapse`() {
+        val mid = reduceVideoContentTabBarCollapseOnPreScroll(
+            collapsePx = 0f,
+            maxCollapsePx = 100f,
+            availableY = -40f,
+            listAtTop = true,
+            enabled = true,
+        )!!
+        assertEquals(40f, mid.nextCollapsePx)
+
+        val reverse = reduceVideoContentTabBarCollapseOnPreScroll(
+            collapsePx = mid.nextCollapsePx,
+            maxCollapsePx = 100f,
+            availableY = 15f,
+            listAtTop = true,
+            enabled = true,
+        )!!
+        assertEquals(25f, reverse.nextCollapsePx)
+        assertEquals(15f, reverse.consumedY)
+    }
+
+    @Test
+    fun `postScroll expands remainder after list hits top during fling`() {
+        val update = reduceVideoContentTabBarCollapseOnPostScroll(
+            collapsePx = 50f,
+            maxCollapsePx = 80f,
+            availableY = 30f,
+            listAtTop = true,
+            enabled = true,
+        )
+        assertEquals(20f, update!!.nextCollapsePx)
+        assertEquals(30f, update.consumedY)
+    }
+
+    @Test
+    fun `leaving list top forces full collapse while intro tab resets`() {
+        assertEquals(
+            80f,
+            resolveVideoContentTabBarCollapsePxWhenListLeavesTop(
+                collapsePx = 12f,
+                maxCollapsePx = 80f,
+                listAtTop = false,
+                enabled = true,
+            ),
+        )
+        assertEquals(
+            0f,
+            resolveVideoContentTabBarCollapsePxWhenListLeavesTop(
+                collapsePx = 40f,
+                maxCollapsePx = 80f,
+                listAtTop = true,
+                enabled = false,
+            ),
+        )
+        assertEquals(
+            40f,
+            resolveVideoContentTabBarCollapsePxWhenListLeavesTop(
+                collapsePx = 40f,
+                maxCollapsePx = 80f,
+                listAtTop = true,
+                enabled = true,
+            ),
+        )
+    }
 
     @Test
     fun `tab bar layout reserves trailing danmaku action area`() {

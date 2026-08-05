@@ -601,7 +601,7 @@ fun PhoneLoginContent(
 
     var phoneNumber by rememberSaveable { mutableStateOf("") }
     var smsCode by rememberSaveable { mutableStateOf("") }
-    var selectedRegionCid by rememberSaveable { mutableIntStateOf(86) }
+    var selectedRegionCid by rememberSaveable { mutableIntStateOf(DEFAULT_PHONE_REGION_CID) }
     var captchaManager by remember { mutableStateOf<CaptchaManager?>(null) }
     var regionMenuExpanded by remember { mutableStateOf(false) }
     val phoneRegions = remember { resolveSupportedPhoneRegions() }

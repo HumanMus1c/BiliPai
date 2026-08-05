@@ -1,20 +1,27 @@
 # 发布流程（维护版）
 
-最后更新：2026-08-04（按当前文档链路校对）
+最后更新：2026-08-05（日历构建号 YY.MMDD.N）
 
 ## 目标
 
 统一版本发布动作，避免出现“代码已发版但 README/Wiki 未同步”的情况。
 
-> [!IMPORTANT]
-> 临时分发策略：GitHub 仅同步源码，不上传 APK Artifact 或 Release 附件。最新 APK 仅发布到[官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9)，并随消息提供版本、文件名、源码提交和 SHA-256。
+## 官方社群
+
+| 用途 | 链接 |
+| --- | --- |
+| 频道（公告 / 发布） | https://t.me/bilipai666 |
+| 交流群 | https://t.me/bilipai888/1 |
+
+发布时建议在频道或群组消息中附上：`versionName`、`versionCode`、交付 APK 文件名、短 commit、SHA-256。
 
 ## 标准步骤
 
 1. 更新版本号  
    - 文件：`app/build.gradle.kts`
-   - 规则：`versionCode + 1`，`versionName` 按 [版本规范](VERSIONING.md) 递增
-   - 标签：稳定版标签必须为 `v<versionName>`，例如 `v0.1.0`
+   - 规则：`versionCode + 1`；`versionName` 为 `YY.MMDD.N`（见 [版本规范](VERSIONING.md)）
+   - 同日再发：`N + 1`；换日：改 `MMDD` 且 `N` 从 1 起
+   - 标签：稳定版标签必须为 `v<versionName>`，例如 `v26.0805.1`
    - 注意：若 `versionName` 已领先公开文档，发布前必须补齐 `CHANGELOG.md` 与 README/Wiki
 
 2. 更新发布日志  
@@ -55,7 +62,7 @@
 
 - [ ] `app/build.gradle.kts` 版本号正确
 - [ ] Git 标签、Changelog、构建元数据与 APK 文件名使用同一 `versionName`
-- [ ] GitHub Actions 与 GitHub Releases 未上传 APK；Telegram 发布消息包含规范文件名、源码提交和 SHA-256
+- [ ] Telegram 频道/群组发布消息包含规范文件名、源码提交和 SHA-256
 - [ ] `CHANGELOG.md` 新版本段存在
 - [ ] 更新范围使用上一个 GitHub Release 标签，未把未发布的中间版本误作基准
 - [ ] `README.md` 已同步最新版本与已完成功能

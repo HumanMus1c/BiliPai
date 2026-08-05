@@ -1836,6 +1836,14 @@ interface PassportApi {
     suspend fun pollQrCode(@Query("qrcode_key") key: String): Response<PollResponse>
     
     // ==========  极验验证 + 手机号/密码登录 ==========
+
+    /**
+     * 国际冠字码列表。
+     * `id` → 短信接口 `cid`；`country_id` → 拨号区号（如 "86"）。
+     * 文档：/docs/login/login_action/SMS.md
+     */
+    @GET("web/generic/country/list")
+    suspend fun getCountryList(): PassportCountryListResponse
     
     // 获取极验验证参数 (gt, challenge, token)
     @GET("x/passport-login/captcha")
@@ -1847,7 +1855,8 @@ interface PassportApi {
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("x/passport-login/web/sms/send")
     suspend fun sendSmsCode(
-        @retrofit2.http.Field("cid") cid: Int = 86,           // 国家代码，中国大陆 = 86
+        // cid = 国家列表 id（中国大陆 = 1），不是拨号区号 86
+        @retrofit2.http.Field("cid") cid: Int = 1,
         @retrofit2.http.Field("tel") tel: String,              // 手机号
         @retrofit2.http.Field("source") source: String = "main_web",
         @retrofit2.http.Field("token") token: String,          // captcha token
@@ -1867,7 +1876,7 @@ interface PassportApi {
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("x/passport-login/web/login/sms")
     suspend fun loginBySms(
-        @retrofit2.http.Field("cid") cid: Int = 86,
+        @retrofit2.http.Field("cid") cid: Int = 1,
         @retrofit2.http.Field("tel") tel: String,
         @retrofit2.http.Field("code") code: Int,                // 短信验证码
         @retrofit2.http.Field("source") source: String = "main_mini",

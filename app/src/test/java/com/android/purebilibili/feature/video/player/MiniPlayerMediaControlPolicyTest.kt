@@ -91,6 +91,24 @@ class MiniPlayerMediaControlPolicyTest {
     }
 
     @Test
+    fun `mini player entry resumes active playback intent`() {
+        assertTrue(
+            shouldResumePlaybackOnMiniPlayerEntry(
+                isPlaying = true,
+                playWhenReady = true,
+                playbackState = Player.STATE_READY
+            )
+        )
+        assertTrue(
+            shouldResumePlaybackOnMiniPlayerEntry(
+                isPlaying = false,
+                playWhenReady = true,
+                playbackState = Player.STATE_READY
+            )
+        )
+    }
+
+    @Test
     fun `pip media control immediately syncs observable playing state`() {
         assertTrue(resolvePlayingStateAfterMediaControl(MediaControlType.PLAY, playerIsPlaying = false))
         assertFalse(resolvePlayingStateAfterMediaControl(MediaControlType.PAUSE, playerIsPlaying = true))

@@ -3364,22 +3364,9 @@ fun AppNavigation(
                 }
             }
 
+            // KernelSU MainScreenBackHandler: onBackCompleted → animateToPage(home)
             MainHostTabBackHandler(
                 enabled = shouldInterceptTabBack,
-                onPredictiveProgress = { progress ->
-                    val homeIndex = visibleBottomBarItems.indexOf(BottomNavItem.HOME)
-                    if (homeIndex >= 0) {
-                        mainBottomPagerState.seekPredictiveReturnToPage(
-                            targetIndex = homeIndex,
-                            progress = progress,
-                        )
-                    }
-                },
-                onPredictiveCancelled = mainBottomPagerState::cancelPredictiveReturn,
-                onPredictiveCompleted = {
-                    val homeIndex = visibleBottomBarItems.indexOf(BottomNavItem.HOME)
-                    homeIndex >= 0 && mainBottomPagerState.commitPredictiveReturnToPage(homeIndex)
-                },
                 onReturnToHomeTab = {
                     val homeIndex = visibleBottomBarItems.indexOf(BottomNavItem.HOME)
                     if (homeIndex >= 0) {

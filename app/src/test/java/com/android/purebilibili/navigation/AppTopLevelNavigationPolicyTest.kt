@@ -574,63 +574,65 @@ class AppTopLevelNavigationPolicyTest {
     }
 
     @Test
-    fun bottomPagerDuringNavigation_composesOnlyStartAndTargetBeforeReady() {
+    fun bottomPagerDuringNavigation_composesAllPagesWhenContentReady() {
+        // KernelSU: contentReady → every tab stays mounted through animateScrollBy.
         assertTrue(
             shouldComposeBottomPagerPage(
                 item = BottomNavItem.HOME,
                 page = 0,
                 currentPage = 1,
-                selectedPage = 3,
+                selectedPage = 0,
                 isNavigating = true,
-                navigationStartPage = 0,
-                contentReady = false
+                navigationStartPage = 4,
+                contentReady = true
             )
         )
         assertTrue(
             shouldComposeBottomPagerPage(
-                item = BottomNavItem.PROFILE,
-                page = 3,
-                currentPage = 1,
-                selectedPage = 3,
+                item = BottomNavItem.LIVE,
+                page = 4,
+                currentPage = 3,
+                selectedPage = 0,
                 isNavigating = true,
-                navigationStartPage = 0,
-                contentReady = false
+                navigationStartPage = 4,
+                contentReady = true
             )
         )
-        assertFalse(
+        assertTrue(
             shouldComposeBottomPagerPage(
                 item = BottomNavItem.DYNAMIC,
                 page = 1,
                 currentPage = 1,
-                selectedPage = 3,
+                selectedPage = 0,
                 isNavigating = true,
-                navigationStartPage = 0,
-                contentReady = false
+                navigationStartPage = 4,
+                contentReady = true
             )
         )
-        assertFalse(
+        // Intermediate pages stay real (not empty Box) so far tab → home scrolls solidly.
+        assertTrue(
             shouldComposeBottomPagerPage(
                 item = BottomNavItem.HISTORY,
                 page = 2,
-                currentPage = 1,
-                selectedPage = 3,
+                currentPage = 3,
+                selectedPage = 0,
                 isNavigating = true,
-                navigationStartPage = 0,
-                contentReady = false
+                navigationStartPage = 4,
+                contentReady = true
             )
         )
     }
 
     @Test
-    fun bottomPagerAfterReady_allowsNonStoryPagesToStayComposed() {
+    fun bottomPagerAfterReady_keepsSettledPagesComposedWhenNotNavigating() {
         assertTrue(
             shouldComposeBottomPagerPage(
                 item = BottomNavItem.DYNAMIC,
                 page = 1,
                 currentPage = 1,
                 selectedPage = 3,
-                isNavigating = true,
-                navigationStartPage = 0,
+                isNavigating = false,
+                navigationStartPage = 1,
                 contentReady = true
             )
         )
@@ -640,8 +642,8 @@ class AppTopLevelNavigationPolicyTest {
                 page = 2,
                 currentPage = 1,
                 selectedPage = 3,
-                isNavigating = true,
-                navigationStartPage = 0,
+                isNavigating = false,
+                navigationStartPage = 1,
                 contentReady = true
             )
         )
@@ -687,8 +689,9 @@ class AppTopLevelNavigationPolicyTest {
     }
 
     @Test
-    fun storyBottomPagerPage_skipsOffscreenPreloadEvenAfterContentReady() {
-        assertFalse(
+    fun storyBottomPagerPage_staysComposedAfterContentReadyLikeKernelSu() {
+        // KernelSU mounts every page after contentReady; active work still uses settledPage.
+        assertTrue(
             shouldComposeBottomPagerPage(
                 item = BottomNavItem.STORY,
                 page = 3,
@@ -710,11 +713,22 @@ class AppTopLevelNavigationPolicyTest {
                 contentReady = false
             )
         )
+        assertFalse(
+            shouldComposeBottomPagerPage(
+                item = BottomNavItem.STORY,
+                page = 3,
+                currentPage = 0,
+                selectedPage = 1,
+                isNavigating = false,
+                navigationStartPage = 0,
+                contentReady = false
+            )
+        )
     }
 
     @Test
-    fun settingsBottomPagerPage_skipsOffscreenPreloadEvenAfterContentReady() {
-        assertFalse(
+    fun settingsBottomPagerPage_staysComposedAfterContentReadyLikeKernelSu() {
+        assertTrue(
             shouldComposeBottomPagerPage(
                 item = BottomNavItem.SETTINGS,
                 page = 4,
@@ -733,6 +747,17 @@ class AppTopLevelNavigationPolicyTest {
                 selectedPage = 0,
                 isNavigating = false,
                 navigationStartPage = 4,
+                contentReady = false
+            )
+        )
+        assertFalse(
+            shouldComposeBottomPagerPage(
+                item = BottomNavItem.SETTINGS,
+                page = 4,
+                currentPage = 0,
+                selectedPage = 0,
+                isNavigating = false,
+                navigationStartPage = 0,
                 contentReady = false
             )
         )

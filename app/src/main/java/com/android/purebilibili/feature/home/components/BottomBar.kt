@@ -1000,6 +1000,11 @@ internal fun Modifier.kernelSuFloatingDockSurface(
     blurEnabled: Boolean,
     glassEnabled: Boolean,
     drawShellLens: Boolean = true,
+    /**
+     * Scales shell lens refraction + edge highlight. Use <1 for short top docks so scroll
+     * liquid glass remains, without the full-strength rim hairline (虾线).
+     */
+    shellLensIntensity: Float = 1f,
     blurRadius: Dp,
     hazeState: HazeState?,
     motionTier: MotionTier,
@@ -1011,6 +1016,7 @@ internal fun Modifier.kernelSuFloatingDockSurface(
     materialMotionProgress: Float = 0f,
     materialPressProgress: Float = 0f
 ): Modifier = composed {
+    val effectiveShellLensIntensity = shellLensIntensity.coerceIn(0f, 1f)
     val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.chromeBackground())
     val renderGlassEffects = shouldRenderBottomBarLiquidGlassEffects(
         glassEnabled = glassEnabled,
@@ -1078,16 +1084,26 @@ internal fun Modifier.kernelSuFloatingDockSurface(
                             if (
                                 renderGlassEffects &&
                                 drawShellLens &&
+                                effectiveShellLensIntensity > 0f &&
                                 materialSpec.shellRefractionHeightDp > 0f &&
                                 materialSpec.shellRefractionAmountDp > 0f
                             ) {
                                 lens(
-                                    refractionHeight = materialSpec.shellRefractionHeightDp.dp.toPx(),
-                                    refractionAmount = materialSpec.shellRefractionAmountDp.dp.toPx()
+                                    refractionHeight = (
+                                        materialSpec.shellRefractionHeightDp * effectiveShellLensIntensity
+                                        ).dp.toPx(),
+                                    refractionAmount = (
+                                        materialSpec.shellRefractionAmountDp * effectiveShellLensIntensity
+                                        ).dp.toPx()
                                 )
                             }
                             val shellShader = materialSpec.shellShader
-                            if (renderGlassEffects && drawShellLens && shellShader != null) {
+                            if (
+                                renderGlassEffects &&
+                                drawShellLens &&
+                                effectiveShellLensIntensity > 0f &&
+                                shellShader != null
+                            ) {
                                 val cornerPx = (size.height.coerceAtMost(size.width)) / 2f
                                 val u = resolveLiquidGlassShaderUniforms(
                                     widthPx = size.width,
@@ -1097,7 +1113,7 @@ internal fun Modifier.kernelSuFloatingDockSurface(
                                     thicknessPx = shellShader.thicknessDp.dp.toPx(),
                                     refractIndex = shellShader.refractIndex,
                                     refractIntensity = shellShader.refractIntensity,
-                                    intensityScale = 1f
+                                    intensityScale = effectiveShellLensIntensity
                                 )
                                 runtimeShaderEffect(
                                     key = LIQUID_GLASS_SHADER_KEY,
@@ -1126,7 +1142,12 @@ internal fun Modifier.kernelSuFloatingDockSurface(
                     highlight = {
                         Highlight(
                             width = AppSpacingTokens.Micro / 2,
-                            alpha = if (renderGlassEffects) 0.75f else 0f
+                            // Soft shell intensity also tames the specular rim (top-edge 虾线).
+                            alpha = if (renderGlassEffects) {
+                                0.75f * effectiveShellLensIntensity
+                            } else {
+                                0f
+                            }
                         )
                     },
                     shadow = {
@@ -1167,6 +1188,8 @@ internal fun Modifier.kernelSuMiuixFloatingDockSurface(
     blurEnabled: Boolean,
     glassEnabled: Boolean,
     drawShellLens: Boolean = true,
+    /** See [kernelSuFloatingDockSurface.shellLensIntensity]. */
+    shellLensIntensity: Float = 1f,
     blurRadius: Dp,
     hazeState: HazeState?,
     motionTier: MotionTier,
@@ -1198,6 +1221,7 @@ internal fun Modifier.kernelSuMiuixFloatingDockSurface(
         pressProgress = materialPressProgress
     )
     val baseHighlight = rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = -45f)
+    val effectiveShellLensIntensity = shellLensIntensity.coerceIn(0f, 1f)
 
     this
         .then(
@@ -1240,12 +1264,19 @@ internal fun Modifier.kernelSuMiuixFloatingDockSurface(
                                 miuixBlur(resolvedBlurRadius.toPx(), resolvedBlurRadius.toPx())
                                 if (
                                     drawShellLens &&
+                                    effectiveShellLensIntensity > 0f &&
                                     materialSpec.shellRefractionHeightDp > 0f &&
                                     materialSpec.shellRefractionAmountDp > 0f
                                 ) {
                                     miuixLens(
-                                        refractionHeight = materialSpec.shellRefractionHeightDp.dp.toPx(),
-                                        refractionAmount = materialSpec.shellRefractionAmountDp.dp.toPx()
+                                        refractionHeight = (
+                                            materialSpec.shellRefractionHeightDp *
+                                                effectiveShellLensIntensity
+                                            ).dp.toPx(),
+                                        refractionAmount = (
+                                            materialSpec.shellRefractionAmountDp *
+                                                effectiveShellLensIntensity
+                                            ).dp.toPx()
                                     )
                                 }
                             } else if (blurEnabled && !useHazeBlur) {
@@ -1256,7 +1287,8 @@ internal fun Modifier.kernelSuMiuixFloatingDockSurface(
                         highlight = {
                             baseHighlight.copy(
                                 alpha = if (renderGlassEffects) {
-                                    0.75f * materialSpec.highlightWidthScale
+                                    0.75f * materialSpec.highlightWidthScale *
+                                        effectiveShellLensIntensity
                                 } else {
                                     0f
                                 }

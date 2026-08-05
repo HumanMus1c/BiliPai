@@ -151,6 +151,7 @@ internal fun BottomBarMatchedLiquidDock(
     blurEnabled: Boolean,
     glassEnabled: Boolean,
     drawShellLens: Boolean = true,
+    shellLensIntensity: Float = 1f,
     blurRadius: Dp,
     modifier: Modifier = Modifier,
     hazeState: HazeState? = null,
@@ -176,6 +177,7 @@ internal fun BottomBarMatchedLiquidDock(
                     blurEnabled = blurEnabled,
                     glassEnabled = glassEnabled,
                     drawShellLens = drawShellLens,
+                    shellLensIntensity = shellLensIntensity,
                     blurRadius = blurRadius,
                     hazeState = hazeState,
                     motionTier = motionTier,
@@ -210,7 +212,8 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
     materialScrollProgressOverride: Float? = null,
     materialMotionProgress: Float = 0f,
     materialPressProgress: Float = 0f,
-    drawShellLens: Boolean = true
+    drawShellLens: Boolean = true,
+    shellLensIntensity: Float = 1f
 ): Modifier = composed {
     val isScrolling = isScrollInProgressProvider()
     val animatedScrollProgress by animateFloatAsState(
@@ -230,6 +233,7 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
             blurEnabled = blurEnabled,
             glassEnabled = glassEnabled,
             drawShellLens = drawShellLens,
+            shellLensIntensity = shellLensIntensity,
             blurRadius = blurRadius,
             hazeState = hazeState,
             motionTier = motionTier,
@@ -249,6 +253,7 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
             blurEnabled = blurEnabled,
             glassEnabled = glassEnabled,
             drawShellLens = drawShellLens,
+            shellLensIntensity = shellLensIntensity,
             blurRadius = blurRadius,
             hazeState = hazeState,
             motionTier = motionTier,
@@ -271,6 +276,7 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
 /**
  * @param drawShellLens 底栏整壳可开 lens；搜索框/评论输入等小胶囊必须 false，
  * 否则 refraction 边沿会出现「虾线」亮边（尤其 iOS 主题复用安卓原生液态玻璃时）。
+ * @param shellLensIntensity 顶部分类等矮 dock 可用 <1 的 soft lens：保留上下滑动折射，压低边沿虾线。
  */
 internal fun BottomBarMatchedReusableLiquidDock(
     shape: Shape,
@@ -278,6 +284,7 @@ internal fun BottomBarMatchedReusableLiquidDock(
     backdrop: Backdrop? = null,
     liquidGlassEffectsEnabled: Boolean = true,
     drawShellLens: Boolean = true,
+    shellLensIntensity: Float = 1f,
     isScrollInProgressProvider: () -> Boolean = { false },
     content: @Composable BoxScope.(liquidChromeActive: Boolean) -> Unit
 ) {
@@ -358,6 +365,7 @@ internal fun BottomBarMatchedReusableLiquidDock(
             blurEnabled = true,
             glassEnabled = glassEnabled,
             drawShellLens = drawShellLens,
+            shellLensIntensity = shellLensIntensity,
             blurRadius = tuning.shellBlurRadiusDp.dp,
             modifier = Modifier.matchParentSize(),
             liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,

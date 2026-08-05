@@ -45,9 +45,9 @@ class TopTabLayoutPolicyTest {
 
     @Test
     fun textOnlyTabsKeepRoomForTwoChineseCharactersOnNarrowScreens() {
-        // 52dp minus each side's 8dp item padding leaves 36dp for a two-character label.
+        // 64dp floor keeps two CJK glyphs after compact side padding instead of pure "...".
         assertEquals(
-            52f,
+            64f,
             resolveMd3TopTabItemWidthDp(
                 containerWidthDp = 248f,
                 visibleSlots = 5,
@@ -63,13 +63,15 @@ class TopTabLayoutPolicyTest {
         assertEquals(106.666f, resolveMd3TopTabItemWidthDp(containerWidthDp = 320f), 0.001f)
         assertEquals(120f, resolveMd3TopTabItemWidthDp(containerWidthDp = 360f), 0.001f)
         assertEquals(213.333f, resolveMd3TopTabItemWidthDp(containerWidthDp = 640f), 0.001f)
-        assertEquals(60f, resolveMd3TopTabItemWidthDp(containerWidthDp = 360f, visibleSlots = 6), 0.001f)
+        // Six slots on a phone would be 60dp raw; floor raises to 64 so labels stay readable.
+        assertEquals(64f, resolveMd3TopTabItemWidthDp(containerWidthDp = 360f, visibleSlots = 6), 0.001f)
     }
 
     @Test
     fun `icon and text tabs reserve enough width for Chinese labels`() {
         assertEquals(80f, resolveTopTabWrapItemWidthDp(labelMode = 0, isFloatingStyle = false), 0.001f)
         assertEquals(84f, resolveTopTabWrapItemWidthDp(labelMode = 0, isFloatingStyle = true), 0.001f)
+        assertEquals(72f, resolveTopTabWrapItemWidthDp(labelMode = 2, isFloatingStyle = true), 0.001f)
         assertEquals(
             80f,
             resolveMd3TopTabItemWidthDp(
@@ -91,6 +93,22 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
+    fun `six text tabs prefer scrolling over pure ellipsis on phone width`() {
+        val itemWidth = resolveMd3TopTabItemWidthDp(
+            containerWidthDp = 360f,
+            visibleSlots = 6,
+            labelMode = 2
+        )
+        assertEquals(64f, itemWidth, 0.001f)
+        // Content budget after 3dp outer + 4dp content padding each side.
+        assertTrue("text room should fit two CJK glyphs", itemWidth - 14f >= 30f)
+        assertTrue(
+            "six floored tabs may exceed the viewport and scroll",
+            itemWidth * 6f > 360f
+        )
+    }
+
+    @Test
     fun `md3 top tabs center sparse categories in three slot viewport`() {
         val itemWidth = resolveMd3TopTabItemWidthDp(containerWidthDp = 360f)
 
@@ -103,7 +121,8 @@ class TopTabLayoutPolicyTest {
     fun `md3 and miuix multi-tab rows keep leading edge for all label modes`() {
         val itemWidth = resolveMd3TopTabItemWidthDp(containerWidthDp = 400f, visibleSlots = 5)
 
-        assertEquals(72f, itemWidth, 0.001f)
+        // 400/5 = 80, within the text-only floor/ceiling (64–88).
+        assertEquals(80f, itemWidth, 0.001f)
         // Text-only and icon+text: lead-align (leftover must not center-push "推荐")
         assertEquals(
             0f,
@@ -252,7 +271,12 @@ class TopTabLayoutPolicyTest {
                 categoryCount = 6,
                 labelMode = labelMode
             )
-            assertEquals(360f, itemWidth * 6 + 4f, 0.001f)
+            // Readable floor may exceed the raw equal-split so the row scrolls instead of "...".
+            assertTrue(
+                "labelMode=$labelMode itemWidth=$itemWidth",
+                itemWidth >= resolveMd3TopTabMinItemWidthDp(labelMode)
+            )
+            assertTrue(itemWidth * 6f + 4f >= 360f)
         }
     }
 
@@ -388,12 +412,12 @@ class TopTabLayoutPolicyTest {
             ),
             0.001f
         )
-        // Text only: 66 × 5 = 330
-        assertEquals(66f, resolveTopTabWrapItemWidthDp(labelMode = 2, isFloatingStyle = true), 0.001f)
+        // Text only: 72 × 5 = 360
+        assertEquals(72f, resolveTopTabWrapItemWidthDp(labelMode = 2, isFloatingStyle = true), 0.001f)
         assertEquals(
-            330f,
+            360f,
             resolveTopTabDockWrapWidthDp(
-                itemWidthDp = 66f,
+                itemWidthDp = 72f,
                 categoryCount = 5,
                 maxWidthDp = 440f
             ),
@@ -456,10 +480,11 @@ class TopTabLayoutPolicyTest {
 
     @Test
     fun `ios top tabs reserve enough height for icon label modes`() {
-        assertEquals(56f, resolveIosTopTabRowHeight(isFloatingStyle = true, labelMode = 2).value, 0.001f)
-        assertEquals(56f, resolveIosTopTabRowHeight(isFloatingStyle = true, labelMode = 1).value, 0.001f)
-        assertEquals(62f, resolveIosTopTabRowHeight(isFloatingStyle = true, labelMode = 0).value, 0.001f)
-        assertEquals(58f, resolveIosTopTabRowHeight(isFloatingStyle = false, labelMode = 0).value, 0.001f)
+        // Compact chrome track: all label modes share 36/40 so content is not clipped.
+        assertEquals(40f, resolveIosTopTabRowHeight(isFloatingStyle = true, labelMode = 2).value, 0.001f)
+        assertEquals(40f, resolveIosTopTabRowHeight(isFloatingStyle = true, labelMode = 1).value, 0.001f)
+        assertEquals(40f, resolveIosTopTabRowHeight(isFloatingStyle = true, labelMode = 0).value, 0.001f)
+        assertEquals(36f, resolveIosTopTabRowHeight(isFloatingStyle = false, labelMode = 0).value, 0.001f)
     }
 
     @Test

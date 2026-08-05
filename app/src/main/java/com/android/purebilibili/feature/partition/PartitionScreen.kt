@@ -107,7 +107,8 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
-import com.android.purebilibili.core.ui.CutePersonLoadingIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
 import com.android.purebilibili.core.util.resolveReplaceRefreshPage
 import com.android.purebilibili.core.ui.animation.DampedDragAnimationState
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
@@ -987,9 +988,10 @@ private fun PartitionVideoList(
         ?: "partition"
     when {
         state.videos.isEmpty() && state.isLoading -> {
-            Box(modifier = modifier.fillMaxHeight()) {
-                CutePersonLoadingIndicator(modifier = Modifier.align(Alignment.Center))
-            }
+            ContentMediaListSkeleton(
+                modifier = modifier.fillMaxHeight(),
+                itemCount = 8,
+            )
         }
         state.videos.isEmpty() && state.error != null -> {
             Box(modifier = modifier.fillMaxHeight()) {
@@ -1037,7 +1039,7 @@ private fun PartitionVideoList(
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CutePersonLoadingIndicator(size = 24.dp)
+                            AdaptiveLoadingIndicator(size = 24.dp)
                         }
                     }
                 }

@@ -10,7 +10,7 @@ class LoginAppAuthPolicyTest {
     fun `sms send uses Android HD credential and device parameters`() {
         val params = buildAndroidSmsSendParams(
             phone = "13800138000",
-            countryCode = 86,
+            countryCode = 1, // passport 国家列表 id，中国大陆
             token = "recaptcha-token",
             challenge = "challenge",
             validate = "validate",
@@ -31,7 +31,7 @@ class LoginAppAuthPolicyTest {
     fun `sms login uses Android HD credential parameters`() {
         val params = buildAndroidSmsLoginParams(
             phone = "13800138000",
-            countryCode = 86,
+            countryCode = 1,
             code = 123456,
             captchaKey = "captcha-key",
             buvid = "buvid",

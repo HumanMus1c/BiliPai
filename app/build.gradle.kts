@@ -35,6 +35,18 @@ abstract class ExportBiliPaiApkTask : org.gradle.api.DefaultTask() {
 
     @org.gradle.api.tasks.TaskAction
     fun export() {
+        val deliveryName = outputFileName.get().trim()
+        // 交付名必须是 BiliPai- 前缀；拒绝 app-release / app-dev 等 AGP 默认名。
+        check(
+            deliveryName.startsWith("BiliPai-") &&
+                deliveryName.endsWith(".apk", ignoreCase = true) &&
+                !deliveryName.lowercase().startsWith("app-") &&
+                !deliveryName.contains("app-release", ignoreCase = true) &&
+                !deliveryName.contains("app-dev", ignoreCase = true)
+        ) {
+            "Delivery APK must be BiliPai-<version>.apk, not default AGP names like app-release.apk. Got: $deliveryName"
+        }
+
         val sourceApks = packagedApkDirectory.get().asFile
             .walkTopDown()
             .filter { file -> file.isFile && file.extension.equals("apk", ignoreCase = true) }
@@ -47,10 +59,9 @@ abstract class ExportBiliPaiApkTask : org.gradle.api.DefaultTask() {
         destinationDirectory.listFiles()
             ?.filter { file -> file.isFile && file.extension.equals("apk", ignoreCase = true) }
             ?.forEach { staleApk -> staleApk.delete() }
-        sourceApks.single().copyTo(
-            target = destinationDirectory.resolve(outputFileName.get()),
-            overwrite = true
-        )
+        val target = destinationDirectory.resolve(deliveryName)
+        sourceApks.single().copyTo(target = target, overwrite = true)
+        logger.lifecycle("BiliPai delivery APK → ${target.absolutePath}")
     }
 }
 
@@ -109,10 +120,10 @@ android {
         applicationId = "com.android.purebilibili"
         minSdk = 26
         targetSdk = 35  // 保持35以避免Android 16的新运行时行为
-        // 🔥🔥 [版本号] 发布新版前记得更新！格式：versionCode +1, versionName 递增
-        // 更新日志：CHANGELOG.md
-        versionCode = 282
-        versionName = "0.1.0"
+        // 版本：YY.MMDD.N（两位年.月日.当日第 N 次构建）+ versionCode 单调 +1
+        // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
+        versionCode = 283
+        versionName = "26.0805.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -242,8 +253,12 @@ android {
     }
 }
 
-// Keep AGP's internal APK untouched and export a stable, user-facing artifact.
+// AGP 中间产物改用 BiliPai-<version> 基名（避免 app-release.apk）；
+// 交付物再由 export 写成最终 `BiliPai-<version>[.dev].apk`。
 val biliApkVersionName: String = android.defaultConfig.versionName ?: "0"
+base {
+    archivesName.set("BiliPai-$biliApkVersionName")
+}
 androidComponents {
     onVariants(selector().all()) { variant ->
         val variantName = variant.name.lowercase()
@@ -251,21 +266,29 @@ androidComponents {
             val capitalizedVariantName = variant.name.replaceFirstChar { character ->
                 character.uppercaseChar()
             }
-            val exportedVersionName = when (variantName) {
-                "release" -> biliApkVersionName
-                else -> "$biliApkVersionName-$variantName"
+            val deliveryFileName = when (variantName) {
+                "release" -> "BiliPai-$biliApkVersionName.apk"
+                else -> "BiliPai-$biliApkVersionName-$variantName.apk"
             }
             val exportTask = tasks.register<ExportBiliPaiApkTask>(
                 "export${capitalizedVariantName}Apk"
             ) {
                 group = "build"
-                description = "Exports the $variantName APK with the canonical BiliPai file name."
+                description =
+                    "Exports the $variantName APK as $deliveryFileName (never app-release / app-dev)."
                 packagedApkDirectory.set(variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.APK))
-                outputFileName.set("BiliPai-$exportedVersionName.apk")
+                outputFileName.set(deliveryFileName)
                 outputDirectory.set(layout.buildDirectory.dir("outputs/bilipai/$variantName"))
             }
-            tasks.matching { task -> task.name == "assemble$capitalizedVariantName" }
-                .configureEach { dependsOn(exportTask) }
+            // assemble 完成后导出规范名；package 同理。
+            listOf(
+                "assemble$capitalizedVariantName",
+                "package$capitalizedVariantName",
+            ).forEach { taskName ->
+                tasks.matching { task -> task.name == taskName }.configureEach {
+                    finalizedBy(exportTask)
+                }
+            }
         }
     }
 }

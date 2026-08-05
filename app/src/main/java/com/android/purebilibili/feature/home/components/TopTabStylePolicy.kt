@@ -467,31 +467,33 @@ internal fun resolveMd3TopTabVisualSpec(
         }
     }
 
+    // MATERIAL_UNDERLINE on the home dock shares the compact liquid track with TONAL/Miuix.
+    // Older 54–64dp Material TabRow heights clip inside the 36/40 chrome and collapse labels.
     return if (isFloatingStyle) {
         Md3TopTabVisualSpec(
-            rowHeight = if (showIconAndText) 64.dp else 56.dp,
-            selectedCapsuleHeight = 2.dp,
-            selectedCapsuleCornerRadius = 1.dp,
+            rowHeight = 40.dp,
+            selectedCapsuleHeight = CompactTopTabIndicatorHeightDp.dp,
+            selectedCapsuleCornerRadius = CompactTopTabIndicatorCornerDp.dp,
             selectedCapsuleTonalElevation = 0.dp,
             selectedCapsuleShadowElevation = 0.dp,
-            itemHorizontalPadding = if (showIconAndText) 8.dp else 14.dp,
-            iconSize = 24.dp,
+            itemHorizontalPadding = 10.dp,
+            iconSize = 18.dp,
             labelTextSize = 15.sp,
             labelLineHeight = 20.sp,
-            iconLabelSpacing = if (showIconAndText) 3.dp else 0.dp
+            iconLabelSpacing = if (showIconAndText) 6.dp else 0.dp
         )
     } else {
         Md3TopTabVisualSpec(
-            rowHeight = if (showIconAndText) 62.dp else 54.dp,
-            selectedCapsuleHeight = 2.dp,
-            selectedCapsuleCornerRadius = 1.dp,
+            rowHeight = 36.dp,
+            selectedCapsuleHeight = CompactTopTabIndicatorHeightDp.dp,
+            selectedCapsuleCornerRadius = CompactTopTabIndicatorCornerDp.dp,
             selectedCapsuleTonalElevation = 0.dp,
             selectedCapsuleShadowElevation = 0.dp,
-            itemHorizontalPadding = if (showIconAndText) 8.dp else 12.dp,
-            iconSize = 22.dp,
+            itemHorizontalPadding = 10.dp,
+            iconSize = 18.dp,
             labelTextSize = 15.sp,
             labelLineHeight = 20.sp,
-            iconLabelSpacing = if (showIconAndText) 3.dp else 0.dp
+            iconLabelSpacing = if (showIconAndText) 6.dp else 0.dp
         )
     }
 }

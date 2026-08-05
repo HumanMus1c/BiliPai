@@ -403,12 +403,10 @@ fun SpaceScreen(
             ) {
                 when (val state = uiState) {
                     SpaceUiState.Loading -> {
-                        Box(
+                        com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
                             modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            AdaptiveLoadingIndicator()
-                        }
+                            itemCount = 8,
+                        )
                     }
 
                     is SpaceUiState.Error -> {
@@ -440,7 +438,6 @@ fun SpaceScreen(
                         SpaceContent(
                             state = state,
                             gridState = gridState,
-                            topChromeInset = scaffoldPadding.calculateTopPadding(),
                             onVideoClick = onVideoClick,
                             videoProgressLookup = videoProgressLookup,
                             onAudioClick = onAudioClick,
@@ -765,7 +762,6 @@ private fun SpacePlayedVideoLocatePrompt(
 private fun SpaceContent(
     state: SpaceUiState.Success,
     gridState: LazyGridState,
-    topChromeInset: Dp,
     onVideoClick: (String, Long, Long) -> Unit,
     videoProgressLookup: (String) -> Long,
     onAudioClick: (Long) -> Unit,
@@ -1052,7 +1048,6 @@ private fun SpaceContent(
                     userInfo = state.headerState.userInfo ?: state.userInfo,
                     relationStat = state.headerState.relationStat ?: state.relationStat,
                     upStat = state.headerState.upStat ?: state.upStat,
-                    topChromeInset = topChromeInset,
                     collapseFraction = headerCollapseFraction.value,
                     onFollowClick = onFollowClick,
                     onTopPhotoClick = onTopPhotoClick,
@@ -2012,7 +2007,6 @@ private fun SpaceHeader(
     userInfo: SpaceUserInfo,
     relationStat: RelationStatData?,
     upStat: UpStatData?,
-    topChromeInset: Dp,
     collapseFraction: Float,
     onFollowClick: () -> Unit,
     onTopPhotoClick: () -> Unit,
@@ -2044,13 +2038,12 @@ private fun SpaceHeader(
         colorScheme = colorScheme
     )
 
-    // [重构] PiliPlus 式布局参数：
-    // - hero 背景 156dp，操作按钮（私信/关注）右上角
-    // - 头像 80dp 左下，底部 32dp 伸出背景（与 PiliPlus header_layout 一致）
-    // - stats 在头像右侧
-    // - 名字/sign/UID 在 hero 下方，名字行独立收缩、徽标行 FlowRow 换行，杜绝截断
-    // - 滚动折叠：整体内容随 collapseFraction 上移 + 淡出（视差折叠），
-    //   由 LazyVerticalGrid 视口裁剪，无 item 高度跳动
+    // PiliPlus 式布局：
+    // - hero 背景 156dp
+    // - 头像 80dp 左下，底部 32dp 伸出背景；stats 独占头像右侧
+    // - 名字 + 等级 + 私信/关注同一行垂直居中对齐；名字可收缩，按钮固定在行尾
+    // - 徽标 / sign / UID 继续在信息区下方
+    // - 滚动折叠：整体内容随 collapseFraction 上移 + 淡出（视差折叠）
     val heroHeight = 156.dp
     val avatarSize = 80.dp
     val avatarOverlap = 32.dp
@@ -2125,85 +2118,9 @@ private fun SpaceHeader(
                             )
                         )
                 )
-
-                // [重构] 操作按钮右上角（PiliPlus actions 位置）
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(
-                            start = 12.dp,
-                            top = resolveSpaceHeaderActionTopPaddingDp(
-                                topChromeInsetDp = topChromeInset.value,
-                            ).dp,
-                            end = 12.dp,
-                        ),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AppSurface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.62f),
-                        border = BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                        )
-                    ) {
-                        AppIconButton(
-                            modifier = Modifier.size(34.dp),
-                            onClick = {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    "暂不支持私信",
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        ) {
-                            AppIcon(
-                                imageVector = Icons.Outlined.Email,
-                                contentDescription = "私信",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(17.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    AppButton(
-                        onClick = onFollowClick,
-                        modifier = Modifier
-                            .widthIn(min = 92.dp, max = 112.dp)
-                            .height(34.dp),
-                        shape = RoundedCornerShape(999.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = followButtonColors.backgroundColor,
-                            contentColor = followButtonColors.textColor
-                        ),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            if (userInfo.isFollowed) {
-                                AppIcon(
-                                    imageVector = Icons.Outlined.Menu,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                            }
-                            AppText(
-                                text = followLabel,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
             }
 
-            // 头像（左下，底部伸出背景）+ 右侧 stats
+            // 头像（左下）+ stats（右侧均分，不再和操作按钮抢宽度）
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -2262,9 +2179,8 @@ private fun SpaceHeader(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-                // stats（3 个均分 + 分隔线，值/标签均单行省略防截断）
                 Row(
                     modifier = Modifier
                         .weight(1f)
@@ -2285,7 +2201,7 @@ private fun SpaceHeader(
             }
         }
 
-        // 信息区（名字行独立收缩 + 徽标行 FlowRow 换行，杜绝截断）
+        // 信息区：名字 + 等级 + 私信/关注同一行垂直居中对齐
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2294,20 +2210,39 @@ private fun SpaceHeader(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                AppText(
-                    text = userInfo.name,
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .copyOnLongPress(userInfo.name, "UP主名称"),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (userInfo.vip.status == 1) Color(0xFFFF6699) else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    AppText(
+                        text = userInfo.name,
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .copyOnLongPress(userInfo.name, "UP主名称"),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (userInfo.vip.status == 1) Color(0xFFFF6699) else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    UserLevelBadge(level = userInfo.level)
+                }
+                SpaceHeaderRelationActions(
+                    followLabel = followLabel,
+                    isFollowed = userInfo.isFollowed,
+                    followButtonColors = followButtonColors,
+                    onMessageClick = {
+                        android.widget.Toast.makeText(
+                            context,
+                            "暂不支持私信",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onFollowClick = onFollowClick
                 )
-                UserLevelBadge(level = userInfo.level)
             }
 
             val hasExtraBadges =
@@ -4103,6 +4038,78 @@ private fun SpaceBadgeChip(
             fontWeight = FontWeight.SemiBold,
             color = contentColor
         )
+    }
+}
+
+@Composable
+private fun SpaceHeaderRelationActions(
+    followLabel: String,
+    isFollowed: Boolean,
+    followButtonColors: SpaceSelectionChipColors,
+    onMessageClick: () -> Unit,
+    onFollowClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // Same-row chips with the name/level line; fixed height for vertical center alignment.
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        AppSurface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            )
+        ) {
+            AppIconButton(
+                modifier = Modifier.size(32.dp),
+                onClick = onMessageClick
+            ) {
+                AppIcon(
+                    imageVector = Icons.Outlined.Email,
+                    contentDescription = "私信",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        AppButton(
+            onClick = onFollowClick,
+            modifier = Modifier
+                .widthIn(min = 80.dp, max = 100.dp)
+                .height(32.dp),
+            shape = RoundedCornerShape(999.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = followButtonColors.backgroundColor,
+                contentColor = followButtonColors.textColor
+            ),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                if (isFollowed) {
+                    AppIcon(
+                        imageVector = Icons.Outlined.Menu,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                AppText(
+                    text = followLabel,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
     }
 }
 

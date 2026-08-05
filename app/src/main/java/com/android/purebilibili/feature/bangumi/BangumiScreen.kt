@@ -1100,12 +1100,9 @@ private fun BangumiListContent(
 ) {
     when (listState) {
         is BangumiListState.Loading -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                com.android.purebilibili.core.ui.CutePersonLoadingIndicator()
-            }
+            com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeleton(
+                itemCount = 9,
+            )
         }
         is BangumiListState.Error -> {
             Box(
@@ -1160,12 +1157,9 @@ private fun BangumiSearchContent(
             }
         }
         is BangumiSearchState.Loading -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                com.android.purebilibili.core.ui.CutePersonLoadingIndicator()
-            }
+            com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
+                itemCount = 8,
+            )
         }
         is BangumiSearchState.Error -> {
             Box(

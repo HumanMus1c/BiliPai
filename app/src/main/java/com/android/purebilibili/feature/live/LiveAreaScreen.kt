@@ -151,9 +151,10 @@ fun LiveAreaScreen(
                 .padding(innerPadding),
         ) {
         when {
-            isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                AdaptiveLoadingIndicator()
-            }
+            isLoading -> com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
+                modifier = Modifier.fillMaxSize(),
+                itemCount = 10,
+            )
             error != null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     AppText(text = error ?: "", color = colorScheme.onSurfaceVariant)

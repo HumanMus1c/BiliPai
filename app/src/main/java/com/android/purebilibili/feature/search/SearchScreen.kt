@@ -103,8 +103,9 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
 import com.android.purebilibili.core.database.entity.SearchHistory
-import com.android.purebilibili.core.ui.LoadingAnimation
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
+import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
+import com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeleton
 import com.android.purebilibili.core.ui.OfficialVerifyBadge
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperProtectiveColor
@@ -997,13 +998,33 @@ fun SearchScreen(
                             }
                         }
                         if (pagePresentation.body == SearchResultBodyMode.LOADING) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                LoadingAnimation(
-                                    size = 80.dp,
-                                    text = "搜索中..."
+                            // 结果形态已知：用骨架占位，不用主题 Loading 动画。
+                            when (targetSearchType) {
+                                SearchType.VIDEO -> ContentVideoGridSkeleton(
+                                    minItemWidth = searchLayoutPolicy.resultGridMinItemWidthDp.dp,
+                                    coverAspectRatio = cardLayout.coverAspectRatio,
+                                    contentPadding = PaddingValues(
+                                        top = 0.dp,
+                                        bottom = resultBottomPadding,
+                                        start = cardLayout.outerPaddingDp.dp,
+                                        end = cardLayout.outerPaddingDp.dp,
+                                    ),
+                                    horizontalSpacing = cardLayout.itemSpacingDp.dp,
+                                    verticalSpacing = cardLayout.itemSpacingDp.dp,
+                                )
+                                SearchType.UP, SearchType.LIVE_USER -> ContentMediaListSkeleton(
+                                    useUserRow = true,
+                                    contentPadding = PaddingValues(
+                                        top = 0.dp,
+                                        bottom = resultBottomPadding,
+                                    ),
+                                )
+                                else -> ContentMediaListSkeleton(
+                                    useUserRow = false,
+                                    contentPadding = PaddingValues(
+                                        top = 0.dp,
+                                        bottom = resultBottomPadding,
+                                    ),
                                 )
                             }
                         } else if (pagePresentation.body == SearchResultBodyMode.ERROR) {

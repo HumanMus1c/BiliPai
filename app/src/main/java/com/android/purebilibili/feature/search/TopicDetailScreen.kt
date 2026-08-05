@@ -46,8 +46,8 @@ import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
 import com.android.purebilibili.core.ui.AppScaffold
-import com.android.purebilibili.core.ui.LoadingAnimation
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
+import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
 import com.android.purebilibili.core.util.FormatUtils
@@ -91,10 +91,9 @@ fun TopicDetailScreen(
         ) {
             when {
                 state.isLoading -> {
-                    LoadingAnimation(
-                        modifier = Modifier.align(Alignment.Center),
-                        size = 72.dp,
-                        text = "加载话题中..."
+                    ContentMediaListSkeleton(
+                        modifier = Modifier.fillMaxSize(),
+                        itemCount = 6,
                     )
                 }
                 state.error != null && state.details == null && state.items.isEmpty() -> {

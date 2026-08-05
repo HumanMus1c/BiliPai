@@ -1,7 +1,10 @@
 package com.android.purebilibili.feature.settings.share
 
 import android.content.Context
+import android.content.res.Configuration
 import android.net.Uri
+import android.os.Build
+import android.util.DisplayMetrics
 import androidx.core.content.FileProvider
 import com.android.purebilibili.BuildConfig
 import com.android.purebilibili.core.store.SettingsManager
@@ -16,11 +19,13 @@ internal const val DEFAULT_SETTINGS_SHARE_PROFILE_NAME = "BiliPai 设置分享"
 interface SettingsShareServiceContract {
     suspend fun exportToUri(
         uri: Uri,
-        profileName: String = DEFAULT_SETTINGS_SHARE_PROFILE_NAME
+        profileName: String = DEFAULT_SETTINGS_SHARE_PROFILE_NAME,
+        includeDeviceDebug: Boolean = true,
     ): Result<SettingsShareExportArtifact>
 
     suspend fun createShareUri(
-        profileName: String = DEFAULT_SETTINGS_SHARE_PROFILE_NAME
+        profileName: String = DEFAULT_SETTINGS_SHARE_PROFILE_NAME,
+        includeDeviceDebug: Boolean = true,
     ): Result<Uri>
 
     suspend fun readImportSession(uri: Uri): Result<SettingsShareImportSession>
@@ -37,15 +42,24 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
     }
 
     suspend fun createExportArtifact(
-        profileName: String = DEFAULT_SETTINGS_SHARE_PROFILE_NAME
+        profileName: String = DEFAULT_SETTINGS_SHARE_PROFILE_NAME,
+        includeDeviceDebug: Boolean = true,
     ): SettingsShareExportArtifact = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
+        val rawSettings = SettingsManager.exportShareableSettingsSnapshot(context)
+        val definitions = SettingsManager.getShareableSettingsEntryDefinitions()
+        val deviceDebug = if (includeDeviceDebug) {
+            captureDeviceDebugInfo(context, rawSettings)
+        } else {
+            null
+        }
         val profile = buildSettingsShareProfile(
             profileName = profileName,
             appVersion = BuildConfig.VERSION_NAME,
             exportedAtIso = Instant.ofEpochMilli(now).toString(),
-            rawSettings = SettingsManager.exportShareableSettingsSnapshot(context),
-            definitions = SettingsManager.getShareableSettingsEntryDefinitions()
+            rawSettings = rawSettings,
+            definitions = definitions,
+            deviceDebug = deviceDebug,
         )
         SettingsShareExportArtifact(
             fileName = buildSettingsShareFileName(
@@ -59,10 +73,14 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
 
     override suspend fun exportToUri(
         uri: Uri,
-        profileName: String
+        profileName: String,
+        includeDeviceDebug: Boolean,
     ): Result<SettingsShareExportArtifact> = withContext(Dispatchers.IO) {
         runCatching {
-            val artifact = createExportArtifact(profileName)
+            val artifact = createExportArtifact(
+                profileName = profileName,
+                includeDeviceDebug = includeDeviceDebug,
+            )
             context.contentResolver.openOutputStream(uri)?.use { output ->
                 output.write(artifact.json.toByteArray(Charsets.UTF_8))
             } ?: error("无法写入导出文件")
@@ -71,10 +89,14 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
     }
 
     override suspend fun createShareUri(
-        profileName: String
+        profileName: String,
+        includeDeviceDebug: Boolean,
     ): Result<Uri> = withContext(Dispatchers.IO) {
         runCatching {
-            val artifact = createExportArtifact(profileName)
+            val artifact = createExportArtifact(
+                profileName = profileName,
+                includeDeviceDebug = includeDeviceDebug,
+            )
             val shareDir = File(context.cacheDir, "logs/settings-share").apply { mkdirs() }
             val shareFile = File(shareDir, artifact.fileName)
             shareFile.writeText(artifact.json, Charsets.UTF_8)
@@ -84,6 +106,51 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
                 shareFile
             )
         }
+    }
+
+    private fun captureDeviceDebugInfo(
+        context: Context,
+        rawSettings: Map<String, kotlinx.serialization.json.JsonElement>,
+    ): SettingsShareDeviceDebugInfo {
+        val metrics: DisplayMetrics = context.resources.displayMetrics
+        val config: Configuration = context.resources.configuration
+        val uiPresetValue = jsonElementAsInt(rawSettings["ui_preset"]) ?: 0
+        val nativeVariantValue = jsonElementAsInt(rawSettings["android_native_variant_v1"]) ?: 0
+        val nightMask = config.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        return buildSettingsShareDeviceDebugInfo(
+            androidSdkInt = Build.VERSION.SDK_INT,
+            androidRelease = Build.VERSION.RELEASE.orEmpty(),
+            securityPatch = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Build.VERSION.SECURITY_PATCH.orEmpty()
+            } else {
+                ""
+            },
+            manufacturer = Build.MANUFACTURER.orEmpty(),
+            brand = Build.BRAND.orEmpty(),
+            model = Build.MODEL.orEmpty(),
+            device = Build.DEVICE.orEmpty(),
+            product = Build.PRODUCT.orEmpty(),
+            hardware = Build.HARDWARE.orEmpty(),
+            displayId = Build.DISPLAY.orEmpty(),
+            widthPixels = metrics.widthPixels,
+            heightPixels = metrics.heightPixels,
+            density = metrics.density,
+            densityDpi = metrics.densityDpi,
+            scaledDensity = metrics.scaledDensity,
+            xdpi = metrics.xdpi,
+            ydpi = metrics.ydpi,
+            widthDp = config.screenWidthDp.toFloat(),
+            heightDp = config.screenHeightDp.toFloat(),
+            smallestWidthDp = config.smallestScreenWidthDp,
+            fontScale = config.fontScale,
+            uiModeNight = nightMask == Configuration.UI_MODE_NIGHT_YES,
+            uiPresetValue = uiPresetValue,
+            uiPresetName = resolveUiPresetNameFromValue(uiPresetValue),
+            androidNativeVariantValue = nativeVariantValue,
+            androidNativeVariantName = resolveAndroidNativeVariantNameFromValue(nativeVariantValue),
+            appVersionName = BuildConfig.VERSION_NAME,
+            appVersionCode = BuildConfig.VERSION_CODE.toLong(),
+        )
     }
 
     override suspend fun readImportSession(uri: Uri): Result<SettingsShareImportSession> =

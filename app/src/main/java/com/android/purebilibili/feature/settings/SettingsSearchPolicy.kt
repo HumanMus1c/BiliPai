@@ -455,10 +455,10 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.TELEGRAM,
-        title = "Telegram 频道",
-        subtitle = "@BiliPai",
+        title = "Telegram 频道 / 交流群",
+        subtitle = "@bilipai666 · @bilipai888",
         section = "关注作者",
-        aliases = listOf("telegram", "tg", "频道")
+        aliases = listOf("telegram", "tg", "频道", "交流群", "bilipai666", "bilipai888")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.TWITTER,
@@ -470,7 +470,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.DISCLAIMER,
         title = "发布渠道声明",
-        subtitle = "仅 GitHub / Telegram",
+        subtitle = "GitHub · Telegram 频道与群组",
         section = "关于",
         aliases = listOf("声明", "发布渠道", "安全")
     ),

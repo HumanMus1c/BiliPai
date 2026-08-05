@@ -2,16 +2,15 @@ package com.android.purebilibili.feature.video.screen
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import com.android.purebilibili.data.model.response.ViewPoint
 import com.android.purebilibili.feature.video.progress.PbpProgressData
 import com.android.purebilibili.feature.video.state.VideoPlayerState
@@ -70,24 +69,49 @@ internal data class ContinuousPlayerFullscreenExtras(
  * Reads the frame-rate progress only during measurement, keeping the player composition stable
  * while the inline viewport grows into the landscape viewport.
  */
+/**
+ * @param preferLayoutWidth16x9Inline 横屏 16:9 详情播放器：按**实际布局宽度**算高度，
+ * 避免 `configuration.screenWidthDp` 与真机可用宽度不一致时出现左右黑边（vivo 等窄机更常见）。
+ * @param inlineTopInset 沉浸状态栏额外高度；只加在 inline 高度上，不参与 16:9 比例本体。
+ */
 internal fun Modifier.continuousPlayerViewportHeight(
     progressProvider: () -> Float,
     inlineHeight: Dp,
     fullscreenHeight: Dp,
     enabled: Boolean,
+    preferLayoutWidth16x9Inline: Boolean = false,
+    inlineTopInset: Dp = 0.dp,
 ): Modifier {
-    if (!enabled) return height(inlineHeight)
     return layout { measurable, constraints ->
-        val height = lerp(
-            start = inlineHeight,
-            stop = fullscreenHeight,
-            fraction = progressProvider().coerceIn(0f, 1f),
-        ).roundToPx().coerceIn(
+        val layoutWidth = constraints.maxWidth.coerceAtLeast(1)
+        val insetPx = inlineTopInset.roundToPx().coerceAtLeast(0)
+        val inlinePx = if (preferLayoutWidth16x9Inline) {
+            // 纯 16:9 内容区 + 可选顶部 inset，宽度始终吃满 constraints。
+            resolveLandscapeDetailPlayerContentHeightPx(layoutWidthPx = layoutWidth) + insetPx
+        } else {
+            inlineHeight.roundToPx().coerceAtLeast(1)
+        }
+        val fraction = progressProvider().coerceIn(0f, 1f)
+        val fullscreenPx = fullscreenHeight.toPx()
+        val height = if (!enabled) {
+            inlinePx
+        } else {
+            (inlinePx + (fullscreenPx - inlinePx) * fraction).roundToInt()
+        }.coerceIn(
             minimumValue = constraints.minHeight,
-            maximumValue = constraints.maxHeight,
+            maximumValue = if (constraints.maxHeight == Constraints.Infinity) {
+                Int.MAX_VALUE
+            } else {
+                constraints.maxHeight
+            },
         )
         val placeable = measurable.measure(
-            constraints.copy(minHeight = height, maxHeight = height),
+            constraints.copy(
+                minWidth = layoutWidth,
+                maxWidth = layoutWidth,
+                minHeight = height,
+                maxHeight = height,
+            ),
         )
         layout(placeable.width, placeable.height) {
             placeable.placeRelative(0, 0)

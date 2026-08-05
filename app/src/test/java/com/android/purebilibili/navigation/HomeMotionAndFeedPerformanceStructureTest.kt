@@ -6,15 +6,16 @@ import kotlin.test.assertTrue
 
 class HomeMotionAndFeedPerformanceStructureTest {
     @Test
-    fun bottomTabSwitch_animatesPagerOffset() {
+    fun bottomTabSwitch_animatesPagerOffsetWithKernelSuScrollBy() {
         val source = sourceFile("navigation/MainBottomPagerState.kt")
 
-        assertTrue(source.contains("private suspend fun animatePageChange("))
-        assertTrue(source.contains("animateScrollToPage("))
+        // KernelSU MainPagerState.animateToPage: animateScrollBy continuous scroll.
+        assertTrue(source.contains("pagerState.animateScrollBy("))
+        assertTrue(source.contains("easing = EaseInOut"))
+        assertTrue(source.contains("resolveBottomPagerNavigationDurationMillis("))
         assertTrue(!source.contains("AnimationState(initialValue = 0f).animateTo("))
         assertTrue(!source.contains("scrollScope.scrollBy(value - previousValue)"))
-        assertTrue(source.contains(".coerceAtMost(BOTTOM_PAGER_ANIMATED_SCROLL_MAX_MILLIS)"))
-        assertTrue(source.contains("easing = LinearOutSlowInEasing"))
+        assertTrue(!source.contains("dispatchRawDelta"))
     }
 
     @Test

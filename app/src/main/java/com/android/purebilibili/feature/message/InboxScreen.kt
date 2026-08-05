@@ -91,8 +91,10 @@ fun InboxScreen(
         ) {
             when {
                 uiState.isLoading -> {
-                    com.android.purebilibili.core.ui.CutePersonLoadingIndicator(
-                        modifier = Modifier.align(Alignment.Center)
+                    com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
+                        modifier = Modifier.fillMaxSize(),
+                        useUserRow = true,
+                        itemCount = 8,
                     )
                 }
                 uiState.error != null -> {

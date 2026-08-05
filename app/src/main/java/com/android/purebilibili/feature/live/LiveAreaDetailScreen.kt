@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeletonFixedColumns
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppShapes
@@ -225,8 +226,18 @@ fun LiveAreaDetailScreen(
                 }
             }
             when {
-                isLoading -> LiveAreaDetailState(null, Modifier.weight(1f))
-                error != null -> LiveAreaDetailState(error, Modifier.weight(1f))
+                isLoading -> ContentVideoGridSkeletonFixedColumns(
+                    columns = gridColumns,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(
+                        start = metrics.safeSpaceDp.dp,
+                        end = metrics.safeSpaceDp.dp,
+                        top = AppSpacingTokens.Small,
+                        bottom = LocalBottomBarContentPadding.current,
+                    ),
+                    spacing = metrics.cardSpaceDp.dp,
+                )
+                error != null -> LiveAreaDetailState(error.orEmpty(), Modifier.weight(1f))
                 rooms.isEmpty() -> LiveAreaDetailState("暂无该标签直播", Modifier.weight(1f))
                 else -> LazyVerticalGrid(
                     columns = GridCells.Fixed(gridColumns),
@@ -270,23 +281,19 @@ fun LiveAreaDetailScreen(
 
 @Composable
 private fun LiveAreaDetailState(
-    message: String?,
+    message: String,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
-        if (message == null) {
-            AdaptiveLoadingIndicator()
-        } else {
-            AppText(
-                text = message,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-            )
-        }
+        AppText(
+            text = message,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

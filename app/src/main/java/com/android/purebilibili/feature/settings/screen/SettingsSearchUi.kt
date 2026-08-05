@@ -68,62 +68,68 @@ internal fun SettingsSearchResultsSection(
     onResultClick: (SettingsSearchResult) -> Unit,
 ) {
     val visualSpec = rememberAdaptiveListVisualCapabilities().componentSpec
-    if (results.isEmpty()) {
-        val iconContainerColor = rememberAdaptivePreferenceIconContainerColor(MaterialTheme.colorScheme.primary)
-        val iconContentColor = rememberAdaptivePreferenceIconContentColor(iconContainerColor)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp, vertical = 36.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(
+    // 必须包一层 Column：上层 Entrance 是 Box，多个子节点会叠在同一原点，
+    // 导致「搜索结果」标题压到第一行图标上（可见半个「果」字）。
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (results.isEmpty()) {
+            val iconContainerColor =
+                rememberAdaptivePreferenceIconContainerColor(MaterialTheme.colorScheme.primary)
+            val iconContentColor = rememberAdaptivePreferenceIconContentColor(iconContainerColor)
+            Column(
                 modifier = Modifier
-                    .size(56.dp)
-                    .adaptiveSquircleBackground(iconContainerColor, 16.dp),
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp, vertical = 36.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                AppIcon(
-                    imageVector = rememberAppSettingsIcon(),
-                    contentDescription = null,
-                    tint = iconContentColor,
-                    modifier = Modifier.size(28.dp),
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .adaptiveSquircleBackground(iconContainerColor, 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AppIcon(
+                        imageVector = rememberAppSettingsIcon(),
+                        contentDescription = null,
+                        tint = iconContentColor,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                AppText(
+                    text = stringResource(R.string.settings_search_empty_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                AppText(
+                    text = stringResource(R.string.settings_search_empty_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            AppText(
-                text = stringResource(R.string.settings_search_empty_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            AppText(
-                text = stringResource(R.string.settings_search_empty_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-        }
-    } else {
-        SettingsCategoryHeader(stringResource(R.string.settings_search_results_title))
-        AppPreferenceGroup {
-            results.forEachIndexed { index, result ->
-                val visual = rememberSettingsEntryVisual(result.target)
-                AppPreference(
-                    icon = visual.icon,
-                    iconPainter = visual.iconResId?.let { painterResource(id = it) },
-                    title = result.title,
-                    subtitle = result.subtitle,
-                    value = result.section,
-                    onClick = { onResultClick(result) },
-                    iconTint = visual.iconTint,
-                )
-                if (index != results.lastIndex) {
-                    AppPreferenceDivider(startIndent = visualSpec.dividerStartIndentDp.dp)
+        } else {
+            // 顶栏已是「搜索结果」，不再重复放 CategoryHeader，避免与列表叠字。
+            Spacer(modifier = Modifier.height(8.dp))
+            AppPreferenceGroup {
+                results.forEachIndexed { index, result ->
+                    val visual = rememberSettingsEntryVisual(result.target)
+                    AppPreference(
+                        icon = visual.icon,
+                        iconPainter = visual.iconResId?.let { painterResource(id = it) },
+                        title = result.title,
+                        subtitle = result.subtitle,
+                        value = result.section,
+                        onClick = { onResultClick(result) },
+                        iconTint = visual.iconTint,
+                    )
+                    if (index != results.lastIndex) {
+                        AppPreferenceDivider(startIndent = visualSpec.dividerStartIndentDp.dp)
+                    }
                 }
             }
         }
+        Spacer(modifier = Modifier.height(8.dp))
     }
-    Spacer(modifier = Modifier.height(8.dp))
 }

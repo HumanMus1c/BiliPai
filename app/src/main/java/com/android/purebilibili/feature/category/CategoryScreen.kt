@@ -37,6 +37,7 @@ import com.android.purebilibili.feature.common.resolveIndexedVideoLazyKey
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard
 import com.android.purebilibili.feature.home.components.cards.StoryVideoCard
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
+import com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeletonFixedColumns
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.resolveReplaceRefreshPage
 import com.android.purebilibili.core.util.responsiveContentWidth
@@ -224,9 +225,11 @@ fun CategoryScreen(
                 .padding(paddingValues)
         ) {
             if (videos.isEmpty() && isLoading) {
-                // 首次加载
-                com.android.purebilibili.core.ui.CutePersonLoadingIndicator(
-                    modifier = Modifier.align(Alignment.Center)
+                ContentVideoGridSkeletonFixedColumns(
+                    columns = gridColumns,
+                    coverAspectRatio = cardLayout.coverAspectRatio,
+                    contentPadding = PaddingValues(12.dp),
+                    spacing = 8.dp,
                 )
             } else if (videos.isEmpty() && error != null) {
                 // 错误状态

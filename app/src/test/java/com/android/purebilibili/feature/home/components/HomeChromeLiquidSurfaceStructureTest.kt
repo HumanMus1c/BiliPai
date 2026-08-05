@@ -62,7 +62,7 @@ class HomeChromeLiquidSurfaceStructureTest {
             topHeaderMatchedSurfaceCalls > 0
         )
         assertTrue(
-            "edge controls should still be able to disable the full-shell lens while liquid chrome routes through the matched surface",
+            "search/edge capsules keep shell lens off; top dock uses soft intensity instead",
             topHeaderDisabledShellLensCalls >= 1 && topHeaderMatchedSurfaceCalls >= 1
         )
         assertTrue(
@@ -79,6 +79,8 @@ class HomeChromeLiquidSurfaceStructureTest {
                 topHeaderSource.contains("val drawTopTabDockChrome = drawTopTabOuterChromeSurface || useTopTabBottomBarMatchedDock") &&
                 topHeaderSource.contains("drawChromeSurface = drawTopTabDockChrome") &&
                 topHeaderSource.contains("useBottomBarMatchedSurface = useTopTabBottomBarMatchedDock") &&
+                topHeaderSource.contains("drawMatchedShellLens = useTopTabBottomBarMatchedDock") &&
+                topHeaderSource.contains("matchedShellLensIntensity = TOP_DOCK_SHELL_LENS_INTENSITY") &&
                 topHeaderSource.contains("tabChromeRenderMode = if (useTopTabBottomBarMatchedDock)") &&
                 topHeaderSource.contains("val bottomBarLiquidGlassPreset = homeSettings?.bottomBarLiquidGlassPreset") &&
                 topHeaderSource.contains("liquidGlassPreset = bottomBarLiquidGlassPreset") &&
@@ -86,8 +88,12 @@ class HomeChromeLiquidSurfaceStructureTest {
                 topHeaderSource.contains("tabShape = if (useUnifiedTopPanel)") &&
                 topHeaderSource.contains("resolveSharedBottomBarCapsuleShape()") &&
                 topTabChrome.readText().contains("useBottomBarMatchedSurface: Boolean = false") &&
+                topTabChrome.readText().contains("drawMatchedShellLens: Boolean = true") &&
+                topTabChrome.readText().contains("matchedShellLensIntensity: Float = TOP_DOCK_SHELL_LENS_INTENSITY") &&
+                topTabChrome.readText().contains("shellLensIntensity = matchedShellLensIntensity") &&
                 topTabChrome.readText().contains("liquidGlassPreset: BottomBarLiquidGlassPreset") &&
-                topTabChrome.readText().contains(".homeTopBottomBarMatchedSurface(")
+                topTabChrome.readText().contains(".homeTopBottomBarMatchedSurface(") &&
+                topBarSource.contains("TOP_DOCK_SHELL_LENS_INTENSITY")
         )
         assertTrue(
             "home top avatar, search content and unread badge should live in extracted top-control components",
@@ -162,7 +168,11 @@ class HomeChromeLiquidSurfaceStructureTest {
         assertTrue(
             "MD3 top tab indicator should be a single moving layer tied to pager offset",
             topBarSource.contains("resolveMd3TopTabIndicatorTranslationPx(") &&
-                topBarSource.contains("translationX = md3IndicatorTranslationXPx")
+                (
+                    topBarSource.contains("translationX = md3IndicatorTranslationXPx") ||
+                        topBarSource.contains("translationX = md3LiquidCapsuleTranslationXPx") ||
+                        topBarSource.contains("md3LiquidCapsuleTranslationXPx")
+                    )
         )
         val lightweightTopTabItemSource = topBarSource
             .substringAfter("private fun LightweightTopTabItem(")
@@ -223,11 +233,13 @@ class HomeChromeLiquidSurfaceStructureTest {
                 topBarSource.contains("rememberCombinedBackdrop(backdrop, tabContentBackdrop)")
         )
         assertTrue(
-            "KSU dock surface should use backdrop vibrancy, blur, and lens like the floating bottom bar",
+            "KSU dock surface should use backdrop vibrancy, blur, and soft-scalable shell lens like the floating bottom bar",
             bottomBar.readText().contains("internal fun Modifier.kernelSuFloatingDockSurface(") &&
                 bottomBar.readText().contains("vibrancy()") &&
                 bottomBar.readText().contains("drawShellLens: Boolean = true") &&
-                bottomBar.readText().contains("renderGlassEffects && drawShellLens") &&
+                bottomBar.readText().contains("shellLensIntensity: Float = 1f") &&
+                bottomBar.readText().contains("effectiveShellLensIntensity") &&
+                bottomBar.readText().contains("drawShellLens &&") &&
                 bottomBar.readText().contains("shellRefractionHeightDp") &&
                 bottomBar.readText().contains("shellRefractionAmountDp") &&
                 bottomBar.readText().contains("runtimeShaderEffect(") &&

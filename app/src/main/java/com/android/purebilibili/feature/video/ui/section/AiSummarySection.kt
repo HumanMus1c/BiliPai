@@ -246,6 +246,14 @@ fun AiSummaryPromptCard(
     }
 }
 
+/** 主条目圆点 + 间距；子条目与标题列左缘对齐。 */
+internal val OutlineBulletSlotWidth = 18.dp
+/**
+ * 时间戳列固定宽。芯片必须 [fillMaxWidth]，否则比例数字会让时钟图标左右参差
+ * （右缘对齐时左缘仍不齐）。
+ */
+internal val OutlineTimestampColumnWidth = 76.dp
+
 @Composable
 private fun OutlineItemRow(
     title: String,
@@ -257,58 +265,70 @@ private fun OutlineItemRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 6.dp, horizontal = if (isSubItem) 16.dp else 4.dp),
-        verticalAlignment = Alignment.Top
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.Top,
     ) {
-        if (!isSubItem) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 6.dp)
-                    .size(6.dp)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-        } else {
-             Spacer(modifier = Modifier.width(4.dp)) // Indent for sub items aligned with bullet?
-        }
-        
-        Column(
+        // 固定前导槽：主条目标圆点，子条目留白，标题列左缘一致。
+        Box(
             modifier = Modifier
-                .weight(1f)
-                .padding(end = 12.dp)
+                .width(OutlineBulletSlotWidth)
+                .padding(top = 6.dp),
+            contentAlignment = Alignment.TopStart,
         ) {
-             AppText(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            if (!isSubItem) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                )
+            }
         }
 
+        AppText(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp),
+        )
+
+        // 固定列宽 + 满宽芯片 + 表内居中，时钟图标与 mm:ss 形成垂直列。
         Box(
-            modifier = Modifier.widthIn(min = 72.dp),
-            contentAlignment = Alignment.CenterEnd
+            modifier = Modifier
+                .width(OutlineTimestampColumnWidth)
+                .padding(top = 2.dp),
+            contentAlignment = Alignment.TopCenter,
         ) {
             AppSurface(
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                 shape = RoundedCornerShape(4.dp),
-                modifier = Modifier.clickable(onClick = onClick)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick),
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
                 ) {
                     AppIcon(
                         imageVector = CupertinoIcons.Outlined.Clock,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(12.dp),
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     AppText(
-                        text = formatTimestamp(timestamp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
+                        text = formatAiSummaryTimestamp(timestamp),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFeatureSettings = "tnum",
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
                     )
                 }
             }
@@ -316,8 +336,10 @@ private fun OutlineItemRow(
     }
 }
 
-private fun formatTimestamp(seconds: Long): String {
-    val m = seconds / 60
-    val s = seconds % 60
+/** mm:ss，秒级时间点；使用等宽数字特性减少视觉漂移。 */
+internal fun formatAiSummaryTimestamp(seconds: Long): String {
+    val safe = seconds.coerceAtLeast(0L)
+    val m = safe / 60
+    val s = safe % 60
     return "%02d:%02d".format(m, s)
 }

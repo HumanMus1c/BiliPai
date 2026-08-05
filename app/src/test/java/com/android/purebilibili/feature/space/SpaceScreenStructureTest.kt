@@ -129,11 +129,17 @@ class SpaceScreenStructureTest {
     }
 
     @Test
-    fun `space follow actions account for transparent top chrome`() {
+    fun `space follow actions share the name and level row`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 
-        assertTrue(source.contains("topChromeInset = scaffoldPadding.calculateTopPadding()"))
-        assertTrue(source.contains("resolveSpaceHeaderActionTopPaddingDp("))
+        assertTrue(source.contains("SpaceHeaderRelationActions("))
+        assertTrue(source.contains("contentDescription = \"私信\""))
+        assertTrue(
+            source.contains("名字 + 等级 + 私信/关注同一行垂直居中对齐"),
+            "relation actions should align on the name/level row"
+        )
+        assertFalse(source.contains("resolveSpaceHeaderActionTopPaddingDp("))
+        assertFalse(source.contains("topChromeInset = scaffoldPadding.calculateTopPadding()"))
     }
 
     @Test

@@ -309,6 +309,7 @@ fun RelatedVideoItem(
             modifier = Modifier
                 .weight(1f)
                 .height(coverHeight),
+            // 标题置顶；UP + 播放量/弹幕贴底成组，避免 SpaceBetween 把三者撑得过开。
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             AppText(
@@ -318,84 +319,89 @@ fun RelatedVideoItem(
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            UpBadgeName(
-                name = video.owner.name,
-                badgeTrailingContent = if (isFollowed) {
-                    {
-                        val followVisualPolicy = resolveVideoFollowVisualPolicy(isFollowing = true)
-                        AppText(
-                            text = "已关注",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                            color = when (followVisualPolicy.relatedBadgeTone) {
-                                FollowBadgeTone.PRIMARY -> MaterialTheme.colorScheme.primary
-                                null -> MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                    }
-                } else {
-                    null
-                },
-                leadingContent = if (video.owner.face.isNotEmpty()) {
-                    {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(FormatUtils.fixImageUrl(video.owner.face))
-                                .crossfade(false)
-                                .build(),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                        )
-                    }
-                } else {
-                    null
-                },
-                nameStyle = MaterialTheme.typography.labelMedium,
-                nameColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
-                badgeBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                showUpBadge = showUpBadge,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                StatItem(
-                    icon = CupertinoIcons.Filled.Play,
-                    text = FormatUtils.formatStat(video.stat.view.toLong())
+                UpBadgeName(
+                    name = video.owner.name,
+                    badgeTrailingContent = if (isFollowed) {
+                        {
+                            val followVisualPolicy = resolveVideoFollowVisualPolicy(isFollowing = true)
+                            AppText(
+                                text = "已关注",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                color = when (followVisualPolicy.relatedBadgeTone) {
+                                    FollowBadgeTone.PRIMARY -> MaterialTheme.colorScheme.primary
+                                    null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                    leadingContent = if (video.owner.face.isNotEmpty()) {
+                        {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(FormatUtils.fixImageUrl(video.owner.face))
+                                    .crossfade(false)
+                                    .build(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                    nameStyle = MaterialTheme.typography.labelMedium,
+                    nameColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    badgeTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                    badgeBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                    showUpBadge = showUpBadge,
+                    modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                StatItem(
-                    icon = CupertinoIcons.Filled.BubbleLeft,
-                    text = FormatUtils.formatStat(video.stat.danmaku.toLong())
-                )
-                if (onMoreClick != null) {
-                    val moreHaptic = rememberHapticFeedback()
-                    Spacer(modifier = Modifier.weight(1f))
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                moreHaptic(HapticType.LIGHT)
-                                onMoreClick()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AppText(
-                            text = "⋮",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 2.dp)
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    StatItem(
+                        icon = CupertinoIcons.Filled.Play,
+                        text = FormatUtils.formatStat(video.stat.view.toLong())
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    StatItem(
+                        icon = CupertinoIcons.Filled.BubbleLeft,
+                        text = FormatUtils.formatStat(video.stat.danmaku.toLong())
+                    )
+                    if (onMoreClick != null) {
+                        val moreHaptic = rememberHapticFeedback()
+                        Spacer(modifier = Modifier.weight(1f))
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    moreHaptic(HapticType.LIGHT)
+                                    onMoreClick()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AppText(
+                                text = "⋮",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
                     }
                 }
             }

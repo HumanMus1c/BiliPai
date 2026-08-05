@@ -1874,9 +1874,12 @@ class MiniPlayerManager private constructor(private val context: Context) :
         Logger.d(TAG) { "📲 Entering mini mode for video: $currentTitle (forced=$forced)" }
         isLeavingByNavigation = false
         isMiniMode = true
-        if (shouldResumePlayback) {
+        // Detail-session handoff may have muted the shared player; always restore for mini window.
+        currentPlayer?.let(PlayerVolumeController::applyPreferredVolume)
+        if (shouldResumePlayback && currentPlayer != null) {
             currentPlayer.playWhenReady = true
             currentPlayer.play()
+            isPlaying = true
         }
         
         // 🔔 [修复] 进入小窗时更新媒体通知（系统控制中心显示）
@@ -2149,6 +2152,16 @@ class MiniPlayerManager private constructor(private val context: Context) :
             MediaControlType.PAUSE,
             MediaControlType.PLAY_PAUSE -> player?.let { currentPlayer ->
                 val previousIsPlaying = currentPlayer.isPlaying
+                val willPlay = when (controlType) {
+                    MediaControlType.PLAY -> true
+                    MediaControlType.PAUSE -> false
+                    MediaControlType.PLAY_PAUSE -> !previousIsPlaying
+                    else -> false
+                }
+                if (willPlay) {
+                    // Shared detail player may still be at volume 0 after session-inactive mute.
+                    PlayerVolumeController.applyPreferredVolume(currentPlayer)
+                }
                 if (applyPlaybackMediaControlToPlayer(currentPlayer, controlType)) {
                     isPlaying = resolvePlayingStateAfterMediaControl(
                         controlType = controlType,

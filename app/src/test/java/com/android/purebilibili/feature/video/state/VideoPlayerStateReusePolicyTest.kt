@@ -24,6 +24,26 @@ class VideoPlayerStateReusePolicyTest {
     fun sessionInactive_suspendsLocalPlayback() {
         assertTrue(shouldSuspendLocalPlaybackWhenSessionInactive(playbackSessionActive = false))
         assertFalse(shouldSuspendLocalPlaybackWhenSessionInactive(playbackSessionActive = true))
+        assertFalse(
+            shouldSuspendLocalPlaybackWhenSessionInactive(
+                playbackSessionActive = false,
+                isOwnedByMiniPlayer = true,
+            )
+        )
+        assertTrue(
+            shouldTreatPlayerAsOwnedByMiniPlayer(
+                isMiniPlayerActive = true,
+                isPlayerManaged = true,
+                isMiniMode = true,
+            )
+        )
+        assertFalse(
+            shouldTreatPlayerAsOwnedByMiniPlayer(
+                isMiniPlayerActive = true,
+                isPlayerManaged = true,
+                isMiniMode = false,
+            )
+        )
     }
 
     @Test

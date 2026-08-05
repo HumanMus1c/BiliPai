@@ -750,9 +750,9 @@ fun WatchLaterScreen(
         ) {
             when {
                 state.isLoading -> {
-                    com.android.purebilibili.core.ui.CutePersonLoadingIndicator(
-                        modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.primary
+                    com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
+                        modifier = Modifier.fillMaxSize(),
+                        itemCount = 8,
                     )
                 }
                 state.error != null -> {

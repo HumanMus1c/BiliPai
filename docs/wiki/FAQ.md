@@ -110,7 +110,7 @@ A：通知权限用于后台播放、下载任务和媒体控制提示。拒绝�
 
 ### Q：为什么需要安装未知应用权限？
 
-A：安装 APK 时可能需要。现阶段最新 APK 仅通过[官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9)发布，GitHub 暂时只同步源码。
+A：安装 APK 时可能需要。安装包可从[官方 Telegram 频道](https://t.me/bilipai666)或[交流群](https://t.me/bilipai888/1)获取。
 
 ### Q：为什么会出现位置、附近设备或 Wi-Fi 相关权限？
 
@@ -128,11 +128,11 @@ A：不能完全离线。在线播放、搜索、动态、直播、登录、插�
 
 ### Q：怎么确认我正在用最新版本？
 
-A：源码版本以 GitHub 仓库和 `CHANGELOG.md` 为准；最新 APK 以[官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9)的置顶或管理员发布消息为准。
+A：源码版本以 GitHub 仓库和 `CHANGELOG.md` 为准；安装包与公告以[Telegram 频道](https://t.me/bilipai666)或[交流群](https://t.me/bilipai888/1)发布消息为准。
 
 ### Q：应用内更新失败怎么办？
 
-A：GitHub APK 与应用内下载目前暂停更新。请前往[官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9)手动下载最新 APK，并核对发布消息中的文件名、源码提交与 SHA-256。
+A：可到[Telegram 频道](https://t.me/bilipai666)或[交流群](https://t.me/bilipai888/1)手动下载最新 APK，并核对发布说明中的版本与校验信息。
 
 ### Q：反馈问题时需要提供什么？
 

@@ -151,6 +151,14 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
+    fun landscapeDetailPlayerHeight_matchesActualLayoutWidthFor16By9() {
+        // vivo 类窄机：按真实布局宽算 9/16，避免 screenWidthDp 偏差导致左右黑边
+        assertEquals(608, resolveLandscapeDetailPlayerContentHeightPx(layoutWidthPx = 1080))
+        assertEquals(684, resolveLandscapeDetailPlayerContentHeightPx(layoutWidthPx = 1216))
+        assertEquals(1, resolveLandscapeDetailPlayerContentHeightPx(layoutWidthPx = 0))
+    }
+
+    @Test
     fun inlinePortraitScrollTransform_respectsSettingEvenForOfficialMode() {
         assertFalse(
             shouldEnableInlinePortraitScrollTransform(

@@ -46,6 +46,7 @@ import com.android.purebilibili.R
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.player.HiResCompatibleRenderersFactory
 import com.android.purebilibili.core.player.PlaybackMediaCache
+import com.android.purebilibili.core.player.PlayerVolumeController
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.core.util.NetworkUtils
@@ -200,8 +201,20 @@ internal fun shouldReuseMiniPlayerAtEntry(
  * 否则上一级画面仍在后台出声，新详情只有封面/黑屏。
  */
 internal fun shouldSuspendLocalPlaybackWhenSessionInactive(
-    playbackSessionActive: Boolean
-): Boolean = !playbackSessionActive
+    playbackSessionActive: Boolean,
+    isOwnedByMiniPlayer: Boolean = false,
+): Boolean {
+    // Mini-player handoff keeps the same ExoPlayer after the detail session ends.
+    // Muting/pausing here freezes the floating window and leaves volume at 0 after resume.
+    if (isOwnedByMiniPlayer) return false
+    return !playbackSessionActive
+}
+
+internal fun shouldTreatPlayerAsOwnedByMiniPlayer(
+    isMiniPlayerActive: Boolean,
+    isPlayerManaged: Boolean,
+    isMiniMode: Boolean,
+): Boolean = isMiniPlayerActive && isPlayerManaged && isMiniMode
 
 /**
  * 进入新详情时，若全局小窗/外部 player 仍在播「另一支」视频，应立即静音停播，
@@ -1391,8 +1404,18 @@ fun rememberVideoPlayerState(
     // 仅「skip attach/load」不够——上一级 ExoPlayer 会继续出声，新详情像卡封面。
     var suspendedByInactiveSession by remember(player) { mutableStateOf(false) }
     var wasPlayingBeforeSessionSuspend by remember(player) { mutableStateOf(false) }
-    LaunchedEffect(playbackSessionActive, player) {
-        if (shouldSuspendLocalPlaybackWhenSessionInactive(playbackSessionActive)) {
+    LaunchedEffect(playbackSessionActive, player, miniPlayerManager.isMiniMode, miniPlayerManager.isActive) {
+        val ownedByMiniPlayer = shouldTreatPlayerAsOwnedByMiniPlayer(
+            isMiniPlayerActive = miniPlayerManager.isActive,
+            isPlayerManaged = miniPlayerManager.isPlayerManaged(player),
+            isMiniMode = miniPlayerManager.isMiniMode,
+        )
+        if (
+            shouldSuspendLocalPlaybackWhenSessionInactive(
+                playbackSessionActive = playbackSessionActive,
+                isOwnedByMiniPlayer = ownedByMiniPlayer,
+            )
+        ) {
             val likelyActive = player.isPlaying ||
                 player.playWhenReady ||
                 player.mediaItemCount > 0
@@ -1412,6 +1435,11 @@ fun rememberVideoPlayerState(
                 )
             }
             return@LaunchedEffect
+        }
+        if (ownedByMiniPlayer && player.volume <= 0.001f) {
+            // Mini-player owns the stream; keep audio audible even if an earlier suspend muted it.
+            PlayerVolumeController.applyPreferredVolume(player)
+            holder.recordDiagnosticEvent("miniPlayerOwnsSession -> restoreVolume")
         }
         if (suspendedByInactiveSession) {
             com.android.purebilibili.core.player.PlayerVolumeController

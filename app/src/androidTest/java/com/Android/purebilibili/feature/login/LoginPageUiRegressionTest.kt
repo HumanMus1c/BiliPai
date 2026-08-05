@@ -40,7 +40,7 @@ class LoginPageUiRegressionTest {
                         onMethodSelected = { selectedMethod = it },
                         onClose = {},
                         onRefreshQr = {},
-                        onRequestSms = {},
+                        onRequestSms = { _, _ -> },
                         onSubmitSms = {},
                         onRequestPassword = { _, _ -> },
                         onImportCookie = {},

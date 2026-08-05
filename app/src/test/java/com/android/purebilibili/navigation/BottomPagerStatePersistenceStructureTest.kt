@@ -32,45 +32,23 @@ class BottomPagerStatePersistenceStructureTest {
     }
 
     @Test
-    fun `ordinary bottom tab selection keeps its existing page motion path`() {
+    fun `bottom tab switch copies KernelSU animateScrollBy motion`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/MainBottomPagerState.kt")
         val switchNavigationSource = source
             .substringAfter("fun switchToPage(")
-            .substringBefore("Applies the system predictive-back progress")
+            .substringBefore("fun syncPage(")
 
+        // KernelSU MainPagerState.animateToPage
         assertTrue(source.contains("navigationStartPage"))
-        assertTrue(switchNavigationSource.contains("pagerState.scrollToPage(safeTargetIndex)"))
-        assertTrue(switchNavigationSource.contains("animatePageChange(safeTargetIndex)"))
-        assertFalse(switchNavigationSource.contains("pagerState.animateScrollBy("))
-        assertFalse(switchNavigationSource.contains("pagerState.animateScrollToPage("))
-        assertFalse(switchNavigationSource.contains("tween("))
-    }
-
-    @Test
-    fun `predictive tab return drives pager progress and settles only the remainder`() {
-        val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/MainBottomPagerState.kt")
-
-        assertTrue(source.contains("suspend fun seekPredictiveReturnToPage("))
-        assertTrue(source.contains("pagerState.scroll(scrollPriority = MutatePriority.UserInput)"))
-        assertTrue(source.contains("scrollBy(deltaPx)"))
-        assertTrue(source.contains("progressDistance = 1f - session.lastProgress"))
-        assertTrue(source.contains("progressDistance = session.lastProgress"))
-    }
-
-    @Test
-    fun `main bottom pager keeps low cost budget after instant switch`() {
-        val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/MainBottomPagerState.kt")
-        val switchNavigationSource = source
-            .substringAfter("fun switchToPage(")
-            .substringBefore("private suspend fun")
-
-        assertCallsInOrder(
-            switchNavigationSource,
-            "awaitScrollIdle()",
-            "awaitNextFrame()",
-            "pagerState.scrollToPage(safeTargetIndex)",
-            "delay(BOTTOM_TAB_RENDER_BUDGET_HOLD_MILLIS)"
-        )
+        assertTrue(switchNavigationSource.contains("pagerState.animateScrollBy("))
+        assertTrue(switchNavigationSource.contains("easing = EaseInOut"))
+        assertTrue(switchNavigationSource.contains("resolveBottomPagerNavigationDurationMillis("))
+        assertTrue(switchNavigationSource.contains("scrollPixels"))
+        // No self-invented absolute seek / predictive progress path.
+        assertFalse(source.contains("seekPredictiveReturnToPage"))
+        assertFalse(source.contains("dispatchRawDelta"))
+        assertFalse(source.contains("commitPredictiveReturnToPage"))
+        assertFalse(source.contains("cancelPredictiveReturn"))
     }
 
     @Test
@@ -80,20 +58,23 @@ class BottomPagerStatePersistenceStructureTest {
             .substringAfter("fun switchToPage(")
             .substringBefore("fun syncPage(")
 
-        assertTrue(switchNavigationSource.contains("previousJob?.cancel()"))
-        assertTrue(switchNavigationSource.contains("previousJob?.join()"))
+        assertTrue(switchNavigationSource.contains("navJob?.cancel()"))
         assertTrue(switchNavigationSource.contains("if (navJob == myJob)"))
         assertTrue(switchNavigationSource.contains("selectedPage = pagerState.currentPage"))
         assertTrue(switchNavigationSource.contains("navigationStartPage = pagerState.currentPage"))
     }
 
-    private fun assertCallsInOrder(source: String, vararg calls: String) {
-        var previousIndex = -1
-        calls.forEach { call ->
-            val currentIndex = source.indexOf(call)
-            assertTrue(currentIndex > previousIndex, "$call should appear after previous call")
-            previousIndex = currentIndex
-        }
+    @Test
+    fun `tab back handler wires KernelSU onBackCompleted to switchToPage home`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt")
+
+        assertTrue(source.contains("MainHostTabBackHandler("))
+        assertTrue(source.contains("onReturnToHomeTab = {"))
+        assertTrue(source.contains("mainBottomPagerState.switchToPage(homeIndex)"))
+        assertFalse(source.contains("seekPredictiveReturnToPage"))
+        assertFalse(source.contains("commitPredictiveReturnToPage"))
+        assertFalse(source.contains("cancelPredictiveReturn"))
+        assertFalse(source.contains("onPredictiveProgress"))
     }
 
     private fun loadSource(path: String): String {

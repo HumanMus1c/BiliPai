@@ -51,7 +51,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
+import com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeletonFixedColumns
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppShapes
@@ -253,8 +254,29 @@ fun LiveSearchScreen(
                     )
                 }
                 when {
-                    isLoading -> LiveSearchState()
-                    error != null -> LiveSearchState(error)
+                    isLoading -> if (selectedTab == 0) {
+                        ContentVideoGridSkeletonFixedColumns(
+                            columns = gridColumns,
+                            contentPadding = PaddingValues(
+                                start = metrics.safeSpaceDp.dp,
+                                end = metrics.safeSpaceDp.dp,
+                                top = AppSpacingTokens.Medium,
+                                bottom = LocalBottomBarContentPadding.current,
+                            ),
+                            spacing = metrics.cardSpaceDp.dp,
+                        )
+                    } else {
+                        ContentMediaListSkeleton(
+                            useUserRow = true,
+                            contentPadding = PaddingValues(
+                                start = metrics.safeSpaceDp.dp,
+                                end = metrics.safeSpaceDp.dp,
+                                top = AppSpacingTokens.Medium,
+                                bottom = LocalBottomBarContentPadding.current,
+                            ),
+                        )
+                    }
+                    error != null -> LiveSearchState(error.orEmpty())
                     selectedTab == 0 -> LazyVerticalGrid(
                         columns = GridCells.Fixed(gridColumns),
                         modifier = Modifier
@@ -321,17 +343,13 @@ fun LiveSearchScreen(
 }
 
 @Composable
-private fun LiveSearchState(message: String? = null) {
+private fun LiveSearchState(message: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        if (message == null) {
-            AdaptiveLoadingIndicator()
-        } else {
-            AppText(
-                text = message,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
+        AppText(
+            text = message,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 

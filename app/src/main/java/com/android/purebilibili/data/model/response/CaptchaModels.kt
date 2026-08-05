@@ -31,6 +31,31 @@ data class TencentData(
     val appid: String = ""
 )
 
+// ========== 国际冠字码（短信登录） ==========
+// docs: passport.bilibili.com/web/generic/country/list
+// cid 使用条目 id；country_id 为拨号区号字符串。
+
+@Serializable
+data class PassportCountryListResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: PassportCountryListData? = null,
+)
+
+@Serializable
+data class PassportCountryListData(
+    val common: List<PassportCountryItem> = emptyList(),
+    val others: List<PassportCountryItem> = emptyList(),
+)
+
+@Serializable
+data class PassportCountryItem(
+    val id: Int = 0,
+    val cname: String = "",
+    @SerialName("country_id")
+    val countryId: String = "",
+)
+
 // ========== 短信验证码相关 ==========
 
 @Serializable

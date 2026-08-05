@@ -67,7 +67,10 @@ class AdaptiveGroupSurfaceShapeStructureTest {
         assertTrue(md3Block.contains("Column(modifier = Modifier.weight(1f))"))
         assertTrue(md3Block.contains("text = title"))
         assertTrue(md3Block.contains("text = subtitle"))
-        assertFalse(md3Block.contains("maxLines"))
+        // Title/value must not paint over each other on long search-result rows.
+        assertTrue(md3Block.contains("maxLines = 1"))
+        assertTrue(md3Block.contains("widthIn(max = 120.dp)"))
+        assertTrue(md3Block.contains("softWrap = false"))
         assertFalse(md3Block.contains("BasicComponent("))
     }
 

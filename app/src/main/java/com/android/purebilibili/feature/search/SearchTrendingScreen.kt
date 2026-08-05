@@ -24,7 +24,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.North
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
-import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -92,14 +92,12 @@ fun SearchTrendingScreen(
         containerColor = globalWallpaperAwareChromeColor(MaterialTheme.colorScheme.background)
     ) { paddingValues ->
         when {
-            state.isLoading -> Box(
+            state.isLoading -> ContentMediaListSkeleton(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                AdaptiveLoadingIndicator()
-            }
+                itemCount = 10,
+            )
 
             state.error != null && state.items.isEmpty() -> Box(
                 modifier = Modifier

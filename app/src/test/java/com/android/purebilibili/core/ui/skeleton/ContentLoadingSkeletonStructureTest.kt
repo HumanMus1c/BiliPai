@@ -1,0 +1,68 @@
+package com.android.purebilibili.core.ui.skeleton
+
+import java.io.File
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+class ContentLoadingSkeletonStructureTest {
+
+    @Test
+    fun contentSkeletons_coverVideoGridMediaRowAndUserRow() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/core/ui/skeleton/ContentLoadingSkeletons.kt"
+        )
+        assertTrue(source.contains("fun ContentVideoGridSkeleton("))
+        assertTrue(source.contains("fun ContentVideoGridSkeletonFixedColumns("))
+        assertTrue(source.contains("fun MediaListRowSkeleton("))
+        assertTrue(source.contains("fun UserListRowSkeleton("))
+        assertTrue(source.contains("fun ContentMediaListSkeleton("))
+        assertTrue(source.contains("rememberContentSkeletonPulse("))
+        // Home-style soft pulse; no left-right shimmer sweep flicker.
+        assertTrue(source.contains("RepeatMode.Reverse"))
+        assertFalse(source.contains("shimmerEffect()"))
+    }
+
+    @Test
+    fun searchScreen_usesSkeletonInsteadOfThemeLoadingForResults() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt"
+        )
+        assertTrue(source.contains("SearchResultBodyMode.LOADING"))
+        assertTrue(source.contains("ContentVideoGridSkeleton("))
+        assertTrue(source.contains("ContentMediaListSkeleton("))
+        assertFalse(source.contains("LoadingAnimation("))
+        assertFalse(source.contains("text = \"搜索中...\""))
+    }
+
+    @Test
+    fun listStyleScreens_preferSkeletonOnInitialLoad() {
+        val category = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/category/CategoryScreen.kt"
+        )
+        val partition = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/partition/PartitionScreen.kt"
+        )
+        val watchLater = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/watchlater/WatchLaterScreen.kt"
+        )
+        val liveSearch = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/live/LiveSearchScreen.kt"
+        )
+
+        assertTrue(category.contains("ContentVideoGridSkeletonFixedColumns("))
+        assertTrue(partition.contains("ContentMediaListSkeleton("))
+        assertTrue(watchLater.contains("ContentMediaListSkeleton("))
+        assertTrue(liveSearch.contains("ContentVideoGridSkeletonFixedColumns("))
+        assertTrue(liveSearch.contains("ContentMediaListSkeleton("))
+    }
+
+    private fun loadSource(path: String): String {
+        val candidates = listOf(
+            File(path),
+            File("app", path.removePrefix("app/")),
+            File(path.removePrefix("app/")),
+        )
+        return candidates.first { it.exists() }.readText()
+    }
+}

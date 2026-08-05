@@ -742,9 +742,11 @@ fun FollowingListScreen(
             ) {
                 when (val state = uiState) {
                     is FollowingListUiState.Loading -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            AdaptiveLoadingIndicator()
-                        }
+                        com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
+                            modifier = Modifier.fillMaxSize(),
+                            useUserRow = true,
+                            itemCount = 10,
+                        )
                     }
                     
                     is FollowingListUiState.Error -> {

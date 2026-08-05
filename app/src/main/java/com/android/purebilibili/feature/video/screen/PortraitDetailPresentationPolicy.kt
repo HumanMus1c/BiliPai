@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.video.screen
 import com.android.purebilibili.core.store.PortraitPlayerCollapseMode
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 internal data class PortraitInlinePlayerLayoutSpec(
     val widthDp: Float,
@@ -211,4 +212,15 @@ internal fun resolvePortraitInlinePlayerLayoutSpec(
         widthDp = width,
         heightDp = expandedHeight
     )
+}
+
+/**
+ * 横屏 16:9 详情播放器内容高度：按**真实布局宽度**算 9/16，
+ * 避免 configuration.screenWidthDp 与窗口可用宽度不一致时左右黑边。
+ */
+internal fun resolveLandscapeDetailPlayerContentHeightPx(
+    layoutWidthPx: Int,
+): Int {
+    val width = layoutWidthPx.coerceAtLeast(1)
+    return ((width * 9f) / 16f).roundToInt().coerceAtLeast(1)
 }

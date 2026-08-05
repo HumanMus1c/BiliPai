@@ -45,12 +45,10 @@ fun BangumiTimelineContent(
 ) {
     when (timelineState) {
         is TimelineState.Loading -> {
-            Box(
-                modifier = modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                com.android.purebilibili.core.ui.CutePersonLoadingIndicator()
-            }
+            com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
+                modifier = modifier,
+                itemCount = 8,
+            )
         }
         is TimelineState.Error -> {
             Box(

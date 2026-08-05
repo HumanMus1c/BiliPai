@@ -114,4 +114,63 @@ class SettingsSharePolicyTest {
             )
         )
     }
+
+    @Test
+    fun exportProfile_canAttachDeviceDebugSnapshot() {
+        val debug = buildSettingsShareDeviceDebugInfo(
+            androidSdkInt = 35,
+            androidRelease = "15",
+            securityPatch = "2025-01-01",
+            manufacturer = "vivo",
+            brand = "vivo",
+            model = "V200",
+            device = "device",
+            product = "product",
+            hardware = "qcom",
+            displayId = "PQ3A",
+            widthPixels = 1216,
+            heightPixels = 2640,
+            density = 3.0f,
+            densityDpi = 480,
+            scaledDensity = 3.0f,
+            xdpi = 480f,
+            ydpi = 480f,
+            widthDp = 405f,
+            heightDp = 880f,
+            smallestWidthDp = 405,
+            fontScale = 1.0f,
+            uiModeNight = true,
+            uiPresetValue = 1,
+            uiPresetName = "安卓原生",
+            androidNativeVariantValue = 0,
+            androidNativeVariantName = "Material 3",
+            appVersionName = "0.1.0",
+            appVersionCode = 1L,
+        )
+        val profile = buildSettingsShareProfile(
+            profileName = "调试包",
+            appVersion = "0.1.0",
+            exportedAtIso = "2026-08-05T00:00:00Z",
+            rawSettings = mapOf("ui_preset" to JsonPrimitive(1)),
+            definitions = listOf(
+                SettingsShareEntryDefinition(
+                    storageKey = "ui_preset",
+                    section = SettingsShareSection.APPEARANCE,
+                )
+            ),
+            deviceDebug = debug,
+        )
+        assertEquals("vivo", profile.deviceDebug?.manufacturer)
+        assertEquals(1216, profile.deviceDebug?.widthPixels)
+        assertEquals("安卓原生", profile.deviceDebug?.uiPresetName)
+        assertEquals("Material 3", profile.deviceDebug?.androidNativeVariantName)
+    }
+
+    @Test
+    fun uiPresetAndVariantNames_matchKnownValues() {
+        assertEquals("iOS", resolveUiPresetNameFromValue(0))
+        assertEquals("安卓原生", resolveUiPresetNameFromValue(1))
+        assertEquals("Material 3", resolveAndroidNativeVariantNameFromValue(0))
+        assertEquals("Miuix", resolveAndroidNativeVariantNameFromValue(1))
+    }
 }

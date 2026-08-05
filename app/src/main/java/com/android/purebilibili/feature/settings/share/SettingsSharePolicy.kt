@@ -27,7 +27,8 @@ fun buildSettingsShareProfile(
     appVersion: String,
     exportedAtIso: String,
     rawSettings: Map<String, JsonElement>,
-    definitions: List<SettingsShareEntryDefinition>
+    definitions: List<SettingsShareEntryDefinition>,
+    deviceDebug: SettingsShareDeviceDebugInfo? = null,
 ): SettingsShareProfile {
     val byKey = definitions.associateBy { it.storageKey }
     val appearance = linkedMapOf<String, JsonElement>()
@@ -57,8 +58,97 @@ fun buildSettingsShareProfile(
             gesture = gesture,
             danmaku = danmaku,
             navigation = navigation
-        )
+        ),
+        deviceDebug = deviceDebug,
     )
+}
+
+/**
+ * 从 raw settings 与显示指标组装设备调试块。
+ * [uiPresetValue]/[androidNativeVariantValue] 优先用快照中的值，便于和导出外观设置对齐。
+ */
+fun buildSettingsShareDeviceDebugInfo(
+    androidSdkInt: Int,
+    androidRelease: String,
+    securityPatch: String,
+    manufacturer: String,
+    brand: String,
+    model: String,
+    device: String,
+    product: String,
+    hardware: String,
+    displayId: String,
+    widthPixels: Int,
+    heightPixels: Int,
+    density: Float,
+    densityDpi: Int,
+    scaledDensity: Float,
+    xdpi: Float,
+    ydpi: Float,
+    widthDp: Float,
+    heightDp: Float,
+    smallestWidthDp: Int,
+    fontScale: Float,
+    uiModeNight: Boolean,
+    uiPresetValue: Int,
+    uiPresetName: String,
+    androidNativeVariantValue: Int,
+    androidNativeVariantName: String,
+    appVersionName: String,
+    appVersionCode: Long,
+): SettingsShareDeviceDebugInfo {
+    return SettingsShareDeviceDebugInfo(
+        androidSdkInt = androidSdkInt,
+        androidRelease = androidRelease,
+        securityPatch = securityPatch,
+        manufacturer = manufacturer,
+        brand = brand,
+        model = model,
+        device = device,
+        product = product,
+        hardware = hardware,
+        displayId = displayId,
+        widthPixels = widthPixels,
+        heightPixels = heightPixels,
+        density = density,
+        densityDpi = densityDpi,
+        scaledDensity = scaledDensity,
+        xdpi = xdpi,
+        ydpi = ydpi,
+        widthDp = widthDp,
+        heightDp = heightDp,
+        smallestWidthDp = smallestWidthDp,
+        fontScale = fontScale,
+        uiModeNight = uiModeNight,
+        uiPresetValue = uiPresetValue,
+        uiPresetName = uiPresetName,
+        androidNativeVariantValue = androidNativeVariantValue,
+        androidNativeVariantName = androidNativeVariantName,
+        appVersionName = appVersionName,
+        appVersionCode = appVersionCode,
+    )
+}
+
+internal fun resolveUiPresetNameFromValue(value: Int): String {
+    return when (value) {
+        0 -> "iOS"
+        1 -> "安卓原生"
+        else -> "unknown($value)"
+    }
+}
+
+internal fun resolveAndroidNativeVariantNameFromValue(value: Int): String {
+    return when (value) {
+        0 -> "Material 3"
+        1 -> "Miuix"
+        2 -> "Material 3" // legacy removed
+        else -> "unknown($value)"
+    }
+}
+
+internal fun jsonElementAsInt(element: JsonElement?): Int? {
+    val primitive = element as? kotlinx.serialization.json.JsonPrimitive ?: return null
+    return primitive.content.toIntOrNull()
 }
 
 fun resolveSettingsShareImportPreview(

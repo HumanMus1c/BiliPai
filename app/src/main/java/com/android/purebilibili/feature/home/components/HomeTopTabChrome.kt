@@ -78,7 +78,13 @@ internal fun HomeTopTabChrome(
     onTabsCollapsedChange: ((Boolean) -> Unit)? = null,
     drawChromeSurface: Boolean = true,
     useBottomBarMatchedSurface: Boolean = false,
+    /**
+     * 顶栏分类 dock 默认开 soft shell lens（[TOP_DOCK_SHELL_LENS_INTENSITY]）：
+     * 保留上下滑动液态折射以贴近指示器，强度低于底栏整壳以避免虾线。
+     * 搜索等小胶囊仍应显式传 false。
+     */
     drawMatchedShellLens: Boolean = true,
+    matchedShellLensIntensity: Float = TOP_DOCK_SHELL_LENS_INTENSITY,
     /**
      * When true, the floating dock shell shrinks to tab content width (icon/text density ×
      * count) and centers in the padded track — no full-bleed empty glass on the right.
@@ -202,6 +208,7 @@ internal fun HomeTopTabChrome(
                                     isTransitionRunning = isTransitionRunning,
                                     forceLowBlurBudget = forceLowBlurBudget,
                                     drawShellLens = drawMatchedShellLens,
+                                    shellLensIntensity = matchedShellLensIntensity,
                                     isScrolling = isScrolling
                                 )
                             } else {

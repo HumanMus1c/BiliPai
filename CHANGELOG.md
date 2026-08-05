@@ -1,5 +1,60 @@
 # Changelog
 
+## v26.0805.1 (2026-08-05)
+
+### 版本信息
+
+- 启用日历构建号 `YY.MMDD.N`：`26.0805.1`，`versionCode` 为 `283`。
+- `YY` 为两位年，`MMDD` 为月日，`N` 为当日第几次正式构建；新旧比较仍以 `versionCode` 为准。
+- 正式产物：`app/build/outputs/bilipai/release/BiliPai-26.0805.1.apk`（禁止使用 `app-release.apk` 默认名）。
+- Dev 验证包：`BiliPai-26.0805.1-dev.apk`。
+- 规范见 [docs/wiki/VERSIONING.md](docs/wiki/VERSIONING.md)。
+- 官方社群：频道 [t.me/bilipai666](https://t.me/bilipai666)，交流群 [t.me/bilipai888](https://t.me/bilipai888/1)。
+
+### 更新范围
+
+- 基准版本：`v0.1.0`。
+- 主要变更覆盖导航返回、视频详情、列表骨架、液态玻璃、设置搜索/分享、登录国际号、版本与 APK 命名。
+
+### 完整更新
+
+#### 导航与标签页
+
+- 底栏预测性返回对齐 KernelSU 绝对 seek / `animateScrollBy` 模型，避免自研 seek 卡死远标签返回。
+- 内容就绪后保持底栏各页完整组合，远距离标签切换更顺。
+
+#### 视频详情与播放
+
+- 简介 / 评论 Tab 栏支持评论区滚动时手指跟手折叠与打断展开（NestedScroll，非硬切动画）。
+- 16:9 播放器按真实布局宽度填满，减少两侧黑边。
+- 相关推荐 UP 与播放/弹幕信息间距收紧。
+- 外置播放列表「UP 主视频」折叠条圆角裁剪后再做模糊。
+- AI 总结时间戳列固定满宽芯片 + 表格式数字，多行标题时时钟列对齐。
+
+#### 列表加载与 UI
+
+- 搜索/分区/直播/空间等列表首屏由主题 Loading 改为形状匹配骨架，并改为首页式软脉冲，减少闪烁。
+- 设置搜索结果：偏好行标题单行省略、右侧分区限宽；结果列表包 `Column`，去掉与顶栏重复的「搜索结果」小节标题，修复标题「果」字压在第一行图标上的叠层。
+- 设置分享：导入导出状态改 subtitle 防换行；导出 JSON 默认附带设备/UI 调试信息。
+- 顶部分类 Dock soft shell lens：保留上下滑液态折射，强度低于底栏，降低边沿虾线；搜索小胶囊仍关 lens。
+
+#### 登录
+
+- 短信登录对接 passport 国际冠字码列表（`cid` = 列表 `id`，拨号显示 `country_id`）。
+- Material 底部表 + 搜索选择国家/地区；离线兜底列表与官方 id 对齐。
+
+#### 版本与交付
+
+- 版本纪元改为 `YY.MMDD.N`（如 `26.0805.1`），`versionCode` 单调递增。
+- `assembleRelease` / `assembleDev` 自动导出 `BiliPai-*` 规范名到 `outputs/bilipai/`。
+
+#### 社群与文档
+
+- 官方 Telegram 频道改为 `t.me/bilipai666`，交流群改为 `t.me/bilipai888`；应用内设置入口同步。
+- 移除 README/Wiki 中「发布渠道临时调整 / 仅 Telegram 发版」类公告文案，改为正常频道与群组链接说明。
+
+---
+
 ## v0.1.0 (2026-08-04)
 
 ### 版本信息
@@ -60,7 +115,7 @@
 
 - 更新检查优先使用 `build-metadata.json` 中的 `versionCode`，并按发布时间识别跨版本纪元的最新稳定版。
 - Release 与 Dev 构建分别导出 `BiliPai-0.1.0.apk` 和 `BiliPai-0.1.0-dev.apk`；GitHub 暂时只同步源码，不再上传 APK Artifact 或 Release 附件。
-- 历史 9.x 安装首次迁移至 0.x 时需要手动下载安装；最新 APK 统一从[官方 Telegram 群组](https://t.me/+x5K_TmoFXso3MGM9)获取。
+- 历史 9.x 安装首次迁移至 0.x 时需要手动下载安装；最新 APK 统一从[官方 Telegram 群组](https://t.me/bilipai888/1)获取。
 
 ---
 

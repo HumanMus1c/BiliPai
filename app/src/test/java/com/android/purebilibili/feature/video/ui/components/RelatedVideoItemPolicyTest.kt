@@ -85,6 +85,11 @@ class RelatedVideoItemPolicyTest {
         assertTrue(source.contains("RelatedVideoGridRow("))
         assertTrue(source.contains("chunkRelatedVideosForHomeStyleGrid("))
         assertFalse(source.contains("relatedCoverWidth = 130.dp"))
+        // UP 与播放量/弹幕成组贴底，避免 SpaceBetween 三等分把间距撑开。
+        assertTrue(source.contains("verticalArrangement = Arrangement.spacedBy(4.dp)"))
+        assertTrue(
+            source.indexOf("UpBadgeName(") < source.indexOf("CupertinoIcons.Filled.Play")
+        )
     }
 
     @Test

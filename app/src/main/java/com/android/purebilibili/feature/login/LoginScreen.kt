@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
@@ -48,6 +51,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -78,7 +82,7 @@ internal fun resolveQrLoginReason(): String {
 }
 
 private sealed interface CaptchaRequest {
-    data class Sms(val phone: String) : CaptchaRequest
+    data class Sms(val phone: String, val countryCid: Int) : CaptchaRequest
     data class Password(val phone: String, val password: String) : CaptchaRequest
 }
 
@@ -89,6 +93,7 @@ fun LoginScreen(
     onClose: () -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val phoneRegions by viewModel.phoneRegions.collectAsStateWithLifecycle()
     var selectedMethod by rememberSaveable { mutableStateOf(LoginMethod.TV_QR) }
     var captchaRequest by remember { mutableStateOf<CaptchaRequest?>(null) }
     var captchaManager by remember { mutableStateOf<CaptchaManager?>(null) }
@@ -105,6 +110,9 @@ fun LoginScreen(
             viewModel.loadTvQrCode()
         } else {
             viewModel.resetPhoneLogin()
+            if (selectedMethod == LoginMethod.SMS) {
+                viewModel.loadPhoneRegions()
+            }
         }
     }
 
@@ -120,7 +128,10 @@ fun LoginScreen(
                 onSuccess = { validate, seccode, challenge ->
                     viewModel.saveCaptchaResult(validate, seccode, challenge)
                     when (request) {
-                        is CaptchaRequest.Sms -> viewModel.sendSmsCode(request.phone, 86)
+                        is CaptchaRequest.Sms -> viewModel.sendSmsCode(
+                            phone = request.phone,
+                            countryCode = request.countryCid,
+                        )
                         is CaptchaRequest.Password -> viewModel.loginByPassword(request.phone, request.password)
                     }
                     captchaRequest = null
@@ -147,11 +158,12 @@ fun LoginScreen(
     LoginPage(
         state = state,
         selectedMethod = selectedMethod,
+        phoneRegions = phoneRegions,
         onMethodSelected = { selectedMethod = it },
         onClose = onClose,
         onRefreshQr = viewModel::loadTvQrCode,
-        onRequestSms = { phone ->
-            captchaRequest = CaptchaRequest.Sms(phone)
+        onRequestSms = { phone, countryCid ->
+            captchaRequest = CaptchaRequest.Sms(phone = phone, countryCid = countryCid)
             viewModel.getCaptcha()
         },
         onSubmitSms = viewModel::loginBySms,
@@ -170,10 +182,11 @@ fun LoginScreen(
 internal fun LoginPage(
     state: LoginState,
     selectedMethod: LoginMethod,
+    phoneRegions: List<PhoneRegion> = resolveFallbackPhoneRegions(),
     onMethodSelected: (LoginMethod) -> Unit,
     onClose: () -> Unit,
     onRefreshQr: () -> Unit,
-    onRequestSms: (String) -> Unit,
+    onRequestSms: (phone: String, countryCid: Int) -> Unit,
     onSubmitSms: (Int) -> Unit,
     onRequestPassword: (String, String) -> Unit,
     onImportCookie: (String) -> Unit,
@@ -237,7 +250,12 @@ internal fun LoginPage(
                         when (selectedMethod) {
                             LoginMethod.TV_QR -> TvQrLoginContent(state, onRefreshQr)
                             LoginMethod.PASSWORD -> PasswordLoginContent(state, onRequestPassword)
-                            LoginMethod.SMS -> SmsLoginContent(state, onRequestSms, onSubmitSms)
+                            LoginMethod.SMS -> SmsLoginContent(
+                                state = state,
+                                phoneRegions = phoneRegions,
+                                onRequestCode = onRequestSms,
+                                onSubmitCode = onSubmitSms,
+                            )
                             LoginMethod.COOKIE_IMPORT -> CookieImportContent(state, onImportCookie)
                         }
                     }
@@ -464,27 +482,74 @@ private fun PasswordLoginContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SmsLoginContent(
     state: LoginState,
-    onRequestCode: (String) -> Unit,
+    phoneRegions: List<PhoneRegion>,
+    onRequestCode: (phone: String, countryCid: Int) -> Unit,
     onSubmitCode: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var phone by rememberSaveable { mutableStateOf("") }
     var code by rememberSaveable { mutableStateOf("") }
+    var selectedCid by rememberSaveable { mutableIntStateOf(DEFAULT_PHONE_REGION_CID) }
+    var showRegionPicker by remember { mutableStateOf(false) }
+    val regions = phoneRegions.ifEmpty { resolveFallbackPhoneRegions() }
+    val selectedRegion = remember(selectedCid, regions) {
+        regions.firstOrNull { it.cid == selectedCid } ?: resolveDefaultPhoneRegion(regions)
+    }
+    val phoneEligible = isPhoneEligibleForCaptcha(phone, selectedRegion)
     val codeSent = state is LoginState.SmsSent
     val isLoading = state is LoginState.Loading || state is LoginState.CaptchaReady
 
+    LaunchedEffect(selectedRegion.maxDigits) {
+        if (phone.length > selectedRegion.maxDigits) {
+            phone = phone.take(selectedRegion.maxDigits)
+        }
+    }
+    LaunchedEffect(regions) {
+        if (regions.none { it.cid == selectedCid }) {
+            selectedCid = resolveDefaultPhoneRegion(regions).cid
+        }
+    }
+
     LoginFormCard(title = "短信验证码登录", modifier = modifier) {
+        // 国家/地区选择：Material3 底部表 + 搜索，数据来自 passport 官方列表。
+        AppOutlinedButton(
+            onClick = { showRegionPicker = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            AppIcon(Icons.Outlined.Phone, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            AppText(
+                text = "${selectedRegion.dialingCode}  ${selectedRegion.name}",
+                maxLines = 1,
+            )
+        }
         AppOutlinedTextField(
             value = phone,
-            onValueChange = { phone = it.filter(Char::isDigit) },
-            label = { AppText("中国大陆手机号") },
-            prefix = { AppText("+86 ") },
+            onValueChange = { value ->
+                val digits = value.filter(Char::isDigit)
+                if (digits.length <= selectedRegion.maxDigits) {
+                    phone = digits
+                }
+            },
+            label = { AppText("手机号") },
+            prefix = { AppText("${selectedRegion.dialingCode} ") },
             leadingIcon = { AppIcon(Icons.Outlined.Phone, contentDescription = null) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
+            supportingText = {
+                AppText(
+                    text = if (phone.isNotBlank() && !phoneEligible) {
+                        "号码长度需为 ${selectedRegion.minDigits}-${selectedRegion.maxDigits} 位"
+                    } else {
+                        "支持国际区号，区号列表来自 B 站官方接口"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            },
             modifier = Modifier.fillMaxWidth()
         )
         if (codeSent || code.isNotEmpty()) {
@@ -513,11 +578,164 @@ private fun SmsLoginContent(
             }
         } else {
             AppButton(
-                onClick = { onRequestCode(phone) },
-                enabled = phone.length >= 6 && !isLoading,
+                onClick = { onRequestCode(phone, selectedRegion.cid) },
+                enabled = phoneEligible && !isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 AppText("获取验证码")
+            }
+        }
+    }
+
+    if (showRegionPicker) {
+        PhoneRegionPickerSheet(
+            regions = regions,
+            selectedCid = selectedRegion.cid,
+            onSelect = { region ->
+                selectedCid = region.cid
+                showRegionPicker = false
+            },
+            onDismiss = { showRegionPicker = false },
+        )
+    }
+}
+
+/**
+ * 成熟 Material3 底部表 + 搜索筛选国家/地区，避免自造滚轮/列表组件。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PhoneRegionPickerSheet(
+    regions: List<PhoneRegion>,
+    selectedCid: Int,
+    onSelect: (PhoneRegion) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val filtered = remember(regions, query) {
+        filterPhoneRegions(regions, query)
+    }
+    val common = remember(filtered) { filtered.filter { it.isCommon } }
+    val others = remember(filtered) { filtered.filterNot { it.isCommon } }
+
+    com.android.purebilibili.core.ui.AppModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AppText(
+                text = "选择国家或地区",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            AppOutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { AppText("搜索名称或区号") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (common.isNotEmpty()) {
+                    item {
+                        AppText(
+                            text = "常用",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    }
+                    items(common.size, key = { common[it].cid }) { index ->
+                        val region = common[index]
+                        PhoneRegionPickerRow(
+                            region = region,
+                            selected = region.cid == selectedCid,
+                            onClick = { onSelect(region) },
+                        )
+                    }
+                }
+                if (others.isNotEmpty()) {
+                    item {
+                        AppText(
+                            text = "全部",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                        )
+                    }
+                    items(others.size, key = { "o-${others[it].cid}" }) { index ->
+                        val region = others[index]
+                        PhoneRegionPickerRow(
+                            region = region,
+                            selected = region.cid == selectedCid,
+                            onClick = { onSelect(region) },
+                        )
+                    }
+                }
+                if (filtered.isEmpty()) {
+                    item {
+                        AppText(
+                            text = "无匹配地区",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 24.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhoneRegionPickerRow(
+    region: PhoneRegion,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val bg = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    AppSurface(
+        onClick = onClick,
+        color = bg,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                AppText(
+                    text = region.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                )
+                AppText(
+                    text = region.dialingCode,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (selected) {
+                AppText(
+                    text = "已选",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
         }
     }

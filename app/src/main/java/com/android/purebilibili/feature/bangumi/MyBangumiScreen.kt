@@ -85,12 +85,9 @@ fun MyBangumiContent(
 
         when (myFollowState) {
             is MyFollowState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    com.android.purebilibili.core.ui.CutePersonLoadingIndicator()
-                }
+                com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
+                    itemCount = 8,
+                )
             }
             is MyFollowState.Error -> {
                 Box(

@@ -347,7 +347,8 @@ fun SettingsScreen(
     }
     
     val onExportLogsAction: () -> Unit = { LogCollector.exportAndShare(context) }
-    val onTelegramClick: () -> Unit = { uriHandler.openUri(OFFICIAL_TELEGRAM_URL) }
+    val onTelegramClick: () -> Unit = { uriHandler.openUri(OFFICIAL_TELEGRAM_CHANNEL_URL) }
+    val onTelegramGroupClick: () -> Unit = { uriHandler.openUri(OFFICIAL_TELEGRAM_GROUP_URL) }
     val onTwitterClick: () -> Unit = { uriHandler.openUri("https://x.com/YangY_0x00") }
     val onGithubClick: () -> Unit = { uriHandler.openUri(OFFICIAL_GITHUB_URL) }
     val onVerificationClick: () -> Unit = {
@@ -998,6 +999,7 @@ fun SettingsScreen(
                     onVersionClick = onVersionClickAction,
                     onReplayOnboardingClick = onReplayOnboardingClick,
                     onTelegramClick = onTelegramClick,
+                    onTelegramGroupClick = onTelegramGroupClick,
                     onTwitterClick = onTwitterClick,
                     onSettingsShareClick = onSettingsShareClick,
                     onWebDavBackupClick = onWebDavBackupClick,
@@ -1147,6 +1149,7 @@ private fun MobileSettingsNavLayout(
     onVersionClick: () -> Unit,
     onReplayOnboardingClick: () -> Unit,
     onTelegramClick: () -> Unit,
+    onTelegramGroupClick: () -> Unit = {},
     onTwitterClick: () -> Unit,
     onSettingsShareClick: () -> Unit,
     onWebDavBackupClick: () -> Unit,
@@ -1233,6 +1236,7 @@ private fun MobileSettingsNavLayout(
         onClearCacheClick = onClearCacheClick,
         onGithubClick = onGithubClick,
         onTelegramClick = onTelegramClick,
+        onTelegramGroupClick = onTelegramGroupClick,
         onTwitterClick = onTwitterClick,
         onDonateClick = onDonateClick,
         onDisclaimerClick = onDisclaimerClick,

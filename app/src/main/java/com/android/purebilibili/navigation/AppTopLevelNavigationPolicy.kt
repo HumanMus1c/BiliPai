@@ -197,6 +197,18 @@ internal fun resolveBottomPagerRenderBudget(isNavigating: Boolean): BottomPagerR
 
 internal fun shouldEnableBottomPagerUserScroll(): Boolean = false
 
+/**
+ * KernelSU MainScreen composition:
+ * `if (isCurrentPage || contentReady) XxxPager(...)`
+ *
+ * After first-frame ready, every bottom-tab slot stays mounted so
+ * [MainBottomPagerState.switchToPage] `animateScrollBy` far jumps
+ * (rightmost → home) scroll across real pages instead of empty Boxes.
+ * Active work (playback, heavy refresh) still gates on settledPage via
+ * `isBottomPagerPageActive` — this only trades memory for solid transition frames.
+ *
+ * Before ready, only mount start / selected / current to keep cold start light.
+ */
 internal fun shouldComposeBottomPagerPage(
     item: BottomNavItem,
     page: Int,
@@ -206,13 +218,10 @@ internal fun shouldComposeBottomPagerPage(
     navigationStartPage: Int,
     contentReady: Boolean
 ): Boolean {
-    if (item == BottomNavItem.STORY || item == BottomNavItem.SETTINGS || item == BottomNavItem.PLUGINS) {
-        return page == currentPage || page == selectedPage
+    if (contentReady) {
+        return true
     }
-    if (!contentReady) {
-        return page == navigationStartPage || page == selectedPage
-    }
-    return true
+    return page == currentPage || page == selectedPage || page == navigationStartPage
 }
 
 internal fun shouldBypassNavigationDebounceForRoute(targetRoute: String): Boolean {

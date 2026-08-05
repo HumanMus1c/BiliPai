@@ -40,6 +40,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     private val _state = MutableStateFlow<LoginState>(LoginState.Loading)
     val state = _state.asStateFlow()
 
+    private val _phoneRegions = MutableStateFlow(resolveFallbackPhoneRegions())
+    val phoneRegions = _phoneRegions.asStateFlow()
+
     private var qrcodeKey: String = ""
     private var isPolling = true
 
@@ -208,10 +211,38 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     private var currentChallenge: String = ""
     private var currentCaptchaKey: String = ""  // 发送短信后返回的 key
     private var currentPhone: String = ""
-    private var currentCountryCode: Int = 86
+    /** passport 国家列表 id，中国大陆 = 1（不是区号 86） */
+    private var currentCountryCode: Int = DEFAULT_PHONE_REGION_CID
     private val appLoginDeviceId = UUID.randomUUID().toString().replace("-", "").uppercase()
     private val appLoginBuvid = TokenManager.buvid3Cache
         ?: "${appLoginDeviceId.lowercase()}infoc".also { TokenManager.buvid3Cache = it }
+
+    /**
+     * 拉取 passport 国际冠字码列表（common + others）。
+     * 失败时保留离线兜底，保证登录页仍可选主要地区。
+     */
+    fun loadPhoneRegions() {
+        viewModelScope.launch {
+            try {
+                val response = NetworkModule.passportApi.getCountryList()
+                val data = response.data
+                if (response.code == 0 && data != null) {
+                    val mapped = mapPassportCountryListToPhoneRegions(data)
+                    if (mapped.isNotEmpty()) {
+                        _phoneRegions.value = mapped
+                        Logger.d("LoginDebug", "国家列表加载成功: ${mapped.size}")
+                    }
+                } else {
+                    Logger.d(
+                        "LoginDebug",
+                        "国家列表返回异常 code=${response.code} msg=${response.message}"
+                    )
+                }
+            } catch (e: Exception) {
+                Logger.e("LoginDebug", "国家列表加载失败，使用离线兜底", e)
+            }
+        }
+    }
     
     /**
      * 获取极验验证参数
@@ -583,7 +614,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         currentChallenge = ""
         currentCaptchaKey = ""
         currentPhone = ""
-        currentCountryCode = 86
+        currentCountryCode = DEFAULT_PHONE_REGION_CID
         _state.value = LoginState.PhoneIdle
     }
     

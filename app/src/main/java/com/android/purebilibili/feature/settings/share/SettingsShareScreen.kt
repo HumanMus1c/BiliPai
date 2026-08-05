@@ -57,6 +57,7 @@ import com.android.purebilibili.core.ui.components.AppPreference
 import com.android.purebilibili.core.ui.components.AppPreferenceDivider
 import com.android.purebilibili.core.ui.components.AppPreferenceGroup
 import com.android.purebilibili.core.ui.components.AppPreferenceSectionTitle
+import com.android.purebilibili.core.ui.components.AppSwitchPreference
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,10 +126,11 @@ fun SettingsShareScreen(
             item {
                 AppPreferenceSectionTitle("执行状态")
                 AppPreferenceGroup {
+                    // 状态放 subtitle，避免右侧 value 窄列把长文案拆成「操作」单独一行。
                     AppPreference(
                         icon = if (uiState.isBusy) Icons.Filled.Info else Icons.Filled.CheckCircle,
                         title = if (uiState.isBusy) "正在处理" else "最近状态",
-                        value = uiState.statusMessage ?: "尚未执行导入导出操作",
+                        subtitle = uiState.statusMessage ?: "尚未执行导入导出操作",
                         onClick = if (uiState.statusMessage != null) ({ viewModel.clearStatus() }) else null,
                         iconTint = if (uiState.isBusy) iOSOrange else iOSGreen,
                         showChevron = false
@@ -160,12 +162,30 @@ fun SettingsShareScreen(
             }
 
             item {
+                AppPreferenceSectionTitle("导出选项")
+                AppPreferenceGroup {
+                    AppSwitchPreference(
+                        title = "包含设备调试信息",
+                        subtitle = "安卓版本、UI 名称、密度、分辨率等，便于排查界面问题（导入时忽略）",
+                        checked = uiState.includeDeviceDebug,
+                        onCheckedChange = viewModel::setIncludeDeviceDebug,
+                        icon = Icons.Filled.Info,
+                        iconTint = iOSOrange,
+                    )
+                }
+            }
+
+            item {
                 AppPreferenceSectionTitle("操作")
                 AppPreferenceGroup {
                     AppPreference(
                         icon = Icons.Filled.Download,
                         title = "导出到文件",
-                        subtitle = "生成可分享的设置文件（JSON）",
+                        subtitle = if (uiState.includeDeviceDebug) {
+                            "生成可分享的设置文件（含设备调试信息）"
+                        } else {
+                            "生成可分享的设置文件（JSON）"
+                        },
                         onClick = {
                             exportLauncher.launch(
                                 buildSettingsShareFileName(

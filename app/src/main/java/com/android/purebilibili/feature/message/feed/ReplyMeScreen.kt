@@ -167,8 +167,10 @@ fun ReplyMeScreen(
                 .padding(paddingValues)
         ) {
             when {
-                uiState.isLoading -> com.android.purebilibili.core.ui.CutePersonLoadingIndicator(
-                    modifier = Modifier.align(Alignment.Center)
+                uiState.isLoading -> com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton(
+                    modifier = Modifier.fillMaxSize(),
+                    useUserRow = true,
+                    itemCount = 8,
                 )
                 uiState.error != null -> MessageFeedError(
                     text = uiState.error ?: "加载失败",

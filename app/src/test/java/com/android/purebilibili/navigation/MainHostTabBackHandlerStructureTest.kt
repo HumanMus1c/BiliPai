@@ -8,20 +8,22 @@ import kotlin.test.assertTrue
 class MainHostTabBackHandlerStructureTest {
 
     @Test
-    fun mainHostTabBackHandler_usesNavigationBackHandlerInsteadOfBackHandler() {
+    fun mainHostTabBackHandler_copiesKernelSuMainScreenBackHandler() {
         val source = mainHostTabBackHandlerSource()
 
+        // KernelSU MainScreenBackHandler: NavigationBackHandler + onBackCompleted only.
         assertTrue(source.contains("NavigationBackHandler("))
         assertTrue(source.contains("rememberNavigationEventState(NavigationEventInfo.None)"))
-        assertTrue(source.contains("LocalPredictiveBackGestureEnabled.current"))
-        assertTrue(source.contains("NavigationEventTransitionState.InProgress"))
-        assertTrue(source.contains("onPredictiveProgress(predictiveProgress)"))
-        assertTrue(source.contains("onPredictiveCancelled()"))
-        assertTrue(source.contains("onPredictiveCompleted()"))
-        assertTrue(source.contains("reportPredictiveProgress = predictiveBackGestureEnabled"))
+        assertTrue(source.contains("isBackEnabled = enabled"))
+        assertTrue(source.contains("onBackCompleted = { commitTransition ->"))
+        assertTrue(source.contains("onReturnToHomeTab()"))
+        assertTrue(source.contains("commitTransition()"))
+
+        // No self-invented predictive progress seek path.
+        assertFalse(source.contains("snapshotFlow"))
+        assertFalse(source.contains("onPredictiveProgress"))
+        assertFalse(source.contains("NavigationEventTransitionState.InProgress"))
         assertFalse(source.contains("import androidx.activity.compose.BackHandler"))
-        // 仅需确认没有「直接注册 androidx.activity 的 BackHandler」。之前此处误用
-        // `"BackHandler("` 子串断言，会被 `NavigationBackHandler(` 命中，属于 staleness。
         assertFalse(source.contains("androidx.activity.compose.BackHandler "))
     }
 

@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppAlertDialog
@@ -62,35 +63,46 @@ fun FavoriteFolderSheet(
                 .fillMaxWidth()
                 .heightIn(max = maxSheetHeight)
         ) {
-            Box(
+            // Title row keeps 新建 on the end without covering the subtitle.
+            // The subtitle is a separate full-width line under the title row.
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 40.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     AppText(
                         text = "添加到收藏夹",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        // Reserve end space so a longer title cannot run under 新建.
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 56.dp),
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    AppText(
-                        text = "可勾选一个或多个收藏夹，将视频收藏到自己的收藏夹",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    AppTextButton(
+                        onClick = { showCreateDialog = true },
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        AppText("新建")
+                    }
                 }
-
-                // [新增] 新建文件夹按钮
-                AppTextButton(
-                    onClick = { showCreateDialog = true },
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                ) {
-                    AppText("新建")
-                }
+                Spacer(modifier = Modifier.height(4.dp))
+                AppText(
+                    text = "可勾选一个或多个收藏夹，将视频收藏到自己的收藏夹",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
             }
             
             if (isLoading) {

@@ -47,6 +47,23 @@ class VideoContentSectionPerformanceStructureTest {
         assertTrue(source.contains("selectedTabIndex = pagerState.currentPage"))
     }
 
+    @Test
+    fun videoContentSection_collapsesIntroCommentTabBarWithInterruptibleNestedScroll() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt"
+        )
+
+        // Real-time finger follow via NestedScrollConnection, not AnimatedVisibility snap.
+        assertTrue(source.contains("reduceVideoContentTabBarCollapseOnPreScroll("))
+        assertTrue(source.contains("reduceVideoContentTabBarCollapseOnPostScroll("))
+        assertTrue(source.contains("nestedScroll(tabBarCollapseConnection)"))
+        assertTrue(source.contains("var tabBarCollapsePx by remember"))
+        assertTrue(source.contains("resolveVideoContentTabBarCollapseProgress("))
+        assertFalse(source.contains("visible = !collapseTabBarForCommentScroll"))
+        // Sort filter bar stays outside this collapse path (comment list chrome).
+        assertTrue(source.contains("CommentSortFilterBar("))
+    }
+
     private fun loadSource(path: String): String {
         val candidates = listOf(
             File(path),

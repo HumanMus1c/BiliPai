@@ -199,13 +199,17 @@ internal fun resolveTopTabWrapItemWidthDp(
     labelMode: Int,
     isFloatingStyle: Boolean = true
 ): Float {
-    return when (normalizeTopTabLabelMode(labelMode)) {
+    // Keep wrap-dock preferred widths at least the multi-slot floor so iOS / MD3 / Miuix
+    // floating docks never pack tighter than the readable minimum.
+    val floor = resolveMd3TopTabMinItemWidthDp(labelMode)
+    val preferred = when (normalizeTopTabLabelMode(labelMode)) {
         // 图文混合模式至少要容纳 18dp 图标、6dp 间距和两三个汉字，
         // 否则文字会退化为单独的省略号。
         0 -> if (isFloatingStyle) 84f else 80f // icon + text
         1 -> if (isFloatingStyle) 56f else 52f // icon only
-        else -> if (isFloatingStyle) 66f else 62f // text only
+        else -> if (isFloatingStyle) 72f else 68f // text only
     }
+    return preferred.coerceAtLeast(floor)
 }
 
 /**
@@ -320,18 +324,41 @@ internal fun resolveIosTopTabItemWidthDp(
     labelMode = labelMode
 )
 
+/**
+ * Minimum slot width so labels/icons stay readable in the compact dock.
+ *
+ * Budget for text-only: outer 3dp×2 + content 4dp×2 + ~30dp for two CJK glyphs ≈ 44dp,
+ * then add a little for semi-bold / font padding. Icon+text also needs 18+6 for glyph+gap.
+ * Prefer scrolling over squeezing every tab into the viewport as pure "...".
+ */
+internal fun resolveMd3TopTabMinItemWidthDp(labelMode: Int): Float {
+    return when (normalizeTopTabLabelMode(labelMode)) {
+        0 -> 80f // icon + text
+        1 -> 48f // icon only
+        else -> 64f // text only — two CJK characters with compact padding
+    }
+}
+
+internal fun resolveMd3TopTabMaxItemWidthDp(labelMode: Int): Float {
+    return when (normalizeTopTabLabelMode(labelMode)) {
+        0 -> 96f
+        1 -> 64f
+        else -> 88f
+    }
+}
+
 internal fun resolveMd3TopTabItemWidthDp(
     containerWidthDp: Float,
     visibleSlots: Int = resolveMd3TopTabVisibleSlots(),
     labelMode: Int = 2
 ): Float {
     if (containerWidthDp <= 0f) return 96f
+    val minWidth = resolveMd3TopTabMinItemWidthDp(labelMode)
+    val maxWidth = resolveMd3TopTabMaxItemWidthDp(labelMode)
     if (visibleSlots >= 5) {
-        val minWidth = if (normalizeTopTabLabelMode(labelMode) == 0) 80f else 52f
-        val maxWidth = if (normalizeTopTabLabelMode(labelMode) == 0) 96f else 72f
         return (containerWidthDp / visibleSlots).coerceIn(minWidth, maxWidth)
     }
-    return (containerWidthDp / visibleSlots.coerceAtLeast(1)).coerceAtLeast(88f)
+    return (containerWidthDp / visibleSlots.coerceAtLeast(1)).coerceAtLeast(minWidth.coerceAtLeast(88f))
 }
 
 internal fun resolveMd3TopTabContentPaddingDp(
@@ -584,18 +611,17 @@ internal fun resolveTopTabSkinStickerRowHeight(
 internal fun resolveTopTabSkinStickerItemVerticalPadding(showText: Boolean): Dp =
     if (showText) AppSpacingTokens.Micro else AppSpacingTokens.ExtraSmall
 
+/**
+ * iOS top-tab track must match [resolveHomeTopPresetStyle] chrome height (36/40).
+ * Taller content rows get clipped by HomeTopTabChrome and collapse labels to "...".
+ */
 internal fun resolveIosTopTabRowHeight(
     isFloatingStyle: Boolean,
     labelMode: Int = com.android.purebilibili.core.store.SettingsManager.TopTabLabelMode.TEXT_ONLY
 ): Dp {
-    return if (normalizeTopTabLabelMode(labelMode) ==
-        com.android.purebilibili.core.store.SettingsManager.TopTabLabelMode.ICON_AND_TEXT
-    ) {
-        if (isFloatingStyle) AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Medium + AppSpacingTokens.Micro else AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small + AppSpacingTokens.Micro
-    } else {
-        // Text-only / icon-only: still taller so the liquid capsule can fill + overflow on drag.
-        if (isFloatingStyle) AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Small else AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro
-    }
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredLabelMode = labelMode
+    return if (isFloatingStyle) 40.dp else 36.dp
 }
 
 internal fun resolveIosTopTabActionButtonSize(isFloatingStyle: Boolean): Dp =
@@ -786,6 +812,12 @@ internal fun resolveIosTopTabCapsuleContainerColor(
     return baseColor.copy(alpha = 0.28f * selectedAlpha)
 }
 
+/**
+ * Soft shell lens for short top docks: keeps scroll-time refraction/vibrancy closer to the
+ * moving indicator, while staying below full bottom-bar rim strength that causes 虾线.
+ */
+internal const val TOP_DOCK_SHELL_LENS_INTENSITY = 0.55f
+
 internal fun Modifier.homeTopBottomBarMatchedSurface(
     renderMode: HomeTopChromeRenderMode,
     shape: Shape,
@@ -799,6 +831,7 @@ internal fun Modifier.homeTopBottomBarMatchedSurface(
     isTransitionRunning: Boolean,
     forceLowBlurBudget: Boolean,
     drawShellLens: Boolean = true,
+    shellLensIntensity: Float = 1f,
     isScrolling: Boolean = false,
     materialScrollProgress: Float = if (isScrolling) 1f else 0f
 ): Modifier = composed {
@@ -828,6 +861,7 @@ internal fun Modifier.homeTopBottomBarMatchedSurface(
         blurEnabled = isBlurEnabled,
         glassEnabled = isGlassEnabled,
         drawShellLens = drawShellLens,
+        shellLensIntensity = shellLensIntensity,
         blurRadius = tuning.shellBlurRadiusDp.dp,
         hazeState = hazeState,
         motionTier = motionTier,
@@ -1942,11 +1976,8 @@ private fun LightweightTopTabItem(
         presentation == AppTopTabPresentation.MATERIAL_UNDERLINE -> androidx.compose.ui.graphics.RectangleShape
         else -> RoundedCornerShape(CompactTopTabIndicatorCornerDp.dp)
     }
-    val itemContentHorizontalPadding = if (showIcon && showText) {
-        AppSpacingTokens.ExtraSmall
-    } else {
-        AppSpacingTokens.Small
-    }
+    // Compact dock: keep side padding small so 5–6 tabs do not collapse to "...".
+    val itemContentHorizontalPadding = AppSpacingTokens.ExtraSmall
 
     Box(
         modifier = modifier
@@ -2007,7 +2038,9 @@ private fun LightweightTopTabItem(
                 }
                 AppText(
                     text = category,
+                    modifier = Modifier.weight(1f, fill = false),
                     maxLines = 1,
+                    softWrap = false,
                     overflow = TextOverflow.Ellipsis,
                     fontSize = resolveTopTabLabelTextSizeSp(labelMode).sp,
                     lineHeight = resolveTopTabLabelLineHeightSp(labelMode).sp,
