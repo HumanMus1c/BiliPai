@@ -7,7 +7,7 @@ on:
   
 permissions:
   contents: write
-
+  workflows: write  
 
 jobs:
   sync:
@@ -25,7 +25,6 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Add upstream remote
-        # ↓↓↓ 务必把「上游所有者/上游仓库名」换成真实地址，例如 octocat/hello-world
         run: git remote add upstream https://github.com/jay3-yy/BiliPai.git
 
       - name: Show remotes (debug)
