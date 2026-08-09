@@ -215,7 +215,8 @@ object PlayerSettingsStore {
         legacyStatsEnabled: Boolean
     ): PlayerInsightMode {
         PlayerInsightMode.entries.firstOrNull { it.name == storedMode }?.let { return it }
-        if (!legacyPreferencePresent) return PlayerInsightMode.SMART
+        // 全新安装 / 无历史偏好：默认关闭，避免首播叠加洞察浮层
+        if (!legacyPreferencePresent) return PlayerInsightMode.OFF
         return if (legacyStatsEnabled) {
             PlayerInsightMode.ALWAYS
         } else {

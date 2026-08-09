@@ -24,13 +24,26 @@ object NavigationSettingsStore {
     private val keyBottomBarVisibleTabs = stringPreferencesKey("bottom_bar_visible_tabs")
     private val keyListenVideoMigrationComplete = booleanPreferencesKey("listen_video_bottom_tab_migration_complete")
 
-    internal fun mapFromPreferences(preferences: Preferences): AppNavigationSettings {
-        return mapAppNavigationSettingsFromPreferences(preferences)
+    internal fun mapFromPreferences(
+        preferences: Preferences,
+        defaultTabletUseSidebar: Boolean = false
+    ): AppNavigationSettings {
+        return mapAppNavigationSettingsFromPreferences(
+            preferences = preferences,
+            defaultTabletUseSidebar = defaultTabletUseSidebar
+        )
     }
 
     fun observe(context: Context): Flow<AppNavigationSettings> {
+        val defaultTabletUseSidebar =
+            context.resources.configuration.smallestScreenWidthDp >= 600
         return context.settingsDataStore.data
-            .map(::mapFromPreferences)
+            .map { preferences ->
+                mapFromPreferences(
+                    preferences = preferences,
+                    defaultTabletUseSidebar = defaultTabletUseSidebar
+                )
+            }
             .distinctUntilChanged()
     }
 

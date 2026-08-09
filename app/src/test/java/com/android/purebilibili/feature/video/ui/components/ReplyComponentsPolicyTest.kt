@@ -909,6 +909,35 @@ class ReplyComponentsPolicyTest {
     }
 
     @Test
+    fun `reply avatar face shrinks under pendant so frame ring sits outside face`() {
+        assertEquals(1f, resolveReplyAvatarFaceFraction(hasPendant = false))
+        assertEquals(
+            REPLY_AVATAR_FACE_FRACTION_WITH_PENDANT,
+            resolveReplyAvatarFaceFraction(hasPendant = true)
+        )
+        assertTrue(REPLY_AVATAR_FACE_FRACTION_WITH_PENDANT < 1f)
+        assertTrue(REPLY_AVATAR_FACE_FRACTION_WITH_PENDANT >= 0.65f)
+    }
+
+    @Test
+    fun `reply member avatar draws face under pendant frame`() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/components/ReplyComponents.kt"
+        ).readText()
+            .replace("\r\n", "\n")
+        val avatarSource = source
+            .substringAfter("@Composable\ninternal fun ReplyMemberAvatar(")
+            .substringBefore("@Composable\ninternal fun FanGroupDecorationBadge(")
+        assertTrue(avatarSource.contains("fillMaxSize(faceFraction)"))
+        assertTrue(avatarSource.contains("resolveReplyAvatarFaceFraction(hasPendant)"))
+        // Pendant is composed after face so it paints on top.
+        assertTrue(
+            avatarSource.indexOf("fillMaxSize(faceFraction)") <
+                avatarSource.indexOf("contentDescription = \"Avatar pendant\"")
+        )
+    }
+
+    @Test
     fun `normalizeHttpImageUrl upgrades protocol relative and bare host urls`() {
         assertEquals(
             "https://i0.hdslb.com/bfs/garb/item.png",
@@ -944,6 +973,7 @@ class ReplyComponentsPolicyTest {
     fun `fan group decoration image fits complete official transparent asset`() {
         val source = File("src/main/java/com/android/purebilibili/feature/video/ui/components/ReplyComponents.kt")
             .readText()
+            .replace("\r\n", "\n")
         val decorationSource = source
             .substringAfter("@Composable\ninternal fun FanGroupDecorationBadge(")
             .substringBefore("@Composable\nprivate fun PiliPlusGarbCardDecoration(")

@@ -457,7 +457,7 @@ private fun FeaturesPage(motionSpec: OnboardingMotionSpec) {
             OnboardingFeatureCard(
                 icon = Icons.Outlined.AutoAwesome,
                 title = "清爽首页",
-                subtitle = "顶部 6 个纯文字标签，入口更直观"
+                subtitle = "顶部 5 个纯文字标签，入口更直观"
             )
             OnboardingFeatureCard(
                 icon = Icons.Outlined.Speed,

@@ -15,10 +15,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -601,7 +601,7 @@ fun PluginsContent(
                             contentAlignment = Alignment.Center
                         ) {
                             AppIcon(
-                                imageVector = CupertinoIcons.Default.IcloudAndArrowDown,
+                                imageVector = Icons.Outlined.CloudDownload,
                                 contentDescription = null,
                                 tint = importIconContentColor,
                                 modifier = Modifier.size(20.dp)
@@ -621,7 +621,7 @@ fun PluginsContent(
                             )
                         }
                         AppIcon(
-                            imageVector = CupertinoIcons.Default.Plus,
+                            imageVector = Icons.Outlined.Add,
                             contentDescription = null,
                             tint = importTint,
                             modifier = Modifier.size(24.dp)
@@ -653,7 +653,7 @@ fun PluginsContent(
                                 contentAlignment = Alignment.Center
                             ) {
                                 AppIcon(
-                                    imageVector = CupertinoIcons.Default.Terminal,
+                                    imageVector = Icons.Outlined.Terminal,
                                     contentDescription = null,
                                     tint = jsImportIconContentColor,
                                     modifier = Modifier.size(20.dp)
@@ -770,7 +770,7 @@ fun PluginsContent(
                             contentAlignment = Alignment.Center
                         ) {
                             AppIcon(
-                                imageVector = CupertinoIcons.Filled.Shield,
+                                imageVector = Icons.Filled.Shield,
                                 contentDescription = null,
                                 tint = kotlinPackageIconContentColor,
                                 modifier = Modifier.size(20.dp)
@@ -903,7 +903,7 @@ fun PluginsContent(
                             contentAlignment = Alignment.Center
                         ) {
                             AppIcon(
-                                imageVector = CupertinoIcons.Filled.Paintbrush,
+                                imageVector = Icons.Filled.Brush,
                                 contentDescription = null,
                                 tint = uiSkinIconContentColor,
                                 modifier = Modifier.size(20.dp)
@@ -1126,7 +1126,7 @@ fun PluginsContent(
                     jsImportError = null
                 }
             },
-            icon = { AppIcon(CupertinoIcons.Default.Terminal, contentDescription = null) },
+            icon = { AppIcon(Icons.Outlined.Terminal, contentDescription = null) },
             title = { AppText("导入 JS 媒体插件") },
             text = {
                 Column {
@@ -1192,7 +1192,7 @@ fun PluginsContent(
                     jsPreview = null
                 }
             },
-            icon = { AppIcon(CupertinoIcons.Filled.Shield, contentDescription = null) },
+            icon = { AppIcon(Icons.Filled.Shield, contentDescription = null) },
             title = { AppText("JS 插件预览") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1289,7 +1289,7 @@ fun PluginsContent(
                 importUrl = ""
                 importError = null
             },
-            icon = { AppIcon(CupertinoIcons.Default.IcloudAndArrowDown, contentDescription = null) },
+            icon = { AppIcon(Icons.Outlined.CloudDownload, contentDescription = null) },
             title = { AppText("导入外部插件") },
             text = {
                 Column {
@@ -1400,7 +1400,7 @@ fun PluginsContent(
                                 .clip(RoundedCornerShape(8.dp))
                         )
                     } else {
-                        AppIcon(CupertinoIcons.Default.Puzzlepiece, contentDescription = null)
+                        AppIcon(Icons.Outlined.Extension, contentDescription = null)
                     }
                 },
                 title = { AppText("安装插件预览") },
@@ -1494,7 +1494,7 @@ fun PluginsContent(
                     kotlinPackageBytes = null
                 }
             },
-            icon = { AppIcon(CupertinoIcons.Filled.Shield, contentDescription = null) },
+            icon = { AppIcon(Icons.Filled.Shield, contentDescription = null) },
             title = { AppText("Kotlin 插件包预览") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1583,7 +1583,7 @@ fun PluginsContent(
                     uiSkinPreviewAssetFiles = emptyMap()
                 }
             },
-            icon = { AppIcon(CupertinoIcons.Filled.Paintbrush, contentDescription = null) },
+            icon = { AppIcon(Icons.Filled.Brush, contentDescription = null) },
             title = { AppText("界面皮肤包预览") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1691,7 +1691,7 @@ fun PluginsContent(
         val imagePreviewItems = buildUiSkinImagePreviewItems(installed.assetFiles)
         AppAlertDialog(
             onDismissRequest = { uiSkinInstalledPreview = null },
-            icon = { AppIcon(CupertinoIcons.Default.Eye, contentDescription = null) },
+            icon = { AppIcon(Icons.Outlined.Visibility, contentDescription = null) },
             title = { AppText("皮肤预览") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1771,7 +1771,7 @@ fun PluginsContent(
     uiSkinPendingDelete?.let { skin ->
         AppAlertDialog(
             onDismissRequest = { uiSkinPendingDelete = null },
-            icon = { AppIcon(CupertinoIcons.Default.Trash, contentDescription = null) },
+            icon = { AppIcon(Icons.Outlined.Delete, contentDescription = null) },
             title = { AppText("删除皮肤") },
             text = { AppText("确定要删除皮肤 \"${skin.displayName}\" 吗？删除后会清理本地包和已解压资源。") },
             confirmButton = {
@@ -1918,7 +1918,7 @@ private fun InstalledUiSkinItem(
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 AppIconButton(onClick = onPreview) {
                     AppIcon(
-                        imageVector = CupertinoIcons.Default.Eye,
+                        imageVector = Icons.Outlined.Visibility,
                         contentDescription = "预览皮肤",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
@@ -1929,7 +1929,7 @@ private fun InstalledUiSkinItem(
                     enabled = previewModel.canDelete
                 ) {
                     AppIcon(
-                        imageVector = CupertinoIcons.Default.Trash,
+                        imageVector = Icons.Outlined.Delete,
                         contentDescription = "删除皮肤",
                         tint = if (previewModel.canDelete) {
                             MaterialTheme.colorScheme.error
@@ -1972,7 +1972,7 @@ private fun PluginItem(
                 contentAlignment = Alignment.Center
             ) {
                 AppIcon(
-                    imageVector = plugin.icon ?: CupertinoIcons.Default.Puzzlepiece,
+                    imageVector = plugin.icon ?: Icons.Outlined.Extension,
                     contentDescription = null,
                     tint = iconContentColor,
                     modifier = Modifier.size(20.dp)
@@ -2045,7 +2045,7 @@ private fun PluginItem(
             
             // 进入详情
             AppIcon(
-                imageVector = CupertinoIcons.Default.ChevronForward,
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                 contentDescription = "打开插件详情",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier
@@ -2295,7 +2295,7 @@ private fun JsonPluginStatsNotificationSection(
                     contentAlignment = Alignment.Center
                 ) {
                     AppIcon(
-                        imageVector = CupertinoIcons.Default.Bell,
+                        imageVector = Icons.Outlined.Notifications,
                         contentDescription = null,
                         tint = notificationIconContentColor,
                         modifier = Modifier.size(20.dp)
@@ -2334,7 +2334,7 @@ private fun JsonPluginStatsNotificationSection(
                     .padding(horizontal = 16.dp, vertical = 4.dp),
                 colors = ButtonDefaults.textButtonColors(contentColor = iOSPurple)
             ) {
-                AppIcon(CupertinoIcons.Default.Bell, null, modifier = Modifier.size(16.dp))
+                AppIcon(Icons.Outlined.Notifications, null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 AppText("发送测试通知", style = MaterialTheme.typography.labelMedium)
             }
@@ -2386,7 +2386,7 @@ private fun JsonPluginItem(
                     )
                 } else {
                     AppIcon(
-                        imageVector = CupertinoIcons.Default.Terminal,
+                        imageVector = Icons.Outlined.Terminal,
                         contentDescription = null,
                         tint = jsonPluginIconContentColor,
                         modifier = Modifier.size(20.dp)
@@ -2458,7 +2458,7 @@ private fun JsonPluginItem(
             
             // 展开箭头
             AppIcon(
-                imageVector = if (isExpanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
+                imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = if (isExpanded) "收起" else "展开",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier
@@ -2493,7 +2493,7 @@ private fun JsonPluginItem(
                             contentColor = iOSBlue
                         )
                     ) {
-                        AppIcon(CupertinoIcons.Default.Lightbulb, null, modifier = Modifier.size(16.dp))
+                        AppIcon(Icons.Outlined.Lightbulb, null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         AppText("测试规则", style = MaterialTheme.typography.labelMedium)
                     }
@@ -2505,7 +2505,7 @@ private fun JsonPluginItem(
                             contentColor = iOSOrange
                         )
                     ) {
-                        AppIcon(CupertinoIcons.Default.ArrowCounterclockwise, null, modifier = Modifier.size(16.dp))
+                        AppIcon(Icons.Outlined.Refresh, null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         AppText("重置统计", style = MaterialTheme.typography.labelMedium)
                     }
@@ -2517,7 +2517,7 @@ private fun JsonPluginItem(
                             contentColor = iOSPurple
                         )
                     ) {
-                        AppIcon(CupertinoIcons.Default.Terminal, null, modifier = Modifier.size(16.dp))
+                        AppIcon(Icons.Outlined.Terminal, null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         AppText("编辑", style = MaterialTheme.typography.labelMedium)
                     }
@@ -2529,7 +2529,7 @@ private fun JsonPluginItem(
                             contentColor = MaterialTheme.colorScheme.error
                         )
                     ) {
-                        AppIcon(CupertinoIcons.Default.Trash, null, modifier = Modifier.size(16.dp))
+                        AppIcon(Icons.Outlined.Delete, null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         AppText("删除", style = MaterialTheme.typography.labelMedium)
                     }
@@ -2579,7 +2579,7 @@ private fun TestResultDialog(
         onDismissRequest = onDismiss,
         icon = {
             AppIcon(
-                CupertinoIcons.Default.Lightbulb,
+                Icons.Outlined.Lightbulb,
                 contentDescription = null,
                 tint = dialogIconTint
             )
@@ -2665,7 +2665,7 @@ private fun TestResultDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 AppIcon(
-                                    CupertinoIcons.Default.Trash,
+                                    Icons.Outlined.Delete,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
                                     modifier = Modifier.size(14.dp)

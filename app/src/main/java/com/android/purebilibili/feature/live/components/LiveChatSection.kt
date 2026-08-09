@@ -48,9 +48,8 @@ import com.android.purebilibili.feature.live.resolveLiveMedalColor
 import com.android.purebilibili.feature.live.resolveLiveMedalBadgeVisualSpec
 import com.android.purebilibili.feature.live.resolveLiveSuperChatColor
 import com.android.purebilibili.feature.live.shouldRenderLiveDanmaku
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.Paperplane
-import io.github.alexzhirkevich.cupertino.icons.filled.TextBubble
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Send
 import kotlinx.coroutines.flow.SharedFlow
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Job
@@ -638,7 +637,7 @@ private fun ChatInputBar(
                 modifier = Modifier.size(inputVisualSpec.controlSizeDp.dp)
             ) {
                 AppIcon(
-                    imageVector = CupertinoIcons.Filled.TextBubble,
+                    imageVector = Icons.Filled.ChatBubble,
                     contentDescription = if (isDanmakuEnabled) "关闭弹幕" else "开启弹幕",
                     tint = if (isDanmakuEnabled) iconTint else iconTint.copy(alpha = 0.42f),
                     modifier = Modifier.size(inputVisualSpec.iconSizeDp.dp)
@@ -717,7 +716,7 @@ private fun ChatInputBar(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     AppIcon(
-                        imageVector = CupertinoIcons.Filled.Paperplane,
+                        imageVector = Icons.Filled.Send,
                         contentDescription = "发送",
                         tint = if (isEnabled) roomTokens.inputContentColor else iconTint.copy(alpha = 0.48f),
                         modifier = Modifier

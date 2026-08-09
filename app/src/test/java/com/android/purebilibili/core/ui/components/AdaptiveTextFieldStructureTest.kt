@@ -12,7 +12,7 @@ class AdaptiveTextFieldStructureTest {
         val source = loadSource()
         val miuixBranch = source
             .substringAfter("fun AdaptiveTextFieldRenderer(")
-            .substringAfter("if (shouldUseNativeMiuixSearchBar(uiPreset, androidNativeVariant)) {")
+            .substringAfter("if (shouldUseNativeMiuixSearchBar(uiStyle)) {")
             .substringBefore("    OutlinedTextField(")
 
         assertTrue(miuixBranch.contains("MiuixTextField("))

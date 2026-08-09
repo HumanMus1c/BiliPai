@@ -35,7 +35,7 @@ internal fun VideoCardTransitionHostDepthLayer(
     isGestureRestoreInProgressProvider: () -> Boolean = { false },
     motionTierProvider: () -> MotionTier = { MotionTier.Normal },
     isLightBackgroundProvider: () -> Boolean = { false },
-    realtimeBlurEnabledProvider: () -> Boolean = { true },
+    realtimeBlurEnabledProvider: () -> Boolean = { false },
     scaleReductionProvider: () -> Float = { VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION },
     modifier: Modifier = Modifier,
 ) {

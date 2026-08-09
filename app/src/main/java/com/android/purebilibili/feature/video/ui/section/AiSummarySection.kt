@@ -26,9 +26,9 @@ import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.data.model.response.AiSummaryData
 import com.android.purebilibili.feature.video.viewmodel.AiSummaryPromptState
 import com.android.purebilibili.feature.video.viewmodel.AiSummaryPromptTone
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.*
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 
 /**
  * AI Video Summary Card
@@ -72,7 +72,7 @@ fun AiSummaryCard(
                     contentAlignment = Alignment.Center
                 ) {
                     AppIcon(
-                        imageVector = CupertinoIcons.Default.Sparkles,
+                        imageVector = Icons.Filled.AutoAwesome,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
@@ -95,7 +95,7 @@ fun AiSummaryCard(
                 }
                 Spacer(modifier = Modifier.width(10.dp))
                 AppIcon(
-                    imageVector = if (expanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
+                    imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
@@ -147,7 +147,7 @@ fun AiSummaryCard(
                             modifier = Modifier.align(Alignment.End)
                         ) {
                             AppIcon(
-                                imageVector = CupertinoIcons.Default.Sparkles,
+                                imageVector = Icons.Filled.AutoAwesome,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -207,9 +207,9 @@ fun AiSummaryPromptCard(
                     } else {
                         AppIcon(
                             imageVector = if (promptState.tone == AiSummaryPromptTone.WARNING) {
-                                CupertinoIcons.Default.ExclamationmarkCircle
+                                Icons.Outlined.ErrorOutline
                             } else {
-                                CupertinoIcons.Default.InfoCircle
+                                Icons.Outlined.Info
                             },
                             contentDescription = null,
                             tint = accentColor,
@@ -316,7 +316,7 @@ private fun OutlineItemRow(
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     AppIcon(
-                        imageVector = CupertinoIcons.Outlined.Clock,
+                        imageVector = Icons.Outlined.Schedule,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(12.dp),

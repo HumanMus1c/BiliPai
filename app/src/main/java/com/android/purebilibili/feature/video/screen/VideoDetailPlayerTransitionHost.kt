@@ -70,8 +70,9 @@ internal data class ContinuousPlayerFullscreenExtras(
  * while the inline viewport grows into the landscape viewport.
  */
 /**
- * @param preferLayoutWidth16x9Inline 横屏 16:9 详情播放器：按**实际布局宽度**算高度，
+ * @param preferLayoutWidth16x9Inline 横屏 16:9 详情播放器：展开态按**实际布局宽度**算高度，
  * 避免 `configuration.screenWidthDp` 与真机可用宽度不一致时出现左右黑边（vivo 等窄机更常见）。
+ * 折叠/半折叠时必须仍尊重 [inlineHeight]（评论上滑缩小播放器），不能盖成固定 16:9。
  * @param inlineTopInset 沉浸状态栏额外高度；只加在 inline 高度上，不参与 16:9 比例本体。
  */
 internal fun Modifier.continuousPlayerViewportHeight(
@@ -85,12 +86,13 @@ internal fun Modifier.continuousPlayerViewportHeight(
     return layout { measurable, constraints ->
         val layoutWidth = constraints.maxWidth.coerceAtLeast(1)
         val insetPx = inlineTopInset.roundToPx().coerceAtLeast(0)
-        val inlinePx = if (preferLayoutWidth16x9Inline) {
-            // 纯 16:9 内容区 + 可选顶部 inset，宽度始终吃满 constraints。
-            resolveLandscapeDetailPlayerContentHeightPx(layoutWidthPx = layoutWidth) + insetPx
-        } else {
-            inlineHeight.roundToPx().coerceAtLeast(1)
-        }
+        val callerInlinePx = inlineHeight.roundToPx().coerceAtLeast(0)
+        val inlinePx = resolveContinuousPlayerInlineHeightPx(
+            layoutWidthPx = layoutWidth,
+            preferLayoutWidth16x9Inline = preferLayoutWidth16x9Inline,
+            callerInlineHeightPx = callerInlinePx,
+            inlineTopInsetPx = insetPx,
+        )
         val fraction = progressProvider().coerceIn(0f, 1f)
         val fullscreenPx = fullscreenHeight.toPx()
         val height = if (!enabled) {
@@ -119,6 +121,31 @@ internal fun Modifier.continuousPlayerViewportHeight(
     }
 }
 
+/**
+ * 解析 continuous player 的 inline 高度。
+ *
+ * - 默认：直接使用调用方传入的 [callerInlineHeightPx]（已含评论上滑折叠进度）。
+ * - [preferLayoutWidth16x9Inline]：展开时用真实布局宽算 16:9，消除 screenWidthDp 黑边；
+ *   折叠时取与调用方高度的较小值，避免盖掉「上滑缩小播放器」。
+ */
+internal fun resolveContinuousPlayerInlineHeightPx(
+    layoutWidthPx: Int,
+    preferLayoutWidth16x9Inline: Boolean,
+    callerInlineHeightPx: Int,
+    inlineTopInsetPx: Int,
+): Int {
+    val callerPx = callerInlineHeightPx.coerceAtLeast(0)
+    if (!preferLayoutWidth16x9Inline) {
+        return callerPx.coerceAtLeast(1)
+    }
+    val expandedFromLayoutPx =
+        resolveLandscapeDetailPlayerContentHeightPx(layoutWidthPx = layoutWidthPx) +
+            inlineTopInsetPx.coerceAtLeast(0)
+    // 展开：layout 宽 16:9 通常 ≤ screenWidthDp 估高，取 min 消黑边。
+    // 折叠/半折叠：caller 更小，取 min 保留上滑缩小。
+    return minOf(expandedFromLayoutPx, callerPx).coerceAtLeast(1)
+}
+
 @Composable
 internal fun PortraitInlineVideoPlayerHost(
     modifier: Modifier,
@@ -132,6 +159,7 @@ internal fun PortraitInlineVideoPlayerHost(
     isPipMode: Boolean,
     transitionEnabled: Boolean,
     transitionChromeAlphaProvider: () -> Float,
+    danmakuHostActive: Boolean,
     onToggleFullscreen: () -> Unit,
     playbackActions: VideoDetailPlaybackActions,
     onDoubleTapLike: () -> Unit,
@@ -186,6 +214,7 @@ internal fun PortraitInlineVideoPlayerHost(
             contentTopInset = contentTopInset,
             transitionEnabled = transitionEnabled,
             transitionChromeAlphaProvider = transitionChromeAlphaProvider,
+            danmakuHostActive = danmakuHostActive,
             onToggleFullscreen = onToggleFullscreen,
             onQualityChange = { qid -> playbackActions.changeQuality(qid) },
             onBack = onBack,

@@ -2,6 +2,8 @@
 // 此文件包含对话框和错误状态展示
 // UserState 定义在 HomeViewModel.kt 中
 package com.android.purebilibili.feature.home
+import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
+import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -43,7 +45,8 @@ fun WelcomeDialog(githubUrl: String, onConfirm: () -> Unit) {
             }
         },
         confirmButton = {
-            AppButton(onClick = onConfirm, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+            AppButton(onClick = onConfirm, colors = ButtonDefaults.buttonColors(containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme))) {
                 AppText("进入")
             }
         },
@@ -65,7 +68,8 @@ fun ErrorState(message: String, onRetry: () -> Unit) {
             Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
             AppButton(
                 onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme))
             ) {
                 AppText("重试")
             }

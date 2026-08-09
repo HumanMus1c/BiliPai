@@ -11,6 +11,7 @@ import com.android.purebilibili.feature.video.ui.section.resolveHorizontalSeekDe
 import com.android.purebilibili.feature.video.ui.section.rebindPlayerSurfaceIfNeeded
 import com.android.purebilibili.feature.video.ui.section.shouldCommitGestureSeek
 import com.android.purebilibili.feature.video.ui.section.shouldKeepVideoPlaybackAwake
+import com.android.purebilibili.feature.video.ui.section.shouldEngageHorizontalPlayerSeek
 import com.android.purebilibili.feature.video.ui.section.shouldTriggerSeekStepHaptic
 import com.android.purebilibili.feature.video.usecase.applyPlaybackButtonUserAction
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
@@ -34,10 +35,9 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material3.*
 // 🌈 Material Icons Extended - 亮度图标
 import androidx.compose.material.icons.Icons
@@ -276,6 +276,7 @@ fun FullscreenPlayerOverlay(
     var gestureMode by remember { mutableStateOf(FullscreenGestureMode.None) }
     var gestureValue by remember { mutableFloatStateOf(0f) }
     var dragDelta by remember { mutableFloatStateOf(0f) }
+    var dragVerticalDelta by remember { mutableFloatStateOf(0f) }
     var seekPreviewPosition by remember { mutableLongStateOf(0L) }
     var gestureSeekStartPosition by remember { mutableLongStateOf(0L) }
     var lastSeekHapticTargetMs by remember { mutableLongStateOf(0L) }
@@ -637,6 +638,7 @@ fun FullscreenPlayerOverlay(
                         showControls = true
                         lastInteractionTime = System.currentTimeMillis()
                         dragDelta = 0f
+                        dragVerticalDelta = 0f
                         
                         // 根据起始位置决定手势类型
                         gestureMode = when {
@@ -652,10 +654,7 @@ fun FullscreenPlayerOverlay(
                                 seekPreviewPosition = currentPosition
                                 gestureSeekStartPosition = currentPosition
                                 lastSeekHapticTargetMs = currentPosition
-                                haptic.performHapticFeedback(
-                                    androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
-                                )
-                                FullscreenGestureMode.Seek
+                                FullscreenGestureMode.None
                             }
                         }
                     },
@@ -684,6 +683,19 @@ fun FullscreenPlayerOverlay(
                     onDrag = { change, dragAmount ->
                         if (!dragGestureActive) return@detectDragGestures
                         change.consume()
+                        if (gestureMode == FullscreenGestureMode.None) {
+                            dragDelta += dragAmount.x
+                            dragVerticalDelta += dragAmount.y
+                            if (!shouldEngageHorizontalPlayerSeek(dragDelta, dragVerticalDelta)) {
+                                return@detectDragGestures
+                            }
+                            gestureMode = FullscreenGestureMode.Seek
+                            haptic.performHapticFeedback(
+                                androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                            )
+                        } else if (gestureMode == FullscreenGestureMode.Seek) {
+                            dragDelta += dragAmount.x
+                        }
                         when (gestureMode) {
                             FullscreenGestureMode.Brightness -> {
                                 gestureValue = (gestureValue - dragAmount.y / screenHeight).coerceIn(0f, 1f)
@@ -703,7 +715,6 @@ fun FullscreenPlayerOverlay(
                                 )
                             }
                             FullscreenGestureMode.Seek -> {
-                                dragDelta += dragAmount.x
                                 val seekDelta = resolveHorizontalSeekDeltaMs(
                                     isFullscreen = true,
                                     fullscreenSwipeSeekEnabled = true,
@@ -956,7 +967,7 @@ fun FullscreenPlayerOverlay(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         AppIconButton(onClick = onNavigateToDetail) {
-                            AppIcon(CupertinoIcons.Default.ChevronBackward, "返回详情页", tint = Color.White)
+                            AppIcon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, "返回详情页", tint = Color.White)
                         }
                         Spacer(Modifier.width(8.dp))
                         AppText(
@@ -1007,7 +1018,7 @@ fun FullscreenPlayerOverlay(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AppIcon(
-                                imageVector = if (danmakuEnabled) CupertinoIcons.Filled.TextBubble else CupertinoIcons.Outlined.TextBubble,
+                                imageVector = if (danmakuEnabled) Icons.Filled.ChatBubble else Icons.Outlined.ChatBubbleOutline,
                                 contentDescription = if (danmakuEnabled) "关闭弹幕" else "开启弹幕",
                                 tint = if (danmakuEnabled) danmakuActiveColor else danmakuInactiveColor,
                                 modifier = Modifier.size(16.dp)
@@ -1023,7 +1034,7 @@ fun FullscreenPlayerOverlay(
                         
                         //  [新增] 弹幕设置按钮
                         AppIconButton(onClick = { showDanmakuSettings = true }) {
-                            AppIcon(CupertinoIcons.Default.Gear, "弹幕设置", tint = Color.White)
+                            AppIcon(Icons.Outlined.Settings, "弹幕设置", tint = Color.White)
                         }
                     }
                 }

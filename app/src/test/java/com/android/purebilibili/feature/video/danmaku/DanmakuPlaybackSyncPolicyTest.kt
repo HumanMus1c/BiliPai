@@ -79,6 +79,79 @@ class DanmakuPlaybackSyncPolicyTest {
     }
 
     @Test
+    fun `attach reapply is required when controller changed or pending after related navigation`() {
+        // 新 view 接管：即使此前有 controller，也必须重放已就绪缓存
+        assertTrue(
+            shouldReapplyDanmakuTimelineOnAttach(
+                hasCachedList = true,
+                pendingTimelineResync = false,
+                previousControllerSameAsCurrent = false,
+                timelineAlreadySyncedToCurrent = false,
+            )
+        )
+        // load 完成时 controller=null，等 attach 再补
+        assertTrue(
+            shouldReapplyDanmakuTimelineOnAttach(
+                hasCachedList = true,
+                pendingTimelineResync = true,
+                previousControllerSameAsCurrent = true,
+                timelineAlreadySyncedToCurrent = false,
+            )
+        )
+        // 同 controller 且已同步：不必重复
+        assertFalse(
+            shouldReapplyDanmakuTimelineOnAttach(
+                hasCachedList = true,
+                pendingTimelineResync = false,
+                previousControllerSameAsCurrent = true,
+                timelineAlreadySyncedToCurrent = true,
+            )
+        )
+        // 无缓存：不重放
+        assertFalse(
+            shouldReapplyDanmakuTimelineOnAttach(
+                hasCachedList = false,
+                pendingTimelineResync = true,
+                previousControllerSameAsCurrent = false,
+                timelineAlreadySyncedToCurrent = false,
+            )
+        )
+    }
+
+    @Test
+    fun `danmaku should start on data ready when player is playing or will play`() {
+        // 正在播放：必须启动
+        assertTrue(
+            shouldStartDanmakuOnDataReady(
+                isPlaying = true,
+                playWhenReady = true
+            )
+        )
+        // ExoPlayer 不变量下 isPlaying=true 时 playWhenReady 必为 true；显式覆盖以防策略误判
+        assertTrue(
+            shouldStartDanmakuOnDataReady(
+                isPlaying = true,
+                playWhenReady = false
+            )
+        )
+        // 缓冲中但即将播放（相关推荐/切集后数据先就绪、播放器后开始）：必须启动，
+        // 否则 onIsPlayingChanged(true) 事件已在数据加载完成前被 None 分支吃掉时引擎停在 paused。
+        assertTrue(
+            shouldStartDanmakuOnDataReady(
+                isPlaying = false,
+                playWhenReady = true
+            )
+        )
+        // 用户主动暂停：不启动
+        assertFalse(
+            shouldStartDanmakuOnDataReady(
+                isPlaying = false,
+                playWhenReady = false
+            )
+        )
+    }
+
+    @Test
     fun `player attach resyncs cached data only for an enabled bound session`() {
         assertTrue(
             shouldResyncDanmakuAfterPlayerAttach(

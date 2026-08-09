@@ -69,8 +69,9 @@ internal fun HomeFeedSkeletonCard(
     coverAspectRatio: Float = VIDEO_SHARED_COVER_ASPECT_RATIO,
     modifier: Modifier = Modifier
 ) {
-    val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Card)
-    val cardShape = AppShapes.container(ContainerLevel.Card)
+    // 与真实视频卡保持一致：8dp 紧凑圆角（AppSpacingTokens.Small × scale）。
+    val cardCornerRadius = AppSpacingTokens.Small * LocalCornerRadiusScale.current
+    val cardShape = RoundedCornerShape(cardCornerRadius)
     val isDarkCardTheme = AppSurfaceTokens.chromeBackground().luminance() < 0.5f
     val infoSurfaceAppearance = remember(
         wallpaperTintEnabled,
@@ -103,7 +104,6 @@ internal fun HomeFeedSkeletonCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = AppSpacingTokens.Medium)
     ) {
         Box(
             modifier = Modifier

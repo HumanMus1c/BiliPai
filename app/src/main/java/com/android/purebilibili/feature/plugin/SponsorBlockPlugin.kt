@@ -15,10 +15,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+//  Material Icons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.MaterialTheme
@@ -56,7 +55,6 @@ import com.android.purebilibili.data.model.response.SponsorSegment
 import com.android.purebilibili.data.model.response.SponsorProgressMarker
 import com.android.purebilibili.data.repository.SponsorBlockRepository
 import com.android.purebilibili.feature.settings.SettingsSingleChoicePreference
-import io.github.alexzhirkevich.cupertino.CupertinoSwitch
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -158,7 +156,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
     override val description = "自动跳过视频中的广告、赞助、片头片尾等片段"
     override val version = "1.1.1"
     override val author = "BiliPai项目组"
-    override val icon: ImageVector = CupertinoIcons.Default.Paperplane
+    override val icon: ImageVector = Icons.Outlined.Send
     override val capabilityManifest: PluginCapabilityManifest = PluginCapabilityManifest(
         pluginId = id,
         displayName = name,
@@ -586,7 +584,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
 
             SponsorBlockSettingsSection(title = "片段规则", subtitle = "按类别选择总是跳过、本次跳过、手动跳过、仅显示或禁用") {
                 AppSwitchPreference(
-                    icon = CupertinoIcons.Default.Bolt,
+                    icon = Icons.Outlined.Bolt,
                     title = "全部自动跳过",
                     subtitle = "关闭后，所有类别先改为显示跳过按钮",
                     checked = autoSkip,
@@ -611,7 +609,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                     },
                 )
                 AppPreference(
-                    icon = CupertinoIcons.Default.Timer,
+                    icon = Icons.Outlined.Timer,
                     title = "最短片段时长",
                     subtitle = "短于该时长的社区片段不会参与跳过或提示",
                     value = "${config.minimumSegmentDurationSeconds}s",
@@ -636,7 +634,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
 
             SponsorBlockSettingsSection(title = "通知") {
                 AppSwitchPreference(
-                    icon = CupertinoIcons.Default.InfoCircle,
+                    icon = Icons.Outlined.Info,
                     title = "跳过提示",
                     subtitle = "自动跳过时显示简短提示",
                     checked = skipToastEnabled,
@@ -647,7 +645,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                     iconTint = Color(0xFF34C759),
                 )
                 AppSwitchPreference(
-                    icon = CupertinoIcons.Default.Bell,
+                    icon = Icons.Outlined.Notifications,
                     title = "每日汇总通知",
                     subtitle = "当天有跳过记录时，汇总跳过次数和节省时间",
                     checked = dailySummaryNotificationEnabled,
@@ -671,7 +669,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                     )
                 }
                 AppPreference(
-                    icon = CupertinoIcons.Default.Bell,
+                    icon = Icons.Outlined.Notifications,
                     title = "发送测试通知",
                     subtitle = "确认通知权限和展示效果，不写入跳过记录",
                     onClick = { notificationPermission.launchWithPermission { sendTestNotification() } },
@@ -681,7 +679,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
 
             SponsorBlockSettingsSection(title = "社区与隐私", subtitle = "所有发送都指向下方服务器；默认关闭，提交片段始终需要逐次确认") {
                 AppPreference(
-                    icon = CupertinoIcons.Default.Network,
+                    icon = Icons.Outlined.Dns,
                     title = "社区服务器",
                     subtitle = serverStatus?.message ?: config.serverBaseUrl,
                     value = if (serverStatus?.reachable == true) "正常" else null,
@@ -689,7 +687,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                     iconTint = Color(0xFF2196F3),
                 )
                 AppSwitchPreference(
-                    icon = CupertinoIcons.Default.ChartBar,
+                    icon = Icons.Outlined.BarChart,
                     title = "上传跳过贡献",
                     subtitle = "仅在实际跳过时上传片段匿名 UUID；不会上传连续观看轨迹",
                     checked = communityTrackingEnabled,
@@ -700,7 +698,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                     iconTint = Color(0xFF5856D6),
                 )
                 AppSwitchPreference(
-                    icon = CupertinoIcons.Default.Paperplane,
+                    icon = Icons.Outlined.Send,
                     title = "允许提交社区片段",
                     subtitle = "允许播放页标记起止时间；提交前会显示类别、时间和服务器供确认",
                     checked = communityContributionEnabled,
@@ -711,7 +709,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                     iconTint = Color(0xFF5856D6),
                 )
                 AppPreference(
-                    icon = CupertinoIcons.Default.Person,
+                    icon = Icons.Outlined.Person,
                     title = "社区用户 ID",
                     subtitle = "${config.userId.take(8)}… · 用于归属你的片段贡献",
                     onClick = {
@@ -730,7 +728,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
 
             SponsorBlockSettingsSection(title = "关于") {
                 AppPreference(
-                    icon = CupertinoIcons.Default.InfoCircle,
+                    icon = Icons.Outlined.Info,
                     title = aboutItem.title,
                     subtitle = aboutItem.subtitle,
                     value = aboutItem.value,

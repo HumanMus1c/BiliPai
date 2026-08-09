@@ -69,9 +69,9 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.data.model.response.VideoItem
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.BubbleLeft
-import io.github.alexzhirkevich.cupertino.icons.filled.Play
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.PlayArrow
 import kotlinx.coroutines.launch
 
 internal val HOME_STYLE_SINGLE_COLUMN_COVER_WIDTH = AppSpacingTokens.TripleExtraLarge * 3
@@ -255,7 +255,7 @@ internal fun HomeStyleSingleColumnVideoCard(
 
             UpBadgeName(
                 name = video.owner.name,
-                badgeTrailingContent = if (isFollowing) {
+                inlineTrailingContent = if (isFollowing) {
                     {
                         AppText(
                             text = "已关注",
@@ -276,12 +276,12 @@ internal fun HomeStyleSingleColumnVideoCard(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SingleColumnStatItem(
-                    icon = CupertinoIcons.Filled.Play,
+                    icon = Icons.Filled.PlayArrow,
                     text = FormatUtils.formatStat(video.stat.view.toLong()),
                 )
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
                 SingleColumnStatItem(
-                    icon = CupertinoIcons.Filled.BubbleLeft,
+                    icon = Icons.Filled.ChatBubble,
                     text = FormatUtils.formatStat(video.stat.danmaku.toLong()),
                 )
             }

@@ -478,6 +478,43 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
+    fun continuousPlayerInlineHeight_prefersLayoutWidthWhenExpandedButHonorsCollapse() {
+        val layoutWidth = 1080
+        val layoutExpanded =
+            resolveLandscapeDetailPlayerContentHeightPx(layoutWidthPx = layoutWidth) + 80
+        // screenWidthDp 估高：caller 展开高度大于真布局宽 → 取 layout 消黑边
+        assertEquals(
+            layoutExpanded,
+            resolveContinuousPlayerInlineHeightPx(
+                layoutWidthPx = layoutWidth,
+                preferLayoutWidth16x9Inline = true,
+                callerInlineHeightPx = layoutExpanded + 40,
+                inlineTopInsetPx = 80,
+            ),
+        )
+        // 评论上滑折叠：caller 更小 → 必须跟着缩小，不能卡死在 16:9
+        assertEquals(
+            120,
+            resolveContinuousPlayerInlineHeightPx(
+                layoutWidthPx = layoutWidth,
+                preferLayoutWidth16x9Inline = true,
+                callerInlineHeightPx = 120,
+                inlineTopInsetPx = 80,
+            ),
+        )
+        // 未启用 layout-width 时原样使用 caller
+        assertEquals(
+            200,
+            resolveContinuousPlayerInlineHeightPx(
+                layoutWidthPx = layoutWidth,
+                preferLayoutWidth16x9Inline = false,
+                callerInlineHeightPx = 200,
+                inlineTopInsetPx = 80,
+            ),
+        )
+    }
+
+    @Test
     fun sharedPlayerPortraitExit_keepsPagerAnimationForDetailReturn() {
         assertTrue(shouldAnimateStandalonePortraitPager(useSharedPlayer = true))
         assertTrue(shouldAnimateStandalonePortraitPager(useSharedPlayer = false))

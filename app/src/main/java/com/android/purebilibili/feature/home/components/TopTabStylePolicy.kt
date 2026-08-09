@@ -6,6 +6,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppTopChromePolicy
 import com.android.purebilibili.core.ui.AppTopTabPresentation
 
@@ -563,13 +564,6 @@ internal fun shouldUseMd3TopTabMaterialIndicator(
     liquidGlassEnabled: Boolean
 ): Boolean {
     return resolveTopTabIndicatorStyle(presentation) == TopTabIndicatorStyle.MATERIAL
-}
-
-internal fun shouldUsePlainMd3TopTabUnderline(
-    presentation: AppTopTabPresentation,
-    liquidGlassEnabled: Boolean
-): Boolean {
-    return presentation != AppTopTabPresentation.MOVING_CAPSULE && !liquidGlassEnabled
 }
 
 fun resolveTopTabLabelTextSizeSp(labelMode: Int): Float {

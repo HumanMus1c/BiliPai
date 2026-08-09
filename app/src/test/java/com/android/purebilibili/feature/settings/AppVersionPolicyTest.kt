@@ -7,16 +7,21 @@ import kotlin.test.assertTrue
 class AppVersionPolicyTest {
 
     @Test
-    fun appVersion_usesTwoDigitYearCalendarBuildScheme() {
+    fun appVersion_usesSemanticVersionScheme() {
         val buildFile = listOf(
             File("app/build.gradle.kts"),
             File("build.gradle.kts")
         ).first { it.exists() }.readText()
 
-        assertTrue(buildFile.contains("versionCode = 283"))
-        assertTrue(buildFile.contains("versionName = \"26.0805.1\""))
-        // YY.MMDD.N — 两位年，不是 2026.
+        assertTrue(buildFile.contains("versionCode = 287"))
+        assertTrue(buildFile.contains("versionName = \"0.2.2\""))
+        // 语义化 X.Y.Z，不用日历日/四位年当版本号
+        assertTrue(!buildFile.contains("versionName = \"26."))
         assertTrue(!buildFile.contains("versionName = \"2026."))
-        assertTrue(buildFile.contains("YY.MMDD.N") || buildFile.contains("两位年"))
+        assertTrue(
+            buildFile.contains("语义化") ||
+                buildFile.contains("MAJOR.MINOR.PATCH") ||
+                buildFile.contains("X.Y.Z")
+        )
     }
 }

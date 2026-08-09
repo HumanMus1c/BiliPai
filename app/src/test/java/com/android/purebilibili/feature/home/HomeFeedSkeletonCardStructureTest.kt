@@ -28,9 +28,11 @@ class HomeFeedSkeletonCardStructureTest {
         assertTrue(source.contains("RepeatMode.Reverse"))
         assertTrue(source.contains("durationMillis = HOME_FEED_SKELETON_PULSE_DURATION_MILLIS"))
         assertTrue(source.contains("VIDEO_SHARED_COVER_ASPECT_RATIO"))
-        assertTrue(source.contains("AppShapes.containerCornerDp(ContainerLevel.Card)"))
-        assertTrue(source.contains("AppShapes.container(ContainerLevel.Card)"))
-        assertTrue(source.contains(".padding(bottom = AppSpacingTokens.Medium)"))
+        // 骨架几何与真实视频卡保持一致：8dp 紧凑圆角（Small × scale），且卡片
+        // 自身不再叠加底部 padding（间距统一由网格 verticalItemSpacingDp 决定）。
+        assertTrue(source.contains("cardCornerRadius = AppSpacingTokens.Small * LocalCornerRadiusScale.current"))
+        assertTrue(source.contains("RoundedCornerShape(cardCornerRadius)"))
+        assertFalse(source.contains(".padding(bottom = AppSpacingTokens.Medium)"))
         assertTrue(
             source.contains(
                 ".padding(horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Small)"

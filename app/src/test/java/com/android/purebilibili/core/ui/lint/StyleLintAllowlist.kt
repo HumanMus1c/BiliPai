@@ -51,6 +51,7 @@ internal object StyleLintAllowlist {
         "src/main/java/com/android/purebilibili/feature/profile/WallpaperAdjustmentSheet.kt",
         "src/main/java/com/android/purebilibili/feature/screenshot/AppScreenshotRegionOverlay.kt",
 
+        "src/main/java/com/android/purebilibili/feature/search/SearchLandingUi.kt",
         "src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt",
         "src/main/java/com/android/purebilibili/feature/search/SearchTrendingScreen.kt",
         "src/main/java/com/android/purebilibili/feature/search/TopicDetailScreen.kt",
@@ -106,6 +107,46 @@ internal object StyleLintAllowlist {
         "src/main/java/com/android/purebilibili/feature/video/ui/section/VideoInfoSection.kt",
         "src/main/java/com/android/purebilibili/feature/video/ui/section/VideoNoteSection.kt",
         "src/main/java/com/android/purebilibili/feature/video/ui/section/VideoPlayerSection.kt",
+
+        // 接入棘轮前已存在的存量字面圆角；带 preset 缩放（MD3 0.9x / MIUIX 1.15x），
+        // 换 AppShapes 会改变实际渲染半径，且 8dp 无对应 ContainerLevel。
+        "src/main/java/com/android/purebilibili/feature/audio/screen/MusicPlayerContent.kt",
+        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCard.kt",
+        "src/main/java/com/android/purebilibili/feature/profile/ProfileLoadingSkeleton.kt",
+        "src/main/java/com/android/purebilibili/feature/video/ui/components/AudioQualitySelectionMenu.kt",
+    )
+
+    /**
+     * 已纳管 feature 前缀下的存量颜色字面量（棘轮上限见 StyleLintAllowlistRatchetTest）。
+     *
+     * 这些是接入 lint 前的历史存量，且多数有像素级理由不能换主题色：
+     * 直播 SuperChat 弹层按 B 站设计为深色卡片，黑/白字是固定品牌色，
+     * 换成主题色会在浅色模式下失去对比度。
+     */
+    val COLOR_HITS: Set<String> = setOf(
+        "src/main/java/com/android/purebilibili/feature/live/components/LiveSendDanmakuSheet.kt",
+        "src/main/java/com/android/purebilibili/feature/live/components/LiveSuperChatFlashOverlay.kt",
+    )
+
+    /**
+     * 已纳管 feature 前缀下的存量布局尺寸字面量（棘轮上限见 StyleLintAllowlistRatchetTest）。
+     *
+     * 数值不在 AppSpacingTokens 的 4dp 刻度上（1/20/22/36/52/64/96/420/520dp），
+     * 强制取整会改变既有像素布局；等对应 feature 迁移到命名 Spec 后移除。
+     */
+    val SPACING_HITS: Set<String> = setOf(
+        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCard.kt",
+        "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicFeedSkeletonCard.kt",
+        "src/main/java/com/android/purebilibili/feature/home/components/HomeHeader.kt",
+        "src/main/java/com/android/purebilibili/feature/live/LiveHomeSelectableChip.kt",
+        "src/main/java/com/android/purebilibili/feature/live/LiveListScreen.kt",
+        "src/main/java/com/android/purebilibili/feature/live/components/LiveStreamSourceSheet.kt",
+        "src/main/java/com/android/purebilibili/feature/live/components/LiveSuperChatFlashOverlay.kt",
+    )
+
+    /** 已纳管 feature 前缀下的存量排版字面量（棘轮上限见 StyleLintAllowlistRatchetTest）。 */
+    val TYPOGRAPHY_HITS: Set<String> = setOf(
+        "src/main/java/com/android/purebilibili/feature/live/components/LiveSuperChatFlashOverlay.kt",
     )
 
     /** 迁移到 AppMotionTokens 后从本表移除. */

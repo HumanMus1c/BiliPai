@@ -37,7 +37,7 @@ class HomeSettingsMappingPolicyTest {
             result.commonListHeaderCollapseMode
         )
         assertTrue(result.isHeaderCollapseEnabled)
-        assertTrue(result.isBottomBarBlurEnabled)
+        assertFalse(result.isBottomBarBlurEnabled)
         assertFalse(result.isTopBarLiquidGlassEnabled)
         assertFalse(result.isHomeSearchLiquidGlassEnabled)
         assertFalse(result.isBottomBarLiquidGlassEnabled)

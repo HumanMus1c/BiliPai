@@ -53,6 +53,8 @@ internal fun resolveBiliPaiNavContentTransform(
             bottomBarSiblingForwardTransform()
         BiliPaiNavRouteTransition.BOTTOM_BAR_SIBLING_POP ->
             bottomBarSiblingPopTransform()
+        // 设置树 iOS push/pop：只横滑顶层设置页，底层页静止（见
+        // resolveSettingsIosPushForwardContentTransform / resolveSettingsIosPushPopContentTransform）。
         BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_FORWARD ->
             settingsIosPushForwardTransform()
         BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP ->
@@ -64,18 +66,17 @@ internal fun resolveBiliPaiNavContentTransform(
     }
 }
 
-internal fun resolveBiliPaiNavPopContentTransform(
-    routeTransition: BiliPaiNavRouteTransition
-): ContentTransform? {
-    return when (routeTransition) {
-        BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT,
-        BiliPaiNavRouteTransition.REDUCED_MOTION_FADE,
-        BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT,
-        BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT ->
-            resolveBiliPaiNavContentTransform(routeTransition)
-        else -> null
-    }
-}
+/**
+ * 设置页 push：只滑顶层设置页，底层页静止；固定时长 tween，不用 spring。
+ */
+private fun settingsIosPushForwardTransform(): ContentTransform =
+    resolveSettingsIosPushForwardContentTransform(durationMillis = SETTINGS_IOS_PUSH_DURATION_MS)
+
+/**
+ * 设置页 pop：设置页向右滑出，底层页静止；固定时长 tween 承接预测手势 seek 收尾。
+ */
+private fun settingsIosPushPopTransform(): ContentTransform =
+    resolveSettingsIosPushPopContentTransform(durationMillis = SETTINGS_IOS_PUSH_DURATION_MS)
 
 /**
  * @param directionSign -1 = source left (enter from left / exit to left)
@@ -145,12 +146,6 @@ private fun bottomBarSiblingPopTransform(): ContentTransform =
         durationMillis = NAV3_BOTTOM_BAR_SIBLING_MILLIS,
         forward = false
     )
-
-private fun settingsIosPushForwardTransform(): ContentTransform =
-    resolveSettingsIosPushForwardContentTransform(durationMillis = SETTINGS_IOS_PUSH_DURATION_MS)
-
-private fun settingsIosPushPopTransform(): ContentTransform =
-    resolveSettingsIosPushPopContentTransform(durationMillis = SETTINGS_IOS_PUSH_DURATION_MS)
 
 /**
  * Return to card side:

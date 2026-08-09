@@ -9,13 +9,16 @@ Use this file as the project-specific overlay on top of the global Codex/OMX gui
 - `settings-core/`: reusable settings and store logic shared by app features.
 - `network-core/`: network policy and lower-level networking support.
 - `baselineprofile/`: macrobenchmark and baseline profile generation for startup and frame timing work.
+- `design-system/`: shared Compose UI components, theming, and UI policy tests (e.g. blur policies).
+- `plugin-sdk/`: plugin API surface used by the app's third-party plugin system (published via maven-publish).
+- `dolby-ffmpeg-decoder/`: media3 FFmpeg decoder extension for Dolby audio in the player.
 
 ## Working defaults
 
 - Prefer small, targeted changes over broad rewrites.
 - Preserve the existing app visual language unless the task explicitly asks for redesign.
 - Reuse the repository's existing `Policy`, `UseCase`, `ViewModel`, and feature package patterns before creating new abstractions.
-- Avoid adding business logic to [`MainActivity.kt`](/Users/yiyang/Desktop/BiliPai/app/src/main/java/com/android/purebilibili/MainActivity.kt) unless the behavior truly belongs to app shell, deep link routing, or top-level playback orchestration.
+- Avoid adding business logic to [`MainActivity.kt`](app/src/main/java/com/android/purebilibili/MainActivity.kt) unless the behavior truly belongs to app shell, deep link routing, or top-level playback orchestration.
 - Do not add new dependencies unless the user explicitly asks for one.
 - Do not run full package, APK packaging, bundle, install, or release-smoke verification paths unless the user explicitly asks for them.
 - After each meaningful completed slice, commit and push the changes so progress is easy to roll back and resume.
@@ -26,6 +29,7 @@ Use this file as the project-specific overlay on top of the global Codex/OMX gui
 - Prefer state hoisting: screen composables consume immutable UI state and lambda events; do not pass ViewModels deep into leaf composables.
 - Keep UI behavior testable in plain Kotlin where possible by extracting layout, visual, or routing decisions into small policy classes.
 - Follow existing Material 3 and adaptive layout patterns already used in the app.
+- The primary visual language is **Miuix** (`top.yukonga.miuix.kmp` — miuix-ui, miuix-preference, miuix-blur, miuix-squircle, miuix-icons); prefer its components for new UI, keeping Material 3 as the baseline theming layer.
 - For UI changes, check dark theme, tablet or large-screen behavior, and minimum 48dp touch targets.
 - Avoid expensive work during composition. Use `remember`, `derivedStateOf`, and stable state models where it reduces recomposition churn.
 - For animations, haze, blur, player overlay, or scrolling changes, prefer the lightest effect that preserves smoothness on real devices.
@@ -52,19 +56,16 @@ Pick the smallest command set that proves the change:
 
 - Only build APK artifacts from the `release` or `dev` variants.
 - For installable test handoffs, use `:app:assembleDev` by default.
-- Do not build, package, install, or hand off `debug` or `smooth` variants.
+- Do not assemble, package, install, or hand off `debug` or `smooth` variant APKs. Compile/test tasks on the debug variant (`:app:compileDebugKotlin`, `:app:testDebugUnitTest`) remain fine for local verification.
 
-- Targeted unit tests for the touched feature:
+- Default to **one smallest task** that covers the edited code. Do not run broad compilation or a full test suite merely for confidence.
+- Targeted unit test for the touched behavior (preferred when one exists):
   `./gradlew :app:testDebugUnitTest --tests '<ExactTestName>'`
-- Lightweight compile validation for touched Kotlin/Compose code:
+- Kotlin/Compose source with no focused test: compile only its owning module (for app code):
   `./gradlew :app:compileDebugKotlin`
-- Broad local regression for app logic and UI policies:
-  `./gradlew :app:testDebugUnitTest`
-- Static checks for Android resources and code:
-  `./gradlew :app:lintDebug`
-- Build validation for packaging and manifest/resource regressions:
-  `./gradlew :app:assembleDebug`
-- Do not run full package/build validation such as `./gradlew :app:assembleDebug`, `assemble*`, `bundle*`, `install*`, APK packaging, or release smoke gates unless the user explicitly asks for it. Prefer targeted unit tests, strategy/policy tests, `:app:compileDebugKotlin`, lint, or narrow device checks that match the changed surface.
+- For `design-system`, `settings-core`, `network-core`, `plugin-sdk`, or another library, use that module's `compileDebugKotlin` or a single exact test — never compile `:app` unless the change reaches `:app`.
+- Do not run unfiltered `:app:testDebugUnitTest`, `lint`, `check`, or any `assemble*` task unless the user explicitly asks for broader verification.
+- Do not run package/build/install tasks (`assemble*`, `bundle*`, `install*`) or APK packaging unless the user explicitly asks for it. Per the packaging policy above, never assemble or install the `debug` or `smooth` variants. Prefer targeted unit tests, strategy/policy tests, `:app:compileDebugKotlin`, lint, or narrow device checks that match the changed surface.
 
 Use extra verification when the task touches these areas:
 
@@ -83,24 +84,26 @@ Use extra verification when the task touches these areas:
 - If a Gradle/Kotlin task hits daemon or incremental-compilation file-state errors, stop passive polling immediately and switch to a deterministic fallback such as `--no-daemon` or another clean one-shot verification path.
 - Do not keep spinning on long terminal polls once the failure mode is clearly infrastructure-related; report that distinction explicitly and choose the next verification step with the lowest ambiguity.
 
-## Fast local compile (reuse cached Gradle)
+## Fast local verification (reuse Gradle caches)
+
+For ordinary local verification, use the warm Gradle and Kotlin daemons with the repository's enabled configuration/build caches. Do **not** pass `--no-daemon` or `--no-configuration-cache` by default: both discard the fastest repeat-build path. Reserve them for a confirmed daemon, incremental-compilation, or configuration-cache infrastructure failure.
 
 When `./gradlew` fails on Gradle wrapper download (common symptom: SSL / zip download errors), reuse the already-downloaded Gradle distribution instead of waiting on a broken wrapper fetch.
 
-1. Locate the cached Gradle binary (example path for Gradle 8.13):
+1. Locate the cached Gradle binary (example path for the wrapper-pinned Gradle 9.5.0; the hash dir varies by machine):
 
 ```bash
-GRADLE_BIN="$HOME/.gradle/wrapper/dists/gradle-8.13-bin/5xuhj0ry160q40clulazy9h7d/gradle-8.13/bin/gradle"
+GRADLE_BIN="$HOME/.gradle/wrapper/dists/gradle-9.5.0-bin/bvnork1r7n8i6kp5cnkibsc9q/gradle-9.5.0/bin/gradle"
 ```
 
 2. Run compile or unit tests directly with that binary. Prefer online mode so dependencies can resolve; add SSL bypass only when your environment requires it:
 
 ```bash
 GRADLE_OPTS="-Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true" \
-"$GRADLE_BIN" :app:compileDebugKotlin --no-daemon --no-configuration-cache --console=plain
+"$GRADLE_BIN" :app:compileDebugKotlin --console=plain
 ```
 
-3. Recommended flags for agent/CI-style checks in this repo:
+3. Fallback flags — use only after an infrastructure failure, never as routine verification:
 
 - `--no-daemon`: avoids stale Kotlin/Gradle daemon state after crashes.
 - `--no-configuration-cache`: avoids long silent `Calculating task graph` stalls on some machines.
@@ -109,8 +112,8 @@ GRADLE_OPTS="-Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowal
 4. Targeted verification examples:
 
 ```bash
-"$GRADLE_BIN" :app:testDebugUnitTest --tests 'com.android.purebilibili.core.ui.blur.BlurIntensityVisualPolicyTest' --no-daemon --no-configuration-cache
-"$GRADLE_BIN" :app:compileDebugKotlin --no-daemon --no-configuration-cache
+"$GRADLE_BIN" :design-system:testDebugUnitTest --tests 'com.android.purebilibili.core.ui.blur.BlurIntensityVisualPolicyTest'
+"$GRADLE_BIN" :app:compileDebugKotlin
 ```
 
 5. If the cached distribution path differs, list available installs with:
@@ -124,11 +127,12 @@ Pick the newest `gradle-*-bin/*/gradle-*/bin/gradle` that matches the wrapper ve
 ## ADB and local device flow
 
 - Confirm a device first: `adb devices`
-- Install the debug app: `./gradlew :app:installDebug`
+- Install the `dev` variant (the `debug` variant is banned by the packaging policy):
+  `./gradlew :app:installDev`
 - Launch from shell when needed:
-  `adb shell am start -n com.android.purebilibili.debug/com.android.purebilibili.MainActivity`
-- If debug test APKs are required, install them explicitly:
-  `./gradlew :app:installDebugAndroidTest`
+  `adb shell am start -n com.android.purebilibili.dev/com.android.purebilibili.MainActivity`
+- If dev test APKs are required, install them explicitly:
+  `./gradlew :app:installDevAndroidTest`
 
 ## Change-specific expectations
 

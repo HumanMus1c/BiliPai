@@ -10,8 +10,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -30,14 +28,11 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
-import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -53,6 +48,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.common.copyOnLongPress
+import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import com.android.purebilibili.core.util.ShareUtils
 import com.android.purebilibili.core.ui.rememberAppCommentIcon
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
@@ -95,9 +91,11 @@ import com.android.purebilibili.feature.video.ui.components.DanmakuSettingsPanel
 import com.android.purebilibili.feature.video.ui.components.RelatedVideoGridRow
 import com.android.purebilibili.feature.video.ui.components.chunkRelatedVideosForHomeStyleGrid
 import com.android.purebilibili.feature.video.ui.components.filterRelatedVideosByHiddenBvids
+import com.android.purebilibili.feature.video.ui.components.rememberRelatedVideoCardLayout
 import com.android.purebilibili.feature.video.ui.components.CollectionRow
 import com.android.purebilibili.feature.video.ui.components.CollectionSheet
 import com.android.purebilibili.feature.video.ui.components.PagesSelector
+import com.android.purebilibili.feature.video.ui.components.CommentListHeader
 import com.android.purebilibili.feature.video.ui.components.CommentSortFilterBar
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
 import com.android.purebilibili.feature.video.ui.components.rememberVideoCommentAppearance
@@ -111,9 +109,6 @@ import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.*
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import com.android.purebilibili.data.model.response.AiSummaryData
 import com.android.purebilibili.feature.video.ui.section.AiSummaryCard
 import com.android.purebilibili.feature.video.ui.section.AiSummaryPromptCard
@@ -315,12 +310,7 @@ internal fun resolveVideoContentEffectiveSelectedTabIndex(
     }
 }
 
-/**
- * 简介与评论页之间始终支持横向分页。
- *
- * 评论列表的纵向滚动会由其 [LazyColumn] 正常处理；不要在评论页禁用 Pager，
- * 否则用户无法通过左/右滑动返回简介。
- */
+/** 简介与评论页之间始终支持横向分页，方向仲裁由共享的纵向优先手势门控处理。 */
 internal fun shouldEnableVideoContentHorizontalPagerSwipe(
     currentPage: Int,
     commentPageIndex: Int,
@@ -451,9 +441,7 @@ fun VideoContentSection(
     followingMids: Set<Long> = emptySet(),
     videoTags: List<VideoTag> = emptyList(),
     sortMode: CommentSortMode = CommentSortMode.HOT,
-    upOnlyFilter: Boolean = false,
     onSortModeChange: (CommentSortMode) -> Unit = {},
-    onUpOnlyToggle: () -> Unit = {},
     onFollowClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onLikeClick: () -> Unit,
@@ -709,7 +697,6 @@ fun VideoContentSection(
     val tabBarVisibleHeightDp = with(density) {
         (tabBarMaxHeightPx - tabBarCollapsePx).coerceAtLeast(0f).toDp()
     }
-
     // 采样层只挂在 Tab 页滚动内容上；排序栏/顶栏分段控件必须在捕获区外，避免 drawBackdrop 自引用导致 RenderThread 栈溢出。
     val videoContentChromeBackdrop = rememberLayerBackdrop()
     val videoContentMiuixBackdrop = rememberMiuixLayerBackdrop()
@@ -739,7 +726,9 @@ fun VideoContentSection(
                         } else {
                             Modifier
                                 .height(tabBarVisibleHeightDp)
-                                .clipToBounds()
+                                .graphicsLayer {
+                                    clip = tabBarCollapseProgress > 0.001f
+                                }
                         }
                     ),
                 contentAlignment = Alignment.TopStart,
@@ -748,6 +737,8 @@ fun VideoContentSection(
                     tabs = tabs,
                     selectedTabIndex = pagerState.currentPage,
                     onTabSelected = onTabSelected,
+                    sortMode = sortMode,
+                    onSortModeChange = onSortModeChange,
                     onDanmakuSendClick = onDanmakuSendClick,
                     danmakuEnabled = danmakuEnabled,
                     onDanmakuToggle = onDanmakuToggle,
@@ -771,7 +762,11 @@ fun VideoContentSection(
                     isPlayerCollapsed = isPlayerCollapsed,
                     onRestorePlayer = onRestorePlayer,
                     backdrop = videoContentChromeBackdrop,
-                    miuixBackdrop = videoContentMiuixBackdrop
+                    miuixBackdrop = videoContentMiuixBackdrop,
+                    indicatorPositionProvider = {
+                        pagerState.currentPage + pagerState.currentPageOffsetFraction
+                    },
+                    isScrollInProgressProvider = { pagerState.isScrollInProgress },
                 )
             }
 
@@ -781,14 +776,18 @@ fun VideoContentSection(
                     isVideoPlaying = isVideoPlaying,
                     selectedTabIndex = pagerState.currentPage
                 ),
-                userScrollEnabled = shouldEnableVideoContentHorizontalPagerSwipe(
-                    currentPage = pagerState.currentPage,
-                    commentPageIndex = 1,
-                    isPagerScrollInProgress = pagerState.isScrollInProgress,
-                ),
+                userScrollEnabled = false,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .verticalPriorityHorizontalPagerSwipe(
+                        state = pagerState,
+                        enabled = shouldEnableVideoContentHorizontalPagerSwipe(
+                            currentPage = pagerState.currentPage,
+                            commentPageIndex = 1,
+                            isPagerScrollInProgress = pagerState.isScrollInProgress,
+                        ),
+                    )
             ) { page ->
                 when (page) {
                     0 -> VideoIntroTab(
@@ -860,10 +859,6 @@ fun VideoContentSection(
                         isRepliesLoading = isRepliesLoading,
                         isRepliesEnd = isRepliesEnd,
                         videoTags = videoTags,
-                        sortMode = sortMode,
-                        upOnlyFilter = upOnlyFilter,
-                        onSortModeChange = onSortModeChange,
-                        onUpOnlyToggle = onUpOnlyToggle,
                         onUpClick = onUpClick,
                         onSubReplyClick = onSubReplyClick,
                         onCommentReplyClick = onCommentReplyClick,
@@ -890,7 +885,6 @@ fun VideoContentSection(
                         showIdentityDecorations = showIdentityDecorations,
                         lightweightCommentRendering = lightweightCommentRendering,
                         chromeBackdrop = videoContentChromeBackdrop,
-                        chromeMiuixBackdrop = videoContentMiuixBackdrop
                     )
                 }
             }
@@ -1021,9 +1015,7 @@ private fun VideoIntroTab(
     val visibleRelatedVideos = remember(relatedVideos, hiddenRelatedBvids) {
         filterRelatedVideosByHiddenBvids(relatedVideos, hiddenRelatedBvids)
     }
-    val isRelatedListScrolling by remember(listState) {
-        derivedStateOf { listState.isScrollInProgress }
-    }
+    val relatedVideoCardLayout = rememberRelatedVideoCardLayout()
     LazyColumn(
         state = listState,
         modifier = modifier
@@ -1125,9 +1117,9 @@ private fun VideoIntroTab(
             ) {
                 RelatedVideoGridRow(
                     videos = row,
+                    cardLayout = relatedVideoCardLayout,
                     followingMids = followingMids,
                     transitionEnabled = relatedVideoTransitionEnabled,
-                    isListScrolling = isRelatedListScrolling,
                     showUpBadge = showUpBadge,
                     onVideoClick = { video ->
                         val navOptions = buildVideoNavigationOptions(
@@ -1157,10 +1149,6 @@ internal fun VideoCommentTab(
     isRepliesLoading: Boolean,
     isRepliesEnd: Boolean,
     videoTags: List<VideoTag>,
-    sortMode: CommentSortMode,
-    upOnlyFilter: Boolean,
-    onSortModeChange: (CommentSortMode) -> Unit,
-    onUpOnlyToggle: () -> Unit,
     onUpClick: (Long) -> Unit,
     onSubReplyClick: (ReplyItem, Long) -> Unit,
     onCommentReplyClick: (ReplyItem) -> Unit,
@@ -1183,7 +1171,6 @@ internal fun VideoCommentTab(
     showIdentityDecorations: Boolean,
     lightweightCommentRendering: Boolean,
     chromeBackdrop: LayerBackdrop? = null,
-    chromeMiuixBackdrop: MiuixBackdrop? = null
 ) {
     val commentAppearance = rememberVideoCommentAppearance()
     val scope = rememberCoroutineScope()
@@ -1218,14 +1205,8 @@ internal fun VideoCommentTab(
         }
     }
     Column(modifier = modifier.fillMaxSize()) {
-        CommentSortFilterBar(
+        CommentListHeader(
             count = replyCount,
-            sortMode = sortMode,
-            onSortModeChange = onSortModeChange,
-            upOnly = upOnlyFilter,
-            onUpOnlyToggle = onUpOnlyToggle,
-            backdrop = chromeBackdrop,
-            miuixBackdrop = chromeMiuixBackdrop
         )
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(
@@ -1251,7 +1232,7 @@ internal fun VideoCommentTab(
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         AppText(
-                            text = if (upOnlyFilter) "这个视频没有 UP 主的评论" else "暂无评论",
+                            text = "暂无评论",
                             color = commentAppearance.secondaryTextColor
                         )
                     }
@@ -1368,14 +1349,12 @@ internal fun LandscapeCommentPanel(
     isRepliesEnd: Boolean,
     videoTags: List<VideoTag>,
     sortMode: CommentSortMode,
-    upOnlyFilter: Boolean,
     currentMid: Long,
     showUpFlag: Boolean,
     showIdentityDecorations: Boolean,
     dissolvingIds: Set<Long>,
     likedComments: Set<Long>,
     onSortModeChange: (CommentSortMode) -> Unit,
-    onUpOnlyToggle: () -> Unit,
     onUpClick: (Long) -> Unit,
     onSubReplyClick: (ReplyItem, Long) -> Unit,
     onCommentReplyClick: (ReplyItem) -> Unit,
@@ -1419,7 +1398,13 @@ internal fun LandscapeCommentPanel(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    AppText("评论 $replyCount", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    AppText("评论 $replyCount", style = MaterialTheme.typography.titleMedium)
+                    CommentSortFilterBar(
+                        sortMode = sortMode,
+                        onSortModeChange = onSortModeChange,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
                     AppTextButton(onClick = onSwitchSide) { AppText(if (isOnLeft) "移至右侧" else "移至左侧") }
                     AppTextButton(onClick = requestDismiss) { AppText("关闭") }
                 }
@@ -1443,10 +1428,6 @@ internal fun LandscapeCommentPanel(
                         isRepliesLoading = isRepliesLoading,
                         isRepliesEnd = isRepliesEnd,
                         videoTags = videoTags,
-                        sortMode = sortMode,
-                        upOnlyFilter = upOnlyFilter,
-                        onSortModeChange = onSortModeChange,
-                        onUpOnlyToggle = onUpOnlyToggle,
                         onUpClick = onUpClick,
                         onSubReplyClick = onSubReplyClick,
                         onCommentReplyClick = onCommentReplyClick,
@@ -1789,6 +1770,8 @@ private fun VideoContentTabBar(
     tabs: List<String>,
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit,
+    sortMode: CommentSortMode,
+    onSortModeChange: (CommentSortMode) -> Unit,
     onDanmakuSendClick: () -> Unit,
     danmakuEnabled: Boolean,
     onDanmakuToggle: () -> Unit,
@@ -1797,7 +1780,9 @@ private fun VideoContentTabBar(
     isPlayerCollapsed: Boolean = false,
     onRestorePlayer: () -> Unit = {},
     backdrop: Backdrop? = null,
-    miuixBackdrop: MiuixBackdrop? = null
+    miuixBackdrop: MiuixBackdrop? = null,
+    indicatorPositionProvider: (() -> Float)? = null,
+    isScrollInProgressProvider: () -> Boolean = { false },
 ) {
     val context = LocalContext.current
     val homeSettings by SettingsManager
@@ -1858,14 +1843,26 @@ private fun VideoContentTabBar(
                 liquidGlassEffectsEnabled = liquidChromeSpec.liquidGlassEffectsEnabled,
                 // Avoid extra press refraction in this compact in-content chrome.
                 tapPressRefractionEnabled = false,
+                indicatorPositionProvider = indicatorPositionProvider,
+                isScrollInProgressProvider = isScrollInProgressProvider,
+                externalPagerMotionEffectsEnabled = liquidChromeSpec.reusesLiquidGlassDock,
             )
 
-            // [新增] 恢复画面按钮 (仅在播放器折叠时显示)
-            AnimatedVisibility(
-                visible = isPlayerCollapsed,
-                enter = fadeIn() + expandHorizontally(),
-                exit = fadeOut() + shrinkHorizontally()
-            ) {
+            if (selectedTabIndex == 1) {
+                CommentSortFilterBar(
+                    sortMode = sortMode,
+                    onSortModeChange = onSortModeChange,
+                    modifier = Modifier.padding(end = 8.dp),
+                    backdrop = backdrop,
+                    miuixBackdrop = miuixBackdrop,
+                )
+            } else {
+                // [新增] 恢复画面按钮 (仅在播放器折叠时显示)
+                AnimatedVisibility(
+                    visible = isPlayerCollapsed,
+                    enter = fadeIn() + expandHorizontally(),
+                    exit = fadeOut() + shrinkHorizontally()
+                ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -1889,12 +1886,12 @@ private fun VideoContentTabBar(
                         fontWeight = FontWeight.Bold
                     )
                 }
-            }
-            
-            val danmakuToggleInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-            val danmakuActiveColor = MaterialTheme.colorScheme.primary
-            val danmakuInactiveColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
-            Row(
+                }
+
+                val danmakuToggleInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                val danmakuActiveColor = MaterialTheme.colorScheme.primary
+                val danmakuInactiveColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
+                Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .padding(end = danmakuActionLayoutPolicy.toggleTrailingPaddingDp.dp)
@@ -1916,7 +1913,7 @@ private fun VideoContentTabBar(
                         horizontal = danmakuActionLayoutPolicy.toggleHorizontalPaddingDp.dp,
                         vertical = danmakuActionLayoutPolicy.toggleVerticalPaddingDp.dp
                     )
-            ) {
+                ) {
                 AppIcon(
                     imageVector = rememberAppCommentIcon(),
                     contentDescription = if (danmakuEnabled) "关闭弹幕" else "开启弹幕",
@@ -1928,15 +1925,16 @@ private fun VideoContentTabBar(
                     text = if (danmakuEnabled) "开" else "关",
                     fontSize = danmakuActionLayoutPolicy.toggleTextSizeSp.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (danmakuEnabled) danmakuActiveColor else danmakuInactiveColor
+                    color = if (danmakuEnabled) danmakuActiveColor else danmakuInactiveColor,
+                    modifier = Modifier.offset(x = 1.dp),
                 )
-            }
+                }
 
-            AnimatedVisibility(
+                AnimatedVisibility(
                 visible = shouldShowDanmakuSendInput(isPlayerCollapsed = isPlayerCollapsed),
                 enter = fadeIn() + expandHorizontally(expandFrom = Alignment.Start),
                 exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.Start)
-            ) {
+                ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -1955,16 +1953,16 @@ private fun VideoContentTabBar(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
+                }
 
-            AppSurface(
+                AppSurface(
                 modifier = Modifier
                     .padding(start = danmakuActionLayoutPolicy.settingsLeadingPaddingDp.dp)
                     .size(danmakuActionLayoutPolicy.settingsButtonSizeDp.dp)
                     .clickable(onClick = onDanmakuSettingsClick),
                 shape = RoundedCornerShape(danmakuActionLayoutPolicy.secondaryControlCornerRadiusDp.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            ) {
+                ) {
                 Box(contentAlignment = Alignment.Center) {
                     AppIcon(
                         imageVector = rememberAppSettingsIcon(),
@@ -1972,6 +1970,7 @@ private fun VideoContentTabBar(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(danmakuActionLayoutPolicy.settingsIconSizeDp.dp)
                     )
+                }
                 }
             }
         }

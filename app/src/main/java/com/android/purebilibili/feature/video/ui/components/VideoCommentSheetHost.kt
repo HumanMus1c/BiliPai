@@ -298,6 +298,7 @@ fun VideoCommentSheetHost(
     onVideoClick: ((String) -> Unit)? = null,
     onSearchKeywordClick: ((String) -> Unit)? = null,
     onOpenBilibiliLink: ((String) -> Unit)? = null,
+    onBackToTop: () -> Unit = {},
     screenHeightPx: Int = 0,
     topReservedPx: Int = 0,
     onTimestampClick: ((Long) -> Unit)? = null,
@@ -685,7 +686,8 @@ fun VideoCommentSheetHost(
                                     onCommentUrlClick = openCommentUrl,
                                     onTimestampClick = onTimestampClick,
                                     maxTimestampMs = maxTimestampMs,
-                                    onImagePreview = previewCallback
+                                    onImagePreview = previewCallback,
+                                    onBackToTop = onBackToTop,
                                 )
                             }
 
@@ -748,7 +750,8 @@ internal fun VideoCommentMainList(
     onCommentUrlClick: (String) -> Unit,
     onTimestampClick: ((Long) -> Unit)?,
     maxTimestampMs: Long?,
-    onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit
+    onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
+    onBackToTop: () -> Unit = {},
 ) {
     val state by viewModel.commentState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -766,7 +769,7 @@ internal fun VideoCommentMainList(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        CommentSortFilterBar(
+        CommentSortHeader(
             count = state.replyCount,
             sortMode = state.sortMode,
             onSortModeChange = { mode ->
@@ -775,8 +778,6 @@ internal fun VideoCommentMainList(
                     SettingsManager.setCommentDefaultSortMode(context, mode.apiMode)
                 }
             },
-            upOnly = state.upOnlyFilter,
-            onUpOnlyToggle = { viewModel.toggleUpOnly() },
             backdrop = commentChromeBackdrop
         )
 
@@ -869,6 +870,8 @@ internal fun VideoCommentMainList(
                         .align(Alignment.BottomEnd)
                         .padding(end = 20.dp, bottom = 20.dp),
                     onClick = {
+                        // 回顶时通知父级(竖屏详情)恢复被评论区压缩的播放器。
+                        onBackToTop()
                         scope.launch {
                             listState.animateScrollToItem(0)
                         }

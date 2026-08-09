@@ -23,7 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-//  Cupertino Icons - iOS SF Symbols 风格图标
+//  Material Icons
 import com.android.purebilibili.core.ui.rememberAppGridLayoutIcon
 import com.android.purebilibili.core.ui.rememberAppListLayoutIcon
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible

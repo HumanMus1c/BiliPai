@@ -4,18 +4,67 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.LocalDynamicColorActive
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.theme.UiStyle
-import com.android.purebilibili.core.theme.resolveUiStyle
 
 enum class AppSemanticIconFamily {
-    CUPERTINO,
     MATERIAL,
+}
+
+/**
+ * 全局图标呈现样式(用户可切换的两套方案)。
+ * - [AUTO]:跟随运行时主题 —— MIUIX 保持现状(设置图标多彩色),仅 MATERIAL3 解析为官方推荐。
+ * - [THEME_CONTAINER]:主题色容器 —— 图标置于主题色(secondaryContainer)
+ *   圆角容器内,图标用 onSecondaryContainer,对齐官方 Settings 容器图标规范。
+ * - [MD3_STANDARD]:MD3 官方推荐 —— onSurfaceVariant 单色图标、无容器。
+ */
+enum class AppIconStyle {
+    AUTO,
+    THEME_CONTAINER,
+    MD3_STANDARD,
+}
+
+/**
+ * AUTO 表示"保持现状":MIUIX 预设不引入容器化与单色化(设置图标保持多彩色等既有外观),
+ * 仅 MATERIAL3 预设解析为官方推荐样式。
+ */
+fun resolveAppIconStyle(
+    iconStyle: AppIconStyle,
+    uiStyle: AppUiStyle,
+): AppIconStyle = when (iconStyle) {
+    AppIconStyle.AUTO -> when (uiStyle) {
+        AppUiStyle.MATERIAL3 -> AppIconStyle.MD3_STANDARD
+        AppUiStyle.MIUIX -> AppIconStyle.AUTO
+    }
+    else -> iconStyle
+}
+
+/** 从持久化字符串解析 [AppIconStyle],非法或缺失值回退 [AppIconStyle.AUTO]。 */
+fun resolveAppIconStylePreference(rawValue: String?): AppIconStyle {
+    return runCatching {
+        rawValue?.let(AppIconStyle::valueOf)
+    }.getOrNull() ?: AppIconStyle.AUTO
+}
+
+/**
+ * 全局图标呈现样式 CompositionLocal。
+ * 默认 [AppIconStyle.AUTO] 由 UI 预设推导;主题层提供用户显式选择后全局生效。
+ */
+val LocalAppIconStyle = staticCompositionLocalOf {
+    AppIconStyle.AUTO
+}
+
+/** 解析当前生效的图标呈现样式(处理 AUTO 跟随运行时主题)。 */
+@Composable
+fun rememberResolvedAppIconStyle(): AppIconStyle {
+    val iconStyle = LocalAppIconStyle.current
+    val uiStyle = LocalAppUiStyle.current
+    return remember(iconStyle, uiStyle) {
+        resolveAppIconStyle(iconStyle, uiStyle)
+    }
 }
 
 enum class AppSemanticAccentRole {
@@ -34,11 +83,22 @@ data class AppSemanticAccentPalette(
 
 data class AppSemanticVisualPolicy(
     val iconFamily: AppSemanticIconFamily,
+    val iconStyle: AppIconStyle = AppIconStyle.AUTO,
     val accentPalette: AppSemanticAccentPalette?,
     val prefersNativeChrome: Boolean,
     val supportsIndependentLiquidGlass: Boolean,
     val prefersGroupedListCards: Boolean = false,
 ) {
+    /**
+     * MD3 官方推荐样式强制使用 Material 官方字形(运行时字形已收敛为单值)。
+     */
+    val effectiveIconFamily: AppSemanticIconFamily
+        get() = if (iconStyle == AppIconStyle.MD3_STANDARD) {
+            AppSemanticIconFamily.MATERIAL
+        } else {
+            iconFamily
+        }
+
     fun resolveAccent(role: AppSemanticAccentRole, fallback: Color): Color {
         val palette = accentPalette ?: return fallback
         return when (role) {
@@ -50,13 +110,6 @@ data class AppSemanticVisualPolicy(
     }
 
     companion object {
-        val Cupertino = AppSemanticVisualPolicy(
-            iconFamily = AppSemanticIconFamily.CUPERTINO,
-            accentPalette = null,
-            prefersNativeChrome = false,
-            supportsIndependentLiquidGlass = true,
-        )
-
         fun material(palette: AppSemanticAccentPalette) = AppSemanticVisualPolicy(
             iconFamily = AppSemanticIconFamily.MATERIAL,
             accentPalette = palette,
@@ -77,31 +130,31 @@ fun resolveAppSemanticAccentPalette(
 )
 
 fun resolveAppSemanticVisualPolicy(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant,
+    uiStyle: AppUiStyle,
     materialPalette: AppSemanticAccentPalette,
-): AppSemanticVisualPolicy = when (resolveUiStyle(uiPreset, androidNativeVariant)) {
-    UiStyle.IOS -> AppSemanticVisualPolicy.Cupertino
-    UiStyle.MATERIAL3 -> AppSemanticVisualPolicy.material(materialPalette)
-    UiStyle.MIUIX -> AppSemanticVisualPolicy.material(materialPalette).copy(
+    iconStyle: AppIconStyle = AppIconStyle.AUTO,
+): AppSemanticVisualPolicy = when (uiStyle) {
+    AppUiStyle.MATERIAL3 -> AppSemanticVisualPolicy.material(materialPalette).copy(iconStyle = iconStyle)
+    AppUiStyle.MIUIX -> AppSemanticVisualPolicy.material(materialPalette).copy(
         prefersGroupedListCards = true,
+        iconStyle = iconStyle,
     )
 }
 
 @Composable
 fun rememberAppSemanticVisualPolicy(): AppSemanticVisualPolicy {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
+    val uiStyle = LocalAppUiStyle.current
     val dynamicColorActive = LocalDynamicColorActive.current
     val colorScheme = MaterialTheme.colorScheme
-    return remember(uiPreset, androidNativeVariant, dynamicColorActive, colorScheme) {
+    val iconStyle = rememberResolvedAppIconStyle()
+    return remember(uiStyle, dynamicColorActive, colorScheme, iconStyle) {
         resolveAppSemanticVisualPolicy(
-            uiPreset = uiPreset,
-            androidNativeVariant = androidNativeVariant,
+            uiStyle = uiStyle,
             materialPalette = resolveAppSemanticAccentPalette(
                 colorScheme = colorScheme,
                 useSemanticAccentRoles = dynamicColorActive,
             ),
+            iconStyle = iconStyle,
         )
     }
 }

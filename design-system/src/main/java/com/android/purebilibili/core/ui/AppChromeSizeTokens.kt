@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
 import androidx.compose.ui.unit.dp
 
@@ -38,12 +37,11 @@ data class CompactCapsuleChromeSpec(
 )
 
 fun resolveCompactCapsuleChromeSpec(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
+    uiStyle: AppUiStyle
 ): CompactCapsuleChromeSpec {
-    val chromeTokens = resolveAndroidNativeChromeTokens(uiPreset, androidNativeVariant)
-    return when {
-        uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX -> CompactCapsuleChromeSpec(
+    val chromeTokens = resolveAndroidNativeChromeTokens(uiStyle)
+    return when (uiStyle) {
+        AppUiStyle.MIUIX -> CompactCapsuleChromeSpec(
             primaryHeightDp = 48,
             secondaryButtonSizeDp = chromeTokens.rowMinTouchTargetDp,
             chipHeightDp = 32,
@@ -59,7 +57,7 @@ fun resolveCompactCapsuleChromeSpec(
             compactChipHorizontalPaddingDp = 10,
             standardGapDp = 8
         )
-        uiPreset == UiPreset.MD3 -> CompactCapsuleChromeSpec(
+        AppUiStyle.MATERIAL3 -> CompactCapsuleChromeSpec(
             primaryHeightDp = 56,
             secondaryButtonSizeDp = chromeTokens.rowMinTouchTargetDp,
             chipHeightDp = 32,
@@ -74,22 +72,6 @@ fun resolveCompactCapsuleChromeSpec(
             chipHorizontalPaddingDp = 16,
             compactChipHorizontalPaddingDp = 12,
             standardGapDp = 12
-        )
-        else -> CompactCapsuleChromeSpec(
-            primaryHeightDp = 44,
-            secondaryButtonSizeDp = 40,
-            chipHeightDp = 36,
-            compactChipHeightDp = 32,
-            primaryCornerRadiusDp = 22,
-            secondaryButtonCornerRadiusDp = 20,
-            chipCornerRadiusDp = 18,
-            compactChipCornerRadiusDp = 16,
-            iconSizeDp = 20,
-            smallIconSizeDp = 16,
-            inputHorizontalPaddingDp = 12,
-            chipHorizontalPaddingDp = 12,
-            compactChipHorizontalPaddingDp = 10,
-            standardGapDp = 8
         )
     }
 }

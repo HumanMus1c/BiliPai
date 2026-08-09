@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.video.screen
+import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
+import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.annotation.SuppressLint
@@ -103,6 +105,7 @@ import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.appContentDialogWidth
 import com.android.purebilibili.core.store.PortraitPlayerCollapseMode
 //  已改用 MaterialTheme.colorScheme.primary
 
@@ -164,8 +167,6 @@ import com.android.purebilibili.feature.video.policy.reduceVideoDetailPreScroll
 import com.android.purebilibili.feature.video.policy.resolveVideoDetailCollapseProgress
 import com.android.purebilibili.feature.video.subtitle.resolveSubtitlePreferenceSession
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -356,10 +357,17 @@ internal fun VideoDetailPlaybackEndedDialog(
     )
     if (!showPlaybackEndedDialog) return
 
+    val dialogLayout = remember {
+        com.android.purebilibili.core.ui.resolveAppContentDialogLayoutPolicy(maxWidthDp = 420)
+    }
     androidx.compose.ui.window.Dialog(
-        onDismissRequest = { viewModel.dismissPlaybackEndedDialog() }
+        onDismissRequest = { viewModel.dismissPlaybackEndedDialog() },
+        properties = com.android.purebilibili.core.ui.resolveAppContentDialogProperties(
+            usePlatformDefaultWidth = dialogLayout.usePlatformDefaultWidth,
+        ),
     ) {
         AppSurface(
+            modifier = Modifier.appContentDialogWidth(policy = dialogLayout),
             shape = AppShapes.container(ContainerLevel.Dialog),
             color = AppSurfaceTokens.surface(),
             tonalElevation = 8.dp
@@ -400,7 +408,9 @@ internal fun VideoDetailPlaybackEndedDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+
+                        contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme)
                     )
                 ) {
                     AppText("▶️ 播放下一个视频")
@@ -868,7 +878,8 @@ internal fun DetachedVideoCommentThreadHost(
     onOpenBilibiliLink: ((String) -> Unit)?,
     screenHeightPx: Int,
     topReservedPx: Int,
-    onTimestampClick: (Long) -> Unit
+    onTimestampClick: (Long) -> Unit,
+    onBackToTop: () -> Unit = {},
 ) {
     if (!visible) return
 
@@ -900,6 +911,7 @@ internal fun DetachedVideoCommentThreadHost(
         topReservedPx = topReservedPx,
         onTimestampClick = onTimestampClick,
         maxTimestampMs = successState?.videoDurationMs?.takeIf { it > 0L },
+        onBackToTop = onBackToTop,
         forceInitialize = forceInitialize,
         handleFraudEvents = false
     )

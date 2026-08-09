@@ -607,9 +607,10 @@ class PortraitVideoPagerPolicyTest {
             "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt"
         ).readText()
 
-        assertTrue(pagerSource.contains("if (useTextureSurfaceForNavigation)"))
+        assertTrue(pagerSource.contains("navigationTransformEnabled = useTextureSurfaceForNavigation"))
         assertTrue(pagerSource.contains("R.layout.view_player_texture"))
         assertTrue(adapterSource.contains("useTextureSurfaceForNavigation = useTextureSurfaceForNavigation"))
-        assertTrue(holderSource.contains("useTextureSurfaceForNavigation = transitionEnabled"))
+        assertTrue(holderSource.contains("useTextureSurfaceForNavigation = useTextureSurfaceForNavigation"))
+        assertTrue(holderSource.contains("resolveNavigationLiveSurfaceTextureEnabled("))
     }
 }

@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui.components
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 
 enum class AppClickableItemRenderer {
     CUPERTINO,
@@ -11,44 +10,38 @@ enum class AppClickableItemRenderer {
 }
 
 fun resolveAppClickableItemRenderer(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant,
+    uiStyle: AppUiStyle,
     onClick: (() -> Unit)?,
     showChevron: Boolean,
     centered: Boolean,
 ): AppClickableItemRenderer = when {
-    uiPreset == UiPreset.IOS || centered -> AppClickableItemRenderer.CUPERTINO
-    uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX -> {
+    centered -> AppClickableItemRenderer.CUPERTINO
+    uiStyle == AppUiStyle.MIUIX -> {
         if (onClick != null && showChevron) {
             AppClickableItemRenderer.MIUIX_ARROW
         } else {
             AppClickableItemRenderer.MIUIX_BASIC
         }
     }
-    uiPreset == UiPreset.MD3 -> AppClickableItemRenderer.MD3_BASIC
-    else -> AppClickableItemRenderer.CUPERTINO
+    else -> AppClickableItemRenderer.MD3_BASIC
 }
 
-fun shouldRouteIosClickableItemToMiuixArrowPreference(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant,
+fun shouldRouteClickableItemToMiuixArrowPreference(
+    uiStyle: AppUiStyle,
     onClick: (() -> Unit)?,
     showChevron: Boolean,
     centered: Boolean,
 ): Boolean = resolveAppClickableItemRenderer(
-    uiPreset = uiPreset,
-    androidNativeVariant = androidNativeVariant,
+    uiStyle = uiStyle,
     onClick = onClick,
     showChevron = showChevron,
     centered = centered
 ) == AppClickableItemRenderer.MIUIX_ARROW
 
-fun shouldRouteIosSwitchItemToMiuixSwitchPreference(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant,
-): Boolean = uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX
+fun shouldRouteSwitchItemToMiuixSwitchPreference(
+    uiStyle: AppUiStyle,
+): Boolean = uiStyle == AppUiStyle.MIUIX
 
-fun shouldRouteIosSliderPreferenceToMiuixSliderPreference(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant,
-): Boolean = uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX
+fun shouldRouteSliderPreferenceToMiuixSliderPreference(
+    uiStyle: AppUiStyle,
+): Boolean = uiStyle == AppUiStyle.MIUIX

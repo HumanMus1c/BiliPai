@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.store.SettingsManager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -13,9 +14,10 @@ class TopTabLayoutPolicyTest {
         assertEquals(3, resolveTopTabVisibleSlots(3))
         assertEquals(4, resolveTopTabVisibleSlots(4))
         assertEquals(5, resolveTopTabVisibleSlots(5, longestLabelLength = 6))
-        assertEquals(6, resolveTopTabVisibleSlots(6, longestLabelLength = 2))
+        assertEquals(5, resolveTopTabVisibleSlots(6, longestLabelLength = 2))
         assertEquals(4, resolveTopTabVisibleSlots(5, longestLabelLength = 9))
         assertEquals(4, resolveTopTabVisibleSlots(8, longestLabelLength = 10))
+        assertEquals(5, resolveTopTabVisibleSlots(8, longestLabelLength = 2))
     }
 
     @Test
@@ -63,8 +65,8 @@ class TopTabLayoutPolicyTest {
         assertEquals(106.666f, resolveMd3TopTabItemWidthDp(containerWidthDp = 320f), 0.001f)
         assertEquals(120f, resolveMd3TopTabItemWidthDp(containerWidthDp = 360f), 0.001f)
         assertEquals(213.333f, resolveMd3TopTabItemWidthDp(containerWidthDp = 640f), 0.001f)
-        // Six slots on a phone would be 60dp raw; floor raises to 64 so labels stay readable.
-        assertEquals(64f, resolveMd3TopTabItemWidthDp(containerWidthDp = 360f, visibleSlots = 6), 0.001f)
+        // Five slots use the full phone width while keeping labels readable.
+        assertEquals(72f, resolveMd3TopTabItemWidthDp(containerWidthDp = 360f, visibleSlots = 5), 0.001f)
     }
 
     @Test
@@ -76,7 +78,7 @@ class TopTabLayoutPolicyTest {
             80f,
             resolveMd3TopTabItemWidthDp(
                 containerWidthDp = 360f,
-                visibleSlots = 6,
+                visibleSlots = 5,
                 labelMode = 0
             ),
             0.001f
@@ -85,7 +87,7 @@ class TopTabLayoutPolicyTest {
             80f,
             resolveIosTopTabItemWidthDp(
                 containerWidthDp = 360f,
-                categoryCount = 6,
+                categoryCount = 5,
                 labelMode = 0
             ),
             0.001f
@@ -93,18 +95,18 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
-    fun `six text tabs prefer scrolling over pure ellipsis on phone width`() {
+    fun `five text tabs fit the phone width without pure ellipsis`() {
         val itemWidth = resolveMd3TopTabItemWidthDp(
             containerWidthDp = 360f,
-            visibleSlots = 6,
+            visibleSlots = 5,
             labelMode = 2
         )
-        assertEquals(64f, itemWidth, 0.001f)
+        assertEquals(72f, itemWidth, 0.001f)
         // Content budget after 3dp outer + 4dp content padding each side.
         assertTrue("text room should fit two CJK glyphs", itemWidth - 14f >= 30f)
         assertTrue(
-            "six floored tabs may exceed the viewport and scroll",
-            itemWidth * 6f > 360f
+            "five text tabs should fit the viewport",
+            itemWidth * 5f <= 360f + 0.001f
         )
     }
 
@@ -187,44 +189,30 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
-    fun `md3 top tabs show all tabs for every label mode when partition is an inline page`() {
-        assertEquals(
-            6,
-            resolveMd3TopTabLayoutVisibleSlots(
-                categoryCount = 6,
-                labelMode = 2,
-                showPartitionAction = false
+    fun `md3 top tabs show at most five tabs for every label mode`() {
+        listOf(0, 1, 2).forEach { labelMode ->
+            assertEquals(
+                5,
+                resolveMd3TopTabLayoutVisibleSlots(
+                    categoryCount = 6,
+                    labelMode = labelMode,
+                    showPartitionAction = false
+                )
             )
-        )
-        assertEquals(
-            5,
-            resolveMd3TopTabLayoutVisibleSlots(
-                categoryCount = 5,
-                labelMode = 2,
-                showPartitionAction = false
+            assertEquals(
+                5,
+                resolveMd3TopTabLayoutVisibleSlots(
+                    categoryCount = 5,
+                    labelMode = labelMode,
+                    showPartitionAction = false
+                )
             )
-        )
+        }
         assertEquals(
             4,
             resolveMd3TopTabLayoutVisibleSlots(
                 categoryCount = 4,
                 labelMode = 2,
-                showPartitionAction = false
-            )
-        )
-        assertEquals(
-            6,
-            resolveMd3TopTabLayoutVisibleSlots(
-                categoryCount = 6,
-                labelMode = 0,
-                showPartitionAction = false
-            )
-        )
-        assertEquals(
-            6,
-            resolveMd3TopTabLayoutVisibleSlots(
-                categoryCount = 6,
-                labelMode = 1,
                 showPartitionAction = false
             )
         )
@@ -257,10 +245,10 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
-    fun `ios icon-only and text-only tabs show all six tabs inline`() {
-        listOf(1, 2).forEach { labelMode ->
+    fun `ios top tabs cap legacy over-limit counts at five slots`() {
+        listOf(0, 1, 2).forEach { labelMode ->
             assertEquals(
-                6,
+                5,
                 resolveIosTopTabLayoutVisibleSlots(
                     categoryCount = 6,
                     labelMode = labelMode
@@ -271,12 +259,10 @@ class TopTabLayoutPolicyTest {
                 categoryCount = 6,
                 labelMode = labelMode
             )
-            // Readable floor may exceed the raw equal-split so the row scrolls instead of "...".
             assertTrue(
                 "labelMode=$labelMode itemWidth=$itemWidth",
                 itemWidth >= resolveMd3TopTabMinItemWidthDp(labelMode)
             )
-            assertTrue(itemWidth * 6f + 4f >= 360f)
         }
     }
 
@@ -303,9 +289,9 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
-    fun `md3 top tabs cap expanded custom tabs at six visible slots`() {
+    fun `md3 top tabs cap expanded custom tabs at five visible slots`() {
         assertEquals(
-            6,
+            5,
             resolveMd3TopTabLayoutVisibleSlots(
                 categoryCount = 8,
                 labelMode = 0,
@@ -313,7 +299,7 @@ class TopTabLayoutPolicyTest {
             )
         )
         assertEquals(
-            6,
+            5,
             resolveMd3TopTabLayoutVisibleSlots(
                 categoryCount = 8,
                 labelMode = 2,
@@ -334,7 +320,7 @@ class TopTabLayoutPolicyTest {
             )
         )
         assertEquals(
-            6,
+            5,
             resolveMd3TopTabLayoutVisibleSlots(
                 categoryCount = 6,
                 labelMode = 2,
@@ -349,7 +335,7 @@ class TopTabLayoutPolicyTest {
         assertEquals(
             3,
             resolveMd3TopTabLayoutVisibleSlots(
-                categoryCount = 6,
+                categoryCount = 5,
                 labelMode = 2,
                 showPartitionAction = true
             )
@@ -401,13 +387,13 @@ class TopTabLayoutPolicyTest {
             ),
             0.001f
         )
-        // Icon only: 56 × 6 = 336
+        // Icon only: 56 × 5 = 280
         assertEquals(56f, resolveTopTabWrapItemWidthDp(labelMode = 1, isFloatingStyle = true), 0.001f)
         assertEquals(
-            336f,
+            280f,
             resolveTopTabDockWrapWidthDp(
                 itemWidthDp = 56f,
-                categoryCount = 6,
+                categoryCount = 5,
                 maxWidthDp = 440f
             ),
             0.001f
@@ -433,6 +419,40 @@ class TopTabLayoutPolicyTest {
             ),
             0.001f
         )
+    }
+
+    @Test
+    fun `wrapped dock can stay centered for every label mode and count`() {
+        val containerWidths = listOf(320f, 360f, 440f)
+
+        listOf(0, 1, 2).forEach { labelMode ->
+            (1..SettingsManager.MAX_TOP_TABS).forEach { categoryCount ->
+                containerWidths.forEach { containerWidth ->
+                    val itemWidth = resolveTopTabWrapItemWidthDp(
+                        labelMode = labelMode,
+                        isFloatingStyle = true
+                    )
+                    val dockWidth = resolveTopTabDockWrapWidthDp(
+                        itemWidthDp = itemWidth,
+                        categoryCount = categoryCount,
+                        maxWidthDp = containerWidth
+                    )
+                    val leadingSpace = (containerWidth - dockWidth) / 2f
+                    val trailingSpace = containerWidth - dockWidth - leadingSpace
+
+                    assertTrue(
+                        "dock must fit: mode=$labelMode count=$categoryCount width=$containerWidth",
+                        dockWidth <= containerWidth + 0.001f
+                    )
+                    assertEquals(
+                        "center margins: mode=$labelMode count=$categoryCount width=$containerWidth",
+                        leadingSpace,
+                        trailingSpace,
+                        0.001f
+                    )
+                }
+            }
+        }
     }
 
     @Test

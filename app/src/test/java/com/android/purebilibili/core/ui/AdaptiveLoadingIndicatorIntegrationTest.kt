@@ -2,6 +2,7 @@ package com.android.purebilibili.core.ui
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -12,9 +13,6 @@ class AdaptiveLoadingIndicatorIntegrationTest {
         val adaptive = loadSource(
             "design-system/src/main/java/com/android/purebilibili/core/ui/AdaptiveLoadingIndicator.kt"
         )
-        val iosRenderer = loadSource(
-            "design-system/src/main/java/com/android/purebilibili/core/ui/IosLoadingIndicator.kt"
-        )
         val lottie = loadSource(
             "app/src/main/java/com/android/purebilibili/core/ui/LottieComponents.kt"
         )
@@ -22,8 +20,23 @@ class AdaptiveLoadingIndicatorIntegrationTest {
         assertTrue(adaptive.contains("LoadingIndicator("))
         assertTrue(adaptive.contains("MiuixInfiniteProgressIndicator("))
         assertTrue(adaptive.contains("MiuixCircularProgressIndicator("))
-        assertTrue(adaptive.contains("IosCutePersonLoadingIndicator("))
-        assertTrue(iosRenderer.contains("internal fun IosCutePersonLoadingIndicator("))
+        assertTrue(lottie.contains("AdaptiveLoadingIndicator("))
+    }
+
+    @Test
+    fun iosRendererShell_isRemovedAfterMigration() {
+        val iosRenderer = listOf(
+            File("design-system/src/main/java/com/android/purebilibili/core/ui/IosLoadingIndicator.kt"),
+            File("../design-system/src/main/java/com/android/purebilibili/core/ui/IosLoadingIndicator.kt"),
+        )
+        val adaptive = loadSource(
+            "design-system/src/main/java/com/android/purebilibili/core/ui/AdaptiveLoadingIndicator.kt"
+        )
+
+        // 6A 迁移：iOS 渲染器壳已删除，adaptive 通道只保留双值视觉。
+        assertEquals(false, iosRenderer.any { it.exists() })
+        assertFalse(adaptive.contains("IosCutePersonLoadingIndicator"))
+        assertFalse(adaptive.contains("IOS_CUTE_PERSON"))
     }
 
     @Test

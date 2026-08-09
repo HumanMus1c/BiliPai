@@ -1,5 +1,7 @@
 // 文件路径: feature/bangumi/ui/detail/BangumiDetailComponents.kt
 package com.android.purebilibili.feature.bangumi.ui.detail
+import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
+import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
@@ -26,11 +28,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.Star
-import io.github.alexzhirkevich.cupertino.icons.outlined.Ellipsis
-import io.github.alexzhirkevich.cupertino.icons.outlined.Plus
-import io.github.alexzhirkevich.cupertino.icons.outlined.Checkmark
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.Star
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
 import com.android.purebilibili.core.theme.resolveAdaptiveTertiaryAccentColors
 import com.android.purebilibili.core.theme.iOSYellow
@@ -155,7 +157,7 @@ fun RatingRow(
         modifier = modifier
     ) {
         AppIcon(
-            CupertinoIcons.Default.Star,
+            Icons.Outlined.Star,
             contentDescription = null,
             tint = iOSYellow,
             modifier = Modifier.size(16.dp)
@@ -197,7 +199,7 @@ fun FollowButton(
             modifier = modifier
         ) {
             AppIcon(
-                CupertinoIcons.Default.Checkmark,
+                Icons.Outlined.Check,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp)
             )
@@ -208,12 +210,14 @@ fun FollowButton(
         AppButton(
             onClick = onToggle,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+
+                contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme)
             ),
             modifier = modifier
         ) {
             AppIcon(
-                CupertinoIcons.Default.Plus,
+                Icons.Outlined.Add,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp)
             )
@@ -407,7 +411,7 @@ fun EpisodePreviewRow(
                     Box(contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             AppIcon(
-                                CupertinoIcons.Default.Ellipsis,
+                                Icons.Outlined.MoreHoriz,
                                 contentDescription = "更多",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )

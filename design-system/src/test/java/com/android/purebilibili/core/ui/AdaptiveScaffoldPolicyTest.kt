@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -10,35 +9,24 @@ import kotlin.test.assertTrue
 class AdaptiveScaffoldPolicyTest {
 
     @Test
-    fun miuixVariant_routesToMiuixScaffoldWithPopupHost() {
+    fun miuixStyle_routesToMiuixScaffoldWithPopupHost() {
         assertEquals(
             AdaptiveScaffoldRenderer.MIUIX_SCAFFOLD_WITH_POPUP_HOST,
-            resolveAdaptiveScaffoldRenderer(UiPreset.MD3, AndroidNativeVariant.MIUIX)
+            resolveAdaptiveScaffoldRenderer(AppUiStyle.MIUIX)
         )
         assertTrue(
-            shouldMountMiuixPopupHostOnAdaptiveScaffold(UiPreset.MD3, AndroidNativeVariant.MIUIX)
+            shouldMountMiuixPopupHostOnAdaptiveScaffold(AppUiStyle.MIUIX)
         )
     }
 
     @Test
-    fun iosPreset_routesToMaterial3Scaffold() {
+    fun material3Style_routesToMaterial3Scaffold() {
         assertEquals(
             AdaptiveScaffoldRenderer.MATERIAL3_SCAFFOLD,
-            resolveAdaptiveScaffoldRenderer(UiPreset.IOS, AndroidNativeVariant.MATERIAL3)
+            resolveAdaptiveScaffoldRenderer(AppUiStyle.MATERIAL3)
         )
         assertFalse(
-            shouldMountMiuixPopupHostOnAdaptiveScaffold(UiPreset.IOS, AndroidNativeVariant.MATERIAL3)
-        )
-    }
-
-    @Test
-    fun md3MaterialVariant_routesToMaterial3Scaffold() {
-        assertEquals(
-            AdaptiveScaffoldRenderer.MATERIAL3_SCAFFOLD,
-            resolveAdaptiveScaffoldRenderer(UiPreset.MD3, AndroidNativeVariant.MATERIAL3)
-        )
-        assertFalse(
-            shouldMountMiuixPopupHostOnAdaptiveScaffold(UiPreset.MD3, AndroidNativeVariant.MATERIAL3)
+            shouldMountMiuixPopupHostOnAdaptiveScaffold(AppUiStyle.MATERIAL3)
         )
     }
 }

@@ -29,8 +29,8 @@ import com.android.purebilibili.core.ui.rememberAppClearIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.data.model.response.UgcEpisode
 import com.android.purebilibili.data.model.response.UgcSeason
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.Play
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PlayArrow
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -262,7 +262,7 @@ fun CollectionSheet(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     AppIcon(
-                                        CupertinoIcons.Default.Play,
+                                        Icons.Outlined.PlayArrow,
                                         contentDescription = null,
                                         tint = Color.White,
                                         modifier = Modifier.size(28.dp)

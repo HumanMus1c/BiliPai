@@ -1,5 +1,119 @@
 # Changelog
 
+## v0.2.2 (2026-08-09)
+
+更新日志(ChangeLog)
+
+[更改] 版本号 0.2.2，versionCode 287
+[更改] 视频详情页的评论排序控件移至“评论”标签右侧
+[更改] 正式包 BiliPai-0.2.2.apk，Dev 包 BiliPai-0.2.2-dev.apk
+[更改] 基准 v0.2.1，比较区间见 GitHub Compare
+[修复] 直播首页网游、手游等一级分区标签可正确切换，兼容分区接口字段
+[修复] 插件开关与注册并发时的闪退
+[更改] 首页顶部标签最多显示 5 项，Dock 在图标、图文、文字模式下均保持居中
+[修复] 首页顶栏和底栏手势、反向滚动与选中态同步
+[修复] 视频详情中评论、关联推荐与播放器切换后的弹幕和画面交接
+[更改] 设置页、播放页的转场减少视差并修复黑屏，设置补充播放与应用图标偏好
+[更改] 空间投稿视频排版对齐首页信息流，长按倍速提示更紧凑
+[修复] 首页 App + Web 合并 Feed 取流和翻页重复问题 @qyo123oyq
+v0.2.2(82627cc3e)
+
+格式规范见 [docs/wiki/CHANGELOG_GUIDE.md](docs/wiki/CHANGELOG_GUIDE.md)。社群：频道 [t.me/bilipai666](https://t.me/bilipai666) / 群 [t.me/bilipai888](https://t.me/bilipai888/1)。比较：[`v0.2.1...main`](https://github.com/jay3-yy/BiliPai/compare/v0.2.1...main)。
+
+---
+
+## v0.2.1 (2026-08-07)
+
+更新日志(ChangeLog)
+
+[更改] 版本号 0.2.1，versionCode 285
+[更改] 正式包 BiliPai-0.2.1.apk，Dev 包 BiliPai-0.2.1-dev.apk
+[更改] 基准 v0.2.0，比较区间见 GitHub Compare
+[修复] 切集/相关推荐后弹幕自动上屏，弹幕引擎按播放意图启动 @Jay3-yy
+[修复] 恢复评论上滑缩小播放器并修复回竖屏铺满 @Jay3-yy
+[修复] 退出后保持小窗播放与音量 @Jay3-yy
+[修复] 打开视频详情页期间抑制父级列表刷新 @Jay3-yy
+[更改] 相关推荐卡片排版紧凑化，标题/作者/播放量/弹幕间距收紧并对齐首页 token 体系 @Jay3-yy
+[添加] 动态图片查看原图支持全分辨率解码（上限 8192px）@Jay3-yy
+[修复] 顶部「追番」标签点击直接进入番剧独立页 @Jay3-yy
+[更改] 顶部液态玻璃默认关闭；新增「下滑自动隐藏顶部栏」开关（默认开启）@Jay3-yy
+[修复] 首页顶栏标签去除玻璃边缘，各主题保持可读 @Jay3-yy
+[更改] 顶栏控件与液态玻璃解耦 @piracola
+[更改] 首页卡片「已关注」紧跟 UP 名，时长移入统计行 @Jay3-yy @piracola
+[更改] 竖屏视频流推荐改用 Story 接口提升多样性 @Jay3-yy
+[更改] 默认顶栏标签改为 5 项（移除分区），Story 页与底栏分页同步 @Jay3-yy
+[更改] 搜索图标与清除按钮换位 @Jay3-yy
+[添加] 设置新增「列表条目样式」选项：自定义条目 / 原生组件 @Jay3-yy
+[修复] 开关浅色 thumb 不再变黑，开关与条目振动跟随全局开关 @Jay3-yy
+[更改] 设置单一入口分类点击直接进入下一级，减少菜单层级 @Jay3-yy
+[更改] UP 主徽章与头像默认关闭并全局生效 @Jay3-yy
+[修复] 设置界面主题图标恢复 ColorLens @Jay3-yy
+[适配] MD3 下底栏可用项目图标跟随主题色 @Jay3-yy
+[更改] 全 app primary 填充按钮浅色主题统一用 primaryContainer @Jay3-yy
+[适配] 对齐 MD3 官方 ColorScheme 全角色与 surface 层级 @Jay3-yy
+[更改] 全局图标样式两套：主题色容器 / MD3 官方推荐 @Jay3-yy
+[更改] 移除 iOS/Cupertino 视觉路径，主题收敛为 Miuix / Material 两值化策略 @piracola
+[修复] 投票/打分弹幕与 BAS 解析器缺陷 @piracola
+[修复] WebDAV 恢复/备份卡在创建远端目录 —— 改为探测优先 @Jay3-yy
+[修复] DLNA 发现兼容 Android XML 解析器与 SSDP 1900 端口 @MuonChaser
+[添加] DLNA 远程播放控制与路由缓存 @MuonChaser
+v0.2.1(72d7e97b)
+
+格式规范见 [docs/wiki/CHANGELOG_GUIDE.md](docs/wiki/CHANGELOG_GUIDE.md)。社群：频道 [t.me/bilipai666](https://t.me/bilipai666)，群 [t.me/bilipai888](https://t.me/bilipai888/1)。比较：[`v0.2.0...main`](https://github.com/jay3-yy/BiliPai/compare/v0.2.0...main)。
+
+---
+
+## v0.2.0 (2026-08-06)
+
+更新日志(ChangeLog)
+
+[更改] 版本号 0.2.0，versionCode 284
+[更改] 恢复语义化 MAJOR.MINOR.PATCH，不再使用日期型 versionName
+[更改] 正式包 BiliPai-0.2.0.apk，Dev 包 BiliPai-0.2.0-dev.apk
+[更改] 基准 v26.0805.1，比较区间见 GitHub Compare
+[更改] 实时画面转场默认关闭
+[更改] 转场背景模糊默认关闭
+[更改] 底栏模糊默认关闭
+[更改] 播放器洞察默认关闭
+[添加] 首页推荐 App+Web 合并模式
+[添加] 搜索落地热搜/历史/发现布局
+[添加] 搜索排序芯片与时间时长分区筛选表
+[修复] 搜索 Tab 与胶囊选中文字对比度
+[修复] 搜索筛选圆形 ripple 与 iOS 底部表弹出
+[修复] 搜索进出结果时键盘与光标状态
+[修复] 发现区芯片误用主题主色
+[添加] 实时画面转场开关（SDR 可 morph，HDR 不降画质）
+[修复] 关闭实时画面时返回走封面/黑壳低成本路径
+[修复] 预测返回落位错位与顶底栏模糊恢复
+[修复] 整卡 sharedBounds 落位与叠层盖住实时画面
+[修复] 收藏合集返回与首页整卡 morph 一致
+[修复] HDR/杜比优先 SurfaceView 避免洗成 SDR
+[更改] 清晰度与倍速菜单触控高度至少 48dp
+[修复] 听视频浅色模式按钮与文案可读性
+[修复] 听视频更多/队列/歌词弹层深浅色对比度
+[更改] 长按倍速默认隐藏关闭按钮降低误触
+[修复] 动态评论头像与昵称可进空间
+[适配] 评论粉丝装扮与头像框尺寸
+[更改] 顶栏直播与底栏统一进入直播列表
+[修复] 直播列表过滤广告横幅与空卡
+[添加] 直播 App 推荐流与分页排序
+[添加] 直播清晰度底部芯片选择
+[添加] 直播 SC 倒计时到期自动移除
+[适配] 直播分区与搜索可选芯片样式
+[修复] 收藏夹请求参数与 Referer 对齐接口文档
+[修复] 收藏夹 ps 限制 1–20 降低风控
+[修复] 个人页收藏封面预览限并发
+[适配] 平板默认侧栏与评论输入区尺寸
+[修复] 平板设置滑块弹窗过高
+[适配] 大屏自定义对话框最大宽度
+[修复] DLNA 双网卡机型 SSDP 发现
+v0.2.0(7631b93)
+
+格式规范见 [docs/wiki/CHANGELOG_GUIDE.md](docs/wiki/CHANGELOG_GUIDE.md)。社群：频道 [t.me/bilipai666](https://t.me/bilipai666)，群 [t.me/bilipai888](https://t.me/bilipai888/1)。比较：[`v26.0805.1...main`](https://github.com/jay3-yy/BiliPai/compare/v26.0805.1...main)。
+
+---
+
+
 ## v26.0805.1 (2026-08-05)
 
 ### 版本信息

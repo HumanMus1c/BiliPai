@@ -33,8 +33,8 @@ import com.android.purebilibili.core.plugin.PluginCapabilityManifest
 import com.android.purebilibili.core.plugin.PluginManager
 import com.android.purebilibili.core.plugin.PluginStore
 import com.android.purebilibili.core.util.Logger
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.ServerRack
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Dns
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -114,7 +114,7 @@ class CdnRegionPlugin : PlaybackCdnPlugin {
     override val description: String = "在 B 站当前授权的签名 CDN 候选中选线，并可选预缓存未来 DASH 分片"
     override val version: String = "1.4.0"
     override val author: String = "BiliPai项目组"
-    override val icon: ImageVector = CupertinoIcons.Outlined.ServerRack
+    override val icon: ImageVector = Icons.Outlined.Dns
     override val capabilityManifest: PluginCapabilityManifest = PluginCapabilityManifest(
         pluginId = id,
         displayName = name,

@@ -15,10 +15,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+//  Material Icons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -207,7 +207,7 @@ private fun MyFollowSummarySection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AppIcon(
-                        imageVector = if (showDetail) CupertinoIcons.Default.ChevronDown else CupertinoIcons.Default.ChevronForward,
+                        imageVector = if (showDetail) Icons.Outlined.KeyboardArrowDown else Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(14.dp)
@@ -603,7 +603,7 @@ private fun MyFollowCard(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     AppIcon(
-                        CupertinoIcons.Default.Play,
+                        Icons.Outlined.PlayArrow,
                         contentDescription = "播放",
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)

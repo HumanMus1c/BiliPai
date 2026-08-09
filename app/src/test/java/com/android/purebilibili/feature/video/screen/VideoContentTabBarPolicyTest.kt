@@ -243,6 +243,12 @@ class VideoContentTabBarPolicyTest {
             .substringBefore("// [新增] 恢复画面按钮")
 
         assertTrue(tabBarBlock.contains("tapPressRefractionEnabled = false"))
+        assertTrue(
+            tabBarBlock.contains(
+                "externalPagerMotionEffectsEnabled = liquidChromeSpec.reusesLiquidGlassDock"
+            )
+        )
+        assertTrue(source.contains("clip = tabBarCollapseProgress > 0.001f"))
     }
 
     @Test
@@ -255,21 +261,22 @@ class VideoContentTabBarPolicyTest {
         assertTrue(source.contains("val videoContentMiuixBackdrop = rememberMiuixLayerBackdrop()"))
         assertTrue(source.contains(".miuixLayerBackdrop(videoContentMiuixBackdrop)"))
         assertTrue(source.contains(".alpha(0f)"))
-        assertTrue(source.contains("chromeBackdrop = videoContentChromeBackdrop"))
-        assertTrue(source.contains("chromeMiuixBackdrop = videoContentMiuixBackdrop"))
+        assertTrue(source.contains("sortMode = sortMode"))
+        assertTrue(source.contains("onSortModeChange = onSortModeChange"))
         assertTrue(source.contains("backdrop = videoContentChromeBackdrop"))
         assertTrue(source.contains("miuixBackdrop = videoContentMiuixBackdrop"))
-        assertTrue(source.contains("backdrop = chromeBackdrop"))
+        assertTrue(source.contains("Modifier.layerBackdrop(chromeBackdrop)"))
         assertTrue(source.contains("Column(modifier = modifier.fillMaxSize())"))
         assertTrue(
             source.contains(
                 "采样层只挂在 Tab 页滚动内容上；排序栏/顶栏分段控件必须在捕获区外"
             )
         )
-        val commentTabSource = source.substringAfter("private fun VideoCommentTab(")
-            .substringBefore("private fun VideoHeaderContent(")
-        assertTrue(commentTabSource.contains("CommentSortFilterBar("))
-        assertFalse(commentTabSource.contains("item {\n                CommentSortFilterBar("))
+        val commentTabSource = source.substringAfter("internal fun VideoCommentTab(")
+            .substringBefore("internal fun LandscapeCommentPanel(")
+        assertTrue(commentTabSource.contains("CommentListHeader("))
+        assertFalse(commentTabSource.contains("CommentSortFilterBar("))
+        assertTrue(source.contains("if (selectedTabIndex == 1)"))
         val pagerBlock = source
             .substringAfter("HorizontalPager(")
             .substringBefore(") { page ->")

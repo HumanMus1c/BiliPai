@@ -19,17 +19,34 @@ class SearchLandingUiPolicyTest {
     fun `search discovery section keeps two columns to match original layout`() {
         assertEquals(2, resolveSearchKeywordSectionColumns(requestedColumns = 1, showTrendingAction = false))
         assertEquals(2, resolveSearchKeywordSectionColumns(requestedColumns = 4, showTrendingAction = false))
-        assertEquals(3, resolveSearchKeywordSectionColumns(requestedColumns = 3, showTrendingAction = true))
+        assertEquals(2, resolveSearchKeywordSectionColumns(requestedColumns = 3, showTrendingAction = true))
     }
 
     @Test
-    fun `search discovery original cell colors use themed primary tint`() {
-        val light = resolveSearchDiscoverOriginalCellColors(lightColorScheme())
-        val dark = resolveSearchDiscoverOriginalCellColors(darkColorScheme())
+    fun `search landing section order matches piliplus portrait layout`() {
+        assertEquals(
+            listOf(
+                SearchLandingSection.TRENDING,
+                SearchLandingSection.HISTORY,
+                SearchLandingSection.DISCOVER
+            ),
+            resolveSearchLandingSectionOrder()
+        )
+    }
+
+    @Test
+    fun `search discovery original cell colors stay neutral without theme primary`() {
+        val lightScheme = lightColorScheme()
+        val darkScheme = darkColorScheme()
+        val light = resolveSearchDiscoverOriginalCellColors(lightScheme)
+        val dark = resolveSearchDiscoverOriginalCellColors(darkScheme)
 
         assertTrue(light.containerColor.alpha > 0f)
         assertTrue(light.borderColor.alpha > 0f)
-        assertTrue(dark.containerColor.alpha > light.containerColor.alpha)
+        // Must not tint with brand primary (搜索发现 stays neutral).
+        assertTrue(light.containerColor.red != lightScheme.primary.red || light.containerColor.alpha < 0.3f)
+        assertEquals(lightScheme.onSurface, light.titleColor)
+        assertEquals(darkScheme.onSurface, dark.titleColor)
     }
 
     @Test

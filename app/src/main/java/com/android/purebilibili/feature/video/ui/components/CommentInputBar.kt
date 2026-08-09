@@ -39,8 +39,9 @@ import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppTextButton
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Reply
+import androidx.compose.material.icons.outlined.*
 
 /**
  * [新增] 评论输入栏组件
@@ -110,7 +111,7 @@ fun CommentInputBar(
                 modifier = Modifier.size(36.dp)
             ) {
                 AppIcon(
-                    imageVector = CupertinoIcons.Default.FaceSmiling,
+                    imageVector = Icons.Outlined.SentimentSatisfied,
                     contentDescription = "表情",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp)
@@ -188,7 +189,7 @@ fun CommentInputBar(
                     )
                 } else {
                     AppIcon(
-                        imageVector = CupertinoIcons.Default.Paperplane,
+                        imageVector = Icons.Outlined.Send,
                         contentDescription = "发送",
                         tint = if (canSend) MaterialTheme.colorScheme.onPrimary 
                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -223,7 +224,7 @@ fun CommentContextMenu(
                 onDismiss()
             },
             leadingIcon = {
-                AppIcon(CupertinoIcons.Default.DocOnDoc, contentDescription = null, modifier = Modifier.size(18.dp))
+                AppIcon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         )
         AppDropdownMenuItem(
@@ -233,7 +234,7 @@ fun CommentContextMenu(
                 onDismiss()
             },
             leadingIcon = {
-                AppIcon(CupertinoIcons.Default.ArrowshapeTurnUpLeft, contentDescription = null, modifier = Modifier.size(18.dp))
+                AppIcon(Icons.AutoMirrored.Outlined.Reply, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         )
         if (onDelete != null) {
@@ -244,7 +245,7 @@ fun CommentContextMenu(
                     onDismiss()
                 },
                 leadingIcon = {
-                    AppIcon(CupertinoIcons.Default.Trash, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                    AppIcon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
                 }
             )
         }
@@ -255,7 +256,7 @@ fun CommentContextMenu(
                 onDismiss()
             },
             leadingIcon = {
-                AppIcon(CupertinoIcons.Default.ExclamationmarkTriangle, contentDescription = null, modifier = Modifier.size(18.dp))
+                AppIcon(Icons.Outlined.Warning, contentDescription = null, modifier = Modifier.size(18.dp))
             }
         )
     }

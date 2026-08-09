@@ -1,18 +1,20 @@
 // 文件路径: feature/search/SearchScreen.kt
 package com.android.purebilibili.feature.search
-import com.android.purebilibili.core.ui.components.AppHorizontalDivider
-
-import com.android.purebilibili.core.ui.components.AppTab
 import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.components.AppCheckbox
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppFilterChip
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppInputChip
 import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppTab
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -55,20 +57,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.android.purebilibili.core.ui.components.AppIcon
-import com.android.purebilibili.core.ui.components.AppContentStateAction
-import com.android.purebilibili.core.ui.components.AppContentStatePresentation
-import com.android.purebilibili.core.ui.components.AppEmptyState
-import com.android.purebilibili.core.ui.components.AppErrorState
 import androidx.compose.material3.MaterialTheme
-import com.android.purebilibili.core.ui.components.AppScrollableTabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-//  Cupertino Icons - iOS SF Symbols 风格图标
+//  Material Icons
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -123,8 +116,6 @@ import com.android.purebilibili.core.ui.rememberAppHistoryIcon
 import com.android.purebilibili.core.ui.rememberAppSearchIcon
 import com.android.purebilibili.core.ui.resolveOfficialVerifyBadge
 import com.android.purebilibili.core.ui.components.UpBadgeName
-import com.android.purebilibili.core.ui.components.AppSearchField
-import com.android.purebilibili.core.ui.components.AppSearchFieldPresentation
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard  //  使用首页卡片
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.home.resolveReturnAnimationSuppressionDurationMs
@@ -569,6 +560,9 @@ fun SearchScreen(
     val windowSizeClass = LocalWindowSizeClass.current
     var startupSettled by remember { mutableStateOf(false) }
     var searchFieldFocused by remember { mutableStateOf(false) }
+    // One-shot autofocus for empty landing only; never re-open keyboard after results.
+    var autoFocusConsumed by rememberSaveable { mutableStateOf(false) }
+    var previousShowResults by rememberSaveable { mutableStateOf(false) }
     val searchLayoutPolicy = remember(configuration.screenWidthDp) {
         resolveSearchLayoutPolicy(
             widthDp = configuration.screenWidthDp
@@ -667,7 +661,7 @@ fun SearchScreen(
         androidNativeEnabled = androidNativeLiquidGlassEnabled,
     )
     val headerBlurEnabled by SettingsManager.getHeaderBlurEnabled(context).collectAsStateWithLifecycle(initialValue = true)
-    val bottomBarBlurEnabled by SettingsManager.getBottomBarBlurEnabled(context).collectAsStateWithLifecycle(initialValue = true)
+    val bottomBarBlurEnabled by SettingsManager.getBottomBarBlurEnabled(context).collectAsStateWithLifecycle(initialValue = false)
     val cardMotionTier = resolveEffectiveMotionTier(
         baseTier = deviceUiProfile.motionTier,
         animationEnabled = cardAnimationEnabled
@@ -782,19 +776,47 @@ fun SearchScreen(
         }
     }
 
+    val dismissSearchKeyboardAndFocus = {
+        keyboardController?.hide()
+        focusManager.clearFocus(force = true)
+        searchFieldFocused = false
+        autoFocusConsumed = true
+    }
+
     val handleSearchBack = {
-        val shouldDismissSearchChrome = state.suggestions.isNotEmpty() || searchFieldFocused
-        if (shouldDismissSearchChrome) {
-            viewModel.dismissSuggestions()
-            keyboardController?.hide()
-            focusManager.clearFocus(force = true)
-            searchFieldFocused = false
-        } else {
-            onBack()
+        when (
+            resolveSearchBackAction(
+                showResults = state.showResults,
+                suggestionsVisible = state.suggestions.isNotEmpty(),
+                searchFieldFocused = searchFieldFocused
+            )
+        ) {
+            SearchBackAction.DISMISS_CHROME -> {
+                viewModel.dismissSuggestions()
+                dismissSearchKeyboardAndFocus()
+            }
+            SearchBackAction.EXIT_RESULTS -> {
+                // Exit video/result list without reopening the IME.
+                dismissSearchKeyboardAndFocus()
+                viewModel.exitResultsToLanding()
+            }
+            SearchBackAction.LEAVE_SEARCH -> onBack()
         }
     }
 
     BackHandler(onBack = handleSearchBack)
+
+    // Entering results must drop focus so the keyboard cannot reappear.
+    LaunchedEffect(state.showResults) {
+        if (shouldClearSearchFocusWhenShowingResults(
+                showResults = state.showResults,
+                previousShowResults = previousShowResults
+            )
+        ) {
+            dismissSearchKeyboardAndFocus()
+        }
+        previousShowResults = state.showResults
+    }
     
     //  [埋点] 页面浏览追踪
     LaunchedEffect(Unit) {
@@ -917,27 +939,51 @@ fun SearchScreen(
                                 enter = fadeIn(animationSpec = tween(90)),
                                 exit = fadeOut(animationSpec = tween(70))
                             ) {
-                                SearchFilterBar(
-                                    currentType = state.searchType,
-                                    currentOrder = state.searchOrder,
-                                    currentDurations = state.searchDurations,
-                                    currentVideoTid = state.videoTid,
-                                    currentUpOrder = state.upOrder,
-                                    currentUpOrderSort = state.upOrderSort,
-                                    currentUpUserType = state.upUserType,
-                                    currentLiveOrder = state.liveOrder,
-                                    onOrderChange = { viewModel.setSearchOrder(it) },
-                                    onDurationToggle = { viewModel.toggleSearchDuration(it) },
-                                    onVideoTidChange = { viewModel.setVideoTid(it) },
-                                    onUpOrderChange = { viewModel.setUpOrder(it) },
-                                    onUpOrderSortChange = { viewModel.setUpOrderSort(it) },
-                                    onUpUserTypeChange = { viewModel.setUpUserType(it) },
-                                    onLiveOrderChange = { viewModel.setLiveOrder(it) }
-                                )
+                                if (state.searchType == SearchType.VIDEO) {
+                                    SearchVideoFilterBar(
+                                        currentOrder = state.searchOrder,
+                                        currentDurations = state.searchDurations,
+                                        currentVideoTid = state.videoTid,
+                                        currentPubTimeType = state.pubTimeType,
+                                        currentPubBegin = state.pubBegin,
+                                        currentPubEnd = state.pubEnd,
+                                        onOrderChange = { viewModel.setSearchOrder(it) },
+                                        onDurationSelect = { viewModel.setSearchDuration(it) },
+                                        onVideoTidChange = { viewModel.setVideoTid(it) },
+                                        onPubTimeTypeChange = { viewModel.setPubTimeType(it) },
+                                        onCustomPubTimeRange = { begin, end ->
+                                            viewModel.setCustomPubTimeRange(begin, end)
+                                        }
+                                    )
+                                } else {
+                                    SearchFilterBar(
+                                        currentType = state.searchType,
+                                        currentOrder = state.searchOrder,
+                                        currentDurations = state.searchDurations,
+                                        currentVideoTid = state.videoTid,
+                                        currentUpOrder = state.upOrder,
+                                        currentUpOrderSort = state.upOrderSort,
+                                        currentUpUserType = state.upUserType,
+                                        currentLiveOrder = state.liveOrder,
+                                        onOrderChange = { viewModel.setSearchOrder(it) },
+                                        onDurationToggle = { viewModel.toggleSearchDuration(it) },
+                                        onVideoTidChange = { viewModel.setVideoTid(it) },
+                                        onUpOrderChange = { viewModel.setUpOrder(it) },
+                                        onUpOrderSortChange = { viewModel.setUpOrderSort(it) },
+                                        onUpUserTypeChange = { viewModel.setUpUserType(it) },
+                                        onLiveOrderChange = { viewModel.setLiveOrder(it) }
+                                    )
+                                }
                             }
                         HorizontalPager(
                             state = searchPagerState,
-                            modifier = Modifier.weight(1f),
+                            userScrollEnabled = false,
+                            modifier = Modifier
+                                .weight(1f)
+                                .verticalPriorityHorizontalPagerSwipe(
+                                    state = searchPagerState,
+                                    enabled = true,
+                                ),
                             beyondViewportPageCount = 1
                         ) { page ->
                         val targetSearchType = resolveSearchTypeForPagerPage(page, searchTabs)
@@ -1028,28 +1074,22 @@ fun SearchScreen(
                                 )
                             }
                         } else if (pagePresentation.body == SearchResultBodyMode.ERROR) {
-                            AppErrorState(
+                            SearchNativeMessageState(
                                 title = "搜索失败",
                                 message = pageResultState.error,
-                                primaryAction = AppContentStateAction(
-                                    label = "重试",
-                                    onClick = { viewModel.search(pageResultState.query) }
-                                ),
-                                modifier = Modifier.fillMaxSize(),
-                                presentation = AppContentStatePresentation.PAGE
+                                actionLabel = "重试",
+                                onAction = { viewModel.search(pageResultState.query) },
+                                modifier = Modifier.fillMaxSize()
                             )
                         } else if (pagePresentation.body == SearchResultBodyMode.EMPTY) {
                             val copy = pageEmptyStateCopy
                             if (copy != null) {
-                                AppEmptyState(
+                                SearchNativeMessageState(
                                     title = copy.title,
                                     message = copy.subtitle,
-                                    primaryAction = AppContentStateAction(
-                                        label = "重新搜索",
-                                        onClick = { viewModel.search(pageResultState.query) }
-                                    ),
-                                    modifier = Modifier.fillMaxSize(),
-                                    presentation = AppContentStatePresentation.PAGE
+                                    actionLabel = "重新搜索",
+                                    onAction = { viewModel.search(pageResultState.query) },
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
                         } else {
@@ -1699,8 +1739,9 @@ fun SearchScreen(
                     onOpenTrending = onOpenTrending,
                     onRefreshDiscover = viewModel::refreshDiscover,
                     onKeywordClick = {
+                        autoFocusConsumed = true
                         viewModel.search(it)
-                        keyboardController?.hide()
+                        dismissSearchKeyboardAndFocus()
                     },
                     onClearHistory = viewModel::clearHistory,
                     onDeleteHistory = viewModel::deleteHistory,
@@ -1716,17 +1757,25 @@ fun SearchScreen(
                 onBack = handleSearchBack,
                 onQueryChange = { viewModel.onQueryChange(it) },
                 onSearch = {
+                    autoFocusConsumed = true
                     viewModel.search(it)
-                    keyboardController?.hide()
+                    dismissSearchKeyboardAndFocus()
                 },
                 onClearQuery = { viewModel.onQueryChange("") },
-                onFocusChanged = { searchFieldFocused = it },
-                focusRequester = searchFocusRequester,  //  传递 focusRequester
+                onFocusChanged = { focused ->
+                    searchFieldFocused = focused
+                    if (focused) {
+                        autoFocusConsumed = true
+                    }
+                },
+                focusRequester = searchFocusRequester,
                 placeholder = state.defaultSearchHint.ifBlank { resolveSearchDefaultPlaceholder() },
                 suggestedKeyword = state.defaultSearchHint,
                 autoFocusEnabled = shouldAutoFocusSearchField(
                     startupSettled = startupSettled,
-                    query = state.query
+                    query = state.query,
+                    showResults = state.showResults,
+                    autoFocusConsumed = autoFocusConsumed
                 ),
                 reducedMotionBudget = effectiveSearchMotionBudget == SearchMotionBudget.REDUCED,
                 entryMotionSpec = entryMotionSpec,
@@ -1786,8 +1835,9 @@ fun SearchScreen(
                 SearchSuggestionDropdown(
                     suggestions = state.suggestions,
                     onSuggestionClick = { suggestion ->
+                        autoFocusConsumed = true
                         viewModel.search(suggestion)
-                        keyboardController?.hide()
+                        dismissSearchKeyboardAndFocus()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1801,7 +1851,7 @@ fun SearchScreen(
     }
 }
 
-//  新设计的顶部搜索栏 (含 Focus 高亮动画)
+// 顶部搜索栏：中性 TextFieldValue 实现，保光标
 @Composable
 fun SearchTopBar(
     query: String,
@@ -1833,9 +1883,12 @@ fun SearchTopBar(
     val clearIcon = rememberAppClearIcon()
     val density = LocalDensity.current
     val entryMotionProgress = remember { Animatable(1f) }
-    //  搜索图标颜色动画
     val searchIconColor by animateColorAsState(
-        targetValue = if (isSearchFieldFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+        targetValue = if (isSearchFieldFocused) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        },
         animationSpec = if (reducedMotionBudget) snap() else tween(durationMillis = 200),
         label = "iconColor"
     )
@@ -1848,6 +1901,27 @@ fun SearchTopBar(
         )
     }
     val canSubmit = resolvedSubmitKeyword.isNotBlank()
+
+    // Preserve caret/selection while typing; only resync when external text changes
+    // (clear, keyword click, initial keyword). Using TextFieldValue avoids String-field
+    // cursor jumps on every parent recomposition.
+    var textFieldValue by remember {
+        mutableStateOf(
+            androidx.compose.ui.text.input.TextFieldValue(
+                text = query,
+                selection = androidx.compose.ui.text.TextRange(query.length)
+            )
+        )
+    }
+    LaunchedEffect(query) {
+        if (query != textFieldValue.text) {
+            textFieldValue = androidx.compose.ui.text.input.TextFieldValue(
+                text = query,
+                selection = androidx.compose.ui.text.TextRange(query.length)
+            )
+        }
+    }
+
     LaunchedEffect(entryMotionKey, entryMotionSpec) {
         val spec = entryMotionSpec
         if (spec == null) {
@@ -1867,6 +1941,12 @@ fun SearchTopBar(
             )
         }
         onEntryMotionFinished(entryMotionKey)
+    }
+    LaunchedEffect(autoFocusEnabled, focusRequester) {
+        if (autoFocusEnabled) {
+            kotlinx.coroutines.delay(80)
+            runCatching { focusRequester.requestFocus() }
+        }
     }
     val entryMotionModifier = if (entryMotionSpec != null) {
         Modifier.graphicsLayer {
@@ -1905,11 +1985,15 @@ fun SearchTopBar(
                     .padding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal).asPaddingValues()),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AppIconButton(onClick = onBack) {
+                SearchTopBarIconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(chromeSpec.clearActionSizeDp.dp)
+                ) {
                     AppIcon(
                         backIcon,
                         contentDescription = backLabel,
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(chromeSpec.actionIconSizeDp.dp)
                     )
                 }
 
@@ -1919,58 +2003,44 @@ fun SearchTopBar(
                     shape = RoundedCornerShape(chromeSpec.inputCornerRadiusDp.dp),
                     modifier = Modifier
                         .weight(1f)
-                        // 固定输入高度：禁止 fillMaxSize 吃掉 Column 剩余高度变成竖条胶囊。
                         .height(chromeSpec.inputHeightDp.dp),
-                    // 搜索小胶囊关闭 shell lens，避免安卓原生液态玻璃边沿「虾线」
-                    // （iOS/MD3 主题复用底栏玻璃时尤其明显）。
                     drawShellLens = false,
                     isScrollInProgressProvider = isScrollInProgressProvider
                 ) { liquidChromeActive ->
-                    AppSearchField(
-                        query = query,
-                        onQueryChange = onQueryChange,
-                        onSearch = { if (canSubmit) onSearch(resolvedSubmitKeyword) },
-                        onClear = onClearQuery,
-                        presentation = AppSearchFieldPresentation.TOP_BAR,
-                        autoFocusEnabled = autoFocusEnabled && query.isEmpty(),
+                    val containerColor = if (liquidChromeActive) {
+                        Color.Transparent
+                    } else if (chromeSpec.useFilledSearchAction) {
+                        AppSurfaceTokens.surfaceContainerHigh()
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                    }
+                    SearchTopBarInputField(
+                        value = textFieldValue,
+                        onValueChange = { next ->
+                            textFieldValue = next
+                            if (next.text != query) {
+                                onQueryChange(next.text)
+                            }
+                        },
+                        onSearch = {
+                            if (canSubmit) onSearch(resolvedSubmitKeyword)
+                        },
+                        placeholder = placeholder,
+                        containerColor = containerColor,
+                        cornerRadiusDp = chromeSpec.inputCornerRadiusDp,
+                        heightDp = chromeSpec.inputHeightDp,
                         focusRequester = focusRequester,
+                        interactionSource = searchInteractionSource,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(chromeSpec.inputHeightDp.dp)
-                            .onFocusChanged { onFocusChanged(it.isFocused) },
-                        placeholder = placeholder,
-                        containerColor = if (liquidChromeActive) {
-                            Color.Transparent
-                        } else if (chromeSpec.useFilledSearchAction) {
-                            AppSurfaceTokens.surfaceContainerHigh()
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                        },
-                        heightOverride = chromeSpec.inputHeightDp.dp,
-                        interactionSource = searchInteractionSource,
+                            .onFocusChanged { onFocusChanged(it.isFocused) }
                     )
                 }
 
                 Spacer(modifier = Modifier.width(chromeSpec.horizontalGapDp.dp))
 
-                AppIconButton(
-                    onClick = onClearQuery,
-                    enabled = query.isNotEmpty(),
-                    modifier = Modifier.size(chromeSpec.clearActionSizeDp.dp)
-                ) {
-                    AppIcon(
-                        clearIcon,
-                        contentDescription = stringResource(R.string.common_clear),
-                        tint = if (query.isNotEmpty()) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                        },
-                        modifier = Modifier.size(chromeSpec.actionIconSizeDp.dp)
-                    )
-                }
-
-                AppIconButton(
+                SearchTopBarIconButton(
                     onClick = { onSearch(resolvedSubmitKeyword) },
                     enabled = canSubmit,
                     modifier = Modifier
@@ -1995,19 +2065,129 @@ fun SearchTopBar(
                         modifier = Modifier.size(chromeSpec.actionIconSizeDp.dp)
                     )
                 }
+
+                SearchTopBarIconButton(
+                    onClick = onClearQuery,
+                    enabled = query.isNotEmpty(),
+                    modifier = Modifier.size(chromeSpec.clearActionSizeDp.dp)
+                ) {
+                    AppIcon(
+                        clearIcon,
+                        contentDescription = stringResource(R.string.common_clear),
+                        tint = if (query.isNotEmpty()) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                        },
+                        modifier = Modifier.size(chromeSpec.actionIconSizeDp.dp)
+                    )
+                }
             }
         }
     }
 }
 
-//  气泡化历史记录组件
+@Composable
+private fun SearchTopBarIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    AppIconButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        content = content
+    )
+}
+
+@Composable
+private fun SearchTopBarInputField(
+    value: androidx.compose.ui.text.input.TextFieldValue,
+    onValueChange: (androidx.compose.ui.text.input.TextFieldValue) -> Unit,
+    onSearch: () -> Unit,
+    placeholder: String,
+    containerColor: Color,
+    cornerRadiusDp: Int,
+    @Suppress("UNUSED_PARAMETER") heightDp: Int,
+    focusRequester: androidx.compose.ui.focus.FocusRequester,
+    interactionSource: MutableInteractionSource,
+    modifier: Modifier = Modifier
+) {
+    val fieldShape = RoundedCornerShape(cornerRadiusDp.dp)
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    // Use AppSurfaceTokens so capsule text keeps contrast in both themes.
+    val contentColor = AppSurfaceTokens.onSurface()
+    val placeholderColor = AppSurfaceTokens.onSurfaceVariantSummary()
+    val focusBorderColor = AppSurfaceTokens.primary()
+    val textStyle = MaterialTheme.typography.bodyLarge.copy(
+        color = contentColor,
+        // Explicit line height avoids type-scale clipping in single-line fields.
+        lineHeight = 20.sp
+    )
+    val cursorBrush = androidx.compose.ui.graphics.SolidColor(focusBorderColor)
+
+    // Shared implementation: BasicTextField + TextFieldValue keeps cursor state.
+    androidx.compose.foundation.text.BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier
+            .focusRequester(focusRequester)
+            .clip(fieldShape)
+            .background(containerColor, fieldShape)
+            .then(
+                if (isFocused) {
+                    Modifier.border(
+                        width = 1.5.dp,
+                        color = focusBorderColor,
+                        shape = fieldShape
+                    )
+                } else {
+                    Modifier
+                }
+            ),
+        textStyle = textStyle,
+        singleLine = true,
+        cursorBrush = cursorBrush,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+        interactionSource = interactionSource,
+        decorationBox = { innerTextField ->
+            Box(
+                contentAlignment = Alignment.CenterStart,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp)
+            ) {
+                if (value.text.isEmpty()) {
+                    AppText(
+                        text = placeholder,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = textStyle,
+                        color = placeholderColor
+                    )
+                }
+                // Provide LocalContentColor so platform text paint never falls back to
+                // a low-contrast Miuix default inside the transparent liquid capsule.
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.material3.LocalContentColor provides contentColor
+                ) {
+                    innerTextField()
+                }
+            }
+        }
+    )
+}
+
+// 气泡化历史记录：中性 InputChip（AppInputChip），视觉跟随主题层。
 @Composable
 fun HistoryChip(
     keyword: String,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val historyIcon = rememberAppHistoryIcon()
     val clearIcon = rememberAppClearIcon()
     val deleteLabel = stringResource(R.string.common_delete)
     AppInputChip(
@@ -2022,18 +2202,10 @@ fun HistoryChip(
                 overflow = TextOverflow.Ellipsis
             )
         },
-        leadingIcon = {
-            AppIcon(
-                historyIcon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f),
-                modifier = Modifier.size(16.dp)
-            )
-        },
         trailingIcon = {
             AppIconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(24.dp)
             ) {
                 AppIcon(
                     clearIcon,
@@ -2336,38 +2508,39 @@ private fun SearchResultTypeTabRow(
     onTabClick: (Int, SearchType) -> Unit
 ) {
     val selectedPage = pagerState.currentPage.coerceIn(tabs.indices)
-    AppScrollableTabRow(
-        selectedTabIndex = selectedPage,
+    // Do not use ScrollableTabRow/Tab indicator: the indicator layer paints *over*
+    // the selected label in all themes (empty capsule). Avoid Material Surface too —
+    // under the themed surface the label can still lose contrast. Draw pill +
+    // label ourselves with an explicit color pair.
+    val pillColor = AppSurfaceTokens.surfaceContainerHigh()
+    val selectedLabelColor = AppSurfaceTokens.onSurfaceContainerHigh()
+    val unselectedLabelColor = AppSurfaceTokens.onSurfaceVariantSummary()
+    val pillShape = RoundedCornerShape(20.dp)
+    Row(
         modifier = Modifier
-            .fillMaxWidth(),
-        edgePadding = 8.dp,
-        containerColor = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        divider = {},
-        indicator = { tabPositions ->
-            if (tabPositions.isNotEmpty()) {
-                TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedPage.coerceIn(tabPositions.indices)]),
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         tabs.forEachIndexed { index, type ->
             val selected = selectedPage == index
-            AppTab(
-                selected = selected,
-                onClick = { onTabClick(index, type) },
-                interactionSource = remember { MutableInteractionSource() },
-                selectedContentColor = MaterialTheme.colorScheme.onSurface,
-                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.heightIn(min = 48.dp)
+            val labelColor = if (selected) selectedLabelColor else unselectedLabelColor
+            Box(
+                modifier = Modifier
+                    .heightIn(min = 36.dp)
+                    .clip(pillShape)
+                    .background(if (selected) pillColor else Color.Transparent)
+                    .clickable { onTabClick(index, type) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
             ) {
                 AppText(
                     text = type.displayName,
                     fontSize = 13.sp,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = labelColor,
                     maxLines = 1
                 )
             }
@@ -2863,7 +3036,10 @@ fun SearchResultCard(
         ) {
             UpBadgeName(
                 name = video.owner.name,
-                leadingContent = if (video.owner.face.isNotBlank()) {
+                leadingContent = if (
+                    com.android.purebilibili.core.ui.LocalUpBadgeVisibility.current.showAvatars &&
+                    video.owner.face.isNotBlank()
+                ) {
                     {
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
@@ -3255,14 +3431,14 @@ private fun SearchLoadMoreIndicator(
     onRetry: (() -> Unit)? = null,
 ) {
     if (error != null) {
-        AppErrorState(
+        SearchNativeMessageState(
             title = "加载更多失败",
             message = error,
-            presentation = AppContentStatePresentation.INLINE,
-            showIcon = false,
-            primaryAction = onRetry?.let {
-                AppContentStateAction(label = "重试", onClick = it)
-            }
+            actionLabel = onRetry?.let { "重试" },
+            onAction = onRetry,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
         )
     } else {
         Box(
@@ -3272,6 +3448,41 @@ private fun SearchLoadMoreIndicator(
             contentAlignment = Alignment.Center
         ) {
             AdaptiveLoadingIndicator(size = 24.dp, strokeWidth = 2.dp)
+        }
+    }
+}
+
+@Composable
+private fun SearchNativeMessageState(
+    title: String,
+    message: String? = null,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        AppText(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        if (!message.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            AppText(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (actionLabel != null && onAction != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            AppTextButton(onClick = onAction) {
+                AppText(actionLabel)
+            }
         }
     }
 }

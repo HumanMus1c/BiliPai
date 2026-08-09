@@ -24,9 +24,7 @@
 
     <string name="appearance_theme_color_section">主题与颜色</string>
     <string name="appearance_ui_preset_title">界面预设</string>
-    <string name="appearance_ui_preset_subtitle">全局切换 iOS 与 Android 原生外观预设</string>
-    <string name="appearance_ui_preset_ios_title">iOS 预设</string>
-    <string name="appearance_ui_preset_ios_summary">保留更强的玻璃感、圆角和 iOS 风格图标与交互细节。</string>
+    <string name="appearance_ui_preset_subtitle">全局切换 Material 3 与 Miuix 外观预设</string>
     <string name="appearance_ui_preset_android_material_title">安卓原生 · Material 3</string>
     <string name="appearance_ui_preset_android_material_summary">使用更标准的 Material 3 导航、图标、顶栏和列表语义，保留当前 Android 原生分支的交互节奏。</string>
     <string name="appearance_ui_preset_android_miuix_title">安卓原生 · Miuix</string>

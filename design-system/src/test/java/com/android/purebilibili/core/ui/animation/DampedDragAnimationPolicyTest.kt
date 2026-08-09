@@ -9,6 +9,28 @@ import kotlin.test.assertTrue
 class DampedDragAnimationPolicyTest {
 
     @Test
+    fun `horizontal drag requires clear horizontal dominance`() {
+        assertTrue(
+            shouldEngageHorizontalDrag(
+                horizontalDeltaPx = 30f,
+                verticalDeltaPx = 10f,
+            )
+        )
+        assertFalse(
+            shouldEngageHorizontalDrag(
+                horizontalDeltaPx = 30f,
+                verticalDeltaPx = 26f,
+            )
+        )
+        assertFalse(
+            shouldEngageHorizontalDrag(
+                horizontalDeltaPx = 6f,
+                verticalDeltaPx = 0f,
+            )
+        )
+    }
+
+    @Test
     fun `velocity conversion guards invalid item width`() {
         assertEquals(
             0f,

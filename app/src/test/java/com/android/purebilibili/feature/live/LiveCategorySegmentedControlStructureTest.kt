@@ -8,27 +8,21 @@ import kotlin.test.assertTrue
 class LiveCategorySegmentedControlStructureTest {
 
     @Test
-    fun `live home category row delegates to bottom bar segmented control`() {
+    fun `live home category row delegates to native preset chip row`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/live/LiveListScreen.kt"
         )
 
-        assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
-        assertTrue(source.contains("resolveLiveHomeCategorySegmentedControlSpec(compactChrome)"))
-        assertTrue(source.contains("height = segmentedSpec.heightDp.dp"))
-        assertTrue(source.contains("indicatorHeight = segmentedSpec.indicatorHeightDp.dp"))
-        assertTrue(source.contains(".horizontalScroll(scrollState, enabled = false)"))
-        assertTrue(source.contains("resolveLiveHomeCategoryFollowScrollTarget("))
-        assertTrue(source.contains("scrollState.scrollTo(targetScroll)"))
-        assertTrue(source.contains("onIndicatorPositionChanged = { indicatorPosition = it }"))
+        // 上游合流后：分区行 = LazyRow + LiveHomeSelectableChip（按 MD3/Miuix/iOS 原生分发）。
+        assertTrue(source.contains("LazyRow("))
+        assertTrue(source.contains("LiveHomeSelectableChip("))
         assertFalse(source.contains("dragSelectionEnabled = false"))
         assertFalse(source.contains("liquidGlassEffectsEnabled = false"))
         assertFalse(source.contains("SimpleLiquidIndicator"))
-        assertFalse(source.contains("shouldUseLiveHomeCategoryLiquidIndicator("))
     }
 
     @Test
-    fun `all tags parent row uses shared segmented control dimensions`() {
+    fun `all tags parent row uses native preset chip row`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/live/LiveAreaScreen.kt"
         )
@@ -37,14 +31,9 @@ class LiveCategorySegmentedControlStructureTest {
         assertTrue(source.contains("HorizontalPager("))
         assertTrue(source.contains("pagerState.animateScrollToPage"))
         assertTrue(source.contains("selectedTab = pagerState.currentPage"))
-        assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
-        assertTrue(source.contains("resolveLiveAreaParentSegmentedControlSpec(compactChrome)"))
-        assertTrue(source.contains("height = segmentedSpec.heightDp.dp"))
-        assertTrue(source.contains("indicatorHeight = segmentedSpec.indicatorHeightDp.dp"))
-        assertTrue(source.contains(".horizontalScroll(scrollState, enabled = false)"))
-        assertTrue(source.contains("resolveLiveHomeCategoryFollowScrollTarget("))
-        assertTrue(source.contains("scrollState.scrollTo(targetScroll)"))
-        assertTrue(source.contains("onIndicatorPositionChanged = { indicatorPosition = it }"))
+        // 上游合流后：全部分区 tab 行 = LazyRow + LiveHomeSelectableChip。
+        assertTrue(source.contains("LazyRow("))
+        assertTrue(source.contains("LiveHomeSelectableChip("))
         assertFalse(source.contains("dragSelectionEnabled = false"))
         assertFalse(source.contains("liquidGlassEffectsEnabled = false"))
     }

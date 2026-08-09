@@ -81,7 +81,6 @@ fun AdaptivePullToRefreshBox(
                 },
             )
         }
-        PresetPrimitiveRenderer.IOS,
         PresetPrimitiveRenderer.MATERIAL3 -> {
             ComfortablePullToRefreshBox(
                 isRefreshing = isRefreshing,
@@ -101,8 +100,6 @@ fun AdaptivePullToRefreshBox(
  *
  * - Material 3: official expressive [PullToRefreshDefaults.LoadingIndicator]
  *   (ContainedLoadingIndicator + dynamic colors).
- * - iOS: classic Material circular [PullToRefreshDefaults.Indicator] when a
- *   screen does not supply a custom Cupertino indicator.
  * - Miuix: unused — the Miuix branch mounts native [MiuixPullToRefresh] instead.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -124,7 +121,6 @@ fun BoxScope.AdaptivePullToRefreshDefaultIndicator(
                 state = state,
             )
         }
-        PresetPrimitiveRenderer.IOS,
         PresetPrimitiveRenderer.MIUIX_BRIDGED -> {
             PullToRefreshDefaults.Indicator(
                 modifier = indicatorModifier,

@@ -1,9 +1,11 @@
 package com.android.purebilibili.feature.settings
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.PlayCircle
 import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppIcons
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -28,20 +30,20 @@ class SettingsSearchUiPolicyTest {
     fun playbackSearchResult_usesPlaybackIcon() {
         val visual = resolveSettingsEntryVisual(SettingsSearchTarget.PLAYBACK)
 
-        assertSame(CupertinoIcons.Outlined.PlayCircle, visual.icon)
+        assertSame(Icons.Outlined.PlayCircle, visual.icon)
     }
 
     @Test
     fun webDavSearchResult_reusesDataStorageSectionIcon() {
         val visual = resolveSettingsEntryVisual(SettingsSearchTarget.WEBDAV_BACKUP)
 
-        assertSame(CupertinoIcons.Outlined.IcloudAndArrowUp, visual.icon)
+        assertSame(Icons.Outlined.CloudUpload, visual.icon)
     }
 
     @Test
     fun homeFeedSearchResult_usesHomeSemanticIcon() {
         val visual = resolveSettingsEntryVisual(SettingsSearchTarget.HOME_FEED)
 
-        assertSame(CupertinoIcons.Outlined.House, visual.icon)
+        assertSame(Icons.Outlined.Home, visual.icon)
     }
 }

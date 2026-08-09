@@ -1,6 +1,6 @@
 package com.android.purebilibili.core.ui
 
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,37 +23,62 @@ class AdaptiveBottomSheetPolicyTest {
     }
 
     @Test
-    fun `md3 preset should use material drag handle and larger corner radius`() {
-        val spec = resolveAdaptiveBottomSheetVisualSpec(UiPreset.MD3)
+    fun `material3 style uses material drag handle and material corner radius`() {
+        val spec = resolveAdaptiveBottomSheetVisualSpec(AppUiStyle.MATERIAL3)
 
         assertEquals(28, spec.cornerRadiusDp)
         assertTrue(spec.useMaterialDragHandle)
     }
 
     @Test
-    fun `ios preset should preserve compact sheet chrome`() {
-        val spec = resolveAdaptiveBottomSheetVisualSpec(UiPreset.IOS)
+    fun `miuix style uses native drag handle and miuix corner radius`() {
+        val spec = resolveAdaptiveBottomSheetVisualSpec(AppUiStyle.MIUIX)
 
-        assertEquals(14, spec.cornerRadiusDp)
-        assertFalse(spec.useMaterialDragHandle)
+        // 两值风格统一使用胶囊圆角（MIUIX 22 / MATERIAL3 28）。
+        assertEquals(22, spec.cornerRadiusDp)
+        assertTrue(spec.useMaterialDragHandle)
     }
 
     @Test
-    fun `ios preset should use softer sheet motion`() {
-        val spec = resolveAdaptiveBottomSheetMotionSpec(UiPreset.IOS)
+    fun `miuix style uses softer sheet motion`() {
+        val spec = resolveAdaptiveBottomSheetMotionSpec(AppUiStyle.MIUIX)
 
-        assertEquals(360, spec.scrimEnterDurationMillis)
+        assertEquals(240, spec.scrimEnterDurationMillis)
         assertEquals(180, spec.scrimExitDurationMillis)
-        assertEquals(360, spec.contentEnterFadeDurationMillis)
+        assertEquals(240, spec.contentEnterFadeDurationMillis)
         assertEquals(180, spec.contentExitFadeDurationMillis)
     }
 
     @Test
-    fun `md3 preset should keep sheet dismiss faster than enter`() {
-        val spec = resolveAdaptiveBottomSheetMotionSpec(UiPreset.MD3)
+    fun `material3 style keeps sheet dismiss faster than enter`() {
+        val spec = resolveAdaptiveBottomSheetMotionSpec(AppUiStyle.MATERIAL3)
 
         assertTrue(spec.scrimExitDurationMillis < spec.scrimEnterDurationMillis)
         assertTrue(spec.contentExitFadeDurationMillis < spec.contentEnterFadeDurationMillis)
+    }
+
+    @Test
+    fun `host contract resolves miuix to overlay host and material3 to material host`() {
+        assertEquals(BottomSheetHost.MIUIX_OVERLAY, resolveBottomSheetHost(AppUiStyle.MIUIX))
+        assertEquals(BottomSheetHost.MATERIAL3, resolveBottomSheetHost(AppUiStyle.MATERIAL3))
+    }
+
+    @Test
+    fun `app sheet facade stays on neutral material host instead of mechanical overlay swap`() {
+        val path = "src/main/java/com/android/purebilibili/core/ui/AppSheetComponents.kt"
+        val source = listOf(File(path), File("design-system/$path"))
+            .firstOrNull(File::exists)
+            ?.readText()
+            ?: error("Cannot locate AppSheetComponents.kt from ${File(".").absolutePath}")
+
+        // OverlayBottomSheet 依赖 Miuix popup host（仅 AdaptiveScaffold 的 MIUIX
+        // 模式挂载），AppModalBottomSheet 调用点无法保证处于该宿主之下 —— 宿主契约
+        // 由 resolveBottomSheetHost 独立承担，facade 本身禁止机械替换。
+        assertTrue(source.contains("ModalBottomSheet("))
+        assertFalse(source.contains("OverlayBottomSheet("))
+        assertFalse(source.contains("import top.yukonga.miuix.kmp.overlay"))
+        assertTrue(source.contains("fun resolveBottomSheetHost("))
+        assertTrue(source.contains("enum class BottomSheetHost"))
     }
 
     @Test

@@ -114,8 +114,7 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
     ): SettingsShareDeviceDebugInfo {
         val metrics: DisplayMetrics = context.resources.displayMetrics
         val config: Configuration = context.resources.configuration
-        val uiPresetValue = jsonElementAsInt(rawSettings["ui_preset"]) ?: 0
-        val nativeVariantValue = jsonElementAsInt(rawSettings["android_native_variant_v1"]) ?: 0
+        val (uiPresetValue, nativeVariantValue) = resolveDebugThemeValues(rawSettings)
         val nightMask = config.uiMode and Configuration.UI_MODE_NIGHT_MASK
         return buildSettingsShareDeviceDebugInfo(
             androidSdkInt = Build.VERSION.SDK_INT,
@@ -160,12 +159,18 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
                     input.bufferedReader(Charsets.UTF_8).readText()
                 } ?: error("无法读取导入文件")
                 val profile = decodeProfile(rawJson)
+                // 旧格式文件在导入边界归一化为新键 theme_selection_v1，
+                // 预览与回写都基于归一化后的 profile（旧键仅用于旧文件导入兼容）。
+                val normalizedProfile = normalizeThemeSelectionForImport(profile.sections)
+                    .let { sections ->
+                        if (sections == profile.sections) profile else profile.copy(sections = sections)
+                    }
                 val preview = resolveSettingsShareImportPreview(
-                    profile = profile,
+                    profile = normalizedProfile,
                     definitions = SettingsManager.getShareableSettingsEntryDefinitions()
                 )
                 SettingsShareImportSession(
-                    profile = profile,
+                    profile = normalizedProfile,
                     preview = preview,
                     rawJson = rawJson
                 )

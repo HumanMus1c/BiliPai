@@ -5,10 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
 import com.android.purebilibili.core.theme.resolveCornerRadiusScale
 
@@ -33,10 +31,9 @@ enum class ContainerLevel {
 }
 
 /**
- * Preset-aware shape tokens. Use [AppShapes.container] in composables instead of
- * writing literal `RoundedCornerShape(N.dp)`. iOS base values scale by
- * [com.android.purebilibili.core.theme.LocalCornerRadiusScale]; the Pill level
- * pulls directly from chrome tokens so each preset retains its native pill curvature.
+ * 两值主题的形状 tokens。使用 [AppShapes.container] 而非手写 `RoundedCornerShape(N.dp)`。
+ * 基础值按主题风格缩放（MIUIX 更大、MATERIAL3 更紧凑）；Pill 级直接取 chrome tokens，
+ * 使各风格保留原生胶囊曲率。
  */
 object AppShapes {
 
@@ -53,35 +50,21 @@ object AppShapes {
 
     fun resolveContainerCornerDp(
         level: ContainerLevel,
-        uiPreset: UiPreset,
-        androidNativeVariant: AndroidNativeVariant
+        uiStyle: AppUiStyle
     ): Dp {
         if (level == ContainerLevel.Pill) {
-            return resolveAndroidNativeChromeTokens(uiPreset, androidNativeVariant)
-                .pillCornerRadiusDp.dp
+            return resolveAndroidNativeChromeTokens(uiStyle).pillCornerRadiusDp.dp
         }
-        val scale = resolveCornerRadiusScale(uiPreset, androidNativeVariant)
+        val scale = resolveCornerRadiusScale(uiStyle)
         return (baseDp(level) * scale).dp
     }
 
     fun resolveContainerShape(
         level: ContainerLevel,
-        uiPreset: UiPreset,
-        androidNativeVariant: AndroidNativeVariant
+        uiStyle: AppUiStyle
     ): Shape {
-        val dp = resolveContainerCornerDp(level, uiPreset, androidNativeVariant)
-        return if (shouldUseIosContinuousRounding(uiPreset)) {
-            if (level == ContainerLevel.Sheet) {
-                IosContinuousRoundedCornerShape(
-                    topStart = dp,
-                    topEnd = dp,
-                    bottomStart = 0.dp,
-                    bottomEnd = 0.dp
-                )
-            } else {
-                IosContinuousRoundedCornerShape(cornerRadius = dp)
-            }
-        } else if (level == ContainerLevel.Sheet) {
+        val dp = resolveContainerCornerDp(level, uiStyle)
+        return if (level == ContainerLevel.Sheet) {
             RoundedCornerShape(topStart = dp, topEnd = dp, bottomStart = 0.dp, bottomEnd = 0.dp)
         } else {
             RoundedCornerShape(dp)
@@ -95,10 +78,9 @@ object AppShapes {
      */
     fun resolveBorderedContainerShape(
         level: ContainerLevel,
-        uiPreset: UiPreset,
-        androidNativeVariant: AndroidNativeVariant
+        uiStyle: AppUiStyle
     ): Shape {
-        val dp = resolveContainerCornerDp(level, uiPreset, androidNativeVariant)
+        val dp = resolveContainerCornerDp(level, uiStyle)
         return if (level == ContainerLevel.Sheet) {
             RoundedCornerShape(topStart = dp, topEnd = dp, bottomStart = 0.dp, bottomEnd = 0.dp)
         } else {
@@ -109,21 +91,18 @@ object AppShapes {
     @Composable
     fun container(level: ContainerLevel): Shape = resolveContainerShape(
         level = level,
-        uiPreset = LocalUiPreset.current,
-        androidNativeVariant = LocalAndroidNativeVariant.current
+        uiStyle = LocalAppUiStyle.current
     )
 
     @Composable
     fun borderedContainer(level: ContainerLevel): Shape = resolveBorderedContainerShape(
         level = level,
-        uiPreset = LocalUiPreset.current,
-        androidNativeVariant = LocalAndroidNativeVariant.current
+        uiStyle = LocalAppUiStyle.current
     )
 
     @Composable
     fun containerCornerDp(level: ContainerLevel): Dp = resolveContainerCornerDp(
         level = level,
-        uiPreset = LocalUiPreset.current,
-        androidNativeVariant = LocalAndroidNativeVariant.current
+        uiStyle = LocalAppUiStyle.current
     )
 }

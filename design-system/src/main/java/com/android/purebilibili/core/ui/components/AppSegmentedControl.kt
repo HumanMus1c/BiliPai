@@ -4,11 +4,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.rememberAppSegmentedControlPolicy
-import com.android.purebilibili.core.ui.resolveCompactCapsuleChromeSpec
 import com.android.purebilibili.core.ui.renderer.material3.AppMaterial3SegmentedControl
 import com.android.purebilibili.core.ui.renderer.miuix.AppMiuixSegmentedControl
 
@@ -85,13 +82,11 @@ fun resolveAppLiquidSegmentedControlSpec(
     hasExternalBackdrop: Boolean,
     longestLabelLength: Int = 0,
 ): AppLiquidSegmentedControlSpec {
-    val compactChrome = resolveCompactCapsuleChromeSpec(
-        uiPreset = UiPreset.IOS,
-        androidNativeVariant = AndroidNativeVariant.MATERIAL3,
-    )
+    // 液金分段控件为固定视觉形态，不随主题风格变化（历史实现固定使用 iOS 紧凑尺寸 44dp）。
+    val liquidControlHeightDp = 44
     return AppLiquidSegmentedControlSpec(
         itemWidthDp = if (itemCount >= 4) 56 else 66,
-        heightDp = compactChrome.primaryHeightDp,
+        heightDp = liquidControlHeightDp,
         indicatorHeightDp = 30,
         labelFontSizeSp = resolveAppSegmentedLabelFontSizeSp(
             optionCount = itemCount,

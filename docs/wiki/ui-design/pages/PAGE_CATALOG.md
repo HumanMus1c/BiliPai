@@ -3,8 +3,8 @@
 > 文档编号：UI-PAGE-INDEX  
 > 规范版本：1.0.0-draft  
 > 状态：草案  
-> 最后核对日期：2026-08-02  
-> 适用提交：4443e72ff  
+> 最后核对日期：2026-08-04  
+> 适用提交：55ed2356a  
 > 维护角色：导航维护者、设计系统维护者  
 > 相关文档：[页面母版](../08_PAGE_TEMPLATES.md) · [总目录](../README.md)
 
@@ -12,7 +12,7 @@
 
 本页是 Navigation 3 页面范围的唯一登记表。`BiliPaiNavKey` 像页面的身份证类型；同一个 Key 可以携带不同参数，但仍属于同一种页面档案。例如不同视频都使用同一个视频详情 Key，不需要为每条视频单独写规范。
 
-`[NAVKEY:名称]` 是机器检查标记，只允许在本文件出现一次。领域档案使用 P001-P061 编号，不重复这个标记。
+`[NAVKEY:名称]` 是机器检查标记，只允许在本文件出现一次。领域档案使用 P001-P062 编号，不重复这个标记。
 
 ## 规范要求
 
@@ -22,7 +22,7 @@
 - **应该**以 `BiliPaiNavEntryContentRole` 与实际渲染符号作为当前代码映射。
 - **禁止**把旧 `ScreenRoutes` 单独当成第二份页面目录。
 
-## 61 个页面 Key
+## 62 个页面 Key
 
 | ID / Key | 中文名称 | `routeBase` | 当前内容入口 | 母版 | 完整档案 | 状态 / 最后核对 |
 |---|---|---|---|---|---|---|
@@ -87,6 +87,7 @@
 | P059 `[NAVKEY:BangumiDetail]` | 番剧详情 | `bangumi` | `BANGUMI_DETAIL` / `BangumiDetailScreen` | T05 内容详情 | [P059](LIVE_BANGUMI_AUDIO.md#p059) | 当前 / 2026-08-02 |
 | P060 `[NAVKEY:Web]` | 应用内网页 | `web` | `WEB` / `WebViewScreen` | T05 内容详情 | [P060](ACCOUNT_TOOLS_WEB.md#p060) | 当前 / 2026-08-02 |
 | P061 `[NAVKEY:Unknown]` | 未知旧路由兼容入口 | 动态解析 | 当前回退 `HOME` 内容角色 | T10 兼容回退 | [P061](ACCOUNT_TOOLS_WEB.md#p061) | 兼容 / 2026-08-02 |
+| P062 `[NAVKEY:HomeSettings]` | 首页设置 | `home_settings` | `HOME_SETTINGS` / `HomeSettingsScreen` | T08 设置 | [P062](SETTINGS.md#p062) | 当前 / 2026-08-04 |
 
 ## Compose 短示例
 
@@ -108,5 +109,5 @@ val key: BiliPaiNavKey = BiliPaiNavKey.VideoDetail(bvid = bvid)
 
 ## 验收方法
 
-运行结构测试，源码 Key 集合与 `[NAVKEY:*]` 集合必须完全相等且数量为 61；每个 P 编号必须链接到存在的领域文件锚点，领域档案必须包含固定字段。
+运行结构测试，源码 Key 集合与 `[NAVKEY:*]` 集合必须完全相等且数量为 62；每个 P 编号必须链接到存在的领域文件锚点，领域档案必须包含固定字段。
 

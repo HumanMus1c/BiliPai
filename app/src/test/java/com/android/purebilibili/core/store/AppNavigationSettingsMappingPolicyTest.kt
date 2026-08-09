@@ -34,6 +34,20 @@ class AppNavigationSettingsMappingPolicyTest {
     }
 
     @Test
+    fun emptyPreferences_onTablet_defaultSidebarEnabled() {
+        val prefs = mutablePreferencesOf()
+
+        val result = mapAppNavigationSettingsFromPreferences(
+            preferences = prefs,
+            defaultTabletUseSidebar = true
+        )
+
+        assertTrue(result.tabletUseSidebar)
+        assertTrue(defaultTabletUseSidebar(isTabletDevice = true))
+        assertFalse(defaultTabletUseSidebar(isTabletDevice = false))
+    }
+
+    @Test
     fun populatedPreferences_mapToNavigationSettingsCorrectly() {
         val prefs = mutablePreferencesOf(
             intPreferencesKey("bottom_bar_visibility_mode") to SettingsManager.BottomBarVisibilityMode.SCROLL_HIDE.value,

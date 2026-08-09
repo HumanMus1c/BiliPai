@@ -135,6 +135,28 @@ class BottomControlBarPolicyTest {
     }
 
     @Test
+    fun danmakuToggle_shownOnTabletInlinePlayerEvenWhenNotFullscreen() {
+        assertTrue(
+            shouldShowDanmakuToggleInControlBar(
+                isFullscreen = true,
+                widthDp = 393
+            )
+        )
+        assertTrue(
+            shouldShowDanmakuToggleInControlBar(
+                isFullscreen = false,
+                widthDp = 800
+            )
+        )
+        assertFalse(
+            shouldShowDanmakuToggleInControlBar(
+                isFullscreen = false,
+                widthDp = 411
+            )
+        )
+    }
+
+    @Test
     fun playbackOrderLabelShownWhenFullscreenAndLabelPresent() {
         assertTrue(
             shouldShowPlaybackOrderLabelInControlBar(

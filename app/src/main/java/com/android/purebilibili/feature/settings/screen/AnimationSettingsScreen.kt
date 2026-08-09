@@ -44,8 +44,7 @@ import com.android.purebilibili.core.ui.transition.normalizeVideoSharedTransitio
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.feature.home.components.LiquidGlassTuning
 import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.outlined.*
 import com.android.purebilibili.core.ui.components.*
 import com.android.purebilibili.core.ui.animation.EntranceGroup
 import com.android.purebilibili.core.ui.animation.entrance
@@ -132,7 +131,10 @@ fun AnimationSettingsContent(
         .collectAsStateWithLifecycle(initialValue = AppNavigationSettings())
     val videoTransitionRealtimeBlurEnabled by SettingsManager
         .getVideoTransitionRealtimeBlurEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val liveSurfaceCardTransitionEnabled by SettingsManager
+        .getLiveSurfaceCardTransitionEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val effectiveEntranceSpec = rememberEffectiveEntranceMotionSpec()
     // 开关开着、但有效参数被降级为不动画 → 系统减弱动效在生效。
     val entranceDowngradedBySystem = uiEntranceAnimationEnabled && !effectiveEntranceSpec.animate
@@ -240,6 +242,16 @@ fun AnimationSettingsContent(
                             subtitle = "点击视频卡片时，让封面和标题自然移动到详情页",
                             checked = state.cardTransitionEnabled,
                             onCheckedChange = { viewModel.toggleCardTransition(it) },
+                            iconTint = iOSTeal
+                        )
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.LIVE_SURFACE_TRANSITION),
+                            title = "实时画面转场",
+                            subtitle = "进出详情用播放器当前画面做双向变形；HDR/杜比仍走高质量输出，不降画质",
+                            checked = liveSurfaceCardTransitionEnabled,
+                            onCheckedChange = { viewModel.toggleLiveSurfaceCardTransition(it) },
+                            enabled = state.cardTransitionEnabled,
                             iconTint = iOSTeal
                         )
                         AppPreferenceDivider()
@@ -432,7 +444,7 @@ fun AnimationSettingsContent(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AppIcon(
-                                CupertinoIcons.Default.Lightbulb,
+                                Icons.Outlined.Lightbulb,
                                 contentDescription = null,
                                 tint = warningTint,
                                 modifier = Modifier.size(20.dp)

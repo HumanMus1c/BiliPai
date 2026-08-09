@@ -37,7 +37,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
+//  Material Icons
 import androidx.compose.material3.*
 import com.android.purebilibili.core.ui.components.AppFilledIconButton
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -311,6 +311,9 @@ private fun ImagePreviewOverlayContent(
         initialPage = initialIndex,
         pageCount = { images.size }
     )
+
+    // 已通过「查看原图」切换为全分辨率加载的页（按页索引记录）。
+    var originalQualityPages by remember { mutableStateOf(setOf<Int>()) }
 
     LaunchedEffect(pagerState.currentPage) {
         activeZoomScale = 1f
@@ -671,8 +674,14 @@ private fun ImagePreviewOverlayContent(
                         val imageUrl = remember(images.getOrNull(page)) {
                             normalizeImageUrl(images.getOrNull(page) ?: "")
                         }
-                        val decodeSize = remember {
-                            resolveImageDecodeSize(ImageDecodeTarget.FULLSCREEN_PREVIEW)
+                        val decodeSize = remember(page, imageUrl, page in originalQualityPages) {
+                            resolveImageDecodeSize(
+                                if (page in originalQualityPages) {
+                                    ImageDecodeTarget.ORIGINAL_QUALITY
+                                } else {
+                                    ImageDecodeTarget.FULLSCREEN_PREVIEW
+                                }
+                            )
                         }
                         
                         ZoomableImage(
@@ -961,14 +970,25 @@ private fun ImagePreviewOverlayContent(
 
                 // 顶部按钮栏（关闭 + 页码 + 下载）
                 if (commentContext != null) {
+                    val currentPage = pagerState.currentPage
+                    val isOriginalQuality = currentPage in originalQualityPages
                     ImagePreviewCommentTopBar(
-                        label = commentContext.originalSizeLabels.getOrNull(pagerState.currentPage)
-                            ?: resolveCommentImageOriginalSizeLabel(null),
+                        label = if (isOriginalQuality) {
+                            "原图已加载"
+                        } else {
+                            commentContext.originalSizeLabels.getOrNull(currentPage)
+                                ?: resolveCommentImageOriginalSizeLabel(null)
+                        },
                         shareIcon = shareIcon,
                         isSharing = isSharing,
                         enabled = !isSharing && !isSaving,
                         onDismiss = { triggerDismiss() },
                         onShare = { requestShareCurrentImage(currentImageUrl) },
+                        onViewOriginal = {
+                            // 按 API 文档：去掉 @ 尺寸参数即为原图 URL（预览已用该 URL），
+                            // 此处切换为全分辨率解码重新加载，突破预览采样限制。
+                            originalQualityPages = originalQualityPages + currentPage
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.TopCenter)
@@ -1213,6 +1233,7 @@ private fun ImagePreviewCommentTopBar(
     enabled: Boolean,
     onDismiss: () -> Unit,
     onShare: () -> Unit,
+    onViewOriginal: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -1236,7 +1257,7 @@ private fun ImagePreviewCommentTopBar(
         ) {
             AppText(
                 text = label,
-                color = MediaContrastPalette.Foreground.copy(alpha = 0.9f),
+                color = MediaContrastPalette.Foreground.copy(alpha = if (onViewOriginal != null) 0.9f else 0.38f),
                 fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -1244,6 +1265,16 @@ private fun ImagePreviewCommentTopBar(
                     .testTag(IMAGE_PREVIEW_ORIGINAL_CHIP_TAG)
                     .clip(AppShapes.container(ContainerLevel.Floating))
                     .background(MediaContrastPalette.Foreground.copy(alpha = 0.16f))
+                    .then(
+                        if (onViewOriginal != null) {
+                            Modifier.clickable(
+                                enabled = enabled,
+                                onClick = onViewOriginal
+                            )
+                        } else {
+                            Modifier
+                        }
+                    )
                     .padding(horizontal = AppSpacingTokens.Large + AppSpacingTokens.Micro, vertical = AppSpacingTokens.Small - AppSpacingTokens.Micro / 2)
             )
         }

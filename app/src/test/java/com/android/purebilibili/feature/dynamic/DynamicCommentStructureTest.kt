@@ -73,4 +73,38 @@ class DynamicCommentStructureTest {
         assertTrue(detailSource.contains("dynamicInlineCommentItems("))
         assertTrue(detailSource.contains("onUserClick = onUserClick"))
     }
+
+    @Test
+    fun `dynamic comment fan decoration is top-end overlay not inline in name row`() {
+        val sheetSource = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCommentSheet.kt"
+        ).readText()
+        val commentItem = sheetSource
+            .substringAfter("private fun CommentItem(")
+            .substringBefore("private fun formatTime(")
+
+        assertTrue(commentItem.contains("FanGroupDecorationBadge("))
+        assertTrue(commentItem.contains("Alignment.TopEnd"))
+        assertTrue(commentItem.contains("decorationEndReserve"))
+        // Must not keep badge inline after username/time in the name Row.
+        val nameRow = commentItem
+            .substringAfter("// 用户名 + 时间")
+            .substringBefore("// 评论内容")
+        assertTrue(!nameRow.contains("FanGroupDecorationBadge("))
+    }
+
+    @Test
+    fun `dynamic comment avatar and name open user space`() {
+        val sheetSource = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCommentSheet.kt"
+        ).readText()
+        val commentItem = sheetSource
+            .substringAfter("private fun CommentItem(")
+            .substringBefore("private fun formatTime(")
+
+        assertTrue(commentItem.contains("ReplyMemberAvatar("))
+        assertTrue(commentItem.contains("onClick = memberMid?.let"))
+        assertTrue(commentItem.contains("onUserClick(memberMid)"))
+        assertTrue(commentItem.contains("onUserClick(mid)"))
+    }
 }

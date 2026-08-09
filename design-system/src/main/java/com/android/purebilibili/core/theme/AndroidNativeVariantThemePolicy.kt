@@ -21,95 +21,62 @@ data class AndroidNativeChromeTokens(
 )
 
 fun resolveAndroidNativeChromeTokens(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
-): AndroidNativeChromeTokens {
-    return when {
-        uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX -> AndroidNativeChromeTokens(
-            containerCornerRadiusDp = 20,
-            pillCornerRadiusDp = 22,
-            selectedContainerAlpha = 0.18f,
-            tonalSurfaceElevationDp = 0,
-            denseHorizontalSpacingDp = 16,
-            rowMinTouchTargetDp = 48,
-            expressiveMotionDurationMillis = 180,
-            motionScale = 1f,
-            motionStandardMillis = 180,
-            motionEmphasizedMillis = 240
-        )
-        uiPreset == UiPreset.MD3 -> AndroidNativeChromeTokens(
-            containerCornerRadiusDp = 24,
-            pillCornerRadiusDp = 28,
-            selectedContainerAlpha = 0.14f,
-            tonalSurfaceElevationDp = 3,
-            denseHorizontalSpacingDp = 18,
-            rowMinTouchTargetDp = 48,
-            expressiveMotionDurationMillis = 200,
-            motionScale = 1f,
-            motionStandardMillis = 200,
-            motionEmphasizedMillis = 300
-        )
-        else -> AndroidNativeChromeTokens(
-            containerCornerRadiusDp = 20,
-            pillCornerRadiusDp = 10,
-            selectedContainerAlpha = 0.12f,
-            tonalSurfaceElevationDp = 1,
-            denseHorizontalSpacingDp = 16,
-            rowMinTouchTargetDp = 44,
-            expressiveMotionDurationMillis = 180,
-            motionScale = 1f,
-            // Nominal iOS values; iOS motion specs use spring, not tween.
-            motionStandardMillis = 280,
-            motionEmphasizedMillis = 360
-        )
-    }
-}
-
-fun resolveMaterialTypography(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
-): Typography {
-    return when {
-        uiPreset == UiPreset.IOS -> BiliTypography
-        androidNativeVariant == AndroidNativeVariant.MIUIX -> BiliMiuixTypography
-        else -> Md3Typography
-    }
-}
-
-fun resolveMaterialMotionScheme(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
-): MotionScheme {
-    return when {
-        uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MATERIAL3 ->
-            MotionScheme.expressive()
-        else -> MotionScheme.standard()
-    }
-}
-
-fun resolveMaterialShapes(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
-): Shapes {
-    return when {
-        uiPreset == UiPreset.IOS -> iOSShapes
-        androidNativeVariant == AndroidNativeVariant.MIUIX -> MiuixAlignedShapes
-        else -> Md3Shapes
-    }
+    uiStyle: AppUiStyle
+): AndroidNativeChromeTokens = when (uiStyle) {
+    AppUiStyle.MIUIX -> AndroidNativeChromeTokens(
+        containerCornerRadiusDp = 20,
+        pillCornerRadiusDp = 22,
+        selectedContainerAlpha = 0.18f,
+        tonalSurfaceElevationDp = 0,
+        denseHorizontalSpacingDp = 16,
+        rowMinTouchTargetDp = 48,
+        expressiveMotionDurationMillis = 180,
+        motionScale = 1f,
+        motionStandardMillis = 180,
+        motionEmphasizedMillis = 240
+    )
+    AppUiStyle.MATERIAL3 -> AndroidNativeChromeTokens(
+        containerCornerRadiusDp = 24,
+        pillCornerRadiusDp = 28,
+        selectedContainerAlpha = 0.14f,
+        tonalSurfaceElevationDp = 3,
+        denseHorizontalSpacingDp = 18,
+        rowMinTouchTargetDp = 48,
+        expressiveMotionDurationMillis = 200,
+        motionScale = 1f,
+        motionStandardMillis = 200,
+        motionEmphasizedMillis = 300
+    )
 }
 
 fun resolveCornerRadiusScale(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
-): Float {
-    return when {
-        uiPreset == UiPreset.IOS -> 1f
-        androidNativeVariant == AndroidNativeVariant.MIUIX -> MIUIX_CORNER_RADIUS_SCALE
-        else -> MD3_CORNER_RADIUS_SCALE
-    }
+    uiStyle: AppUiStyle
+): Float = when (uiStyle) {
+    AppUiStyle.MIUIX -> MIUIX_CORNER_RADIUS_SCALE
+    AppUiStyle.MATERIAL3 -> MD3_CORNER_RADIUS_SCALE
 }
 
 fun shouldUseMiuixSmoothRounding(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
-): Boolean = uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX
+    uiStyle: AppUiStyle
+): Boolean = uiStyle == AppUiStyle.MIUIX
+
+fun resolveMaterialTypography(
+    uiStyle: AppUiStyle
+): Typography = when (uiStyle) {
+    AppUiStyle.MIUIX -> BiliMiuixTypography
+    AppUiStyle.MATERIAL3 -> Md3Typography
+}
+
+fun resolveMaterialMotionScheme(
+    uiStyle: AppUiStyle
+): MotionScheme = when (uiStyle) {
+    AppUiStyle.MATERIAL3 -> MotionScheme.expressive()
+    AppUiStyle.MIUIX -> MotionScheme.standard()
+}
+
+fun resolveMaterialShapes(
+    uiStyle: AppUiStyle
+): Shapes = when (uiStyle) {
+    AppUiStyle.MIUIX -> MiuixAlignedShapes
+    AppUiStyle.MATERIAL3 -> Md3Shapes
+}

@@ -20,7 +20,6 @@ fun AppAlertDialog(
     shape: Shape? = null,
     containerColor: Color? = null,
     tonalElevation: Dp? = null,
-    presentationProgress: Float = 1f,
     properties: DialogProperties = DialogProperties(),
 ) = AdaptiveAlertDialog(
     onDismissRequest = onDismissRequest,
@@ -33,7 +32,6 @@ fun AppAlertDialog(
     shape = shape,
     containerColor = containerColor,
     tonalElevation = tonalElevation,
-    presentationProgress = presentationProgress,
     properties = properties,
 )
 

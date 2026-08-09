@@ -28,8 +28,8 @@ import coil.compose.AsyncImage
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.data.model.response.ViewPoint
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.Xmark
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 
 /**
  * 📖 视频章节列表面板
@@ -93,7 +93,7 @@ fun ChapterListPanel(
                     )
                     
                     AppIcon(
-                        CupertinoIcons.Outlined.Xmark,
+                        Icons.Outlined.Close,
                         contentDescription = "关闭",
                         tint = Color.White.copy(alpha = 0.6f),
                         modifier = Modifier

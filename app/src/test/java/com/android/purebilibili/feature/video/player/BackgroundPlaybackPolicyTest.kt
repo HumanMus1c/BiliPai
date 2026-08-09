@@ -675,6 +675,18 @@ class BackgroundPlaybackPolicyTest {
     }
 
     @Test
+    fun foregroundEntryDoesNotSeek_whenBackgroundAudioTimelineStayedActive() {
+        assertFalse(
+            shouldRefreshVideoFrameOnEnterForeground(
+                hadSavedTrackParams = true,
+                hasMediaItems = true,
+                playbackState = Player.STATE_READY,
+                retainedBackgroundAudio = true,
+            )
+        )
+    }
+
+    @Test
     fun foregroundEntryResumesPlaybackOnlyWhenPlaybackIntentWasStillActive() {
         assertTrue(
             shouldResumePlaybackOnEnterForeground(

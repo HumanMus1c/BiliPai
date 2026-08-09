@@ -7,6 +7,7 @@ import com.android.purebilibili.data.model.response.StoryStat
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class StoryFeedPolicyTest {
 
@@ -146,5 +147,18 @@ class StoryFeedPolicyTest {
                 bvid = bvid
             )
         )
+    }
+
+    @Test
+    fun `storyItemToRelatedVideo maps playable story items and skips unplayable`() {
+        val playable = storyItemToRelatedVideo(storyItem(id = 1, aid = 100L, bvid = "BV_100", cid = 1100L))
+        assertEquals("BV_100", playable?.bvid)
+        assertEquals(100L, playable?.aid)
+        assertEquals("up 1", playable?.owner?.name)
+
+        val unplayable = storyItemToRelatedVideo(
+            StoryItem(id = 2, title = "no args", playerArgs = null)
+        )
+        assertNull(unplayable)
     }
 }

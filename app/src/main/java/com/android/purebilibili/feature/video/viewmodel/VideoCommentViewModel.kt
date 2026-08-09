@@ -23,16 +23,10 @@ import kotlinx.collections.immutable.toImmutableSet
 
 internal const val VIDEO_COMMENT_TYPE = 1
 
-// 评论排序模式：
-// - mode=3: 最热（WBI）
-// - mode=2: 最新（Legacy sort=0）
-// - mode=4: 点赞最多（Legacy sort=1）
-// - mode=1: 回复最多（Legacy sort=2）
+// 评论排序模式：只保留最热和最新。
 enum class CommentSortMode(val apiMode: Int, val label: String) {
-    HOT(3, "最热"),       // 按热度排序 (mode=3, 默认)
-    NEWEST(2, "最新"),    // 按时间排序（最新优先）(mode=2)
-    LIKE(4, "点赞"),      // 按点赞数排序 (使用旧版 API sort=1)
-    REPLY(1, "回复");     // 按回复数排序 (使用旧版 API sort=2)
+    HOT(3, "最热"),
+    NEWEST(2, "最新");
 
     companion object {
         fun fromApiMode(mode: Int): CommentSortMode = entries.find { it.apiMode == mode } ?: HOT
@@ -91,10 +85,9 @@ data class CommentUiState(
     val repliesError: String? = null,
     val isRepliesEnd: Boolean = false,
     val nextPage: Int = 1,
-    //  [新增] 排序和筛选状态
+    // 排序状态
     val sortMode: CommentSortMode = CommentSortMode.HOT,
-    val upOnlyFilter: Boolean = false,
-    val upMid: Long = 0,  // UP主的 mid，用于筛选
+    val upMid: Long = 0,  // UP 主 mid，用于标识评论身份
     // [新增] 评论交互状态
     val isSending: Boolean = false,
     val sendError: String? = null,
@@ -297,58 +290,21 @@ class VideoCommentViewModel : ViewModel() {
         }
     }
     
-    //  [新增] 设置 UP 主 mid（用于只看UP主筛选）
-    fun setUpMid(mid: Long) {
-        if (_commentState.value.upMid != mid) {
-            _commentState.value = _commentState.value.copy(upMid = mid)
-        }
-    }
-
-    //  [修复] 切换排序模式 - 与"只看UP主"互斥
+    // 切换排序模式
     fun setSortMode(mode: CommentSortMode) {
         val currentState = _commentState.value
-        if (currentState.sortMode == mode && !currentState.upOnlyFilter) return
+        if (currentState.sortMode == mode) return
         
-        android.util.Log.d("CommentVM", " setSortMode: ${currentState.sortMode} -> $mode, clearing upOnlyFilter")
+        android.util.Log.d("CommentVM", " setSortMode")
         
-        //  [修复] 切换排序时清除"只看UP主"筛选
         allReplies = emptyList()
         _commentState.value = CommentUiState(
             sortMode = mode,
-            upOnlyFilter = false,  //  互斥：清除 UP 筛选
             upMid = currentState.upMid,
             currentMid = currentState.currentMid,
             replyCount = currentState.replyCount
         )
         loadComments()
-    }
-    
-    //  [修复] 切换只看UP主筛选 - 与"最热/最新"互斥
-    fun toggleUpOnly() {
-        val currentState = _commentState.value
-        val newUpOnly = !currentState.upOnlyFilter
-        
-        android.util.Log.d("CommentVM", " toggleUpOnly: $newUpOnly, upMid=${currentState.upMid}")
-        
-        if (newUpOnly) {
-            //  [修复] 开启 UP 筛选时，从当前已加载的评论中筛选
-            val filteredReplies = if (currentState.upMid > 0) {
-                allReplies.filter { it.mid == currentState.upMid }
-            } else {
-                emptyList()
-            }
-            
-            _commentState.value = currentState.copy(
-                upOnlyFilter = true,
-                replies = filteredReplies.toImmutableList()
-            )
-        } else {
-            //  关闭 UP 筛选时，恢复显示所有评论
-            _commentState.value = currentState.copy(
-                upOnlyFilter = false,
-                replies = allReplies.toImmutableList()
-            )
-        }
     }
 
     fun loadComments() {
@@ -412,15 +368,8 @@ class VideoCommentViewModel : ViewModel() {
                     " loadComments result: page=$pageToLoad, new=${newReplies.size}, hot=${hotReplies.size}, top=${topReplies.size}, total=${allReplies.size}, allCount=$totalCount, isEnd=$isEnd"
                 )
                 
-                //  [修复] 加载后重新应用筛选（确保排序切换后筛选仍生效）
-                val filteredReplies = if (current.upOnlyFilter && current.upMid > 0) {
-                    combinedReplies.filter { it.mid == current.upMid }
-                } else {
-                    combinedReplies
-                }
-                
                 _commentState.value = current.copy(
-                    replies = filteredReplies.toImmutableList(),
+                    replies = combinedReplies.toImmutableList(),
                     replyCount = totalCount,
                     isRepliesLoading = false,
                     repliesError = null,
@@ -464,7 +413,7 @@ class VideoCommentViewModel : ViewModel() {
             ),
             isLoading = true,
             page = 1,
-            upMid = _commentState.value.upMid  // [修复] 使用正确的 UP 主 mid
+            upMid = _commentState.value.upMid  // 保留 UP 主身份标识，供回复详情展示
         )
         loadSubReplies(
             subject = requestSubject,
@@ -638,13 +587,8 @@ class VideoCommentViewModel : ViewModel() {
         }
         allReplies = updatedAllReplies
 
-        val filteredReplies = if (current.upOnlyFilter && current.upMid > 0) {
-            updatedAllReplies.filter { it.mid == current.upMid }
-        } else {
-            updatedAllReplies
-        }
         _commentState.value = current.copy(
-            replies = filteredReplies.toImmutableList(),
+            replies = updatedAllReplies.toImmutableList(),
             replyCount = current.replyCount + 1
         )
 

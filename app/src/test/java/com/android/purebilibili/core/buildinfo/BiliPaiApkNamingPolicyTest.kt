@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 
 /**
  * 交付 APK 命名策略：源码结构测试（不依赖 Gradle 任务类加载）。
- * 规范：`BiliPai-<YY.MMDD.N>[.variant].apk`，禁止 `app-release.apk` 等默认名。
+ * 规范：`BiliPai-<MAJOR.MINOR.PATCH>[.variant].apk`，禁止 `app-release.apk` 等默认名。
  */
 class BiliPaiApkNamingPolicyTest {
 
@@ -22,19 +22,19 @@ class BiliPaiApkNamingPolicyTest {
         assertTrue(source.contains("export\${capitalizedVariantName}Apk"))
         assertTrue(source.contains("finalizedBy(exportTask)"))
         assertTrue(source.contains("never app-release"))
-        assertTrue(source.contains("versionName = \"26.0805.1\""))
+        assertTrue(source.contains("versionName = \"0.2.2\""))
         assertTrue(source.contains("Delivery APK must be BiliPai-"))
     }
 
     @Test
     fun canonicalNames_matchExpectedPattern() {
         assertEquals(
-            "BiliPai-26.0805.1.apk",
-            resolveDeliveryNameFromScriptLogic(versionName = "26.0805.1", variantName = "release"),
+            "BiliPai-0.2.2.apk",
+            resolveDeliveryNameFromScriptLogic(versionName = "0.2.2", variantName = "release"),
         )
         assertEquals(
-            "BiliPai-26.0805.1-dev.apk",
-            resolveDeliveryNameFromScriptLogic(versionName = "26.0805.1", variantName = "dev"),
+            "BiliPai-0.2.2-dev.apk",
+            resolveDeliveryNameFromScriptLogic(versionName = "0.2.2", variantName = "dev"),
         )
     }
 
@@ -44,8 +44,8 @@ class BiliPaiApkNamingPolicyTest {
         assertFalse(isCanonicalNameFromScriptLogic("app-dev.apk"))
         assertFalse(isCanonicalNameFromScriptLogic("app.apk"))
         assertFalse(isCanonicalNameFromScriptLogic("release.apk"))
-        assertTrue(isCanonicalNameFromScriptLogic("BiliPai-26.0805.1.apk"))
-        assertTrue(isCanonicalNameFromScriptLogic("BiliPai-26.0805.1-dev.apk"))
+        assertTrue(isCanonicalNameFromScriptLogic("BiliPai-0.2.2.apk"))
+        assertTrue(isCanonicalNameFromScriptLogic("BiliPai-0.2.2-dev.apk"))
     }
 
     private fun resolveDeliveryNameFromScriptLogic(versionName: String, variantName: String): String {

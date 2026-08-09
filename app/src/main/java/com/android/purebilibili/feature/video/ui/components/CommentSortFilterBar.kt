@@ -1,18 +1,12 @@
 package com.android.purebilibili.feature.video.ui.components
-import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,8 +20,6 @@ import com.kyant.backdrop.Backdrop
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.Person
 
 internal data class CommentSortSegmentedControlSpec(
     val itemWidthDp: Int,
@@ -52,24 +44,56 @@ internal fun hasCommentSortIndicatorScaleClearance(
 }
 
 /**
- *  评论排序筛选栏
- *  Header: "评论 (123)"
- *  Controls: Segmented Control [按热度 | 按时间]
+ * 评论列表标题。
  */
 @Composable
-fun CommentSortFilterBar(
+fun CommentListHeader(
+    count: Int,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(top = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CommentListTitle(count = count)
+    }
+}
+
+@Composable
+private fun CommentListTitle(count: Int) {
+    val appearance = rememberVideoCommentAppearance()
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        AppText(
+            text = "评论",
+            fontSize = 20.sp, // iOS Large Title style scale
+            fontWeight = FontWeight.Bold,
+            color = appearance.primaryTextColor,
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        AppText(
+            text = FormatUtils.formatStat(count.toLong()),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Normal,
+            color = appearance.secondaryTextColor,
+        )
+    }
+}
+
+/**
+ * 同时展示评论标题和排序控件的通用列表栏，用于不使用详情页顶栏的评论界面。
+ */
+@Composable
+fun CommentSortHeader(
     count: Int,
     sortMode: CommentSortMode,
     onSortModeChange: (CommentSortMode) -> Unit,
-    upOnly: Boolean = false,
-    onUpOnlyToggle: () -> Unit = {},
     modifier: Modifier = Modifier,
     backdrop: Backdrop? = null,
-    miuixBackdrop: MiuixBackdrop? = null
+    miuixBackdrop: MiuixBackdrop? = null,
 ) {
-    val sortModes = remember { CommentSortMode.entries.toList() }
-    val appearance = rememberVideoCommentAppearance()
-
     FlowRow(
         modifier = modifier
             .fillMaxWidth()
@@ -77,49 +101,40 @@ fun CommentSortFilterBar(
             .padding(top = 6.dp),
         itemVerticalAlignment = Alignment.CenterVertically,
         verticalArrangement = Arrangement.spacedBy(2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        //  Left: Title
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            AppText(
-                text = "评论",
-                fontSize = 20.sp, // iOS Large Title style scale
-                fontWeight = FontWeight.Bold,
-                color = appearance.primaryTextColor
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            AppText(
-                text = FormatUtils.formatStat(count.toLong()),
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Normal,
-                color = appearance.secondaryTextColor
-            )
-        }
-
-        // Right: Sort Control + Only UP Toggle
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Only UP Toggle
-            CommentToggleButton(
-                isChecked = upOnly,
-                onToggle = onUpOnlyToggle,
-                icon = CupertinoIcons.Filled.Person
-            )
-
-            // Segmented Control
-            CommentSegmentedControl(
-                items = sortModes.map { it.label },
-                selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
-                onScaleChange = { index ->
-                    sortModes.getOrNull(index)?.let(onSortModeChange)
-                },
-                backdrop = backdrop,
-                miuixBackdrop = miuixBackdrop
-            )
-        }
+        CommentListTitle(count = count)
+        CommentSortFilterBar(
+            sortMode = sortMode,
+            onSortModeChange = onSortModeChange,
+            backdrop = backdrop,
+            miuixBackdrop = miuixBackdrop,
+        )
     }
+}
+
+/**
+ * 评论排序分段控件，放置在详情页顶栏的“评论”标签右侧。
+ */
+@Composable
+fun CommentSortFilterBar(
+    sortMode: CommentSortMode,
+    onSortModeChange: (CommentSortMode) -> Unit,
+    modifier: Modifier = Modifier,
+    backdrop: Backdrop? = null,
+    miuixBackdrop: MiuixBackdrop? = null,
+) {
+    val sortModes = remember { listOf(CommentSortMode.HOT, CommentSortMode.NEWEST) }
+    CommentSegmentedControl(
+        items = sortModes.map { it.label },
+        selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
+        onScaleChange = { index ->
+            sortModes.getOrNull(index)?.let(onSortModeChange)
+        },
+        modifier = modifier,
+        backdrop = backdrop,
+        miuixBackdrop = miuixBackdrop,
+    )
 }
 
 /**
@@ -130,8 +145,9 @@ fun CommentSegmentedControl(
     items: List<String>,
     selectedIndex: Int,
     onScaleChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
     backdrop: Backdrop? = null,
-    miuixBackdrop: MiuixBackdrop? = null
+    miuixBackdrop: MiuixBackdrop? = null,
 ) {
     val context = LocalContext.current
     val homeSettings by SettingsManager
@@ -148,48 +164,11 @@ fun CommentSegmentedControl(
         height = spec.heightDp.dp,
         indicatorHeight = spec.indicatorHeightDp.dp,
         labelFontSize = 13.sp,
+        modifier = modifier,
         backdrop = backdrop,
         miuixBackdrop = miuixBackdrop,
         forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
         liquidGlassEffectsEnabled = backdrop != null,
         tapPressRefractionEnabled = false
     )
-}
-
-/**
- * 评论筛选切换按钮
- */
-@Composable
-fun CommentToggleButton(
-    isChecked: Boolean,
-    onToggle: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
-) {
-    val appearance = rememberVideoCommentAppearance()
-    val backgroundColor = if (isChecked) {
-        appearance.toggleCheckedBackgroundColor
-    } else {
-        appearance.toggleUncheckedBackgroundColor
-    }
-    val contentColor = if (isChecked) {
-        appearance.toggleCheckedContentColor
-    } else {
-        appearance.toggleUncheckedContentColor
-    }
-    
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(backgroundColor)
-            .clickable { onToggle() },
-        contentAlignment = Alignment.Center
-    ) {
-        AppIcon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(18.dp)
-        )
-    }
 }

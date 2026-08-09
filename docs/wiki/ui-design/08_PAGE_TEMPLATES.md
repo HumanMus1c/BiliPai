@@ -138,7 +138,7 @@ AppScaffold(topBar = { AppTopBar(title = { AppText(title) }) }) { padding ->
 ## 代码映射
 
 - 页面外壳：`AppScaffold`、`AppTopBar`
-- 自适应分栏：`AppSplitLayout`
+- 自适应分栏：`AppAdaptiveSplitLayout`
 - 页面 Key：`BiliPaiNavKey.kt`
 - 页面职责映射：`BiliPaiNavEntryContentPolicy.kt`
 - 各 Key 的唯一归档：[PAGE_CATALOG.md](pages/PAGE_CATALOG.md)

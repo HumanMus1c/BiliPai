@@ -30,9 +30,7 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
-import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
 import com.android.purebilibili.core.ui.components.AppSurface
-import com.android.purebilibili.core.ui.components.AppTab
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -241,16 +239,35 @@ fun LiveSearchScreen(
             if (!hasSubmitted) {
                 LiveSearchState("输入关键词后搜索直播间或主播")
             } else {
-                AppPrimaryTabRow(selectedTabIndex = selectedTab) {
-                    AppTab(
+                // PiliPlus TabBar 同款：原生 chip 分发（MD3 FilterChip / Miuix·iOS 胶囊）
+                Row(
+                    modifier = Modifier
+                        .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = metrics.safeSpaceDp.dp),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                ) {
+                    LiveHomeSelectableChip(
+                        label = buildString {
+                            append("正在直播")
+                            if (liveResults.isNotEmpty()) {
+                                append(' ')
+                                append(liveResults.size)
+                            }
+                        },
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
-                        text = { AppText("正在直播 ${liveResults.size.takeIf { it > 0 } ?: ""}") },
                     )
-                    AppTab(
+                    LiveHomeSelectableChip(
+                        label = buildString {
+                            append("主播")
+                            if (userResults.isNotEmpty()) {
+                                append(' ')
+                                append(userResults.size)
+                            }
+                        },
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
-                        text = { AppText("主播 ${userResults.size.takeIf { it > 0 } ?: ""}") },
                     )
                 }
                 when {

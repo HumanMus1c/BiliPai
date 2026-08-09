@@ -116,11 +116,21 @@ fun DeviceListDialog(
                     }
                 }
             } else if (!hasDevices && !isDiscovering) {
-                Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.fillMaxWidth().heightIn(min = 120.dp), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    ) {
                         AppText("未找到设备", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.height(6.dp))
                         AppText(
-                            "请确保手机与电视在同一 WiFi，并已授予附近设备/定位权限",
+                            "排查建议：\n" +
+                                "1. 手机与电视/盒子同一 Wi‑Fi（勿用访客网络/AP 隔离）\n" +
+                                "2. 系统设置中允许 BiliPai「附近设备/本地网络」权限\n" +
+                                "3. 关闭 VPN；双卡手机请确认流量未抢走局域网\n" +
+                                "4. DLNA 需接收端开启 DLNA/UPnP（CastFlow 选 DLNA 接收）\n" +
+                                "5. 小米自带投屏多为 Miracast，不一定支持 DLNA\n" +
+                                "6. Google Cast 需接收端支持 Chromecast 且手机有 GMS",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

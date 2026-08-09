@@ -6,6 +6,13 @@ import kotlin.test.assertTrue
 class BottomBarMotionSpecTest {
 
     @Test
+    fun `android native floating drag uses a conservative fling projection`() {
+        val spec = resolveBottomBarMotionSpec(BottomBarMotionProfile.ANDROID_NATIVE_FLOATING)
+
+        assertTrue(spec.drag.flingProjectionTimeSeconds <= 0.14f)
+    }
+
+    @Test
     fun `android native floating bottom bar uses bouncy indicator motion`() {
         val spec = resolveBottomBarMotionSpec(BottomBarMotionProfile.ANDROID_NATIVE_FLOATING)
 

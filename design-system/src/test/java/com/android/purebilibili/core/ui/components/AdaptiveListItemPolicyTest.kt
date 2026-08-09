@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui.components
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -14,17 +13,15 @@ class AdaptiveListItemPolicyTest {
         assertEquals(
             AppClickableItemRenderer.MIUIX_ARROW,
             resolveAppClickableItemRenderer(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MIUIX,
+                uiStyle = AppUiStyle.MIUIX,
                 onClick = {},
                 showChevron = true,
                 centered = false
             )
         )
         assertTrue(
-            shouldRouteIosClickableItemToMiuixArrowPreference(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MIUIX,
+            shouldRouteClickableItemToMiuixArrowPreference(
+                uiStyle = AppUiStyle.MIUIX,
                 onClick = {},
                 showChevron = true,
                 centered = false
@@ -37,17 +34,15 @@ class AdaptiveListItemPolicyTest {
         assertEquals(
             AppClickableItemRenderer.MIUIX_BASIC,
             resolveAppClickableItemRenderer(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MIUIX,
+                uiStyle = AppUiStyle.MIUIX,
                 onClick = {},
                 showChevron = false,
                 centered = false
             )
         )
         assertFalse(
-            shouldRouteIosClickableItemToMiuixArrowPreference(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MIUIX,
+            shouldRouteClickableItemToMiuixArrowPreference(
+                uiStyle = AppUiStyle.MIUIX,
                 onClick = {},
                 showChevron = false,
                 centered = false
@@ -56,12 +51,19 @@ class AdaptiveListItemPolicyTest {
     }
 
     @Test
-    fun `material md3 clickable item routes to basic component`() {
+    fun `material3 clickable item routes to basic component`() {
         assertEquals(
             AppClickableItemRenderer.MD3_BASIC,
             resolveAppClickableItemRenderer(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MATERIAL3,
+                uiStyle = AppUiStyle.MATERIAL3,
+                onClick = {},
+                showChevron = true,
+                centered = false
+            )
+        )
+        assertFalse(
+            shouldRouteClickableItemToMiuixArrowPreference(
+                uiStyle = AppUiStyle.MATERIAL3,
                 onClick = {},
                 showChevron = true,
                 centered = false
@@ -70,15 +72,14 @@ class AdaptiveListItemPolicyTest {
     }
 
     @Test
-    fun `ios preset keeps legacy row renderer`() {
+    fun `centered clickable item keeps legacy cupertino row renderer`() {
         assertEquals(
             AppClickableItemRenderer.CUPERTINO,
             resolveAppClickableItemRenderer(
-                uiPreset = UiPreset.IOS,
-                androidNativeVariant = AndroidNativeVariant.MIUIX,
+                uiStyle = AppUiStyle.MIUIX,
                 onClick = {},
                 showChevron = true,
-                centered = false
+                centered = true
             )
         )
     }
@@ -86,15 +87,13 @@ class AdaptiveListItemPolicyTest {
     @Test
     fun `miuix switch item routes to switch preference`() {
         assertTrue(
-            shouldRouteIosSwitchItemToMiuixSwitchPreference(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MIUIX
+            shouldRouteSwitchItemToMiuixSwitchPreference(
+                uiStyle = AppUiStyle.MIUIX
             )
         )
         assertFalse(
-            shouldRouteIosSwitchItemToMiuixSwitchPreference(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MATERIAL3
+            shouldRouteSwitchItemToMiuixSwitchPreference(
+                uiStyle = AppUiStyle.MATERIAL3
             )
         )
     }
@@ -102,21 +101,13 @@ class AdaptiveListItemPolicyTest {
     @Test
     fun `miuix slider preference routes to official slider preference`() {
         assertTrue(
-            shouldRouteIosSliderPreferenceToMiuixSliderPreference(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MIUIX
+            shouldRouteSliderPreferenceToMiuixSliderPreference(
+                uiStyle = AppUiStyle.MIUIX
             )
         )
         assertFalse(
-            shouldRouteIosSliderPreferenceToMiuixSliderPreference(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MATERIAL3
-            )
-        )
-        assertFalse(
-            shouldRouteIosSliderPreferenceToMiuixSliderPreference(
-                uiPreset = UiPreset.IOS,
-                androidNativeVariant = AndroidNativeVariant.MIUIX
+            shouldRouteSliderPreferenceToMiuixSliderPreference(
+                uiStyle = AppUiStyle.MATERIAL3
             )
         )
     }

@@ -18,11 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,10 +30,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.*
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 
 private val HiResGold = Color(0xFFFFD36A)
 private val DolbyBlue = Color(0xFF8DCDFF)
@@ -73,14 +73,14 @@ private fun AudioFormatBadge(
     backgroundColor: Color,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    AppSurface(
         modifier = modifier,
         color = backgroundColor.copy(alpha = 0.9f),
         contentColor = accentColor,
         shape = RoundedCornerShape(4.dp),
         border = androidx.compose.foundation.BorderStroke(0.75.dp, accentColor.copy(alpha = 0.9f))
     ) {
-        Text(
+        AppText(
             text = text,
             fontSize = 8.sp,
             fontWeight = FontWeight.Bold,
@@ -108,7 +108,7 @@ fun AudioQualitySelectionMenu(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        AppSurface(
             modifier = Modifier
                 .widthIn(min = 200.dp, max = 280.dp)
                 .heightIn(max = 400.dp)
@@ -127,14 +127,14 @@ fun AudioQualitySelectionMenu(
                     .padding(vertical = 8.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Text(
+                AppText(
                     text = "音质选择",
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                 )
-                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                AppHorizontalDivider(color = Color.White.copy(alpha = 0.1f))
                 options.forEach { option ->
                     val isSelected = option.preferenceId == requestedAudioQuality
                     Row(
@@ -155,7 +155,7 @@ fun AudioQualitySelectionMenu(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Start
                     ) {
-                        Text(
+                        AppText(
                             text = option.label,
                             color = if (isSelected) {
                                 MaterialTheme.colorScheme.primary
@@ -175,8 +175,8 @@ fun AudioQualitySelectionMenu(
                         }
                         Spacer(modifier = Modifier.weight(1f))
                         if (isSelected) {
-                            Icon(
-                                imageVector = CupertinoIcons.Default.Checkmark,
+                            AppIcon(
+                                imageVector = Icons.Outlined.Check,
                                 contentDescription = "当前音质",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)

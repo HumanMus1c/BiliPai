@@ -36,7 +36,7 @@ import com.android.purebilibili.core.store.HomeDurationStyle
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode
 import com.android.purebilibili.core.ui.animation.DissolveAnimationPreset
-import com.android.purebilibili.core.ui.animation.DissolvableVideoCard
+import com.android.purebilibili.core.ui.animation.MaybeDissolvableVideoCard
 import com.android.purebilibili.core.ui.animation.jiggleOnDissolve
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.performance.TrackScrollJank
@@ -131,6 +131,8 @@ internal fun HomeCategoryPageContent(
     onVideoClick: (HomeVideoClickRequest) -> Unit,
     onUpClick: (Long) -> Unit = {},
     onLiveClick: (Long, String, String) -> Unit,
+    /** 顶栏直播已统一到 LiveList；首页内嵌直播分类仅作跳转入口。 */
+    onOpenLiveHome: () -> Unit = {},
     onLoadMore: () -> Unit,
     onDismissVideo: (VideoItem) -> Unit,
     onWatchLater: (String, Long) -> Unit,
@@ -252,65 +254,28 @@ internal fun HomeCategoryPageContent(
                 modifier = Modifier.fillMaxSize()
             ) {
         if (category == HomeCategory.LIVE) {
-            // Live Category Content
-            
-            // 1. Followed Live Rooms
-            if (categoryState.followedLiveRooms.isNotEmpty()) {
-                item(span = { GridItemSpan(gridColumns) }) {
+            // 顶栏/侧滑偶发进入内嵌直播页时，引导到与底栏一致的 LiveList 首页。
+            item(span = { GridItemSpan(gridColumns) }) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.DoubleExtraLarge),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
+                ) {
                     AppText(
-                        text = "关注",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = AppSpacingTokens.Small, vertical = AppSpacingTokens.Small)
+                        text = "直播首页已独立",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
-                }
-                
-                itemsIndexed(
-                    items = categoryState.followedLiveRooms,
-                    key = { _, room -> "followed_${room.roomid}" },
-                    contentType = { _, _ -> "live_room" }
-                ) { index, room ->
-                    LiveRoomCard(
-                        room = room,
-                        index = index,
-                        isDataSaverActive = isDataSaverActive,
-                        preferLowQualityCover = preferLowQualityCover,
-                        modifier = if (index == 0) firstGridItemModifier else Modifier,
-                        onClick = { onLiveClick(room.roomid, room.title, room.uname) } 
-                    )
-                }
-            }
-            
-            // 2. Popular Live Rooms
-            if (categoryState.liveRooms.isNotEmpty()) {
-                item(span = { GridItemSpan(gridColumns) }) {
                     AppText(
-                        text = "推荐直播",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        text = "与底栏「直播」相同，支持分区、排序与下拉刷新",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = AppSpacingTokens.Small, vertical = AppSpacingTokens.Small)
                     )
-                }
-                
-                itemsIndexed(
-                    items = categoryState.liveRooms,
-                    key = { _, room -> "popular_${room.roomid}" },
-                    contentType = { _, _ -> "live_room" }
-                ) { index, room ->
-                    LiveRoomCard(
-                        room = room,
-                        index = index,
-                        isDataSaverActive = isDataSaverActive,
-                        preferLowQualityCover = preferLowQualityCover,
-                        modifier = if (categoryState.followedLiveRooms.isEmpty() && index == 0) {
-                            firstGridItemModifier
-                        } else {
-                            Modifier
-                        },
-                        onClick = { onLiveClick(room.roomid, room.title, room.uname) } 
-                    )
+                    AppTextButton(onClick = onOpenLiveHome) {
+                        AppText("打开直播首页")
+                    }
                 }
             }
         } else {
@@ -430,11 +395,12 @@ internal fun HomeCategoryPageContent(
                         val isDynamicDetailCard = video.dynamicId.isNotBlank() && !video.bvid.startsWith("BV", ignoreCase = true)
                         val isDissolving = video.bvid in dissolvingVideos
 
-                        DissolvableVideoCard(
+                        MaybeDissolvableVideoCard(
                             isDissolving = isDissolving,
                             onDissolveComplete = { onDissolveComplete(video.bvid) },
                             cardId = video.bvid,
                             preset = DissolveAnimationPreset.TELEGRAM_FAST,
+                            preserveContentLayerWhenIdle = cardTransitionEnabled,
                             modifier = Modifier
                                 .jiggleOnDissolve(
                                     cardId = video.bvid,

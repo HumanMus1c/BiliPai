@@ -7,10 +7,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -295,7 +294,7 @@ fun AspectRatioButton(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
             AppIcon(
-                CupertinoIcons.Default.Star,
+                Icons.Outlined.Star,
                 contentDescription = "画面比例",
                 tint = Color.White,
                 modifier = Modifier.size(16.dp)

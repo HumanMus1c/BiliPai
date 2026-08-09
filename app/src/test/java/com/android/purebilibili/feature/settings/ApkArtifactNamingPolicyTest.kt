@@ -15,7 +15,9 @@ class ApkArtifactNamingPolicyTest {
         ).first { file -> file.exists() }.readText()
 
         assertTrue(buildFile.contains("abstract class ExportBiliPaiApkTask"))
-        assertTrue(buildFile.contains("outputFileName.set(\"BiliPai-\$exportedVersionName.apk\")"))
+        assertTrue(buildFile.contains("outputFileName.set(deliveryFileName)"))
+        assertTrue(buildFile.contains("\"BiliPai-\$biliApkVersionName.apk\""))
+        assertTrue(buildFile.contains("\"BiliPai-\$biliApkVersionName-\$variantName.apk\""))
         assertTrue(buildFile.contains("outputs/bilipai/\$variantName"))
         assertTrue(buildFile.contains("variantName == \"release\" || variantName == \"dev\""))
         assertFalse(buildFile.contains("tasks.withType(com.android.build.gradle.tasks.PackageApplication"))

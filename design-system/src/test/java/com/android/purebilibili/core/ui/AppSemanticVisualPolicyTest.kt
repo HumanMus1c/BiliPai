@@ -2,13 +2,12 @@ package com.android.purebilibili.core.ui
 
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class AppSemanticVisualPolicyTest {
 
@@ -20,34 +19,16 @@ class AppSemanticVisualPolicyTest {
     )
 
     @Test
-    fun iosUsesCupertinoIconsAndFallbackAccent() {
-        val policy = resolveAppSemanticVisualPolicy(
-            uiPreset = UiPreset.IOS,
-            androidNativeVariant = AndroidNativeVariant.MIUIX,
-            materialPalette = palette,
-        )
-
-        assertEquals(AppSemanticIconFamily.CUPERTINO, policy.iconFamily)
-        assertFalse(policy.prefersGroupedListCards)
-        assertNull(policy.accentPalette)
-        assertEquals(
-            Color(0xFFABCDEF),
-            policy.resolveAccent(AppSemanticAccentRole.TERTIARY, Color(0xFFABCDEF)),
-        )
-    }
-
-    @Test
-    fun material3AndMiuixUseMaterialSemanticVisuals() {
-        listOf(AndroidNativeVariant.MATERIAL3, AndroidNativeVariant.MIUIX).forEach { variant ->
+    fun twoValueStylesUseMaterialSemanticVisuals() {
+        listOf(AppUiStyle.MATERIAL3, AppUiStyle.MIUIX).forEach { style ->
             val policy = resolveAppSemanticVisualPolicy(
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = variant,
+                uiStyle = style,
                 materialPalette = palette,
             )
 
             assertEquals(AppSemanticIconFamily.MATERIAL, policy.iconFamily)
             assertEquals(
-                variant == AndroidNativeVariant.MIUIX,
+                style == AppUiStyle.MIUIX,
                 policy.prefersGroupedListCards,
             )
             assertEquals(palette, policy.accentPalette)
@@ -107,7 +88,7 @@ class AppSemanticVisualPolicyTest {
             "app/src/main/java/com/android/purebilibili/feature/settings/SettingsSemanticIconPolicy.kt",
         )
         val styleDependency = Regex(
-            """\b(UiPreset|UiStyle|AndroidNativeVariant|LocalUiPreset|LocalUiStyle|LocalAndroidNativeVariant)\b"""
+            """\b(UiPreset|UiStyle|AppUiStyle|AndroidNativeVariant|LocalUiPreset|LocalUiStyle|LocalAppUiStyle|LocalAndroidNativeVariant)\b"""
         )
 
         paths.forEach { path ->

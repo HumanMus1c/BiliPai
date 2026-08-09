@@ -48,7 +48,7 @@
 | 主题 | 浅色/深色/跟随系统、动态取色、对比度与壁纸 | 已完成基线 | 语义色由 design-system 统一提供 |
 | 界面预设 | Material 3、Android Native/Miuix、iOS 风格 | 持续优化 | 组件 facade、暗色与无障碍一致性继续回归 |
 | 液态玻璃 | 首页底栏、顶部、分段控件和详情操作区同源 chrome | 持续优化 | 不支持或低预算设备走安全降级路径 |
-| Navigation3 | 61 个 NavKey、自持返回栈、预测返回和场景动画 | 持续优化 | runtime/UI 已同版 1.2.0-alpha07；全入口真机回归仍是 P0 |
+| Navigation3 | 62 个 NavKey、自持返回栈、预测返回和场景动画 | 持续优化 | runtime/UI 已同版 1.2.0-alpha07；全入口真机回归仍是 P0 |
 | 视频整卡过渡 | 整卡 shared bounds、冻结来源会话、实时/封面返回 | 持续优化 | 正在验收真实来源页、稳态零额外绘制、取消恢复与错卡降级 |
 | 大屏适配 | 平板/折叠屏 rail、双栏、影院布局与方向策略 | 已完成基线 | 每次导航/播放器 UI 变化需同步回归 |
 | 加载反馈 | 主题化 loading、pull-to-refresh、自研 shimmer、Lottie | 已完成基线 | 不再依赖第三方 Compose Shimmer |

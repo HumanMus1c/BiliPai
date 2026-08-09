@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,7 +11,7 @@ class ContentCardSurfacePolicyTest {
 
     @Test
     fun miuixContentCardsUseTokenSurfaceAndFlatElevation() {
-        val spec = resolveContentCardSurfaceSpec(UiPreset.MD3, AndroidNativeVariant.MIUIX)
+        val spec = resolveContentCardSurfaceSpec(AppUiStyle.MIUIX)
         assertTrue(spec.usesTonalContainerTreatment)
         assertEquals(ContainerLevel.Card, spec.cornerLevel)
         assertEquals(0.8f, spec.borderWidthDp)
@@ -23,7 +22,7 @@ class ContentCardSurfacePolicyTest {
 
     @Test
     fun materialContentCardsKeepLegacyGlassShellDefaults() {
-        val spec = resolveContentCardSurfaceSpec(UiPreset.MD3, AndroidNativeVariant.MATERIAL3)
+        val spec = resolveContentCardSurfaceSpec(AppUiStyle.MATERIAL3)
         assertFalse(spec.usesTonalContainerTreatment)
         assertEquals(0f, spec.borderWidthDp)
     }

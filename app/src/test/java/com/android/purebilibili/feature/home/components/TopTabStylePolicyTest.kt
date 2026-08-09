@@ -4,6 +4,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.theme.AndroidNativeVariant
 import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.resolveUiStyle
 import com.android.purebilibili.core.ui.AppTopTabPresentation
 import com.android.purebilibili.core.ui.resolveAppTopChromePolicy
 import java.io.File
@@ -137,8 +138,9 @@ class TopTabStylePolicyTest {
 
     @Test
     fun `home top tab presentation routes by preset and native variant`() {
+        // 2B 迁移：iOS 输入经迁移表并入 MIUIX，落到 TONAL_CAPSULE→MATERIAL_UNDERLINE 首页呈现。
         assertEquals(
-            AppTopTabPresentation.MOVING_CAPSULE,
+            AppTopTabPresentation.MATERIAL_UNDERLINE,
             topStyle(UiPreset.IOS, AndroidNativeVariant.MATERIAL3).presentation
         )
         assertEquals(
@@ -156,7 +158,7 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `home top preset style separates ios material3 and miuix text tabs`() {
+    fun `home top preset style keeps migrated ios aligned with miuix text tabs`() {
         val ios = topStyle(UiPreset.IOS, AndroidNativeVariant.MATERIAL3)
         val material3 = topStyle(UiPreset.MD3, AndroidNativeVariant.MATERIAL3)
         val miuix = topStyle(UiPreset.MD3, AndroidNativeVariant.MIUIX)
@@ -164,10 +166,11 @@ class TopTabStylePolicyTest {
         assertEquals(ios.searchBarHeight, material3.searchBarHeight)
         assertEquals(material3.searchBarHeight, miuix.searchBarHeight)
         assertNotEquals(material3.unifiedPanelCornerRadius, miuix.unifiedPanelCornerRadius)
-        assertEquals(AppTopTabPresentation.MOVING_CAPSULE, ios.presentation)
+        // 2B 迁移：iOS 输入并入 MIUIX，与 miuix 呈现一致。
+        assertEquals(AppTopTabPresentation.MATERIAL_UNDERLINE, ios.presentation)
         assertEquals(AppTopTabPresentation.MATERIAL_UNDERLINE, material3.presentation)
         assertEquals(AppTopTabPresentation.MATERIAL_UNDERLINE, miuix.presentation)
-        assertEquals(TopTabIndicatorStyle.CAPSULE, ios.indicatorStyle)
+        assertEquals(TopTabIndicatorStyle.MATERIAL, ios.indicatorStyle)
         assertEquals(TopTabIndicatorStyle.MATERIAL, material3.indicatorStyle)
         assertEquals(TopTabIndicatorStyle.MATERIAL, miuix.indicatorStyle)
     }
@@ -189,7 +192,8 @@ class TopTabStylePolicyTest {
         val material3 = topStyle(UiPreset.MD3, AndroidNativeVariant.MATERIAL3)
         val miuix = topStyle(UiPreset.MD3, AndroidNativeVariant.MIUIX)
 
-        assertEquals(5.dp, ios.reservedContentBottomGap)
+        // 2B 迁移：iOS 输入并入 MIUIX 预留 12dp 内容底部间隙。
+        assertEquals(12.dp, ios.reservedContentBottomGap)
         assertEquals(5.dp, material3.reservedContentBottomGap)
         assertEquals(12.dp, miuix.reservedContentBottomGap)
         assertEquals(
@@ -206,9 +210,9 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `miuix top settings button follows action button metrics while other presets keep existing size`() {
+    fun `home top settings button converges to unified edge control height`() {
         assertEquals(
-            36.dp,
+            36.dp, // 两主题统一：与头像、搜索胶囊同高
             resolveHomeTopSettingsButtonSize(
                 uiPreset = UiPreset.IOS,
                 androidNativeVariant = AndroidNativeVariant.MATERIAL3
@@ -222,7 +226,7 @@ class TopTabStylePolicyTest {
             )
         )
         assertEquals(
-            40.dp,
+            36.dp,
             resolveHomeTopSettingsButtonSize(
                 uiPreset = UiPreset.MD3,
                 androidNativeVariant = AndroidNativeVariant.MIUIX
@@ -324,6 +328,17 @@ class TopTabStylePolicyTest {
 
         assertTrue(itemBlock.contains("presentation == AppTopTabPresentation.MOVING_CAPSULE -> resolveSharedBottomBarCapsuleShape()"))
         assertFalse(itemBlock.contains("presentation == AppTopTabPresentation.MOVING_CAPSULE -> AppShapes.container(ContainerLevel.Pill)"))
+    }
+
+    @Test
+    fun `top tab chrome centers wrapped dock`() {
+        val source = sourceText(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/HomeTopTabChrome.kt"
+        )
+
+        assertTrue(source.contains("val dockAlignment = Alignment.Center"))
+        assertTrue(source.contains(".align(dockAlignment)"))
+        assertFalse(source.contains("val dockAlignment = Alignment.CenterStart"))
     }
 
     @Test
@@ -621,28 +636,6 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `md3 and miuix use screenshot underline when liquid glass is off`() {
-        assertTrue(
-            shouldUsePlainMd3TopTabUnderline(
-                presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
-                liquidGlassEnabled = false
-            )
-        )
-        assertFalse(
-            shouldUsePlainMd3TopTabUnderline(
-                presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
-                liquidGlassEnabled = true
-            )
-        )
-        assertFalse(
-            shouldUsePlainMd3TopTabUnderline(
-                presentation = AppTopTabPresentation.MOVING_CAPSULE,
-                liquidGlassEnabled = false
-            )
-        )
-    }
-
-    @Test
     fun `md3 top tabs remove outer dock when liquid glass is off`() {
         assertFalse(
             shouldDrawHomeTopTabOuterChromeSurface(
@@ -792,7 +785,8 @@ class TopTabStylePolicyTest {
         assertTrue(itemSource.contains("resolveTopTabSkinStickerIconSize(showText = showText)"))
         assertTrue(rowCallSource.contains("resolveTopTabSkinPartitionIconSize()"))
         assertTrue(rowCallSource.contains("resolveTopTabSkinStickerRowHeight("))
-        assertTrue(rowCallSource.contains("if (effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE && !hasSkinStickerIcons)"))
+        // 纯色 wash 胶囊仅限 skin 主题兜底；常规主题始终由移动胶囊负责。
+        assertTrue(rowCallSource.contains("if (effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE && !hasSkinStickerIcons && skinPlainStyle)"))
         assertTrue(itemSource.contains("resolveTopTabSkinStickerItemVerticalPadding(showText = showText)"))
         assertTrue(itemSource.contains("resolveTopTabSkinStickerIndicatorWidth()"))
         assertTrue(itemSource.contains("alpha(selectionFraction)"))
@@ -853,7 +847,8 @@ class TopTabStylePolicyTest {
         androidNativeVariant: AndroidNativeVariant,
         labelMode: Int = 2,
     ): HomeTopPresetStyle = resolveHomeTopPresetStyle(
-        chromePolicy = resolveAppTopChromePolicy(uiPreset, androidNativeVariant),
+        // 兼容桥接：旧 pair 输入经迁移表落到两值风格。
+        chromePolicy = resolveAppTopChromePolicy(resolveUiStyle(uiPreset, androidNativeVariant)),
         labelMode = labelMode,
     )
 

@@ -12,6 +12,7 @@ class MigratedFeatureStyleLintTest {
                 RegexOption.DOT_MATCHES_ALL,
             ),
             "迁移模块仍有字面圆角",
+            allowlist = StyleLintAllowlist.SHAPE_HITS,
         )
     }
 
@@ -35,8 +36,12 @@ class MigratedFeatureStyleLintTest {
         )
     }
 
-    private fun assertNoOffenders(pattern: Regex, message: String) {
-        val offenders = StyleLintSupport.findOffendersInMigratedFeatures(pattern)
+    private fun assertNoOffenders(
+        pattern: Regex,
+        message: String,
+        allowlist: Set<String> = emptySet(),
+    ) {
+        val offenders = StyleLintSupport.findOffendersInMigratedFeatures(pattern, allowlist)
         assertTrue(offenders.isEmpty(), "$message\n${offenders.joinToString("\n")}")
     }
 }

@@ -239,7 +239,8 @@ object DanmakuParser {
             val translationDurationMs = optBasDouble(jsonArray, 9)
                 ?.let { (it * 1000).toLong() }
                 ?: duration
-            val translationDelayMs = (optBasDouble(jsonArray, 10) ?: 0.0).let { (it * 1000).toLong() }
+            // delay 按官方格式为毫秒（区别于 index 9 的秒），直接取整
+            val translationDelayMs = (optBasDouble(jsonArray, 10) ?: 0.0).toLong()
             val noStroke = jsonArray.optString(11, "") == "true"
             // index 12 = font，官方引擎未处理，忽略
             val easing = if (jsonArray.optString(13, "1") == "0") {
@@ -357,8 +358,10 @@ object DanmakuParser {
                 val next = tokens[index]
                 if (next[0] == 'M' || next[0] == 'm' || next[0] == 'L' || next[0] == 'l') break
                 val parsed = next.toDoubleOrNull()
-                if (parsed == null) {
-                    // 非法 token（如超长数字溢出），停止解析避免死循环
+                // 非法 token（超长数字、乱码）停止解析避免死循环：
+                // 超长数字可能在 Double 内不溢出（如 1e36），但远超 BAS 像素坐标
+                // 合理范围（672x438 基准），同样视为非法。
+                if (parsed == null || !parsed.isFinite() || kotlin.math.abs(parsed) > 100_000.0) {
                     return points
                 }
                 params.add(parsed)

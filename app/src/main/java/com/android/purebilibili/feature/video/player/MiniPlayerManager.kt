@@ -286,9 +286,16 @@ internal fun shouldTrimDanmakuCachesOnEnterBackground(
 internal fun shouldRefreshVideoFrameOnEnterForeground(
     hadSavedTrackParams: Boolean,
     hasMediaItems: Boolean,
-    playbackState: Int
+    playbackState: Int,
+    retainedBackgroundAudio: Boolean = false,
 ): Boolean {
-    return hadSavedTrackParams && hasMediaItems && playbackState != Player.STATE_IDLE
+    // 后台音频仍在连续播放时，即使 seek 到 currentPosition，Media3 也可能回退到
+    // 前一个音频同步点，造成回前台后重复播放约 2 秒。恢复视频轨和 surface 即可
+    // 重新产出画面，不要打断连续音频时间线。
+    return !retainedBackgroundAudio &&
+        hadSavedTrackParams &&
+        hasMediaItems &&
+        playbackState != Player.STATE_IDLE
 }
 
 internal fun shouldKickPlaybackAfterForegroundTrackRestore(
@@ -944,6 +951,14 @@ class MiniPlayerManager private constructor(private val context: Context) :
         val hadSavedTrackParams = savedTrackParams != null
         val appliedHeavyOptimization = didApplyHeavyBackgroundVideoOptimization
         val appliedIdleRelease = didApplyIdlePlaybackRelease
+        val retainedBackgroundAudio = shouldRetainBackgroundAudioSession(
+            shouldContinueBackgroundAudio = shouldContinueBackgroundAudio(),
+            wasPlaybackActive = isPlaybackActiveForLifecycle(
+                isPlaying = currentPlayer.isPlaying,
+                playWhenReady = currentPlayer.playWhenReady,
+                playbackState = currentPlayer.playbackState,
+            ),
+        )
         
         // 恢复视频轨道
         savedTrackParams?.let { originalParams ->
@@ -957,12 +972,15 @@ class MiniPlayerManager private constructor(private val context: Context) :
         if (shouldRefreshVideoFrameOnEnterForeground(
                 hadSavedTrackParams = hadSavedTrackParams,
                 hasMediaItems = currentPlayer.mediaItemCount > 0,
-                playbackState = currentPlayer.playbackState
+                playbackState = currentPlayer.playbackState,
+                retainedBackgroundAudio = retainedBackgroundAudio,
             )
         ) {
             val restorePositionMs = currentPlayer.currentPosition.coerceAtLeast(0L)
             currentPlayer.seekTo(restorePositionMs)
             Logger.d(TAG, "🎬 前台模式：请求重新渲染当前帧，避免返回视频页黑屏")
+        } else if (hadSavedTrackParams && retainedBackgroundAudio) {
+            Logger.d(TAG, "🎵 前台模式：保留连续音频时间线，恢复视频轨时跳过 seek")
         }
 
         val shouldPrepareForegroundPlayback = shouldPreparePlaybackOnForegroundResume(

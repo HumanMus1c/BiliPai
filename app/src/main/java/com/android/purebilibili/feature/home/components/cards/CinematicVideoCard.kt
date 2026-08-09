@@ -79,7 +79,7 @@ import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.animateEnter
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.data.model.response.VideoItem
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
+import androidx.compose.material.icons.Icons
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.draw.blur
 import com.android.purebilibili.feature.home.LocalHomeScrollOffset
@@ -93,8 +93,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import io.github.alexzhirkevich.cupertino.icons.filled.PlayCircle
-import io.github.alexzhirkevich.cupertino.icons.filled.BubbleLeft
+import androidx.compose.material.icons.filled.PlayCircle
 import com.android.purebilibili.feature.home.resolveHomeCardEnterAnimationEnabledAtMount
 import kotlin.math.roundToInt
 
@@ -378,7 +377,7 @@ fun CinematicVideoCard(
                      // 播放量
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall)) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Filled.PlayCircle, 
+                            imageVector = Icons.Filled.PlayCircle,
                             contentDescription = null,
                             modifier = Modifier.size(AppSpacingTokens.Medium),
                             tint = MediaContrastPalette.Foreground.copy(alpha = 0.8f)

@@ -106,6 +106,6 @@ flowchart LR
 ## 验收方法
 
 1. 所有目录链接均可访问，不能链接被 `.gitignore` 忽略的过程文件。
-2. `PAGE_CATALOG.md` 必须恰好登记源码中的 61 个 `BiliPaiNavKey`。
+2. `PAGE_CATALOG.md` 必须恰好登记源码中的 62 个 `BiliPaiNavKey`。
 3. 每份规范都必须同时出现初学者解释、规范要求、代码映射、当前差距和验收方法。
 4. 运行 `:app:testDebugUnitTest --tests '*UiDesignDocumentationStructureTest'`。

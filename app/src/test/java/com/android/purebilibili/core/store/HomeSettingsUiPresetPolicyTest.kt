@@ -1,6 +1,6 @@
 package com.android.purebilibili.core.store
 
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -43,18 +43,18 @@ class HomeSettingsUiPresetPolicyTest {
     }
 
     @Test
-    fun effectiveLiquidGlass_md3RequiresAndroidNativeToggle() {
+    fun effectiveLiquidGlass_material3RequiresAndroidNativeToggle() {
         assertFalse(
             resolveEffectiveLiquidGlassEnabled(
                 requestedEnabled = true,
-                uiPreset = UiPreset.MD3,
+                uiStyle = AppUiStyle.MATERIAL3,
                 androidNativeLiquidGlassEnabled = false
             )
         )
         assertTrue(
             resolveEffectiveLiquidGlassEnabled(
                 requestedEnabled = true,
-                uiPreset = UiPreset.MD3,
+                uiStyle = AppUiStyle.MATERIAL3,
                 androidNativeLiquidGlassEnabled = true
             )
         )
@@ -65,43 +65,43 @@ class HomeSettingsUiPresetPolicyTest {
         assertTrue(
             resolveSharedLiquidGlassChromeEnabled(
                 individualEnabled = false,
-                uiPreset = UiPreset.MD3,
+                uiStyle = AppUiStyle.MATERIAL3,
                 androidNativeLiquidGlassEnabled = true
             )
         )
         assertTrue(
             resolveSharedLiquidGlassChromeEnabled(
                 individualEnabled = false,
-                uiPreset = UiPreset.IOS,
+                uiStyle = AppUiStyle.MIUIX,
                 androidNativeLiquidGlassEnabled = true
             )
         )
     }
 
     @Test
-    fun sharedLiquidGlass_md3WithoutGlobalKeepsIndividualOff() {
+    fun sharedLiquidGlass_material3WithoutGlobalKeepsIndividualOff() {
         assertFalse(
             resolveSharedLiquidGlassChromeEnabled(
                 individualEnabled = true,
-                uiPreset = UiPreset.MD3,
+                uiStyle = AppUiStyle.MATERIAL3,
                 androidNativeLiquidGlassEnabled = false
             )
         )
     }
 
     @Test
-    fun sharedLiquidGlass_iosAllowsIndividualWithoutGlobal() {
+    fun sharedLiquidGlass_miuixAllowsIndividualWithoutGlobal() {
         assertTrue(
             resolveSharedLiquidGlassChromeEnabled(
                 individualEnabled = true,
-                uiPreset = UiPreset.IOS,
+                uiStyle = AppUiStyle.MIUIX,
                 androidNativeLiquidGlassEnabled = false
             )
         )
         assertFalse(
             resolveSharedLiquidGlassChromeEnabled(
                 individualEnabled = false,
-                uiPreset = UiPreset.IOS,
+                uiStyle = AppUiStyle.MIUIX,
                 androidNativeLiquidGlassEnabled = false
             )
         )

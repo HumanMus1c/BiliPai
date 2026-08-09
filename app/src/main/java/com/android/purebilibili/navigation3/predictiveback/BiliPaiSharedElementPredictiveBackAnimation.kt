@@ -35,11 +35,15 @@ internal class BiliPaiSharedElementPredictiveBackAnimation : BiliPaiPredictiveBa
         if (!isUnderlyingSourcePage) {
             return this
         }
-        // 底层来源页（首页等）：钉住 lookahead 位置，去掉预测返回 seek 带来的横移。
+        // 底层来源页（首页等）：仅在 SharedTransition 激活时钉住 lookahead。
+        // 无条件 skipToLookahead 会在 remount/取消后把源页锁在错误几何上，
+        // 表现为卡片返回落位错位，并打断 hazeSource 注册导致顶底栏实时模糊消失。
         val sharedTransitionScope = LocalSharedTransitionScope.current
         return if (sharedTransitionScope != null) {
             with(sharedTransitionScope) {
-                this@predictiveBackAnimationDecorator.skipToLookaheadPosition()
+                this@predictiveBackAnimationDecorator.skipToLookaheadPosition(
+                    enabled = { isTransitionActive },
+                )
             }
         } else {
             graphicsLayer { translationX = 0f }

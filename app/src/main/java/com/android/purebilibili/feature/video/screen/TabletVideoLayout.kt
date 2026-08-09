@@ -1,6 +1,5 @@
 // 文件路径: feature/video/screen/TabletVideoLayout.kt
 package com.android.purebilibili.feature.video.screen
-import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
 import android.content.res.Configuration
@@ -30,11 +29,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import com.android.purebilibili.core.ui.AppSplitLayout
-import com.android.purebilibili.core.ui.components.AppFloatingActionButton
 import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTab
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import com.android.purebilibili.core.util.ShareUtils
 import com.android.purebilibili.data.model.response.BgmInfo
 import com.android.purebilibili.data.model.response.ViewPoint
@@ -48,6 +47,9 @@ import com.android.purebilibili.feature.video.ui.section.resolveDisplayBgmList
 import com.android.purebilibili.feature.video.ui.section.UpInfoSection
 import com.android.purebilibili.feature.video.ui.section.VideoPlayerSection
 import com.android.purebilibili.feature.video.ui.section.VideoTitleWithDesc
+import com.android.purebilibili.feature.video.ui.section.resolveAllowLivePlayerSharedElementForMorph
+import com.android.purebilibili.feature.video.ui.section.resolveNavigationLiveSurfaceTextureEnabled
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
@@ -56,14 +58,12 @@ import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.outlined.*
 import kotlinx.coroutines.launch
 
 //  共享元素过渡
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
@@ -124,7 +124,8 @@ internal fun TabletVideoLayout(
     currentPlayMode: com.android.purebilibili.feature.video.player.PlayMode = com.android.purebilibili.feature.video.player.PlayMode.SEQUENTIAL,
     onPlayModeClick: () -> Unit = {},
     forceCoverOnlyOnReturn: Boolean = false,
-    predictiveBackCancelRecoveryGeneration: Int = 0
+    predictiveBackCancelRecoveryGeneration: Int = 0,
+    liveSurfaceCardTransitionEnabled: Boolean = true
 ) {
     val layoutPolicy = remember(configuration.screenWidthDp) {
         resolveTabletVideoLayoutPolicy(
@@ -208,7 +209,14 @@ internal fun TabletVideoLayout(
                             uiState = uiState,
                             isFullscreen = false,
                             isInPipMode = isInPipMode,
-                            useTextureSurfaceForNavigation = transitionEnabled,
+                            useTextureSurfaceForNavigation = resolveNavigationLiveSurfaceTextureEnabled(
+                                cardTransitionEnabled = transitionEnabled,
+                                liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+                            ),
+                            allowLivePlayerSharedElement = resolveAllowLivePlayerSharedElementForMorph(
+                                cardTransitionEnabled = transitionEnabled,
+                                liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+                            ),
                             predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
                             onToggleFullscreen = onToggleFullscreen,
                             onQualityChange = playbackActions.changeQuality,
@@ -511,14 +519,18 @@ private fun TabletSecondaryContent(
         
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = shouldEnableVideoContentHorizontalPagerSwipe(
-                currentPage = pagerState.currentPage,
-                commentPageIndex = 0,
-                isPagerScrollInProgress = pagerState.isScrollInProgress,
-            ),
+            userScrollEnabled = false,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
+                .verticalPriorityHorizontalPagerSwipe(
+                    state = pagerState,
+                    enabled = shouldEnableVideoContentHorizontalPagerSwipe(
+                        currentPage = pagerState.currentPage,
+                        commentPageIndex = 0,
+                        isPagerScrollInProgress = pagerState.isScrollInProgress,
+                    ),
+                )
         ) { page ->
             when (page) {
                 0 -> {
@@ -568,7 +580,7 @@ private fun TabletSecondaryContent(
                     } else {
                         val commentChromeBackdrop = rememberLayerBackdrop()
                         Column(modifier = Modifier.fillMaxSize()) {
-                            CommentSortFilterBar(
+                            CommentSortHeader(
                                 count = commentState.replyCount,
                                 sortMode = commentState.sortMode,
                                 onSortModeChange = { mode ->
@@ -699,36 +711,7 @@ private fun TabletSecondaryContent(
                             }
                         }
 
-                        AppFloatingActionButton(
-                            onClick = commentActions.toggleUpOnly,
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(16.dp),
-                            containerColor = if (commentState.upOnlyFilter) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            contentColor = if (commentState.upOnlyFilter) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
-                            shape = androidx.compose.foundation.shape.CircleShape,
-                            elevation = FloatingActionButtonDefaults.elevation(8.dp)
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(8.dp)
-                            ) {
-                                AppIcon(
-                                    imageVector = if (commentState.upOnlyFilter) io.github.alexzhirkevich.cupertino.icons.CupertinoIcons.Default.CheckmarkCircle else io.github.alexzhirkevich.cupertino.icons.CupertinoIcons.Default.Person,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                AppText(
-                                    text = "只看\nUP",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 10.sp,
-                                    lineHeight = 12.sp,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                        }
-                            }
+                           }
                         }
                     }
                 }
@@ -740,6 +723,7 @@ private fun TabletSecondaryContent(
                     val visibleRelatedVideos = remember(success.related, hiddenRelatedBvids) {
                         filterRelatedVideosByHiddenBvids(success.related, hiddenRelatedBvids)
                     }
+                    val relatedVideoCardLayout = rememberRelatedVideoCardLayout()
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(8.dp)
@@ -763,6 +747,7 @@ private fun TabletSecondaryContent(
                             ) {
                                 RelatedVideoGridRow(
                                     videos = row,
+                                    cardLayout = relatedVideoCardLayout,
                                     followingMids = success.followingMids,
                                     transitionEnabled = LocalSharedTransitionEnabled.current,
                                     showUpBadge = showUpBadge,

@@ -17,16 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.core.ui.AppTopTabPresentation
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.Speaker
-import io.github.alexzhirkevich.cupertino.icons.filled.SpeakerSlash
-import io.github.alexzhirkevich.cupertino.icons.filled.SpeakerWave2
-import io.github.alexzhirkevich.cupertino.icons.filled.SunMax
-import io.github.alexzhirkevich.cupertino.icons.outlined.LightMax
-import io.github.alexzhirkevich.cupertino.icons.outlined.LightMin
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.VolumeOff
-import top.yukonga.miuix.kmp.icon.extended.VolumeUp
+import androidx.compose.material.icons.filled.LightMode
 
 /**
  * Three fully distinct volume/brightness feedback skins.
@@ -170,15 +161,15 @@ fun resolveGestureLevelIcon(
                 else -> Icons.AutoMirrored.Filled.VolumeUp
             }
             GestureLevelOverlayStyle.Ios -> when {
-                p < 0.01f -> CupertinoIcons.Filled.SpeakerSlash
-                p < 0.45f -> CupertinoIcons.Filled.Speaker
-                else -> CupertinoIcons.Filled.SpeakerWave2
+                p < 0.01f -> Icons.AutoMirrored.Filled.VolumeOff
+                p < 0.45f -> Icons.AutoMirrored.Filled.VolumeDown
+                else -> Icons.AutoMirrored.Filled.VolumeUp
             }
             GestureLevelOverlayStyle.Miuix -> when {
-                p < 0.01f -> MiuixIcons.VolumeOff
+                p < 0.01f -> Icons.AutoMirrored.Filled.VolumeOff
                 p < 0.34f -> Icons.AutoMirrored.Filled.VolumeMute
                 p < 0.67f -> Icons.AutoMirrored.Filled.VolumeDown
-                else -> MiuixIcons.VolumeUp
+                else -> Icons.AutoMirrored.Filled.VolumeUp
             }
         }
         GestureLevelKind.Brightness -> when (style) {
@@ -188,9 +179,9 @@ fun resolveGestureLevelIcon(
                 else -> Icons.Filled.BrightnessHigh
             }
             GestureLevelOverlayStyle.Ios -> when {
-                p < 0.34f -> CupertinoIcons.Outlined.LightMin
-                p < 0.67f -> CupertinoIcons.Filled.SunMax
-                else -> CupertinoIcons.Outlined.LightMax
+                p < 0.34f -> Icons.Filled.BrightnessLow
+                p < 0.67f -> Icons.Filled.LightMode
+                else -> Icons.Filled.BrightnessHigh
             }
             GestureLevelOverlayStyle.Miuix -> when {
                 p < 0.20f -> Icons.Filled.Brightness4

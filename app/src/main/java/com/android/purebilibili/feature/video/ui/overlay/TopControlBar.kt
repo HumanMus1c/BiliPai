@@ -30,10 +30,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.currentStateAsState
-//  Cupertino Icons
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.*
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import com.android.purebilibili.core.ui.AppIcons
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material.icons.Icons
@@ -249,7 +248,7 @@ fun TopControlBar(
                     modifier = Modifier.size(layoutPolicy.buttonSizeDp.dp)
                 ) {
                     AppIcon(
-                        imageVector = CupertinoIcons.Default.ChevronBackward, 
+                        imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
                         contentDescription = "Back", 
                         tint = Color.White,
                         modifier = Modifier.size(layoutPolicy.iconSizeDp.dp)

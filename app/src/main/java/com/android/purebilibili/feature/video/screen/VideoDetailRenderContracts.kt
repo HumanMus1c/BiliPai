@@ -69,7 +69,6 @@ internal data class VideoDetailEngagementActions(
 internal data class VideoDetailCommentActions(
     val loadComments: () -> Unit,
     val setSortMode: (CommentSortMode) -> Unit,
-    val toggleUpOnly: () -> Unit,
     val deleteComment: (Long) -> Unit,
     val startDissolve: (Long) -> Unit,
     val loadMoreSubReplies: () -> Unit,

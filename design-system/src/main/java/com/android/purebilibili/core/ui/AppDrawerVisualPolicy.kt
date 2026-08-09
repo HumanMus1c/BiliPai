@@ -17,11 +17,6 @@ fun resolveAppDrawerVisualPolicy(
     renderer: PresetPrimitiveRenderer,
     blurEnabled: Boolean,
 ): AppDrawerVisualPolicy = when (renderer) {
-    PresetPrimitiveRenderer.IOS -> AppDrawerVisualPolicy(
-        containerTreatment = AppDrawerContainerTreatment.TRANSLUCENT,
-        profileChevronSizeDp = 18,
-    )
-
     PresetPrimitiveRenderer.MATERIAL3,
     PresetPrimitiveRenderer.MIUIX_BRIDGED -> AppDrawerVisualPolicy(
         containerTreatment = if (blurEnabled) {

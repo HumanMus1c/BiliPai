@@ -581,6 +581,34 @@ object VideoRepository {
                         return fetchWebFeed(idx = idx, refreshCount = refreshCount)
                     }
                 }
+                com.android.purebilibili.core.store.SettingsManager.FeedApiType.MERGED -> {
+                    // 合并模式(参数对齐 PiliNara 原版):
+                    // Web 半边用 fresh_type=4/feed_version=V8/brush=idx 等参数;
+                    // App 半边用匿名 android_hd 取流(不依赖登录), 并行请求后交错合并、按视频去重
+                    return coroutineScope {
+                        val webDeferred = async { fetchMergedWebFeed(idx = idx, refreshCount = refreshCount) }
+                        val mobileDeferred = async { fetchMergedMobileFeed(idx = idx) }
+                        val webResult = webDeferred.await()
+                        val mobileResult = mobileDeferred.await()
+
+                        val webList = webResult.getOrNull().orEmpty()
+                        val mobileList = mobileResult.getOrNull().orEmpty()
+
+                        if (webList.isEmpty() && mobileList.isEmpty()) {
+                            // 两者都失败：优先返回 web 的失败原因，其次移动端
+                            val error = webResult.exceptionOrNull() ?: mobileResult.exceptionOrNull()
+                                ?: Exception("获取合并推荐流失败")
+                            com.android.purebilibili.core.util.Logger.d("VideoRepo", " Merged feed both failed: ${error.message}")
+                            Result.failure(error)
+                        } else {
+                            com.android.purebilibili.core.util.Logger.d(
+                                "VideoRepo",
+                                " Merged feed: web=${webList.size}, mobile=${mobileList.size}"
+                            )
+                            Result.success(com.android.purebilibili.feature.home.HomeFeedMergePolicy.mergeFeeds(web = webList, app = mobileList))
+                        }
+                    }
+                }
                 else -> return fetchWebFeed(idx = idx, refreshCount = refreshCount)
             }
         } catch (e: CancellationException) {
@@ -677,6 +705,113 @@ object VideoRepository {
             throw e
         } catch (e: Exception) {
             com.android.purebilibili.core.util.Logger.d("VideoRepo", " Mobile feed exception: ${e.message}")
+            return Result.failure(e)
+        }
+    }
+    
+    //  [合并模式] Web 端推荐流 - 参数对齐 PiliNara 原版合并模式
+    //  (feed_version=V8 常量会话、fresh_type=4、brush=idx、version=1、homepage_ver=1)
+    //  仅用于 FeedApiType.MERGED, 不影响 Web 单独模式
+    private suspend fun fetchMergedWebFeed(idx: Int, refreshCount: Int): Result<List<VideoItem>> {
+        try {
+            val cachedKeys = WbiKeyManager.getWbiKeys().getOrNull()
+            val navWbiImg = if (cachedKeys == null) api.getNavInfo().data?.wbi_img else null
+            val resolvedKeys = resolveHomeFeedWbiKeys(
+                cachedKeys = cachedKeys,
+                navWbiImg = navWbiImg
+            ) ?: throw Exception("无法获取 Key")
+            val (imgKey, subKey) = resolvedKeys
+
+            val params = mapOf(
+                "version" to "1",
+                "feed_version" to "V8",
+                "homepage_ver" to "1",
+                "ps" to refreshCount.toString(),
+                "fresh_idx" to idx.toString(),
+                "brush" to idx.toString(),
+                "fresh_type" to "4"
+            )
+            val signedParams = WbiUtils.sign(params, imgKey, subKey)
+            val feedResp = api.getRecommendParams(signedParams)
+
+            val list = feedResp.data?.item?.map { it.toVideoItem() }?.filter { it.bvid.isNotEmpty() } ?: emptyList()
+
+            com.android.purebilibili.core.util.Logger.d("VideoRepo", " Merged Web推荐: total=${list.size}")
+
+            return Result.success(list)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return Result.failure(e)
+        }
+    }
+
+    //  [合并模式] App 端推荐流 - 匿名 android_hd 取流, 参数对齐 PiliNara 原版合并模式
+    //  与 App 单独模式(TV appkey + access_token)无关: 不依赖登录, 靠 buvid 建立会话
+    private suspend fun fetchMergedMobileFeed(idx: Int): Result<List<VideoItem>> {
+        try {
+            // 匿名 app 取流依赖 buvid 会话, 缺失时先通过 SPI 获取
+            if (TokenManager.buvid3Cache.isNullOrEmpty()) {
+                ensureBuvid3FromSpi()
+            }
+            val params = mapOf(
+                "build" to "2001100",
+                "c_locale" to "zh_CN",
+                "channel" to "master",
+                "column" to "4",
+                "device" to "pad",
+                "device_name" to "android",
+                "device_type" to "0",
+                "disable_rcmd" to "0",
+                "flush" to "5",
+                "fnval" to "976",
+                "fnver" to "0",
+                "force_host" to "2",
+                "fourk" to "1",
+                "guidance" to "0",
+                "https_url_req" to "0",
+                "idx" to idx.toString(),
+                "mobi_app" to "android_hd",
+                "network" to "wifi",
+                "platform" to "android",
+                "player_net" to "1",
+                "pull" to if (idx == 0) "true" else "false",  // 首页 true=刷新, 往后 false=加载更多
+                "qn" to "32",
+                "recsys_mode" to "0",
+                "s_locale" to "zh_CN",
+                "splash_id" to "",
+                "statistics" to "{\"appId\":5,\"platform\":3,\"version\":\"2.0.1\",\"abtest\":\"\"}",
+                "ts" to AppSignUtils.getTimestamp().toString(),
+                "voice_balance" to "0"
+            )
+
+            // PiliPlus/PiliNara 风格: key/value percent-encode 后拼接签名,
+            // 再用 encoded=true 端点原样发送, 保证签名与线上 query 完全一致
+            val signedParams = AppSignUtils.signForAndroidHdLogin(params)
+            val encodedParams = signedParams.mapValues { (_, value) -> AppSignUtils.percentEncode(value) }
+
+            com.android.purebilibili.core.util.Logger.d("VideoRepo", " Merged Mobile feed request: idx=$idx")
+            val feedResp = api.getMobileFeedEncoded(encodedParams)
+
+            if (feedResp.code != 0) {
+                com.android.purebilibili.core.util.Logger.d("VideoRepo", " Merged Mobile feed error: code=${feedResp.code}, msg=${feedResp.message}")
+                return Result.failure(Exception(feedResp.message))
+            }
+
+            val list = feedResp.data?.items
+                ?.filter { it.goto == "av" }  // 只保留视频类型
+                ?.map { it.toVideoItem() }
+                ?.filter { it.bvid.isNotEmpty() }
+                ?: emptyList()
+
+            com.android.purebilibili.core.util.Logger.d("VideoRepo", " Merged Mobile推荐: total=${list.size}")
+
+            return Result.success(list)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            com.android.purebilibili.core.util.Logger.d("VideoRepo", " Merged Mobile feed exception: ${e.message}")
             return Result.failure(e)
         }
     }

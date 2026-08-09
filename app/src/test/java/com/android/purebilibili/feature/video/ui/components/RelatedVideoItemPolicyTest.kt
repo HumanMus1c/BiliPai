@@ -88,7 +88,7 @@ class RelatedVideoItemPolicyTest {
         // UP 与播放量/弹幕成组贴底，避免 SpaceBetween 三等分把间距撑开。
         assertTrue(source.contains("verticalArrangement = Arrangement.spacedBy(4.dp)"))
         assertTrue(
-            source.indexOf("UpBadgeName(") < source.indexOf("CupertinoIcons.Filled.Play")
+            source.indexOf("UpBadgeName(") < source.indexOf("Icons.Filled.PlayArrow")
         )
     }
 

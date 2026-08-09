@@ -27,7 +27,13 @@ internal fun resolveFavoriteCollectionSharedElementId(
     return "$normalizedType:$id"
 }
 
-internal fun resolveFavoriteFolderContentPageSize(): Int = 20
+/** 文档 x/v3/fav/resource/list：ps 定义域 1-20。 */
+internal const val FAVORITE_RESOURCE_PAGE_SIZE_MAX = 20
+
+internal fun resolveFavoriteFolderContentPageSize(): Int = FAVORITE_RESOURCE_PAGE_SIZE_MAX
+
+internal fun normalizeFavoriteResourcePageSize(ps: Int): Int =
+    ps.coerceIn(1, FAVORITE_RESOURCE_PAGE_SIZE_MAX)
 
 internal fun resolveSubscribedFavoritePreviewCover(folder: FavFolder): String? {
     if (folder.source != FavFolderSource.SUBSCRIBED) return null

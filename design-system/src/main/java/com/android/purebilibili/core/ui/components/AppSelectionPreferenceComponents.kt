@@ -38,10 +38,12 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.appContentDialogWidth
+import com.android.purebilibili.core.ui.resolveAppContentDialogLayoutPolicy
+import com.android.purebilibili.core.ui.resolveAppContentDialogProperties
 import kotlin.math.round
 
 @Immutable
@@ -106,16 +108,17 @@ fun <T> AppSingleChoiceDialog(
 ) {
     val configuration = LocalConfiguration.current
     val maxDialogHeight = (configuration.screenHeightDp * 0.8f).dp
+    val layoutPolicy = remember { resolveAppContentDialogLayoutPolicy(maxWidthDp = 420) }
 
     Dialog(
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        properties = resolveAppContentDialogProperties(
+            usePlatformDefaultWidth = layoutPolicy.usePlatformDefaultWidth,
+        ),
     ) {
         Surface(
             modifier = modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .widthIn(min = 280.dp, max = 420.dp)
+                .appContentDialogWidth(policy = layoutPolicy, wrapHeight = false)
                 .heightIn(max = maxDialogHeight),
             shape = AppShapes.container(ContainerLevel.Dialog),
             color = AppSurfaceTokens.cardContainer(),
@@ -224,6 +227,30 @@ fun AppSliderDialogPreference(
     }
 }
 
+/**
+ * 滑块确认弹窗尺寸策略（委托统一内容 Dialog 策略）。
+ *
+ * 按钮区必须用内容尺寸按钮，不可复用 iOS Alert 的 [com.android.purebilibili.core.ui.AppDialogAction]
+ * （会 fillMaxSize 撑满父级）。
+ */
+@Immutable
+data class AppSliderDialogLayoutPolicy(
+    val usePlatformDefaultWidth: Boolean,
+    val horizontalPaddingDp: Int,
+    val minWidthDp: Int,
+    val maxWidthDp: Int,
+)
+
+fun resolveAppSliderDialogLayoutPolicy(): AppSliderDialogLayoutPolicy {
+    val base = resolveAppContentDialogLayoutPolicy(maxWidthDp = 420)
+    return AppSliderDialogLayoutPolicy(
+        usePlatformDefaultWidth = base.usePlatformDefaultWidth,
+        horizontalPaddingDp = base.horizontalPaddingDp,
+        minWidthDp = base.minWidthDp,
+        maxWidthDp = base.maxWidthDp,
+    )
+}
+
 @Composable
 fun AppSliderDialog(
     title: String,
@@ -238,10 +265,22 @@ fun AppSliderDialog(
     var draftValue by remember(value, valueRange, steps) {
         mutableFloatStateOf(resolveAppSliderDialogValue(value, valueRange, steps))
     }
+    val layoutPolicy = remember { resolveAppSliderDialogLayoutPolicy() }
 
-    Dialog(onDismissRequest = onDismissRequest) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = resolveAppContentDialogProperties(
+            usePlatformDefaultWidth = layoutPolicy.usePlatformDefaultWidth,
+        ),
+    ) {
         Surface(
-            modifier = modifier.widthIn(min = 280.dp, max = 420.dp),
+            modifier = modifier.appContentDialogWidth(
+                policy = resolveAppContentDialogLayoutPolicy(
+                    maxWidthDp = layoutPolicy.maxWidthDp,
+                    minWidthDp = layoutPolicy.minWidthDp,
+                    horizontalPaddingDp = layoutPolicy.horizontalPaddingDp,
+                ),
+            ),
             shape = AppShapes.container(ContainerLevel.Dialog),
             color = AppSurfaceTokens.cardContainer(),
             tonalElevation = 6.dp,
@@ -273,11 +312,12 @@ fun AppSliderDialog(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    AppDialogAction(onClick = onDismissRequest) {
+                    // 内容尺寸按钮：避免 AppDialogAction 在 iOS 预设下 fillMaxSize 把弹窗撑满屏高
+                    AppTextButton(onClick = onDismissRequest) {
                         Text("取消")
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    AppDialogAction(
+                    AppTextButton(
                         onClick = {
                             onConfirm(resolveAppSliderDialogValue(draftValue, valueRange, steps))
                         },

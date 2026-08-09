@@ -1,6 +1,6 @@
 # 发布流程（维护版）
 
-最后更新：2026-08-05（日历构建号 YY.MMDD.N）
+最后更新：2026-08-06（语义化 MAJOR.MINOR.PATCH；Changelog 标签行格式）
 
 ## 目标
 
@@ -19,15 +19,16 @@
 
 1. 更新版本号  
    - 文件：`app/build.gradle.kts`
-   - 规则：`versionCode + 1`；`versionName` 为 `YY.MMDD.N`（见 [版本规范](VERSIONING.md)）
-   - 同日再发：`N + 1`；换日：改 `MMDD` 且 `N` 从 1 起
-   - 标签：稳定版标签必须为 `v<versionName>`，例如 `v26.0805.1`
+   - 规则：`versionCode + 1`；`versionName` 为 `MAJOR.MINOR.PATCH`（见 [版本规范](VERSIONING.md)）
+   - 规则：大升级升 MAJOR，加功能升 MINOR，修 bug 升 PATCH；`versionCode` 每次 +1
+   - 标签：稳定版标签必须为 `v<versionName>`，例如 `v0.2.0`
    - 注意：若 `versionName` 已领先公开文档，发布前必须补齐 `CHANGELOG.md` 与 README/Wiki
 
 2. 更新发布日志  
    - 文件：`CHANGELOG.md`
-   - 格式：遵循 [更新日志撰写规范](CHANGELOG_GUIDE.md)
-   - 要求：以 GitHub 上一个实际发布标签为比较基准，根据完整提交范围归纳用户可感知能力、修复、兼容性和发布变化
+   - 格式：自 v0.2.0 起使用 **标签行**（`[添加]` / `[修复]` / `[更改]` / `[适配]` / `[移除]`），段末 `vX.Y.Z(<short_sha>)`；详见 [更新日志撰写规范](CHANGELOG_GUIDE.md)
+   - 要求：以 GitHub 上一个实际发布标签为比较基准，`git log <prev>..HEAD` 归纳用户可感知结果；**正文不写竞品名**
+   - 频道发布：直接复制 `更新日志(ChangeLog)` 至版本行（含），再附 versionCode / SHA-256
 
 3. 同步 README  
    - 文件：`README.md`、`README_EN.md`

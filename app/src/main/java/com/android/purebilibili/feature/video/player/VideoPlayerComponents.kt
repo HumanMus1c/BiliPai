@@ -9,10 +9,9 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -84,7 +83,7 @@ fun VideoTitleSection(
             )
             Spacer(Modifier.width(4.dp))
             AppIcon(
-                imageVector = if (expanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
+                imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(18.dp)
@@ -138,7 +137,7 @@ fun VideoTitleWithDesc(
             )
             Spacer(Modifier.width(4.dp))
             AppIcon(
-                imageVector = if (expanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
+                imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(16.dp)
@@ -237,7 +236,7 @@ fun UpInfoSection(
             ) {
                 if (!isFollowing) {
                     AppIcon(
-                        CupertinoIcons.Default.Plus,
+                        Icons.Outlined.Add,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(14.dp)
@@ -530,7 +529,7 @@ fun DescriptionSection(desc: String) {
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     AppIcon(
-                        imageVector = if (expanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
+                        imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
@@ -654,7 +653,7 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AppIcon(
-                        CupertinoIcons.Default.Play,
+                        Icons.Outlined.PlayArrow,
                         contentDescription = null,
                         tint = Color.White.copy(alpha = 0.9f),
                         modifier = Modifier.size(12.dp)
@@ -714,7 +713,7 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         AppIcon(
-                            CupertinoIcons.Default.Play,
+                            Icons.Outlined.PlayArrow,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(12.dp)
@@ -802,7 +801,7 @@ fun PagesSelector(
                     fontWeight = FontWeight.Medium
                 )
                 AppIcon(
-                    imageVector = if (isExpanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
+                    imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)

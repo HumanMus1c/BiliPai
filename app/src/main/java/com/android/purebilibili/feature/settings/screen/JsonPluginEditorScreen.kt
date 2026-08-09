@@ -6,10 +6,9 @@ import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,7 +65,7 @@ fun JsonPluginEditorScreen(
                 )
                 onSave(updated)
             }) {
-                AppIcon(CupertinoIcons.Default.Checkmark, contentDescription = "保存")
+                AppIcon(Icons.Outlined.Check, contentDescription = "保存")
             }
         },
     ) {
@@ -146,7 +145,7 @@ fun JsonPluginEditorContent(
                 AppTextButton(onClick = {
                     onRulesChange(rules + Rule(field = "title", op = "contains", value = JsonPrimitive(""), action = "hide"))
                 }) {
-                    AppIcon(CupertinoIcons.Default.Plus, null, modifier = Modifier.size(16.dp))
+                    AppIcon(Icons.Outlined.Add, null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     AppText("添加规则")
                 }
@@ -241,7 +240,7 @@ private fun RuleEditor(
                 )
                 AppIconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
                     AppIcon(
-                        CupertinoIcons.Default.Trash,
+                        Icons.Outlined.Delete,
                         contentDescription = "删除",
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)

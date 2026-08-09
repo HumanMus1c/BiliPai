@@ -10,10 +10,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.IntOffset
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
 
 object AppMotionEasing {
@@ -81,134 +79,93 @@ fun indicatorSpring(): SpringSpec<Float> =
     )
 
 /**
- * Preset-aware motion tokens. Screens should call the @Composable accessors
+ * 两值主题的运动 tokens。Screens should call the @Composable accessors
  * (e.g. [AppMotionTokens.standardSpec]) instead of writing literal `tween(...)`
- * or `spring(...)` calls. iOS resolves to spring physics; MD3 and Miuix resolve
- * to tween durations sourced from [com.android.purebilibili.core.theme.AndroidNativeChromeTokens].
+ * or `spring(...)` calls. MIUIX resolves to denser tween durations; MATERIAL3
+ * resolves to the standard Material tween durations.
  */
 object AppMotionTokens {
 
-    private const val IOS_STANDARD_DAMPING = 0.86f
-    private const val IOS_STANDARD_STIFFNESS = 380f
-    private const val IOS_EMPHASIZED_STIFFNESS = 280f
-    private const val IOS_EXPRESSIVE_DAMPING = 0.72f
-    private const val IOS_EXPRESSIVE_STIFFNESS = 520f
-    private const val SHARED_TRANSITION_DURATION_MILLIS = 360
-    private val SHARED_TRANSITION_EASING: Easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
-
     fun <T> resolveStandardSpec(
-        uiPreset: UiPreset,
-        androidNativeVariant: AndroidNativeVariant
-    ): FiniteAnimationSpec<T> = when {
-        uiPreset == UiPreset.IOS -> spring(
-            dampingRatio = IOS_STANDARD_DAMPING,
-            stiffness = IOS_STANDARD_STIFFNESS
-        )
-        uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX -> tween(
+        uiStyle: AppUiStyle
+    ): FiniteAnimationSpec<T> = when (uiStyle) {
+        AppUiStyle.MIUIX -> tween(
             durationMillis = 180,
             easing = AppMotionEasing.Continuity
         )
-        else -> tween(
+        AppUiStyle.MATERIAL3 -> tween(
             durationMillis = 200,
             easing = AppMotionEasing.Continuity
         )
     }
 
     fun <T> resolveEmphasizedSpec(
-        uiPreset: UiPreset,
-        androidNativeVariant: AndroidNativeVariant
-    ): FiniteAnimationSpec<T> = when {
-        uiPreset == UiPreset.IOS -> spring(
-            dampingRatio = IOS_STANDARD_DAMPING,
-            stiffness = IOS_EMPHASIZED_STIFFNESS
-        )
-        uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX -> tween(
+        uiStyle: AppUiStyle
+    ): FiniteAnimationSpec<T> = when (uiStyle) {
+        AppUiStyle.MIUIX -> tween(
             durationMillis = 240,
             easing = AppMotionEasing.EmphasizedEnter
         )
-        else -> tween(
+        AppUiStyle.MATERIAL3 -> tween(
             durationMillis = 300,
             easing = AppMotionEasing.EmphasizedEnter
         )
     }
 
     fun <T> resolveExpressiveSpec(
-        uiPreset: UiPreset,
-        androidNativeVariant: AndroidNativeVariant
-    ): FiniteAnimationSpec<T> = when {
-        uiPreset == UiPreset.IOS -> spring(
-            dampingRatio = IOS_EXPRESSIVE_DAMPING,
-            stiffness = IOS_EXPRESSIVE_STIFFNESS
-        )
-        uiPreset == UiPreset.MD3 && androidNativeVariant == AndroidNativeVariant.MIUIX -> tween(
+        uiStyle: AppUiStyle
+    ): FiniteAnimationSpec<T> = when (uiStyle) {
+        AppUiStyle.MIUIX -> tween(
             durationMillis = 150,
             easing = AppMotionEasing.EmphasizedExit
         )
-        else -> tween(
+        AppUiStyle.MATERIAL3 -> tween(
             durationMillis = 180,
             easing = AppMotionEasing.EmphasizedExit
         )
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    fun <T> resolveSpatialSpec(
-        uiPreset: UiPreset,
-        androidNativeVariant: AndroidNativeVariant
-    ): FiniteAnimationSpec<T> = spring(
+    fun <T> resolveSpatialSpec(): FiniteAnimationSpec<T> = spring(
         dampingRatio = 0.82f,
         stiffness = 380f
     )
 
     @Composable
     fun <T> standardSpec(): FiniteAnimationSpec<T> = resolveStandardSpec(
-        uiPreset = LocalUiPreset.current,
-        androidNativeVariant = LocalAndroidNativeVariant.current
+        uiStyle = LocalAppUiStyle.current
     )
 
     @Composable
     fun <T> emphasizedSpec(): FiniteAnimationSpec<T> = resolveEmphasizedSpec(
-        uiPreset = LocalUiPreset.current,
-        androidNativeVariant = LocalAndroidNativeVariant.current
+        uiStyle = LocalAppUiStyle.current
     )
 
     @Composable
     fun <T> expressiveSpec(): FiniteAnimationSpec<T> = resolveExpressiveSpec(
-        uiPreset = LocalUiPreset.current,
-        androidNativeVariant = LocalAndroidNativeVariant.current
+        uiStyle = LocalAppUiStyle.current
     )
 
-    fun <T> spatialSpec(): FiniteAnimationSpec<T> = tween(
-        durationMillis = SHARED_TRANSITION_DURATION_MILLIS,
-        easing = SHARED_TRANSITION_EASING
-    )
+    fun <T> spatialSpec(): FiniteAnimationSpec<T> = resolveSpatialSpec()
 
     fun <T> resolveBottomSheetSlideSpec(
-        uiPreset: UiPreset,
-        androidNativeVariant: AndroidNativeVariant
-    ): FiniteAnimationSpec<T> = if (uiPreset == UiPreset.IOS) {
-        softLandingSpring()
-    } else {
-        val tokens = resolveAndroidNativeChromeTokens(uiPreset, androidNativeVariant)
-        continuityTween(tokens.motionStandardMillis)
+        uiStyle: AppUiStyle
+    ): FiniteAnimationSpec<T> {
+        val tokens = resolveAndroidNativeChromeTokens(uiStyle)
+        return continuityTween(tokens.motionStandardMillis)
     }
 
     fun <T> resolveBottomSheetFadeEnterSpec(
-        uiPreset: UiPreset,
-        androidNativeVariant: AndroidNativeVariant
-    ): FiniteAnimationSpec<T> = resolveEmphasizedSpec(uiPreset, androidNativeVariant)
+        uiStyle: AppUiStyle
+    ): FiniteAnimationSpec<T> = resolveEmphasizedSpec(uiStyle)
 
     fun <T> resolveBottomSheetFadeExitSpec(
-        uiPreset: UiPreset,
-        androidNativeVariant: AndroidNativeVariant
-    ): FiniteAnimationSpec<T> = resolveExpressiveSpec(uiPreset, androidNativeVariant)
+        uiStyle: AppUiStyle
+    ): FiniteAnimationSpec<T> = resolveExpressiveSpec(uiStyle)
 
     fun resolveBottomSheetSlideExitSpec(
-        uiPreset: UiPreset,
-        androidNativeVariant: AndroidNativeVariant
-    ): FiniteAnimationSpec<IntOffset> = if (uiPreset == UiPreset.IOS) {
-        softLandingSpring()
-    } else {
-        val tokens = resolveAndroidNativeChromeTokens(uiPreset, androidNativeVariant)
-        emphasizedExitTween(tokens.expressiveMotionDurationMillis)
+        uiStyle: AppUiStyle
+    ): FiniteAnimationSpec<IntOffset> {
+        val tokens = resolveAndroidNativeChromeTokens(uiStyle)
+        return emphasizedExitTween(tokens.expressiveMotionDurationMillis)
     }
 }

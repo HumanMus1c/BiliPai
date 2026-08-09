@@ -1,15 +1,13 @@
 package com.android.purebilibili.feature.settings
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Analytics
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.ChartBar
-import io.github.alexzhirkevich.cupertino.icons.outlined.DocOnDoc
-import io.github.alexzhirkevich.cupertino.icons.outlined.House
-import io.github.alexzhirkevich.cupertino.icons.outlined.TextBubble
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,10 +18,10 @@ class SettingsSemanticIconPolicyTest {
 
     @Test
     fun homeFeedEntry_usesHomeSemanticIconInsteadOfAnalyticsIcon() {
-        val icon = resolveSettingsSemanticIcon(SettingsIconRole.HOME_FEED, AppSemanticIconFamily.CUPERTINO)
+        val icon = resolveSettingsSemanticIcon(SettingsIconRole.HOME_FEED, AppSemanticIconFamily.MATERIAL)
 
-        assertSameVectorAsset(CupertinoIcons.Outlined.House, icon)
-        assertNotEquals(CupertinoIcons.Default.ChartBar.name, icon.name)
+        assertSameVectorAsset(Icons.Outlined.Home, icon)
+        assertNotEquals(Icons.Outlined.Analytics.name, icon.name)
     }
 
     @Test
@@ -37,12 +35,12 @@ class SettingsSemanticIconPolicyTest {
     @Test
     fun settingsSceneRoles_useConcreteDomainIcons() {
         assertSameVectorAsset(
-            CupertinoIcons.Outlined.TextBubble,
-            resolveSettingsSemanticIcon(SettingsIconRole.INTERACTION_COMMENT, AppSemanticIconFamily.CUPERTINO)
+            Icons.Outlined.ChatBubbleOutline,
+            resolveSettingsSemanticIcon(SettingsIconRole.INTERACTION_COMMENT, AppSemanticIconFamily.MATERIAL)
         )
         assertSameVectorAsset(
-            CupertinoIcons.Outlined.DocOnDoc,
-            resolveSettingsSemanticIcon(SettingsIconRole.DATA_BACKUP, AppSemanticIconFamily.CUPERTINO)
+            Icons.Outlined.Backup,
+            resolveSettingsSemanticIcon(SettingsIconRole.DATA_BACKUP, AppSemanticIconFamily.MATERIAL)
         )
         assertSameVectorAsset(
             Icons.Outlined.Terminal,
@@ -57,7 +55,7 @@ class SettingsSemanticIconPolicyTest {
 
     @Test
     fun iosPreset_usesUniqueIconForEverySettingsRole() {
-        assertSettingsRoleIconsAreUnique(AppSemanticIconFamily.CUPERTINO)
+        assertSettingsRoleIconsAreUnique(AppSemanticIconFamily.MATERIAL)
     }
 
     @Test

@@ -601,7 +601,8 @@ class FavoriteViewModel(application: Application) : BaseListViewModel(applicatio
     private var subscribedCurrentPage = 0
     private var subscribedHasMore = true
     private var isLoadingSubscribedMore = false
-    private val subscribedPageSize = 40
+    // collected/list 允许较大 ps；示例与常见客户端用 20，避免过大页触发风控
+    private val subscribedPageSize = 20
     
     //  暴露加载更多状态
     private val _isLoadingMoreState = MutableStateFlow(false)

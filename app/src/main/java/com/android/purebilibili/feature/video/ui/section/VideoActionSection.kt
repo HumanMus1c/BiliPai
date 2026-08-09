@@ -41,9 +41,8 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.data.model.response.ViewInfo
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.*
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -330,7 +329,7 @@ fun ActionButtonsRow(
             contentAlignment = Alignment.Center
         ) {
             BiliActionButton(
-                icon = if (isDownloaded) CupertinoIcons.Default.Checkmark else downloadIcon,
+                icon = if (isDownloaded) Icons.Outlined.Check else downloadIcon,
                 text = downloadText,
                 isActive = isDownloaded || isDownloading,
                 activeColor = if (isDownloaded) {
@@ -529,7 +528,7 @@ private fun TripleLikeActionButton(
     ) {
         // 点赞图标
         TripleProgressIcon(
-            icon = if (isLiked) CupertinoIcons.Filled.HandThumbsup else CupertinoIcons.Outlined.HandThumbsup,
+            icon = if (isLiked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
             text = likeCount,
             progress = longPressProgress,
             progressColor = MaterialTheme.colorScheme.primary,
@@ -558,7 +557,7 @@ private fun TripleLikeActionButton(
             exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()
         ) {
             TripleProgressIcon(
-                icon = if (isFavorited) CupertinoIcons.Filled.Bookmark else CupertinoIcons.Default.Bookmark,
+                icon = if (isFavorited) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                 text = favoriteCount,
                 progress = longPressProgress,
                 progressColor = MaterialTheme.colorScheme.primary,

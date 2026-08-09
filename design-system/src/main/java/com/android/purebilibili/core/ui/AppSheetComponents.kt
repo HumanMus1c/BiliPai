@@ -32,10 +32,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.iOSSystemGray4
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
@@ -53,30 +51,22 @@ internal data class AdaptiveBottomSheetMotionSpec(
 )
 
 fun resolveAdaptiveBottomSheetVisualSpec(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+    uiStyle: AppUiStyle,
 ): AdaptiveBottomSheetVisualSpec {
-    val cornerLevel = if (uiPreset == UiPreset.MD3) {
-        ContainerLevel.Pill
-    } else {
-        ContainerLevel.Dialog
-    }
     val cornerRadiusDp = AppShapes.resolveContainerCornerDp(
-        level = cornerLevel,
-        uiPreset = uiPreset,
-        androidNativeVariant = androidNativeVariant
+        level = ContainerLevel.Pill,
+        uiStyle = uiStyle,
     ).value.toInt()
     return AdaptiveBottomSheetVisualSpec(
         cornerRadiusDp = cornerRadiusDp,
-        useMaterialDragHandle = uiPreset == UiPreset.MD3
+        useMaterialDragHandle = true,
     )
 }
 
 internal fun resolveAdaptiveBottomSheetMotionSpec(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+    uiStyle: AppUiStyle,
 ): AdaptiveBottomSheetMotionSpec {
-    val tokens = resolveAndroidNativeChromeTokens(uiPreset, androidNativeVariant)
+    val tokens = resolveAndroidNativeChromeTokens(uiStyle)
     return AdaptiveBottomSheetMotionSpec(
         scrimEnterDurationMillis = tokens.motionEmphasizedMillis,
         scrimExitDurationMillis = tokens.expressiveMotionDurationMillis,
@@ -85,53 +75,74 @@ internal fun resolveAdaptiveBottomSheetMotionSpec(
     )
 }
 
+/**
+ * 弹层宿主契约：App 风格对应的 BottomSheet 宿主实现。
+ *
+ * [MIUIX_OVERLAY] 对应 Miuix OverlayBottomSheet，[MATERIAL3] 对应 Material3
+ * ModalBottomSheet。两者不仅外观不同，弹层宿主也不同：OverlayBottomSheet 依赖
+ * Miuix overlay popup host（仅 AdaptiveScaffold 的 MIUIX 模式挂载，
+ * 见 [resolveAdaptiveScaffoldRenderer]），直接替换会导致无 popup host 的页面
+ * 点击无效或弹层不显示 —— 不允许机械替换。业务页不允许自行判断宿主，宿主感知
+ * 场景（如筛选弹层）必须消费 [resolveBottomSheetHost]，而不是复制判断逻辑。
+ */
+enum class BottomSheetHost {
+    /** Miuix OverlayBottomSheet：依赖 Miuix overlay popup host。 */
+    MIUIX_OVERLAY,
+
+    /** Material3 ModalBottomSheet：任意宿主下可用。 */
+    MATERIAL3,
+}
+
+fun resolveBottomSheetHost(
+    uiStyle: AppUiStyle
+): BottomSheetHost = when (uiStyle) {
+    AppUiStyle.MIUIX -> BottomSheetHost.MIUIX_OVERLAY
+    AppUiStyle.MATERIAL3 -> BottomSheetHost.MATERIAL3
+}
+
 internal fun bottomSheetScrimEnterTransition(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+    uiStyle: AppUiStyle,
 ): EnterTransition = fadeIn(
-    AppMotionTokens.resolveBottomSheetFadeEnterSpec(uiPreset, androidNativeVariant)
+    AppMotionTokens.resolveBottomSheetFadeEnterSpec(uiStyle)
 )
 
 internal fun bottomSheetScrimExitTransition(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+    uiStyle: AppUiStyle,
 ): ExitTransition = fadeOut(
-    AppMotionTokens.resolveBottomSheetFadeExitSpec(uiPreset, androidNativeVariant)
+    AppMotionTokens.resolveBottomSheetFadeExitSpec(uiStyle)
 )
 
 internal fun bottomSheetContentEnterTransition(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+    uiStyle: AppUiStyle,
 ): EnterTransition {
     return slideInVertically(
         initialOffsetY = { it },
-        animationSpec = AppMotionTokens.resolveBottomSheetSlideSpec(uiPreset, androidNativeVariant)
+        animationSpec = AppMotionTokens.resolveBottomSheetSlideSpec(uiStyle)
     ) + fadeIn(
-        AppMotionTokens.resolveBottomSheetFadeEnterSpec(uiPreset, androidNativeVariant)
+        AppMotionTokens.resolveBottomSheetFadeEnterSpec(uiStyle)
     )
 }
 
 internal fun bottomSheetContentExitTransition(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3
+    uiStyle: AppUiStyle,
 ): ExitTransition {
     return slideOutVertically(
         targetOffsetY = { it },
-        animationSpec = AppMotionTokens.resolveBottomSheetSlideExitSpec(
-            uiPreset,
-            androidNativeVariant
-        )
+        animationSpec = AppMotionTokens.resolveBottomSheetSlideExitSpec(uiStyle)
     ) + fadeOut(
-        AppMotionTokens.resolveBottomSheetFadeExitSpec<Float>(
-            uiPreset,
-            androidNativeVariant
-        )
+        AppMotionTokens.resolveBottomSheetFadeExitSpec<Float>(uiStyle)
     )
 }
 
 /**
- * iOS-style Modal Bottom Sheet wrapper.
- * Uses Material3 ModalBottomSheet but styled to match iOS.
+ * App 通用 Modal Bottom Sheet facade。
+ *
+ * 使用 Material3 ModalBottomSheet 作为中性宿主：即使宿主契约
+ * （[resolveBottomSheetHost]）在 MIUIX 下解析为 [BottomSheetHost.MIUIX_OVERLAY]，
+ * 本 facade 也不做机械替换 —— OverlayBottomSheet 依赖 Miuix overlay popup host
+ * （仅 AdaptiveScaffold 的 MIUIX 模式挂载），而本 facade 的调用点无法保证处于该
+ * 宿主之下。需要 Miuix overlay 宿主的场景由宿主感知 facade 消费
+ * [resolveBottomSheetHost]。两值风格在此仅做视觉区分（容器色、圆角、拖拽条、动效）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,23 +160,15 @@ fun AppModalBottomSheet(
     windowInsets: androidx.compose.foundation.layout.WindowInsets = androidx.compose.material3.BottomSheetDefaults.modalWindowInsets,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    val visualSpec = remember(uiPreset, androidNativeVariant) {
-        resolveAdaptiveBottomSheetVisualSpec(uiPreset, androidNativeVariant)
+    val uiStyle = LocalAppUiStyle.current
+    val visualSpec = remember(uiStyle) {
+        resolveAdaptiveBottomSheetVisualSpec(uiStyle)
     }
-    val adaptiveSheetShape = remember(visualSpec, uiPreset) {
-        if (shouldUseIosContinuousRounding(uiPreset)) {
-            IosContinuousRoundedCornerShape(
-                topStart = visualSpec.cornerRadiusDp.dp,
-                topEnd = visualSpec.cornerRadiusDp.dp
-            )
-        } else {
-            RoundedCornerShape(
-                topStart = visualSpec.cornerRadiusDp.dp,
-                topEnd = visualSpec.cornerRadiusDp.dp
-            )
-        }
+    val adaptiveSheetShape = remember(visualSpec) {
+        RoundedCornerShape(
+            topStart = visualSpec.cornerRadiusDp.dp,
+            topEnd = visualSpec.cornerRadiusDp.dp,
+        )
     }
     val sheetShape = shape ?: adaptiveSheetShape
     val progressVisual = resolveInteractiveOverlayProgressVisual(
@@ -174,14 +177,9 @@ fun AppModalBottomSheet(
         blurActive = true,
         maxScrimAlpha = scrimColor.alpha
     )
-    val resolvedContainerColor = if (uiPreset == UiPreset.MD3) {
-        if (isNativeMiuixEnabled(uiPreset, androidNativeVariant)) {
-            MaterialTheme.colorScheme.surfaceContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        }
-    } else {
-        containerColor
+    val resolvedContainerColor = when (uiStyle) {
+        AppUiStyle.MIUIX -> MaterialTheme.colorScheme.surfaceContainer
+        AppUiStyle.MATERIAL3 -> MaterialTheme.colorScheme.surfaceContainerLow
     }.let { color ->
         color.copy(alpha = color.alpha * progressVisual.surfaceAlphaMultiplier)
     }
@@ -194,14 +192,9 @@ fun AppModalBottomSheet(
         contentColor = contentColor,
         tonalElevation = tonalElevation,
         scrimColor = scrimColor.copy(alpha = progressVisual.scrimAlpha),
-        dragHandle = if (visualSpec.useMaterialDragHandle) {
-            if (isNativeMiuixEnabled(uiPreset, androidNativeVariant)) {
-                { AppBottomSheetDragHandle() }
-            } else {
-                { BottomSheetDefaults.DragHandle() }
-            }
-        } else {
-            dragHandle
+        dragHandle = when (uiStyle) {
+            AppUiStyle.MIUIX -> { { AppBottomSheetDragHandle() } }
+            AppUiStyle.MATERIAL3 -> { { BottomSheetDefaults.DragHandle() } }
         },
         contentWindowInsets = { windowInsets },
         content = {
@@ -223,15 +216,14 @@ data class AppBottomSheetMotion(
 
 @Composable
 fun rememberAppBottomSheetMotion(): AppBottomSheetMotion {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    return remember(uiPreset, androidNativeVariant) {
-        val motionSpec = resolveAdaptiveBottomSheetMotionSpec(uiPreset, androidNativeVariant)
+    val uiStyle = LocalAppUiStyle.current
+    return remember(uiStyle) {
+        val motionSpec = resolveAdaptiveBottomSheetMotionSpec(uiStyle)
         AppBottomSheetMotion(
-            scrimEnter = bottomSheetScrimEnterTransition(uiPreset, androidNativeVariant),
-            scrimExit = bottomSheetScrimExitTransition(uiPreset, androidNativeVariant),
-            contentEnter = bottomSheetContentEnterTransition(uiPreset, androidNativeVariant),
-            contentExit = bottomSheetContentExitTransition(uiPreset, androidNativeVariant),
+            scrimEnter = bottomSheetScrimEnterTransition(uiStyle),
+            scrimExit = bottomSheetScrimExitTransition(uiStyle),
+            contentEnter = bottomSheetContentEnterTransition(uiStyle),
+            contentExit = bottomSheetContentExitTransition(uiStyle),
             scrimEnterDurationMillis = motionSpec.scrimEnterDurationMillis,
             scrimExitDurationMillis = motionSpec.scrimExitDurationMillis,
             contentEnterFadeDurationMillis = motionSpec.contentEnterFadeDurationMillis,

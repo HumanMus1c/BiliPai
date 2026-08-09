@@ -6,10 +6,10 @@
 
 | 项目 | 当前值 |
 | --- | --- |
-| 应用版本 | 当前构建与最近完整发布记录 `v26.0805.1` / `versionCode 283` |
+| 应用版本 | 当前构建与最近完整发布记录 `v0.2.0` / `versionCode 284` |
 | Android | minSdk 26、targetSdk 35、compileSdk 37、arm64-v8a |
 | 工具链 | AGP 9.3.1、Gradle 9.5、Kotlin 2.4、JDK 21 |
-| Compose | BOM 2026.06.01、Material3 1.5.0-alpha25、Lifecycle 2.11.0 |
+| Compose | BOM 2026.06.00、Material3 1.5.0-alpha25、Lifecycle 2.11.0 |
 | 导航 | Navigation3 runtime/UI 1.2.0-alpha07、NavigationEvent 1.2.0-alpha03 |
 | 媒体 | Media3 1.10.1、DASH/HLS、MediaSession、Texture surface 连续返回 |
 | 视觉 | Miuix 0.9.3、Haze 2.0.0-alpha03、Backdrop 2.0.0、Compose Cupertino |

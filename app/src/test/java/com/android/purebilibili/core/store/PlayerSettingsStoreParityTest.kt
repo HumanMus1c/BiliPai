@@ -57,8 +57,12 @@ class PlayerSettingsStoreParityTest {
             PlayerSettingsStore.resolvePlayerInsightMode(null, true, false)
         )
         assertEquals(
-            PlayerSettingsStore.PlayerInsightMode.SMART,
+            PlayerSettingsStore.PlayerInsightMode.OFF,
             PlayerSettingsStore.resolvePlayerInsightMode("UNKNOWN", false, false)
+        )
+        assertEquals(
+            PlayerSettingsStore.PlayerInsightMode.OFF,
+            PlayerSettingsStore.resolvePlayerInsightMode(null, false, false)
         )
     }
 }

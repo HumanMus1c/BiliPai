@@ -223,14 +223,16 @@ class SubReplyDetailPresentationPolicyTest {
     }
 
     @Test
-    fun `sub reply remote total count follows reply detail page count before root count`() {
+    fun `sub reply remote total count uses max of declared counts to avoid window-size undercount`() {
         val data = ReplyData(
             cursor = ReplyCursor(allCount = 2),
             page = ReplyPage(count = 1),
             root = ReplyItem(count = 2, rcount = 1)
         )
 
-        assertEquals(1, resolveSubReplyRemoteTotalCount(data))
+        // 修复二级评论数量口径后：page.count 可能是分页窗口大小而非总数，
+        // 取所有可用声明的最大值，避免“显示还有 N 条，详情却在首屏结束”。
+        assertEquals(2, resolveSubReplyRemoteTotalCount(data))
     }
 
     @Test

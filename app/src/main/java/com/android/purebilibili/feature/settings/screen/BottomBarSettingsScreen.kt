@@ -25,10 +25,9 @@ import androidx.compose.ui.geometry.Offset // [New]
 import androidx.compose.ui.input.pointer.PointerInputChange // [New]
 import com.android.purebilibili.core.util.rememberHapticFeedback // [New]
 import com.android.purebilibili.core.util.HapticType // [New]
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +55,8 @@ import com.android.purebilibili.core.theme.BottomBarColors  //  统一底栏颜�
 import com.android.purebilibili.core.theme.BottomBarColorPalette  //  调色板
 import com.android.purebilibili.core.theme.BottomBarColorNames  //  颜色名称
 import com.android.purebilibili.core.theme.LocalSettingsLiquidGlassEnabled
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
@@ -86,19 +88,19 @@ data class TopTabConfig(
 
 internal fun resolveBottomBarTabIcon(
     id: String,
-    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
+    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.MATERIAL,
 ): ImageVector = resolveSettingsNavigationPreviewIcon(id, iconFamily, selected = false)
 
 internal fun resolveTopTabIcon(
     id: String,
-    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
+    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.MATERIAL,
 ): ImageVector = resolveSettingsNavigationPreviewIcon(id, iconFamily, selected = false)
 
 /**
  * 所有可用的底栏项目
  */
 internal fun resolveAllBottomBarTabs(
-    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
+    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.MATERIAL,
 ): List<BottomBarTabConfig> = listOf(
     BottomBarTabConfig("HOME", "首页", resolveBottomBarTabIcon("HOME", iconFamily), isDefault = true),
     BottomBarTabConfig("DYNAMIC", "动态", resolveBottomBarTabIcon("DYNAMIC", iconFamily), isDefault = true),
@@ -113,10 +115,10 @@ internal fun resolveAllBottomBarTabs(
     BottomBarTabConfig("PLUGINS", "插件中心", resolveBottomBarTabIcon("PLUGINS", iconFamily), isDefault = false)
 )
 
-private val defaultTopTabIds = listOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME", "PARTITION")
+private val defaultTopTabIds = listOf("RECOMMEND", "FOLLOW", "POPULAR", "LIVE", "GAME")
 
 internal fun resolveAllTopTabs(
-    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.CUPERTINO,
+    iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.MATERIAL,
 ): List<TopTabConfig> = listOf(
     TopTabConfig("RECOMMEND", "推荐", resolveTopTabIcon("RECOMMEND", iconFamily)),
     TopTabConfig("FOLLOW", "关注", resolveTopTabIcon("FOLLOW", iconFamily)),
@@ -162,7 +164,7 @@ fun BottomBarSettingsContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val iconFamily = rememberAppSemanticVisualPolicy().iconFamily
+    val iconFamily = rememberAppSemanticVisualPolicy().effectiveIconFamily
     val windowSizeClass = LocalWindowSizeClass.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -206,7 +208,9 @@ fun BottomBarSettingsContent(
         .collectAsStateWithLifecycle(initialValue = BottomBarSearchAutoExpandMode.DISABLED)
     val bottomBarSearchLayoutMode by SettingsManager.getBottomBarSearchLayoutMode(context)
         .collectAsStateWithLifecycle(initialValue = BottomBarSearchLayoutMode.FULL_DOCK)
-    val tabletUseSidebar by SettingsManager.getTabletUseSidebar(context).collectAsStateWithLifecycle(initialValue = false)
+    val isTabletDevice = LocalConfiguration.current.smallestScreenWidthDp >= 600
+    val tabletUseSidebar by SettingsManager.getTabletUseSidebar(context)
+        .collectAsStateWithLifecycle(initialValue = isTabletDevice)
     val sidebarAccountSwitcherEnabled by SettingsManager.getSidebarAccountSwitcherEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
     
@@ -220,9 +224,14 @@ fun BottomBarSettingsContent(
                 .filter { id -> allTopTabs.any { it.id == id } }
         )
     }
-    var localTopTabVisible by remember(topTabVisible) {
+    var localTopTabVisible by remember(topTabVisible, topTabOrder) {
         mutableStateOf(
-            topTabVisible.filter { id -> allTopTabs.any { it.id == id } }.toSet()
+            // 老配置可能超过上限：按用户顺序（含默认补全）裁剪到 SettingsManager.MAX_TOP_TABS
+            (topTabOrder + allTopTabs.map { it.id })
+                .distinct()
+                .filter { id -> topTabVisible.any { it == id } && allTopTabs.any { it.id == id } }
+                .take(SettingsManager.MAX_TOP_TABS)
+                .toSet()
         )
     }
     
@@ -383,7 +392,7 @@ fun BottomBarSettingsContent(
                         val visibilityMode by SettingsManager.getBottomBarVisibilityMode(context).collectAsStateWithLifecycle(initialValue = SettingsManager.BottomBarVisibilityMode.ALWAYS_VISIBLE)
                         val labelMode by SettingsManager.getBottomBarLabelMode(context).collectAsStateWithLifecycle(initialValue = 0)
                         SettingsSingleChoicePreference(
-                            icon = CupertinoIcons.Default.Eye,
+                            icon = Icons.Outlined.Visibility,
                             iconTint = com.android.purebilibili.core.theme.iOSOrange,
                             title = "显示模式",
                             subtitle = visibilityMode.description,
@@ -397,7 +406,7 @@ fun BottomBarSettingsContent(
                         )
                         AppPreferenceDivider()
                         SettingsSingleChoicePreference(
-                            icon = CupertinoIcons.Default.Tag,
+                            icon = Icons.Outlined.Label,
                             iconTint = com.android.purebilibili.core.theme.iOSPurple,
                             title = "标签样式",
                             options = listOf(
@@ -425,7 +434,7 @@ fun BottomBarSettingsContent(
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
                             SettingsSingleChoicePreference(
-                                icon = CupertinoIcons.Default.ListBullet,
+                                icon = Icons.Outlined.ViewList,
                                 iconTint = com.android.purebilibili.core.theme.iOSBlue,
                                 title = "顶部标签样式",
                                 options = listOf(
@@ -441,9 +450,9 @@ fun BottomBarSettingsContent(
                             AppPreferenceDivider()
                             SettingsSingleChoicePreference(
                                 icon = if (homeTopRightAction == HomeTopRightAction.INBOX) {
-                                    CupertinoIcons.Outlined.Envelope
+                                    Icons.Outlined.Mail
                                 } else {
-                                    CupertinoIcons.Default.Gearshape
+                                    Icons.Outlined.Settings
                                 },
                                 iconTint = com.android.purebilibili.core.theme.iOSOrange,
                                 title = "首页右上角入口",
@@ -457,7 +466,7 @@ fun BottomBarSettingsContent(
                             )
                             AppPreferenceDivider()
                             SettingsSingleChoicePreference(
-                                icon = CupertinoIcons.Default.Drop,
+                                icon = Icons.Outlined.WaterDrop,
                                 iconTint = com.android.purebilibili.core.theme.iOSTeal,
                                 title = "顶部模糊",
                                 options = listOf(
@@ -472,7 +481,7 @@ fun BottomBarSettingsContent(
                             )
                             AppPreferenceDivider()
                             SettingsSingleChoicePreference(
-                                icon = CupertinoIcons.Default.ListBullet,
+                                icon = Icons.Outlined.ViewList,
                                 iconTint = com.android.purebilibili.core.theme.iOSPurple,
                                 title = "首页顶部布局",
                                 options = HomeTopLayoutOrder.entries.map { order ->
@@ -485,7 +494,7 @@ fun BottomBarSettingsContent(
                             )
                             AppPreferenceDivider()
                             SettingsSingleChoicePreference(
-                                icon = CupertinoIcons.Outlined.MagnifyingGlass,
+                                icon = Icons.Outlined.Search,
                                 iconTint = com.android.purebilibili.core.theme.iOSTeal,
                                 title = "首页搜索框",
                                 options = listOf(
@@ -503,7 +512,7 @@ fun BottomBarSettingsContent(
                             )
                             AppPreferenceDivider()
                             SettingsSingleChoicePreference(
-                                icon = CupertinoIcons.Outlined.ArrowUpArrowDown,
+                                icon = Icons.Outlined.SwapVert,
                                 iconTint = com.android.purebilibili.core.theme.iOSBlue,
                                 title = "首页标签页",
                                 options = listOf(
@@ -525,7 +534,7 @@ fun BottomBarSettingsContent(
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
                             AppText(
-                                text = "可调整顶部标签的显示/隐藏和顺序，第一位会直接显示在首页顶部。",
+                                text = "可调整顶部标签的显示/隐藏和顺序，第一位会直接显示在首页顶部。最多显示 ${SettingsManager.MAX_TOP_TABS} 个标签。",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -571,7 +580,7 @@ fun BottomBarSettingsContent(
                                         enabled = !tab.fixedVisible && index > 0
                                     ) {
                                         AppIcon(
-                                            CupertinoIcons.Default.ChevronUp,
+                                            Icons.Outlined.KeyboardArrowUp,
                                             contentDescription = "上移",
                                             modifier = Modifier.size(16.dp)
                                         )
@@ -581,7 +590,7 @@ fun BottomBarSettingsContent(
                                         enabled = !tab.fixedVisible && index < visibleTopOrder.lastIndex
                                     ) {
                                         AppIcon(
-                                            CupertinoIcons.Default.ChevronDown,
+                                            Icons.Outlined.KeyboardArrowDown,
                                             contentDescription = "下移",
                                             modifier = Modifier.size(16.dp)
                                         )
@@ -602,7 +611,7 @@ fun BottomBarSettingsContent(
                                 } else if (isVisibleTab) {
                                     localTopTabVisible.size > 2
                                 } else {
-                                    true
+                                    localTopTabVisible.size < SettingsManager.MAX_TOP_TABS
                                 }
                                 Row(
                                     modifier = Modifier
@@ -650,9 +659,13 @@ fun BottomBarSettingsContent(
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
                         AppSwitchPreference(
-                            icon = CupertinoIcons.Outlined.SidebarLeft,
+                            icon = Icons.Outlined.ViewSidebar,
                             title = "侧边导航栏",
-                            subtitle = "在平板横屏或大屏布局中使用侧边栏代替底部导航",
+                            subtitle = if (isTabletDevice) {
+                                "平板/大屏建议开启：用侧边栏代替底部导航，充分利用横向空间（可随时关闭）"
+                            } else {
+                                "在平板横屏或大屏布局中使用侧边栏代替底部导航"
+                            },
                             checked = tabletUseSidebar,
                             onCheckedChange = { checked ->
                                 scope.launch {
@@ -662,7 +675,7 @@ fun BottomBarSettingsContent(
                             iconTint = com.android.purebilibili.core.theme.iOSBlue
                         )
                         AppSwitchPreference(
-                            icon = CupertinoIcons.Outlined.ArrowLeftArrowRight,
+                            icon = Icons.Outlined.SwapHoriz,
                             title = "侧边栏账号切换",
                             subtitle = "在首页侧边栏底部显示账号切换按钮",
                             checked = sidebarAccountSwitcherEnabled,
@@ -773,7 +786,8 @@ fun BottomBarSettingsContent(
                                 saveTopTabConfig()
                                 scope.launch {
                                     SettingsManager.setHomeHeaderBlurMode(context, HomeHeaderBlurMode.FOLLOW_PRESET)
-                                    SettingsManager.setTabletUseSidebar(context, false)
+                                    // 重置为设备类型默认：平板开侧栏，手机开底栏
+                                    SettingsManager.setTabletUseSidebar(context, isTabletDevice)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -781,7 +795,7 @@ fun BottomBarSettingsContent(
                                 contentColor = MaterialTheme.colorScheme.primary
                             )
                         ) {
-                            AppIcon(CupertinoIcons.Default.ArrowCounterclockwise, contentDescription = null, modifier = Modifier.size(18.dp))
+                            AppIcon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             AppText("重置为默认")
                         }
@@ -926,9 +940,21 @@ private fun BottomBarTabItem(
     onToggle: (Boolean) -> Unit,
     onColorChange: (Int) -> Unit
 ) {
-    //  获取项目当前颜色
-    val itemColor = BottomBarColors.getColorByIndex(colorIndex)
-    val iconContentColor = rememberAdaptivePreferenceIconContentColor(itemColor)
+    //  MD3(MATERIAL3)主题下可用项目图标跟随主题色,不再使用多彩色板;
+    //  颜色选择弹窗仅对保留多彩色的预设开放。
+    val uiStyle = LocalAppUiStyle.current
+    val isMaterial3 = uiStyle == AppUiStyle.MATERIAL3
+    val itemColor = if (isMaterial3) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        BottomBarColors.getColorByIndex(colorIndex)
+    }
+    val itemContainerColor = if (isMaterial3) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        itemColor
+    }
+    val iconContentColor = rememberAdaptivePreferenceIconContentColor(itemContainerColor)
     
     //  颜色选择弹窗状态
     var showColorPicker by remember { mutableStateOf(false) }
@@ -939,13 +965,13 @@ private fun BottomBarTabItem(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 图标 -  点击可更换颜色
+        // 图标 -  点击可更换颜色(仅多彩色预设开放)
         Box(
             modifier = Modifier
                 .size(36.dp)
                 .clip(AppShapes.container(ContainerLevel.Field))
-                .background(itemColor)
-                .clickable { showColorPicker = true },
+                .background(itemContainerColor)
+                .clickable(enabled = !isMaterial3) { showColorPicker = true },
             contentAlignment = Alignment.Center
         ) {
             AppIcon(
@@ -1017,7 +1043,7 @@ private fun BottomBarTabItem(
                             Spacer(modifier = Modifier.weight(1f))
                             if (index == colorIndex) {
                                 AppIcon(
-                                    CupertinoIcons.Default.Checkmark,
+                                    Icons.Outlined.Check,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)

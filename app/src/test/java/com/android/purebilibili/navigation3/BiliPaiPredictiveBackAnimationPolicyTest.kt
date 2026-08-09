@@ -24,10 +24,7 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
 
     @Test
     fun settingsPredictivePop_reusesIosPushPopTransform() {
-        val source = listOf(
-            File("app/src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiSettingsIosPredictiveBackAnimation.kt"),
-            File("src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiSettingsIosPredictiveBackAnimation.kt")
-        ).first { it.exists() }.readText()
+        val source = settingsIosPredictiveBackSource()
         val function = source.substringAfter(
             "override fun AnimatedContentTransitionScope<Scene<BiliPaiNavKey>>.onPredictivePopTransitionSpec"
         ).substringBefore(
@@ -37,6 +34,15 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
         assertTrue(function.contains("resolveSettingsIosPredictivePopContentTransform("))
         assertFalse(function.contains("durationMillis = 550"))
         assertFalse(function.contains("EnterTransition.None"))
+    }
+
+    @Test
+    fun settingsCommittedPop_reusesIosPushPopTransform() {
+        val source = settingsIosPredictiveBackSource()
+
+        assertTrue(source.contains("resolveSettingsIosPushPopContentTransform()"))
+        assertTrue(source.contains("defaultTransitionSpec<BiliPaiNavKey>().invoke(this)"))
+        assertFalse(source.contains("defaultPopTransitionSpec"))
     }
 
     @Test
@@ -85,7 +91,10 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
     @Test
     fun sharedElementPredictivePop_pinsUnderlyingSourcePageAgainstHorizontalDrift() {
         val source = sharedElementPredictiveBackSource()
-        assertTrue(source.contains("skipToLookaheadPosition()"))
+        // Only while SharedTransition is active — unconditional pin freezes wrong bounds
+        // after cancel/remount and breaks haze source registration.
+        assertTrue(source.contains("skipToLookaheadPosition("))
+        assertTrue(source.contains("enabled = { isTransitionActive }"))
         assertTrue(source.contains("isUnderlyingSourcePage"))
         assertTrue(source.contains("translationX = 0f"))
     }
@@ -253,6 +262,13 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
         return listOf(
             File("app/src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiDefaultPredictiveBackAnimation.kt"),
             File("src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiDefaultPredictiveBackAnimation.kt")
+        ).first { it.exists() }.readText()
+    }
+
+    private fun settingsIosPredictiveBackSource(): String {
+        return listOf(
+            File("app/src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiSettingsIosPredictiveBackAnimation.kt"),
+            File("src/main/java/com/android/purebilibili/navigation3/predictiveback/BiliPaiSettingsIosPredictiveBackAnimation.kt")
         ).first { it.exists() }.readText()
     }
 

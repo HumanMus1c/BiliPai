@@ -6,10 +6,10 @@ import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -78,8 +78,8 @@ fun LandscapeTopControlBar(
         //  左侧：返回 + 标题
         AppIconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
             AppIcon(
-                CupertinoIcons.Default.ChevronBackward,
-                contentDescription = "返回",
+                Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                 contentDescription = "返回",
                 tint = Color.White
             )
         }

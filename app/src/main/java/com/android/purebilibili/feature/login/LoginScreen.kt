@@ -703,7 +703,7 @@ private fun PhoneRegionPickerRow(
     val bg = if (selected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
     } else {
-        MaterialTheme.colorScheme.surface
+        AppSurfaceTokens.surface()
     }
     AppSurface(
         onClick = onClick,

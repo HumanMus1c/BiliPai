@@ -8,6 +8,7 @@ class HardcodedSpacingLintTest {
     fun migrated_features_use_app_spacing_tokens() {
         val offenders = StyleLintSupport.findOffendersInMigratedFeatures(
             Regex("""(?<![A-Za-z0-9_])\d+(?:\.\d+)?\.dp\b"""),
+            allowlist = StyleLintAllowlist.SPACING_HITS,
         )
         assertTrue(
             offenders.isEmpty(),

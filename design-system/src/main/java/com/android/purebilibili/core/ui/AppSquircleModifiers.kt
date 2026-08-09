@@ -7,10 +7,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.shouldUseMiuixSmoothRounding
 import top.yukonga.miuix.kmp.squircle.squircleBackground
 
@@ -19,17 +17,11 @@ fun Modifier.adaptiveSquircleBackground(
     color: Color,
     cornerRadius: Dp
 ): Modifier {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    return when {
-        shouldUseMiuixSmoothRounding(uiPreset, androidNativeVariant) -> {
+    return when (LocalAppUiStyle.current) {
+        AppUiStyle.MIUIX -> {
             squircleBackground(color = color, cornerRadius = cornerRadius)
         }
-        shouldUseIosContinuousRounding(uiPreset) -> {
-            clip(IosContinuousRoundedCornerShape(cornerRadius))
-                .background(color)
-        }
-        else -> {
+        AppUiStyle.MATERIAL3 -> {
             clip(RoundedCornerShape(cornerRadius))
                 .background(color)
         }
@@ -37,6 +29,5 @@ fun Modifier.adaptiveSquircleBackground(
 }
 
 internal fun shouldApplyMiuixSquircleBackground(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
-): Boolean = shouldUseMiuixSmoothRounding(uiPreset, androidNativeVariant)
+    uiStyle: AppUiStyle
+): Boolean = shouldUseMiuixSmoothRounding(uiStyle)

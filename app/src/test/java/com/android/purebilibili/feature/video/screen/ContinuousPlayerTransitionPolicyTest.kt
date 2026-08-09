@@ -2,6 +2,8 @@ package com.android.purebilibili.feature.video.screen
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ContinuousPlayerTransitionPolicyTest {
 
@@ -25,6 +27,35 @@ class ContinuousPlayerTransitionPolicyTest {
         assertEquals(
             ContinuousPlayerOrientationRequest.Landscape,
             awaitingLandscape.orientationRequest,
+        )
+    }
+
+    @Test
+    fun portraitObservationDoesNotCancelButtonEnterBeforeLandscapeRequestCompletes() {
+        assertTrue(
+            shouldKeepContinuousPlayerEnterPhaseWhilePortrait(
+                phase = ContinuousPlayerTransitionPhase.Expanding,
+                isLandscape = false,
+            )
+        )
+        assertTrue(
+            shouldKeepContinuousPlayerEnterPhaseWhilePortrait(
+                phase = ContinuousPlayerTransitionPhase.AwaitingLandscape,
+                isLandscape = false,
+            )
+        )
+
+        assertFalse(
+            shouldKeepContinuousPlayerEnterPhaseWhilePortrait(
+                phase = ContinuousPlayerTransitionPhase.Fullscreen,
+                isLandscape = false,
+            )
+        )
+        assertFalse(
+            shouldKeepContinuousPlayerEnterPhaseWhilePortrait(
+                phase = ContinuousPlayerTransitionPhase.Expanding,
+                isLandscape = true,
+            )
         )
     }
 
@@ -70,5 +101,39 @@ class ContinuousPlayerTransitionPolicyTest {
 
         assertEquals(ContinuousPlayerTransitionPhase.Collapsing, result.phase)
         assertEquals(ContinuousPlayerOrientationRequest.None, result.orientationRequest)
+    }
+
+    @Test
+    fun systemLandscapeFromMidExpansionSettlesFullscreen() {
+        val result = reduceContinuousPlayerTransition(
+            phase = ContinuousPlayerTransitionPhase.Expanding,
+            event = ContinuousPlayerTransitionEvent.OrientationChanged(isLandscape = true),
+        )
+        assertEquals(ContinuousPlayerTransitionPhase.Fullscreen, result.phase)
+    }
+
+    @Test
+    fun systemPortraitFromFullscreenOrStuckPhasesStartsCollapse() {
+        assertEquals(
+            ContinuousPlayerTransitionPhase.Collapsing,
+            reduceContinuousPlayerTransition(
+                phase = ContinuousPlayerTransitionPhase.Fullscreen,
+                event = ContinuousPlayerTransitionEvent.OrientationChanged(isLandscape = false),
+            ).phase,
+        )
+        assertEquals(
+            ContinuousPlayerTransitionPhase.Collapsing,
+            reduceContinuousPlayerTransition(
+                phase = ContinuousPlayerTransitionPhase.AwaitingLandscape,
+                event = ContinuousPlayerTransitionEvent.OrientationChanged(isLandscape = false),
+            ).phase,
+        )
+        assertEquals(
+            ContinuousPlayerTransitionPhase.Collapsing,
+            reduceContinuousPlayerTransition(
+                phase = ContinuousPlayerTransitionPhase.Expanding,
+                event = ContinuousPlayerTransitionEvent.OrientationChanged(isLandscape = false),
+            ).phase,
+        )
     }
 }

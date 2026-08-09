@@ -19,14 +19,10 @@ class SideBarRendererPolicyTest {
     }
 
     @Test
-    fun materialAndIosKeepFrostedSideBar() {
+    fun materialKeepsFrostedSideBar() {
         assertEquals(
             false,
             resolveAppNavigationCapabilities(PresetPrimitiveRenderer.MATERIAL3).usePlatformSideRail
-        )
-        assertEquals(
-            false,
-            resolveAppNavigationCapabilities(PresetPrimitiveRenderer.IOS).usePlatformSideRail
         )
     }
 

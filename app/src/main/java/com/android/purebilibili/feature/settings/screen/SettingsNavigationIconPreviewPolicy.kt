@@ -7,9 +7,6 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.*
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
 
 private enum class SettingsNavigationIconRole {
     HOME,
@@ -80,26 +77,6 @@ internal fun resolveSettingsNavigationPreviewIcon(
             SettingsNavigationIconRole.PARTITION -> if (selected) Icons.Filled.GridView else Icons.Outlined.GridView
             SettingsNavigationIconRole.KNOWLEDGE -> if (selected) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb
             SettingsNavigationIconRole.TECH -> if (selected) Icons.Filled.SmartToy else Icons.Outlined.SmartToy
-        }
-        AppSemanticIconFamily.CUPERTINO -> when (role) {
-            SettingsNavigationIconRole.HOME -> if (selected) CupertinoIcons.Filled.House else CupertinoIcons.Outlined.House
-            SettingsNavigationIconRole.DYNAMIC -> if (selected) CupertinoIcons.Filled.Bell else CupertinoIcons.Outlined.Bell
-            SettingsNavigationIconRole.STORY -> if (selected) CupertinoIcons.Filled.PlayCircle else CupertinoIcons.Outlined.PlayCircle
-            SettingsNavigationIconRole.HISTORY -> if (selected) CupertinoIcons.Filled.Clock else CupertinoIcons.Outlined.Clock
-            SettingsNavigationIconRole.LISTEN_VIDEO -> if (selected) CupertinoIcons.Default.MusicNote else CupertinoIcons.Outlined.MusicNote
-            SettingsNavigationIconRole.PROFILE -> if (selected) CupertinoIcons.Filled.Person else CupertinoIcons.Outlined.Person
-            SettingsNavigationIconRole.FAVORITE -> if (selected) CupertinoIcons.Filled.Star else CupertinoIcons.Outlined.Star
-            SettingsNavigationIconRole.LIVE -> if (selected) CupertinoIcons.Filled.Video else CupertinoIcons.Outlined.Video
-            SettingsNavigationIconRole.WATCH_LATER -> if (selected) CupertinoIcons.Filled.Clock else CupertinoIcons.Outlined.Clock
-            SettingsNavigationIconRole.SETTINGS -> if (selected) CupertinoIcons.Filled.Gearshape else CupertinoIcons.Default.Gearshape
-            SettingsNavigationIconRole.PLUGINS -> if (selected) CupertinoIcons.Default.Puzzlepiece else CupertinoIcons.Outlined.PuzzlepieceExtension
-            SettingsNavigationIconRole.FOLLOW -> if (selected) CupertinoIcons.Filled.PersonCropCircleBadgePlus else CupertinoIcons.Outlined.PersonCropCircleBadgePlus
-            SettingsNavigationIconRole.POPULAR -> if (selected) CupertinoIcons.Filled.ChartBar else CupertinoIcons.Outlined.ChartBar
-            SettingsNavigationIconRole.ANIME -> if (selected) CupertinoIcons.Filled.Tv else CupertinoIcons.Outlined.Tv
-            SettingsNavigationIconRole.GAME -> if (selected) CupertinoIcons.Filled.Gamecontroller else CupertinoIcons.Outlined.Gamecontroller
-            SettingsNavigationIconRole.PARTITION -> CupertinoIcons.Outlined.Grid
-            SettingsNavigationIconRole.KNOWLEDGE -> if (selected) CupertinoIcons.Filled.Lightbulb else CupertinoIcons.Outlined.Lightbulb
-            SettingsNavigationIconRole.TECH -> if (selected) CupertinoIcons.Filled.Cpu else CupertinoIcons.Outlined.Cpu
         }
     }
 }

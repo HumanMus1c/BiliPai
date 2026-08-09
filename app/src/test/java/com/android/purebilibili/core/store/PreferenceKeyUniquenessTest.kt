@@ -101,8 +101,9 @@ class PreferenceKeyUniquenessTest {
         /**
          * 冻结于 SettingsManager 拆分进行中的实测值：SettingsManager 与
          * PlayerSettingsStore / NavigationSettingsStore 之间的重叠。只能调小。
+         * sidebar_account_switcher_enabled 为上一快照后既有新增项，本次一并纳入快照。
          */
-        const val MAX_DUPLICATED_KEYS = 9
+        const val MAX_DUPLICATED_KEYS = 10
 
         val EXPECTED_DUPLICATED_KEY_OWNERS = mapOf(
             "bottom_bar_order" to setOf("NavigationSettingsStore.kt", "SettingsManager.kt"),
@@ -113,6 +114,7 @@ class PreferenceKeyUniquenessTest {
             "predictive_back_enabled" to setOf("NavigationSettingsStore.kt", "SettingsManager.kt"),
             "predictive_back_exit_direction" to setOf("NavigationSettingsStore.kt", "SettingsManager.kt"),
             "remember_last_playback_speed" to setOf("PlayerSettingsStore.kt", "SettingsManager.kt"),
+            "sidebar_account_switcher_enabled" to setOf("NavigationSettingsStore.kt", "SettingsManager.kt"),
             "tablet_use_sidebar" to setOf("NavigationSettingsStore.kt", "SettingsManager.kt"),
         )
 

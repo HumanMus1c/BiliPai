@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.android.purebilibili.core.ui.LocalUpBadgeVisibility
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,11 +38,19 @@ fun UpBadgeName(
     reserveTrailingSlot: Boolean = false,
     trailingSlotMinWidth: Dp = 40.dp,
     trailingSlotMinHeight: Dp = 0.dp,
-    showUpBadge: Boolean = true,
+    showUpBadge: Boolean? = null,
+    /** 内联尾随内容:紧跟名称文本之后渲染(用于「已关注」等紧凑状态标签)。 */
+    inlineTrailingContent: (@Composable () -> Unit)? = null,
     maxLines: Int = 1,
-    overflow: TextOverflow = TextOverflow.Ellipsis
+    overflow: TextOverflow = TextOverflow.Ellipsis,
+    // 名称右侧留白：名称占满可用宽度后，省略号与后续元素之间保留的空隙。
+    // 默认 0 不影响未显式传入的调用方。
+    nameEndPadding: Dp = 0.dp
 ) {
     val shouldShowMeta = !metaText.isNullOrBlank()
+    // null = 跟随全局「UP 认证徽章」开关(设置 > 外观 > 首页与列表),
+    // 相关推荐、搜索、分区等未显式传参的调用点统一生效。
+    val effectiveShowUpBadge = showUpBadge ?: LocalUpBadgeVisibility.current.showBadges
     val shouldRenderTrailingSlot = shouldRenderUpBadgeTrailingSlot(
         hasTrailingContent = badgeTrailingContent != null,
         reserveTrailingSlot = reserveTrailingSlot
@@ -51,7 +60,7 @@ fun UpBadgeName(
             modifier = modifier,
             verticalAlignment = if (shouldShowMeta) Alignment.Top else Alignment.CenterVertically
         ) {
-            if (shouldRenderUserUpBadge(showUpBadge)) {
+            if (shouldRenderUserUpBadge(effectiveShowUpBadge)) {
                 UserUpBadge(
                     containerColor = badgeBackgroundColor,
                     contentColor = badgeTextColor
@@ -70,13 +79,36 @@ fun UpBadgeName(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(
-                    text = name.ifBlank { "未知UP主" },
-                    style = nameStyle,
-                    color = nameColor,
-                    maxLines = maxLines,
-                    overflow = overflow
-                )
+                if (inlineTrailingContent != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = name.ifBlank { "未知UP主" },
+                            style = nameStyle,
+                            color = nameColor,
+                            maxLines = maxLines,
+                            overflow = overflow,
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .padding(end = nameEndPadding)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        inlineTrailingContent()
+                    }
+                } else {
+                    Text(
+                        text = name.ifBlank { "未知UP主" },
+                        style = nameStyle,
+                        color = nameColor,
+                        maxLines = maxLines,
+                        overflow = overflow,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = nameEndPadding)
+                    )
+                }
                 if (shouldShowMeta) {
                     Text(
                         text = metaText.orEmpty(),

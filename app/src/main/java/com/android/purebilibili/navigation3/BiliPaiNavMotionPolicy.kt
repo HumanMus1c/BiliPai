@@ -167,9 +167,8 @@ internal fun resolveBiliPaiNavDisplayPopRouteTransition(
                 fromKey.sharedElementTransition &&
                 (toKey == BiliPaiNavKey.MainHost || toKey == BiliPaiNavKey.Favorite)
         if (sharedReadyFavoriteCollectionReturn) {
-            // 合集详情↔收藏列表：预测返回时 sharedBounds 常对不齐，NO_OP 会让两页全屏叠在一起。
-            // 用轻量 sibling pop，进场仍可由顶栏 sharedBounds 增强。
-            return BiliPaiNavRouteTransition.LIGHT_SIBLING_POP
+            // 与首页一致：预测返回走 sharedBounds 整卡 morph（NO_OP 路由层 + SharedElement handler）。
+            return BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         }
 
         // Story 直达返回：没有 sharedBounds 对端，必须走普通过渡，否则黑底悬浮卡。

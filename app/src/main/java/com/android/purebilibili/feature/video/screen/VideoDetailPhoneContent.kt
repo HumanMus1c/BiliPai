@@ -223,7 +223,6 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 followingMids = engagementState.followingMids,
                                 videoTags = success.videoTags,
                                 sortMode = commentState.sortMode,
-                                upOnlyFilter = commentState.upOnlyFilter,
                                 onSortModeChange = { mode ->
                                     commentActions.setSortMode(mode)
                                     sortPreferenceScope.launch {
@@ -231,7 +230,6 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                             .setCommentDefaultSortMode(context, mode.apiMode)
                                     }
                                 },
-                                onUpOnlyToggle = commentActions.toggleUpOnly,
                                 onFollowClick = engagementActions.toggleFollow,
                                 onFavoriteClick = {
                                     openFavoriteFolders(VideoFavoriteEntryPoint.DetailActionRow)

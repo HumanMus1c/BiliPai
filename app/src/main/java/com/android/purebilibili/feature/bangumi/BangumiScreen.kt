@@ -33,10 +33,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+//  Material Icons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -930,7 +930,7 @@ private fun BangumiSearchBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AppIconButton(onClick = onBack) {
-                    AppIcon(CupertinoIcons.Default.ChevronBackward, contentDescription = "返回")
+                    AppIcon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, contentDescription = "返回")
                 }
                 
                 Spacer(modifier = Modifier.width(4.dp))
@@ -946,7 +946,7 @@ private fun BangumiSearchBar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AppIcon(
-                        CupertinoIcons.Default.MagnifyingGlass,
+                        Icons.Outlined.Search,
                         null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         modifier = Modifier.size(20.dp)
@@ -988,7 +988,7 @@ private fun BangumiSearchBar(
                             modifier = Modifier.size(28.dp)
                         ) {
                             AppIcon(
-                                CupertinoIcons.Default.XmarkCircle,
+                                Icons.Outlined.Cancel,
                                 null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(16.dp)
@@ -1039,7 +1039,7 @@ private fun BangumiNavigationBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AppIconButton(onClick = onBack) {
-                    AppIcon(CupertinoIcons.Default.ChevronBackward, contentDescription = "返回")
+                    AppIcon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, contentDescription = "返回")
                 }
                 AppText(
                     text = title,
@@ -1048,11 +1048,11 @@ private fun BangumiNavigationBar(
                     modifier = Modifier.weight(1f)
                 )
                 AppIconButton(onClick = onSearch) {
-                    AppIcon(CupertinoIcons.Default.MagnifyingGlass, contentDescription = "搜索")
+                    AppIcon(Icons.Outlined.Search, contentDescription = "搜索")
                 }
                 AppIconButton(onClick = onOpenMyFollow) {
                     AppIcon(
-                        CupertinoIcons.Default.Bookmark,
+                        Icons.Outlined.BookmarkBorder,
                         contentDescription = "我的追番",
                         tint = if (isMyFollowMode) MaterialTheme.colorScheme.primary else LocalContentColor.current
                     )

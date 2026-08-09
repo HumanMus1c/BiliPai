@@ -15,9 +15,6 @@ import com.android.purebilibili.core.ui.AppTopTabPresentation
 import com.android.purebilibili.feature.video.ui.components.GesturePercentTransitionDirection
 import com.android.purebilibili.feature.video.ui.components.resolveGesturePercentTransitionDirection
 import com.android.purebilibili.feature.video.ui.components.shouldTriggerGesturePercentHaptic
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.VolumeOff
-import top.yukonga.miuix.kmp.icon.extended.VolumeUp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -140,14 +137,14 @@ class VideoGestureFeedbackPolicyTest {
     @Test
     fun `resolveGestureDisplayIcon maps miuix volume and brightness ladders`() {
         assertEquals(
-            MiuixIcons.VolumeOff,
+            Icons.AutoMirrored.Filled.VolumeOff,
             resolveVolumeGestureIcon(
                 percent = 0f,
                 iconStyle = GestureLevelIconStyle.Miuix
             )
         )
         assertEquals(
-            MiuixIcons.VolumeUp,
+            Icons.AutoMirrored.Filled.VolumeUp,
             resolveVolumeGestureIcon(
                 percent = 0.9f,
                 iconStyle = GestureLevelIconStyle.Miuix

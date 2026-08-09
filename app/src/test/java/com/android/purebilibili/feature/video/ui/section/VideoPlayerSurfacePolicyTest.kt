@@ -60,6 +60,92 @@ class VideoPlayerSurfacePolicyTest {
     }
 
     @Test
+    fun `hdr output forces surface view even when navigation transform is enabled`() {
+        assertFalse(
+            shouldUseTextureSurfaceForFlip(
+                isFlippedHorizontal = false,
+                isFlippedVertical = false,
+                navigationTransformEnabled = true,
+                requiresHdrSurfaceOutput = true
+            )
+        )
+        // Flip still needs TextureView for matrix transforms under HDR.
+        assertTrue(
+            shouldUseTextureSurfaceForFlip(
+                isFlippedHorizontal = true,
+                isFlippedVertical = false,
+                navigationTransformEnabled = true,
+                requiresHdrSurfaceOutput = true
+            )
+        )
+    }
+
+    @Test
+    fun `live surface switch gates navigation texture request`() {
+        assertTrue(
+            resolveNavigationLiveSurfaceTextureEnabled(
+                cardTransitionEnabled = true,
+                liveSurfaceCardTransitionEnabled = true,
+            )
+        )
+        assertFalse(
+            resolveNavigationLiveSurfaceTextureEnabled(
+                cardTransitionEnabled = true,
+                liveSurfaceCardTransitionEnabled = false,
+            )
+        )
+        assertFalse(
+            resolveNavigationLiveSurfaceTextureEnabled(
+                cardTransitionEnabled = false,
+                liveSurfaceCardTransitionEnabled = true,
+            )
+        )
+    }
+
+    @Test
+    fun `player texture path keeps non-opaque surface for overlay morph`() {
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/section/VideoPlayerSection.kt"
+        ).readText()
+        assertTrue(source.contains("isOpaque = false"))
+        assertTrue(source.contains("videoSurfaceView as? TextureView"))
+    }
+
+    @Test
+    fun `live player shared element never attaches under hdr`() {
+        assertTrue(
+            resolveAllowLivePlayerSharedElementForMorph(
+                cardTransitionEnabled = true,
+                liveSurfaceCardTransitionEnabled = true,
+                requiresHdrSurfaceOutput = false,
+            )
+        )
+        assertFalse(
+            resolveAllowLivePlayerSharedElementForMorph(
+                cardTransitionEnabled = true,
+                liveSurfaceCardTransitionEnabled = true,
+                requiresHdrSurfaceOutput = true,
+            )
+        )
+        assertFalse(
+            resolveAllowLivePlayerSharedElementForMorph(
+                cardTransitionEnabled = true,
+                liveSurfaceCardTransitionEnabled = false,
+            )
+        )
+    }
+
+    @Test
+    fun `hdr surface required for quality 125 126 and pq hlg transfer`() {
+        assertTrue(requiresHdrSurfaceOutput(currentQualityId = 125))
+        assertTrue(requiresHdrSurfaceOutput(currentQualityId = 126))
+        assertTrue(requiresHdrSurfaceOutput(currentQualityId = 80, colorTransfer = 6))
+        assertTrue(requiresHdrSurfaceOutput(currentQualityId = 80, colorTransfer = 7))
+        assertFalse(requiresHdrSurfaceOutput(currentQualityId = 80, colorTransfer = 0))
+        assertFalse(requiresHdrSurfaceOutput(currentQualityId = 120, colorTransfer = 0))
+    }
+
+    @Test
     fun `player surface stays hidden until smooth reveal starts`() {
         val spec = resolveVideoPlayerSurfaceRevealSpec(
             forceCoverDuringReturnAnimation = false,

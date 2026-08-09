@@ -2,8 +2,7 @@ package com.android.purebilibili.core.ui
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -12,21 +11,10 @@ import kotlin.test.assertTrue
 class AppShapesTest {
 
     @Test
-    fun pillRadius_ios_is10Dp() {
+    fun pillRadius_material3_is28Dp() {
         val dp = AppShapes.resolveContainerCornerDp(
             level = ContainerLevel.Pill,
-            uiPreset = UiPreset.IOS,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
-        )
-        assertEquals(10.dp, dp)
-    }
-
-    @Test
-    fun pillRadius_md3_is28Dp() {
-        val dp = AppShapes.resolveContainerCornerDp(
-            level = ContainerLevel.Pill,
-            uiPreset = UiPreset.MD3,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
+            uiStyle = AppUiStyle.MATERIAL3
         )
         assertEquals(28.dp, dp)
     }
@@ -35,124 +23,117 @@ class AppShapesTest {
     fun pillRadius_miuix_is22Dp() {
         val dp = AppShapes.resolveContainerCornerDp(
             level = ContainerLevel.Pill,
-            uiPreset = UiPreset.MD3,
-            androidNativeVariant = AndroidNativeVariant.MIUIX
+            uiStyle = AppUiStyle.MIUIX
         )
         assertEquals(22.dp, dp)
     }
 
     @Test
-    fun cardRadius_scalesByPreset() {
-        val ios = AppShapes.resolveContainerCornerDp(
+    fun cardRadius_scalesByStyle() {
+        val material3 = AppShapes.resolveContainerCornerDp(
             level = ContainerLevel.Card,
-            uiPreset = UiPreset.IOS,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
-        )
-        val md3 = AppShapes.resolveContainerCornerDp(
-            level = ContainerLevel.Card,
-            uiPreset = UiPreset.MD3,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
+            uiStyle = AppUiStyle.MATERIAL3
         )
         val miuix = AppShapes.resolveContainerCornerDp(
             level = ContainerLevel.Card,
-            uiPreset = UiPreset.MD3,
-            androidNativeVariant = AndroidNativeVariant.MIUIX
+            uiStyle = AppUiStyle.MIUIX
         )
-        // iOS = base * 1.00, MD3 = base * 0.90, Miuix = base * 1.15
-        assertEquals(12.dp, ios)
-        assertTrue(miuix.value > ios.value, "Miuix card radius should be larger than iOS")
-        assertTrue(ios.value > md3.value, "iOS card radius should be larger than MD3")
+        // MATERIAL3 = base * 0.90, Miuix = base * 1.15
+        assertTrue(miuix.value > material3.value, "Miuix card radius should be larger than MATERIAL3")
     }
 
     @Test
-    fun dialogRadius_scalesByPreset() {
-        val ios = AppShapes.resolveContainerCornerDp(
+    fun dialogRadius_scalesByStyle() {
+        val material3 = AppShapes.resolveContainerCornerDp(
             level = ContainerLevel.Dialog,
-            uiPreset = UiPreset.IOS,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
+            uiStyle = AppUiStyle.MATERIAL3
         )
-        val md3 = AppShapes.resolveContainerCornerDp(
+        val miuix = AppShapes.resolveContainerCornerDp(
             level = ContainerLevel.Dialog,
-            uiPreset = UiPreset.MD3,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
+            uiStyle = AppUiStyle.MIUIX
         )
-        assertEquals(14.dp, ios)
-        assertTrue(ios.value > md3.value)
+        assertTrue(miuix.value > material3.value)
     }
 
     @Test
-    fun fieldRadius_scalesByPreset() {
-        val ios = AppShapes.resolveContainerCornerDp(
+    fun fieldRadius_scalesByStyle() {
+        val material3 = AppShapes.resolveContainerCornerDp(
             level = ContainerLevel.Field,
-            uiPreset = UiPreset.IOS,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
+            uiStyle = AppUiStyle.MATERIAL3
         )
-        assertEquals(10.dp, ios)
+        val miuix = AppShapes.resolveContainerCornerDp(
+            level = ContainerLevel.Field,
+            uiStyle = AppUiStyle.MIUIX
+        )
+        assertTrue(miuix.value > material3.value)
     }
 
     @Test
-    fun tagRadius_iosBaseIs4dp() {
-        val ios = AppShapes.resolveContainerCornerDp(
+    fun tagRadius_scalesByStyle() {
+        val material3 = AppShapes.resolveContainerCornerDp(
             level = ContainerLevel.Tag,
-            uiPreset = UiPreset.IOS,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
+            uiStyle = AppUiStyle.MATERIAL3
         )
-        assertEquals(4.dp, ios)
+        val miuix = AppShapes.resolveContainerCornerDp(
+            level = ContainerLevel.Tag,
+            uiStyle = AppUiStyle.MIUIX
+        )
+        assertTrue(miuix.value > material3.value)
     }
 
     @Test
-    fun chipRadius_iosBaseIs6dp() {
-        val ios = AppShapes.resolveContainerCornerDp(
+    fun chipRadius_scalesByStyle() {
+        val material3 = AppShapes.resolveContainerCornerDp(
             level = ContainerLevel.Chip,
-            uiPreset = UiPreset.IOS,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
+            uiStyle = AppUiStyle.MATERIAL3
         )
-        assertEquals(6.dp, ios)
+        val miuix = AppShapes.resolveContainerCornerDp(
+            level = ContainerLevel.Chip,
+            uiStyle = AppUiStyle.MIUIX
+        )
+        assertTrue(miuix.value > material3.value)
     }
 
     @Test
-    fun iosBorderedContainerShape_usesRoundedCornerShape() {
+    fun floatingRadius_scalesByStyle() {
+        val material3 = AppShapes.resolveContainerCornerDp(
+            level = ContainerLevel.Floating,
+            uiStyle = AppUiStyle.MATERIAL3
+        )
+        val miuix = AppShapes.resolveContainerCornerDp(
+            level = ContainerLevel.Floating,
+            uiStyle = AppUiStyle.MIUIX
+        )
+        assertTrue(miuix.value > material3.value, "Miuix floating radius should be larger")
+    }
+
+    @Test
+    fun containerShape_usesRoundedCornerShapeForBothStyles() {
+        listOf(AppUiStyle.MATERIAL3, AppUiStyle.MIUIX).forEach { style ->
+            val shape = AppShapes.resolveContainerShape(
+                level = ContainerLevel.Card,
+                uiStyle = style
+            )
+            assertIs<RoundedCornerShape>(shape)
+        }
+    }
+
+    @Test
+    fun sheetContainerShape_isTopRounded() {
+        val shape = AppShapes.resolveContainerShape(
+            level = ContainerLevel.Sheet,
+            uiStyle = AppUiStyle.MATERIAL3
+        ) as RoundedCornerShape
+        // MATERIAL3 Sheet = 20 * 0.90 = 18，仅顶部圆角。
+        assertEquals(RoundedCornerShape(18.dp, 18.dp, 0.dp, 0.dp), shape)
+    }
+
+    @Test
+    fun borderedContainerShape_usesRoundedCornerShape() {
         val shape = AppShapes.resolveBorderedContainerShape(
             level = ContainerLevel.Dialog,
-            uiPreset = UiPreset.IOS,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
+            uiStyle = AppUiStyle.MIUIX
         )
         assertIs<RoundedCornerShape>(shape)
-    }
-
-    @Test
-    fun iosContainerShape_usesContinuousCornerImplementation() {
-        val shape = AppShapes.resolveContainerShape(
-            level = ContainerLevel.Card,
-            uiPreset = UiPreset.IOS,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
-        )
-        assertIs<IosContinuousRoundedCornerShapeImpl>(shape)
-    }
-
-    @Test
-    fun md3ContainerShape_usesRoundedCornerShape() {
-        val shape = AppShapes.resolveContainerShape(
-            level = ContainerLevel.Card,
-            uiPreset = UiPreset.MD3,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
-        )
-        assertIs<RoundedCornerShape>(shape)
-    }
-
-    @Test
-    fun floatingRadius_iosBaseIs28dp() {
-        val ios = AppShapes.resolveContainerCornerDp(
-            level = ContainerLevel.Floating,
-            uiPreset = UiPreset.IOS,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
-        )
-        assertEquals(28.dp, ios)
-        val md3 = AppShapes.resolveContainerCornerDp(
-            level = ContainerLevel.Floating,
-            uiPreset = UiPreset.MD3,
-            androidNativeVariant = AndroidNativeVariant.MATERIAL3
-        )
-        assertTrue(ios.value > md3.value, "MD3 floating radius is scaled smaller")
     }
 }

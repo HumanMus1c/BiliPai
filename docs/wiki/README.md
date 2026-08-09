@@ -7,6 +7,7 @@
 - [功能矩阵](FEATURE_MATRIX.md)
 - [当前路线图](ROADMAP.md)
 - [架构说明](ARCHITECTURE.md)
+- [前端架构与主题精简优化计划](FRONTEND_ARCHITECTURE_THEME_SIMPLIFICATION_PLAN.md)
 - [AI 导航指南](AI.md)
 - [Miuix 对齐记录](MIUIX_ALIGNMENT.md)
 - [UI 设计规范](ui-design/README.md)
@@ -16,7 +17,6 @@
 - [更新日志撰写规范](CHANGELOG_GUIDE.md)
 - [QA 测试手册](QA.md)
 - [用户常见问题](FAQ.md)
-- [直播 API 历史调研](LIVE_API_RESEARCH.md)
 - [插件开发指南（JSON）](../PLUGIN_DEVELOPMENT.md)
 - [插件开发指南（原生）](../NATIVE_PLUGIN_DEVELOPMENT.md)
 

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -92,6 +93,12 @@ internal fun HomeTopTabChrome(
     wrapDockWidth: Boolean = false,
     dockCategoryCount: Int = 0,
     dockLabelMode: Int = 2,
+    /**
+     * Cap on the dock width so the tab strip never exceeds the top controls'
+     * combined width (avatar + search pill + settings) — keeps left/right edges
+     * aligned with the search row. [Dp.Infinity] keeps legacy full-bleed docks.
+     */
+    maxDockWidth: Dp = Dp.Infinity,
     content: @Composable () -> Unit
 ) {
     val density = LocalDensity.current
@@ -155,6 +162,8 @@ internal fun HomeTopTabChrome(
             val shouldWrap = wrapDockWidth &&
                 dockCategoryCount > 0 &&
                 maxWidth > AppSpacingTokens.None
+            // 分栏 dock 宽度封顶于顶部三控件合计宽度。
+            val cappedMaxWidth = minOf(maxWidth.value, maxDockWidth.value)
             val dockWidth = if (shouldWrap) {
                 val preferredItem = resolveTopTabWrapItemWidthDp(
                     labelMode = dockLabelMode,
@@ -163,25 +172,23 @@ internal fun HomeTopTabChrome(
                 resolveTopTabDockWrapWidthDp(
                     itemWidthDp = preferredItem,
                     categoryCount = dockCategoryCount,
-                    maxWidthDp = maxWidth.value
+                    maxWidthDp = cappedMaxWidth
                 ).dp
             } else {
                 maxWidth
             }
-            val dockAlignment = if (shouldWrap && dockWidth < maxWidth) {
-                Alignment.Center
-            } else {
-                Alignment.CenterStart
-            }
+            // 包裹 dock 始终在可用顶部区域内居中，不受标签样式和数量影响。
+            val dockAlignment = Alignment.Center
             val dockModifier = Modifier
                 .align(dockAlignment)
                 .width(dockWidth)
+                .widthIn(max = maxDockWidth)
                 .fillMaxHeight()
 
             Box(
                 modifier = dockModifier
                     .then(
-                        if (drawChromeSurface && isTabFloating) {
+                        if (drawChromeSurface && effectiveTabShadowElevation > AppSpacingTokens.None) {
                             Modifier.shadow(
                                 elevation = effectiveTabShadowElevation,
                                 shape = tabShape,

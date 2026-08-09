@@ -11,10 +11,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+//  Material Icons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,7 +41,6 @@ import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.data.repository.SearchRepository
 import com.android.purebilibili.core.ui.components.*
 import com.android.purebilibili.core.ui.AppAlertDialog
-import io.github.alexzhirkevich.cupertino.CupertinoSwitch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -120,7 +118,7 @@ class AdFilterPlugin : FeedPlugin {
     override val description = "过滤广告、拉黑UP主、屏蔽关键词"
     override val version = "2.0.1"
     override val author = "BiliPai项目组"
-    override val icon: ImageVector = CupertinoIcons.Default.Xmark
+    override val icon: ImageVector = Icons.Outlined.Close
     override val capabilityManifest: PluginCapabilityManifest = PluginCapabilityManifest(
         pluginId = id,
         displayName = name,
@@ -490,7 +488,7 @@ class AdFilterPlugin : FeedPlugin {
             
             // 商业合作过滤
             AppSwitchPreference(
-                icon = CupertinoIcons.Default.Xmark,
+                icon = Icons.Outlined.Close,
                 title = "过滤广告推广",
                 subtitle = "隐藏商业合作、恰饭、推广等内容",
                 checked = filterSponsored,
@@ -506,7 +504,7 @@ class AdFilterPlugin : FeedPlugin {
             
             // 标题党过滤
             AppSwitchPreference(
-                icon = CupertinoIcons.Default.Star,
+                icon = Icons.Outlined.Star,
                 title = "过滤标题党",
                 subtitle = "隐藏震惊体、夸张标题视频",
                 checked = filterClickbait,
@@ -522,7 +520,7 @@ class AdFilterPlugin : FeedPlugin {
             
             // 低质量过滤
             AppSwitchPreference(
-                icon = CupertinoIcons.Default.Xmark,
+                icon = Icons.Outlined.Close,
                 title = "过滤低播放量",
                 subtitle = "隐藏播放量低于1000的视频",
                 checked = filterLowQuality,
@@ -546,7 +544,7 @@ class AdFilterPlugin : FeedPlugin {
                 blockedUpProfiles = insightSummary.blockedUpProfiles,
                 emptyText = "暂无拉黑的UP主",
                 expanded = upListExpanded,
-                icon = CupertinoIcons.Default.Person,
+                icon = Icons.Outlined.Person,
                 itemIconTint = Color(0xFFE91E63),
                 addButtonText = "添加UP主拉黑",
                 onExpandedChange = { upListExpanded = it },
@@ -564,7 +562,7 @@ class AdFilterPlugin : FeedPlugin {
                 items = blockedKeywords,
                 emptyText = "暂无自定义屏蔽词",
                 expanded = keywordListExpanded,
-                icon = CupertinoIcons.Default.Tag,
+                icon = Icons.Outlined.Tag,
                 itemIconTint = MaterialTheme.colorScheme.error,
                 addButtonText = "添加屏蔽关键词",
                 onExpandedChange = { keywordListExpanded = it },
@@ -1159,9 +1157,9 @@ private fun AdFilterCustomListSection(
             }
             AppIcon(
                 imageVector = if (expanded) {
-                    CupertinoIcons.Default.ChevronUp
+                    Icons.Outlined.KeyboardArrowUp
                 } else {
-                    CupertinoIcons.Default.ChevronDown
+                    Icons.Outlined.KeyboardArrowDown
                 },
                 contentDescription = if (expanded) "收起$title" else "展开$title",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f),
@@ -1225,7 +1223,7 @@ private fun AdFilterCustomListSection(
                             modifier = Modifier.size(32.dp)
                         ) {
                             AppIcon(
-                                CupertinoIcons.Default.Xmark,
+                                Icons.Outlined.Close,
                                 contentDescription = "移除$item",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(16.dp)
@@ -1240,7 +1238,7 @@ private fun AdFilterCustomListSection(
             onClick = onAddClick,
             modifier = Modifier.fillMaxWidth()
         ) {
-            AppIcon(CupertinoIcons.Default.Plus, contentDescription = null, modifier = Modifier.size(18.dp))
+            AppIcon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
             AppText(addButtonText)
         }

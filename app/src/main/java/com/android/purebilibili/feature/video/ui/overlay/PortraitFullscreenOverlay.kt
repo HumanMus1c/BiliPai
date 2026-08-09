@@ -32,9 +32,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.*
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Share
@@ -558,7 +558,7 @@ private fun PortraitTopControlBar(
                 modifier = Modifier.size(layoutPolicy.topBackButtonSizeDp.dp)
             ) {
                 AppIcon(
-                    imageVector = CupertinoIcons.Default.ChevronBackward,
+                    imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
                     contentDescription = "返回",
                     tint = Color.White,
                     modifier = Modifier.size(layoutPolicy.topBackIconSizeDp.dp)
@@ -570,7 +570,7 @@ private fun PortraitTopControlBar(
                 modifier = Modifier.size(layoutPolicy.topBackButtonSizeDp.dp)
             ) {
                 AppIcon(
-                    imageVector = CupertinoIcons.Default.House,
+                    imageVector = Icons.Outlined.Home,
                     contentDescription = "主界面",
                     tint = Color.White,
                     modifier = Modifier.size(layoutPolicy.topBackIconSizeDp.dp)

@@ -33,9 +33,9 @@ import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.video.ui.gesture.TwoFingerSpeedGestureMode
 import dev.chrisbanes.haze.HazeState
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.ArrowLeftArrowRight
-import io.github.alexzhirkevich.cupertino.icons.outlined.ArrowUpArrowDown
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material.icons.outlined.SwapVert
 
 @Composable
 fun BoxScope.TwoFingerSpeedFeedbackOverlay(
@@ -54,9 +54,9 @@ fun BoxScope.TwoFingerSpeedFeedbackOverlay(
         TwoFingerSpeedGestureMode.Off -> ""
     }
     val cueIcon = when (mode) {
-        TwoFingerSpeedGestureMode.Vertical -> CupertinoIcons.Outlined.ArrowUpArrowDown
-        TwoFingerSpeedGestureMode.Horizontal -> CupertinoIcons.Outlined.ArrowLeftArrowRight
-        TwoFingerSpeedGestureMode.Off -> CupertinoIcons.Outlined.ArrowUpArrowDown
+        TwoFingerSpeedGestureMode.Vertical -> Icons.Outlined.SwapVert
+        TwoFingerSpeedGestureMode.Horizontal -> Icons.Outlined.SwapHoriz
+        TwoFingerSpeedGestureMode.Off -> Icons.Outlined.SwapVert
     }
     val gradientColors = listOf(
         MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),

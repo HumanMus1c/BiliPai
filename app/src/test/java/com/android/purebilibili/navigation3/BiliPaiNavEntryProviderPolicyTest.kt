@@ -34,8 +34,8 @@ class BiliPaiNavEntryProviderPolicyTest {
         )
 
         assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.forward)
-        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transitions.pop)
-        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transitions.predictivePop)
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.pop)
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transitions.predictivePop)
     }
 
     @Test
@@ -56,9 +56,9 @@ class BiliPaiNavEntryProviderPolicyTest {
     }
 
     @Test
-    fun subscribedFavoriteCollectionPopUsesLightSiblingInsteadOfNoOp() {
+    fun subscribedFavoriteCollectionPopKeepsSharedElementMorphDefault() {
         val transition = resolveBiliPaiNavEntryPopRouteTransition(
-            defaultTransition = BiliPaiNavRouteTransition.LIGHT_SIBLING_POP,
+            defaultTransition = BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT,
             fromRoute = "season_series_detail",
             toRoute = "main_host",
             cardTransitionEnabled = true,
@@ -66,7 +66,7 @@ class BiliPaiNavEntryProviderPolicyTest {
             sourceMetadata = BiliPaiNavSourceMetadata()
         )
 
-        assertEquals(BiliPaiNavRouteTransition.LIGHT_SIBLING_POP, transition)
+        assertEquals(BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT, transition)
     }
 
     @Test

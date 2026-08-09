@@ -6,6 +6,7 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -18,8 +19,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import androidx.compose.material3.*
+//  Material Icons
+import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -342,7 +343,7 @@ fun DynamicCardV2(
                         modifier = Modifier
                             .padding(start = AppSpacingTokens.ExtraSmall)
                             .border(
-                                width = 1.dp,
+                                width = AppSurfaceTokens.OutlineWidth,
                                 color = MaterialTheme.colorScheme.primary,
                                 shape = RoundedCornerShape(4.dp)
                             )
@@ -1038,7 +1039,7 @@ fun DynamicCardV2(
                                         .offset(x = (index * 14).dp)
                                         .size(22.dp)
                                         .clip(CircleShape)
-                                        .border(1.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                                        .border(AppSurfaceTokens.OutlineWidth, AppSurfaceTokens.surface(), CircleShape),
                                     contentScale = ContentScale.Crop
                                 )
                             }

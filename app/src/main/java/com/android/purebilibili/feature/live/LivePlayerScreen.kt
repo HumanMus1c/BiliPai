@@ -968,7 +968,12 @@ fun LivePlayerScreen(
             superChatContent = {
                 LiveSuperChatSection(
                     items = superChatItems,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    onExpired = { item ->
+                        if (item.superChatId > 0L) {
+                            viewModel.dismissSuperChat(item.superChatId)
+                        }
+                    },
                 )
             }
         )
@@ -1220,11 +1225,11 @@ fun LivePlayerScreen(
     )
     }
     
-    // 画质菜单弹窗
+    // 画质菜单（PiliPlus 同款底部选择 + 原生 chip 分发）
     if (showQualityMenu) {
         val successState = uiState as? LivePlayerState.Success
         if (successState != null) {
-            LiveQualityMenu(
+            com.android.purebilibili.feature.live.components.LiveQualitySheet(
                 qualityList = successState.qualityList,
                 currentQuality = successState.currentQuality,
                 onQualitySelected = { qn ->
@@ -1876,59 +1881,6 @@ private fun LiveLandscapeChatPanel(
                 )
         ) {
             content()
-        }
-    }
-}
-
-@Composable
-private fun LiveQualityMenu(
-    qualityList: List<LiveQuality>,
-    currentQuality: Int,
-    onQualitySelected: (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val palette = rememberLiveChromePalette()
-    val playerChromeProfile = rememberAppPlayerChromeProfile()
-    val visualSpec = remember(playerChromeProfile.tabPresentation) {
-        resolveLiveVisualSpec(playerChromeProfile.tabPresentation)
-    }
-    Box(
-        modifier = Modifier.fillMaxSize().background(palette.scrim.copy(alpha = 0.56f)).clickable(
-            interactionSource = remember { MutableInteractionSource() }, indication = null
-        ) { onDismiss() },
-        contentAlignment = Alignment.Center
-    ) {
-        AppSurface(
-            modifier = Modifier.width(visualSpec.playerQualityDialogWidthDp.dp),
-            shape = AppShapes.borderedContainer(ContainerLevel.Dialog),
-            color = palette.surfaceElevated,
-            border = androidx.compose.foundation.BorderStroke(
-                AppSpacingTokens.Micro / 2f,
-                palette.border
-            )
-        ) {
-            Column(Modifier.padding(vertical = AppSpacingTokens.Small)) {
-                AppText(
-                    "画质选择",
-                    color = palette.primaryText,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(AppSpacingTokens.Large)
-                )
-                qualityList.forEach { q ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onQualitySelected(q.qn) }
-                            .padding(AppSpacingTokens.Large),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AppText(q.desc, color = if (q.qn == currentQuality) palette.accent else palette.primaryText)
-                        Spacer(Modifier.weight(1f))
-                        if (q.qn == currentQuality) AppIcon(Icons.Outlined.Check, null, tint = palette.accent)
-                    }
-                }
-            }
         }
     }
 }

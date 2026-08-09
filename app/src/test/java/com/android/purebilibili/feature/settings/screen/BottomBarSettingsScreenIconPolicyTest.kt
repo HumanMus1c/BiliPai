@@ -14,15 +14,6 @@ import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.WatchLater
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.Clock
-import io.github.alexzhirkevich.cupertino.icons.outlined.ChartBar
-import io.github.alexzhirkevich.cupertino.icons.outlined.Cpu
-import io.github.alexzhirkevich.cupertino.icons.outlined.Grid
-import io.github.alexzhirkevich.cupertino.icons.outlined.Lightbulb
-import io.github.alexzhirkevich.cupertino.icons.outlined.PersonCropCircleBadgePlus
-import io.github.alexzhirkevich.cupertino.icons.outlined.Bell
-import io.github.alexzhirkevich.cupertino.icons.outlined.Star
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -30,9 +21,9 @@ class BottomBarSettingsScreenIconPolicyTest {
 
     @Test
     fun bottomBarIconPolicy_usesSemanticIconsForSecondaryTabs() {
-        assertSameVectorAsset(CupertinoIcons.Outlined.Bell, resolveBottomBarTabIcon("DYNAMIC", AppSemanticIconFamily.CUPERTINO))
-        assertSameVectorAsset(CupertinoIcons.Outlined.Star, resolveBottomBarTabIcon("FAVORITE", AppSemanticIconFamily.CUPERTINO))
-        assertSameVectorAsset(CupertinoIcons.Outlined.Clock, resolveBottomBarTabIcon("WATCHLATER", AppSemanticIconFamily.CUPERTINO))
+        assertSameVectorAsset(Icons.Outlined.NotificationsNone, resolveBottomBarTabIcon("DYNAMIC", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.CollectionsBookmark, resolveBottomBarTabIcon("FAVORITE", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.WatchLater, resolveBottomBarTabIcon("WATCHLATER", AppSemanticIconFamily.MATERIAL))
     }
 
     @Test
@@ -47,11 +38,11 @@ class BottomBarSettingsScreenIconPolicyTest {
 
     @Test
     fun topTabIconPolicy_usesSemanticIconsForContentCategories() {
-        assertSameVectorAsset(CupertinoIcons.Outlined.PersonCropCircleBadgePlus, resolveTopTabIcon("FOLLOW", AppSemanticIconFamily.CUPERTINO))
-        assertSameVectorAsset(CupertinoIcons.Outlined.ChartBar, resolveTopTabIcon("POPULAR", AppSemanticIconFamily.CUPERTINO))
-        assertSameVectorAsset(CupertinoIcons.Outlined.Grid, resolveTopTabIcon("PARTITION", AppSemanticIconFamily.CUPERTINO))
-        assertSameVectorAsset(CupertinoIcons.Outlined.Lightbulb, resolveTopTabIcon("KNOWLEDGE", AppSemanticIconFamily.CUPERTINO))
-        assertSameVectorAsset(CupertinoIcons.Outlined.Cpu, resolveTopTabIcon("TECH", AppSemanticIconFamily.CUPERTINO))
+        assertSameVectorAsset(Icons.Outlined.Person, resolveTopTabIcon("FOLLOW", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.AutoMirrored.Outlined.TrendingUp, resolveTopTabIcon("POPULAR", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.GridView, resolveTopTabIcon("PARTITION", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.Lightbulb, resolveTopTabIcon("KNOWLEDGE", AppSemanticIconFamily.MATERIAL))
+        assertSameVectorAsset(Icons.Outlined.SmartToy, resolveTopTabIcon("TECH", AppSemanticIconFamily.MATERIAL))
     }
 
     @Test

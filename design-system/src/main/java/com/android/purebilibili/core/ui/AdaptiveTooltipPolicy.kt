@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 
 enum class AdaptiveTooltipRenderer {
     MIUIX_TOOLTIP_BOX,
@@ -9,12 +8,8 @@ enum class AdaptiveTooltipRenderer {
 }
 
 fun resolveAdaptiveTooltipRenderer(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
-): AdaptiveTooltipRenderer = when (
-    resolvePresetPrimitiveRenderer(uiPreset, androidNativeVariant)
-) {
-    PresetPrimitiveRenderer.MIUIX_BRIDGED -> AdaptiveTooltipRenderer.MIUIX_TOOLTIP_BOX
-    PresetPrimitiveRenderer.IOS,
-    PresetPrimitiveRenderer.MATERIAL3 -> AdaptiveTooltipRenderer.PASSTHROUGH
+    uiStyle: AppUiStyle
+): AdaptiveTooltipRenderer = when (uiStyle) {
+    AppUiStyle.MIUIX -> AdaptiveTooltipRenderer.MIUIX_TOOLTIP_BOX
+    AppUiStyle.MATERIAL3 -> AdaptiveTooltipRenderer.PASSTHROUGH
 }

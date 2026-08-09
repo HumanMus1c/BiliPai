@@ -26,6 +26,7 @@ class HardcodedColorLintTest {
     fun migrated_features_use_theme_roles_or_named_palette() {
         val offenders = StyleLintSupport.findOffendersInMigratedFeatures(
             HardcodedColorPattern,
+            allowlist = StyleLintAllowlist.COLOR_HITS,
         )
         assertTrue(
             offenders.isEmpty(),

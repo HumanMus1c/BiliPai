@@ -68,17 +68,6 @@ class MineSideDrawerVisualPolicyTest {
     }
 
     @Test
-    fun `cupertino drawer should preserve translucent glass defaults`() {
-        val policy = resolveAppDrawerVisualPolicy(
-            renderer = PresetPrimitiveRenderer.IOS,
-            blurEnabled = true
-        )
-
-        assertEquals(AppDrawerContainerTreatment.TRANSLUCENT, policy.containerTreatment)
-        assertEquals(18, policy.profileChevronSizeDp)
-    }
-
-    @Test
     fun `material-family drawers keep translucent glass while blur is active`() {
         listOf(
             PresetPrimitiveRenderer.MATERIAL3,

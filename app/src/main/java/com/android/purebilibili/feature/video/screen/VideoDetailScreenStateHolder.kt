@@ -1,5 +1,8 @@
 // 文件路径: feature/video/screen/VideoDetailScreen.kt
 package com.android.purebilibili.feature.video.screen
+import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
+import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
+import com.android.purebilibili.core.refresh.HistoryRefreshSuppression
 import com.android.purebilibili.core.ui.components.AppText
 
 import android.annotation.SuppressLint
@@ -135,10 +138,13 @@ import com.android.purebilibili.feature.video.viewmodel.toSupplementSeed
 import com.android.purebilibili.feature.video.viewmodel.QualitySwitchFailureDialogState
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
+import com.android.purebilibili.feature.video.danmaku.rememberDanmakuManager
 import com.android.purebilibili.feature.video.state.VideoPlayerState
 import com.android.purebilibili.feature.video.state.rememberVideoPlayerState
 import com.android.purebilibili.feature.video.state.shouldReuseMiniPlayerAtEntry
 import com.android.purebilibili.feature.video.ui.section.VideoPlayerSection
+import com.android.purebilibili.feature.video.ui.section.resolveAllowLivePlayerSharedElementForMorph
+import com.android.purebilibili.feature.video.ui.section.resolveNavigationLiveSurfaceTextureEnabled
 import com.android.purebilibili.feature.video.ui.section.shouldKeepVideoPlaybackAwake
 import com.android.purebilibili.feature.video.ui.components.ReplyHeader
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
@@ -237,6 +243,13 @@ import com.android.purebilibili.feature.video.viewmodel.PlayerToastPresentation
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+/**
+ * 评论区「一键回顶」恢复播放器事件:评论区 host 与竖屏播放器处于不同
+ * 代码块/作用域,通过共享事件桥接,播放器侧观察到后恢复全尺寸。
+ */
+private val commentBackToTopRestoreFlow =
+    kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
 private const val CONTINUOUS_PLAYER_MORPH_DURATION_MILLIS = 280
 
 private const val VIDEO_DETAIL_COLLAPSE_SIGNAL_IDLE_TIMEOUT_MS = 120L
@@ -290,6 +303,17 @@ internal fun VideoDetailScreenStateHolder(
     commentViewModel: VideoCommentViewModel = viewModel(),
     onBgmClick: (BgmInfo) -> Unit = {}
 ) {
+    // 详情页打开期间抑制历史/收藏列表刷新:播放心跳会持续触发
+    // HistoryRefreshBus,若父级列表在预测性返回手势动画中重新加载,
+    // 元素位置中途平移会导致返回表现异常。退出详情页(含返回完成)
+    // 后恢复,抑制期间遗漏的刷新在恢复时补发一次。
+    DisposableEffect(Unit) {
+        HistoryRefreshSuppression.suppress()
+        onDispose {
+            HistoryRefreshSuppression.resume()
+        }
+    }
+
     val context = LocalContext.current
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -298,6 +322,29 @@ internal fun VideoDetailScreenStateHolder(
         .getHomeUpBadgesVisible(context)
         .collectAsStateWithLifecycle(initialValue = true
         )
+    val liveSurfaceCardTransitionEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getLiveSurfaceCardTransitionEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
+    // SDR live morph TextureView only when both master transition + live-surface switch are on.
+    // HDR still forces SurfaceView inside shouldUseTextureSurfaceForFlip (no quality sacrifice).
+    val useTextureSurfaceForNavigation = remember(
+        transitionEnabled,
+        liveSurfaceCardTransitionEnabled,
+    ) {
+        resolveNavigationLiveSurfaceTextureEnabled(
+            cardTransitionEnabled = transitionEnabled,
+            liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+        )
+    }
+    val allowLivePlayerSharedElement = remember(
+        transitionEnabled,
+        liveSurfaceCardTransitionEnabled,
+    ) {
+        resolveAllowLivePlayerSharedElementForMorph(
+            cardTransitionEnabled = transitionEnabled,
+            liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+        )
+    }
     val motionSpec = remember(transitionEnterDurationMillis) {
         resolveVideoDetailMotionSpec(transitionEnterDurationMillis)
     }
@@ -407,7 +454,6 @@ internal fun VideoDetailScreenStateHolder(
         VideoDetailCommentActions(
             loadComments = commentViewModel::loadComments,
             setSortMode = commentViewModel::setSortMode,
-            toggleUpOnly = commentViewModel::toggleUpOnly,
             deleteComment = commentViewModel::deleteComment,
             startDissolve = commentViewModel::startDissolve,
             loadMoreSubReplies = commentViewModel::loadMoreSubReplies,
@@ -446,6 +492,9 @@ internal fun VideoDetailScreenStateHolder(
         initialPipMode = isInPipMode,
     )
     var isNavigatingToVideo by presentationState.navigatingToVideoState
+    // `isNavigatingToVideo` 仅覆盖共享元素动画，动画结束会提前复位；NavHost 旧 entry
+    // 仍可能再存活几帧。弹幕主机离开态必须保持到旧 entry 真正销毁。
+    var hasCommittedRelatedVideoNavigation by remember(bvid) { mutableStateOf(false) }
     var isNavigatingToAudioMode by presentationState.navigatingToAudioModeState
     var isNavigatingToMiniMode by presentationState.navigatingToMiniModeState
     var hasAutoEnteredAudioMode by rememberSaveable { mutableStateOf(false) }
@@ -565,6 +614,10 @@ internal fun VideoDetailScreenStateHolder(
         onSearchKeywordClick(keyword)
     }
 
+    // 与 VideoPlayerSection 共用单例；同页切集/相关推荐 push 前清掉旧弹幕会话，
+    // 避免新页 DanmakuView 绑定时把旧片缓存闪上去或卡在未重放状态。
+    val sharedDanmakuManager = rememberDanmakuManager()
+
     fun switchVideoInCurrentDetailPage(
         targetBvid: String,
         targetCid: Long,
@@ -586,6 +639,7 @@ internal fun VideoDetailScreenStateHolder(
         if (switchedCover.isNotBlank()) {
             pendingInPageSwitchCoverUrl = switchedCover
         }
+        sharedDanmakuManager.clearForVideoChange()
         presentationState.switchVideo(normalizedBvid, safeCid)
         viewModel.loadVideo(
             bvid = normalizedBvid,
@@ -601,6 +655,7 @@ internal fun VideoDetailScreenStateHolder(
         uiState,
         currentBvid,
         relatedNavigationScope,
+        sharedDanmakuManager,
     ) {
         { targetBvid: String, options: android.os.Bundle? ->
             val success = uiState as? VideoPlaybackUiState.Success
@@ -630,6 +685,9 @@ internal fun VideoDetailScreenStateHolder(
                 )
             } else {
                 // 先摘掉父详情壳 sharedBounds，再 push，避免相关卡嵌套在父壳内吃不到 morph。
+                // 同时清掉单例弹幕缓存，防止新页 attach 时重放旧片或 load 结果落到旧 controller。
+                sharedDanmakuManager.clearForVideoChange()
+                hasCommittedRelatedVideoNavigation = true
                 presentationState.markNavigatingToVideo()
                 miniPlayerManager?.isNavigatingToVideo = true
                 markSecondaryNavigationLeave(expectedBvid = success?.info?.bvid ?: currentBvid)
@@ -1560,6 +1618,7 @@ internal fun VideoDetailScreenStateHolder(
         detailContentReady = detailContentReadyForLiveReturnMorph,
         hasResidentCover = hasResidentReturnCover,
         hasRenderableLiveFrame = hasRenderableLiveFrameForReturn,
+        liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
     )
     // 返回会话 ownership：可升 LIVE（保实时画面），禁止 LIVE 降级（防闪）。
     var lockedReturnCoverOwnership by remember(bvid) {
@@ -1876,16 +1935,36 @@ internal fun VideoDetailScreenStateHolder(
         continuousPlayerPhase,
         isLandscape,
     ) {
-        if (!continuousFullscreenTransitionEnabled) return@LaunchedEffect
-        when {
-            isLandscape && continuousPlayerPhase == ContinuousPlayerTransitionPhase.Inline -> {
-                continuousPlayerProgress.snapTo(1f)
-                continuousPlayerPhase = ContinuousPlayerTransitionPhase.Fullscreen
-            }
-            !isLandscape && continuousPlayerPhase == ContinuousPlayerTransitionPhase.Fullscreen -> {
+        // 关闭 continuous morph 时也要清掉可能残留的全屏进度，否则再次启用/回竖屏会铺满。
+        if (!continuousFullscreenTransitionEnabled) {
+            if (!isLandscape && continuousPlayerProgress.value > 0.001f) {
                 continuousPlayerProgress.snapTo(0f)
                 continuousPlayerPhase = ContinuousPlayerTransitionPhase.Inline
             }
+            return@LaunchedEffect
+        }
+        when {
+            // 系统旋进横屏：从 inline/半途相位直接落到全屏高度。
+            isLandscape &&
+                continuousPlayerPhase != ContinuousPlayerTransitionPhase.Fullscreen &&
+                continuousPlayerPhase != ContinuousPlayerTransitionPhase.AwaitingPortrait -> {
+                continuousPlayerProgress.snapTo(1f)
+                continuousPlayerPhase = ContinuousPlayerTransitionPhase.Fullscreen
+            }
+            // 仅清理「已处于 Fullscreen 但窗口已回竖屏」的陈旧进度。
+            // Expanding/AwaitingLandscape 仍是点击进入全屏的有效链路；在方向切换前
+            // 提前把它们改回 Inline 会跳过 ExpansionFinished，导致横屏请求永远不发出。
+            !isLandscape &&
+                continuousPlayerPhase == ContinuousPlayerTransitionPhase.Fullscreen -> {
+                continuousPlayerProgress.snapTo(0f)
+                continuousPlayerPhase = ContinuousPlayerTransitionPhase.Inline
+            }
+            // 进入全屏时方向仍暂时是竖屏；这两个阶段是等待横屏请求完成，
+            // 不能把初始竖屏状态误派发成「回竖屏」事件，否则会被策略收起为 Collapsing。
+            shouldKeepContinuousPlayerEnterPhaseWhilePortrait(
+                phase = continuousPlayerPhase,
+                isLandscape = isLandscape,
+            ) -> Unit
             else -> applyContinuousPlayerDecision(
                 reduceContinuousPlayerTransition(
                     phase = continuousPlayerPhase,
@@ -2599,6 +2678,7 @@ internal fun VideoDetailScreenStateHolder(
             isPipMode = isPipMode,
             transitionEnabled = detailChildTransitionEnabled,
             transitionChromeAlphaProvider = videoCardDetailChromeAlphaProvider,
+            danmakuHostActive = !hasCommittedRelatedVideoNavigation,
             onToggleFullscreen = { toggleFullscreen() },
             playbackActions = playbackActions,
             onDoubleTapLike = engagementViewModel::toggleLike,
@@ -2634,9 +2714,9 @@ internal fun VideoDetailScreenStateHolder(
                 ),
             preserveCurrentFrameOnFullscreenChange = preserveCurrentFrameOnFullscreenChange,
             liveBackPreview = bindLivePlayerForBackPreview,
-            useTextureSurfaceForNavigation = transitionEnabled,
+            useTextureSurfaceForNavigation = useTextureSurfaceForNavigation,
             predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
-            allowLivePlayerSharedElement = true,
+            allowLivePlayerSharedElement = allowLivePlayerSharedElement,
             sourceRouteForSharedElement = sourceRouteForSharedElement,
             preserveSourceCardCornerDuringSharedReturn =
                 detailShellSharedBoundsEnabled && useReturningVideoDetailVisualState,
@@ -2731,11 +2811,11 @@ internal fun VideoDetailScreenStateHolder(
                             replies = commentState.replies, replyCount = commentState.replyCount,
                             emoteMap = success.emoteMap, isRepliesLoading = commentState.isRepliesLoading,
                             isRepliesEnd = commentState.isRepliesEnd, videoTags = success.videoTags,
-                            sortMode = commentState.sortMode, upOnlyFilter = commentState.upOnlyFilter,
+                            sortMode = commentState.sortMode,
                             currentMid = commentState.currentMid, showUpFlag = commentState.showUpFlag,
                             showIdentityDecorations = commentMemberDecorationsEnabled,
                             dissolvingIds = commentState.dissolvingIds, likedComments = commentState.likedComments,
-                            onSortModeChange = commentActions.setSortMode, onUpOnlyToggle = commentActions.toggleUpOnly,
+                            onSortModeChange = commentActions.setSortMode,
                             onUpClick = navigateToUserSpaceFromVideo,
                             onSubReplyClick = commentActions.openSubReply,
                             onCommentReplyClick = playbackActions.replyTo, onLoadMoreReplies = commentActions.loadComments,
@@ -2796,6 +2876,7 @@ internal fun VideoDetailScreenStateHolder(
                     uiState = uiState,
                     isFullscreen = true,
                     isInPipMode = isPipMode,
+                    danmakuHostActive = !hasCommittedRelatedVideoNavigation,
                     transitionEnabled = detailChildTransitionEnabled,
                     onToggleFullscreen = { toggleFullscreen() },
                     onQualityChange = { qid -> viewModel.changeQuality(qid) },
@@ -2934,9 +3015,9 @@ internal fun VideoDetailScreenStateHolder(
                     },
                     forceCoverOnly = forceCoverOnlyForLiveSafeReturn,
                     preserveCurrentFrameOnFullscreenChange = preserveCurrentFrameOnFullscreenChange,
-                    useTextureSurfaceForNavigation = transitionEnabled,
+                    useTextureSurfaceForNavigation = useTextureSurfaceForNavigation,
                     predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
-                    allowLivePlayerSharedElement = true,
+                    allowLivePlayerSharedElement = allowLivePlayerSharedElement,
                     sourceRouteForSharedElement = sourceRouteForSharedElement,
                     suppressSubtitleOverlay = shouldSuppressSubtitleOverlay,
                     subtitleDisplayModePreferenceOverride = subtitleDisplayModeOverride,
@@ -2955,14 +3036,12 @@ internal fun VideoDetailScreenStateHolder(
                             isRepliesEnd = commentState.isRepliesEnd,
                             videoTags = success.videoTags,
                             sortMode = commentState.sortMode,
-                            upOnlyFilter = commentState.upOnlyFilter,
                             currentMid = commentState.currentMid,
                             showUpFlag = commentState.showUpFlag,
                             showIdentityDecorations = commentMemberDecorationsEnabled,
                             dissolvingIds = commentState.dissolvingIds,
                             likedComments = commentState.likedComments,
                             onSortModeChange = commentActions.setSortMode,
-                            onUpOnlyToggle = commentActions.toggleUpOnly,
                             onUpClick = navigateToUserSpaceFromVideo,
                             onSubReplyClick = commentActions.openSubReply,
                             onCommentReplyClick = playbackActions.replyTo,
@@ -3077,6 +3156,7 @@ internal fun VideoDetailScreenStateHolder(
                             },
 
                             transitionEnabled = detailChildTransitionEnabled,  //  传递过渡动画开关
+                            danmakuHostActive = !hasCommittedRelatedVideoNavigation,
                             // [New] Codec & Audio
                             currentCodec = codecPreference,
                             onCodecChange = { viewModel.setVideoCodec(it) },
@@ -3143,6 +3223,12 @@ internal fun VideoDetailScreenStateHolder(
                             )
                         }
                         val inlinePlayerCollapseState = rememberInlinePortraitPlayerCollapseState(currentBvid)
+                        // 评论区「一键回顶」时恢复被压缩的播放器(共享事件)。
+                        LaunchedEffect(Unit) {
+                            commentBackToTopRestoreFlow.collect {
+                                inlinePlayerCollapseState.restore()
+                            }
+                        }
                         val compactInlinePlayerForCommentTab =
                             shouldUseCompactInlinePortraitPlayerForCommentTab(
                                 useOfficialInlinePortraitDetailExperience = useOfficialInlinePortraitDetailExperience,
@@ -3528,6 +3614,12 @@ internal fun VideoDetailScreenStateHolder(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .graphicsLayer {
+                                            val gestureKeepLivePlayer = liveReturnMorph && (
+                                                videoCardDepthBackgroundState
+                                                    .isReturnGestureInProgressProvider() ||
+                                                    videoCardDepthBackgroundState
+                                                        .isGestureRestoreInProgressProvider()
+                                            )
                                             alpha = resolveVideoDetailReturnCoverAlpha(
                                                 transitionProgress =
                                                     resolveVideoDetailReturnVisualProgress(
@@ -3541,11 +3633,9 @@ internal fun VideoDetailScreenStateHolder(
                                                 isCommittedCardReturn = isCommittedCardReturn,
                                                 hasResidentCover = hasResidentReturnCover,
                                                 liveReturnMorph = liveReturnMorph,
-                                                keepLivePlayerForPredictiveBack =
-                                                    videoCardDepthBackgroundState
-                                                        .isReturnGestureInProgressProvider() ||
-                                                        videoCardDepthBackgroundState
-                                                            .isGestureRestoreInProgressProvider(),
+                                                // 仅实时视频 morph 在预测返回时保 player；
+                                                // 关闭实时画面时走封面/截图垫层，避免 SurfaceView 黑块。
+                                                keepLivePlayerForPredictiveBack = gestureKeepLivePlayer,
                                             )
                                         },
                                     contentScale = ContentScale.Crop
@@ -3555,6 +3645,12 @@ internal fun VideoDetailScreenStateHolder(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .graphicsLayer {
+                                        val gestureKeepLivePlayer = liveReturnMorph && (
+                                            videoCardDepthBackgroundState
+                                                .isReturnGestureInProgressProvider() ||
+                                                videoCardDepthBackgroundState
+                                                    .isGestureRestoreInProgressProvider()
+                                        )
                                         alpha = resolveVideoDetailReturnPlayerAlpha(
                                             transitionProgress =
                                                 resolveVideoDetailReturnVisualProgress(
@@ -3568,11 +3664,7 @@ internal fun VideoDetailScreenStateHolder(
                                             isCommittedCardReturn = isCommittedCardReturn,
                                             hasResidentCover = hasResidentReturnCover,
                                             liveReturnMorph = liveReturnMorph,
-                                            keepLivePlayerForPredictiveBack =
-                                                videoCardDepthBackgroundState
-                                                    .isReturnGestureInProgressProvider() ||
-                                                    videoCardDepthBackgroundState
-                                                        .isGestureRestoreInProgressProvider(),
+                                            keepLivePlayerForPredictiveBack = gestureKeepLivePlayer,
                                         )
                                     }
                             ) {
@@ -3600,6 +3692,7 @@ internal fun VideoDetailScreenStateHolder(
                                 transitionEnabled = detailChildTransitionEnabled,
                                 transitionChromeAlphaProvider =
                                     videoCardDetailChromeAlphaProvider,
+                                danmakuHostActive = !hasCommittedRelatedVideoNavigation,
                                 onToggleFullscreen = { toggleFullscreen() },
                                 playbackActions = playbackActions,
                                 onDoubleTapLike = engagementViewModel::toggleLike,
@@ -3644,9 +3737,9 @@ internal fun VideoDetailScreenStateHolder(
                                     ),
                                 preserveCurrentFrameOnFullscreenChange = preserveCurrentFrameOnFullscreenChange,
                                 liveBackPreview = bindLivePlayerForBackPreview,
-                                useTextureSurfaceForNavigation = transitionEnabled,
+                                useTextureSurfaceForNavigation = useTextureSurfaceForNavigation,
                                 predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
-                                allowLivePlayerSharedElement = true,
+                                allowLivePlayerSharedElement = allowLivePlayerSharedElement,
                                 sourceRouteForSharedElement = sourceRouteForSharedElement,
                                 preserveSourceCardCornerDuringSharedReturn =
                                     detailShellSharedBoundsEnabled &&
@@ -3885,7 +3978,9 @@ internal fun VideoDetailScreenStateHolder(
                                                 AppButton(
                                                     onClick = { viewModel.retry() },
                                                     colors = ButtonDefaults.buttonColors(
-                                                        containerColor = MaterialTheme.colorScheme.primary
+                                                        containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+
+                                                        contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme)
                                                     )
                                                 ) {
                                                     AppText(
@@ -3971,7 +4066,7 @@ internal fun VideoDetailScreenStateHolder(
             playbackViewModel = viewModel,
             engagementViewModel = engagementViewModel,
             sharedPlayer = if (useSharedPortraitPlayer) playerState.player else null,
-            useTextureSurfaceForNavigation = transitionEnabled,
+            useTextureSurfaceForNavigation = useTextureSurfaceForNavigation,
             onBack = { presentationState.setPortraitFullscreen(false) },
             onHomeClick = {
                 presentationState.setPortraitFullscreen(false)
@@ -4136,6 +4231,10 @@ internal fun VideoDetailScreenStateHolder(
             onTimestampClick = { positionMs ->
                 seekPlayerFromUserAction(playerState.player, positionMs)
                 commentViewModel.closeSubReply()
+            },
+            onBackToTop = {
+                // 评论区下滑缩小播放器后,一键回顶同时恢复播放器全尺寸。
+                commentBackToTopRestoreFlow.tryEmit(Unit)
             }
         )
 

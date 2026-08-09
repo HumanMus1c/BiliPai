@@ -10,7 +10,7 @@ import top.yukonga.miuix.kmp.basic.TooltipBox as MiuixTooltipBox
  * Long-press / hover tooltip bridge.
  *
  * MIUIX uses the official [MiuixTooltipBox] plain-text convenience API.
- * iOS / Material paths pass through the [content] unchanged so callers can keep
+ * Material paths pass through the [content] unchanged so callers can keep
  * visible copy (title/summary) without inventing a parallel Material tooltip.
  */
 @Composable
@@ -30,7 +30,6 @@ fun AdaptivePlainTooltipBox(
                 content = content
             )
         }
-        PresetPrimitiveRenderer.IOS,
         PresetPrimitiveRenderer.MATERIAL3 -> {
             Box(modifier = modifier) {
                 content()

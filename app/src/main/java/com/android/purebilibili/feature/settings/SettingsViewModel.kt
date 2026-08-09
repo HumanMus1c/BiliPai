@@ -22,10 +22,10 @@ import com.android.purebilibili.core.store.resolveAppIconLauncherAlias
 import com.android.purebilibili.core.store.supportsAppIconAppearance
 import com.android.purebilibili.core.theme.AppFontSizePreset
 import com.android.purebilibili.core.theme.AppUiScalePreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.syncThemeRoleControlAccent
-import com.android.purebilibili.core.ui.AppThemeSelection
-import com.android.purebilibili.core.ui.toAppThemeSelection
-import com.android.purebilibili.core.ui.toUiStyle
+import com.android.purebilibili.core.ui.AppIconStyle
+import com.android.purebilibili.core.ui.AppListItemStyle
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_TRANSITION_CUSTOM_DEFAULT_MILLIS
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionSpeed
@@ -60,7 +60,7 @@ internal fun shouldStartSettingsDiagnostics(
 ): Boolean = loadState != SettingsDiagnosticsLoadState.LOADED && !jobActive
 
 data class SettingsUiState(
-    val themeSelection: AppThemeSelection = AppThemeSelection.IOS,
+    val themeSelection: AppUiStyle = AppUiStyle.MIUIX,
     val hwDecode: Boolean = true,
     val themeMode: AppThemeMode = AppThemeMode.FOLLOW_SYSTEM,
     val darkThemeStyle: DarkThemeStyle = DarkThemeStyle.DEFAULT,
@@ -79,6 +79,8 @@ data class SettingsUiState(
     val gestureSensitivity: Float = 1.0f,
     val themeColorIndex: Int = 0,
     val appIcon: String = DEFAULT_APP_ICON_KEY,
+    val appIconStyle: AppIconStyle = AppIconStyle.AUTO,
+    val appListItemStyle: AppListItemStyle = AppListItemStyle.AUTO,
     val isBottomBarFloating: Boolean = true,
     val bottomBarLabelMode: Int = 1,  // 0=图标+文字, 1=仅图标, 2=仅文字
     val headerBlurEnabled: Boolean = true,
@@ -133,7 +135,7 @@ data class SettingsUiState(
 
 // 内部数据类，用于分批合并流
 private data class CoreSettings(
-    val themeSelection: AppThemeSelection,
+    val themeSelection: AppUiStyle,
     val hwDecode: Boolean,
     val themeMode: AppThemeMode,
     val darkThemeStyle: DarkThemeStyle,
@@ -150,6 +152,8 @@ data class ExtraSettings(
     val gestureSensitivity: Float,
     val themeColorIndex: Int,
     val appIcon: String,
+    val appIconStyle: AppIconStyle,
+    val appListItemStyle: AppListItemStyle,
     val appFontSizePreset: AppFontSizePreset,
     val appFontFileName: String,
     val appFontDisplayName: String,
@@ -199,7 +203,7 @@ data class ExperimentalSettings(
 )
 
 private data class BaseSettings(
-    val themeSelection: AppThemeSelection,
+    val themeSelection: AppUiStyle,
     val hwDecode: Boolean,
     val themeMode: AppThemeMode,
     val darkThemeStyle: DarkThemeStyle,
@@ -218,6 +222,8 @@ private data class BaseSettings(
     val gestureSensitivity: Float,
     val themeColorIndex: Int,
     val appIcon: String,
+    val appIconStyle: AppIconStyle,
+    val appListItemStyle: AppListItemStyle,
     val isBottomBarFloating: Boolean,
     val bottomBarLabelMode: Int,
     val headerBlurEnabled: Boolean,
@@ -263,6 +269,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val gestureSensitivity: Float,
         val themeColorIndex: Int,
         val appIcon: String,
+        val appIconStyle: AppIconStyle,
+        val appListItemStyle: AppListItemStyle,
         val appFontSizePreset: AppFontSizePreset,
         val appFontFileName: String,
         val appFontDisplayName: String,
@@ -279,7 +287,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     //  [核心修复] 分步合并，解决 combine 参数限制报错
     // 第 1 步：合并前 4 个设置
     private val coreSettingsFlow = combine(
-        SettingsManager.getUiStyle(context).map { it.toAppThemeSelection() }.asAnyFlow(),
+        SettingsManager.getUiStyle(context).asAnyFlow(),
         SettingsManager.getHwDecode(context).asAnyFlow(),
         SettingsManager.getThemeMode(context).asAnyFlow(),
         SettingsManager.getDarkThemeStyle(context).asAnyFlow(),
@@ -294,7 +302,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             .asAnyFlow()
     ) { values ->
         CoreSettings(
-            themeSelection = values[0] as AppThemeSelection,
+            themeSelection = values[0] as AppUiStyle,
             hwDecode = values[1] as Boolean,
             themeMode = values[2] as AppThemeMode,
             darkThemeStyle = values[3] as DarkThemeStyle,
@@ -313,6 +321,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         SettingsManager.getGestureSensitivity(context).asAnyFlow(),
         SettingsManager.getThemeColorIndex(context).asAnyFlow(),
         SettingsManager.getAppIcon(context).asAnyFlow(),
+        SettingsManager.getAppIconStyle(context).asAnyFlow(),
+        SettingsManager.getAppListItemStyle(context).asAnyFlow(),
         SettingsManager.getAppFontSizePreset(context).asAnyFlow(),
         SettingsManager.getAppFontFileName(context).asAnyFlow(),
         SettingsManager.getAppFontDisplayName(context).asAnyFlow(),
@@ -323,11 +333,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             gestureSensitivity = values[0] as Float,
             themeColorIndex = values[1] as Int,
             appIcon = values[2] as String,
-            appFontSizePreset = values[3] as AppFontSizePreset,
-            appFontFileName = values[4] as String,
-            appFontDisplayName = values[5] as String,
-            appUiScalePreset = values[6] as AppUiScalePreset,
-            appDpiOverridePercent = values[7] as Int
+            appIconStyle = values[3] as AppIconStyle,
+            appListItemStyle = values[4] as AppListItemStyle,
+            appFontSizePreset = values[5] as AppFontSizePreset,
+            appFontFileName = values[6] as String,
+            appFontDisplayName = values[7] as String,
+            appUiScalePreset = values[8] as AppUiScalePreset,
+            appDpiOverridePercent = values[9] as Int
         )
     }
     
@@ -443,6 +455,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             gestureSensitivity = ui1.gestureSensitivity,
             themeColorIndex = ui1.themeColorIndex,
             appIcon = ui1.appIcon,
+            appIconStyle = ui1.appIconStyle,
+            appListItemStyle = ui1.appListItemStyle,
             appFontSizePreset = ui1.appFontSizePreset,
             appFontFileName = ui1.appFontFileName,
             appFontDisplayName = ui1.appFontDisplayName,
@@ -537,6 +551,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             gestureSensitivity = extra.gestureSensitivity,
             themeColorIndex = extra.themeColorIndex,
             appIcon = extra.appIcon,
+            appIconStyle = extra.appIconStyle,
+            appListItemStyle = extra.appListItemStyle,
             isBottomBarFloating = extra.isBottomBarFloating,
             bottomBarLabelMode = extra.bottomBarLabelMode,
             headerBlurEnabled = extra.headerBlurEnabled,
@@ -600,6 +616,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             gestureSensitivity = settings.gestureSensitivity,
             themeColorIndex = settings.themeColorIndex,
             appIcon = settings.appIcon,
+            appIconStyle = settings.appIconStyle,
+            appListItemStyle = settings.appListItemStyle,
             isBottomBarFloating = settings.isBottomBarFloating,
             bottomBarLabelMode = settings.bottomBarLabelMode,
             headerBlurEnabled = settings.headerBlurEnabled,
@@ -720,9 +738,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun toggleHwDecode(value: Boolean) { viewModelScope.launch { SettingsManager.setHwDecode(context, value) } }
-    fun setThemeSelection(selection: AppThemeSelection) {
+    fun setThemeSelection(selection: AppUiStyle) {
         viewModelScope.launch {
-            SettingsManager.setUiStyle(context, selection.toUiStyle())
+            SettingsManager.setUiStyle(context, selection)
         }
     }
     fun setThemeMode(mode: AppThemeMode) { 
@@ -738,6 +756,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setAppLanguage(appLanguage: AppLanguage) {
         viewModelScope.launch {
             SettingsManager.setAppLanguage(context, appLanguage)
+        }
+    }
+    fun setAppIconStyle(iconStyle: AppIconStyle) {
+        viewModelScope.launch {
+            SettingsManager.setAppIconStyle(context, iconStyle)
+        }
+    }
+    fun setAppListItemStyle(style: AppListItemStyle) {
+        viewModelScope.launch {
+            SettingsManager.setAppListItemStyle(context, style)
         }
     }
     fun toggleDynamicColor(value: Boolean) { viewModelScope.launch { SettingsManager.setDynamicColor(context, value) } }
@@ -914,6 +942,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     
     //  [新增] 卡片过渡动画开关
     fun toggleCardTransition(value: Boolean) { viewModelScope.launch { SettingsManager.setCardTransitionEnabled(context, value) } }
+
+    fun toggleLiveSurfaceCardTransition(value: Boolean) {
+        viewModelScope.launch {
+            SettingsManager.setLiveSurfaceCardTransitionEnabled(context, value)
+        }
+    }
 
     fun toggleVideoTransitionRealtimeBlur(value: Boolean) {
         viewModelScope.launch {

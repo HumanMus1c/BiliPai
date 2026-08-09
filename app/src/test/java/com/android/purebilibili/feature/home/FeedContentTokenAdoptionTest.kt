@@ -50,7 +50,7 @@ class FeedContentTokenAdoptionTest {
         ).readText()
 
         assertTrue(tokens.contains("enum class FeedTitleHierarchy"))
-        assertTrue(tokens.contains("MaterialTheme.typography.bodyMedium"))
+        assertTrue(tokens.contains("MaterialTheme.typography.bodySmall"))
         assertTrue(tokens.contains("MaterialTheme.typography.titleMedium"))
         assertTrue(!tokens.contains("MaterialTheme.typography.titleLarge"))
         assertTrue(cinematic.contains("feedContentTypography(FeedTitleHierarchy.Prominent)"))

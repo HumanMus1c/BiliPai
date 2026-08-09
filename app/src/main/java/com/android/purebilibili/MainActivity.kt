@@ -1158,8 +1158,6 @@ open class MainActivity : AppCompatActivity() {
                 .collectAsStateWithLifecycle(
                     initialValue = SettingsManager.getInitialAppThemeSettings(context)
                 )
-            val uiPreset = appThemeSettings.uiPreset
-            val androidNativeVariant = appThemeSettings.androidNativeVariant
             val themeMode = appThemeSettings.themeMode
             val darkThemeStyle = appThemeSettings.darkThemeStyle
             val appLanguage = appThemeSettings.appLanguage
@@ -1222,7 +1220,7 @@ open class MainActivity : AppCompatActivity() {
                     sdkInt = Build.VERSION.SDK_INT
                 ),
                 amoledDarkTheme = useAmoledDarkTheme,
-                uiPreset = uiPreset
+                uiStyle = appThemeSettings.uiStyle
             )
 
             //  [新增] 根据主题动态更新状态栏样式
@@ -1274,8 +1272,7 @@ open class MainActivity : AppCompatActivity() {
 
             // 6. 传入参数
             PureBiliBiliTheme(
-                uiPreset = uiPreset,
-                androidNativeVariant = androidNativeVariant,
+                uiStyle = appThemeSettings.uiStyle,
                 themeMode = themeMode,
                 darkTheme = useDarkTheme,
                 dynamicColor = effectiveDynamicColor,
@@ -1288,7 +1285,8 @@ open class MainActivity : AppCompatActivity() {
                 colorSpec = colorSpec,
                 fontSizePreset = appFontSizePreset,
                 appFontFileName = appFontFileName,
-
+                appIconStyle = appThemeSettings.appIconStyle,
+                appListItemStyle = appThemeSettings.appListItemStyle,
             ) {
                 ProvideAppThemeConfig(config = appThemeConfig) {
                 ProvideRuntimeVisualGuard(

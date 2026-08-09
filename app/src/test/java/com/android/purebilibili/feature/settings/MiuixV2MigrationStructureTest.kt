@@ -26,14 +26,16 @@ class MiuixV2MigrationStructureTest {
     fun iosSectionTitle_usesMiuixSmallTitleOnMiuixBranch() {
         val source = loadSource("design-system/src/main/java/com/android/purebilibili/core/ui/components/AdaptivePreferenceComponents.kt")
         assertTrue(source.contains("SmallTitle("))
-        assertTrue(source.contains("androidNativeVariant == AndroidNativeVariant.MIUIX"))
+        assertTrue(source.contains("if (uiStyle == AppUiStyle.MIUIX) {"))
     }
 
     @Test
-    fun appAlertDialog_routesMiuixVariantToOverlayDialog() {
+    fun appAlertDialog_routesMiuixStyleToWindowDialog() {
+        // 2B 迁移：MIUIX 经两值模型路由到窗口级 LOCAL_DIALOG，不再按旧 variant 分支。
         val source = loadSource("design-system/src/main/java/com/android/purebilibili/core/ui/AdaptiveDialogComponents.kt")
-        assertTrue(source.contains("OverlayDialog("))
-        assertTrue(source.contains("androidNativeVariant == AndroidNativeVariant.MIUIX"))
+        assertTrue(source.contains("AppUiStyle.MIUIX ->"))
+        assertTrue(source.contains("AppAlertDialogRenderer.LOCAL_DIALOG"))
+        assertTrue(source.contains("Dialog("))
     }
 
     @Test
@@ -98,7 +100,10 @@ class MiuixV2MigrationStructureTest {
         val source = loadSource("design-system/src/main/java/com/android/purebilibili/core/ui/renderer/miuix/AppMiuixSegmentedControl.kt")
         val componentSource = loadSource("design-system/src/main/java/com/android/purebilibili/core/ui/components/AppSegmentedControl.kt")
         val policySource = loadSource("design-system/src/main/java/com/android/purebilibili/core/ui/AppSegmentedControlPolicy.kt")
-        assertTrue(policySource.contains("usesNativeTabRow = uiPreset == UiPreset.MD3"))
+        // 双值 AppUiStyle 政策：MIUIX 用原生 TabRow，MATERIAL3 用 Material fallback。
+        assertTrue(policySource.contains("AppUiStyle.MIUIX"))
+        assertTrue(policySource.contains("usesNativeTabRow = true"))
+        assertTrue(policySource.contains("usesNativeTabRow = false"))
         assertTrue(componentSource.contains("resolveAppSegmentedRenderer(policy.usesNativeTabRow)"))
         assertTrue(componentSource.contains("AppMiuixSegmentedControl("))
         assertTrue(source.contains("TabRow("))
@@ -134,8 +139,8 @@ class MiuixV2MigrationStructureTest {
         assertTrue(source.contains("resolveAppClickableItemRenderer("))
         assertTrue(source.contains("AppClickableItemRenderer.MIUIX_ARROW"))
         assertTrue(source.contains("AppClickableItemRenderer.MIUIX_BASIC"))
-        assertTrue(source.contains("shouldRouteIosSwitchItemToMiuixSwitchPreference("))
-        assertTrue(source.contains("shouldRouteIosSliderPreferenceToMiuixSliderPreference("))
+        assertTrue(source.contains("shouldRouteSwitchItemToMiuixSwitchPreference("))
+        assertTrue(source.contains("shouldRouteSliderPreferenceToMiuixSliderPreference("))
         assertTrue(source.contains("MiuixSliderPreference("))
     }
 
@@ -159,8 +164,12 @@ class MiuixV2MigrationStructureTest {
     @Test
     fun searchTopBar_usesNeutralSearchField() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt")
-        assertTrue(source.contains("AppSearchField("))
-        assertTrue(source.contains("AppSearchFieldPresentation.TOP_BAR"))
+        // 迁移后的搜索页：共享 BasicTextField 实现 + 中性 App* 组件，
+        // 不再使用 AppSearchField，也不再有原生 chrome 分发（该组件仍服务于其余列表页）。
+        assertTrue(source.contains("SearchTopBarInputField("))
+        assertTrue(source.contains("AppIconButton("))
+        assertFalse(source.contains("resolveSearchNativeChrome("))
+        assertFalse(source.contains("SearchNativeChrome"))
     }
 
     @Test

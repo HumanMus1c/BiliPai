@@ -2,7 +2,6 @@ package com.android.purebilibili.feature.live
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -24,13 +22,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarBorder
-import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppShapes
@@ -47,10 +43,10 @@ import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,11 +56,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -74,7 +68,6 @@ import com.android.purebilibili.data.model.response.LiveFavoriteTagEntry
 import com.android.purebilibili.data.model.response.LiveAreaParent
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.data.repository.LiveRepository
-import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -217,10 +210,15 @@ fun LiveAreaScreen(
                 )
                 HorizontalPager(
                     state = pagerState,
+                    userScrollEnabled = false,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
                         .layerBackdrop(selectionBackdrop)
+                        .verticalPriorityHorizontalPagerSwipe(
+                            state = pagerState,
+                            enabled = true,
+                        )
                 ) { page ->
                     val selectedArea = areas.getOrNull(page)
                     if (selectedArea != null) {
@@ -284,62 +282,24 @@ private fun LiveAreaParentTabRow(
     onTabSelected: (Int) -> Unit
 ) {
     if (areas.isEmpty()) return
-    val compactChrome = rememberAppTopChromePolicy().compactChromeSpec
-    val segmentedSpec = remember(compactChrome) {
-        resolveLiveAreaParentSegmentedControlSpec(compactChrome)
-    }
-    val scrollState = rememberScrollState()
-    val density = LocalDensity.current
     val safeSelectedTab = selectedTab.coerceIn(0, areas.lastIndex)
-    val itemWidthPx = with(density) { (segmentedSpec.itemWidthDp ?: 0).dp.toPx() }
-    val scrollEdgeBufferPx = with(density) { segmentedSpec.edgeBufferDp.dp.toPx() }
-    var indicatorPosition by remember { mutableFloatStateOf(safeSelectedTab.toFloat()) }
-
-    LaunchedEffect(safeSelectedTab) {
-        indicatorPosition = safeSelectedTab.toFloat()
-    }
-
-    LaunchedEffect(indicatorPosition, areas.size, scrollState.maxValue, itemWidthPx) {
-        if (itemWidthPx <= 0f || scrollState.maxValue <= 0) return@LaunchedEffect
-        val contentWidthPx = itemWidthPx * areas.size +
-            with(density) { (segmentedSpec.containerHorizontalPaddingDp * 2).dp.toPx() }
-        val viewportWidthPx = (contentWidthPx - scrollState.maxValue).coerceAtLeast(1f)
-        val targetScroll = resolveLiveHomeCategoryFollowScrollTarget(
-            indicatorPosition = indicatorPosition,
-            itemWidthPx = itemWidthPx,
-            itemCount = areas.size,
-            viewportWidthPx = viewportWidthPx,
-            currentScrollPx = scrollState.value.toFloat(),
-            maxScrollPx = scrollState.maxValue.toFloat(),
-            edgeBufferPx = scrollEdgeBufferPx
-        )
-
-        if (kotlin.math.abs(targetScroll - scrollState.value) > 1) {
-            scrollState.scrollTo(targetScroll)
-        }
-    }
-
-    Row(
+    // PiliPlus TabBar + SearchText 形态：横向 chip，按 MD3/Miuix/iOS 原生分发。
+    LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = horizontalPadding)
-            .height(segmentedSpec.heightDp.dp)
-            .horizontalScroll(scrollState, enabled = false),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = horizontalPadding),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+        verticalAlignment = Alignment.CenterVertically,
+        contentPadding = PaddingValues(vertical = AppSpacingTokens.ExtraSmall),
     ) {
-        BottomBarLiquidSegmentedControl(
-            items = areas.map { it.name },
-            selectedIndex = safeSelectedTab,
-            onSelected = onTabSelected,
-            itemWidth = segmentedSpec.itemWidthDp?.dp,
-            height = segmentedSpec.heightDp.dp,
-            indicatorHeight = segmentedSpec.indicatorHeightDp.dp,
-            labelFontSize = segmentedSpec.labelFontSizeSp.sp,
-            containerHorizontalPadding = segmentedSpec.containerHorizontalPaddingDp.dp,
-            containerVerticalPadding = segmentedSpec.containerVerticalPaddingDp.dp,
-            backdrop = backdrop,
-            onIndicatorPositionChanged = { indicatorPosition = it }
-        )
+        items(areas.size, key = { areas[it].id }) { index ->
+            val area = areas[index]
+            LiveHomeSelectableChip(
+                label = area.name,
+                selected = index == safeSelectedTab,
+                onClick = { onTabSelected(index) },
+            )
+        }
     }
 }
 

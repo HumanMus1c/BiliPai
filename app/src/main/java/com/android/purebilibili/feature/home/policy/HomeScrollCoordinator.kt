@@ -64,9 +64,16 @@ internal fun resolveHomeHeaderSettleTransition(
 
 internal fun resolveHomeHeaderReleaseTarget(
     maxHeaderCollapsePx: Float,
-    canRevealHeader: Boolean
+    canRevealHeader: Boolean,
+    collapseMode: CommonListHeaderCollapseMode = CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
 ): Float {
-    if (maxHeaderCollapsePx <= 0f || canRevealHeader) return 0f
+    if (
+        maxHeaderCollapsePx <= 0f ||
+            canRevealHeader ||
+            collapseMode == CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL
+    ) {
+        return 0f
+    }
     return -maxHeaderCollapsePx
 }
 
@@ -109,6 +116,7 @@ internal fun reduceHomePreScroll(
     deltaY: Float,
     minHeaderOffsetPx: Float,
     canRevealHeader: Boolean,
+    collapseMode: CommonListHeaderCollapseMode = CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
     isHeaderCollapseEnabled: Boolean,
     isBottomBarAutoHideEnabled: Boolean,
     useSideNavigation: Boolean,
@@ -118,8 +126,9 @@ internal fun reduceHomePreScroll(
 ): HomeScrollUpdate {
     val nextHeaderOffset = when {
         !isHeaderCollapseEnabled -> 0f
-        // 搜索框和标签页只在列表回到顶部时展开。
-        !canRevealHeader -> minHeaderOffsetPx
+        // “仅回顶显示”保持折叠；“上滑时显示”可在列表任意位置随反向滚动展开。
+        collapseMode == CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY && !canRevealHeader ->
+            minHeaderOffsetPx
         else -> (currentHeaderOffsetPx + deltaY).coerceIn(minHeaderOffsetPx, 0f)
     }
 

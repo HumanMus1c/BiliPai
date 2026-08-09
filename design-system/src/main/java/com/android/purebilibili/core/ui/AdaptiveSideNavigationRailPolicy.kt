@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 
 enum class AdaptiveSideNavigationRailRenderer {
     MATERIAL3,
@@ -9,14 +8,10 @@ enum class AdaptiveSideNavigationRailRenderer {
 }
 
 fun resolveAdaptiveSideNavigationRailRenderer(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant,
-): AdaptiveSideNavigationRailRenderer = when (
-    resolvePresetPrimitiveRenderer(uiPreset, androidNativeVariant)
-) {
-    PresetPrimitiveRenderer.MIUIX_BRIDGED -> AdaptiveSideNavigationRailRenderer.MIUIX
-    PresetPrimitiveRenderer.IOS,
-    PresetPrimitiveRenderer.MATERIAL3 -> AdaptiveSideNavigationRailRenderer.MATERIAL3
+    uiStyle: AppUiStyle,
+): AdaptiveSideNavigationRailRenderer = when (uiStyle) {
+    AppUiStyle.MIUIX -> AdaptiveSideNavigationRailRenderer.MIUIX
+    AppUiStyle.MATERIAL3 -> AdaptiveSideNavigationRailRenderer.MATERIAL3
 }
 
 fun shouldUseExpandableMiuixNavigationRail(isExpandedWidthClass: Boolean): Boolean =

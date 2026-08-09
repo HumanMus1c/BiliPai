@@ -46,7 +46,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
@@ -54,7 +53,6 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.KeyboardDoubleArrowLeft
 import androidx.compose.material.icons.outlined.KeyboardDoubleArrowRight
 import androidx.compose.material.icons.outlined.PlaylistPlay
-import com.android.purebilibili.core.ui.components.AppFloatingActionButton
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
@@ -62,6 +60,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTab
 import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -80,7 +79,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import androidx.compose.ui.unit.dp
@@ -98,6 +96,8 @@ import com.android.purebilibili.core.store.TabletCommentPanelWidthPreset
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
+import com.android.purebilibili.feature.video.ui.section.resolveAllowLivePlayerSharedElementForMorph
+import com.android.purebilibili.feature.video.ui.section.resolveNavigationLiveSurfaceTextureEnabled
 import com.android.purebilibili.core.util.ShareUtils
 import com.android.purebilibili.data.model.response.BgmInfo
 import com.android.purebilibili.data.model.response.ViewPoint
@@ -109,7 +109,7 @@ import com.android.purebilibili.feature.video.note.VideoNoteEditorDocument
 import com.android.purebilibili.feature.video.note.buildVideoNoteShareText
 import com.android.purebilibili.feature.video.note.shouldShowVideoNoteCard
 import com.android.purebilibili.feature.video.progress.PbpProgressData
-import com.android.purebilibili.feature.video.ui.components.CommentSortFilterBar
+import com.android.purebilibili.feature.video.ui.components.CommentSortHeader
 import com.android.purebilibili.feature.video.ui.components.CollectionRow
 import com.android.purebilibili.feature.video.ui.components.CollectionSheet
 import com.android.purebilibili.feature.video.ui.components.PagesSelector
@@ -117,6 +117,7 @@ import com.android.purebilibili.feature.video.ui.components.RelatedVideoItem
 import com.android.purebilibili.feature.video.ui.components.RelatedVideoGridRow
 import com.android.purebilibili.feature.video.ui.components.chunkRelatedVideosForHomeStyleGrid
 import com.android.purebilibili.feature.video.ui.components.filterRelatedVideosByHiddenBvids
+import com.android.purebilibili.feature.video.ui.components.rememberRelatedVideoCardLayout
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
 import com.android.purebilibili.feature.video.ui.components.VideoInlineSubReplyDetailContent
 import com.android.purebilibili.feature.video.ui.components.rememberVideoCommentAppearance
@@ -182,6 +183,7 @@ internal fun TabletCinemaLayout(
     currentAudioQuality: Int = -1,
     onAudioQualityChange: (Int) -> Unit = {},
     transitionEnabled: Boolean = false,
+    danmakuHostActive: Boolean = true,
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
     showUpBadge: Boolean = true,
     onSearchKeywordClick: (String) -> Unit = {},
@@ -192,6 +194,7 @@ internal fun TabletCinemaLayout(
     forceCoverOnlyOnReturn: Boolean = false,
     predictiveBackCancelRecoveryGeneration: Int = 0,
     sponsorContributionState: SponsorContributionUiState = SponsorContributionUiState(),
+    liveSurfaceCardTransitionEnabled: Boolean = true,
 ) {
     val appContext = LocalContext.current
     val policy = remember(configuration.screenWidthDp, tabletCommentPanelWidthPreset) {
@@ -288,6 +291,7 @@ internal fun TabletCinemaLayout(
                     currentAudioQuality = currentAudioQuality,
                     onAudioQualityChange = onAudioQualityChange,
                     transitionEnabled = transitionEnabled,
+                    danmakuHostActive = danmakuHostActive,
                     currentPlayMode = currentPlayMode,
                     onPlayModeClick = onPlayModeClick,
                     onRelatedVideoClick = onRelatedVideoClick,
@@ -295,6 +299,7 @@ internal fun TabletCinemaLayout(
                     forceCoverOnlyOnReturn = forceCoverOnlyOnReturn,
                     predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
                     sponsorContributionState = sponsorContributionState,
+                    liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
                 )
 
                 if (success != null) {
@@ -414,6 +419,7 @@ private fun CinemaStagePlayer(
     currentAudioQuality: Int,
     onAudioQualityChange: (Int) -> Unit,
     transitionEnabled: Boolean,
+    danmakuHostActive: Boolean,
     currentPlayMode: com.android.purebilibili.feature.video.player.PlayMode,
     onPlayModeClick: () -> Unit,
     onRelatedVideoClick: (String, android.os.Bundle?) -> Unit,
@@ -421,6 +427,7 @@ private fun CinemaStagePlayer(
     forceCoverOnlyOnReturn: Boolean,
     predictiveBackCancelRecoveryGeneration: Int,
     sponsorContributionState: SponsorContributionUiState,
+    liveSurfaceCardTransitionEnabled: Boolean = true,
 ) {
     val success = uiState as? VideoPlaybackUiState.Success
     val sharedTransitionScope = LocalSharedTransitionScope.current
@@ -473,7 +480,15 @@ private fun CinemaStagePlayer(
                 uiState = uiState,
                 isFullscreen = false,
                 isInPipMode = isInPipMode,
-                useTextureSurfaceForNavigation = transitionEnabled,
+                danmakuHostActive = danmakuHostActive,
+                useTextureSurfaceForNavigation = resolveNavigationLiveSurfaceTextureEnabled(
+                    cardTransitionEnabled = transitionEnabled,
+                    liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+                ),
+                allowLivePlayerSharedElement = resolveAllowLivePlayerSharedElementForMorph(
+                    cardTransitionEnabled = transitionEnabled,
+                    liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
+                ),
                 predictiveBackCancelRecoveryGeneration = predictiveBackCancelRecoveryGeneration,
                 onToggleFullscreen = onToggleFullscreen,
                 onQualityChange = playbackActions.changeQuality,
@@ -1060,12 +1075,17 @@ private fun CinemaSideCurtain(
 
                             HorizontalPager(
                                 state = pagerState,
-                                userScrollEnabled = shouldEnableVideoContentHorizontalPagerSwipe(
-                                    currentPage = pagerState.currentPage,
-                                    commentPageIndex = 0,
-                                    isPagerScrollInProgress = pagerState.isScrollInProgress,
-                                ),
-                                modifier = Modifier.fillMaxSize()
+                                userScrollEnabled = false,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalPriorityHorizontalPagerSwipe(
+                                        state = pagerState,
+                                        enabled = shouldEnableVideoContentHorizontalPagerSwipe(
+                                            currentPage = pagerState.currentPage,
+                                            commentPageIndex = 0,
+                                            isPagerScrollInProgress = pagerState.isScrollInProgress,
+                                        ),
+                                    )
                             ) { page ->
                                 when {
                                     success == null -> {
@@ -1223,7 +1243,7 @@ private fun CinemaCommentsPane(
     } else {
         val commentChromeBackdrop = rememberLayerBackdrop()
         Column(modifier = Modifier.fillMaxSize()) {
-            CommentSortFilterBar(
+            CommentSortHeader(
                 count = commentState.replyCount,
                 sortMode = commentState.sortMode,
                 onSortModeChange = { mode ->
@@ -1232,8 +1252,6 @@ private fun CinemaCommentsPane(
                         SettingsManager.setCommentDefaultSortMode(context, mode.apiMode)
                     }
                 },
-                upOnly = commentState.upOnlyFilter,
-                onUpOnlyToggle = commentActions.toggleUpOnly,
                 backdrop = commentChromeBackdrop
             )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -1341,29 +1359,6 @@ private fun CinemaCommentsPane(
             }
             }
 
-        AppFloatingActionButton(
-            onClick = commentActions.toggleUpOnly,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(14.dp),
-            containerColor = if (commentState.upOnlyFilter) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh
-            },
-            contentColor = if (commentState.upOnlyFilter) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.primary
-            },
-            shape = CircleShape
-        ) {
-            AppText(
-                text = "UP",
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp
-            )
-        }
             }
         }
     }
@@ -1380,6 +1375,7 @@ private fun CinemaRelatedPane(
     val visibleRelatedVideos = remember(success.related, hiddenRelatedBvids) {
         filterRelatedVideosByHiddenBvids(success.related, hiddenRelatedBvids)
     }
+    val relatedVideoCardLayout = rememberRelatedVideoCardLayout()
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
@@ -1403,6 +1399,7 @@ private fun CinemaRelatedPane(
             ) {
                 RelatedVideoGridRow(
                     videos = row,
+                    cardLayout = relatedVideoCardLayout,
                     followingMids = success.followingMids,
                     transitionEnabled = LocalSharedTransitionEnabled.current,
                     showUpBadge = showUpBadge,

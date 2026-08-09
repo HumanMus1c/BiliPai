@@ -23,20 +23,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.Cpu as FilledCupertinoCpu
-import io.github.alexzhirkevich.cupertino.icons.filled.Gamecontroller as FilledCupertinoGamecontroller
-import io.github.alexzhirkevich.cupertino.icons.filled.House as FilledCupertinoHouse
-import io.github.alexzhirkevich.cupertino.icons.filled.Lightbulb as FilledCupertinoLightbulb
-import io.github.alexzhirkevich.cupertino.icons.filled.Tv as FilledCupertinoTv
-import io.github.alexzhirkevich.cupertino.icons.outlined.Cpu as OutlinedCupertinoCpu
-import io.github.alexzhirkevich.cupertino.icons.outlined.Gamecontroller as OutlinedCupertinoGamecontroller
-import io.github.alexzhirkevich.cupertino.icons.outlined.House as OutlinedCupertinoHouse
-import io.github.alexzhirkevich.cupertino.icons.outlined.Lightbulb as OutlinedCupertinoLightbulb
-import io.github.alexzhirkevich.cupertino.icons.outlined.Tv as OutlinedCupertinoTv
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Animation
 import androidx.compose.material.icons.filled.Checkroom
@@ -261,28 +247,6 @@ internal fun resolvePartitionSideRailIcon(
         181 -> if (selected) Icons.Filled.LocalMovies else Icons.Outlined.LocalMovies
         else -> if (selected) Icons.Filled.GridView else Icons.Outlined.GridView
     }
-    AppSemanticIconFamily.CUPERTINO -> when (partitionId) {
-        0 -> CupertinoIcons.Outlined.Grid
-        1, 23 -> if (selected) CupertinoIcons.Filled.Film else CupertinoIcons.Outlined.Film
-        13, 11 -> if (selected) CupertinoIcons.Filled.FilledCupertinoTv else CupertinoIcons.Outlined.OutlinedCupertinoTv
-        167 -> if (selected) CupertinoIcons.Filled.Flag else CupertinoIcons.Outlined.Flag
-        3 -> CupertinoIcons.Outlined.MusicNote
-        129 -> CupertinoIcons.Outlined.FigureWalk
-        4 -> if (selected) CupertinoIcons.Filled.FilledCupertinoGamecontroller else CupertinoIcons.Outlined.OutlinedCupertinoGamecontroller
-        36 -> if (selected) CupertinoIcons.Filled.FilledCupertinoLightbulb else CupertinoIcons.Outlined.OutlinedCupertinoLightbulb
-        188 -> if (selected) CupertinoIcons.Filled.FilledCupertinoCpu else CupertinoIcons.Outlined.OutlinedCupertinoCpu
-        234 -> CupertinoIcons.Outlined.Soccerball
-        223 -> if (selected) CupertinoIcons.Filled.Car else CupertinoIcons.Outlined.Car
-        160 -> if (selected) CupertinoIcons.Filled.FilledCupertinoHouse else CupertinoIcons.Outlined.OutlinedCupertinoHouse
-        211 -> CupertinoIcons.Outlined.ForkKnife
-        217 -> if (selected) CupertinoIcons.Filled.Pawprint else CupertinoIcons.Outlined.Pawprint
-        119, 5 -> if (selected) CupertinoIcons.Filled.Theatermasks else CupertinoIcons.Outlined.Theatermasks
-        155 -> if (selected) CupertinoIcons.Filled.Tshirt else CupertinoIcons.Outlined.Tshirt
-        202 -> if (selected) CupertinoIcons.Filled.Newspaper else CupertinoIcons.Outlined.Newspaper
-        177 -> if (selected) CupertinoIcons.Filled.Video else CupertinoIcons.Outlined.Video
-        181 -> if (selected) CupertinoIcons.Filled.Popcorn else CupertinoIcons.Outlined.Popcorn
-        else -> CupertinoIcons.Outlined.Grid
-    }
 }
 
 internal fun resolvePartitionSideRailIndicatorHorizontalPadding(
@@ -489,7 +453,7 @@ fun PartitionContent(
 ) {
     val context = LocalContext.current
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(initialValue = HomeSettings())
-    val topChromeIconFamily = rememberAppTopChromePolicy().iconFamily
+    val topChromeIconFamily = rememberAppTopChromePolicy().effectiveIconFamily
     val liquidGlassIndicatorEnabled = rememberAppChromeLiquidGlassEnabled(
         individualEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
         androidNativeEnabled = homeSettings.androidNativeLiquidGlassEnabled,

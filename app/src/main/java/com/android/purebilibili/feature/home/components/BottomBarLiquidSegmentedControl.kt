@@ -83,6 +83,7 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sign
 
 internal fun resolveSegmentedControlLiquidGlassEnabled(
@@ -285,6 +286,27 @@ internal fun resolveSegmentedControlMotionProgress(
     return maxOf(resolvedPressProgress, refractionProgress)
 }
 
+internal fun resolveSegmentedControlExternalPagerVelocityItemsPerSecond(
+    currentPosition: Float,
+    previousPosition: Float,
+    elapsedNanos: Long,
+): Float {
+    if (elapsedNanos <= 0L) return 0f
+    val elapsedSeconds = elapsedNanos / 1_000_000_000f
+    if (elapsedSeconds <= 0f) return 0f
+    return ((currentPosition - previousPosition) / elapsedSeconds)
+        .coerceIn(-12f, 12f)
+}
+
+internal fun shouldStretchSegmentedControlExternalPagerIndicator(
+    position: Float,
+    externalPagerMotionActive: Boolean,
+    positionEpsilon: Float = 0.015f,
+): Boolean {
+    if (!externalPagerMotionActive) return false
+    return abs(position - position.roundToInt().toFloat()) > positionEpsilon
+}
+
 /**
  * Shared liquid segmented/top-tab indicator motion must match the home floating bottom bar.
  * Do not soften springs/offsets here — any divergence makes swipe stretch/settle feel wrong.
@@ -376,7 +398,8 @@ fun BottomBarLiquidSegmentedControl(
     indicatorIdleSurfaceColorOverride: Color? = null,
     indicatorPositionProvider: (() -> Float)? = null,
     onIndicatorPositionChanged: ((Float) -> Unit)? = null,
-    isScrollInProgressProvider: () -> Boolean = { false }
+    isScrollInProgressProvider: () -> Boolean = { false },
+    externalPagerMotionEffectsEnabled: Boolean = false,
 ) {
     if (items.isEmpty()) return
 
@@ -508,12 +531,18 @@ fun BottomBarLiquidSegmentedControl(
             slotWidthDp = slotWidth.value,
             indicatorHeightDp = indicatorHeight.value
         ).dp
+        val externalIndicatorPosition = if (dragState.isDragging) {
+            null
+        } else {
+            indicatorPositionProvider?.invoke()
+        }
+        val indicatorPosition = resolveSegmentedControlIndicatorPosition(
+            internalPosition = dragState.value,
+            externalPosition = externalIndicatorPosition,
+            itemCount = itemCount
+        )
         val indicatorOffset = resolveSegmentedControlIndicatorOffsetDp(
-            position = resolveSegmentedControlIndicatorPosition(
-                internalPosition = dragState.value,
-                externalPosition = if (dragState.isDragging) null else indicatorPositionProvider?.invoke(),
-                itemCount = itemCount
-            ),
+            position = indicatorPosition,
             slotWidthDp = slotWidth.value,
             contentPaddingDp = contentPadding.value
         ).dp
@@ -528,11 +557,47 @@ fun BottomBarLiquidSegmentedControl(
         } else {
             Modifier
         }
-        val indicatorPosition = resolveSegmentedControlIndicatorPosition(
-            internalPosition = dragState.value,
-            externalPosition = if (dragState.isDragging) null else indicatorPositionProvider?.invoke(),
-            itemCount = itemCount
-        )
+        val externalPagerMotionActive = externalPagerMotionEffectsEnabled &&
+            externalIndicatorPosition != null &&
+            isScrollInProgressProvider()
+        val externalVelocityPositionTracker = remember {
+            FloatArray(1) { indicatorPosition }
+        }
+        val externalVelocityTimeTracker = remember {
+            LongArray(1) { System.nanoTime() }
+        }
+        val velocitySampleTimeNanos = System.nanoTime()
+        val externalPagerVelocityItemsPerSecond = if (externalPagerMotionActive) {
+            resolveSegmentedControlExternalPagerVelocityItemsPerSecond(
+                currentPosition = indicatorPosition,
+                previousPosition = externalVelocityPositionTracker[0],
+                elapsedNanos = (velocitySampleTimeNanos - externalVelocityTimeTracker[0])
+                    .coerceAtLeast(1L),
+            )
+        } else {
+            0f
+        }
+        SideEffect {
+            externalVelocityPositionTracker[0] = indicatorPosition
+            externalVelocityTimeTracker[0] = velocitySampleTimeNanos
+        }
+        val motionVelocityItemsPerSecond = when {
+            dragState.isDragging -> dragState.deformationVelocityItemsPerSecond
+            externalPagerMotionActive -> externalPagerVelocityItemsPerSecond
+            externalPagerMotionEffectsEnabled && indicatorPositionProvider != null -> 0f
+            else -> dragState.deformationVelocityItemsPerSecond
+        }
+        val motionVelocityPxPerSecond = if (externalPagerMotionActive) {
+            externalPagerVelocityItemsPerSecond * itemWidthPx
+        } else {
+            dragState.velocityPxPerSecond
+        }
+        val indicatorShouldStretch = dragState.isDragging ||
+            shouldStretchSegmentedControlExternalPagerIndicator(
+                position = indicatorPosition,
+                externalPagerMotionActive = externalPagerMotionActive,
+            )
+        val indicatorIsInteracting = dragState.isDragging || externalPagerMotionActive
         SideEffect {
             onIndicatorPositionChanged?.invoke(indicatorPosition)
         }
@@ -543,8 +608,8 @@ fun BottomBarLiquidSegmentedControl(
             preset = homeSettings.bottomBarLiquidGlassPreset,
             profile = resolveBottomBarRefractionMotionProfile(
                 position = indicatorPosition,
-                velocity = dragState.velocityPxPerSecond,
-                isDragging = dragState.isDragging,
+                velocity = motionVelocityPxPerSecond,
+                isDragging = indicatorIsInteracting,
                 motionSpec = motionSpec
             )
         )
@@ -562,14 +627,14 @@ fun BottomBarLiquidSegmentedControl(
             if (dragState.isDragging) pressMotionProgress else 0f
         }
         val indicatorDragScaleProgress = rememberBottomBarIndicatorDragScaleProgress(
-            isDragging = dragState.isDragging
+            isDragging = indicatorShouldStretch
         )
         // Match bottom bar: 88/56 drag-scale + velocity stretch (no compound scaleX/Y).
         val indicatorLayerScaleProgress = maxOf(indicatorDragScaleProgress, effectivePressProgress)
         val lensProgress = resolveSharedLiquidIndicatorLensProgress(
             pressProgress = effectivePressProgress,
             motionProgress = motionProgress,
-            isDragging = dragState.isDragging
+            isDragging = indicatorShouldStretch
         )
         val useGlassColorPath = resolveSharedLiquidIndicatorUseGlassColorPath(
             liquidGlassEnabled = liquidGlassEnabled,
@@ -585,10 +650,19 @@ fun BottomBarLiquidSegmentedControl(
                 )
             }
         }
-        val presetPanelOffsets = remember(homeSettings.bottomBarLiquidGlassPreset, rawPanelOffsetPx) {
+        val matchedPanelOffsetPx = if (externalPagerMotionActive) {
+            refractionMotionProfile.indicatorPanelOffsetFraction.coerceIn(-1f, 1f) *
+                with(density) { AppSpacingTokens.ExtraSmall.toPx() }
+        } else {
+            rawPanelOffsetPx
+        }
+        val presetPanelOffsets = remember(
+            homeSettings.bottomBarLiquidGlassPreset,
+            matchedPanelOffsetPx,
+        ) {
             resolveBottomBarPresetPanelOffsets(
                 preset = homeSettings.bottomBarLiquidGlassPreset,
-                rawPanelOffsetPx = rawPanelOffsetPx
+                rawPanelOffsetPx = matchedPanelOffsetPx
             )
         }
         val panelOffsetPx = presetPanelOffsets.indicatorPanelOffsetPx
@@ -608,7 +682,7 @@ fun BottomBarLiquidSegmentedControl(
         val containerBackdrop = backdrop
         val captureLensProgress = resolveSharedLiquidIndicatorCaptureLensProgress(
             lensProgress = lensProgress,
-            isDragging = dragState.isDragging
+            isDragging = indicatorShouldStretch
         )
         // Full 24dp capture lens while interacting — same constant strength as bottom bar capture.
         val captureLensSpec = resolveBottomBarBackdropPresetCaptureLens(
@@ -805,8 +879,8 @@ fun BottomBarLiquidSegmentedControl(
                 indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
                 glassEnabled = liquidGlassEnabled,
                 motionProgress = motionProgress,
-                velocityItemsPerSecond = dragState.deformationVelocityItemsPerSecond,
-                isDragging = dragState.isDragging,
+                velocityItemsPerSecond = motionVelocityItemsPerSecond,
+                isDragging = indicatorShouldStretch,
                 indicatorLayerScaleProgress = indicatorLayerScaleProgress,
                 bottomBarMotionSpec = motionSpec,
                 isDarkTheme = isDarkTheme
@@ -830,8 +904,8 @@ fun BottomBarLiquidSegmentedControl(
                 indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
                 glassEnabled = liquidGlassEnabled,
                 motionProgress = motionProgress,
-                velocityItemsPerSecond = dragState.deformationVelocityItemsPerSecond,
-                isDragging = dragState.isDragging,
+                velocityItemsPerSecond = motionVelocityItemsPerSecond,
+                isDragging = indicatorShouldStretch,
                 indicatorLayerScaleProgress = indicatorLayerScaleProgress,
                 bottomBarMotionSpec = motionSpec,
                 isDarkTheme = isDarkTheme,

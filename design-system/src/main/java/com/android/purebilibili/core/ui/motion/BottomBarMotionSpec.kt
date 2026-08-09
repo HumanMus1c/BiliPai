@@ -102,7 +102,7 @@ fun resolveBottomBarMotionSpec(
             drag = base.drag.copy(
                 baseResistance = 1.02f,
                 overscrollResistance = 0.34f,
-                flingProjectionTimeSeconds = 0.20f,
+                flingProjectionTimeSeconds = 0.14f,
                 selectionSpring = MotionSpringConfig(
                     dampingRatio = 0.68f,
                     stiffness = 520f
@@ -181,7 +181,7 @@ private fun createDefaultBottomBarMotionSpec(): BottomBarMotionSpec {
             baseResistance = 1f,
             overscrollResistance = 0.3f,
             overscrollLimitItems = 0.5f,
-            flingProjectionTimeSeconds = 0.2f,
+            flingProjectionTimeSeconds = 0.14f,
             maxReleaseStepCount = 1,
             pressSpring = MotionSpringConfig(
                 dampingRatio = 1f,

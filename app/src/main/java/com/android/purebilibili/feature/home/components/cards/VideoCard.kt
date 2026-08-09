@@ -30,10 +30,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode
-//  Cupertino Icons
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -225,7 +224,9 @@ private fun resolveVideoCardMetadataModifier(
         .fillMaxWidth()
         .then(
             if (hasTrailingCardAction) {
-                Modifier.padding(end = AppChromeSizeTokens.MinimumTouchTarget)
+                // 右下角"⋮"/取消收藏按钮的视觉图标只占约 20dp，预留 24dp 即可
+                // 防遮挡，把更多宽度让给 UP 名称/日期，避免名称提前折叠省略。
+                Modifier.padding(end = AppSpacingTokens.ExtraLarge)
             } else {
                 Modifier
             }
@@ -266,7 +267,7 @@ private fun VideoCardOwnerMetadata(
             followerCount = upFollowerCount,
             videoCount = upVideoCount
         ),
-        badgeTrailingContent = if (isFollowing) {
+        inlineTrailingContent = if (isFollowing) {
             {
                 if (infoBadgeStyle == HomeVideoBadgeStyle.GLASS) {
                     AppSurface(
@@ -324,10 +325,13 @@ private fun VideoCardOwnerMetadata(
         metaColor = metadataColors.upMetaColor,
         badgeTextColor = metadataColors.upBadgeTextColor,
         badgeBackgroundColor = metadataColors.upBadgeBackgroundColor,
+        // 名称占满剩余宽度，省略号顶到卡片内边距附近；右侧留 6dp 空隙不与
+        // 后续元素贴死，长昵称也不会被提前折叠到卡片一半宽度。
+        nameEndPadding = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro,
         // 未关注时不再渲染空的尾部槽位，避免继续占用作者名的可用宽度；
         // 已关注时由真实的尾部内容自行占位。
         reserveTrailingSlot = false,
-        trailingSlotMinWidth = 0.dp,
+        trailingSlotMinWidth = AppSpacingTokens.None,
         trailingSlotMinHeight = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall,
         showUpBadge = showUpBadge,
         modifier = ownerModifier
@@ -489,8 +493,8 @@ internal fun ElegantVideoCard(
     infoGlassMode: HomeCardInfoGlassMode = HomeCardInfoGlassMode.OFF,
     wallpaperTintEnabled: Boolean = false,
     wallpaperEffectMode: HomeWallpaperEffectMode = HomeWallpaperEffectMode.SOFT_BLUR,
-    showUpBadge: Boolean = true,
-    showUpAvatar: Boolean = true,
+    showUpBadge: Boolean? = null,
+    showUpAvatar: Boolean? = null,
     homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
     // 默认跟官方双列 4:3；首页会传入 resolveHomeFeedCardLayout 的比例覆盖
     coverAspectRatio: Float = 4f / 3f,
@@ -517,9 +521,9 @@ internal fun ElegantVideoCard(
         PlaybackProgressManager.getInstance(context)
     }
     
-    //  [HIG] 动态圆角 - 12dp 标准
+    //  [HIG] 动态圆角 - 8dp 紧凑圆角（比 12dp 更锐利，减小卡片视觉质量）
     val cornerRadiusScale = LocalCornerRadiusScale.current
-    val cardCornerRadius = AppSpacingTokens.Medium * cornerRadiusScale  // HIG 标准圆角
+    val cardCornerRadius = AppSpacingTokens.Small * cornerRadiusScale
     val smallCornerRadius = iOSCornerRadius.Tiny * cornerRadiusScale  // AppSpacingTokens.ExtraSmall * scale
     val durationBadgeStyle = remember { resolveVideoCardDurationBadgeVisualStyle() }
     val cardTexts = remember(video.duration, video.stat.view, video.stat.reply, video.stat.danmaku, video.progress) {
@@ -541,6 +545,10 @@ internal fun ElegantVideoCard(
     val primaryStatText = cardTexts.primaryStatText
     val secondaryStatText = cardTexts.secondaryStatText
     val durationBadgeMinWidth = cardTexts.durationBadgeMinWidth
+    // 时长作为统计行 pill（闹钟图标 + 文本）时的最小宽度预算，供封面统计行自适应让位。
+    val durationStatMinWidthDp = remember(durationText) {
+        resolveVideoCardDurationStatMinWidthDp(durationText)
+    }
     val showDurationOnCover = homeDurationStyle == HomeDurationStyle.OVERLAY_TEXT_ONLY
     val coverOverlayTextShadow = remember { resolveVideoCardCoverOverlayTextShadow() }
     val coverOverlayTextStyle = remember(coverOverlayTextShadow) {
@@ -771,7 +779,6 @@ internal fun ElegantVideoCard(
             .onGloballyPositioned { coordinates ->
                 cardCoordsRef.value = coordinates
             }
-            .padding(bottom = AppSpacingTokens.Medium)
     ) {
         //  尝试获取共享元素作用域。首页点击视频时，由卡片主容器承载整体放大/回收。
         val sharedTransitionScope = LocalSharedTransitionScope.current
@@ -847,26 +854,30 @@ internal fun ElegantVideoCard(
         val cardShellShape = remember(cardCornerRadius) {
             RoundedCornerShape(cardCornerRadius)
         }
-        // 卡片表面留在首页布局层，不进入 sharedBounds overlay；否则打开详情时
-        // 主题 surface 色会随整卡形变并盖住播放器实时画面，表现为灰色色块。
-        val cardSurfaceModifier = Modifier
-            .fillMaxWidth()
-            .clip(cardShellShape)
-            .background(AppSurfaceTokens.cardContainer())
-        val cardContainerModifier = Modifier
-            .fillMaxWidth()
-            .videoCardShellSharedBoundsOrEmpty(
-                enabled = useCardShellSharedBounds,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-                bvid = video.bvid,
-                sourceRoute = effectiveSharedElementSourceRoute,
-                motionSpec = homeSharedTransitionMotionSpec,
-                clipShape = cardShellShape
+        // sharedBounds 与卡片底色拆开：
+        // - 外层 Box 量尺寸 + 画 surface（只在源布局层，不进 overlay）
+        // - 内层 Column 挂 sharedBounds（封面/标题等，无 solid fill）
+        // 若把 cardContainer 画进 sharedBounds，预测返回时会盖住详情壳实时视频 → 大黑块。
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(cardShellShape)
+                    .background(AppSurfaceTokens.cardContainer())
             )
-        Box(modifier = cardSurfaceModifier) {
             Column(
-                modifier = cardContainerModifier
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .videoCardShellSharedBoundsOrEmpty(
+                        enabled = useCardShellSharedBounds,
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        bvid = video.bvid,
+                        sourceRoute = effectiveSharedElementSourceRoute,
+                        motionSpec = homeSharedTransitionMotionSpec,
+                        clipShape = cardShellShape
+                    )
+                    .clip(cardShellShape)
             ) {
         //  [性能优化] 封面圆角形状缓存（避免重组时重复创建）
         val coverShape = remember(cardCornerRadius) {
@@ -1054,7 +1065,9 @@ internal fun ElegantVideoCard(
                         secondaryStatText,
                         onlineCount,
                         showDurationOnCover,
-                        durationBadgeMinWidth
+                        showDurationOutside,
+                        durationBadgeMinWidth,
+                        durationStatMinWidthDp
                     ) {
                         resolveVideoCardCompactCoverStatsLayout(
                             availableWidthDp = maxWidth.value,
@@ -1063,6 +1076,11 @@ internal fun ElegantVideoCard(
                             hasOnlineCount = onlineCount.isNotEmpty(),
                             durationBadgeMinWidthDp = if (showDurationOnCover) {
                                 durationBadgeMinWidth.value
+                            } else {
+                                0f
+                            },
+                            durationStatMinWidthDp = if (showDurationOutside) {
+                                durationStatMinWidthDp
                             } else {
                                 0f
                             }
@@ -1085,7 +1103,7 @@ internal fun ElegantVideoCard(
                             borderColor = coverPillColors.borderColor
                         ) {
                             AppIcon(
-                                imageVector = CupertinoIcons.Outlined.PlayCircle,
+                                imageVector = Icons.Outlined.PlayCircle,
                                 contentDescription = null,
                                 modifier = Modifier.size(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                 tint = MediaContrastPalette.Foreground.copy(alpha = 0.94f)
@@ -1113,7 +1131,7 @@ internal fun ElegantVideoCard(
                                 borderColor = coverPillColors.borderColor
                             ) {
                                 AppIcon(
-                                    imageVector = CupertinoIcons.Outlined.BubbleLeft,
+                                    imageVector = Icons.Outlined.ChatBubbleOutline,
                                     contentDescription = null,
                                     modifier = Modifier.size(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                     tint = MediaContrastPalette.Foreground.copy(alpha = 0.90f)
@@ -1141,13 +1159,41 @@ internal fun ElegantVideoCard(
                                 borderColor = coverPillColors.borderColor
                             ) {
                                 AppIcon(
-                                    imageVector = CupertinoIcons.Outlined.Eye,
+                                    imageVector = Icons.Outlined.Visibility,
                                     contentDescription = null,
                                     modifier = Modifier.size(AppSpacingTokens.Small + AppSpacingTokens.Micro),
                                     tint = MediaContrastPalette.Foreground.copy(alpha = 0.90f)
                                 )
                                 AppText(
                                     text = onlineCount,
+                                    color = MediaContrastPalette.Foreground.copy(alpha = 0.90f),
+                                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                                    fontWeight = FontWeight.Medium,
+                                    style = coverOverlayTextStyle,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        // 时长随统计行显示（OUTSIDE_COVER）：闹钟图标 + 时长，与其他统计 pill 同结构。
+                        if (showDurationOutside) {
+                            HomeVideoBadgePill(
+                                style = badgeStylePolicy.coverStyle,
+                                useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
+                                shape = AppShapes.container(ContainerLevel.Pill),
+                                containerColor = coverPillColors.containerColor,
+                                borderColor = coverPillColors.borderColor
+                            ) {
+                                AppIcon(
+                                    imageVector = Icons.Outlined.Alarm,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(AppSpacingTokens.Small + AppSpacingTokens.Micro),
+                                    tint = MediaContrastPalette.Foreground.copy(alpha = 0.90f)
+                                )
+                                AppText(
+                                    text = durationText,
                                     color = MediaContrastPalette.Foreground.copy(alpha = 0.90f),
                                     fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                     fontWeight = FontWeight.Medium,
@@ -1342,11 +1388,12 @@ internal fun ElegantVideoCard(
             onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
+        val resolvedUpBadgeVisibility = com.android.purebilibili.core.ui.LocalUpBadgeVisibility.current
         VideoCardOwnerMetadata(
             video = video,
             isFollowing = isFollowing,
-            showUpBadge = showUpBadge,
-            showUpAvatar = showUpAvatar,
+            showUpBadge = showUpBadge ?: resolvedUpBadgeVisibility.showBadges,
+            showUpAvatar = showUpAvatar ?: resolvedUpBadgeVisibility.showAvatars,
             upFollowerCount = upFollowerCount,
             upVideoCount = upVideoCount,
             infoBadgeStyle = badgeStylePolicy.infoStyle,
@@ -1356,8 +1403,9 @@ internal fun ElegantVideoCard(
             modifier = resolveVideoCardMetadataRowModifier()
         )
 
+        // 时长已移入统计行（闹钟图标），日期行独占整行，发布日期不再被挤压省略。
         VideoCardDurationPublishRow(
-            durationText = durationText.takeIf { showDurationOutside }.orEmpty(),
+            durationText = "",
             publishTimeText = publishTimeRowText,
             emphasizePublishTime = emphasizePublishTime,
             publishTimeColor = metadataColors.publishTimeColor,
@@ -1384,7 +1432,7 @@ internal fun ElegantVideoCard(
                         borderColor = inlinePillColors.borderColor
                     ) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Outlined.PlayCircle,
+                            imageVector = Icons.Outlined.PlayCircle,
                             contentDescription = null,
                             modifier = Modifier.size(AppSpacingTokens.Medium),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1408,7 +1456,7 @@ internal fun ElegantVideoCard(
                         borderColor = inlinePillColors.borderColor
                     ) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Outlined.BubbleLeft,
+                            imageVector = Icons.Outlined.ChatBubbleOutline,
                             contentDescription = null,
                             modifier = Modifier.size(AppSpacingTokens.Medium),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1430,13 +1478,38 @@ internal fun ElegantVideoCard(
                         borderColor = inlinePillColors.borderColor
                     ) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Outlined.Eye,
+                            imageVector = Icons.Outlined.Visibility,
                             contentDescription = null,
                             modifier = Modifier.size(AppSpacingTokens.Medium),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         AppText(
                             text = onlineCount,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                if (showDurationOutside && durationText.isNotBlank()) {
+                    HomeVideoBadgePill(
+                        style = badgeStylePolicy.infoStyle,
+                        useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
+                        shape = AppShapes.container(ContainerLevel.Pill),
+                        containerColor = inlinePillColors.containerColor,
+                        borderColor = inlinePillColors.borderColor
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.Alarm,
+                            contentDescription = null,
+                            modifier = Modifier.size(AppSpacingTokens.Medium),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        AppText(
+                            text = durationText,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
                             maxLines = 1,
@@ -1466,7 +1539,7 @@ internal fun ElegantVideoCard(
                         contentAlignment = Alignment.Center
                     ) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Filled.HandThumbsup,
+                            imageVector = Icons.Filled.ThumbUp,
                             contentDescription = "取消收藏",
                             modifier = Modifier.size(AppSpacingTokens.Large),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)

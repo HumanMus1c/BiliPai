@@ -111,12 +111,13 @@ class HomeScrollCoordinatorTest {
     }
 
     @Test
-    fun release_keepsHeaderCollapsedUnlessFeedIsAtTop() {
+    fun release_respectsConfiguredHeaderRevealMode() {
         assertEquals(
             -120f,
             resolveHomeHeaderReleaseTarget(
                 maxHeaderCollapsePx = 120f,
-                canRevealHeader = false
+                canRevealHeader = false,
+                collapseMode = CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
             )
         )
         assertEquals(
@@ -124,6 +125,14 @@ class HomeScrollCoordinatorTest {
             resolveHomeHeaderReleaseTarget(
                 maxHeaderCollapsePx = 120f,
                 canRevealHeader = true
+            )
+        )
+        assertEquals(
+            0f,
+            resolveHomeHeaderReleaseTarget(
+                maxHeaderCollapsePx = 120f,
+                canRevealHeader = false,
+                collapseMode = CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
             )
         )
     }
@@ -156,6 +165,42 @@ class HomeScrollCoordinatorTest {
         assertEquals(-120f, result.headerOffsetPx)
         assertNull(result.bottomBarVisibilityIntent)
         assertNull(result.globalScrollOffset)
+    }
+
+    @Test
+    fun reverseScrollMode_revealsHeaderBeforeFeedReturnsToTop() {
+        val result = reduceHomePreScroll(
+            currentHeaderOffsetPx = -120f,
+            deltaY = 48f,
+            minHeaderOffsetPx = -120f,
+            canRevealHeader = false,
+            collapseMode = CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
+            isHeaderCollapseEnabled = true,
+            isBottomBarAutoHideEnabled = false,
+            useSideNavigation = false,
+            liquidGlassEnabled = false,
+            currentGlobalScrollOffset = 0f,
+        )
+
+        assertEquals(-72f, result.headerOffsetPx)
+    }
+
+    @Test
+    fun topOnlyMode_keepsHeaderCollapsedBeforeFeedReturnsToTop() {
+        val result = reduceHomePreScroll(
+            currentHeaderOffsetPx = -120f,
+            deltaY = 48f,
+            minHeaderOffsetPx = -120f,
+            canRevealHeader = false,
+            collapseMode = CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
+            isHeaderCollapseEnabled = true,
+            isBottomBarAutoHideEnabled = false,
+            useSideNavigation = false,
+            liquidGlassEnabled = false,
+            currentGlobalScrollOffset = 0f,
+        )
+
+        assertEquals(-120f, result.headerOffsetPx)
     }
 
     @Test

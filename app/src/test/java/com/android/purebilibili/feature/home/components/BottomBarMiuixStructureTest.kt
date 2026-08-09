@@ -385,7 +385,7 @@ class BottomBarMiuixStructureTest {
             .substringBefore("@Composable\nprivate fun KernelSuBottomBarShell(")
         val itemRendererSource = source
             .substringAfter("private fun RowScope.AndroidNativeBottomBarItem(")
-            .substringBefore("internal fun resolveHomeNavigationBarIcon(")
+            .substringBefore("private fun resolveMaterialBottomBarIcon(")
 
         assertTrue(kernelSuRendererSource.contains("resolveKernelSuBottomBarItemSlotWidth("))
         assertTrue(kernelSuRendererSource.contains("itemWidth = indicatorWidth"))
@@ -587,16 +587,16 @@ class BottomBarMiuixStructureTest {
     }
 
     @Test
-    fun `ios floating bottom bar also routes to sukisu renderer`() {
+    fun `miuix floating bottom bar also routes to sukisu renderer`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
-        val iosRendererSource = source
-            .substringAfter("fun FrostedBottomBar(")
-            .substringBefore("@Composable\nprivate fun MaterialBottomBar(")
+        val miuixRendererSource = source
+            .substringAfter("fun MiuixBottomBar(")
+            .substringBefore("@Composable\nprivate fun KernelSuAlignedBottomBar(")
 
-        assertTrue(iosRendererSource.contains("KernelSuAlignedBottomBar("))
-        assertTrue(iosRendererSource.contains("iconStyle = SharedFloatingBottomBarIconStyle.CUPERTINO"))
-        assertTrue(iosRendererSource.contains("if (isFloating) {"))
-        assertFalse(iosRendererSource.contains("if (isFloating && homeSettings.isBottomBarLiquidGlassEnabled)"))
+        assertTrue(miuixRendererSource.contains("KernelSuAlignedBottomBar("))
+        assertTrue(miuixRendererSource.contains("iconStyle = sharedBarIconStyle"))
+        assertTrue(miuixRendererSource.contains("if (isFloating) {"))
+        assertFalse(miuixRendererSource.contains("if (isFloating && homeSettings.isBottomBarLiquidGlassEnabled)"))
     }
 
     @Test
@@ -611,7 +611,7 @@ class BottomBarMiuixStructureTest {
         assertTrue(source.contains("MiuixBottomBar("))
         assertTrue(source.contains("if (isFloating) {"))
         assertTrue(source.contains("KernelSuAlignedBottomBar("))
-        assertTrue(source.contains("iconStyle = SharedFloatingBottomBarIconStyle.CUPERTINO"))
+        assertTrue(source.contains("iconStyle = sharedBarIconStyle"))
         assertTrue(source.contains("private enum class SharedFloatingBottomBarIconStyle"))
         assertTrue(source.contains("AppNavigationBar("))
         assertTrue(source.contains("AppPlatformNavigationBar("))

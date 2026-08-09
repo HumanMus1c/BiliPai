@@ -43,6 +43,23 @@ internal fun resolveDampedDragVelocityItemsPerSecond(
     return velocityPxPerSecond / itemWidthPx
 }
 
+internal const val HORIZONTAL_DRAG_DOMINANCE_RATIO = 1.25f
+internal const val HORIZONTAL_DRAG_MIN_DISTANCE_PX = 8f
+
+fun shouldEngageHorizontalDrag(
+    horizontalDeltaPx: Float,
+    verticalDeltaPx: Float,
+    dominanceRatio: Float = HORIZONTAL_DRAG_DOMINANCE_RATIO,
+    minimumHorizontalDistancePx: Float = HORIZONTAL_DRAG_MIN_DISTANCE_PX,
+): Boolean {
+    val horizontalDistance = abs(horizontalDeltaPx)
+    val verticalDistance = abs(verticalDeltaPx)
+    val safeRatio = dominanceRatio.coerceAtLeast(1f)
+    val safeMinimum = minimumHorizontalDistancePx.coerceAtLeast(0f)
+    return horizontalDistance >= safeMinimum &&
+        horizontalDistance >= verticalDistance * safeRatio
+}
+
 /**
  * 根据拖拽速度和位置计算释放后吸附的目标索引（9.0.0 飞掷投影）。
  */
@@ -399,14 +416,20 @@ fun Modifier.horizontalDragGesture(
         velocityTracker.resetTracking()
         velocityTracker.addPosition(down.uptimeMillis, down.position)
 
+        var horizontalDragEngaged = false
         val dragStart = awaitHorizontalTouchSlopOrCancellation(down.id) { change, over ->
+            val totalDelta = change.position - down.position
+            if (!shouldEngageHorizontalDrag(totalDelta.x, totalDelta.y)) {
+                return@awaitHorizontalTouchSlopOrCancellation
+            }
+            horizontalDragEngaged = true
             if (consumePointerChanges) {
                 change.consume()
             }
             dragState.onDrag(over, itemWidthPx)
         }
 
-        if (dragStart != null) {
+        if (dragStart != null && horizontalDragEngaged) {
             velocityTracker.addPosition(dragStart.uptimeMillis, dragStart.position)
             var isCanceled = false
 

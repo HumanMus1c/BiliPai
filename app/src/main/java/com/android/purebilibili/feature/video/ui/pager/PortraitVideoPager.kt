@@ -30,8 +30,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.outlined.*
 import com.android.purebilibili.core.ui.components.AppButton
 import androidx.compose.material3.ButtonDefaults
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
@@ -104,8 +103,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackParameters
+import com.android.purebilibili.feature.video.ui.section.requiresHdrSurfaceOutput
 import com.android.purebilibili.feature.video.ui.section.shouldKeepVideoPlaybackAwake
 import com.android.purebilibili.feature.video.ui.section.shouldShowLongPressSpeedFeedback
+import com.android.purebilibili.feature.video.ui.section.shouldShowLongPressSpeedHintCloseButton
+import com.android.purebilibili.feature.video.ui.section.shouldUseTextureSurfaceForFlip
 import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import com.android.purebilibili.feature.video.usecase.togglePlayerPlaybackFromUserAction
 import androidx.media3.common.VideoSize
@@ -1636,6 +1638,16 @@ private fun VideoPageItem(
         .getLongPressSpeed(context)
         .collectAsStateWithLifecycle(initialValue = 2.0f
         )
+    val longPressSpeedHintCloseEnabled by SettingsManager
+        .getLongPressSpeedHintCloseEnabled(context)
+        .collectAsStateWithLifecycle(
+            initialValue = SettingsManager.getLongPressSpeedHintCloseEnabledSync(context)
+        )
+    val longPressSpeedHintHidden by SettingsManager
+        .getLongPressSpeedHintHidden(context)
+        .collectAsStateWithLifecycle(
+            initialValue = SettingsManager.getLongPressSpeedHintHiddenSync(context)
+        )
     val doubleTapSeekEnabled by SettingsManager
         .getDoubleTapSeekEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
@@ -2329,7 +2341,16 @@ private fun VideoPageItem(
                     ) {
                         AndroidView(
                             factory = { ctx ->
-                                val basePlayerView = if (useTextureSurfaceForNavigation) {
+                                // HDR/Dolby need SurfaceView; navigation morph TextureView kills HDR.
+                                val preferTexture = shouldUseTextureSurfaceForFlip(
+                                    isFlippedHorizontal = false,
+                                    isFlippedVertical = false,
+                                    navigationTransformEnabled = useTextureSurfaceForNavigation,
+                                    requiresHdrSurfaceOutput = requiresHdrSurfaceOutput(
+                                        currentQualityId = selectedQualityId
+                                    )
+                                )
+                                val basePlayerView = if (preferTexture) {
                                     android.view.LayoutInflater.from(ctx)
                                         .inflate(
                                             com.android.purebilibili.R.layout.view_player_texture,
@@ -2549,6 +2570,7 @@ private fun VideoPageItem(
                 isLongPressing = isLongPressing,
                 isPlaybackSurfaceActive = isCurrentPage,
                 hintDismissed = longPressSpeedHintDismissed,
+                hintHidden = longPressSpeedHintHidden,
             ),
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -2605,12 +2627,12 @@ private fun VideoPageItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
                 val arrowAlphas = listOf(arrow1Alpha, arrow2Alpha, arrow3Alpha)
                 arrowAlphas.forEach { alpha ->
                     Canvas(
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(12.dp)
                     ) {
                         val path = Path().apply {
                             moveTo(0f, 0f)
@@ -2624,30 +2646,32 @@ private fun VideoPageItem(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 AppText(
                     text = "${effectiveLongPressSpeed}x",
                     color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
                     style = androidx.compose.ui.text.TextStyle(
                         shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.6f),
+                            color = Color.Black.copy(alpha = 0.35f),
                             offset = Offset(1f, 1f),
-                            blurRadius = 4f
+                            blurRadius = 2f
                         )
                     )
                 )
-                AppIconButton(
-                    onClick = { longPressSpeedHintDismissed = true },
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    AppIcon(
-                        imageVector = CupertinoIcons.Default.Xmark,
-                        contentDescription = "关闭倍速提示",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp),
-                    )
+                if (shouldShowLongPressSpeedHintCloseButton(longPressSpeedHintCloseEnabled)) {
+                    AppIconButton(
+                        onClick = { longPressSpeedHintDismissed = true },
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "关闭倍速提示",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
             }
         }

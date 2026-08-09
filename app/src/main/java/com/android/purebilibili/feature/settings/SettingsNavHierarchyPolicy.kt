@@ -6,7 +6,6 @@ import com.android.purebilibili.navigation3.BiliPaiNavRouteTransition
 internal const val SETTINGS_ROUTE_BASE = "settings"
 internal const val SETTINGS_CATEGORY_ROUTE_BASE = "settings_category"
 internal const val SETTINGS_SEARCH_ROUTE_BASE = "settings_search"
-private const val PROFILE_ROUTE_BASE = "profile"
 
 internal val SETTINGS_SUBTREE_ROUTE_BASES: Set<String> = setOf(
     SETTINGS_ROUTE_BASE,
@@ -59,6 +58,17 @@ private val SETTINGS_DIRECT_REACH_PARENTS: Set<String> = setOf(
     SETTINGS_SEARCH_ROUTE_BASE,
     SETTINGS_CATEGORY_ROUTE_BASE,
 )
+
+/**
+ * 分类级直跳:分类内容页只有一个跳转入口且无内联设置项时,点击分类直接
+ * 进入目标设置页,省去中间层的一次点击。
+ */
+internal fun resolveSettingsCategoryDirectTargetKey(
+    category: SettingsRootCategory,
+): BiliPaiNavKey? = when (canonicalSettingsRootCategory(category)) {
+    SettingsRootCategory.APPEARANCE_THEME -> BiliPaiNavKey.AppearanceSettings
+    else -> null
+}
 
 private val ROUTE_TO_CATEGORY: Map<String, SettingsRootCategory> = mapOf(
     "appearance_settings" to SettingsRootCategory.APPEARANCE_THEME,
@@ -135,8 +145,10 @@ internal fun isSettingsNavHierarchyTransition(
     if (!isSettingsSubtreeRoute(childRoute)) return false
     val normalizedParent = parentRoute.substringBefore("?")
     val normalizedChild = childRoute.substringBefore("?")
-    // “我的”页的设置按钮直接打开设置根页，属于设置树的根入口。
-    if (normalizedParent == PROFILE_ROUTE_BASE && normalizedChild == SETTINGS_ROUTE_BASE) {
+    // 任意宿主页面（底栏 tab：首页/动态/我的等）直接打开设置根页，都属于设置树的根入口
+    // （“我的”页设置按钮与首页顶栏设置按钮都走这条路径，且 pop 回 MainHost 时经
+    // resolveSettingsNavPopTransition 重映射回真实 tab，同样命中这里）。
+    if (normalizedChild == SETTINGS_ROUTE_BASE && !isSettingsSubtreeRoute(normalizedParent)) {
         return true
     }
     if (resolveSettingsNavParentRoute(normalizedChild) == normalizedParent) {
@@ -151,19 +163,6 @@ internal fun isSettingsNavHierarchyTransition(
     return false
 }
 
-internal fun resolveSettingsNavRouteTransition(
-    fromRoute: String?,
-    toRoute: String?,
-    forward: Boolean,
-): BiliPaiNavRouteTransition? {
-    if (forward) {
-        if (!isSettingsNavHierarchyTransition(fromRoute, toRoute)) return null
-        return BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_FORWARD
-    }
-    if (!isSettingsNavHierarchyTransition(toRoute, fromRoute)) return null
-    return BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP
-}
-
 /**
  * 设置树 pop 的单一决策入口。Display / Entry / 预测返回 handler 都应读这里，
  * 避免 MainHost ↔ 底栏 Settings remap 不一致导致预览与提交动画分裂。
@@ -176,9 +175,11 @@ internal fun resolveSettingsNavPopTransition(
     if (!isSettingsSubtreeRoute(fromRoute)) return null
     val normalizedTo = toRoute?.substringBefore("?")?.takeIf { it.isNotBlank() } ?: return null
     val normalizedActive = activeMainHostRoute?.substringBefore("?")?.takeIf { it.isNotBlank() }
+    // 只要底栏有活跃 tab，pop 回 MainHost 时就以该 tab 作为设置树的“父级”，
+    // 使首页/动态/我的等任意入口打开设置根页后都能命中设置树 iOS pop 动画。
     val effectiveParentRoute = if (
         normalizedTo == BiliPaiNavKey.MainHost.routeBase &&
-        (isSettingsSubtreeRoute(normalizedActive) || normalizedActive == PROFILE_ROUTE_BASE)
+        normalizedActive != null
     ) {
         normalizedActive
     } else {

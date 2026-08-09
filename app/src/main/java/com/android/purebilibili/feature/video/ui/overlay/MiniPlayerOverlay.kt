@@ -15,10 +15,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -618,7 +616,7 @@ fun MiniPlayerOverlay(
                                 color = Color.Black.copy(alpha = 0.5f)
                             ) {
                                 AppIcon(
-                                    imageVector = CupertinoIcons.Default.Minus, // 使用 Minus 图标作为隐藏/最小化
+                                    imageVector = Icons.Outlined.Remove, // 使用 Remove 图标作为隐藏/最小化
                                     contentDescription = "隐藏",
                                     tint = Color.White,
                                     modifier = Modifier
@@ -636,7 +634,7 @@ fun MiniPlayerOverlay(
                                     color = Color.Black.copy(alpha = 0.5f)
                                 ) {
                                     AppIcon(
-                                        imageVector = CupertinoIcons.Outlined.PipEnter,
+                                        imageVector = Icons.Outlined.PictureInPictureAlt,
                                         contentDescription = "切换到画中画",
                                         tint = Color.White,
                                         modifier = Modifier
@@ -654,7 +652,7 @@ fun MiniPlayerOverlay(
                                 color = Color.Black.copy(alpha = 0.5f)
                             ) {
                                 AppIcon(
-                                    imageVector = CupertinoIcons.Default.ArrowUpLeftAndArrowDownRight,
+                                    imageVector = Icons.Outlined.FullscreenExit,
                                     contentDescription = "展开",
                                     tint = Color.White,
                                     modifier = Modifier
@@ -709,7 +707,7 @@ fun MiniPlayerOverlay(
                         color = accentColor.copy(alpha = 0.9f)
                     ) {
                         AppIcon(
-                            imageVector = if (isPlaying) CupertinoIcons.Default.Pause else CupertinoIcons.Default.Play,
+                            imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                             contentDescription = if (isPlaying) "暂停" else "播放",
                             tint = Color.White,
                             modifier = Modifier
@@ -843,7 +841,7 @@ fun MiniPlayerOverlay(
                         color = Color.Black.copy(alpha = 0.35f)
                     ) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Default.ArrowUpLeftAndArrowDownRight,
+                            imageVector = Icons.Outlined.FullscreenExit,
                             contentDescription = "拖动调整小窗大小",
                             tint = Color.White.copy(alpha = 0.9f),
                             modifier = Modifier.padding(15.dp)

@@ -68,31 +68,26 @@ class BottomBarColorBindingPolicyTest {
     }
 
     @Test
-    fun `bottom bar selected icons retain filled Cupertino pairs`() {
+    fun `bottom bar selected icons use filled symbols`() {
         val source = File("src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
             .readText()
+        val selectedSymbols = listOf(
+            "House",
+            "Bell",
+            "PlayCircle",
+            "Clock",
+            "Person",
+            "Star",
+            "Video",
+            "Gearshape"
+        )
 
-        assertTrue(source.contains("CupertinoIcons.Filled.House"))
-        assertTrue(source.contains("CupertinoIcons.Outlined.House"))
-        assertTrue(source.contains("CupertinoIcons.Filled.Bell"))
-        assertTrue(source.contains("CupertinoIcons.Outlined.Bell"))
-        assertTrue(source.contains("CupertinoIcons.Filled.PuzzlepieceExtension"))
-        assertTrue(source.contains("CupertinoIcons.Outlined.PuzzlepieceExtension"))
-        assertFalse(source.contains("CupertinoIcons.Default.Puzzlepiece"))
-        assertFalse(source.contains("private fun MiuixBottomNavigationIcon("))
-    }
-
-    @Test
-    fun `floating bottom bar blends each items outlined and filled icon`() {
-        val source = File("src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
-            .readText()
-        val floatingIconSource = source
-            .substringAfter("private fun BottomBarBlendedCupertinoIcon(")
-            .substringBefore("private fun BottomBarBlendedMaterialIcon(")
-
-        assertTrue(floatingIconSource.contains("item.unselectedIcon()"))
-        assertTrue(floatingIconSource.contains("item.selectedIcon()"))
-        assertFalse(floatingIconSource.contains("resolveHomeNavigationBarIcon(item, selected = false)"))
+        assertTrue(
+            selectedSymbols.all { symbol ->
+                source.contains("{ AppIcon(CupertinoIcons.Filled.$symbol, contentDescription = null) }")
+            },
+            "Bottom bar selected icons should use filled symbols so the whole selected icon is tinted by the theme color."
+        )
     }
 
     @Test
@@ -106,6 +101,11 @@ class BottomBarColorBindingPolicyTest {
         assertTrue(watchLaterBlock.contains("CupertinoIcons.Filled.Clock"))
         assertTrue(watchLaterBlock.contains("CupertinoIcons.Outlined.Clock"))
         assertFalse(watchLaterBlock.contains("Bookmark"))
+        assertTrue(
+            source.contains(
+                "BottomNavItem.WATCHLATER -> if (selected) Icons.Filled.WatchLater else Icons.Outlined.WatchLater"
+            )
+        )
     }
 
     @Test

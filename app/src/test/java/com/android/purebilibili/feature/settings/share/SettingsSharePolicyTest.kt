@@ -173,4 +173,96 @@ class SettingsSharePolicyTest {
         assertEquals("Material 3", resolveAndroidNativeVariantNameFromValue(0))
         assertEquals("Miuix", resolveAndroidNativeVariantNameFromValue(1))
     }
+
+    @Test
+    fun normalizeImportThemeSelection_mapsLegacyKeysToNewKey() {
+        val sections = SettingsShareSections(
+            appearance = mapOf(
+                "ui_preset" to JsonPrimitive(1),
+                "android_native_variant_v1" to JsonPrimitive(1),
+                "theme_mode_v2" to JsonPrimitive(1)
+            ),
+            playback = mapOf("auto_play" to JsonPrimitive(true))
+        )
+
+        val normalized = normalizeThemeSelectionForImport(sections)
+
+        assertEquals(
+            JsonPrimitive("MIUIX"),
+            normalized.appearance["theme_selection_v1"]
+        )
+        assertFalse(normalized.appearance.containsKey("ui_preset"))
+        assertFalse(normalized.appearance.containsKey("android_native_variant_v1"))
+        assertEquals(JsonPrimitive(1), normalized.appearance["theme_mode_v2"])
+        assertEquals(sections.playback, normalized.playback)
+    }
+
+    @Test
+    fun normalizeImportThemeSelection_iOSLegacyValueFallsIntoMiuix() {
+        val sections = SettingsShareSections(
+            appearance = mapOf(
+                "ui_preset" to JsonPrimitive(0),
+                "android_native_variant_v1" to JsonPrimitive(0)
+            )
+        )
+
+        val normalized = normalizeThemeSelectionForImport(sections)
+
+        // iOS 按迁移表落入 MIUIX，与 AppUiStyle.fromLegacyValues 一致
+        assertEquals(JsonPrimitive("MIUIX"), normalized.appearance["theme_selection_v1"])
+    }
+
+    @Test
+    fun normalizeImportThemeSelection_keepsNewKeyWhenLegacyPresent() {
+        val sections = SettingsShareSections(
+            appearance = mapOf(
+                "theme_selection_v1" to JsonPrimitive("MATERIAL3"),
+                "ui_preset" to JsonPrimitive(0),
+                "android_native_variant_v1" to JsonPrimitive(0)
+            )
+        )
+
+        val normalized = normalizeThemeSelectionForImport(sections)
+
+        // 新键优先，仅清理冗余旧键
+        assertEquals(JsonPrimitive("MATERIAL3"), normalized.appearance["theme_selection_v1"])
+        assertFalse(normalized.appearance.containsKey("ui_preset"))
+        assertFalse(normalized.appearance.containsKey("android_native_variant_v1"))
+    }
+
+    @Test
+    fun normalizeImportThemeSelection_keepsSectionsUntouchedWithoutThemeKeys() {
+        val sections = SettingsShareSections(
+            appearance = mapOf("theme_mode_v2" to JsonPrimitive(1)),
+            playback = mapOf("auto_play" to JsonPrimitive(false))
+        )
+
+        assertEquals(sections, normalizeThemeSelectionForImport(sections))
+    }
+
+    @Test
+    fun debugThemeValues_prefersNewKey() {
+        assertEquals(
+            1 to 1,
+            resolveDebugThemeValues(mapOf("theme_selection_v1" to JsonPrimitive("MIUIX")))
+        )
+        assertEquals(
+            1 to 0,
+            resolveDebugThemeValues(mapOf("theme_selection_v1" to JsonPrimitive("MATERIAL3")))
+        )
+    }
+
+    @Test
+    fun debugThemeValues_fallsBackToLegacyKeysWhenNewKeyMissing() {
+        assertEquals(
+            1 to 1,
+            resolveDebugThemeValues(
+                mapOf(
+                    "ui_preset" to JsonPrimitive(1),
+                    "android_native_variant_v1" to JsonPrimitive(1)
+                )
+            )
+        )
+        assertEquals(0 to 0, resolveDebugThemeValues(emptyMap()))
+    }
 }

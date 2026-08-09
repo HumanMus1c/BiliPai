@@ -1,18 +1,19 @@
 package com.android.purebilibili.core.store
 
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 
 /**
  * Legacy gate used by bottom-bar liquid glass: the per-surface toggle must be on,
- * and MD3 also needs the global android-native reuse switch.
+ * and the MATERIAL3 style also needs the global android-native reuse switch.
  */
 internal fun resolveEffectiveLiquidGlassEnabled(
     requestedEnabled: Boolean,
-    uiPreset: UiPreset,
+    uiStyle: AppUiStyle,
     androidNativeLiquidGlassEnabled: Boolean = false
 ): Boolean {
     if (!requestedEnabled) return false
-    return uiPreset == UiPreset.IOS || androidNativeLiquidGlassEnabled
+    // 迁移语义：历史 iOS 预设已由迁移表落到 MIUIX，"无需全局开关"行为由 MIUIX 承接。
+    return uiStyle == AppUiStyle.MIUIX || androidNativeLiquidGlassEnabled
 }
 
 /**
@@ -32,7 +33,7 @@ internal fun resolveGlobalLiquidGlassReuseEnabled(
  */
 internal fun resolveSharedLiquidGlassChromeEnabled(
     individualEnabled: Boolean,
-    uiPreset: UiPreset,
+    uiStyle: AppUiStyle,
     androidNativeLiquidGlassEnabled: Boolean
 ): Boolean {
     if (resolveGlobalLiquidGlassReuseEnabled(androidNativeLiquidGlassEnabled)) {
@@ -40,7 +41,7 @@ internal fun resolveSharedLiquidGlassChromeEnabled(
     }
     return resolveEffectiveLiquidGlassEnabled(
         requestedEnabled = individualEnabled,
-        uiPreset = uiPreset,
+        uiStyle = uiStyle,
         androidNativeLiquidGlassEnabled = false
     )
 }

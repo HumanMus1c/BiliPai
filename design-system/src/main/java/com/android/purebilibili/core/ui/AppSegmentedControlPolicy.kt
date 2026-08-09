@@ -3,10 +3,8 @@ package com.android.purebilibili.core.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalAndroidNativeVariant
-import com.android.purebilibili.core.theme.LocalUiPreset
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 
 data class AppSegmentedControlPolicy(
     val usesEmphasizedTitle: Boolean,
@@ -17,26 +15,34 @@ data class AppSegmentedControlPolicy(
 )
 
 internal fun resolveAppSegmentedControlPolicy(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant,
-): AppSegmentedControlPolicy = AppSegmentedControlPolicy(
-    usesEmphasizedTitle = uiPreset == UiPreset.MD3,
-    usesMaterialFallback = uiPreset == UiPreset.MD3,
-    usesNativeTabRow = uiPreset == UiPreset.MD3 &&
-        androidNativeVariant == AndroidNativeVariant.MIUIX,
-    usesMaterialColorTokens = androidNativeVariant == AndroidNativeVariant.MATERIAL3,
-    pillCornerRadius = AppShapes.resolveContainerCornerDp(
-        level = ContainerLevel.Pill,
-        uiPreset = uiPreset,
-        androidNativeVariant = androidNativeVariant,
-    ),
-)
+    uiStyle: AppUiStyle,
+): AppSegmentedControlPolicy = when (uiStyle) {
+    AppUiStyle.MIUIX -> AppSegmentedControlPolicy(
+        usesEmphasizedTitle = true,
+        usesMaterialFallback = true,
+        usesNativeTabRow = true,
+        usesMaterialColorTokens = false,
+        pillCornerRadius = AppShapes.resolveContainerCornerDp(
+            level = ContainerLevel.Pill,
+            uiStyle = AppUiStyle.MIUIX,
+        ),
+    )
+    AppUiStyle.MATERIAL3 -> AppSegmentedControlPolicy(
+        usesEmphasizedTitle = true,
+        usesMaterialFallback = true,
+        usesNativeTabRow = false,
+        usesMaterialColorTokens = true,
+        pillCornerRadius = AppShapes.resolveContainerCornerDp(
+            level = ContainerLevel.Pill,
+            uiStyle = AppUiStyle.MATERIAL3,
+        ),
+    )
+}
 
 @Composable
 fun rememberAppSegmentedControlPolicy(): AppSegmentedControlPolicy {
-    val uiPreset = LocalUiPreset.current
-    val androidNativeVariant = LocalAndroidNativeVariant.current
-    return remember(uiPreset, androidNativeVariant) {
-        resolveAppSegmentedControlPolicy(uiPreset, androidNativeVariant)
+    val uiStyle = LocalAppUiStyle.current
+    return remember(uiStyle) {
+        resolveAppSegmentedControlPolicy(uiStyle)
     }
 }

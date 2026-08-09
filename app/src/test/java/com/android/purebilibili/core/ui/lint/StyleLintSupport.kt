@@ -39,10 +39,16 @@ internal object StyleLintSupport {
         return offenders
     }
 
-    fun findOffendersInMigratedFeatures(pattern: Regex): List<String> {
+    fun findOffendersInMigratedFeatures(
+        pattern: Regex,
+        allowlist: Set<String> = emptySet(),
+    ): List<String> {
         val offenders = mutableListOf<String>()
         featureKtFiles().forEach { (file, relativePath) ->
             if (StyleLintAllowlist.MIGRATED_TOKEN_PREFIXES.none(relativePath::startsWith)) {
+                return@forEach
+            }
+            if (relativePath in allowlist) {
                 return@forEach
             }
             if (isTestedNamedTokenException(file, relativePath)) {

@@ -19,10 +19,6 @@ class HomePullRefreshUiPolicyTest {
             AppPullRefreshMotionStyle.PLATFORM,
             resolveAppPullRefreshProfile(PresetPrimitiveRenderer.MATERIAL3).motionStyle
         )
-        assertEquals(
-            AppPullRefreshMotionStyle.CUPERTINO,
-            resolveAppPullRefreshProfile(PresetPrimitiveRenderer.IOS).motionStyle
-        )
     }
 
     @Test
@@ -42,10 +38,6 @@ class HomePullRefreshUiPolicyTest {
         assertEquals(
             AppPullRefreshIndicatorStyle.MIUIX_NATIVE,
             resolveAppPullRefreshProfile(PresetPrimitiveRenderer.MIUIX_BRIDGED).indicatorStyle
-        )
-        assertEquals(
-            AppPullRefreshIndicatorStyle.CUPERTINO,
-            resolveAppPullRefreshProfile(PresetPrimitiveRenderer.IOS).indicatorStyle
         )
     }
 

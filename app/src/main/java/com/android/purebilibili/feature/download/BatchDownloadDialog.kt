@@ -39,6 +39,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.android.purebilibili.core.ui.appContentDialogWidth
+import com.android.purebilibili.core.ui.resolveAppExpandedContentDialogLayoutPolicy
+import com.android.purebilibili.core.ui.resolveAppContentDialogProperties
 
 @Composable
 internal fun BatchDownloadDialog(
@@ -53,12 +56,16 @@ internal fun BatchDownloadDialog(
     var workingCandidates by remember(candidates) { mutableStateOf(candidates) }
     var selectedQuality by remember(currentQuality) { mutableIntStateOf(currentQuality) }
     var includeDanmaku by remember { mutableStateOf(true) }
+    val dialogLayout = remember { resolveAppExpandedContentDialogLayoutPolicy() }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = resolveAppContentDialogProperties(
+            usePlatformDefaultWidth = dialogLayout.usePlatformDefaultWidth,
+        ),
+    ) {
         BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.appContentDialogWidth(policy = dialogLayout, wrapHeight = false),
         ) {
             val screenHeightDp = maxHeight.value.toInt().coerceAtLeast(1)
             val dialogMaxHeight = resolveBatchDownloadDialogMaxHeight(screenHeightDp).dp

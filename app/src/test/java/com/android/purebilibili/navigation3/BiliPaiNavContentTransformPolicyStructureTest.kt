@@ -2,6 +2,7 @@ package com.android.purebilibili.navigation3
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BiliPaiNavContentTransformPolicyStructureTest {
@@ -109,21 +110,39 @@ class BiliPaiNavContentTransformPolicyStructureTest {
     }
 
     @Test
-    fun settingsIosPushForwardUsesParallaxSlide() {
-        val source = contentTransformPolicySource()
+    fun settingsIosPushForward_slidesOnlyTopPageFromRightWithoutSpring() {
+        val appSource = contentTransformPolicySource()
+        val settingsSource = designSystemSourceFile("core/ui/motion/SettingsIosPushContentTransformPolicy.kt")
 
-        assertTrue(source.contains("BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_FORWARD"))
-        assertTrue(source.contains("private fun settingsIosPushForwardTransform()"))
-        assertTrue(source.contains("resolveSettingsIosPushForwardContentTransform("))
+        assertTrue(appSource.contains("BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_FORWARD"))
+        assertTrue(appSource.contains("settingsIosPushForwardTransform()"))
+        assertTrue(appSource.contains("resolveSettingsIosPushForwardContentTransform(durationMillis = SETTINGS_IOS_PUSH_DURATION_MS)"))
+
+        val forward = settingsSource.substringAfter("fun resolveSettingsIosPushForwardContentTransform")
+            .substringBefore("fun resolveSettingsIosPushPopContentTransform")
+        assertTrue(forward.contains("slideInHorizontally("))
+        assertTrue(forward.contains("initialOffsetX = { it }"))
+        assertTrue(forward.contains("emphasizedEnterTween"))
+        assertTrue(forward.contains("ExitTransition.None"))
+        assertFalse(forward.contains("navigationSlideSpring"))
     }
 
     @Test
-    fun settingsIosPushPopUsesParallaxSlide() {
-        val source = contentTransformPolicySource()
+    fun settingsIosPushPop_slidesOnlyTopPageOutToRightWithoutSpring() {
+        val appSource = contentTransformPolicySource()
+        val settingsSource = designSystemSourceFile("core/ui/motion/SettingsIosPushContentTransformPolicy.kt")
 
-        assertTrue(source.contains("BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP"))
-        assertTrue(source.contains("private fun settingsIosPushPopTransform()"))
-        assertTrue(source.contains("resolveSettingsIosPushPopContentTransform("))
+        assertTrue(appSource.contains("BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP"))
+        assertTrue(appSource.contains("settingsIosPushPopTransform()"))
+        assertTrue(appSource.contains("resolveSettingsIosPushPopContentTransform(durationMillis = SETTINGS_IOS_PUSH_DURATION_MS)"))
+
+        val pop = settingsSource.substringAfter("fun resolveSettingsIosPushPopContentTransform")
+            .substringBefore("fun resolveSettingsIosPredictivePopContentTransform")
+        assertTrue(pop.contains("slideOutHorizontally("))
+        assertTrue(pop.contains("targetOffsetX = { it }"))
+        assertTrue(pop.contains("emphasizedExitTween"))
+        assertTrue(pop.contains("EnterTransition.None"))
+        assertFalse(pop.contains("navigationSlideSpring"))
     }
 
     @Test
@@ -149,9 +168,6 @@ class BiliPaiNavContentTransformPolicyStructureTest {
         val bottomBarSource = designSystemSourceFile(
             "core/ui/motion/BottomBarLikeContentTransformPolicy.kt"
         )
-        val settingsSource = designSystemSourceFile(
-            "core/ui/motion/SettingsIosPushContentTransformPolicy.kt"
-        )
         val springToken = tokenSource
             .substringAfter("fun navigationSlideSpring(durationMillis: Int): SpringSpec<IntOffset>")
             .substringBefore("/**")
@@ -161,34 +177,39 @@ class BiliPaiNavContentTransformPolicyStructureTest {
         assertTrue(springToken.contains("resolveNavigationSlideSpringStiffness(durationMillis)"))
         assertTrue(springToken.contains("visibilityThreshold = IntOffset(1, 1)"))
         assertTrue(bottomBarSource.contains("val spec = navigationSlideSpring(durationMillis)"))
-        assertTrue(settingsSource.contains("resolveSettingsIosPushForwardContentTransform"))
-        assertTrue(settingsSource.contains("val spec = navigationSlideSpring(durationMillis)"))
+        // 设置页 push/pop 明确不走 spring（见 settingsIosPushForward/Pop 结构断言），
+        // 其余横向转场继续使用临界阻尼 spring。
         assertTrue(contentTransformPolicySource().contains("navigationSlideSpring(NAV3_SPACE_FORWARD_MILLIS)"))
     }
 
     @Test
-    fun settingsPredictivePopKeepsSeekableTween() {
-        val source = designSystemSourceFile(
-            "core/ui/motion/SettingsIosPushContentTransformPolicy.kt"
-        )
-        val predictiveFunction = source
-            .substringAfter("fun resolveSettingsIosPredictivePopContentTransform")
+    fun settingsPredictivePop_keepsLinearSeekWithTargetFullScreen() {
+        val settingsSource = designSystemSourceFile("core/ui/motion/SettingsIosPushContentTransformPolicy.kt")
+        val predictive = settingsSource.substringAfter("fun resolveSettingsIosPredictivePopContentTransform")
 
-        assertTrue(predictiveFunction.contains("tween("))
-        assertTrue(predictiveFunction.contains("navigationSlideSpring(").not())
+        assertTrue(predictive.contains("targetContentEnter = EnterTransition.None"))
+        assertTrue(predictive.contains("initialContentExit = slideOutHorizontally("))
+        assertTrue(predictive.contains("targetOffsetX = { it }"))
+        assertTrue(predictive.contains("LinearEasing"))
+        assertFalse(predictive.contains("navigationSlideSpring"))
     }
 
     @Test
-    fun settingsCommittedPopKeepsTweenForGestureContinuity() {
-        val source = designSystemSourceFile(
-            "core/ui/motion/SettingsIosPushContentTransformPolicy.kt"
-        )
-        val popFunction = source
-            .substringAfter("fun resolveSettingsIosPushPopContentTransform")
-            .substringBefore("fun resolveSettingsIosPredictivePopContentTransform")
+    fun settingsTransformsGuardZeroDurationWithNoOpTransforms() {
+        val settingsSource = designSystemSourceFile("core/ui/motion/SettingsIosPushContentTransformPolicy.kt")
 
-        assertTrue(popFunction.contains("tween<IntOffset>("))
-        assertTrue(popFunction.contains("navigationSlideSpring(").not())
+        val forward = settingsSource.substringAfter("fun resolveSettingsIosPushForwardContentTransform")
+            .substringBefore("fun resolveSettingsIosPushPopContentTransform")
+        val pop = settingsSource.substringAfter("fun resolveSettingsIosPushPopContentTransform")
+            .substringBefore("fun resolveSettingsIosPredictivePopContentTransform")
+        val predictive = settingsSource.substringAfter("fun resolveSettingsIosPredictivePopContentTransform")
+
+        assertTrue(forward.contains("if (durationMillis <= 0)"))
+        assertTrue(forward.contains("EnterTransition.None togetherWith ExitTransition.None"))
+        assertTrue(pop.contains("if (durationMillis <= 0)"))
+        assertTrue(pop.contains("EnterTransition.None togetherWith ExitTransition.None"))
+        assertTrue(predictive.contains("if (durationMillis <= 0)"))
+        assertTrue(predictive.contains("EnterTransition.None togetherWith ExitTransition.None"))
     }
 
     private fun contentTransformPolicySource(): String {

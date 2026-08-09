@@ -462,7 +462,10 @@ class VideoPlayerCoverPolicyTest {
 
         assertTrue(residentCoverBlock.contains(".crossfade(false)"))
         assertTrue(residentCoverBlock.contains("resolveVideoDetailReturnCoverAlpha("))
-        assertTrue(residentCoverBlock.contains("transitionProgress = detailTransitionProgress.value"))
+        // 返回封面透明度由合成视觉进度驱动：animatedVisibility 进度 + morph 深度进度
+        assertTrue(residentCoverBlock.contains("resolveVideoDetailReturnVisualProgress("))
+        assertTrue(residentCoverBlock.contains("animatedVisibilityProgress ="))
+        assertTrue(residentCoverBlock.contains("detailTransitionProgress.value"))
         assertFalse(residentCoverBlock.contains("coverCrossfadeAlpha"))
     }
 }

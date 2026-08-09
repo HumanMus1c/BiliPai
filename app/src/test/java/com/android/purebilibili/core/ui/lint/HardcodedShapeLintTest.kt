@@ -16,6 +16,7 @@ class HardcodedShapeLintTest {
                 """RoundedCornerShape\s*\([^)]*\d+(?:\.\d+)?\s*\.dp""",
                 RegexOption.DOT_MATCHES_ALL,
             ),
+            allowlist = StyleLintAllowlist.SHAPE_HITS,
         )
         val offenders = (legacyOffenders + migratedOffenders).distinct()
         assertTrue(

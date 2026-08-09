@@ -17,8 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.ChevronDown
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
@@ -307,7 +307,7 @@ private fun BangumiFilterMenuChip(
                 )
                 Spacer(modifier = Modifier.width(2.dp))
                 AppIcon(
-                    CupertinoIcons.Default.ChevronDown,
+                    Icons.Outlined.KeyboardArrowDown,
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),
                     tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant

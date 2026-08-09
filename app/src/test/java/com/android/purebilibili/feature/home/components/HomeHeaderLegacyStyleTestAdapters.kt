@@ -6,15 +6,17 @@ import androidx.compose.ui.unit.Dp
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.theme.AndroidNativeVariant
 import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.resolveUiStyle
 import com.android.purebilibili.core.ui.AppTopChromePolicy
 import com.android.purebilibili.core.ui.resolveAppTopChromePolicy
 import com.android.purebilibili.feature.home.HomeGlassResolvedColors
 
 /** Keeps legacy style fixtures readable while production helpers consume neutral capabilities. */
+// 兼容桥接：旧 pair 输入经迁移表落到两值风格，批 5 清理桥接后随适配器收敛。
 private fun legacyHomeChromePolicy(
     uiPreset: UiPreset = UiPreset.IOS,
     androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3,
-): AppTopChromePolicy = resolveAppTopChromePolicy(uiPreset, androidNativeVariant)
+): AppTopChromePolicy = resolveAppTopChromePolicy(resolveUiStyle(uiPreset, androidNativeVariant))
 
 private fun UiPreset.supportsIndependentLiquidGlass(): Boolean = this == UiPreset.IOS
 

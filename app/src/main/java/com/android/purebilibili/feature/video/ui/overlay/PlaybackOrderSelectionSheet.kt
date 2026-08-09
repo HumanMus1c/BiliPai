@@ -36,8 +36,8 @@ import com.android.purebilibili.core.store.PlaybackCompletionBehavior
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.components.AppSurface
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.Checkmark
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -175,7 +175,7 @@ private fun PlaybackOrderSheetContent(
                 )
                 if (currentBehavior == behavior) {
                     AppIcon(
-                        imageVector = CupertinoIcons.Outlined.Checkmark,
+                        imageVector = Icons.Outlined.Check,
                         contentDescription = "已选择",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp),

@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class BottomBarChromeMotionSpecTest {
+
     @Test
     fun chromeMotion_preservesEachSemanticTiming() {
         assertEquals(260, bottomBarDockWidthMotionSpec<Float>().durationMillis)

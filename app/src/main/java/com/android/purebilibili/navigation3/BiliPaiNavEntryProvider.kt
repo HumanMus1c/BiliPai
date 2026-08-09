@@ -316,7 +316,13 @@ internal fun resolveBiliPaiNavEntryPopRouteTransition(
     }
 
     return if (defaultTransition == BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT) {
-        BiliPaiNavRouteTransition.FALLBACK
+        // VideoDetail 的 NO_OP 仅在上面 sharedReady 分支通过；到这里说明源会话不可用，降级 FALLBACK。
+        // 收藏合集等非视频页的 NO_OP 默认保留，交给 sharedBounds 与首页一致的 morph 落位。
+        if (normalizedFromRoute == VIDEO_ROUTE_BASE) {
+            BiliPaiNavRouteTransition.FALLBACK
+        } else {
+            defaultTransition
+        }
     } else {
         defaultTransition
     }
@@ -380,8 +386,9 @@ internal fun resolveBiliPaiNavEntryRouteTransitions(
         // 仍以 FALLBACK 写入、依赖瞬时 CardPosition 二次解析才勉强 NO_OP。
         cardTransitionEnabled && videoHasMorphSource ->
             BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
+        // 收藏合集详情返回：与进场一致走 sharedBounds morph，预测返回可对齐首页「中间飞回」路径
         cardTransitionEnabled && sharedReadyFavoriteCollection ->
-            BiliPaiNavRouteTransition.LIGHT_SIBLING_POP
+            BiliPaiNavRouteTransition.NO_OP_SHARED_ELEMENT
         // Story 返回不用 NO_OP shared：没有 sharedBounds 对端，NO_OP 会黑底卡死。
         // 关闭整卡过渡时，把方向化 pop 写进 entry metadata 默认值，避免仅依赖 pop 路径解析。
         !cardTransitionEnabled && directionalVideoPushReady ->

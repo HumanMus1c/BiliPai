@@ -555,8 +555,8 @@ class MainActivityAppCompatContractTest {
             "Theme root should build a miuix ThemeController"
         )
         assertTrue(
-            mainActivitySource.contains("appThemeSettings.uiPreset"),
-            "MainActivity should keep reading UiPreset when iOS and Android Native presets are available again"
+            mainActivitySource.contains("appThemeSettings.uiStyle"),
+            "MainActivity should read the two-value AppUiStyle directly from startup theme settings"
         )
         assertTrue(
             mainActivitySource.contains("AppThemeSettings(") ||

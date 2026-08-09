@@ -36,3 +36,12 @@ fun resolveVideoPlayerDanmakuEngineSyncAction(
         VideoPlayerDanmakuEngineSyncAction.DisableAndClear
     }
 }
+
+/**
+ * Navigation keeps the outgoing detail entry composed during its transition. Both entries share
+ * the singleton DanmakuManager, so only the foreground detail host may bind/load the engine.
+ */
+fun shouldRunVideoPlayerDanmakuHostEffects(
+    danmakuHostActive: Boolean,
+    hostLifecycleStarted: Boolean,
+): Boolean = danmakuHostActive && hostLifecycleStarted

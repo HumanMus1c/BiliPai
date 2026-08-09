@@ -47,6 +47,7 @@ import com.android.purebilibili.core.ui.components.AppModalNavigationDrawer
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import androidx.compose.material3.rememberDrawerState
 import com.android.purebilibili.feature.home.components.MineSideDrawer
 import androidx.compose.ui.graphics.Color
@@ -150,7 +151,6 @@ import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import com.android.purebilibili.core.ui.performance.TrackJankStateFlag
 import com.android.purebilibili.core.ui.performance.TrackJankStateValue
 import com.android.purebilibili.core.util.resolveScrollToTopPlan
-import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
 import coil.imageLoader
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
@@ -466,7 +466,28 @@ fun HomeScreen(
                 ) {
                     HomePagerSettledAction.NONE -> return@collect
                     HomePagerSettledAction.SWITCH_CATEGORY -> {
-                        viewModel.switchCategory(settledCategory ?: return@collect)
+                        val target = settledCategory ?: return@collect
+                        // 侧滑到顶栏「直播」时同样打开底栏直播首页，并回弹到原分类页。
+                        if (shouldOpenLiveListFromHomeTopTab(target)) {
+                            onLiveListClick()
+                            val backIndex = topTabEntries
+                                .indexOf(HomeTopTabEntry.Category(currentCategory))
+                                .takeIf { it >= 0 }
+                                ?: topTabEntries.indexOfFirst {
+                                    it is HomeTopTabEntry.Category &&
+                                        !shouldOpenLiveListFromHomeTopTab(it.category)
+                                }.coerceAtLeast(0)
+                            if (page != backIndex) {
+                                programmaticPageSwitchInProgress = true
+                                try {
+                                    pagerState.scrollToPage(backIndex)
+                                } finally {
+                                    programmaticPageSwitchInProgress = false
+                                }
+                            }
+                            return@collect
+                        }
+                        viewModel.switchCategory(target)
                     }
                 }
             }
@@ -1380,7 +1401,8 @@ fun HomeScreen(
         isBottomBarAutoHideEnabled,
         useSideNavigation,
         isLiquidGlassEnabled,
-        canRevealHeader
+        canRevealHeader,
+        homeSettings.commonListHeaderCollapseMode,
     ) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -1394,6 +1416,7 @@ fun HomeScreen(
                     deltaY = available.y,
                     minHeaderOffsetPx = -headerAutoCollapseDistancePx,
                     canRevealHeader = canRevealHeader,
+                    collapseMode = homeSettings.commonListHeaderCollapseMode,
                     isHeaderCollapseEnabled = isAnyHeaderCollapseEnabled,
                     isBottomBarAutoHideEnabled = isBottomBarAutoHideEnabled,
                     useSideNavigation = useSideNavigation,
@@ -1419,7 +1442,8 @@ fun HomeScreen(
 
                 val targetOffset = resolveHomeHeaderReleaseTarget(
                     maxHeaderCollapsePx = headerAutoCollapseDistancePx,
-                    canRevealHeader = canRevealHeader
+                    canRevealHeader = canRevealHeader,
+                    collapseMode = homeSettings.commonListHeaderCollapseMode,
                 )
                 animateHeaderOffsetTo(targetOffset)
                 return Velocity.Zero
@@ -1543,14 +1567,20 @@ fun HomeScreen(
                         isDataSaverActive = isDataSaverActive
                     )
                     // [Fix] Re-enabled default overscroll for better feedback
+                        val homeTopPagerSwipeEnabled =
+                            shouldEnableHomeTopPagerUserScroll(isTopLevelActive)
                         HorizontalPager(
                             state = pagerState,
                             beyondViewportPageCount = 0,
-                            userScrollEnabled = shouldEnableHomeTopPagerUserScroll(isTopLevelActive),
+                            userScrollEnabled = false,
                             modifier = Modifier
                                 .responsiveContentWidth(maxWidth = contentWidth)
                                 .fillMaxSize()
-                                .homeFeedTopVideoFadeMask(listTopPadding + AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall),
+                                .homeFeedTopVideoFadeMask(listTopPadding + AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall)
+                                .verticalPriorityHorizontalPagerSwipe(
+                                    state = pagerState,
+                                    enabled = homeTopPagerSwipeEnabled,
+                                ),
                             key = { index -> resolveHomeTopTabEntryKey(topTabEntries, index) }
                         ) { page ->
                         when (val entry = resolveHomeTopTabEntryOrNull(topTabEntries, page)) {
@@ -1845,6 +1875,7 @@ fun HomeScreen(
                                      onVideoClick = wrappedOnVideoClick,
                                      onUpClick = onHomeFeedUpClick,
                                      onLiveClick = onLiveClickCallback,
+                                     onOpenLiveHome = onLiveListClick,
                                      onLoadMore = onPageLoadMore,
                                      onDismissVideo = onDismissVideoCallback,
                                      onWatchLater = onWatchLaterCallback,
@@ -2035,8 +2066,22 @@ fun HomeScreen(
             topCategoryKeys = topTabKeys,
             categoryIndex = displayedTabIndex,
             onCategorySelected = onCategorySelected@ { index ->
-                viewModel.updateDisplayedTabIndex(index)
                 val selectedEntry = topTabEntries.getOrNull(index) ?: return@onCategorySelected
+                // 顶栏「直播」与底栏「直播」统一：直接进入 LiveList，不切首页内嵌直播页。
+                if (selectedEntry is HomeTopTabEntry.Category &&
+                    shouldOpenLiveListFromHomeTopTab(selectedEntry.category)
+                ) {
+                    onLiveListClick()
+                    return@onCategorySelected
+                }
+                // 顶栏「追番」直接进入番剧独立页(与直播 tab 一致,避免切到空分类)。
+                if (selectedEntry is HomeTopTabEntry.Category &&
+                    selectedEntry.category == HomeCategory.ANIME
+                ) {
+                    onBangumiClick(1)
+                    return@onCategorySelected
+                }
+                viewModel.updateDisplayedTabIndex(index)
                 retainedTopTabEntry = selectedEntry
                 if (pagerState.currentPage != index) {
                     programmaticPageSwitchInProgress = true

@@ -70,13 +70,15 @@ object SearchRepository {
         ).apply { putAll(extra) }
     }
 
-    //  视频搜索 - 支持排序、时长过滤和分页
+    //  视频搜索 - 支持排序、时长/分区/发布时间过滤和分页
     suspend fun search(
         keyword: String,
         order: SearchOrder = SearchOrder.TOTALRANK,
         duration: SearchDuration = SearchDuration.ALL,
         tids: Int = 0,
-        page: Int = 1
+        page: Int = 1,
+        pubBegin: Long? = null,
+        pubEnd: Long? = null
     ): Result<Pair<List<VideoItem>, SearchPageInfo>> = withContext(Dispatchers.IO) {
         try {
             val params = mutableMapOf(
@@ -90,10 +92,16 @@ object SearchRepository {
                 "platform" to "pc",
                 "web_location" to "1430654"
             )
-            
+            if (pubBegin != null) {
+                params["pubtime_begin_s"] = pubBegin.toString()
+            }
+            if (pubEnd != null) {
+                params["pubtime_end_s"] = pubEnd.toString()
+            }
+
             com.android.purebilibili.core.util.Logger.d(
                 "SearchRepo",
-                " search(video): keyword=$keyword, order=${order.value}, duration=${duration.value}, tids=$tids, page=$page"
+                " search(video): keyword=$keyword, order=${order.value}, duration=${duration.value}, tids=$tids, pubBegin=$pubBegin, pubEnd=$pubEnd, page=$page"
             )
 
             val signedParams = signWithWbi(params)
@@ -147,7 +155,9 @@ object SearchRepository {
         order: SearchOrder = SearchOrder.TOTALRANK,
         durations: Set<SearchDuration> = emptySet(),
         tids: Int = 0,
-        page: Int = 1
+        page: Int = 1,
+        pubBegin: Long? = null,
+        pubEnd: Long? = null
     ): Result<Pair<List<VideoItem>, SearchPageInfo>> {
         val requests = resolveSearchDurationRequests(durations)
         if (requests.size == 1) {
@@ -156,7 +166,9 @@ object SearchRepository {
                 order = order,
                 duration = requests.single(),
                 tids = tids,
-                page = page
+                page = page,
+                pubBegin = pubBegin,
+                pubEnd = pubEnd
             )
         }
 
@@ -168,7 +180,9 @@ object SearchRepository {
                 order = order,
                 duration = duration,
                 tids = tids,
-                page = page
+                page = page,
+                pubBegin = pubBegin,
+                pubEnd = pubEnd
             ).fold(
                 onSuccess = { pages += it },
                 onFailure = { error ->

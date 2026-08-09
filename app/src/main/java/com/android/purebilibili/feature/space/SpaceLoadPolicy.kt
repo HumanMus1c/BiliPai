@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.space
 
+import com.android.purebilibili.core.store.HomeFeedCardWidthPreset
+import com.android.purebilibili.feature.home.resolveHomeFeedGridColumns
 import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.data.model.response.SeasonArchiveItem
 import com.android.purebilibili.data.model.response.SeasonItem
@@ -268,12 +270,26 @@ internal fun normalizeSpaceVideoPage(
     return if (order == VideoSortOrder.OLDEST_PUBDATE) videos.asReversed() else videos
 }
 
-internal fun resolveSpaceContentGridColumnCount(widthDp: Int): Int {
-    return when {
-        widthDp >= 900 -> 4
-        widthDp >= 600 -> 3
-        else -> 2
-    }
+/** 与 SpaceScreen 内容区 responsiveContentWidth(maxWidth = 980.dp) 保持一致的内容宽度上限。 */
+internal const val SPACE_CONTENT_MAX_WIDTH_DP = 980
+
+/**
+ * 投稿网格列数：与首页信息流共用同一套策略（用户固定列数优先，其次按卡宽预设自适应），
+ * 内容宽度按空间页 980dp 上限截断，保证投稿卡片排版与首页 feed 对齐。
+ */
+internal fun resolveSpaceContentGridColumnCount(
+    widthDp: Int,
+    fixedColumnCount: Int = 0,
+    cardWidthPreset: HomeFeedCardWidthPreset = HomeFeedCardWidthPreset.AUTO,
+    contentMaxWidthDp: Int = SPACE_CONTENT_MAX_WIDTH_DP
+): Int {
+    val contentWidthDp = minOf(widthDp, contentMaxWidthDp)
+    return resolveHomeFeedGridColumns(
+        contentWidthDp = contentWidthDp,
+        displayMode = 0,
+        fixedColumnCount = fixedColumnCount,
+        cardWidthPreset = cardWidthPreset
+    )
 }
 
 internal enum class SpaceContributionVideoLayoutMode {

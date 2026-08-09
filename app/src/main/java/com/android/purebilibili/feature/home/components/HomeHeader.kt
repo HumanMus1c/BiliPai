@@ -491,12 +491,10 @@ internal fun resolveHomeTopSearchRowHorizontalPadding(
 }
 
 internal fun resolveHomeTopSearchPillHeight(
-    chromePolicy: AppTopChromePolicy,
+    @Suppress("UNUSED_PARAMETER") chromePolicy: AppTopChromePolicy,
 ): Dp {
-    // Keep the search field compact enough to match the smaller edge controls.
-    return resolveHomeTopPresetStyle(chromePolicy, labelMode = 2)
-        .searchPillHeight
-        .coerceAtMost(52.dp)
+    // 两主题统一：与头像、设置按钮共用同一控件高度（36dp），不再跟随主题 primaryHeightDp。
+    return resolveHomeTopEdgeControlHeight()
 }
 
 internal fun resolveHomeTopSearchContentHorizontalPadding(
@@ -533,20 +531,22 @@ internal fun resolveHomeTopEdgeButtonShape(
     }
 }
 
-internal fun resolveHomeTopAvatarOuterSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall
+/**
+ * 顶部行统一控件高度：头像、搜索胶囊、设置按钮共用（36dp），两主题一致。
+ * 与下方分栏 tab 行（36/40dp）保持同一视觉尺度。
+ */
+internal fun resolveHomeTopEdgeControlHeight(): Dp =
+    AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall
 
-internal fun resolveHomeTopAvatarInnerSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall
+internal fun resolveHomeTopAvatarOuterSize(): Dp = resolveHomeTopEdgeControlHeight()
+
+internal fun resolveHomeTopAvatarInnerSize(): Dp = resolveHomeTopEdgeControlHeight()
 
 internal fun resolveHomeTopSettingsButtonSize(
-    chromePolicy: AppTopChromePolicy,
+    @Suppress("UNUSED_PARAMETER") chromePolicy: AppTopChromePolicy,
 ): Dp {
-    return if (chromePolicy.tabPresentation == AppTopTabPresentation.TONAL_CAPSULE) {
-        resolveHomeTopPresetStyle(chromePolicy, labelMode = 2)
-            .actionButtonSizeDocked
-            .coerceAtMost(40.dp)
-    } else {
-        AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall
-    }
+    // 与头像、搜索胶囊统一控件高度（36dp），两主题一致。
+    return resolveHomeTopEdgeControlHeight()
 }
 
 internal fun resolveHomeTopSettingsIconSize(
@@ -619,15 +619,24 @@ internal fun resolveHomeTopEmbeddedTabHorizontalPadding(chromePolicy: AppTopChro
 }
 
 internal fun resolveHomeTopTabHorizontalPadding(
-    isTabFloating: Boolean,
+    @Suppress("UNUSED_PARAMETER") isTabFloating: Boolean,
     chromePolicy: AppTopChromePolicy,
 ): Dp {
-    val style = resolveHomeTopPresetStyle(chromePolicy, labelMode = 2)
-    return if (isTabFloating) {
-        style.tabHorizontalPaddingFloating
-    } else {
-        style.tabHorizontalPaddingDocked
-    }
+    // 分栏轨道与搜索行共用同一水平内边距，保证 tab 与顶部三控件左右对齐。
+    return resolveHomeTopSearchRowHorizontalPadding(chromePolicy)
+}
+
+/**
+ * 顶部三控件（头像 + 搜索胶囊 + 设置按钮）在屏幕上的合计宽度。
+ * 搜索胶囊 weight 撑满整行，合计宽度即整行内容宽度；复用于下方分栏 tab 的
+ * 最大宽度（左右对齐约束）。
+ */
+internal fun resolveHomeTopControlsContentWidthDp(
+    containerWidthDp: Dp,
+    chromePolicy: AppTopChromePolicy,
+): Dp {
+    val rowPadding = resolveHomeTopSearchRowHorizontalPadding(chromePolicy)
+    return (containerWidthDp - rowPadding * 2f).coerceAtLeast(AppSpacingTokens.None)
 }
 
 internal fun resolveHomeTopSearchToTabsSpacing(
@@ -1532,10 +1541,7 @@ fun HomeHeader(
         materialMode = topChromeMaterialMode,
         interactionBudget = interactionBudget
     )
-    val usePlainMd3TopTabUnderline = shouldUsePlainMd3TopTabUnderline(
-        presentation = topChromePolicy.tabPresentation,
-        liquidGlassEnabled = topChromeLiquidGlassEnabled
-    )
+    // 分栏 presentation 由主题决定（两主题均走移动胶囊），不再随液态玻璃开关切换。
     val drawTopTabOuterChromeSurface = shouldDrawHomeTopTabOuterChromeSurface(
         presentation = topChromePolicy.tabPresentation,
         materialMode = effectiveTabMaterialMode
@@ -1839,7 +1845,17 @@ fun HomeHeader(
         label = "tabVerticalOffset"
     )
     val tabShadowElevation by animateDpAsState(
-        targetValue = if (usesNativeContainerTreatment) AppSpacingTokens.None else if (isTabFloating) AppSpacingTokens.Small else AppSpacingTokens.None,
+        targetValue = if (useDetachedTopTabDock && usesNativeContainerTreatment) {
+            // Native (MIUIX) detached capsule dock always lifts a hair so the long pill
+            // reads as a floating segment over the feed below.
+            AppSpacingTokens.Small
+        } else if (usesNativeContainerTreatment) {
+            AppSpacingTokens.None
+        } else if (isTabFloating) {
+            AppSpacingTokens.Small
+        } else {
+            AppSpacingTokens.None
+        },
         animationSpec = AppMotionTokens.standardSpec(),
         label = "tabShadowElevation"
     )
@@ -1963,12 +1979,14 @@ fun HomeHeader(
     val tabBorderAlpha = if (isTabFloating) tabChromeStyle.borderAlpha else 0f
     val topAtmosphereImagePath = uiSkinDecoration?.topAtmosphereImagePath
     val topLayoutOrder = homeSettings?.homeTopLayoutOrder ?: HomeTopLayoutOrder.SEARCH_THEN_TABS
-    val topTabsContent: @Composable () -> Unit = {
+    val topTabsContent: @Composable (Dp) -> Unit = { maxDockWidth ->
         HomeTopTabChrome(
             currentTabHeight = currentTabHeight,
             tabAlpha = tabAlpha,
             tabContentAlpha = tabContentAlpha,
             containerZIndex = if (useUnifiedTopPanel) 0f else -1f,
+            // 分栏 dock 最大宽度 = 顶部三控件合计宽度，保证左右对齐。
+            maxDockWidth = maxDockWidth,
             tabHorizontalPadding = if (embedTopTabsInUnifiedPanel) {
                 resolveNonNegativeHomeTopPadding(resolveHomeTopEmbeddedTabHorizontalPadding(topChromePolicy))
             } else {
@@ -2080,16 +2098,22 @@ fun HomeHeader(
                 skinPlainContentColor = null,
                 topTabSkinIconPaths = uiSkinDecoration?.topTabSkinIconPaths.orEmpty(),
                 partitionSkinIconPath = uiSkinDecoration?.topTabPartitionIconPath(),
-                forceMaterialUnderline = usePlainMd3TopTabUnderline
+                maxDockWidthDp = maxDockWidth.value,
+                forceMaterialUnderline = false
             )
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .zIndex(10f)
     ) {
+        // 分栏 tab 最大宽度 = 顶部三控件合计宽度（头像左缘 ~ 设置按钮右缘）。
+        val topControlsContentWidth = resolveHomeTopControlsContentWidthDp(
+            containerWidthDp = maxWidth,
+            chromePolicy = topChromePolicy
+        )
         if (effectiveContinuousSlabRenderMode != HomeTopChromeRenderMode.PLAIN) {
             Box(
                 modifier = Modifier
@@ -2246,7 +2270,7 @@ fun HomeHeader(
                         )
                 ) {
                     if (topLayoutOrder == HomeTopLayoutOrder.TABS_THEN_SEARCH) {
-                        topTabsContent()
+                        topTabsContent(topControlsContentWidth)
                         if (drawTopSearchDivider) {
                             Spacer(modifier = Modifier.height(currentSearchToTabsSpacing))
                             AppHorizontalDivider(
@@ -2646,7 +2670,7 @@ fun HomeHeader(
                             Spacer(modifier = Modifier.height(currentSearchToTabsSpacing))
                         }
 
-                        topTabsContent()
+                        topTabsContent(topControlsContentWidth)
                     }
                 }
             }

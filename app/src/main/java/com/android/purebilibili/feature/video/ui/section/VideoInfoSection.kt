@@ -19,16 +19,16 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -225,7 +225,7 @@ fun VideoTitleSection(
             )
             Spacer(Modifier.width(4.dp))
             AppIcon(
-                imageVector = if (expanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
+                imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(18.dp)
@@ -413,7 +413,7 @@ fun VideoTitleWithDesc(
                 label = "IconRotation"
             )
             AppIcon(
-                imageVector = CupertinoIcons.Default.ChevronDown,
+                imageVector = Icons.Outlined.KeyboardArrowDown,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier
@@ -812,7 +812,7 @@ fun UpInfoSection(
                         contentAlignment = Alignment.Center
                     ) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Default.PersonCropCircle,
+                            imageVector = Icons.Outlined.AccountCircle,
                             contentDescription = "UP主标识",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
@@ -922,8 +922,12 @@ fun UpInfoSection(
                     }
                 }
 
-                val followVisualPolicy = remember(isFollowing) {
-                    resolveVideoFollowVisualPolicy(isFollowing = isFollowing)
+                val followDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+                val followVisualPolicy = remember(isFollowing, followDarkTheme) {
+                    resolveVideoFollowVisualPolicy(
+                        isFollowing = isFollowing,
+                        darkTheme = followDarkTheme,
+                    )
                 }
                 AppSurface(
                     onClick = onFollowClick,
@@ -940,7 +944,7 @@ fun UpInfoSection(
                     ) {
                         if (!isFollowing) {
                             AppIcon(
-                                CupertinoIcons.Default.Plus,
+                                Icons.Outlined.Add,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(14.dp)
@@ -1132,7 +1136,7 @@ fun DescriptionSection(desc: String) {
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     AppIcon(
-                        imageVector = if (expanded) CupertinoIcons.Default.ChevronUp else CupertinoIcons.Default.ChevronDown,
+                        imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
@@ -1220,7 +1224,7 @@ fun BgmInfoRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AppIcon(
-                imageVector = CupertinoIcons.Default.MusicNote,
+                imageVector = Icons.Outlined.MusicNote,
                 contentDescription = "BGM",
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 modifier = Modifier.size(16.dp)
@@ -1249,7 +1253,7 @@ fun BgmInfoRow(
             }
             if (showIndicator) {
                 AppIcon(
-                    imageVector = CupertinoIcons.Default.ChevronDown,
+                    imageVector = Icons.Outlined.KeyboardArrowDown,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
                     modifier = Modifier
@@ -1385,7 +1389,7 @@ private fun BgmSelectionSheet(
                     )
                     AppIconButton(onClick = onDismiss) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Default.Xmark,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = "关闭",
                             modifier = Modifier.size(20.dp)
                         )
@@ -1675,7 +1679,7 @@ private fun BgmSelectionStrip(
                         )
                     } else {
                         AppIcon(
-                            imageVector = CupertinoIcons.Default.MusicNote,
+                            imageVector = Icons.Outlined.MusicNote,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.78f),
                             modifier = Modifier.size(24.dp)
@@ -1756,7 +1760,7 @@ private fun BgmDetailCard(
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Outlined.Star,
+                            imageVector = Icons.Outlined.Star,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
@@ -1898,7 +1902,7 @@ private fun BgmDetailCover(
             )
         } else {
             AppIcon(
-                imageVector = CupertinoIcons.Default.MusicNote,
+                imageVector = Icons.Outlined.MusicNote,
                 contentDescription = title,
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 modifier = Modifier.size(34.dp)

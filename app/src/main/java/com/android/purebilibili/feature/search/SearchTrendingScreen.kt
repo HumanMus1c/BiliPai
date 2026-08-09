@@ -1,5 +1,9 @@
 package com.android.purebilibili.feature.search
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppText
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -26,12 +30,8 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
 import androidx.compose.material3.ExperimentalMaterial3Api
-import com.android.purebilibili.core.ui.components.AppIcon
-import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.AppScaffold
-import com.android.purebilibili.core.ui.components.AppSurface
-import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.AppTopBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState

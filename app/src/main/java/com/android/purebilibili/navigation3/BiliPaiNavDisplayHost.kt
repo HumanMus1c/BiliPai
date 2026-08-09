@@ -114,6 +114,7 @@ internal fun BiliPaiNavDisplayHost(
     backStack: List<BiliPaiNavKey>,
     cardTransitionEnabled: Boolean = true,
     videoCardDepthEffectEnabled: Boolean = cardTransitionEnabled,
+    videoTransitionRealtimeBlurEnabled: Boolean = false,
     reduceMotion: Boolean = false,
     videoSharedTransitionDurationMillis: Int,
     videoCardClock: VideoCardTransitionClock,
@@ -869,7 +870,7 @@ internal fun BiliPaiNavDisplayHost(
             isGestureRestoreInProgressProvider = { videoCardClock.gestureRestoreInProgress },
             motionTierProvider = { transitionBackgroundMotionTier },
             isLightBackgroundProvider = { isLightBackground },
-            realtimeBlurEnabledProvider = { true },
+            realtimeBlurEnabledProvider = { videoTransitionRealtimeBlurEnabled },
         )
         VideoCardTransitionNavBackdrop(
             visible = showVideoCardNavBackdrop,

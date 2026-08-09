@@ -414,9 +414,9 @@ class PlaybackSettingsSelectionPolicyTest {
         val source = File("src/main/java/com/android/purebilibili/feature/settings/screen/PlaybackSettingsScreen.kt")
             .readText()
 
-        assertTrue(source.contains("视频实际最高可播"))
+        assertTrue(source.contains("每个视频都会自动选择当前账号和设备可播放的最高画质"))
         assertTrue(source.contains("视频本身无更高档不打断播放"))
-        assertTrue(source.contains("默认画质会作为关闭后的偏好保留"))
+        assertTrue(source.contains("仅作为关闭自动最高后的无线网络偏好保留"))
     }
 
     private fun loadSource(path: String): String {

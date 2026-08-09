@@ -81,8 +81,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.android.purebilibili.core.ui.LoadingAnimation
 import com.android.purebilibili.core.ui.SuccessAnimation
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 
 @Immutable
 internal data class LoginPalette(
@@ -327,7 +327,7 @@ fun BrandingHeader(isSmall: Boolean = false) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AppIcon(
-                    imageVector = CupertinoIcons.Filled.Star,
+                    imageVector = Icons.Filled.Star,
                     contentDescription = null,
                     tint = palette.buttonGradientStart,
                     modifier = Modifier.size(12.dp)
@@ -382,7 +382,7 @@ fun LoginMethodTabs(
     val palette = rememberLoginPalette()
     val methods = remember {
         resolveAvailableLoginMethods().map { method ->
-            Triple(method, "扫码登录", CupertinoIcons.Filled.Camera)
+            Triple(method, "扫码登录", Icons.Filled.CameraAlt)
         }
     }
 
@@ -531,7 +531,7 @@ fun QrCodeLoginContent(
                         )
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             AppIcon(
-                                imageVector = CupertinoIcons.Filled.Phone,
+                                imageVector = Icons.Filled.Phone,
                                 contentDescription = null,
                                 tint = palette.success,
                                 modifier = Modifier.size(38.dp)
@@ -548,7 +548,7 @@ fun QrCodeLoginContent(
                     is LoginState.Error -> {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             AppIcon(
-                                imageVector = CupertinoIcons.Filled.ExclamationmarkCircle,
+                                imageVector = Icons.Filled.Error,
                                 contentDescription = null,
                                 tint = palette.error,
                                 modifier = Modifier.size(34.dp)
@@ -677,7 +677,7 @@ fun PhoneLoginContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AppIcon(
-                    imageVector = CupertinoIcons.Filled.Star,
+                    imageVector = Icons.Filled.Star,
                     contentDescription = null,
                     tint = palette.buttonGradientStart,
                     modifier = Modifier.size(14.dp)
@@ -711,7 +711,7 @@ fun PhoneLoginContent(
                     }
                 },
                 placeholder = "${selectedRegion.dialingCode} ${selectedRegion.name}手机号",
-                icon = CupertinoIcons.Filled.Phone,
+                icon = Icons.Filled.Phone,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 modifier = Modifier.weight(1f)
             )
@@ -752,7 +752,7 @@ fun PhoneLoginContent(
                     }
                 },
                 placeholder = "6 位短信验证码",
-                icon = CupertinoIcons.Filled.Lock,
+                icon = Icons.Filled.Lock,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
         }
@@ -769,7 +769,7 @@ fun PhoneLoginContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AppIcon(
-                    imageVector = CupertinoIcons.Filled.Shield,
+                    imageVector = Icons.Filled.Shield,
                     contentDescription = null,
                     tint = palette.buttonGradientStart,
                     modifier = Modifier.size(14.dp)

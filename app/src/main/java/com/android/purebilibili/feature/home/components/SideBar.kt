@@ -67,9 +67,9 @@ import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.WindowWidthSizeClass
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import dev.chrisbanes.haze.HazeState
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.ArrowLeftArrowRight
-import io.github.alexzhirkevich.cupertino.icons.outlined.SidebarRight
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material.icons.outlined.ViewSidebar
 import kotlinx.coroutines.launch
 
 /**
@@ -254,7 +254,7 @@ private fun MiuixSideBar(
                 contentAlignment = Alignment.Center
             ) {
                 AppIcon(
-                    CupertinoIcons.Outlined.SidebarRight,
+                    Icons.Outlined.ViewSidebar,
                     contentDescription = sidebarLabel,
                     tint = AppSurfaceTokens.onSurfaceVariantSummary(),
                     modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
@@ -520,7 +520,7 @@ private fun FrostedSideBarContent(
                     contentAlignment = Alignment.Center
                 ) {
                     AppIcon(
-                        CupertinoIcons.Outlined.SidebarRight,
+                        Icons.Outlined.ViewSidebar,
                         contentDescription = sidebarLabel,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
@@ -550,7 +550,7 @@ private fun SideBarAccountSwitchButton(
         contentAlignment = Alignment.Center,
     ) {
         AppIcon(
-            CupertinoIcons.Outlined.ArrowLeftArrowRight,
+            Icons.Outlined.SwapHoriz,
             contentDescription = "切换账号",
             tint = tint,
             modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro),

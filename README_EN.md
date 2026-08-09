@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-08-05 · Current build: 26.0805.1 · Latest documented release: v26.0805.1</sub>
+  <sub>Last updated: 2026-08-05 · Current build: 0.2.0 · Latest documented release: v0.2.0</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-26.0805.1-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-0.2.0-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -446,12 +446,14 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Latest (v26.0805.1 · 2026-08-05)
+### Current source build (v0.2.2 · 2026-08-09)
 
-- Calendar build IDs: `YY.MMDD.N` (two-digit year), current `26.0805.1` / `versionCode 283`.
-- Settings search rows no longer overlap title and section path; top category dock soft liquid glass restored.
-- AI summary timestamps align in a fixed full-width column.
-- SMS login supports international regions via passport country list and Material bottom-sheet picker.
+- Current source build: `0.2.2` / `versionCode 287` (semantic `MAJOR.MINOR.PATCH`; no date-based names).
+- Defaults off: live-surface morph, transition blur, bottom-bar blur, player insight.
+- Home App+Web merged recommendation feed; search UI rebuild (trending/history/discover, filters, contrast/IME).
+- Card/predictive-back: live-surface switch without HDR wash; favorite-collection return matches home morph.
+- Listen-mode readable sheets/theme tokens; favorite API risk-control alignment; live LiveList/SC/quality chips.
+- Tablet default sidebar + dialog width caps; DLNA SSDP discovery hardened on dual-network devices.
 - Official Telegram: channel [@bilipai666](https://t.me/bilipai666), group [@bilipai888](https://t.me/bilipai888/1).
 
 ---
@@ -464,7 +466,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-26.0805.1-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-26.0805.1.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
+The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.0-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.0.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
 
 ---
 

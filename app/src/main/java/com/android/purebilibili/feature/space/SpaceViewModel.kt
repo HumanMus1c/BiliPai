@@ -1117,7 +1117,7 @@ class SpaceViewModel(
 
     private suspend fun fetchCollectedFavoriteFolders(mid: Long): List<FavFolder> {
         return FavoriteRepository
-            .getCollectedFavFolders(mid = mid, pn = 1, ps = 40, platform = "web")
+            .getCollectedFavFolders(mid = mid, pn = 1, ps = 20, platform = "web")
             .getOrNull()
             ?.folders
             .orEmpty()

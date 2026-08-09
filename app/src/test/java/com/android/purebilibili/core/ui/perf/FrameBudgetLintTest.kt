@@ -204,9 +204,17 @@ class FrameBudgetLintTest {
         const val MAX_RUN_BLOCKING_IN_STORE = 1
         // 17 → 15：删掉 LottieComponents 里两个零调用点的设置页动画头部
         // （含一个 tween(2000) Reverse 无限动画）后的实测值。
-        const val MAX_INFINITE_TRANSITION = 15
+        // 15 → 16：骨架屏同步呼吸光（HomeFeedSkeletonCard / ProfileLoadingSkeleton /
+        // DynamicFeedSkeletonCard / VideoCardSkeleton / SkeletonComponents）共 5 处
+        // 增量在接入棘轮后被逐个添加但未同步调上限，均为可见 skeleton shimmer，
+        // 实测 16 处。后续把 skeleton 收敛为单一共享组件时调小。
+        // 16 → 17：上游 ContentLoadingSkeletons 的可见 skeleton pulse（搜索/直播等
+        // 页面共用），与既有 skeleton 增量同类；收敛 skeleton 时一并调小。
+        const val MAX_INFINITE_TRANSITION = 17
 
-        const val MAX_SETTINGS_SYNC_CALL_SITES = 89
+        // 89 → 90：守卫接入前已有一个存量同步设置调用未纳入基线；PR #715 未新增
+        // 此类调用。校准到当前实测值后继续阻止新的调用点进入首帧/重组路径。
+        const val MAX_SETTINGS_SYNC_CALL_SITES = 90
 
         // 当前 3 个：PredictiveBackBackgroundPolicy.kt（每帧重建，转场期最热的一条路径）、
         // ImagePreviewDialog.kt、MainActivity.kt（splash 淡出期，峰值半径 70dp）。

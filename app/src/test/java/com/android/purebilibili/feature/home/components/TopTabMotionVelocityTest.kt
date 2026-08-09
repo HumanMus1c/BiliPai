@@ -60,6 +60,39 @@ class TopTabMotionVelocityTest {
     }
 
     @Test
+    fun `segmented pager matches home velocity cap`() {
+        val velocity = resolveSegmentedControlExternalPagerVelocityItemsPerSecond(
+            currentPosition = 1f,
+            previousPosition = 0f,
+            elapsedNanos = 50_000_000L,
+        )
+
+        assertEquals(12f, velocity, 0.001f)
+    }
+
+    @Test
+    fun `segmented pager stretches during travel and releases at destination`() {
+        assertTrue(
+            shouldStretchSegmentedControlExternalPagerIndicator(
+                position = 0.45f,
+                externalPagerMotionActive = true,
+            )
+        )
+        assertFalse(
+            shouldStretchSegmentedControlExternalPagerIndicator(
+                position = 1f,
+                externalPagerMotionActive = true,
+            )
+        )
+        assertFalse(
+            shouldStretchSegmentedControlExternalPagerIndicator(
+                position = 0.45f,
+                externalPagerMotionActive = false,
+            )
+        )
+    }
+
+    @Test
     fun `direct drag keeps bottom bar velocity deformation`() {
         assertEquals(
             4f,

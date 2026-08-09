@@ -6,7 +6,7 @@ This file is a compatibility alias for AI-oriented tooling.
 Maintained periodically, but still subject to freshness limits; reference only.
 会定期维护，但仍存在时效性限制，仅供参考。
 
-Current sync target / 当前同步目标：`2026-08-02 · build 9.9.9.8.6 · documented release v9.9.9.8.6`
+Current sync target / 当前同步目标：`2026-08-04 · build 0.1.0 · documented release v0.1.0`
 
 ## Preferred Order / 推荐阅读顺序
 

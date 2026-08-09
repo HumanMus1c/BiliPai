@@ -53,6 +53,8 @@ app/release/
 
 # 🔥 忽略 AI/Agent 相关文件
 .agent/
+.trae/
+.codegraph/
 .gemini/
 .cursor/
 .claude/

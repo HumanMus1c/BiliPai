@@ -1,25 +1,20 @@
 package com.android.purebilibili.core.ui
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class AppPullRefreshIndicatorPolicyTest {
 
     @Test
-    fun refreshIndicatorRendererSwapsToMaterialWhenNotIos() {
+    fun refreshIndicatorRenderer_branchesByUiStyle() {
         assertEquals(
-            AppPullRefreshIndicatorRenderer.CUPERTINO,
-            resolveAppPullRefreshIndicatorRenderer(UiPreset.IOS, AndroidNativeVariant.MATERIAL3),
+            AppPullRefreshIndicatorRenderer.MIUIX,
+            resolveAppPullRefreshIndicatorRenderer(AppUiStyle.MIUIX),
         )
         assertEquals(
             AppPullRefreshIndicatorRenderer.MATERIAL3,
-            resolveAppPullRefreshIndicatorRenderer(UiPreset.MD3, AndroidNativeVariant.MATERIAL3),
-        )
-        assertEquals(
-            AppPullRefreshIndicatorRenderer.MIUIX,
-            resolveAppPullRefreshIndicatorRenderer(UiPreset.MD3, AndroidNativeVariant.MIUIX),
+            resolveAppPullRefreshIndicatorRenderer(AppUiStyle.MATERIAL3),
         )
     }
 }

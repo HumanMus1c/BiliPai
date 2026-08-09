@@ -60,7 +60,8 @@ class VideoContentSectionPerformanceStructureTest {
         assertTrue(source.contains("var tabBarCollapsePx by remember"))
         assertTrue(source.contains("resolveVideoContentTabBarCollapseProgress("))
         assertFalse(source.contains("visible = !collapseTabBarForCommentScroll"))
-        // Sort filter bar stays outside this collapse path (comment list chrome).
+        // Sort filter bar lives in the top chrome beside the comment tab.
+        assertTrue(source.contains("if (selectedTabIndex == 1)"))
         assertTrue(source.contains("CommentSortFilterBar("))
     }
 

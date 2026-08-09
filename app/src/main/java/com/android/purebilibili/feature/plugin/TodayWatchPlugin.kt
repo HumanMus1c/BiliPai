@@ -49,10 +49,10 @@ import com.android.purebilibili.feature.home.TodayWatchMode
 import com.android.purebilibili.feature.home.TodayWatchPenaltySignals
 import com.android.purebilibili.feature.home.buildTodayWatchPlan
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.Lightbulb
-import io.github.alexzhirkevich.cupertino.icons.outlined.ListBullet
-import io.github.alexzhirkevich.cupertino.icons.outlined.Sparkles
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.ViewList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -96,7 +96,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
     override val description: String = "本地分析观看历史，生成可定制推荐队列"
     override val version: String = "1.0.1"
     override val author: String = "BiliPai项目组"
-    override val icon: ImageVector = CupertinoIcons.Default.ListBullet
+    override val icon: ImageVector = Icons.Outlined.ViewList
     override val capabilityManifest: PluginCapabilityManifest = PluginCapabilityManifest(
         pluginId = id,
         displayName = name,
@@ -360,7 +360,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
             AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             AppSwitchPreference(
-                icon = CupertinoIcons.Default.Sparkles,
+                icon = Icons.Outlined.AutoAwesome,
                 title = "联动护眼信号",
                 subtitle = "夜间优先短时长、低刺激内容",
                 checked = uiConfig.linkEyeCareSignal,
@@ -368,7 +368,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
             )
 
             AppSwitchPreference(
-                icon = CupertinoIcons.Default.Lightbulb,
+                icon = Icons.Outlined.Lightbulb,
                 title = "显示模式说明",
                 subtitle = "显示“已结合护眼状态”等提示文案",
                 checked = uiConfig.showReasonHint,
@@ -376,7 +376,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
             )
 
             AppSwitchPreference(
-                icon = CupertinoIcons.Default.ListBullet,
+                icon = Icons.Outlined.ViewList,
                 title = "显示 UP 主榜",
                 subtitle = "在卡片中展示你近期偏好的创作者",
                 checked = uiConfig.showUpRank,
@@ -384,7 +384,7 @@ class TodayWatchPlugin : RecommendationPluginApi {
             )
 
             AppSwitchPreference(
-                icon = CupertinoIcons.Default.Sparkles,
+                icon = Icons.Outlined.AutoAwesome,
                 title = "瀑布展开动画",
                 subtitle = "卡片内容按非线性节奏依次展开",
                 checked = uiConfig.enableWaterfallAnimation,

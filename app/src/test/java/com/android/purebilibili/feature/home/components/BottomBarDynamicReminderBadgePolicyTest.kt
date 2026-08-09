@@ -51,7 +51,7 @@ class BottomBarDynamicReminderBadgePolicyTest {
         ).first { it.exists() }.readText()
         val itemSource = source
             .substringAfter("private fun RowScope.AndroidNativeBottomBarItem(")
-            .substringBefore("internal fun resolveHomeNavigationBarIcon(")
+            .substringBefore("internal fun resolveMaterialBottomBarIcon(")
 
         assertFalse(itemSource.contains(".clip(resolveSharedBottomBarCapsuleShape())"))
     }

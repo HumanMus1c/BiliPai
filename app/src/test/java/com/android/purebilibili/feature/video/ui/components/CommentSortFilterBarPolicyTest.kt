@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.ui.components
 
+import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -7,6 +8,21 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class CommentSortFilterBarPolicyTest {
+
+    @Test
+    fun `comment sort exposes only hot and newest without up filter`() {
+        assertEquals(
+            listOf(CommentSortMode.HOT, CommentSortMode.NEWEST),
+            CommentSortMode.entries
+        )
+
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/video/ui/components/CommentSortFilterBar.kt"
+        )
+        assertTrue(source.contains("listOf(CommentSortMode.HOT, CommentSortMode.NEWEST)"))
+        assertFalse(source.contains("CommentToggleButton"))
+        assertFalse(source.contains("onUpOnlyToggle"))
+    }
 
     @Test
     fun `sort segmented control leaves room for bottom bar matched indicator scale`() {

@@ -86,7 +86,7 @@
 | Compose 入口 | 当前 `AppScrollableTabRow` |
 | 当前差距 / 验收 | 各业务分段控件实现仍有差异；检查状态同步和字体放大 |
 
-### C207 分栏：`AppSplitLayout`
+### C207 分栏：`AppAdaptiveSplitLayout`
 
 | 字段 | 规范 |
 |---|---|
@@ -97,7 +97,7 @@
 | 文案 / 无障碍 | 阅读顺序先主栏后详情；选择变化合理通知，不抢焦点 |
 | 响应式 | Compact 退化成 push 导航；切换保留选择和滚动 |
 | 三风格映射 | 分隔与表面可变，栏职责和返回一致 |
-| Compose 入口 | 当前 `SplitLayout.kt` 中 `AppSplitLayout` |
+| Compose 入口 | 当前 `AppSplitLayout.kt` 中 `AppAdaptiveSplitLayout` |
 | 当前差距 / 验收 | 设置已有特化 Shell；检查 840dp 临界与预测返回 |
 
 ## Compose 短示例
@@ -116,7 +116,7 @@ AppScaffold(
 - `AppBottomNavigationHost.kt`
 - `AppNavigationComponents.kt`
 - `AppPrimitiveComponents.kt` 中的 tab/drawer
-- `SplitLayout.kt`
+- `AppSplitLayout.kt`
 
 ## 当前差距
 

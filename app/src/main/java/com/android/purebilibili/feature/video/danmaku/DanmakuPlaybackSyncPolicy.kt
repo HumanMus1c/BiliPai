@@ -75,6 +75,39 @@ internal fun resolveDanmakuActionForIsPlayingChange(
     return if (danmakuEnabled && hasData) DanmakuSyncAction.HardResync else DanmakuSyncAction.None
 }
 
+/**
+ * 弹幕数据就绪时的启动意图。
+ *
+ * 相关推荐/同页切集（含进入过渡动画）后，播放器往往先于弹幕网络请求开始播放：
+ * `onIsPlayingChanged(true)` 可能在弹幕数据加载完成前到达，被 [resolveDanmakuActionForIsPlayingChange]
+ * 的 None 分支（hasData=false）吃掉；若随后数据就绪时仅按 `isPlaying` 瞬时快照判断，
+ * 引擎会停在 paused 且没有新的 isPlaying 事件恢复它（表现为弹幕开关显示「开」却无弹幕，
+ * 需手动重开开关才显示）。因此数据就绪时应按「播放意图」（正在播放或即将播放）启动引擎，
+ * 由后续 drift sync / HardResync 校正缓冲造成的少量时间线偏差。
+ */
+internal fun shouldStartDanmakuOnDataReady(
+    isPlaying: Boolean,
+    playWhenReady: Boolean
+): Boolean = isPlaying || playWhenReady
+
+/**
+ * 新 DanmakuView attach 时是否要把已缓存弹幕时间线补到当前 controller。
+ *
+ * 相关推荐 push 新页时，load 常在旧 controller 完成；新 view 若跳过重放，
+ * 开关显示「开」却无弹幕，只能手动重开开关才恢复。
+ */
+internal fun shouldReapplyDanmakuTimelineOnAttach(
+    hasCachedList: Boolean,
+    pendingTimelineResync: Boolean,
+    previousControllerSameAsCurrent: Boolean,
+    timelineAlreadySyncedToCurrent: Boolean,
+): Boolean {
+    if (!hasCachedList) return false
+    if (pendingTimelineResync) return true
+    if (previousControllerSameAsCurrent && timelineAlreadySyncedToCurrent) return false
+    return true
+}
+
 internal fun resolveExplicitSeekStartedPlaybackAfterSyncAction(
     explicitSeekStartedPlayback: Boolean?,
     action: DanmakuSyncAction

@@ -52,8 +52,8 @@ import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.rememberAppDrawerVisualPolicy
 import com.android.purebilibili.feature.home.UserState
 import dev.chrisbanes.haze.HazeState
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.ArrowLeftArrowRight
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SwapHoriz
 import kotlinx.coroutines.launch
 
 /**
@@ -137,7 +137,7 @@ fun MineSideDrawer(
     val inboxIcon = rememberAppInboxIcon()
     val logoutIcon = rememberAppLogoutIcon()
     val chevronForwardIcon = rememberAppChevronForwardIcon()
-    val accountSwitchIcon = CupertinoIcons.Outlined.ArrowLeftArrowRight
+    val accountSwitchIcon = Icons.Outlined.SwapHoriz
 
     // 动态文字颜色
     val activeContentColor = colorScheme.onSurface

@@ -12,7 +12,7 @@ enum class OnboardingSettingsProfile(
 ) {
     RECOMMENDED(
         title = "推荐默认",
-        subtitle = "MD3、悬浮底栏、六个纯文字顶部标签"
+        subtitle = "MD3、悬浮底栏、五个纯文字顶部标签"
     ),
     PERFORMANCE(
         title = "流畅优先",
@@ -44,8 +44,7 @@ private val DEFAULT_ONBOARDING_TOP_TAB_IDS = listOf(
     "FOLLOW",
     "POPULAR",
     "LIVE",
-    "GAME",
-    "PARTITION"
+    "GAME"
 )
 
 fun resolveOnboardingSettingsGuidePreset(
@@ -54,7 +53,7 @@ fun resolveOnboardingSettingsGuidePreset(
     val sharedSummary = listOf(
         "默认使用 MD3 / Material 3",
         "关闭液态玻璃，开启悬浮底栏",
-        "首页顶部标签纯文字显示 6 个"
+        "首页顶部标签纯文字显示 5 个"
     )
     return when (profile) {
         OnboardingSettingsProfile.RECOMMENDED -> OnboardingSettingsGuidePreset(

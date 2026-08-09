@@ -121,6 +121,10 @@ class DanmakuManager private constructor(
     // 视图和控制器
     private var danmakuView: DanmakuView? = null
     private var controller: DanmakuController? = null
+    /** 最近一次成功 setData 的 controller；用于判断新 view 是否需要补时间线。 */
+    private var timelineSyncedController: DanmakuController? = null
+    /** load 完成时 controller 尚为 null，等 attachView 再补。 */
+    private var pendingTimelineResync: Boolean = false
     private var player: ExoPlayer? = null
     private var playerListener: Player.Listener? = null
     private var loadJob: Job? = null
@@ -451,6 +455,41 @@ class DanmakuManager private constructor(
         Log.w(TAG, " applyCachedDanmakuToController($reason): size=${list.size}, pos=${currentPos}ms")
     }
 
+    /**
+     * 当前绑定的 controller 若尚未装上 [cachedDanmakuList]，立即补一次时间线。
+     * 用于 attachView / 布局完成等「view 后于 load」路径。
+     */
+    private fun reapplyCachedDanmakuToCurrentControllerIfNeeded(
+        previousController: DanmakuController?,
+        reason: String,
+    ) {
+        val list = cachedDanmakuList?.takeIf { it.isNotEmpty() } ?: return
+        val current = controller ?: return
+        if (
+            !shouldReapplyDanmakuTimelineOnAttach(
+                hasCachedList = true,
+                pendingTimelineResync = pendingTimelineResync,
+                previousControllerSameAsCurrent = previousController === current,
+                timelineAlreadySyncedToCurrent = timelineSyncedController === current,
+            )
+        ) {
+            return
+        }
+        if (config.isEnabled) {
+            danmakuView?.visibility = android.view.View.VISIBLE
+        }
+        resyncDanmakuTimeline(
+            list = list,
+            positionMs = player?.currentPosition ?: 0L,
+            shouldPlay = shouldStartDanmakuOnDataReady(
+                isPlaying = player?.isPlaying == true,
+                playWhenReady = player?.playWhenReady == true
+            ),
+            invalidateView = true,
+            reason = reason,
+        )
+    }
+
     private fun resyncDanmakuTimeline(
         list: List<DanmakuData>,
         positionMs: Long,
@@ -458,7 +497,12 @@ class DanmakuManager private constructor(
         invalidateView: Boolean = false,
         reason: String
     ) {
-        val ctrl = controller ?: return
+        val ctrl = controller ?: run {
+            // load 完成早于 view 绑定时标记 pending，等 attachView 再补。
+            pendingTimelineResync = list.isNotEmpty()
+            Log.w(TAG, " Resync skipped ($reason): controller=null, pending=$pendingTimelineResync")
+            return
+        }
         applyPlaybackSpeedToController(ctrl)
         executeExplicitDanmakuResync(
             pause = { ctrl.pause() },
@@ -470,10 +514,14 @@ class DanmakuManager private constructor(
         }
         if (shouldPlay && config.isEnabled) {
             isPlaying = true
+            // hide() 可能把 view 设为 GONE；数据就绪后若开关仍开则恢复可见。
+            danmakuView?.visibility = android.view.View.VISIBLE
         } else {
             ctrl.pause()
             isPlaying = false
         }
+        timelineSyncedController = ctrl
+        pendingTimelineResync = false
         Log.w(TAG, " Resynced danmaku timeline ($reason) at ${positionMs}ms, play=$shouldPlay")
     }
 
@@ -958,7 +1006,10 @@ class DanmakuManager private constructor(
                     resyncDanmakuTimeline(
                         list = list,
                         positionMs = currentPos,
-                        shouldPlay = player?.isPlaying == true,
+                        shouldPlay = shouldStartDanmakuOnDataReady(
+                            isPlaying = player?.isPlaying == true,
+                            playWhenReady = player?.playWhenReady == true
+                        ),
                         reason = "config:$reason"
                     )
                 }
@@ -1047,7 +1098,8 @@ class DanmakuManager private constructor(
         }
         
         Log.w(TAG, "📎 attachView: new view, old=${danmakuView != null}, hashCode=${view.hashCode()}")
-        
+
+        val previousController = controller
         danmakuView = view
         controller = view.controller
         applyDanmakuClickListener()
@@ -1059,6 +1111,15 @@ class DanmakuManager private constructor(
         
         // 应用配置并同步倍速基准
         applyConfigToController("attachView")
+
+        // 相关推荐 push 新详情页时，loadDanmaku 常在旧 controller 仍绑定（或 controller=null）
+        // 时完成；若只在「此前无 controller」时重放，新 view 会永远吃不到已就绪缓存，
+        // 表现为开关显示「开」却无弹幕，只能手动重开开关（show）才恢复。
+        // 切换视频时应先 clearForVideoChange 清掉旧缓存，避免把旧片弹幕闪到新 view。
+        reapplyCachedDanmakuToCurrentControllerIfNeeded(
+            previousController = previousController,
+            reason = "attach_view_replay",
+        )
         
         //  [关键修复] 等待 View 布局完成后再设置弹幕数据
         // DanmakuRenderEngine 需要有效的 View 尺寸来计算弹幕轨道位置
@@ -1136,6 +1197,32 @@ class DanmakuManager private constructor(
     fun detachView() {
         Log.d(TAG, "📎 detachView: Pausing and clearing controller")
         controller?.pause()
+        if (timelineSyncedController === controller) {
+            timelineSyncedController = null
+        }
+        controller = null
+        danmakuView = null
+    }
+
+    /**
+     * 页面销毁时解绑视图。仅当该 view 仍是当前绑定的弹幕视图时才生效：
+     * 相关推荐等导航会 push 新页面，单例 DanmakuManager 的 danmakuView 可能
+     * 已被新页面的 view 接管，旧页面 onRelease 不得清空新页面的绑定，
+     * 否则新页面加载完成的弹幕会因 controller 为 null 无法上屏（需重开开关）。
+     */
+    fun releaseViewIfCurrent(view: DanmakuView) {
+        if (danmakuView !== view) {
+            Log.d(TAG, "📎 releaseViewIfCurrent: view=${view.hashCode()} is not current (${danmakuView?.hashCode()}), skipping")
+            return
+        }
+        hide()
+        clear()
+        controller?.pause()
+        if (timelineSyncedController === controller) {
+            timelineSyncedController = null
+        }
+        // 缓存仍在时标记 pending，待新页面 attachView 再补时间线。
+        pendingTimelineResync = cachedDanmakuList?.isNotEmpty() == true
         controller = null
         danmakuView = null
     }
@@ -1451,6 +1538,32 @@ class DanmakuManager private constructor(
             applyCachedDanmakuToController("player_attach")
         }
     }
+
+    /**
+     * 仅解绑仍由指定播放器持有的监听器，不触碰当前 DanmakuView/controller 或缓存。
+     *
+     * 相关推荐 push 时旧详情页会晚于新详情页收到 ON_DESTROY；此时不能调用
+     * [clearViewReference]，否则会把单例中已经属于新页面的 view/controller 一并清掉。
+     */
+    fun detachPlayerIfCurrent(exoPlayer: ExoPlayer) {
+        if (player !== exoPlayer) {
+            Log.d(
+                TAG,
+                "detachPlayerIfCurrent: player=${exoPlayer.hashCode()} is not current " +
+                    "(${player?.hashCode()}), skipping"
+            )
+            return
+        }
+
+        playerListener?.let(exoPlayer::removeListener)
+        playerListener = null
+        player = null
+        stopDriftSync()
+        isPlaying = false
+        wasBufferingWhilePlaying = false
+        clearExplicitSeekResyncMarker()
+        Log.d(TAG, "detachPlayerIfCurrent: detached player=${exoPlayer.hashCode()}")
+    }
     
     /**
      * 加载弹幕数据
@@ -1503,6 +1616,9 @@ class DanmakuManager private constructor(
         sourceCommandDanmakuList = emptyList()
         _advancedDanmakuFlow.value = emptyList()
         _commandDanmakuFlow.value = emptyList()
+        // 旧时间线对当前 controller 已失效；新数据就绪后必须重新 setData。
+        timelineSyncedController = null
+        pendingTimelineResync = false
         
         // 清除现有弹幕
         controller?.stop()
@@ -1538,23 +1654,24 @@ class DanmakuManager private constructor(
                     var segmentList: List<ByteArray>? = null
                     var xmlData: ByteArray? = null
                     
-                    //  [新增] 优先使用 Protobuf API (seg.so)
-                    if (durationMs > 0 || viewReply != null) {
-                        Log.w(TAG, " Trying Protobuf API (seg.so)...")
-                        try {
-                            val fetched = com.android.purebilibili.data.repository.DanmakuRepository.getDanmakuSegments(
-                                cid = cid,
-                                durationMs = durationMs,
-                                metadataSegmentCount = viewReply?.dmSge?.total?.toInt()
-                            )
-                            if (fetched.isNotEmpty()) {
-                                val special = com.android.purebilibili.data.repository.DanmakuRepository
-                                    .getSpecialDanmakuSegments(viewReply?.specialDms.orEmpty())
-                                segmentList = fetched + special
-                            }
-                        } catch (e: Exception) {
-                            Log.w(TAG, " Protobuf API failed: ${e.message}, falling back to XML")
+                    //  [新增] 优先使用 Protobuf API (seg.so)。
+                    //  duration<=0 时（如相关推荐/同页切集瞬间新播放器未就绪）
+                    // 也尝试 Protobuf：仓库层会按 metadata 或默认段数 fallback，
+                    // 避免无谓降级到易失败的 XML API 导致弹幕为空。
+                    Log.w(TAG, " Trying Protobuf API (seg.so)...")
+                    try {
+                        val fetched = com.android.purebilibili.data.repository.DanmakuRepository.getDanmakuSegments(
+                            cid = cid,
+                            durationMs = durationMs,
+                            metadataSegmentCount = viewReply?.dmSge?.total?.toInt()
+                        )
+                        if (fetched.isNotEmpty()) {
+                            val special = com.android.purebilibili.data.repository.DanmakuRepository
+                                .getSpecialDanmakuSegments(viewReply?.specialDms.orEmpty())
+                            segmentList = fetched + special
                         }
+                    } catch (e: Exception) {
+                        Log.w(TAG, " Protobuf API failed: ${e.message}, falling back to XML")
                     }
                     
                     //  [后备] 如果 Protobuf 失败或未提供 duration，使用 XML API
@@ -1638,7 +1755,10 @@ class DanmakuManager private constructor(
                     resyncDanmakuTimeline(
                         list = finalList,
                         positionMs = currentPlayTime,
-                        shouldPlay = player?.isPlaying == true,
+                        shouldPlay = shouldStartDanmakuOnDataReady(
+                            isPlaying = player?.isPlaying == true,
+                            playWhenReady = player?.playWhenReady == true
+                        ),
                         invalidateView = true,
                         reason = "load_new"
                     )
@@ -1719,7 +1839,10 @@ class DanmakuManager private constructor(
                     resyncDanmakuTimeline(
                         list = cachedDanmakuList ?: emptyList(),
                         positionMs = currentPlayTime,
-                        shouldPlay = player?.isPlaying == true,
+                        shouldPlay = shouldStartDanmakuOnDataReady(
+                            isPlaying = player?.isPlaying == true,
+                            playWhenReady = player?.playWhenReady == true
+                        ),
                         invalidateView = true,
                         reason = "offline_load"
                     )
@@ -1740,17 +1863,24 @@ class DanmakuManager private constructor(
     fun show() {
         Log.d(TAG, "👁️ show()")
         danmakuView?.visibility = android.view.View.VISIBLE
-        
-        if (player?.isPlaying == true) {
-            cachedDanmakuList?.let { list ->
-                resyncDanmakuTimeline(
-                    list = list,
-                    positionMs = player?.currentPosition ?: 0L,
-                    shouldPlay = true,
-                    invalidateView = true,
-                    reason = "show"
-                )
-            }
+
+        // [修复] 相关推荐/同页切集后弹幕开关开启却无弹幕：Enable→show() 常在弹幕数据
+        // 就绪前执行，若此时还要求 player.isPlaying 瞬时成立才装填时间线，数据就绪后
+        // 引擎可能停在 paused 且没有新的 isPlaying 事件恢复（该事件已在数据加载完成前
+        // 被 None 分支吃掉），只能靠手动重开弹幕开关触发 show() 才恢复。
+        // 改为「数据就绪即装填时间线」，shouldPlay 仍按实际播放状态决定 start/pause；
+        // 之后 onIsPlayingChanged(true) 会走 HardResync 完成最终启动。
+        cachedDanmakuList?.takeIf { it.isNotEmpty() }?.let { list ->
+            resyncDanmakuTimeline(
+                list = list,
+                positionMs = player?.currentPosition ?: 0L,
+                shouldPlay = shouldStartDanmakuOnDataReady(
+                    isPlaying = player?.isPlaying == true,
+                    playWhenReady = player?.playWhenReady == true
+                ),
+                invalidateView = true,
+                reason = "show"
+            )
         }
     }
     
@@ -1786,6 +1916,8 @@ class DanmakuManager private constructor(
         sourceCommandDanmakuList = emptyList()
         _advancedDanmakuFlow.value = emptyList()
         _commandDanmakuFlow.value = emptyList()
+        timelineSyncedController = null
+        pendingTimelineResync = false
         clearExplicitSeekResyncMarker()
         controller?.clear()
     }

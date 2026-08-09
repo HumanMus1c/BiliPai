@@ -27,6 +27,17 @@ internal data class ContinuousPlayerTransitionDecision(
         ContinuousPlayerOrientationRequest.None,
 )
 
+internal fun shouldKeepContinuousPlayerEnterPhaseWhilePortrait(
+    phase: ContinuousPlayerTransitionPhase,
+    isLandscape: Boolean,
+): Boolean {
+    return !isLandscape &&
+        (
+            phase == ContinuousPlayerTransitionPhase.Expanding ||
+                phase == ContinuousPlayerTransitionPhase.AwaitingLandscape
+            )
+}
+
 internal fun reduceContinuousPlayerTransition(
     phase: ContinuousPlayerTransitionPhase,
     event: ContinuousPlayerTransitionEvent,
@@ -78,8 +89,25 @@ internal fun reduceContinuousPlayerTransition(
                 phase == ContinuousPlayerTransitionPhase.AwaitingLandscape ->
                 ContinuousPlayerTransitionDecision(ContinuousPlayerTransitionPhase.Fullscreen)
 
+            // 系统旋转进横屏（非按钮路径）时，任意非全屏相位都应落到 Fullscreen，
+            // 避免卡在 Expanding/AwaitingLandscape 导致回竖屏后进度仍为 1。
+            event.isLandscape &&
+                phase != ContinuousPlayerTransitionPhase.Fullscreen &&
+                phase != ContinuousPlayerTransitionPhase.AwaitingPortrait ->
+                ContinuousPlayerTransitionDecision(ContinuousPlayerTransitionPhase.Fullscreen)
+
             !event.isLandscape &&
                 phase == ContinuousPlayerTransitionPhase.AwaitingPortrait ->
+                ContinuousPlayerTransitionDecision(ContinuousPlayerTransitionPhase.Collapsing)
+
+            // 系统旋转回竖屏：Fullscreen / 半途 Expanding / 卡在 AwaitingLandscape
+            // 都应收起为 Collapsing，避免竖屏仍按全屏高度铺满。
+            !event.isLandscape &&
+                (
+                    phase == ContinuousPlayerTransitionPhase.Fullscreen ||
+                        phase == ContinuousPlayerTransitionPhase.AwaitingLandscape ||
+                        phase == ContinuousPlayerTransitionPhase.Expanding
+                    ) ->
                 ContinuousPlayerTransitionDecision(ContinuousPlayerTransitionPhase.Collapsing)
 
             else -> ContinuousPlayerTransitionDecision(phase)

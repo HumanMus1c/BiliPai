@@ -344,21 +344,45 @@ class SearchScreenPolicyTest {
     @Test
     fun searchResultTransition_usesPagerAndKeepsFilterBarOutsidePager() {
         val searchSource = loadSource("app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt")
+        val filterSheetSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/search/SearchVideoFilterSheet.kt"
+        )
         val resultPagerStart = searchSource.indexOf("HorizontalPager(")
-        val filterBarBeforePager = searchSource.lastIndexOf("SearchFilterBar(", resultPagerStart)
+        val videoFilterBeforePager = searchSource.lastIndexOf("SearchVideoFilterBar(", resultPagerStart)
+        val legacyFilterBeforePager = searchSource.lastIndexOf("SearchFilterBar(", resultPagerStart)
         val filterBarDeclaration = searchSource.indexOf("fun SearchFilterBar(")
         val resultPagerBody = searchSource.substring(resultPagerStart, filterBarDeclaration)
 
         assertTrue(resultPagerStart > 0)
-        assertTrue(filterBarBeforePager > 0)
+        assertTrue(videoFilterBeforePager > 0 || legacyFilterBeforePager > 0)
         assertFalse(resultPagerBody.contains("SearchFilterBar("))
+        assertFalse(resultPagerBody.contains("SearchVideoFilterBar("))
         assertFalse(searchSource.contains("detectHorizontalDragGestures"))
-        assertTrue(searchSource.contains("TabRowDefaults.SecondaryIndicator"))
-        assertTrue(searchSource.contains("AppSearchField("))
-        assertTrue(searchSource.contains("AppFilterChip("))
+        // Custom horizontal pills (not TabRow indicator which covered selected label).
+        assertTrue(searchSource.contains("private fun SearchResultTypeTabRow("))
+        assertTrue(searchSource.contains("horizontalScroll(rememberScrollState())"))
+        assertTrue(searchSource.contains("AppSurfaceTokens.surfaceContainerHigh()"))
+        assertTrue(searchSource.contains("AppSurfaceTokens.onSurfaceContainerHigh()"))
+        assertTrue(searchSource.contains(".background(if (selected) pillColor else Color.Transparent)"))
+        assertFalse(searchSource.contains("androidx.compose.material3.ScrollableTabRow("))
+        assertFalse(searchSource.contains("tabIndicatorOffset("))
+        // Top bar uses native BasicTextField + TextFieldValue (not AppSearchField wrapper).
+        assertTrue(searchSource.contains("SearchTopBarInputField("))
+        assertTrue(searchSource.contains("TextFieldValue("))
+        assertFalse(searchSource.contains("AppSearchField("))
+        // Video filters use neutral AppFilterChip; host follows the stage-3 contract
+        // (MIUIX → OverlayBottomSheet, MATERIAL3 → AppModalBottomSheet).
+        assertTrue(filterSheetSource.contains("AppFilterChip("))
+        assertTrue(filterSheetSource.contains("AppModalBottomSheet("))
+        assertTrue(filterSheetSource.contains("OverlayBottomSheet("))
+        // History chips use the neutral AppInputChip (visuals follow the theme layer).
         assertTrue(searchSource.contains("AppInputChip("))
+        assertFalse(searchSource.contains("androidx.compose.material3.InputChip("))
         assertFalse(searchSource.contains("SearchPagerTabIndicator("))
         assertFalse(searchSource.contains("val showStableFilterBar = !searchPagerState.isScrollInProgress"))
+        // Exiting results must not reopen IME.
+        assertTrue(searchSource.contains("exitResultsToLanding("))
+        assertTrue(searchSource.contains("dismissSearchKeyboardAndFocus("))
     }
 
     @Test
@@ -366,11 +390,12 @@ class SearchScreenPolicyTest {
         val searchSource = loadSource("app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt")
         val topBar = searchSource
             .substringAfter("fun SearchTopBar(")
-            .substringBefore("fun SearchSuggestionDropdown")
+            .substringBefore("private fun SearchTopBarIconButton(")
         // 回归：fillMaxSize 会让输入框在 Column 剩余高度里变成竖向长胶囊
         assertFalse(topBar.contains("Modifier = Modifier.fillMaxSize()"))
         assertTrue(topBar.contains(".height(chromeSpec.inputHeightDp.dp)"))
         assertTrue(topBar.contains(".fillMaxWidth()"))
+        assertTrue(topBar.contains("TextFieldValue("))
     }
 
     @Test

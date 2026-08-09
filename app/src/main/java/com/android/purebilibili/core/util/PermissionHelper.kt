@@ -10,10 +10,9 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+//  Material Icons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -41,7 +40,7 @@ fun rememberPermissionState(
     permission: String,
     rationaleTitle: String,
     rationaleMessage: String,
-    rationaleIcon: androidx.compose.ui.graphics.vector.ImageVector = CupertinoIcons.Default.Checkmark,
+    rationaleIcon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Outlined.Check,
     onPermissionResult: (Boolean) -> Unit = {}
 ): PermissionState {
     val context = LocalContext.current
@@ -93,7 +92,7 @@ fun rememberPermissionState(
     if (showSettingsDialog) {
         AlertDialog(
             onDismissRequest = { showSettingsDialog = false },
-            icon = { Icon(CupertinoIcons.Default.Checkmark, contentDescription = null, tint = BiliPink) },
+            icon = { Icon(Icons.Outlined.Check, contentDescription = null, tint = BiliPink) },
             title = { Text("权限已关闭") },
             text = { Text("您已拒绝该权限。如需使用此功能，请在系统设置中手动开启权限。") },
             confirmButton = {

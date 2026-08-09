@@ -142,6 +142,82 @@ class SearchMotionBudgetPolicyTest {
     }
 
     @Test
+    fun autoFocus_neverAfterResultsOrWhenConsumed() {
+        assertFalse(
+            shouldAutoFocusSearchField(
+                startupSettled = true,
+                query = "",
+                showResults = true
+            )
+        )
+        assertFalse(
+            shouldAutoFocusSearchField(
+                startupSettled = true,
+                query = "",
+                autoFocusConsumed = true
+            )
+        )
+    }
+
+    @Test
+    fun searchBackAction_prioritizesChromeThenResultsThenLeave() {
+        assertEquals(
+            SearchBackAction.DISMISS_CHROME,
+            resolveSearchBackAction(
+                showResults = true,
+                suggestionsVisible = true,
+                searchFieldFocused = false
+            )
+        )
+        assertEquals(
+            SearchBackAction.DISMISS_CHROME,
+            resolveSearchBackAction(
+                showResults = true,
+                suggestionsVisible = false,
+                searchFieldFocused = true
+            )
+        )
+        assertEquals(
+            SearchBackAction.EXIT_RESULTS,
+            resolveSearchBackAction(
+                showResults = true,
+                suggestionsVisible = false,
+                searchFieldFocused = false
+            )
+        )
+        assertEquals(
+            SearchBackAction.LEAVE_SEARCH,
+            resolveSearchBackAction(
+                showResults = false,
+                suggestionsVisible = false,
+                searchFieldFocused = false
+            )
+        )
+    }
+
+    @Test
+    fun clearFocus_onlyWhenEnteringResults() {
+        assertTrue(
+            shouldClearSearchFocusWhenShowingResults(
+                showResults = true,
+                previousShowResults = false
+            )
+        )
+        assertFalse(
+            shouldClearSearchFocusWhenShowingResults(
+                showResults = true,
+                previousShowResults = true
+            )
+        )
+        assertFalse(
+            shouldClearSearchFocusWhenShowingResults(
+                showResults = false,
+                previousShowResults = true
+            )
+        )
+    }
+
+    @Test
     fun scrollingResults_shouldNotForceLowHeaderBlurBudget() {
         assertFalse(
             shouldForceLowBudgetSearchHeaderBlur(

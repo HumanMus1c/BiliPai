@@ -421,8 +421,6 @@ class BottomBarLiquidSegmentedControlStructureTest {
         val paths = listOf(
             "app/src/main/java/com/android/purebilibili/feature/video/ui/components/CommentSortFilterBar.kt",
             "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt",
-            "app/src/main/java/com/android/purebilibili/feature/live/LiveListScreen.kt",
-            "app/src/main/java/com/android/purebilibili/feature/live/LiveAreaScreen.kt",
             "app/src/main/java/com/android/purebilibili/feature/live/LivePlayerScreen.kt"
         )
 
@@ -432,6 +430,17 @@ class BottomBarLiquidSegmentedControlStructureTest {
                 "$path should keep using BottomBarLiquidSegmentedControl so the global Android native fallback applies"
             )
         }
+
+        // 上游合流后直播首页分区行/全部分区行改用 LiveHomeSelectableChip（按 preset 原生分发），
+        // 不再走 BottomBarLiquidSegmentedControl；原生 fallback 约束只对仍在用共享控件的面成立。
+        val liveList = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/live/LiveListScreen.kt"
+        )
+        val liveArea = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/live/LiveAreaScreen.kt"
+        )
+        assertTrue(liveList.contains("LiveHomeSelectableChip("))
+        assertTrue(liveArea.contains("LiveHomeSelectableChip("))
     }
 
     private fun loadSource(path: String): String {

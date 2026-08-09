@@ -26,6 +26,9 @@ class FavoriteManagementPolicyTest {
     @Test
     fun `favorite folder content page size respects api limit`() {
         assertEquals(20, resolveFavoriteFolderContentPageSize())
+        assertEquals(20, normalizeFavoriteResourcePageSize(99))
+        assertEquals(1, normalizeFavoriteResourcePageSize(0))
+        assertEquals(12, normalizeFavoriteResourcePageSize(12))
     }
 
     @Test

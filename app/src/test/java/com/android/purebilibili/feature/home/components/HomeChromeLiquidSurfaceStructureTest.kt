@@ -110,7 +110,7 @@ class HomeChromeLiquidSurfaceStructureTest {
         assertTrue(
             "search-first mode should render top tabs after the search layer",
             searchLayerIndex in 0 until searchThenTabsIndex &&
-                topHeaderSource.indexOf("topTabsContent()", startIndex = searchThenTabsIndex) > searchThenTabsIndex
+                topHeaderSource.indexOf("topTabsContent(", startIndex = searchThenTabsIndex) > searchThenTabsIndex
         )
         assertTrue(
             "tabs-first mode should keep its explicit branch before the search layer",
@@ -141,11 +141,9 @@ class HomeChromeLiquidSurfaceStructureTest {
         )
         assertTrue(
             "top tab indicator host should not clip drag-scale overflow past the dock",
-            topBarSource.contains(
-                """.fillMaxSize()
-                        .zIndex(1f)
-                        .graphicsLayer { clip = false }"""
-            )
+            Regex(
+                """\.fillMaxSize\(\)\s*\n\s*\.zIndex\(1f\)\s*\n\s*\.graphicsLayer\s*\{\s*clip = false\s*\}"""
+            ).containsMatchIn(topBarSource)
         )
         assertTrue(
             "top tab chrome should center the fixed-height tab row inside the taller shell",
@@ -189,7 +187,7 @@ class HomeChromeLiquidSurfaceStructureTest {
         )
         assertTrue(
             "top tab indicator should reuse the bottom bar matched indicator and sibling capture topology",
-            topBarSource.contains("val shouldRenderTopTabLiquidGlassIndicator = shouldUseLiquidGlassIndicator") &&
+            topBarSource.contains("val shouldUseMd3LiquidCapsule = effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE") &&
                 topBarSource.contains("!hasOuterChromeSurface") &&
                 topBarSource.contains("val shouldUseMd3DockBackedCapsule =") &&
                 topBarSource.contains("BottomBarMatchedLiquidIndicator(") &&

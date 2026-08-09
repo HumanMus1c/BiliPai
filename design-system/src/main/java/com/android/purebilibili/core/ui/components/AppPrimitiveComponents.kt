@@ -1,5 +1,7 @@
 package com.android.purebilibili.core.ui.components
 
+import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
+import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -93,6 +95,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorProducer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -500,7 +503,7 @@ fun AppButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     shape: Shape = ButtonDefaults.shape,
-    colors: ButtonColors = ButtonDefaults.buttonColors(),
+    colors: ButtonColors? = null,
     elevation: androidx.compose.material3.ButtonElevation? = ButtonDefaults.buttonElevation(),
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
@@ -511,7 +514,10 @@ fun AppButton(
     modifier = modifier,
     enabled = enabled,
     shape = shape,
-    colors = colors,
+    colors = colors ?: ButtonDefaults.buttonColors(
+        containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+        contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme),
+    ),
     elevation = elevation,
     border = border,
     contentPadding = contentPadding,
@@ -784,6 +790,13 @@ fun AppCheckbox(
     interactionSource = interactionSource,
 )
 
+/**
+ * 开关选中态 thumb 颜色:亮主题色下 [androidx.compose.material3.ColorScheme.onPrimary]
+ * 可能被判为深色(黑字),导致浅色模式选中后 thumb 变黑;此时回退白色。
+ */
+internal fun resolveSwitchCheckedThumbColor(onPrimary: Color): Color =
+    if (onPrimary.luminance() > 0.5f) onPrimary else Color.White
+
 @Composable
 fun AppSwitch(
     checked: Boolean,
@@ -791,7 +804,15 @@ fun AppSwitch(
     modifier: Modifier = Modifier,
     thumbContent: (@Composable () -> Unit)? = null,
     enabled: Boolean = true,
-    colors: SwitchColors = SwitchDefaults.colors(),
+    colors: SwitchColors = SwitchDefaults.colors(
+        checkedThumbColor = resolveSwitchCheckedThumbColor(
+            onPrimary = MaterialTheme.colorScheme.onPrimary,
+        ),
+        checkedTrackColor = MaterialTheme.colorScheme.primary,
+        uncheckedThumbColor = MaterialTheme.colorScheme.surface,
+        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+    ),
     interactionSource: MutableInteractionSource? = null,
 ) = Switch(
     checked = checked,

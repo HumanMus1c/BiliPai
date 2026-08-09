@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -11,19 +10,15 @@ class AdaptiveTooltipPolicyTest {
     fun miuixUsesOfficialTooltipBoxRenderer() {
         assertEquals(
             AdaptiveTooltipRenderer.MIUIX_TOOLTIP_BOX,
-            resolveAdaptiveTooltipRenderer(UiPreset.MD3, AndroidNativeVariant.MIUIX)
+            resolveAdaptiveTooltipRenderer(AppUiStyle.MIUIX)
         )
     }
 
     @Test
-    fun materialAndIosPassThroughTooltip() {
+    fun material3PassesThroughTooltip() {
         assertEquals(
             AdaptiveTooltipRenderer.PASSTHROUGH,
-            resolveAdaptiveTooltipRenderer(UiPreset.MD3, AndroidNativeVariant.MATERIAL3)
-        )
-        assertEquals(
-            AdaptiveTooltipRenderer.PASSTHROUGH,
-            resolveAdaptiveTooltipRenderer(UiPreset.IOS, AndroidNativeVariant.MATERIAL3)
+            resolveAdaptiveTooltipRenderer(AppUiStyle.MATERIAL3)
         )
     }
 }

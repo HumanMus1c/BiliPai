@@ -1,38 +1,51 @@
 // File: feature/video/ui/components/QualityMenu.kt
 package com.android.purebilibili.feature.video.ui.components
-import com.android.purebilibili.core.ui.components.AppIcon
-import com.android.purebilibili.core.ui.components.AppText
-import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.components.AppText
+
+/** Minimum touch target for quality/speed rows (Material accessibility). */
+private val QualityMenuRowMinHeight = 48.dp
 
 /**
  * Quality Selection Menu
- * 
+ *
  * Displays a menu for selecting video quality.
- * 
+ *
  * Requirement Reference: AC2.3 - Reusable quality menu
  */
 @Composable
@@ -55,13 +68,12 @@ fun QualitySelectionMenu(
             else -> null
         }
     }
-    
-    //  [新增] 判断用户是否有权限使用该画质
+
     fun isQualityAvailable(qualityId: Int): Boolean {
         return when {
-            qualityId >= 112 -> isVip  // VIP 画质需要大会员
-            qualityId >= 80 -> isLoggedIn  // 1080P 需要登录
-            else -> true  // 720P 及以下无限制
+            qualityId >= 112 -> isVip
+            qualityId >= 80 -> isLoggedIn
+            else -> true
         }
     }
 
@@ -82,10 +94,9 @@ fun QualitySelectionMenu(
         ) {
             AppSurface(
                 modifier = Modifier
-                    .widthIn(min = 200.dp, max = 280.dp)
-                    .heightIn(max = 400.dp)  //  [修复] 限制最大高度，允许滚动
+                    .widthIn(min = 220.dp, max = 300.dp)
+                    .heightIn(max = 440.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    // 显式消费点击，防止事件穿透到播放器手势层
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -97,7 +108,7 @@ fun QualitySelectionMenu(
                 Column(
                     modifier = Modifier
                         .padding(vertical = 8.dp)
-                        .verticalScroll(rememberScrollState())  //  [修复] 添加垂直滚动
+                        .verticalScroll(rememberScrollState())
                 ) {
                     AppText(
                         text = "画质选择",
@@ -118,9 +129,20 @@ fun QualitySelectionMenu(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(enabled = isEnabled && !isSelected) { onQualitySelected(index) }
-                                .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                .heightIn(min = QualityMenuRowMinHeight)
+                                .clickable(
+                                    enabled = isEnabled && !isSelected,
+                                    role = Role.Button,
+                                    onClick = { onQualitySelected(index) }
+                                )
+                                .background(
+                                    if (isSelected) {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                    } else {
+                                        Color.Transparent
+                                    }
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AppText(
@@ -130,14 +152,18 @@ fun QualitySelectionMenu(
                                     !isEnabled -> Color.White.copy(0.4f)
                                     else -> Color.White.copy(0.9f)
                                 },
-                                fontSize = 14.sp,
+                                fontSize = 15.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                             )
-                            
+
                             if (tag != null) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 AppSurface(
-                                    color = if (tag == "大会员") MaterialTheme.colorScheme.primary else Color(0xFF666666),
+                                    color = if (tag == "大会员") {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        Color(0xFF666666)
+                                    },
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
                                     AppText(
@@ -149,11 +175,11 @@ fun QualitySelectionMenu(
                                     )
                                 }
                             }
-                            
+
                             Spacer(modifier = Modifier.weight(1f))
-                            
+
                             if (isSelected) {
-                                AppIcon(CupertinoIcons.Default.Checkmark, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                AppIcon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
@@ -176,7 +202,7 @@ fun QualitySelectionMenu(
 
 /**
  * Speed Selection Menu
- * 
+ *
  * Displays a menu for selecting playback speed.
  */
 enum class SpeedSelectionMenuPlacement {
@@ -221,10 +247,9 @@ fun SpeedSelectionMenu(
                             Modifier
                         }
                     )
-                    .widthIn(min = 180.dp, max = 240.dp)
-                    .heightIn(max = 400.dp)
+                    .widthIn(min = 200.dp, max = 260.dp)
+                    .heightIn(max = 440.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    // 显式消费点击，防止事件穿透到播放器手势层
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -251,20 +276,34 @@ fun SpeedSelectionMenu(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onSpeedSelected(speed) }
-                                .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                .heightIn(min = QualityMenuRowMinHeight)
+                                .clickable(
+                                    role = Role.Button,
+                                    onClick = { onSpeedSelected(speed) }
+                                )
+                                .background(
+                                    if (isSelected) {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                    } else {
+                                        Color.Transparent
+                                    }
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AppText(
                                 text = if (speed == 1.0f) "正常" else "${speed}x",
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(0.9f),
-                                fontSize = 14.sp,
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    Color.White.copy(0.9f)
+                                },
+                                fontSize = 15.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                             )
                             Spacer(modifier = Modifier.weight(1f))
                             if (isSelected) {
-                                AppIcon(CupertinoIcons.Default.Checkmark, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                AppIcon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             }
                         }
                     }

@@ -40,8 +40,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.plugin.PluginManager
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.Moon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
 
 @Composable
 fun EyeProtectionOverlay() {
@@ -132,7 +132,7 @@ private fun RestReminderDialog(
                 contentAlignment = Alignment.Center
             ) {
                 AppIcon(
-                    CupertinoIcons.Filled.Moon,
+                    Icons.Filled.DarkMode,
                     contentDescription = null,
                     tint = Color(0xFF7E57C2),
                     modifier = Modifier.size(36.dp)

@@ -1,5 +1,6 @@
 // File: feature/video/ui/components/DanmakuSettingsPanel.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
@@ -36,14 +37,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SwitchDefaults
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
@@ -513,7 +515,7 @@ fun DanmakuSettingsPanel(
                                 .background(panelColors.resetButtonBackgroundColor, CircleShape)
                         ) {
                             AppIcon(
-                                CupertinoIcons.Default.Xmark,
+                                Icons.Outlined.Close,
                                 contentDescription = "关闭",
                                 tint = panelColors.resetButtonColor,
                                 modifier = Modifier.size(18.dp)
@@ -1223,7 +1225,7 @@ private fun DanmakuBlockManagerDialog(
 
     pendingImportResult?.let { result ->
         val sections = result.sections
-        AlertDialog(
+        AppAlertDialog(
             onDismissRequest = { pendingImportResult = null },
             title = { AppText("导入屏蔽规则") },
             text = {
@@ -1311,7 +1313,7 @@ private fun DanmakuBlockManagerDialog(
                             .background(panelColors.resetButtonBackgroundColor, CircleShape)
                     ) {
                         AppIcon(
-                            CupertinoIcons.Default.Xmark,
+                            Icons.Outlined.Close,
                             contentDescription = "关闭",
                             tint = panelColors.resetButtonColor,
                             modifier = Modifier.size(18.dp)

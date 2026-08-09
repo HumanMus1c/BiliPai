@@ -87,10 +87,7 @@ import com.android.purebilibili.core.ui.rememberAppLikeIcon
 import com.android.purebilibili.feature.video.viewmodel.CommentUiState
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.HandThumbsup
-import io.github.alexzhirkevich.cupertino.icons.outlined.HandThumbsup
-import io.github.alexzhirkevich.cupertino.icons.outlined.Trash
+import androidx.compose.material.icons.outlined.Delete
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -1253,7 +1250,7 @@ private fun SubReplyDetailItem(
 
                     if (onDeleteClick != null) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Outlined.Trash,
+                            imageVector = Icons.Outlined.Delete,
                             contentDescription = "Delete",
                             tint = appearance.actionTint,
                             modifier = Modifier

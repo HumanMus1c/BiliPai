@@ -76,7 +76,7 @@ class SettingsRootCategoryContentStructureTest {
         assertTrue(feedApiBlock.contains("SettingSwitchItem("))
         assertTrue(feedApiBlock.contains("SettingSliderItem("))
         assertTrue(feedApiBlock.contains("SettingsAdaptiveDivider()"))
-        assertTrue(feedApiBlock.contains("动态顶栏下滑折叠"))
+        assertTrue(feedApiBlock.contains("浏览动态时收起顶部栏"))
         assertTrue(feedApiBlock.contains("dynamicTopBarCollapseOnScroll"))
         assertFalse(feedApiBlock.contains("private fun FeedSwitchItem("))
     }
@@ -437,8 +437,8 @@ class SettingsRootCategoryContentStructureTest {
         ).first { it.exists() }.readText().replace("\r\n", "\n")
 
         assertTrue(source.contains("title = \"首页样式与壁纸\""))
-        assertTrue(source.contains("value = \"在播放设置内 · 全屏方向与手势控制\""))
-        assertTrue(source.contains("value = \"在播放设置内 · 诊断日志与统计\""))
+        assertTrue(source.contains("value = \"设置自动横屏、亮度音量手势和全屏返回方式\""))
+        assertTrue(source.contains("value = \"出现黑屏、卡顿或画质切换失败时用于排查问题\""))
     }
 
     @Test

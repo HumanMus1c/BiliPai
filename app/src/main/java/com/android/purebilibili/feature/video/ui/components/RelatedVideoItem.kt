@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -34,10 +36,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
@@ -74,13 +76,14 @@ import com.android.purebilibili.data.model.response.RecommendationFeedbackReason
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.repository.ActionRepository
 import com.android.purebilibili.data.repository.BlockedUpRepository
+import com.android.purebilibili.feature.home.HomeFeedCardLayout
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.video.ui.FollowBadgeTone
 import com.android.purebilibili.feature.video.ui.resolveVideoFollowVisualPolicy
 import com.android.purebilibili.navigation.VideoRoute
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.BubbleLeft
-import io.github.alexzhirkevich.cupertino.icons.filled.Play
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.PlayArrow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -91,11 +94,6 @@ import kotlinx.coroutines.withContext
 internal const val RELATED_VIDEO_CARD_COVER_ASPECT_RATIO = 4f / 3f
 
 internal const val RELATED_VIDEO_GRID_COLUMNS = 1
-
-internal fun shouldEnableRelatedVideoGridSharedTransition(
-    sharedTransitionEnabled: Boolean,
-    isListScrolling: Boolean,
-): Boolean = sharedTransitionEnabled && !isListScrolling
 
 internal fun shouldDeferRelatedVideoNavigationForSharedTransition(
     sharedTransitionEnabled: Boolean,
@@ -162,6 +160,17 @@ internal fun chunkRelatedVideosForHomeStyleGrid(
     return videos.chunked(RELATED_VIDEO_GRID_COLUMNS)
 }
 
+@Composable
+internal fun rememberRelatedVideoCardLayout(): HomeFeedCardLayout {
+    val context = LocalContext.current
+    val homeFeedCardStyle by SettingsManager
+        .getHomeFeedCardStyle(context)
+        .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.CURRENT)
+    return remember(homeFeedCardStyle) {
+        resolveHomeFeedCardLayout(homeFeedCardStyle)
+    }
+}
+
 /** 相关推荐单列横卡：整卡进入 shared overlay，封面、标题与元数据一起移动。 */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -205,19 +214,22 @@ fun RelatedVideoItem(
             speedSettings = sharedTransitionSpeedSettings
         )
     }
-    val cardBoundsRef = remember { object { var value: Rect? = null } }
+    val cardCoordinatesRef = remember { object { var value: LayoutCoordinates? = null } }
     val triggerRelatedVideoClick = {
-        cardBoundsRef.value?.let { bounds ->
-            CardPositionManager.recordVideoCardPosition(
-                bvid = video.bvid,
-                sourceRoute = sourceRoute,
-                bounds = bounds,
-                screenWidth = screenWidthPx,
-                screenHeight = screenHeightPx,
-                density = densityValue,
-                sourceCornerDp = 12
-            )
-        }
+        cardCoordinatesRef.value
+            ?.takeIf { it.isAttached }
+            ?.boundsInRoot()
+            ?.let { bounds ->
+                CardPositionManager.recordVideoCardPosition(
+                    bvid = video.bvid,
+                    sourceRoute = sourceRoute,
+                    bounds = bounds,
+                    screenWidth = screenWidthPx,
+                    screenHeight = screenHeightPx,
+                    density = densityValue,
+                    sourceCornerDp = 12
+                )
+            }
         if (shouldDeferRelatedVideoNavigationForSharedTransition(
                 sharedTransitionEnabled = sharedTransitionEnabled,
                 cardTransitionEnabled = effectiveTransitionEnabled,
@@ -235,19 +247,25 @@ fun RelatedVideoItem(
         }
         Unit
     }
-    val cardShape = RoundedCornerShape(12.dp)
-    val coverShape = RoundedCornerShape(10.dp)
+    val cardShape = AppShapes.container(ContainerLevel.Card)
+    val coverShape = AppShapes.container(ContainerLevel.Field)
     val coverWidth = 144.dp
     val coverHeight = coverWidth / coverAspectRatio.coerceAtLeast(1f)
+    // 排版对齐首页单列卡片:标题用 feed 紧凑级,统计用 labelSmall。
+    val contentTypography = com.android.purebilibili.core.ui.feedContentTypography()
+    // 标题固定两行占位:一行标题时不把下方元数据撑出大片空隙,列表内所有卡片对齐一致。
+    val titleTwoLinesHeight = contentTypography.title.lineHeight.let { line ->
+        if (line.isSp) line else contentTypography.title.fontSize * 1.2f
+    }.let { with(density) { (it * 2).toDp() } }
     val useCardShellSharedBounds = shouldUseVideoCardShellSharedBounds(
         sourceRoute = sourceRoute,
         transitionEnabled = sharedReady
     )
     val context = LocalContext.current
-    val coverRequest = remember(video.pic, transitionEnabled) {
+    val coverRequest = remember(video.pic) {
         ImageRequest.Builder(context)
             .data(FormatUtils.resolveVideoCoverUrl(video.pic, useLowQuality = false))
-            .crossfade(shouldEnableRelatedVideoCoverCrossfade(transitionEnabled))
+            .crossfade(false)
             .build()
     }
 
@@ -255,7 +273,7 @@ fun RelatedVideoItem(
         modifier = modifier
             .fillMaxWidth()
             .onGloballyPositioned { coordinates ->
-                cardBoundsRef.value = coordinates.boundsInRoot()
+                cardCoordinatesRef.value = coordinates
             }
             .videoCardShellSharedBoundsOrEmpty(
                 enabled = useCardShellSharedBounds,
@@ -268,10 +286,10 @@ fun RelatedVideoItem(
                 crossfadeSourceContent = true
             )
             .clip(cardShape)
-            .background(MaterialTheme.colorScheme.surface)
+            .background(AppSurfaceTokens.cardContainer())
             .clickable(onClick = triggerRelatedVideoClick)
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -309,25 +327,27 @@ fun RelatedVideoItem(
             modifier = Modifier
                 .weight(1f)
                 .height(coverHeight),
-            // 标题置顶；UP + 播放量/弹幕贴底成组，避免 SpaceBetween 把三者撑得过开。
-            verticalArrangement = Arrangement.SpaceBetween,
+            // 标题固定两行占位,作者/播放量/弹幕紧随其后紧凑成组,不再 SpaceBetween 拉开间距。
+            verticalArrangement = Arrangement.Top,
         ) {
             AppText(
                 text = video.title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                style = contentTypography.title,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.height(titleTwoLinesHeight)
             )
+            Spacer(modifier = Modifier.height(4.dp))
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 UpBadgeName(
                     name = video.owner.name,
-                    badgeTrailingContent = if (isFollowed) {
+                    inlineTrailingContent = if (isFollowed) {
                         {
-                            val followVisualPolicy = resolveVideoFollowVisualPolicy(isFollowing = true)
+                            val followVisualPolicy = resolveVideoFollowVisualPolicy(isFollowing = true, darkTheme = true)
                             AppText(
                                 text = "已关注",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
@@ -340,7 +360,10 @@ fun RelatedVideoItem(
                     } else {
                         null
                     },
-                    leadingContent = if (video.owner.face.isNotEmpty()) {
+                    leadingContent = if (
+                        com.android.purebilibili.core.ui.LocalUpBadgeVisibility.current.showAvatars &&
+                        video.owner.face.isNotEmpty()
+                    ) {
                         {
                             AsyncImage(
                                 model = ImageRequest.Builder(context)
@@ -370,12 +393,12 @@ fun RelatedVideoItem(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     StatItem(
-                        icon = CupertinoIcons.Filled.Play,
+                        icon = Icons.Filled.PlayArrow,
                         text = FormatUtils.formatStat(video.stat.view.toLong())
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     StatItem(
-                        icon = CupertinoIcons.Filled.BubbleLeft,
+                        icon = Icons.Filled.ChatBubble,
                         text = FormatUtils.formatStat(video.stat.danmaku.toLong())
                     )
                     if (onMoreClick != null) {
@@ -410,27 +433,17 @@ fun RelatedVideoItem(
 }
 
 @Composable
-fun RelatedVideoGridRow(
+internal fun RelatedVideoGridRow(
     videos: List<RelatedVideo>,
+    cardLayout: HomeFeedCardLayout,
     followingMids: Set<Long> = emptySet(),
     transitionEnabled: Boolean = false,
-    isListScrolling: Boolean = false,
     showUpBadge: Boolean = true,
     onVideoClick: (RelatedVideo) -> Unit,
     onVideoHidden: ((RelatedVideo) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val homeFeedCardStyle by SettingsManager
-        .getHomeFeedCardStyle(context)
-        .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.CURRENT)
-    val cardLayout = remember(homeFeedCardStyle) {
-        resolveHomeFeedCardLayout(homeFeedCardStyle)
-    }
-    val cardTransitionEnabled = shouldEnableRelatedVideoGridSharedTransition(
-        sharedTransitionEnabled = transitionEnabled,
-        isListScrolling = isListScrolling,
-    )
     var actionVideo by remember { mutableStateOf<RelatedVideo?>(null) }
     var blockCreatorRequest by remember {
         mutableStateOf<RelatedVideoBlockRequest?>(null)
@@ -440,13 +453,15 @@ fun RelatedVideoGridRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = cardLayout.outerPaddingDp.dp, vertical = 4.dp)
+            .padding(horizontal = cardLayout.outerPaddingDp.dp, vertical = 2.dp)
     ) {
         videos.firstOrNull()?.let { video ->
             RelatedVideoItem(
                 video = video,
                 isFollowed = video.owner.mid in followingMids,
-                transitionEnabled = cardTransitionEnabled,
+                // Keep sharedBounds out of the scrolling tree. It is mounted for two frames
+                // by RelatedVideoItem only after a click requests navigation.
+                transitionEnabled = false,
                 sharedTransitionEnabled = transitionEnabled,
                 showUpBadge = showUpBadge,
                 coverAspectRatio = cardLayout.coverAspectRatio,
@@ -622,7 +637,7 @@ private fun StatItem(
         Spacer(modifier = Modifier.width(2.dp))
         AppText(
             text = text,
-            style = MaterialTheme.typography.labelMedium,
+            style = com.android.purebilibili.core.ui.feedContentTypography().statistic,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1
         )

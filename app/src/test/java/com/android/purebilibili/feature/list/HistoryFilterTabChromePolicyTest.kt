@@ -47,7 +47,7 @@ class HistoryFilterTabChromePolicyTest {
 
     private fun testTopChromePolicy() = AppTopChromePolicy(
         tabPresentation = AppTopTabPresentation.MOVING_CAPSULE,
-        iconFamily = AppSemanticIconFamily.CUPERTINO,
+        iconFamily = AppSemanticIconFamily.MATERIAL,
         compactChromeSpec = CompactCapsuleChromeSpec(
             primaryHeightDp = 44,
             secondaryButtonSizeDp = 40,

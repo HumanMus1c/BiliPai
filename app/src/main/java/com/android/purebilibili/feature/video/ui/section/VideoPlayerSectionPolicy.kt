@@ -293,7 +293,18 @@ internal fun shouldShowLongPressSpeedFeedback(
     isLongPressing: Boolean,
     isPlaybackSurfaceActive: Boolean,
     hintDismissed: Boolean,
-): Boolean = isLongPressing && isPlaybackSurfaceActive && !hintDismissed
+    hintHidden: Boolean,
+): Boolean = isLongPressing && isPlaybackSurfaceActive && !hintDismissed && !hintHidden
+
+/**
+ * 长按倍速浮层上的关闭（×）按钮。
+ *
+ * 默认关闭：第二指点 × 会打断长按手势（多点触控/抬手），容易把加速弄没。
+ * 该开关不进设置页 UI，仅作隐藏偏好（adb / 备份 / 调试）。
+ */
+internal fun shouldShowLongPressSpeedHintCloseButton(
+    closeButtonEnabled: Boolean,
+): Boolean = closeButtonEnabled
 
 internal fun shouldEnableLongPressSpeedGesture(
     isScreenLocked: Boolean,
@@ -561,6 +572,18 @@ internal fun resolveHorizontalSeekDeltaMs(
         )
     }
     return (totalDragDistanceX * 200f * gestureSensitivity).toLong()
+}
+
+internal const val VIDEO_PLAYER_HORIZONTAL_SEEK_DOMINANCE_RATIO = 1.2f
+
+internal fun shouldEngageHorizontalPlayerSeek(
+    totalDragDistanceX: Float,
+    totalDragDistanceY: Float,
+): Boolean {
+    val horizontalDistance = abs(totalDragDistanceX)
+    val verticalDistance = abs(totalDragDistanceY)
+    return horizontalDistance >= 1f &&
+        horizontalDistance >= verticalDistance * VIDEO_PLAYER_HORIZONTAL_SEEK_DOMINANCE_RATIO
 }
 
 private fun resolveConfiguredSeekDeltaMs(
@@ -949,16 +972,75 @@ internal fun resolveGesturePercentDigitChangeMask(
     }
 }
 
+/**
+ * User switch + master card transition → may request TextureView for live morph.
+ * HDR still wins inside [shouldUseTextureSurfaceForFlip] so playback never SDR-washes.
+ */
+internal fun resolveNavigationLiveSurfaceTextureEnabled(
+    cardTransitionEnabled: Boolean,
+    liveSurfaceCardTransitionEnabled: Boolean,
+): Boolean {
+    return cardTransitionEnabled && liveSurfaceCardTransitionEnabled
+}
+
+/**
+ * Live player sharedElement is only useful when TextureView can own the frame.
+ * Under HDR we keep SurfaceView and fall back to cover (or freeze-frame) morph —
+ * never attach live sharedElement on a SurfaceView that Compose cannot transform.
+ */
+internal fun resolveAllowLivePlayerSharedElementForMorph(
+    cardTransitionEnabled: Boolean,
+    liveSurfaceCardTransitionEnabled: Boolean,
+    requiresHdrSurfaceOutput: Boolean = false,
+): Boolean {
+    return cardTransitionEnabled &&
+        liveSurfaceCardTransitionEnabled &&
+        !requiresHdrSurfaceOutput
+}
+
+/**
+ * Whether the PlayerView must use TextureView (instead of SurfaceView).
+ *
+ * TextureView is required for flip transforms and shared-element morph capture.
+ * SurfaceView is required for HDR/Dolby Vision so color metadata reaches the display
+ * (TextureView GPU composition always tone-maps to SDR). When [requiresHdrSurfaceOutput]
+ * is true, navigation morph may fall back to cover-only transitions rather than
+ * forcing TextureView and silently killing HDR.
+ */
 internal fun shouldUseTextureSurfaceForFlip(
     isFlippedHorizontal: Boolean,
     isFlippedVertical: Boolean,
     liveBackPreview: Boolean = false,
-    navigationTransformEnabled: Boolean = false
+    navigationTransformEnabled: Boolean = false,
+    requiresHdrSurfaceOutput: Boolean = false
 ): Boolean {
+    // Flip is the only hard TextureView requirement under HDR; matrix transform
+    // cannot run on SurfaceView. Navigation morph yields to HDR fidelity.
+    if (requiresHdrSurfaceOutput) {
+        return isFlippedHorizontal || isFlippedVertical
+    }
     return isFlippedHorizontal ||
         isFlippedVertical ||
         liveBackPreview ||
         navigationTransformEnabled
+}
+
+/**
+ * HDR10 (125) / Dolby Vision (126) streams, or Media3 formats with PQ/HLG transfer,
+ * must output via SurfaceView so the display can enter HDR mode.
+ *
+ * @param colorTransfer Media3 [androidx.media3.common.C] color transfer constant, or 0 if unknown.
+ */
+internal fun requiresHdrSurfaceOutput(
+    currentQualityId: Int,
+    colorTransfer: Int = 0
+): Boolean {
+    if (currentQualityId == 125 || currentQualityId == 126) {
+        return true
+    }
+    // Keep numeric constants local so this policy stays free of Media3 imports.
+    // C.COLOR_TRANSFER_ST2084 = 6 (PQ/HDR10), C.COLOR_TRANSFER_HLG = 7.
+    return colorTransfer == 6 || colorTransfer == 7
 }
 
 internal fun shouldEnableLivePlayerSharedElement(
@@ -966,9 +1048,12 @@ internal fun shouldEnableLivePlayerSharedElement(
     allowLivePlayerSharedElement: Boolean,
     hasSharedTransitionScope: Boolean,
     hasAnimatedVisibilityScope: Boolean,
-    forceCoverDuringReturnAnimation: Boolean = false
+    forceCoverDuringReturnAnimation: Boolean = false,
+    requiresHdrSurfaceOutput: Boolean = false,
 ): Boolean {
     if (forceCoverDuringReturnAnimation) return false
+    // HDR: SurfaceView cannot participate in Compose sharedElement morph.
+    if (requiresHdrSurfaceOutput) return false
     return transitionEnabled &&
         allowLivePlayerSharedElement &&
         hasSharedTransitionScope &&

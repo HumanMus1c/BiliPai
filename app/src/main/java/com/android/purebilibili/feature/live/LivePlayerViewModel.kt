@@ -481,6 +481,11 @@ class LivePlayerViewModel : ViewModel() {
     /**
      * 切换画质
      */
+    fun dismissSuperChat(superChatId: Long) {
+        if (superChatId <= 0L) return
+        _superChatItems.value = _superChatItems.value.filterNot { it.superChatId == superChatId }
+    }
+
     fun changeQuality(qn: Int) {
         val currentState = _uiState.value as? LivePlayerState.Success ?: return
         android.util.Log.d("LivePlayer", "🔴 changeQuality called: qn=$qn")

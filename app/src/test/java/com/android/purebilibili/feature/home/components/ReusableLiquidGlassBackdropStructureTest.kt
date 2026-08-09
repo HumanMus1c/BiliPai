@@ -55,9 +55,9 @@ class ReusableLiquidGlassBackdropStructureTest {
             "app/src/main/java/com/android/purebilibili/feature/audio/screen/MusicPlayerContent.kt"
         )
 
-        assertTrue(source.contains("val selectionBackdrop = rememberLayerBackdrop()"))
-        assertTrue(source.contains("backdrop = selectionBackdrop"))
-        assertTrue(source.contains(".layerBackdrop(selectionBackdrop)"))
+        assertTrue(source.contains("val musicBackdrop = rememberMiuixLayerBackdrop()"))
+        assertTrue(source.contains("miuixBackdrop = musicBackdrop"))
+        assertTrue(source.contains(".miuixLayerBackdrop(musicBackdrop)"))
     }
 
     private fun loadSource(path: String): String {

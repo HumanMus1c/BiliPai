@@ -60,13 +60,16 @@ import androidx.compose.material3.SliderDefaults
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -78,6 +81,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -107,14 +111,14 @@ import com.android.purebilibili.feature.video.player.PlayMode
 import com.android.purebilibili.feature.video.ui.components.AudioQualitySelectionMenu
 import com.android.purebilibili.feature.video.ui.components.DolbyBadge
 import com.android.purebilibili.feature.video.ui.components.HiResBadge
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.BackwardEnd
-import io.github.alexzhirkevich.cupertino.icons.filled.ForwardEnd
-import io.github.alexzhirkevich.cupertino.icons.filled.Pause
-import io.github.alexzhirkevich.cupertino.icons.filled.Play
-import io.github.alexzhirkevich.cupertino.icons.outlined.ChevronDown
-import io.github.alexzhirkevich.cupertino.icons.outlined.Ellipsis
-import io.github.alexzhirkevich.cupertino.icons.outlined.MusicNote
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.MusicNote
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -124,7 +128,33 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 
 private val MusicFallbackColor = Color(0xFF342B42)
-private val MusicContentColor = Color.White
+
+private val LocalMusicContentColor = staticCompositionLocalOf { Color.White }
+
+/** 当前听视频页前景色（随封面色板明暗 + 主题 token 切换）。 */
+private val MusicContentColor: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalMusicContentColor.current
+
+/**
+ * 听视频/音乐页正文色：按背景亮度在主题 token 间切换，**不硬编码**黑白。
+ *
+ * - 亮底 → [onLightBackground]（通常 `MaterialTheme.colorScheme.onSurface`）
+ * - 暗底 → [onDarkBackground]（通常 `MaterialTheme.colorScheme.inverseOnSurface`）
+ */
+internal fun resolveMusicPlayerContentColor(
+    backgroundColor: Color,
+    onLightBackground: Color,
+    onDarkBackground: Color,
+    lightLuminanceThreshold: Float = 0.45f,
+): Color {
+    return if (backgroundColor.luminance() >= lightLuminanceThreshold) {
+        onLightBackground
+    } else {
+        onDarkBackground
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -197,7 +227,13 @@ internal fun MusicPlayerContent(
         isAppInBackground = BackgroundManager.isInBackground,
         reduceMotion = effectiveReduceMotion
     )
+    val resolvedContentColor = resolveMusicPlayerContentColor(
+        backgroundColor = backgroundColor,
+        onLightBackground = MaterialTheme.colorScheme.onSurface,
+        onDarkBackground = MaterialTheme.colorScheme.inverseOnSurface,
+    )
 
+    CompositionLocalProvider(LocalMusicContentColor provides resolvedContentColor) {
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -392,54 +428,57 @@ internal fun MusicPlayerContent(
     }
 
     if (showActions) {
+        // 操作 sheet 与封面色板解耦：MD3 会强制主题 surface，必须用 onSurface 才能保证深浅色可读
+        val sheetContentColor = MaterialTheme.colorScheme.onSurface
         AppModalBottomSheet(
             onDismissRequest = { showActions = false },
-            containerColor = backgroundColor.copy(alpha = 0.92f),
-            contentColor = MusicContentColor
+            containerColor = AppSurfaceTokens.surface(),
+            contentColor = sheetContentColor
         ) {
             AppText(
                 text = "播放器操作",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
+                color = sheetContentColor,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
             )
             if (state.queueControls.showQueue) {
-                MusicActionSheetItem("播放队列") {
+                MusicActionSheetItem("播放队列", contentColor = sheetContentColor) {
                     showActions = false
                     showQueue = true
                 }
             }
             onVideoModeClick?.let { action ->
-                MusicActionSheetItem("返回视频") {
+                MusicActionSheetItem("返回视频", contentColor = sheetContentColor) {
                     showActions = false
                     action()
                 }
             }
             onCollectionClick?.let { action ->
-                MusicActionSheetItem("选集 / 合集") {
+                MusicActionSheetItem("选集 / 合集", contentColor = sheetContentColor) {
                     showActions = false
                     action()
                 }
             }
             onSleepTimerClick?.let { action ->
-                MusicActionSheetItem(sleepTimerLabel) {
+                MusicActionSheetItem(sleepTimerLabel, contentColor = sheetContentColor) {
                     showActions = false
                     action()
                 }
             }
             onPipClick?.let { action ->
-                MusicActionSheetItem("画中画") {
+                MusicActionSheetItem("画中画", contentColor = sheetContentColor) {
                     showActions = false
                     action()
                 }
             }
             onToggleOrientation?.let { action ->
-                MusicActionSheetItem(orientationActionLabel) {
+                MusicActionSheetItem(orientationActionLabel, contentColor = sheetContentColor) {
                     showActions = false
                     action()
                 }
             }
-            MusicActionSheetItem("搜索歌词") {
+            MusicActionSheetItem("搜索歌词", contentColor = sheetContentColor) {
                 showActions = false
                 showLyricsSearch = true
             }
@@ -462,13 +501,14 @@ internal fun MusicPlayerContent(
     if (showQueue) {
         AppModalBottomSheet(
             onDismissRequest = { showQueue = false },
-            containerColor = backgroundColor.copy(alpha = 0.96f),
-            contentColor = MusicContentColor
+            containerColor = AppSurfaceTokens.surface(),
+            contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             AppText(
                 text = "待播清单",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
             )
             LazyColumn(
@@ -500,19 +540,24 @@ internal fun MusicPlayerContent(
                         Column(Modifier.weight(1f)) {
                             AppText(
                                 text = item.title,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 fontWeight = if (index == state.currentQueueIndex) FontWeight.Bold else FontWeight.Normal
                             )
                             AppText(
                                 text = item.artist,
-                                color = MusicContentColor.copy(alpha = 0.65f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
                         if (index == state.currentQueueIndex) {
-                            AppIcon(CupertinoIcons.Outlined.MusicNote, contentDescription = null)
+                            AppIcon(
+                                Icons.Outlined.MusicNote,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
                 }
@@ -523,13 +568,14 @@ internal fun MusicPlayerContent(
     if (showLyricsSearch) {
         AppModalBottomSheet(
             onDismissRequest = { showLyricsSearch = false },
-            containerColor = backgroundColor.copy(alpha = 0.97f),
-            contentColor = MusicContentColor
+            containerColor = AppSurfaceTokens.surface(),
+            contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             AppText(
                 text = "手动匹配歌词",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
             )
             Row(
@@ -551,7 +597,7 @@ internal fun MusicPlayerContent(
             }
             if (state.isLyricsSearching) {
                 AppCircularProgressIndicator(
-                    color = MusicContentColor,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                         .padding(24.dp)
@@ -559,7 +605,7 @@ internal fun MusicPlayerContent(
             } else if (state.lyricCandidates.isEmpty()) {
                 AppText(
                     text = "输入歌名后搜索网易云、QQ 音乐与酷狗",
-                    color = MusicContentColor.copy(alpha = 0.62f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)
                 )
             } else {
@@ -578,10 +624,14 @@ internal fun MusicPlayerContent(
                                 }
                                 .padding(horizontal = 24.dp, vertical = 12.dp)
                         ) {
-                            AppText(candidate.title, fontWeight = FontWeight.SemiBold)
+                            AppText(
+                                candidate.title,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold
+                            )
                             AppText(
                                 text = "${candidate.artist} · ${candidate.sourceLabel}",
-                                color = MusicContentColor.copy(alpha = 0.62f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -589,6 +639,7 @@ internal fun MusicPlayerContent(
             }
         }
     }
+    } // CompositionLocalProvider
 }
 
 @Composable
@@ -795,7 +846,7 @@ private fun MusicArtwork(
                 contentScale = ContentScale.Crop
             )
             else -> AppIcon(
-                CupertinoIcons.Outlined.MusicNote,
+                Icons.Outlined.MusicNote,
                 contentDescription = null,
                 tint = MusicContentColor.copy(alpha = 0.78f),
                 modifier = Modifier.size(96.dp)
@@ -842,7 +893,7 @@ private fun PlaybackControls(
         verticalAlignment = Alignment.CenterVertically
     ) {
         PlaybackIconButton(
-            icon = CupertinoIcons.Filled.BackwardEnd,
+            icon = Icons.Filled.SkipPrevious,
             description = "上一首",
             enabled = state.queueControls.hasPrevious && onPrevious != null,
             onClick = onPrevious ?: {}
@@ -852,7 +903,7 @@ private fun PlaybackControls(
                 AppCircularProgressIndicator(color = MusicContentColor, modifier = Modifier.size(36.dp))
             } else {
                 AppIcon(
-                    imageVector = if (state.isPlaying) CupertinoIcons.Filled.Pause else CupertinoIcons.Filled.Play,
+                    imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (state.isPlaying) "暂停" else "播放",
                     tint = MusicContentColor,
                     modifier = Modifier.size(46.dp)
@@ -860,7 +911,7 @@ private fun PlaybackControls(
             }
         }
         PlaybackIconButton(
-            icon = CupertinoIcons.Filled.ForwardEnd,
+            icon = Icons.Filled.SkipNext,
             description = "下一首",
             enabled = state.queueControls.hasNext && onNext != null,
             onClick = onNext ?: {}
@@ -1048,14 +1099,18 @@ private fun LyricsPage(
     }
 
     if (showLyricsSettings) {
+        val sheetContentColor = MaterialTheme.colorScheme.onSurface
+        val sheetSecondaryColor = MaterialTheme.colorScheme.onSurfaceVariant
         AppModalBottomSheet(
             onDismissRequest = { showLyricsSettings = false },
-            containerColor = glassTintColor.copy(alpha = 0.97f),
-            contentColor = MusicContentColor
+            containerColor = AppSurfaceTokens.surface(),
+            contentColor = sheetContentColor
         ) {
             LyricsSettingsContent(
                 showTranslations = showTranslations,
                 lyricsOffsetMs = document?.offsetMs ?: 0L,
+                contentColor = sheetContentColor,
+                secondaryColor = sheetSecondaryColor,
                 onToggleTranslations = { showTranslations = !showTranslations },
                 onLyricsOffsetChange = onLyricsOffsetChange,
                 onLyricsRetry = onLyricsRetry,
@@ -1146,6 +1201,8 @@ private fun LyricsImmersiveProgress(
 private fun LyricsSettingsContent(
     showTranslations: Boolean,
     lyricsOffsetMs: Long,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    secondaryColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     onToggleTranslations: () -> Unit,
     onLyricsOffsetChange: (Long) -> Unit,
     onLyricsRetry: () -> Unit,
@@ -1158,16 +1215,34 @@ private fun LyricsSettingsContent(
             .padding(horizontal = 24.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        AppText("歌词设置", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        MusicActionSheetItem(if (showTranslations) "隐藏翻译与罗马音" else "显示翻译与罗马音", onToggleTranslations)
-        AppText("歌词时间校正 · ${formatLyricsOffset(lyricsOffsetMs)}", color = MusicContentColor.copy(alpha = 0.72f))
+        AppText(
+            "歌词设置",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = contentColor
+        )
+        MusicActionSheetItem(
+            if (showTranslations) "隐藏翻译与罗马音" else "显示翻译与罗马音",
+            contentColor = contentColor,
+            onClick = onToggleTranslations
+        )
+        AppText(
+            "歌词时间校正 · ${formatLyricsOffset(lyricsOffsetMs)}",
+            color = secondaryColor
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AppTextButton(onClick = { onLyricsOffsetChange(-250L) }, modifier = Modifier.height(48.dp)) { AppText("歌词提前 0.25 秒") }
-            AppTextButton(onClick = { onLyricsOffsetChange(250L) }, modifier = Modifier.height(48.dp)) { AppText("歌词延后 0.25 秒") }
+            AppTextButton(onClick = { onLyricsOffsetChange(-250L) }, modifier = Modifier.height(48.dp)) {
+                AppText("歌词提前 0.25 秒", color = contentColor)
+            }
+            AppTextButton(onClick = { onLyricsOffsetChange(250L) }, modifier = Modifier.height(48.dp)) {
+                AppText("歌词延后 0.25 秒", color = contentColor)
+            }
         }
-        AppTextButton(onClick = { onLyricsOffsetChange(-lyricsOffsetMs) }, modifier = Modifier.height(48.dp)) { AppText("重置歌词时间") }
-        MusicActionSheetItem("重新匹配歌词", onLyricsRetry)
-        MusicActionSheetItem("手动搜索歌词", onOpenLyricsSearch)
+        AppTextButton(onClick = { onLyricsOffsetChange(-lyricsOffsetMs) }, modifier = Modifier.height(48.dp)) {
+            AppText("重置歌词时间", color = contentColor)
+        }
+        MusicActionSheetItem("重新匹配歌词", contentColor = contentColor, onClick = onLyricsRetry)
+        MusicActionSheetItem("手动搜索歌词", contentColor = contentColor, onClick = onOpenLyricsSearch)
     }
 }
 
@@ -1203,7 +1278,7 @@ private fun LyricLineContent(
             .clickable(onClick = onClick)
     ) {
         AppText(
-            text = buildLyricText(line, isCurrent, positionMs),
+            text = buildLyricText(line, isCurrent, positionMs, MusicContentColor),
             color = MusicContentColor,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
@@ -1228,12 +1303,17 @@ private fun LyricLineContent(
     }
 }
 
-private fun buildLyricText(line: LyricLine, isCurrent: Boolean, positionMs: Long): AnnotatedString {
+private fun buildLyricText(
+    line: LyricLine,
+    isCurrent: Boolean,
+    positionMs: Long,
+    contentColor: Color,
+): AnnotatedString {
     if (!isCurrent || line.spans.isEmpty()) return AnnotatedString(line.text)
     return buildAnnotatedString {
         line.spans.forEach { span ->
             val active = positionMs >= span.startTimeMs
-            pushStyle(SpanStyle(color = MusicContentColor.copy(alpha = if (active) 1f else 0.38f)))
+            pushStyle(SpanStyle(color = contentColor.copy(alpha = if (active) 1f else 0.38f)))
             append(span.text)
             pop()
         }
@@ -1250,14 +1330,14 @@ private fun MusicTopBar(
 ) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         GlassIconButton(
-            CupertinoIcons.Outlined.ChevronDown,
+            Icons.Outlined.KeyboardArrowDown,
             "返回",
             glassEnabled,
             miuixBackdrop,
             onBack
         )
         GlassIconButton(
-            CupertinoIcons.Outlined.Ellipsis,
+            Icons.Outlined.MoreHoriz,
             "更多操作",
             glassEnabled,
             miuixBackdrop,
@@ -1279,20 +1359,22 @@ private fun GlassIconButton(
         modifier = Modifier.size(48.dp),
         backdrop = miuixBackdrop,
         liquidGlassEffectsEnabled = glassEnabled
-    ) {
+    ) { glassActive ->
+        // 无玻璃时底是 cardContainer（浅色主题近白），必须用 onSurface，不能死白。
+        val iconTint = if (glassActive) MusicContentColor else MaterialTheme.colorScheme.onSurface
         AppIconButton(
             onClick = onClick,
             modifier = Modifier
                 .matchParentSize()
                 .then(
-                    if (it) {
+                    if (glassActive) {
                         Modifier
                     } else {
                         Modifier.background(AppSurfaceTokens.cardContainer(), CircleShape)
                     }
                 )
         ) {
-            AppIcon(icon, contentDescription = description, tint = MusicContentColor)
+            AppIcon(icon, contentDescription = description, tint = iconTint)
         }
     }
 }
@@ -1312,12 +1394,13 @@ private fun GlassTextButton(
             .height(48.dp),
         backdrop = miuixBackdrop,
         liquidGlassEffectsEnabled = glassEnabled
-    ) {
+    ) { glassActive ->
+        val labelColor = if (glassActive) MusicContentColor else MaterialTheme.colorScheme.onSurface
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .then(
-                    if (it) {
+                    if (glassActive) {
                         Modifier
                     } else {
                         Modifier.background(AppSurfaceTokens.cardContainer(), shape)
@@ -1327,13 +1410,17 @@ private fun GlassTextButton(
                 .padding(horizontal = 15.dp),
             contentAlignment = Alignment.Center
         ) {
-            AppText(label, color = MusicContentColor, style = MaterialTheme.typography.labelMedium)
+            AppText(label, color = labelColor, style = MaterialTheme.typography.labelMedium)
         }
     }
 }
 
 @Composable
-private fun MusicActionSheetItem(label: String, onClick: () -> Unit) {
+private fun MusicActionSheetItem(
+    label: String,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    onClick: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1342,7 +1429,7 @@ private fun MusicActionSheetItem(label: String, onClick: () -> Unit) {
             .padding(horizontal = 24.dp),
         contentAlignment = Alignment.CenterStart
     ) {
-        AppText(label, color = MusicContentColor, style = MaterialTheme.typography.bodyLarge)
+        AppText(label, color = contentColor, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

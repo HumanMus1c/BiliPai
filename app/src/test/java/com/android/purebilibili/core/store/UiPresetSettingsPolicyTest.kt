@@ -1,11 +1,13 @@
 package com.android.purebilibili.core.store
 
 import com.android.purebilibili.core.theme.UiPreset
-import com.android.purebilibili.core.theme.UiStyle
+import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.AndroidNativeVariant
 import com.android.purebilibili.feature.settings.share.SettingsShareSection
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class UiPresetSettingsPolicyTest {
 
@@ -30,10 +32,10 @@ class UiPresetSettingsPolicyTest {
     }
 
     @Test
-    fun missingLegacyKeys_defaultToMaterial3Style() {
+    fun missingLegacyKeys_defaultToMiuixStyle() {
         assertEquals(
-            UiStyle.MATERIAL3,
-            UiStyle.fromLegacyValues(
+            AppUiStyle.MIUIX,
+            AppUiStyle.fromLegacyValues(
                 rawUiPreset = null,
                 rawAndroidNativeVariant = null
             )
@@ -43,32 +45,33 @@ class UiPresetSettingsPolicyTest {
     @Test
     fun persistedLegacyKeyCombinations_restoreUiStyle() {
         val cases = listOf(
-            Triple(UiPreset.IOS, AndroidNativeVariant.MATERIAL3, UiStyle.IOS),
-            Triple(UiPreset.IOS, AndroidNativeVariant.MIUIX, UiStyle.IOS),
-            Triple(UiPreset.MD3, AndroidNativeVariant.MATERIAL3, UiStyle.MATERIAL3),
-            Triple(UiPreset.MD3, AndroidNativeVariant.MIUIX, UiStyle.MIUIX)
+            // 单向迁移：历史 iOS 值解析为 MIUIX。
+            Triple(UiPreset.IOS, AndroidNativeVariant.MATERIAL3, AppUiStyle.MIUIX),
+            Triple(UiPreset.IOS, AndroidNativeVariant.MIUIX, AppUiStyle.MIUIX),
+            Triple(UiPreset.MD3, AndroidNativeVariant.MATERIAL3, AppUiStyle.MATERIAL3),
+            Triple(UiPreset.MD3, AndroidNativeVariant.MIUIX, AppUiStyle.MIUIX)
         )
 
         cases.forEach { (preset, variant, expectedStyle) ->
             assertEquals(
                 expectedStyle,
-                UiStyle.fromLegacyValues(preset.value, variant.value)
+                AppUiStyle.fromLegacyValues(preset.value, variant.value)
             )
         }
     }
 
     @Test
-    fun invalidLegacyValues_followExistingFallbackRules() {
+    fun invalidLegacyValues_fallbackToMiuix() {
         assertEquals(
-            UiStyle.IOS,
-            UiStyle.fromLegacyValues(
+            AppUiStyle.MIUIX,
+            AppUiStyle.fromLegacyValues(
                 rawUiPreset = 99,
                 rawAndroidNativeVariant = 99
             )
         )
         assertEquals(
-            UiStyle.MATERIAL3,
-            UiStyle.fromLegacyValues(
+            AppUiStyle.MIUIX,
+            AppUiStyle.fromLegacyValues(
                 rawUiPreset = UiPreset.MD3.value,
                 rawAndroidNativeVariant = 99
             )
@@ -76,14 +79,14 @@ class UiPresetSettingsPolicyTest {
     }
 
     @Test
-    fun settingsShare_keepsBothLegacyUiStyleKeys() {
+    fun settingsShare_usesNewThemeSelectionKey() {
         val appearanceKeys = SettingsManager.getShareableSettingsEntryDefinitions()
             .filter { it.section == SettingsShareSection.APPEARANCE }
             .mapTo(mutableSetOf()) { it.storageKey }
 
-        assertEquals(
-            setOf("ui_preset", "android_native_variant_v1"),
-            appearanceKeys.intersect(setOf("ui_preset", "android_native_variant_v1"))
-        )
+        assertTrue("theme_selection_v1" in appearanceKeys)
+        // 迁移后旧键不再分享，避免导入时重新生成旧键。
+        assertFalse("ui_preset" in appearanceKeys)
+        assertFalse("android_native_variant_v1" in appearanceKeys)
     }
 }

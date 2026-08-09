@@ -1,12 +1,23 @@
 package com.android.purebilibili.feature.home
 
 import androidx.compose.ui.unit.dp
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class HomeTopTabGesturePolicyTest {
+
+    @Test
+    fun topTabDragUsesSharedHorizontalDominanceGuard() {
+        val source = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt"),
+            File("src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt"),
+        ).first { it.exists() }.readText()
+
+        assertTrue(source.contains("shouldEngageHorizontalDrag"))
+    }
 
     @Test
     fun dragDown_collapsesExpandedTabs() {

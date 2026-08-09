@@ -46,6 +46,7 @@ import com.android.purebilibili.feature.video.ui.components.FanGroupDecorationBa
 import com.android.purebilibili.feature.video.ui.components.resolveFanGroupDecorationCardBgs
 import com.android.purebilibili.feature.video.ui.components.resolveFanGroupVisualFromMemberAndSailing
 import com.android.purebilibili.feature.video.ui.components.resolveInlineSubReplyToggleLabel
+import com.android.purebilibili.feature.video.ui.components.resolveReplyItemLayoutPolicy
 import com.android.purebilibili.feature.video.ui.components.resolveReplyPreviewTextContent
 import com.android.purebilibili.feature.video.ui.components.resolveVisibleSubReplies
 import com.android.purebilibili.feature.video.ui.components.shouldShowInlineSubReplyToggle
@@ -567,19 +568,35 @@ private fun CommentItem(
             cardBgs = resolveFanGroupDecorationCardBgs(member)
         )
     }
-    
-    Row(modifier = modifier.fillMaxWidth()) {
+    // 收藏集装饰必须 TopEnd 叠层；内联在名字行会在右侧留下空洞。
+    val decorationEndReserve = if (fanGroupVisual != null) {
+        resolveReplyItemLayoutPolicy().decorationMinWidthDp.dp
+    } else {
+        AppSpacingTokens.None
+    }
+
+    Box(modifier = modifier.fillMaxWidth()) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        val memberMid = remember(member.mid, reply.mid) {
+            member.mid.toLongOrNull()?.takeIf { it > 0L }
+                ?: reply.mid.takeIf { it > 0L }
+        }
         ReplyMemberAvatar(
             member = member,
             placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
             lightweightMode = false,
-            modifier = Modifier.size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall)
+            modifier = Modifier.size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall),
+            onClick = memberMid?.let { mid -> { onUserClick(mid) } }
         )
         
         Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
         
-        Column(modifier = Modifier.weight(1f)) {
-            // 用户名 + 时间
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = decorationEndReserve)
+        ) {
+            // 用户名 + 时间（装饰独立右置顶，不占用此行）
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppText(
                     text = member.uname,
@@ -588,7 +605,15 @@ private fun CommentItem(
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = if (fanGroupVisual != null) Modifier.weight(1f, fill = false) else Modifier
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .then(
+                            if (memberMid != null) {
+                                Modifier.clickable { onUserClick(memberMid) }
+                            } else {
+                                Modifier
+                            }
+                        )
                 )
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                 AppText(
@@ -596,10 +621,6 @@ private fun CommentItem(
                     fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
                 )
-                if (fanGroupVisual != null) {
-                    Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
-                    FanGroupDecorationBadge(visual = fanGroupVisual)
-                }
             }
             
             Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
@@ -731,6 +752,16 @@ private fun CommentItem(
                     )
                 }
             }
+        }
+    }
+
+        if (fanGroupVisual != null) {
+            FanGroupDecorationBadge(
+                visual = fanGroupVisual,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = AppSpacingTokens.None)
+            )
         }
     }
 }

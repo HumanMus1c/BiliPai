@@ -4,6 +4,7 @@ package com.android.purebilibili.feature.video.viewmodel
 
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.annotation.SuppressLint
 import com.android.purebilibili.feature.video.usecase.*
 
 import androidx.lifecycle.ViewModel
@@ -2291,6 +2292,8 @@ class VideoPlaybackViewModel : ViewModel() {
             markPlaybackCdnReadyIfMediaReady()
         }
 
+        // ExoPlaybackException 的 rendererName/rendererFormat 属 media3 unstable API：错误回退处理在应用层封装，opt-in 标记会级联污染整个 Listener。
+        @SuppressLint("UnsafeOptInUsageError")
         override fun onPlayerError(error: PlaybackException) {
             cancelPlaybackStallRecovery()
             Logger.w("PlayerVM", "Playback error: ${error.errorCodeName}, message=${error.message}")

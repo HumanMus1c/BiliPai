@@ -121,12 +121,14 @@ data class AdvancedDanmakuData(
         if (path.size == 1) return path[0]
         val clamped = progress.coerceIn(0f, 1f)
 
-        // 计算各段长度与总长
+        // 计算各段长度与总长。
+        // 路径点已归一化（X/672、Y/438），直接算归一化距离会歪曲段长比例
+        // （X 与 Y 的像素步长不等），这里按官方 672x438 基准换算回像素空间加权。
         val segmentLengths = FloatArray(path.size - 1)
         var totalLength = 0f
         for (i in 0 until path.size - 1) {
-            val dx = path[i + 1].x - path[i].x
-            val dy = path[i + 1].y - path[i].y
+            val dx = (path[i + 1].x - path[i].x) * 672f
+            val dy = (path[i + 1].y - path[i].y) * 438f
             segmentLengths[i] = kotlin.math.sqrt(dx * dx + dy * dy)
             totalLength += segmentLengths[i]
         }

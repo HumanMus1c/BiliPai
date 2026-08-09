@@ -17,13 +17,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
-import io.github.alexzhirkevich.cupertino.icons.filled.Tv
-import io.github.alexzhirkevich.cupertino.icons.filled.Location
-import io.github.alexzhirkevich.cupertino.icons.filled.XmarkCircle
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -108,7 +104,7 @@ fun PermissionSettingsContent(
                 name = "网络访问",
                 permission = Manifest.permission.INTERNET,
                 description = "加载视频、图片和用户数据",
-                icon = CupertinoIcons.Default.Wifi,
+                icon = Icons.Outlined.Wifi,
                 iconTint = iOSBlue,
                 isNormal = true,
                 alwaysGranted = true
@@ -117,7 +113,7 @@ fun PermissionSettingsContent(
                 name = "网络状态",
                 permission = Manifest.permission.ACCESS_NETWORK_STATE,
                 description = "检测网络连接状态，优化加载体验",
-                icon = CupertinoIcons.Default.ChartBar,
+                icon = Icons.Outlined.BarChart,
                 iconTint = iOSGreen,
                 isNormal = true,
                 alwaysGranted = true
@@ -130,7 +126,7 @@ fun PermissionSettingsContent(
                     "android.permission.POST_NOTIFICATIONS"
                 },
                 description = "显示媒体播放控制通知，方便后台控制播放",
-                icon = CupertinoIcons.Default.Bell,
+                icon = Icons.Outlined.Notifications,
                 iconTint = iOSOrange,
                 isNormal = false,
                 alwaysGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
@@ -139,7 +135,7 @@ fun PermissionSettingsContent(
                 name = "前台服务",
                 permission = Manifest.permission.FOREGROUND_SERVICE,
                 description = "支持后台播放视频时保持服务运行",
-                icon = CupertinoIcons.Default.PlayCircle,
+                icon = Icons.Outlined.PlayCircle,
                 iconTint = iOSPurple,
                 isNormal = true,
                 alwaysGranted = true
@@ -148,7 +144,7 @@ fun PermissionSettingsContent(
                 name = "媒体播放服务",
                 permission = "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
                 description = "允许应用在后台继续播放视频",
-                icon = CupertinoIcons.Default.MusicNote,
+                icon = Icons.Outlined.MusicNote,
                 iconTint = iOSTeal,
                 isNormal = true,
                 alwaysGranted = true
@@ -162,7 +158,7 @@ fun PermissionSettingsContent(
                     Manifest.permission.ACCESS_FINE_LOCATION
                 },
                 description = "用于扫描和连接附近的投屏设备（DLNA）",
-                icon = CupertinoIcons.Default.Tv,
+                icon = Icons.Outlined.Tv,
                 iconTint = iOSBlue,
                 isNormal = false,
                 alwaysGranted = false
@@ -172,7 +168,7 @@ fun PermissionSettingsContent(
                 name = "媒体文件写入",
                 permission = "scoped_storage",
                 description = "保存图片/截图时使用系统媒体库，下载导出使用系统文件夹授权",
-                icon = CupertinoIcons.Default.Folder,
+                icon = Icons.Outlined.Folder,
                 iconTint = iOSPink,
                 isNormal = true,
                 alwaysGranted = true
@@ -324,7 +320,7 @@ private fun PermissionItem(
         // 状态指示器
         if (isGranted) {
             AppIcon(
-                CupertinoIcons.Default.CheckmarkCircle,
+                Icons.Outlined.CheckCircleOutline,
                 contentDescription = "已授权",
                 tint = grantedTint,
                 modifier = Modifier.size(22.dp)
@@ -332,7 +328,7 @@ private fun PermissionItem(
         } else {
             // 未授权时显示红色的 X
             AppIcon(
-                CupertinoIcons.Default.XmarkCircle,
+                Icons.Outlined.Cancel,
                 contentDescription = "未授权",
                 tint = deniedTint,
                 modifier = Modifier.size(22.dp)

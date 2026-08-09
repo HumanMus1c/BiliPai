@@ -122,16 +122,21 @@ class VideoCardScrollLiteVisualPolicyTest {
         val source = File("src/main/java/com/android/purebilibili/feature/home/components/cards/VideoCard.kt")
             .readText()
 
-        val cardSurfaceBlock = source
-            .substringAfter("val cardSurfaceModifier = Modifier")
-            .substringBefore("val cardContainerModifier = Modifier")
-        val cardContainerBlock = source
-            .substringAfter("val cardContainerModifier = Modifier")
-            .substringBefore("Box(modifier = cardSurfaceModifier)")
-        assertTrue(cardSurfaceBlock.contains(".clip(cardShellShape)"))
-        assertTrue(cardSurfaceBlock.contains(".background(AppSurfaceTokens.cardContainer())"))
-        assertFalse(cardContainerBlock.contains(".background(AppSurfaceTokens.cardContainer())"))
-        assertTrue(source.contains("Box(modifier = cardSurfaceModifier)"))
+        // 上游合流后的壳结构：外层 Box 量尺寸 + 画 surface 底色（只在源布局层），
+        // 内层 Column 才挂 sharedBounds（封面/标题，无 solid fill）。
+        // 若把 cardContainer 画进 sharedBounds，预测返回时会盖住详情壳实时视频。
+        val cardShellBlock = source
+            .substringAfter("val cardShellShape = remember(cardCornerRadius)")
+            .substringBefore("//  [性能优化] 封面圆角形状缓存")
+        assertTrue(cardShellBlock.contains("Box(modifier = Modifier.fillMaxWidth())"))
+        assertTrue(cardShellBlock.contains(".matchParentSize()"))
+        assertTrue(cardShellBlock.contains(".clip(cardShellShape)"))
+        assertTrue(cardShellBlock.contains(".background(AppSurfaceTokens.cardContainer())"))
+        assertTrue(
+            "surface 底色必须画在 sharedBounds 之外：background 挂外层 Box，sharedBounds 只在内层 Column 上。",
+            cardShellBlock.indexOf(".background(AppSurfaceTokens.cardContainer())") <
+                cardShellBlock.indexOf("videoCardShellSharedBoundsOrEmpty("),
+        )
 
         val coverShapeBlock = source
             .substringAfter("val coverShape = remember(cardCornerRadius)")
@@ -152,7 +157,9 @@ class VideoCardScrollLiteVisualPolicyTest {
         assertFalse(titleBlock.contains(".weight(1f)"))
         assertTrue(source.contains("modifier = Modifier.align(Alignment.BottomEnd)"))
         assertTrue(source.contains("contentAlignment = Alignment.BottomEnd"))
-        assertTrue(source.contains("Modifier.padding(end = AppChromeSizeTokens.MinimumTouchTarget)"))
+        // 溢出按钮视觉图标只占约 20dp：预留缩为 24dp（ExtraLarge），把更多宽度让给
+        // UP 名称/日期行，名称不会被提前折叠省略。
+        assertTrue(source.contains("Modifier.padding(end = AppSpacingTokens.ExtraLarge)"))
     }
 
     @Test

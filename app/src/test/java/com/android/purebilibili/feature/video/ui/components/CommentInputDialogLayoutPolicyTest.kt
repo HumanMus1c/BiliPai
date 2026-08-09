@@ -9,7 +9,8 @@ class CommentInputDialogLayoutPolicyTest {
     @Test
     fun portrait_keepsRoomyEditorForComfortableCommentInput() {
         val policy = resolveCommentInputDialogLayoutPolicy(
-            isLandscape = false
+            isLandscape = false,
+            isTablet = false
         )
 
         assertEquals(84, policy.inputBoxMinHeightDp)
@@ -24,10 +25,12 @@ class CommentInputDialogLayoutPolicyTest {
     @Test
     fun landscape_compactsEditorToReduceVideoOcclusion() {
         val portraitPolicy = resolveCommentInputDialogLayoutPolicy(
-            isLandscape = false
+            isLandscape = false,
+            isTablet = false
         )
         val landscapePolicy = resolveCommentInputDialogLayoutPolicy(
-            isLandscape = true
+            isLandscape = true,
+            isTablet = false
         )
 
         assertEquals(64, landscapePolicy.inputBoxMinHeightDp)
@@ -37,6 +40,48 @@ class CommentInputDialogLayoutPolicyTest {
         assertTrue(landscapePolicy.inputBoxMinHeightDp < portraitPolicy.inputBoxMinHeightDp)
         assertTrue(landscapePolicy.inputBoxMaxHeightDp < portraitPolicy.inputBoxMaxHeightDp)
         assertTrue(landscapePolicy.emojiPanelHeightDp < portraitPolicy.emojiPanelHeightDp)
+    }
+
+    @Test
+    fun tabletPortrait_raisesComfortZoneAbovePhoneBaseline() {
+        val phone = resolveCommentInputDialogLayoutPolicy(
+            isLandscape = false,
+            isTablet = false
+        )
+        val tablet = resolveCommentInputDialogLayoutPolicy(
+            isLandscape = false,
+            isTablet = true
+        )
+
+        assertEquals(120, tablet.inputBoxMinHeightDp)
+        assertEquals(200, tablet.inputBoxMaxHeightDp)
+        assertEquals(280, tablet.emojiPanelHeightDp)
+        assertEquals(44, tablet.toolbarToolButtonSizeDp)
+        assertTrue(tablet.inputBoxMinHeightDp > phone.inputBoxMinHeightDp)
+        assertTrue(tablet.inputBoxMaxHeightDp > phone.inputBoxMaxHeightDp)
+        assertTrue(tablet.emojiPanelHeightDp > phone.emojiPanelHeightDp)
+    }
+
+    @Test
+    fun tabletLandscape_staysRoomierThanPhoneButCompactsVsTabletPortrait() {
+        val tabletPortrait = resolveCommentInputDialogLayoutPolicy(
+            isLandscape = false,
+            isTablet = true
+        )
+        val tabletLandscape = resolveCommentInputDialogLayoutPolicy(
+            isLandscape = true,
+            isTablet = true
+        )
+        val phoneLandscape = resolveCommentInputDialogLayoutPolicy(
+            isLandscape = true,
+            isTablet = false
+        )
+
+        assertEquals(96, tabletLandscape.inputBoxMinHeightDp)
+        assertEquals(168, tabletLandscape.inputBoxMaxHeightDp)
+        assertTrue(tabletLandscape.inputBoxMinHeightDp < tabletPortrait.inputBoxMinHeightDp)
+        assertTrue(tabletLandscape.inputBoxMinHeightDp > phoneLandscape.inputBoxMinHeightDp)
+        assertTrue(tabletLandscape.inputBoxMaxHeightDp > phoneLandscape.inputBoxMaxHeightDp)
     }
 
     @Test

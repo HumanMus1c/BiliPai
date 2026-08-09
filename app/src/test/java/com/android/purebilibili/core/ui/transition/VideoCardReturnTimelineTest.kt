@@ -178,6 +178,7 @@ class VideoCardReturnTimelineTest {
                 VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
             val detailContentReady: Boolean = true,
             val hasResidentCover: Boolean = true,
+            val liveSurfaceCardTransitionEnabled: Boolean = true,
             val expected: VideoCardReturnCoverOwnership,
             val handWhenLeaving: Boolean,
         )
@@ -242,6 +243,7 @@ class VideoCardReturnTimelineTest {
                 detailContentReady = case.detailContentReady,
                 hasResidentCover = case.hasResidentCover,
                 hasRenderableLiveFrame = true,
+                liveSurfaceCardTransitionEnabled = case.liveSurfaceCardTransitionEnabled,
             )
             assertEquals(case.expected, ownership, case.name)
 
@@ -251,6 +253,7 @@ class VideoCardReturnTimelineTest {
                 keepLoadedContentForBackPreview = case.keepLoadedContentForBackPreview,
                 playbackIntent = case.playbackIntent,
                 detailContentReady = case.detailContentReady,
+                liveSurfaceCardTransitionEnabled = case.liveSurfaceCardTransitionEnabled,
             )
             assertEquals(
                 liveGate,
@@ -472,6 +475,7 @@ class VideoCardReturnTimelineTest {
                 playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
                 detailContentReady = true,
                 hasRenderableLiveFrame = true,
+                liveSurfaceCardTransitionEnabled = true,
             )
         )
         assertEquals(
@@ -484,6 +488,32 @@ class VideoCardReturnTimelineTest {
                 detailContentReady = true,
                 hasResidentCover = true,
                 hasRenderableLiveFrame = true,
+                liveSurfaceCardTransitionEnabled = true,
+            ),
+        )
+        // 用户关闭「实时画面转场」：不得走 LIVE 视频帧 morph，改封面路径。
+        assertFalse(
+            shouldUseVideoCardLiveReturnMorph(
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+                detailContentReady = true,
+                hasRenderableLiveFrame = true,
+                liveSurfaceCardTransitionEnabled = false,
+            )
+        )
+        assertEquals(
+            VideoCardReturnCoverOwnership.RESIDENT_COVER,
+            resolveVideoCardReturnCoverOwnership(
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+                playbackIntent = VideoSharedTransitionPlaybackIntent.ImmediatePlayback,
+                detailContentReady = true,
+                hasResidentCover = true,
+                hasRenderableLiveFrame = true,
+                liveSurfaceCardTransitionEnabled = false,
             ),
         )
     }

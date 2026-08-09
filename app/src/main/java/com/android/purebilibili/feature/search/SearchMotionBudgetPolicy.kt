@@ -52,12 +52,50 @@ internal fun shouldBootstrapSearchLandingData(
     return startupSettled && !showResults && query.isBlank()
 }
 
+/**
+ * Only auto-focus the empty landing once. Never re-focus after results or after
+ * the user has already interacted (exiting video search must not pop the keyboard).
+ */
 internal fun shouldAutoFocusSearchField(
     startupSettled: Boolean,
-    query: String
+    query: String,
+    showResults: Boolean = false,
+    autoFocusConsumed: Boolean = false
 ): Boolean {
-    return startupSettled && query.isBlank()
+    return startupSettled &&
+        query.isBlank() &&
+        !showResults &&
+        !autoFocusConsumed
 }
+
+enum class SearchBackAction {
+    DISMISS_CHROME,
+    EXIT_RESULTS,
+    LEAVE_SEARCH
+}
+
+/**
+ * System/back navigation priority:
+ * 1) dismiss suggestions / focused keyboard chrome
+ * 2) leave result list for landing without reopening the keyboard
+ * 3) leave the search screen
+ */
+internal fun resolveSearchBackAction(
+    showResults: Boolean,
+    suggestionsVisible: Boolean,
+    searchFieldFocused: Boolean
+): SearchBackAction {
+    return when {
+        suggestionsVisible || searchFieldFocused -> SearchBackAction.DISMISS_CHROME
+        showResults -> SearchBackAction.EXIT_RESULTS
+        else -> SearchBackAction.LEAVE_SEARCH
+    }
+}
+
+internal fun shouldClearSearchFocusWhenShowingResults(
+    showResults: Boolean,
+    previousShowResults: Boolean
+): Boolean = showResults && !previousShowResults
 
 internal fun shouldForceLowBudgetSearchHeaderBlur(
     isSearching: Boolean,

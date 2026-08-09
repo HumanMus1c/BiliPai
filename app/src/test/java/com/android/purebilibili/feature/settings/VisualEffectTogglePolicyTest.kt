@@ -4,7 +4,7 @@ import java.io.File
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.resolveEffectiveHomeSettings
 import com.android.purebilibili.core.store.resolveEffectiveLiquidGlassEnabled
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -101,12 +101,12 @@ class VisualEffectTogglePolicyTest {
     }
 
     @Test
-    fun `ios preset also preserves the stored liquid glass preference`() {
+    fun `miuix style also preserves the stored liquid glass preference`() {
         assertEquals(
             true,
             resolveEffectiveLiquidGlassEnabled(
                 requestedEnabled = true,
-                uiPreset = UiPreset.IOS,
+                uiStyle = AppUiStyle.MIUIX,
                 androidNativeLiquidGlassEnabled = false
             )
         )
@@ -114,7 +114,7 @@ class VisualEffectTogglePolicyTest {
             false,
             resolveEffectiveLiquidGlassEnabled(
                 requestedEnabled = false,
-                uiPreset = UiPreset.IOS,
+                uiStyle = AppUiStyle.MIUIX,
                 androidNativeLiquidGlassEnabled = true
             )
         )

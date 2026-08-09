@@ -4,6 +4,7 @@ import com.android.purebilibili.R
 import com.android.purebilibili.core.store.AppIconAppearance
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class IconGroupsTest {
 
@@ -44,5 +45,16 @@ class IconGroupsTest {
             R.mipmap.ic_launcher_bilipai_round,
             resolveIconOptionPreviewRes("icon_bilipai", AppIconAppearance.DARK)
         )
+    }
+
+    @Test
+    fun systemAboutOverview_usesTheSelectedAppIconAndAppearance() {
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/settings/ui/SettingsSections.kt"
+        ).readText()
+
+        assertTrue(source.contains("appIconKey = state.appIcon"))
+        assertTrue(source.contains("resolveIconOptionPreviewRes(appIconKey, appIconAppearance)"))
+        assertTrue(source.contains("model = appIconRes"))
     }
 }

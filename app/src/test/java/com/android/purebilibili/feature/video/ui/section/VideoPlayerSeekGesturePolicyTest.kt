@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.ui.section
 
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -7,6 +8,32 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class VideoPlayerSeekGesturePolicyTest {
+
+    @Test
+    fun `fullscreen overlay reuses horizontal seek direction policy`() {
+        val source = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/video/ui/overlay/FullscreenPlayerOverlay.kt"),
+            File("src/main/java/com/android/purebilibili/feature/video/ui/overlay/FullscreenPlayerOverlay.kt"),
+        ).first { it.exists() }.readText()
+
+        assertTrue(source.contains("shouldEngageHorizontalPlayerSeek"))
+    }
+
+    @Test
+    fun `player seek requires horizontal dominance over vertical drift`() {
+        assertTrue(
+            shouldEngageHorizontalPlayerSeek(
+                totalDragDistanceX = 80f,
+                totalDragDistanceY = 20f,
+            )
+        )
+        assertFalse(
+            shouldEngageHorizontalPlayerSeek(
+                totalDragDistanceX = 80f,
+                totalDragDistanceY = 70f,
+            )
+        )
+    }
 
     @Test
     fun `fullscreen fixed setting uses precise proportional range`() {

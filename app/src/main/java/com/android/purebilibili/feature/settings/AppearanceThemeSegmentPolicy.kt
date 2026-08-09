@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.settings
 
+import com.android.purebilibili.core.ui.AppIconStyle
+import com.android.purebilibili.core.ui.AppListItemStyle
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
@@ -36,6 +38,22 @@ internal fun resolveMd3ColorSourceOptions(): List<AppSegmentOption<Md3ColorSourc
     return listOf(
         AppSegmentOption(Md3ColorSource.FOLLOW_WALLPAPER, Md3ColorSource.FOLLOW_WALLPAPER.label),
         AppSegmentOption(Md3ColorSource.CUSTOM, Md3ColorSource.CUSTOM.label)
+    )
+}
+
+internal fun resolveAppIconStyleOptions(): List<AppSegmentOption<AppIconStyle>> {
+    return listOf(
+        AppSegmentOption(AppIconStyle.AUTO, "跟随预设"),
+        AppSegmentOption(AppIconStyle.THEME_CONTAINER, "主题色容器"),
+        AppSegmentOption(AppIconStyle.MD3_STANDARD, "MD3 官方推荐")
+    )
+}
+
+internal fun resolveAppListItemStyleOptions(): List<AppSegmentOption<AppListItemStyle>> {
+    return listOf(
+        AppSegmentOption(AppListItemStyle.AUTO, "跟随预设"),
+        AppSegmentOption(AppListItemStyle.CUSTOM, "自定义条目"),
+        AppSegmentOption(AppListItemStyle.NATIVE, "原生组件")
     )
 }
 

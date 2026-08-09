@@ -72,6 +72,7 @@ internal fun shouldUseLiveReturnMorph(
     playbackIntent: VideoSharedTransitionPlaybackIntent,
     detailContentReady: Boolean = true,
     hasRenderableLiveFrame: Boolean = true,
+    liveSurfaceCardTransitionEnabled: Boolean = false,
 ): Boolean = shouldUseVideoCardLiveReturnMorph(
     transitionEnabled = transitionEnabled,
     sharedBoundsActive = sharedBoundsActive,
@@ -79,6 +80,7 @@ internal fun shouldUseLiveReturnMorph(
     playbackIntent = playbackIntent,
     detailContentReady = detailContentReady,
     hasRenderableLiveFrame = hasRenderableLiveFrame,
+    liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
 )
 
 /**
@@ -130,6 +132,7 @@ internal fun resolveVideoDetailReturnCoverOwnership(
     detailContentReady: Boolean,
     hasResidentCover: Boolean,
     hasRenderableLiveFrame: Boolean = true,
+    liveSurfaceCardTransitionEnabled: Boolean = false,
 ) = resolveVideoCardReturnCoverOwnership(
     transitionEnabled = transitionEnabled,
     sharedBoundsActive = sharedBoundsActive,
@@ -138,6 +141,7 @@ internal fun resolveVideoDetailReturnCoverOwnership(
     detailContentReady = detailContentReady,
     hasResidentCover = hasResidentCover,
     hasRenderableLiveFrame = hasRenderableLiveFrame,
+    liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
 )
 
 internal fun isLiveReturnMorphFromOwnership(
@@ -177,20 +181,21 @@ internal fun resolveVideoDetailReturnCoverAlpha(
     liveReturnMorph: Boolean = false,
     keepLivePlayerForPredictiveBack: Boolean = false,
 ): Float {
-    // Predictive seek and its cancel restore are previews, not committed returns. The resident
-    // cover must never follow the seek fraction here or it flashes over the live player on cancel.
-    if (keepLivePlayerForPredictiveBack) return 0f
-    if (!hasResidentCover) return 0f
-    // 一镜到底：仅 settle 末段抬封面，禁止一点返回就盖住实时播放器。
+    // Live morph：封面垫在播放器下（alpha=1），无帧时防黑；有视频帧时被上层盖住。
     if (liveReturnMorph) {
-        return resolveVideoDetailLiveReturnLandingHandoffAlpha(
-            transitionProgress = transitionProgress,
-            isCommittedCardReturn = isCommittedCardReturn,
-        )
+        return if (hasResidentCover) 1f else 0f
     }
-    val progress = transitionProgress.coerceIn(0f, 1f)
-    // CoverFirst / 无 live 帧：提交后封面立即接管，避免黑壳。
-    return if (isCommittedCardReturn) 1f else 1f - progress
+    // 关闭实时画面：刻意 **不画封面、不画 player**，只保留壳上黑底块 morph，
+    // 降低 sharedBounds overlay 的解码/合成压力（用户期望的「整块黑色卡」）。
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredProgress = transitionProgress
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredCommitted = isCommittedCardReturn
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredKeepLive = keepLivePlayerForPredictiveBack
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredCover = hasResidentCover
+    return 0f
 }
 
 /**
@@ -218,6 +223,7 @@ internal fun resolveVideoDetailReturnPlayerAlpha(
     liveReturnMorph: Boolean = false,
     keepLivePlayerForPredictiveBack: Boolean = false,
 ): Float {
+    // 实时画面开 + 预测返回：player 保持满不透明（视频帧在上）。
     if (keepLivePlayerForPredictiveBack) return 1f
     if (liveReturnMorph) {
         if (!hasResidentCover) return 1f
@@ -226,8 +232,11 @@ internal fun resolveVideoDetailReturnPlayerAlpha(
             isCommittedCardReturn = isCommittedCardReturn,
         )
     }
-    if (isCommittedCardReturn) return if (hasResidentCover) 0f else 1f
-    return transitionProgress.coerceIn(0f, 1f)
+    // 关闭实时画面：离开详情后隐藏 player，只留黑底壳 morph（低渲染压力）。
+    val progress = transitionProgress.coerceIn(0f, 1f)
+    if (isCommittedCardReturn) return 0f
+    // progress≈1 仍在详情：正常播；一离开（progress 下降）即关 player。
+    return if (progress < 0.999f) 0f else 1f
 }
 
 /**

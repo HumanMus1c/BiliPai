@@ -23,10 +23,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import com.android.purebilibili.core.ui.appContentDialogWidth
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppCard
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.resolveAppExpandedContentDialogLayoutPolicy
+import com.android.purebilibili.core.ui.resolveAppContentDialogProperties
 import java.io.File
 
 /**
@@ -62,12 +65,17 @@ fun DirectorySelectionDialog(
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    val dialogLayout = remember { resolveAppExpandedContentDialogLayoutPolicy() }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = resolveAppContentDialogProperties(
+            usePlatformDefaultWidth = dialogLayout.usePlatformDefaultWidth,
+        ),
+    ) {
         AppCard(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(500.dp)
-                .padding(16.dp),
+                .appContentDialogWidth(policy = dialogLayout, wrapHeight = false)
+                .height(500.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface

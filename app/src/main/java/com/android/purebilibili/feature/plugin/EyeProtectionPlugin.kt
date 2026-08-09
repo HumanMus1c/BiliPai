@@ -40,15 +40,14 @@ import com.android.purebilibili.core.plugin.PluginManager
 import com.android.purebilibili.core.plugin.PluginStore
 import com.android.purebilibili.core.ui.components.AppSwitchPreference
 import com.android.purebilibili.core.util.Logger
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.Moon
-import io.github.alexzhirkevich.cupertino.icons.filled.SunMax
-import io.github.alexzhirkevich.cupertino.icons.outlined.Clock
-import io.github.alexzhirkevich.cupertino.icons.outlined.Heart
-import io.github.alexzhirkevich.cupertino.icons.outlined.Lightbulb
-import io.github.alexzhirkevich.cupertino.icons.outlined.Moon
-import io.github.alexzhirkevich.cupertino.icons.outlined.Sparkles
-import io.github.alexzhirkevich.cupertino.icons.outlined.SunMax
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Schedule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -140,7 +139,7 @@ class EyeProtectionPlugin : Plugin {
     override val description = "夜间护眼、休息提醒与温和关怀"
     override val version = "2.0.1"
     override val author = "BiliPai项目组"
-    override val icon: ImageVector = CupertinoIcons.Default.Moon
+    override val icon: ImageVector = Icons.Outlined.DarkMode
 
     private var config: EyeProtectionConfig = EyeProtectionConfig()
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -389,7 +388,7 @@ class EyeProtectionPlugin : Plugin {
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             AppSwitchPreference(
-                icon = CupertinoIcons.Outlined.Lightbulb,
+                icon = Icons.Outlined.Lightbulb,
                 title = "立即开启护眼",
                 subtitle = "手动强制开启，不受时间段限制",
                 checked = uiConfig.forceEnabled,
@@ -405,7 +404,7 @@ class EyeProtectionPlugin : Plugin {
             )
 
             AppSwitchPreference(
-                icon = CupertinoIcons.Outlined.Moon,
+                icon = Icons.Outlined.DarkMode,
                 title = "定时护眼模式",
                 subtitle = "${uiConfig.nightModeStartHour}:00 - ${uiConfig.nightModeEndHour}:00 自动开启",
                 checked = uiConfig.nightModeEnabled,
@@ -449,7 +448,7 @@ class EyeProtectionPlugin : Plugin {
             )
 
             AppSwitchPreference(
-                icon = CupertinoIcons.Outlined.Clock,
+                icon = Icons.Outlined.Schedule,
                 title = "关怀提醒",
                 subtitle = "定时提醒休息、看远处、放松肩颈",
                 checked = uiConfig.usageReminderEnabled,
@@ -463,7 +462,7 @@ class EyeProtectionPlugin : Plugin {
                 Spacer(modifier = Modifier.height(10.dp))
 
                 AppSwitchPreference(
-                    icon = CupertinoIcons.Outlined.Sparkles,
+                    icon = Icons.Outlined.AutoAwesome,
                     title = "仅夜间提醒",
                     subtitle = "白天减少打扰，夜间更积极守护",
                     checked = uiConfig.remindOnlyDuringNight,
@@ -600,7 +599,7 @@ class EyeProtectionPlugin : Plugin {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AppIcon(
-                        CupertinoIcons.Filled.SunMax,
+                        Icons.Filled.LightMode,
                         contentDescription = null,
                         tint = Color(0xFFFFB74D),
                         modifier = Modifier.size(22.dp)
@@ -639,7 +638,7 @@ class EyeProtectionPlugin : Plugin {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AppIcon(
-                        CupertinoIcons.Outlined.SunMax,
+                        Icons.Outlined.LightMode,
                         contentDescription = null,
                         tint = Color(0xFFFF7043),
                         modifier = Modifier.size(22.dp)
@@ -684,7 +683,7 @@ class EyeProtectionPlugin : Plugin {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 AppIcon(
-                    imageVector = CupertinoIcons.Outlined.Heart,
+                    imageVector = Icons.Outlined.FavoriteBorder,
                     contentDescription = null,
                     tint = Color(0xFFE57373),
                     modifier = Modifier.size(16.dp)
@@ -743,7 +742,7 @@ private fun TimePickerDropdown(
                     )
                 }
                 AppIcon(
-                    imageVector = CupertinoIcons.Outlined.Clock,
+                    imageVector = Icons.Outlined.Schedule,
                     contentDescription = null
                 )
             }

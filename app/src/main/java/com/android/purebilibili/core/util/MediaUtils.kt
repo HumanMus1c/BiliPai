@@ -1,5 +1,6 @@
 package com.android.purebilibili.core.util
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.hardware.display.DisplayManager
 import android.media.MediaCodecList
@@ -38,6 +39,8 @@ object MediaUtils {
     }
 
     /** 检查应用内置的窄版 FFmpeg 是否包含 E-AC-3 解码器。 */
+    // FfmpegLibrary 属 media3 unstable API：应用在稳定能力查询封装后消费，opt-in 标记会级联污染全部调用方。
+    @SuppressLint("UnsafeOptInUsageError")
     fun isDolbySoftwareAudioDecoderSupported(): Boolean {
         return runCatching {
             FfmpegLibrary.supportsFormat(MimeTypes.AUDIO_E_AC3)

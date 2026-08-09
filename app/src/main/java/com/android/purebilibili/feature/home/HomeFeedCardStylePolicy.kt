@@ -51,31 +51,29 @@ internal fun resolveHomeFeedCardLayout(
     return when (style) {
         HomeFeedCardStyle.CURRENT -> HomeFeedCardLayout(
             coverAspectRatio = coverAspectRatio,
-            outerPaddingDp = 8,
-            itemSpacingDp = 8,
-            verticalItemSpacingDp = 8,
+            outerPaddingDp = 6,
+            itemSpacingDp = 6,
+            verticalItemSpacingDp = 6,
             storyCardHorizontalPaddingDp = 16,
             compactMetadata = false
         )
 
         HomeFeedCardStyle.OFFICIAL -> HomeFeedCardLayout(
             coverAspectRatio = coverAspectRatio,
-            // 4:3 cards carry more visual mass than the wider variants. Give
-            // each card a full 8dp gutter and a little more row separation so
-            // adjacent covers do not read as one continuous image wall.
-            outerPaddingDp = 8,
-            itemSpacingDp = 8,
-            verticalItemSpacingDp = 10,
+            // 统一 6dp 卡间距，垂直与水平一致，卡片墙更紧凑。
+            outerPaddingDp = 6,
+            itemSpacingDp = 6,
+            verticalItemSpacingDp = 6,
             storyCardHorizontalPaddingDp = 0,
             compactMetadata = true
         )
 
         HomeFeedCardStyle.PILIPLUS -> HomeFeedCardLayout(
-            // 间距对齐 PiliPlus Style.cardSpace / safeSpace 系：8dp 卡间距
+            // 间距对齐 PiliPlus Style.cardSpace / safeSpace 系：6dp 卡间距
             coverAspectRatio = coverAspectRatio,
-            outerPaddingDp = 8,
-            itemSpacingDp = 8,
-            verticalItemSpacingDp = 8,
+            outerPaddingDp = 6,
+            itemSpacingDp = 6,
+            verticalItemSpacingDp = 6,
             storyCardHorizontalPaddingDp = 8,
             compactMetadata = true
         )

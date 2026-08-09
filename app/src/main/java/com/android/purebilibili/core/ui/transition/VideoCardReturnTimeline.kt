@@ -447,8 +447,14 @@ internal fun shouldUseVideoCardLiveReturnMorph(
     playbackIntent: VideoSharedTransitionPlaybackIntent,
     detailContentReady: Boolean,
     hasRenderableLiveFrame: Boolean = true,
+    /**
+     * 「实时画面转场」用户开关：关则强制封面 morph；开才允许播放器视频帧跟壳缩回。
+     * 默认 true 与设置项默认一致。
+     */
+    liveSurfaceCardTransitionEnabled: Boolean = false,
 ): Boolean {
     return transitionEnabled &&
+        liveSurfaceCardTransitionEnabled &&
         sharedBoundsActive &&
         !keepLoadedContentForBackPreview &&
         playbackIntent == VideoSharedTransitionPlaybackIntent.ImmediatePlayback &&
@@ -475,6 +481,7 @@ internal fun resolveVideoCardReturnCoverOwnership(
     detailContentReady: Boolean,
     hasResidentCover: Boolean,
     hasRenderableLiveFrame: Boolean = true,
+    liveSurfaceCardTransitionEnabled: Boolean = false,
 ): VideoCardReturnCoverOwnership {
     if (!transitionEnabled || !sharedBoundsActive) {
         return VideoCardReturnCoverOwnership.FALLBACK_NO_SHARED
@@ -486,6 +493,7 @@ internal fun resolveVideoCardReturnCoverOwnership(
         playbackIntent = playbackIntent,
         detailContentReady = detailContentReady,
         hasRenderableLiveFrame = hasRenderableLiveFrame,
+        liveSurfaceCardTransitionEnabled = liveSurfaceCardTransitionEnabled,
     )
     if (live) {
         return VideoCardReturnCoverOwnership.LIVE_SURFACE

@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -10,18 +9,18 @@ import kotlin.test.assertTrue
 class AdaptiveSideNavigationRailPolicyTest {
 
     @Test
-    fun miuixVariantUsesMiuixRailRenderer() {
+    fun miuixStyleUsesMiuixRailRenderer() {
         assertEquals(
             AdaptiveSideNavigationRailRenderer.MIUIX,
-            resolveAdaptiveSideNavigationRailRenderer(UiPreset.MD3, AndroidNativeVariant.MIUIX),
+            resolveAdaptiveSideNavigationRailRenderer(AppUiStyle.MIUIX),
         )
     }
 
     @Test
-    fun materialKeepsMaterial3RailRenderer() {
+    fun material3StyleKeepsMaterial3RailRenderer() {
         assertEquals(
             AdaptiveSideNavigationRailRenderer.MATERIAL3,
-            resolveAdaptiveSideNavigationRailRenderer(UiPreset.MD3, AndroidNativeVariant.MATERIAL3),
+            resolveAdaptiveSideNavigationRailRenderer(AppUiStyle.MATERIAL3),
         )
     }
 

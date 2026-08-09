@@ -58,6 +58,7 @@ import com.android.purebilibili.feature.search.resolveArticleNavigationTarget
 import com.android.purebilibili.feature.search.SearchEntryMotionSource
 import com.android.purebilibili.feature.search.SearchScreen
 import com.android.purebilibili.feature.settings.SettingsScreen
+import com.android.purebilibili.feature.settings.resolveSettingsCategoryDirectTargetKey
 import com.android.purebilibili.feature.settings.resolveSettingsSearchNavigation
 import com.android.purebilibili.feature.settings.screen.SettingsCategoryScreen
 import com.android.purebilibili.feature.settings.screen.SettingsSearchScreen
@@ -382,10 +383,16 @@ fun AppNavigation(
     val cardTransitionEnabled = appearance.cardTransitionEnabled
     val videoTransitionRealtimeBlurEnabled by SettingsManager
         .getVideoTransitionRealtimeBlurEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
+        .collectAsStateWithLifecycle(initialValue = false)
     val isBottomBarBlurEnabled = appearance.bottomBarBlurEnabled
     val bottomBarLabelMode = appearance.bottomBarLabelMode
     val isBottomBarFloating = appearance.bottomBarFloating
+    val showUpBadges by SettingsManager
+        .getHomeUpBadgesVisible(context)
+        .collectAsStateWithLifecycle(initialValue = false)
+    val showUpAvatars by SettingsManager
+        .getHomeUpAvatarsVisible(context)
+        .collectAsStateWithLifecycle(initialValue = false)
 
     // 🔒 [防抖] 全局导航防抖机制 - 防止快速点击导致页面重复加载
     val lastNavigationTime = androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(0L) }
@@ -1463,6 +1470,11 @@ fun AppNavigation(
             LocalBottomBarContentPadding provides bottomBarContentPadding,
             LocalGlobalWallpaperBackdropVisible provides exposeGlobalHomeWallpaperChrome,
             LocalPredictiveBackGestureEnabled provides predictiveBackEnabled,
+            com.android.purebilibili.core.ui.LocalUpBadgeVisibility provides
+                com.android.purebilibili.core.ui.UpBadgeVisibility(
+                    showBadges = showUpBadges,
+                    showAvatars = showUpAvatars
+                ),
             com.android.purebilibili.core.ui.LocalMainHazeState provides mainHazeState,
             // 卡片标签 / 信息区实时玻璃效果已下线，不再为首页建立额外 Haze 录制树。
             com.android.purebilibili.core.ui.LocalWallpaperHazeState provides null,
@@ -2393,7 +2405,10 @@ fun AppNavigation(
                                     onTipsClick = { pushNavigation3Key(BiliPaiNavKey.TipsSettings) },
                                     onReplayOnboardingClick = { pushNavigation3Route(ScreenRoutes.Onboarding.route) },
                                     onCategoryClick = { category ->
-                                        pushNavigation3Key(BiliPaiNavKey.SettingsCategory(category))
+                                        pushNavigation3Key(
+                                            resolveSettingsCategoryDirectTargetKey(category)
+                                                ?: BiliPaiNavKey.SettingsCategory(category)
+                                        )
                                     },
                                     onSearchOpen = { pushNavigation3Key(BiliPaiNavKey.SettingsSearch) },
                                     mainHazeState = mainHazeState,
@@ -2421,7 +2436,10 @@ fun AppNavigation(
                                     onTipsClick = { pushNavigation3Key(BiliPaiNavKey.TipsSettings) },
                                     onReplayOnboardingClick = { pushNavigation3Route(ScreenRoutes.Onboarding.route) },
                                     onCategoryClick = { category ->
-                                        pushNavigation3Key(BiliPaiNavKey.SettingsCategory(category))
+                                        pushNavigation3Key(
+                                            resolveSettingsCategoryDirectTargetKey(category)
+                                                ?: BiliPaiNavKey.SettingsCategory(category)
+                                        )
                                     },
                                     onSearchOpen = { pushNavigation3Key(BiliPaiNavKey.SettingsSearch) },
                                     mainHazeState = mainHazeState,
@@ -2435,7 +2453,10 @@ fun AppNavigation(
                                     viewModel = settingsViewModel,
                                     onBack = { performSystemBackAction() },
                                     onCategoryClick = { category ->
-                                        pushNavigation3Key(BiliPaiNavKey.SettingsCategory(category))
+                                        pushNavigation3Key(
+                                            resolveSettingsCategoryDirectTargetKey(category)
+                                                ?: BiliPaiNavKey.SettingsCategory(category)
+                                        )
                                     },
                                     onSearchResultClick = { result ->
                                         resolveSettingsSearchNavigation(result)?.let { navKey ->
@@ -2623,6 +2644,8 @@ fun AppNavigation(
                         BiliPaiNavEntryContentRole.LIVE_LIST ->
                             com.android.purebilibili.feature.live.LiveListScreen(
                                 onBack = { performSystemBackAction() },
+                                // 底栏/顶栏进入的主直播首页：无返回箭头，与 PiliPlus 主 tab 一致。
+                                showNavigationBack = false,
                                 onLiveClick = { roomId, title, uname ->
                                     pushNavigation3Key(BiliPaiNavKey.Live(roomId = roomId.toString(), title = title, uname = uname))
                                 },
@@ -2833,7 +2856,7 @@ fun AppNavigation(
                                     seedTitle = storyKey.seedTitle,
                                     sourceRoute = storyKey.sourceRoute,
                                     transitionEnabled = cardTransitionEnabled,
-                                    isActive = true,
+                                    isActive = isBottomPagerPageActive,
                                     onBack = { performSystemBackAction() },
                                     onVideoClick = { bvid, cid, _ -> navigateToVideoInNavigation3(bvid, cid, "") },
                                     onUserClick = { mid -> pushNavigation3Route(ScreenRoutes.Space.createRoute(mid)) },
@@ -3224,6 +3247,7 @@ fun AppNavigation(
                     backStack = navigation3BackStack,
                     cardTransitionEnabled = sharedVideoCardTransitionEnabled,
                     videoCardDepthEffectEnabled = sharedVideoCardTransitionEnabled,
+                    videoTransitionRealtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
                     reduceMotion = systemReduceMotion,
                     videoSharedTransitionDurationMillis =
                         effectiveVideoCardTransitionDurationMillis,

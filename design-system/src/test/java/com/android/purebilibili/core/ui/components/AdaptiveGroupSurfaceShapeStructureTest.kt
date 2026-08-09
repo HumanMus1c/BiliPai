@@ -8,14 +8,18 @@ import kotlin.test.assertTrue
 class AdaptiveGroupSurfaceShapeStructureTest {
 
     @Test
-    fun `ios group passes rounded shape into surface for md3 and miuix borders`() {
+    fun `group renderer branches on dual value ui style`() {
         val source = loadSource("design-system/src/main/java/com/android/purebilibili/core/ui/components/AdaptivePreferenceComponents.kt")
         val iosGroupSource = source
             .substringAfter("fun AdaptivePreferenceGroupRenderer(")
             .substringBefore("@Composable\ninternal fun AdaptiveSwitchPreferenceContent")
 
         assertFalse(iosGroupSource.contains(".clip(appliedShape)"))
-        assertTrue(iosGroupSource.contains("resolveAdaptiveGroupSurfaceShape("))
+        assertFalse(iosGroupSource.contains("resolveAdaptiveGroupSurfaceShape("))
+        assertFalse(iosGroupSource.contains("UiPreset"))
+        assertTrue(iosGroupSource.contains("LocalAppUiStyle.current"))
+        assertTrue(iosGroupSource.contains("if (uiStyle == AppUiStyle.MIUIX) {"))
+        assertTrue(iosGroupSource.contains("MiuixCard("))
         assertTrue(iosGroupSource.contains("Surface("))
         assertTrue(iosGroupSource.contains("shape = appliedShape,"))
     }

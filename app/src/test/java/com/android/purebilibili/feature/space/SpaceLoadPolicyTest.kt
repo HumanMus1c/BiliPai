@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.space
 
+import com.android.purebilibili.core.store.HomeFeedCardWidthPreset
 import com.android.purebilibili.data.model.response.FavFolder
 import com.android.purebilibili.data.model.response.SeasonArchiveItem
 import com.android.purebilibili.data.model.response.SeasonArchiveStat
@@ -446,7 +447,39 @@ class SpaceLoadPolicyTest {
         assertEquals(2, resolveSpaceContentGridColumnCount(widthDp = 360))
         assertEquals(2, resolveSpaceContentGridColumnCount(widthDp = 412))
         assertEquals(3, resolveSpaceContentGridColumnCount(widthDp = 700))
-        assertEquals(4, resolveSpaceContentGridColumnCount(widthDp = 960))
+        // 与首页信息流共用自适应列数策略：980dp 内容上限内按 180dp 最小卡宽自适应。
+        assertEquals(5, resolveSpaceContentGridColumnCount(widthDp = 960))
+    }
+
+    @Test
+    fun `resolveSpaceContentGridColumnCount honors home feed fixed column and width presets`() {
+        assertEquals(
+            3,
+            resolveSpaceContentGridColumnCount(
+                widthDp = 412,
+                fixedColumnCount = 3
+            )
+        )
+        assertEquals(
+            2,
+            resolveSpaceContentGridColumnCount(
+                widthDp = 412,
+                cardWidthPreset = HomeFeedCardWidthPreset.WIDE
+            )
+        )
+        // 与首页一致：即使超宽卡预设，窄屏仍保底 2 列。
+        assertEquals(
+            2,
+            resolveSpaceContentGridColumnCount(
+                widthDp = 412,
+                cardWidthPreset = HomeFeedCardWidthPreset.ULTRA_WIDE
+            )
+        )
+        // 大屏按空间页 980dp 内容宽度上限截断，而不是屏幕全宽。
+        assertEquals(
+            5,
+            resolveSpaceContentGridColumnCount(widthDp = 1600)
+        )
     }
 
     @Test

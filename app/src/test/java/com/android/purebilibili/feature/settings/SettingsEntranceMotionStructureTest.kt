@@ -39,6 +39,9 @@ class SettingsEntranceMotionStructureTest {
 
     private fun source(path: String): String {
         val normalizedPath = path.removePrefix("app/")
-        return listOf(File(path), File(normalizedPath)).first { it.exists() }.readText()
+        // 统一换行为 \n：Windows CRLF 检出会让多行子串匹配失效。
+        return listOf(File(path), File(normalizedPath)).first { it.exists() }
+            .readText()
+            .replace("\r\n", "\n")
     }
 }

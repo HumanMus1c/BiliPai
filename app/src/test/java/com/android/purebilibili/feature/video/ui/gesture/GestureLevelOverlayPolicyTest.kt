@@ -1,19 +1,14 @@
 package com.android.purebilibili.feature.video.ui.gesture
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BrightnessLow
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.ui.Alignment
 import com.android.purebilibili.core.ui.AppTopTabPresentation
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.SpeakerSlash
-import io.github.alexzhirkevich.cupertino.icons.filled.SpeakerWave2
-import io.github.alexzhirkevich.cupertino.icons.filled.SunMax
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.VolumeOff
-import top.yukonga.miuix.kmp.icon.extended.VolumeUp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -79,7 +74,7 @@ class GestureLevelOverlayPolicyTest {
     }
 
     @Test
-    fun icons_useDistinctFamiliesPerTheme() {
+    fun icons_resolveByLevelForAllStyles() {
         assertEquals(
             Icons.AutoMirrored.Filled.VolumeOff,
             resolveGestureLevelIcon(GestureLevelOverlayStyle.Md3, GestureLevelKind.Volume, 0f)
@@ -89,19 +84,19 @@ class GestureLevelOverlayPolicyTest {
             resolveGestureLevelIcon(GestureLevelOverlayStyle.Md3, GestureLevelKind.Volume, 1f)
         )
         assertEquals(
-            CupertinoIcons.Filled.SpeakerSlash,
+            Icons.AutoMirrored.Filled.VolumeOff,
             resolveGestureLevelIcon(GestureLevelOverlayStyle.Ios, GestureLevelKind.Volume, 0f)
         )
         assertEquals(
-            CupertinoIcons.Filled.SpeakerWave2,
+            Icons.AutoMirrored.Filled.VolumeUp,
             resolveGestureLevelIcon(GestureLevelOverlayStyle.Ios, GestureLevelKind.Volume, 1f)
         )
         assertEquals(
-            MiuixIcons.VolumeOff,
+            Icons.AutoMirrored.Filled.VolumeOff,
             resolveGestureLevelIcon(GestureLevelOverlayStyle.Miuix, GestureLevelKind.Volume, 0f)
         )
         assertEquals(
-            MiuixIcons.VolumeUp,
+            Icons.AutoMirrored.Filled.VolumeUp,
             resolveGestureLevelIcon(GestureLevelOverlayStyle.Miuix, GestureLevelKind.Volume, 1f)
         )
         assertEquals(
@@ -109,7 +104,7 @@ class GestureLevelOverlayPolicyTest {
             resolveGestureLevelIcon(GestureLevelOverlayStyle.Md3, GestureLevelKind.Brightness, 0.2f)
         )
         assertEquals(
-            CupertinoIcons.Filled.SunMax,
+            Icons.Filled.LightMode,
             resolveGestureLevelIcon(GestureLevelOverlayStyle.Ios, GestureLevelKind.Brightness, 0.5f)
         )
         assertEquals(

@@ -99,10 +99,8 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.foundation.BorderStroke
 import androidx.activity.compose.BackHandler
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
-import io.github.alexzhirkevich.cupertino.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 // 🌈 Material Icons Extended - 亮度图标
 import androidx.compose.material.icons.Icons
@@ -377,6 +375,11 @@ private fun GesturePercentValue(
     }
 }
 
+// 相关推荐/同页切集后新播放器 duration 就绪等待参数：
+// 最长等待 4s（20 × 200ms），超时按当前可用值加载（仓库层会回退）。
+private const val DANMAKU_DURATION_WAIT_ATTEMPTS = 20
+private const val DANMAKU_DURATION_WAIT_INTERVAL_MS = 200L
+
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun VideoPlayerSection(
@@ -387,6 +390,7 @@ fun VideoPlayerSection(
     contentTopInset: Dp = 0.dp,
     transitionEnabled: Boolean = true,
     transitionChromeAlphaProvider: () -> Float = { 1f },
+    danmakuHostActive: Boolean = true,
     onToggleFullscreen: () -> Unit,
     onQualityChange: (Int) -> Unit,
     onBack: () -> Unit,
@@ -640,6 +644,10 @@ fun VideoPlayerSection(
                     .getLongPressSpeedLockEnabledSync(context),
                 longPressSpeedLockHintShown = com.android.purebilibili.core.store.SettingsManager
                     .getLongPressSpeedLockHintShownSync(context),
+                longPressSpeedHintCloseEnabled = com.android.purebilibili.core.store.SettingsManager
+                    .getLongPressSpeedHintCloseEnabledSync(context),
+                longPressSpeedHintHidden = com.android.purebilibili.core.store.SettingsManager
+                    .getLongPressSpeedHintHiddenSync(context),
                 hiResLongPressCompatHintShown = com.android.purebilibili.core.store.SettingsManager
                     .getHiResLongPressCompatHintShownSync(context)
             ),
@@ -722,6 +730,8 @@ fun VideoPlayerSection(
     //  [新增] 长按倍速设置和状态
     val longPressSpeed = playerInteractionSettings.longPressSpeed
     val longPressSpeedLockEnabled = playerInteractionSettings.longPressSpeedLockEnabled
+    val longPressSpeedHintCloseEnabled = playerInteractionSettings.longPressSpeedHintCloseEnabled
+    val longPressSpeedHintHidden = playerInteractionSettings.longPressSpeedHintHidden
     val twoFingerVerticalSpeedEnabled = playerInteractionSettings.twoFingerVerticalSpeedEnabled
     val twoFingerHorizontalSpeedEnabled = playerInteractionSettings.twoFingerHorizontalSpeedEnabled
     val twoFingerSpeedMode = remember(
@@ -739,8 +749,11 @@ fun VideoPlayerSection(
     var effectiveLongPressSpeed by remember { mutableFloatStateOf(longPressSpeed) }
     var longPressSpeedFeedbackVisible by remember { mutableStateOf(false) }
     var longPressSpeedHintDismissed by remember(bvid) { mutableStateOf(false) }
-    var longPressSpeedLocked by remember(bvid) { mutableStateOf(false) }
-    var lockedLongPressSpeed by remember(bvid) { mutableFloatStateOf(1.0f) }
+    // 锁定状态不随 bvid 重置：切换合集（bvid 变化 → 播放器重建 → 速度回到
+    // 设置播放速度）后仍保持锁定，由下方 LaunchedEffect(observedPlaybackSpeed, …)
+    // 在新播放器就绪后自动把锁定倍速写回。
+    var longPressSpeedLocked by remember { mutableStateOf(false) }
+    var lockedLongPressSpeed by remember { mutableFloatStateOf(1.0f) }
     var longPressSpeedEndedAtMs by remember { mutableLongStateOf(0L) }
     var longPressSpeedStartedAtMs by remember { mutableLongStateOf(0L) }
     var longPressSpeedStartX by remember { mutableFloatStateOf(-1f) }
@@ -1529,13 +1542,19 @@ fun VideoPlayerSection(
                 if (landscapeCommentPanelOnLeft) 0.dp else animatedLandscapeCommentReservedWidth,
         )
 
+    // HDR 下 SurfaceView 不能参与 Compose sharedElement；实时 morph 仅 SDR TextureView 路径。
+    val navigationHdrSurfaceRequired = requiresHdrSurfaceOutput(
+        currentQualityId = (uiState as? VideoPlaybackUiState.Success)?.currentQuality ?: 0,
+        colorTransfer = videoInputFormat?.colorInfo?.colorTransfer ?: 0
+    )
     // 应用共享元素
     val livePlayerSharedElementEnabled = shouldEnableLivePlayerSharedElement(
             transitionEnabled = transitionEnabled,
             allowLivePlayerSharedElement = allowLivePlayerSharedElement,
             hasSharedTransitionScope = sharedTransitionScope != null,
             hasAnimatedVisibilityScope = animatedVisibilityScope != null,
-            forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation
+            forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation,
+            requiresHdrSurfaceOutput = navigationHdrSurfaceRequired
         )
     val resolvedSharedElementBvid = sharedElementBvid.trim().ifBlank { bvid }
     if (resolvedSharedElementBvid.isNotEmpty() && livePlayerSharedElementEnabled) {
@@ -1904,7 +1923,7 @@ fun VideoPlayerSection(
 
                             if (gestureMode == VideoGestureMode.None && totalDrag >= minDragThreshold) {
                                 // [修复] 使用累积距离判断方向，而非单帧增量
-                                if (abs(totalDragDistanceX) > abs(totalDragDistanceY)) {
+                                if (shouldEngageHorizontalPlayerSeek(totalDragDistanceX, totalDragDistanceY)) {
                                     gestureMode = VideoGestureMode.Seek
                                     // Lock-in haptic so landscape seek always feels responsive.
                                     haptic.performHapticFeedback(
@@ -2411,7 +2430,14 @@ fun VideoPlayerSection(
             )
         }
         //  直接加载弹幕，不再等待 duration；仓库层会回退到 metadata/fallback 段数。
-        LaunchedEffect(cid, aid, danmakuEnabled, hostLifecycleStarted) {
+        val runDanmakuHostEffects = shouldRunVideoPlayerDanmakuHostEffects(
+            danmakuHostActive = danmakuHostActive,
+            hostLifecycleStarted = hostLifecycleStarted,
+        )
+        LaunchedEffect(cid, aid, danmakuEnabled, runDanmakuHostEffects) {
+            // 相关推荐 push 会让新旧详情页在转场期间同时处于 STARTED。旧页不得再次
+            // Enable/load 单例引擎，否则会取消新 cid 请求或把新数据同步到旧播放器。
+            if (!runDanmakuHostEffects) return@LaunchedEffect
             when (
                 resolveVideoPlayerDanmakuEngineSyncAction(
                     danmakuEnabled = danmakuEnabled,
@@ -2434,11 +2460,28 @@ fun VideoPlayerSection(
                 return@LaunchedEffect
             }
 
+            // 相关推荐/同页切集时新播放器可能尚未就绪（duration=0），
+            // 若立刻按 0 加载会降级到 fallback 导致弹幕为空。
+            // 等待 duration 就绪后按完整分段加载；超时则按当前可用值加载。
+            var durationHintMs = danmakuLoadPolicy.durationHintMs
+            if (durationHintMs <= 0L && cid > 0L && danmakuEnabled) {
+                var attempts = 0
+                while (attempts < DANMAKU_DURATION_WAIT_ATTEMPTS) {
+                    val currentDuration = playerState.player.duration
+                    if (currentDuration > 0L) {
+                        durationHintMs = currentDuration
+                        break
+                    }
+                    attempts += 1
+                    delay(DANMAKU_DURATION_WAIT_INTERVAL_MS)
+                }
+            }
+
             android.util.Log.d(
                 "VideoPlayerSection",
-                "🎯 Loading danmaku for cid=$cid, aid=$aid, durationHint=${danmakuLoadPolicy.durationHintMs}ms"
+                "🎯 Loading danmaku for cid=$cid, aid=$aid, durationHint=${durationHintMs}ms"
             )
-            danmakuManager.loadDanmaku(cid, aid, danmakuLoadPolicy.durationHintMs)
+            danmakuManager.loadDanmaku(cid, aid, durationHintMs)
         }
 
         //  横竖屏/小窗切换后，重绑 surface 并在需要时主动恢复播放。
@@ -2728,9 +2771,14 @@ fun VideoPlayerSection(
         }
         
         //  绑定 Player（不在 onDispose 中释放，单例保持状态）
-        DisposableEffect(playerState.player) {
-            android.util.Log.d("VideoPlayerSection", " attachPlayer, isFullscreen=$isFullscreen")
-            danmakuManager.attachPlayer(playerState.player)
+        DisposableEffect(playerState.player, runDanmakuHostEffects) {
+            if (runDanmakuHostEffects) {
+                android.util.Log.d("VideoPlayerSection", " attachPlayer, isFullscreen=$isFullscreen")
+                danmakuManager.attachPlayer(playerState.player)
+            } else if (!danmakuHostActive) {
+                // 相关推荐转场的旧页面仍可能保持 STARTED；立即让出播放器监听器。
+                danmakuManager.detachPlayerIfCurrent(playerState.player)
+            }
             onDispose {
                 // 单例模式不需要释放
             }
@@ -2743,11 +2791,19 @@ fun VideoPlayerSection(
         val lifecycleIsInPipMode by rememberUpdatedState(isInPipMode)
         val lifecyclePlayerView by rememberUpdatedState(playerViewRef)
         val lifecycleVideoOutputRouter by rememberUpdatedState(videoOutputRouter)
+        val lifecycleDanmakuHostActive by rememberUpdatedState(danmakuHostActive)
         DisposableEffect(lifecycleOwner) {
             var hasObservedHostPause = false
             val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
                 when (event) {
                     androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                        if (!lifecycleDanmakuHostActive) {
+                            android.util.Log.d(
+                                "VideoPlayerSection",
+                                " ON_RESUME: Skip danmaku binding for outgoing detail host"
+                            )
+                            return@LifecycleEventObserver
+                        }
                         android.util.Log.d("VideoPlayerSection", " ON_RESUME: Re-attaching danmaku player")
                         val player = lifecyclePlayer
                         danmakuManager.attachPlayer(player)
@@ -2820,8 +2876,10 @@ fun VideoPlayerSection(
                         hasObservedHostPause = true
                     }
                     androidx.lifecycle.Lifecycle.Event.ON_DESTROY -> {
-                        android.util.Log.d("VideoPlayerSection", " ON_DESTROY: Clearing danmaku references")
-                        danmakuManager.clearViewReference()
+                        // NavHost 会在新详情页已经 attach 后才销毁旧 entry。这里只能按播放器
+                        // 身份解绑监听器；DanmakuView 由 AndroidView.onRelease 做 identity-safe 释放。
+                        android.util.Log.d("VideoPlayerSection", " ON_DESTROY: Releasing owned danmaku player")
+                        danmakuManager.detachPlayerIfCurrent(lifecyclePlayer)
                     }
                     else -> {}
                 }
@@ -2913,7 +2971,21 @@ fun VideoPlayerSection(
         // 1. PlayerView (底层) - key 触发 graphicsLayer 强制更新
         //  [修复] 添加 isPortraitFullscreen 到 key，确保从全屏返回时重建 PlayerView 并重新绑定 Surface (解决黑屏问题)
         // Anime4K 只切换输出 Surface，不能作为 key 重建 PlayerView，否则会触发播放器恢复路径并丢失进度。
-        key(isFlippedHorizontal, isFlippedVertical, isPortraitFullscreen) {
+        // HDR/Dolby 必须 SurfaceView：升级到 125/126 后重建 PlayerView 才能把色彩元数据送到屏幕。
+        val currentQualityId =
+            (uiState as? VideoPlaybackUiState.Success)?.currentQuality ?: 0
+        val requiresHdrSurface = requiresHdrSurfaceOutput(
+            currentQualityId = currentQualityId,
+            colorTransfer = videoInputFormat?.colorInfo?.colorTransfer ?: 0
+        )
+        val useTextureSurface = shouldUseTextureSurfaceForFlip(
+            isFlippedHorizontal = isFlippedHorizontal,
+            isFlippedVertical = isFlippedVertical,
+            liveBackPreview = liveBackPreview,
+            navigationTransformEnabled = useTextureSurfaceForNavigation,
+            requiresHdrSurfaceOutput = requiresHdrSurface
+        )
+        key(isFlippedHorizontal, isFlippedVertical, isPortraitFullscreen, useTextureSurface) {
             val viewportAspectRatio = if (isFullscreen) currentAspectRatio else VideoAspectRatio.FIT
             val playerVideoSize = playerState.player.videoSize
             BoxWithConstraints(
@@ -2957,12 +3029,6 @@ fun VideoPlayerSection(
 
                 AndroidView(
                     factory = { ctx ->
-                        val useTextureSurface = shouldUseTextureSurfaceForFlip(
-                            isFlippedHorizontal = isFlippedHorizontal,
-                            isFlippedVertical = isFlippedVertical,
-                            liveBackPreview = liveBackPreview,
-                            navigationTransformEnabled = useTextureSurfaceForNavigation
-                        )
                         val basePlayerView = if (useTextureSurface) {
                             LayoutInflater.from(ctx)
                                 .inflate(com.android.purebilibili.R.layout.view_player_texture, null, false) as PlayerView
@@ -2984,6 +3050,9 @@ fun VideoPlayerSection(
                             setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                             useController = false
                             keepScreenOn = keepVideoPlaybackAwake
+                            // 非 opaque TextureView：sharedBounds overlay 里短暂无帧时不涂死黑，
+                            // 底下的封面垫层/壳背景仍可透出，避免预测返回大黑块。
+                            (videoSurfaceView as? TextureView)?.isOpaque = false
                             applyPlayerViewResizeMode(
                                 playerView = this,
                                 resizeMode = targetResizeMode,
@@ -3010,6 +3079,7 @@ fun VideoPlayerSection(
                                 forceCoverDuringReturnAnimation = forceCoverDuringReturnAnimation
                             )
                         )
+                        (playerView.videoSurfaceView as? TextureView)?.isOpaque = false
                         applyPlayerViewResizeMode(
                             playerView = playerView,
                             resizeMode = targetResizeMode,
@@ -3572,7 +3642,8 @@ fun VideoPlayerSection(
     }
 
     // 2. DanmakuView (使用 ByteDance DanmakuRenderEngine - 覆盖在 PlayerView 上方)
-    val shouldShowDanmakuLayer = !forceCoverDuringReturnAnimation && shouldShowDanmakuLayers(
+    val shouldShowDanmakuLayer = danmakuHostActive &&
+        !forceCoverDuringReturnAnimation && shouldShowDanmakuLayers(
         isInPipMode = isInPipMode,
         danmakuEnabled = danmakuEnabled,
         isPortraitFullscreen = isPortraitFullscreen,
@@ -3671,10 +3742,10 @@ fun VideoPlayerSection(
                             }
                         }
                     },
-                    onRelease = {
-                        danmakuManager.hide()
-                        danmakuManager.clear()
-                        danmakuManager.detachView()
+                    onRelease = { view ->
+                        // 仅当本 view 仍是当前绑定的弹幕视图时才解绑；
+                        // 相关推荐跳转后旧页面销毁不能清掉新页面已接管的 view/controller。
+                        danmakuManager.releaseViewIfCurrent(view)
                     },
                     modifier = danmakuSurfaceModifier
                 )
@@ -4348,6 +4419,7 @@ fun VideoPlayerSection(
                 isLongPressing = isLongPressing,
                 isPlaybackSurfaceActive = !isInPipMode,
                 hintDismissed = longPressSpeedHintDismissed,
+                hintHidden = longPressSpeedHintHidden,
             ),
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -4358,7 +4430,7 @@ fun VideoPlayerSection(
                 slideOutVertically(targetOffsetY = { -it })
         ) {
             AppSurface(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = Color.Black.copy(alpha = 0.56f),
                 contentColor = Color.White,
                 tonalElevation = 0.dp
@@ -4370,21 +4442,32 @@ fun VideoPlayerSection(
                         } else {
                             "倍速播放中 ${effectiveLongPressSpeed}x"
                         },
-                        modifier = Modifier.padding(start = 14.dp, end = 2.dp, top = 8.dp, bottom = 8.dp),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
+                        modifier = Modifier.padding(
+                            start = 10.dp,
+                            end = if (shouldShowLongPressSpeedHintCloseButton(longPressSpeedHintCloseEnabled)) {
+                                2.dp
+                            } else {
+                                10.dp
+                            },
+                            top = 6.dp,
+                            bottom = 6.dp,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium
                         )
                     )
-                    AppIconButton(
-                        onClick = { longPressSpeedHintDismissed = true },
-                        modifier = Modifier.size(48.dp),
-                    ) {
-                        AppIcon(
-                            imageVector = CupertinoIcons.Default.Xmark,
-                            contentDescription = "关闭倍速提示",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp),
-                        )
+                    if (shouldShowLongPressSpeedHintCloseButton(longPressSpeedHintCloseEnabled)) {
+                        AppIconButton(
+                            onClick = { longPressSpeedHintDismissed = true },
+                            modifier = Modifier.size(40.dp),
+                        ) {
+                            AppIcon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "关闭倍速提示",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     }
                 }
             }

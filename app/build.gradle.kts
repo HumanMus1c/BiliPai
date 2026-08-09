@@ -120,10 +120,10 @@ android {
         applicationId = "com.android.purebilibili"
         minSdk = 26
         targetSdk = 35  // 保持35以避免Android 16的新运行时行为
-        // 版本：YY.MMDD.N（两位年.月日.当日第 N 次构建）+ versionCode 单调 +1
+        // 版本：语义化 X.Y.Z（MAJOR.MINOR.PATCH）+ versionCode 单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 283
-        versionName = "26.0805.1"
+        versionCode = 288
+        versionName = "0.2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -527,6 +527,9 @@ dependencies {
     // --- 12. Testing (测试框架) ---
     // JUnit 4 (兼容旧测试)
     testImplementation("junit:junit:4.13.2")
+    // 真实 org.json 实现：android.jar 的 org.json 在单测里是桩（returnDefaultValues 下
+    // 静默返回空值），CommandDanmakuPolicy 等生产解析路径需要真实实现才能单测。
+    testImplementation("org.json:json:20240303")
     // JUnit 5
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")

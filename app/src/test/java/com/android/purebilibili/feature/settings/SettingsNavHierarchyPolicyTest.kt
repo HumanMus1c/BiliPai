@@ -88,57 +88,28 @@ class SettingsNavHierarchyPolicyTest {
                 childRoute = "settings",
             )
         )
-        assertFalse(
+        assertTrue(
             isSettingsNavHierarchyTransition(
                 parentRoute = "home",
                 childRoute = "settings",
             )
         )
+        assertTrue(
+            isSettingsNavHierarchyTransition(
+                parentRoute = "dynamic",
+                childRoute = "settings",
+            )
+        )
+        assertFalse(
+            isSettingsNavHierarchyTransition(
+                parentRoute = "home",
+                childRoute = "appearance_settings",
+            )
+        )
     }
 
-    @Test
-    fun resolveSettingsNavRouteTransition_returnsIosPushForHierarchy() {
-        assertEquals(
-            BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_FORWARD,
-            resolveSettingsNavRouteTransition(
-                fromRoute = "settings",
-                toRoute = "settings_category",
-                forward = true,
-            )
-        )
-        assertEquals(
-            BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP,
-            resolveSettingsNavRouteTransition(
-                fromRoute = "appearance_settings",
-                toRoute = "settings",
-                forward = false,
-            )
-        )
-        assertEquals(
-            BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_FORWARD,
-            resolveSettingsNavRouteTransition(
-                fromRoute = "settings",
-                toRoute = "appearance_settings",
-                forward = true,
-            )
-        )
-        assertEquals(
-            BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_FORWARD,
-            resolveSettingsNavRouteTransition(
-                fromRoute = "profile",
-                toRoute = "settings",
-                forward = true,
-            )
-        )
-        assertEquals(
-            BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP,
-            resolveSettingsNavRouteTransition(
-                fromRoute = "animation_settings",
-                toRoute = "settings_category",
-                forward = false,
-            )
-        )
-    }
+    // forward 决策已迁至 BiliPaiNavEntryProvider（resolveBiliPaiNavEntryForwardRouteTransition，
+    // 见 BiliPaiNavEntryProviderPolicyTest 的 SETTINGS_IOS_PUSH_FORWARD 断言）；pop 决策见下。
 
     @Test
     fun resolveSettingsNavPopTransition_remapsMainHostWhenSettingsTabActive() {
@@ -166,6 +137,22 @@ class SettingsNavHierarchyPolicyTest {
                 activeMainHostRoute = "profile",
             )
         )
+        assertEquals(
+            BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP,
+            resolveSettingsNavPopTransition(
+                fromKey = BiliPaiNavKey.Settings,
+                toKey = BiliPaiNavKey.MainHost,
+                activeMainHostRoute = "home",
+            )
+        )
+        assertEquals(
+            BiliPaiNavRouteTransition.SETTINGS_IOS_PUSH_POP,
+            resolveSettingsNavPopTransition(
+                fromKey = BiliPaiNavKey.Settings,
+                toKey = BiliPaiNavKey.MainHost,
+                activeMainHostRoute = "dynamic",
+            )
+        )
         assertNull(
             resolveSettingsNavPopTransition(
                 fromKey = BiliPaiNavKey.AppearanceSettings,
@@ -182,5 +169,26 @@ class SettingsNavHierarchyPolicyTest {
             BiliPaiNavKey.SettingsCategory(SettingsRootCategory.CONTENT_PLAYBACK)
         )
         assertEquals(SettingsRootCategory.PLAYBACK_QUALITY, category)
+    }
+
+    @Test
+    fun singleEntryCategory_directlyTargetsNextLevel() {
+        // 「外观与主题」分类页只有一个「外观设置」入口 → 点击分类直接进外观设置页
+        assertEquals(
+            BiliPaiNavKey.AppearanceSettings,
+            resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.APPEARANCE_THEME),
+        )
+    }
+
+    @Test
+    fun multiEntryOrInlineCategories_keepCategoryScreen() {
+        // 播放/首页/隐私等分类含内联设置或多个入口,保留中间层
+        assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.PLAYBACK_QUALITY))
+        assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.HOME_RECOMMENDATION))
+        assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.NAVIGATION_INTERACTION))
+        assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.PRIVACY_PERMISSION))
+        assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.STORAGE_BACKUP))
+        assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.PLUGINS_EXTENSIONS))
+        assertNull(resolveSettingsCategoryDirectTargetKey(SettingsRootCategory.SYSTEM_ABOUT))
     }
 }

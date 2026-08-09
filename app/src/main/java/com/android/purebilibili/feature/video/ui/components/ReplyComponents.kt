@@ -22,9 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
-//  Cupertino Icons - iOS SF Symbols 风格图标
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.filled.MoreVert
@@ -183,6 +181,16 @@ internal fun resolveReplyItemLayoutPolicy(): ReplyItemLayoutPolicy {
         decorationImageHeightDp = 36,
         decorationMinWidthDp = 64
     )
+}
+
+/**
+ * B站头像框素材按「外框画布 > 脸部圆形」绘制：框铺满外层，脸居中缩小，
+ * 否则框与脸同尺寸会挤在边缘、前后层看起来错位。
+ */
+internal const val REPLY_AVATAR_FACE_FRACTION_WITH_PENDANT = 0.72f
+
+internal fun resolveReplyAvatarFaceFraction(hasPendant: Boolean): Float {
+    return if (hasPendant) REPLY_AVATAR_FACE_FRACTION_WITH_PENDANT else 1f
 }
 
 internal fun resolveReplyItemHeaderEndPaddingDp(
@@ -1538,7 +1546,7 @@ fun ReplyItemView(
                     if (onDeleteClick != null) {
                         Spacer(modifier = Modifier.width(16.dp))
                         AppIcon(
-                            imageVector = CupertinoIcons.Default.Trash,
+                            imageVector = Icons.Outlined.Delete,
                             contentDescription = "Delete",
                             tint = appearance.actionTint,
                             modifier = Modifier
@@ -2323,11 +2331,15 @@ internal fun ReplyMemberAvatar(
     onClick: (() -> Unit)? = null
 ) {
     val pendantImageUrl = remember(member) { resolveReplyMemberPendantImage(member) }
+    val hasPendant = !pendantImageUrl.isNullOrBlank()
+    val faceFraction = resolveReplyAvatarFaceFraction(hasPendant)
     Box(
         modifier = modifier.then(
             if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
-        )
+        ),
+        contentAlignment = Alignment.Center
     ) {
+        // Face first (under), slightly smaller when a frame is present.
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(FormatUtils.fixImageUrl(member.avatar))
@@ -2336,11 +2348,12 @@ internal fun ReplyMemberAvatar(
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxSize(faceFraction)
                 .clip(CircleShape)
                 .background(placeholderColor)
         )
-        if (!pendantImageUrl.isNullOrBlank()) {
+        // Frame/pendant on top so the ring sits around the face.
+        if (hasPendant) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(pendantImageUrl)

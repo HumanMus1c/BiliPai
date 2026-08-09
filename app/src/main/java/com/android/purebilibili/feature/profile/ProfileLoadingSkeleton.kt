@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.profile
 
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -133,7 +134,7 @@ private fun ProfilePhoneLoadingSkeleton(blockColor: Color) {
                             topEnd = layoutTokens.contentSheetTopRadiusDp.dp,
                         ),
                     )
-                    .background(MaterialTheme.colorScheme.surface)
+                    .background(AppSurfaceTokens.surface())
                     .padding(horizontal = 20.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {

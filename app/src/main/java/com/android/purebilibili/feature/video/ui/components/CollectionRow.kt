@@ -24,9 +24,9 @@ import com.android.purebilibili.core.ui.rememberAppShareIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.data.model.response.UgcSeason
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.ChevronForward
-import io.github.alexzhirkevich.cupertino.icons.outlined.Folder
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Folder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
@@ -87,7 +87,7 @@ fun CollectionRow(
                 contentAlignment = Alignment.Center
             ) {
                 AppIcon(
-                    CupertinoIcons.Default.Folder,
+                    Icons.Outlined.Folder,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
@@ -171,7 +171,7 @@ fun CollectionRow(
             
             //  右侧箭头
             AppIcon(
-                CupertinoIcons.Default.ChevronForward,
+                Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                 contentDescription = "查看合集",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(16.dp)

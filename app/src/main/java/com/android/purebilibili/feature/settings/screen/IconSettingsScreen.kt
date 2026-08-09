@@ -45,9 +45,9 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.theme.*
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.core.ui.resolveBottomSafeAreaPadding
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.Info
-import io.github.alexzhirkevich.cupertino.icons.filled.CheckmarkCircle
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
@@ -205,7 +205,7 @@ fun IconSettingsContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AppIcon(
-                        CupertinoIcons.Outlined.Info,
+                        Icons.Outlined.Info,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(20.dp)
@@ -303,7 +303,7 @@ fun IconSettingsContent(
                                     .offset(x = 6.dp, y = 6.dp)
                             ) {
                                 AppIcon(
-                                    CupertinoIcons.Filled.CheckmarkCircle,
+                                    Icons.Filled.CheckCircle,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier

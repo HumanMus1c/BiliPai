@@ -319,11 +319,14 @@ interface BilibiliApi {
 
     @GET("x/v3/fav/resource/list")
     suspend fun getFavoriteList(
-        @Query("media_id") mediaId: Long, 
+        @Query("media_id") mediaId: Long,
         @Query("pn") pn: Int = 1,
         @Query("ps") ps: Int = 20,
         @Query("keyword") keyword: String? = null,
         @Query("order") order: String? = null,
+        // 文档：type 0=当前收藏夹，1=全部；tid 0=全部分区；ps 定义域 1-20
+        @Query("type") type: Int = 0,
+        @Query("tid") tid: Int = 0,
         @Query("platform") platform: String = "web"
     ): FavoriteResourceResponse
 
@@ -362,6 +365,13 @@ interface BilibiliApi {
     //  移动端推荐流 API (需要 access_token + appkey 签名)
     @GET("https://app.bilibili.com/x/v2/feed/index")
     suspend fun getMobileFeed(@QueryMap params: Map<String, String>): MobileFeedResponse
+
+    //  合并模式 App 半边专用: 参数已按 PiliPlus/PiliNara 规范 percent-encode 后签名,
+    //  用 encoded=true 原样发送, 避免 Retrofit 二次编码导致签名不一致(-403/-400)
+    @GET("https://app.bilibili.com/x/v2/feed/index")
+    suspend fun getMobileFeedEncoded(
+        @QueryMap(encoded = true) params: @JvmSuppressWildcards Map<String, String>
+    ): MobileFeedResponse
 
     @GET("https://app.bilibili.com/x/feed/dislike")
     suspend fun submitMobileFeedDislike(
@@ -439,6 +449,18 @@ interface BilibiliApi {
         @Query("page") page: Int = 1,
         @Query("sort_type") sortType: String = "online"
     ): LiveSecondAreaResponse
+
+    // PiliPlus-aligned app live home feed
+    @GET("https://api.live.bilibili.com/xlive/app-interface/v2/index/feed")
+    suspend fun getLiveFeedIndex(
+        @QueryMap params: Map<String, String>
+    ): com.android.purebilibili.data.model.response.LiveFeedIndexResponse
+
+    // PiliPlus-aligned app second-area list (supports new_tags sort chips)
+    @GET("https://api.live.bilibili.com/xlive/app-interface/v2/second/getList")
+    suspend fun getLiveAppSecondList(
+        @QueryMap params: Map<String, String>
+    ): com.android.purebilibili.data.model.response.LiveAppSecondListResponse
     
     //  [新增] 获取直播间初始化信息 (真实房间号)
     @GET("https://api.live.bilibili.com/room/v1/Room/room_init")
@@ -2402,12 +2424,16 @@ object NetworkModule {
                 val isFavoriteEndpoint = url.encodedPath.contains("/x/v3/fav/") ||
                     url.encodedPath.contains("/x/space/fav/")
                 if (isFavoriteEndpoint) {
+                    val mediaId = url.queryParameter("media_id")
                     val favoriteMid = url.queryParameter("up_mid")
                         ?: TokenManager.midCache?.takeIf { it > 0L }?.toString()
-                    referer = if (favoriteMid.isNullOrEmpty()) {
-                        "https://space.bilibili.com/"
-                    } else {
-                        "https://space.bilibili.com/$favoriteMid/favlist"
+                    referer = when {
+                        // resource/list 走收藏夹详情页 Referer，贴近网页请求，降低 412 风控
+                        !mediaId.isNullOrEmpty() ->
+                            "https://www.bilibili.com/medialist/detail/ml$mediaId"
+                        !favoriteMid.isNullOrEmpty() ->
+                            "https://space.bilibili.com/$favoriteMid/favlist"
+                        else -> "https://space.bilibili.com/"
                     }
                 }
 
@@ -2423,7 +2449,11 @@ object NetworkModule {
                 }
 
                 val androidHdLoginAppKeyHeader = resolveAndroidHdLoginAppKeyHeader(url.encodedPath)
-                val isAndroidHdLoginEndpoint = androidHdLoginAppKeyHeader != null
+                //  合并模式 App 半边(匿名 android_hd 取流)同样需要 HD 身份头(UA/app-key/buvid),
+                //  仅当请求带 mobi_app=android_hd 时命中, 不影响原 TV 取流(mobi_app=android)
+                val isHdFeedRequest = url.encodedPath == "/x/v2/feed/index" &&
+                    url.queryParameter("mobi_app") == "android_hd"
+                val isAndroidHdLoginEndpoint = androidHdLoginAppKeyHeader != null || isHdFeedRequest
                 val builder = original.newBuilder()
                     .header(
                         "User-Agent",
@@ -2436,9 +2466,9 @@ object NetworkModule {
                 if (!isAndroidHdLoginEndpoint) {
                     builder.header("Origin", origin) //  动态 Origin 头
                 }
-                if (androidHdLoginAppKeyHeader != null) {
+                if (androidHdLoginAppKeyHeader != null || isHdFeedRequest) {
                     builder
-                        .header("app-key", androidHdLoginAppKeyHeader)
+                        .header("app-key", androidHdLoginAppKeyHeader ?: "android_hd")
                         .header("buvid", TokenManager.buvid3Cache.orEmpty())
                         .header("bili-http-engine", "cronet")
                         .header("env", "prod")

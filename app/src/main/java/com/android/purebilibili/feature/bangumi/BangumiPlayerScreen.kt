@@ -7,6 +7,7 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.widget.Toast
+import android.annotation.SuppressLint
 import com.android.purebilibili.core.player.HiResCompatibleRenderersFactory
 import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import androidx.compose.foundation.background
@@ -47,6 +48,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  *  [重构] 简化后的主屏幕，播放器组件已拆分到 ui/player/ 目录
  */
 @OptIn(ExperimentalMaterial3Api::class)
+// ExoPlayer.Builder 与渲染器工厂属 media3 unstable API：屏幕在应用层封装后消费，opt-in 标记会级联污染导航调用方。
+@SuppressLint("UnsafeOptInUsageError")
 @Composable
 fun BangumiPlayerScreen(
     seasonId: Long,

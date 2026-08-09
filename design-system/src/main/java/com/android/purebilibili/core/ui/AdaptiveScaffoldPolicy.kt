@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui
 
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 
 enum class AdaptiveScaffoldRenderer {
     MATERIAL3_SCAFFOLD,
@@ -9,18 +8,13 @@ enum class AdaptiveScaffoldRenderer {
 }
 
 fun resolveAdaptiveScaffoldRenderer(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
-): AdaptiveScaffoldRenderer = when (
-    resolvePresetPrimitiveRenderer(uiPreset, androidNativeVariant)
-) {
-    PresetPrimitiveRenderer.MIUIX_BRIDGED -> AdaptiveScaffoldRenderer.MIUIX_SCAFFOLD_WITH_POPUP_HOST
-    PresetPrimitiveRenderer.IOS,
-    PresetPrimitiveRenderer.MATERIAL3 -> AdaptiveScaffoldRenderer.MATERIAL3_SCAFFOLD
+    uiStyle: AppUiStyle
+): AdaptiveScaffoldRenderer = when (uiStyle) {
+    AppUiStyle.MIUIX -> AdaptiveScaffoldRenderer.MIUIX_SCAFFOLD_WITH_POPUP_HOST
+    AppUiStyle.MATERIAL3 -> AdaptiveScaffoldRenderer.MATERIAL3_SCAFFOLD
 }
 
 fun shouldMountMiuixPopupHostOnAdaptiveScaffold(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant
-): Boolean = resolveAdaptiveScaffoldRenderer(uiPreset, androidNativeVariant) ==
+    uiStyle: AppUiStyle
+): Boolean = resolveAdaptiveScaffoldRenderer(uiStyle) ==
     AdaptiveScaffoldRenderer.MIUIX_SCAFFOLD_WITH_POPUP_HOST

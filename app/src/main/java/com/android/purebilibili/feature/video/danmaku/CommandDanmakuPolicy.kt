@@ -112,9 +112,9 @@ internal fun filterVisibleCommandDanmakuItems(
 }
 
 internal fun buildCommandDanmakuItem(cmd: DanmakuProto.CommandDm): CommandDanmakuItem? {
-    val commandType = cmd.command.trim().uppercase()
+    val commandType = cmd.command.orEmpty().trim().uppercase()
     if (commandType in NON_VISUAL_COMMAND_TYPES) return null
-    val extra = cmd.extra.trim()
+    val extra = cmd.extra.orEmpty().trim()
 
     val voteKind = resolveVoteKind(commandType)
     val type = when {
@@ -144,6 +144,11 @@ internal fun buildCommandDanmakuItem(cmd: DanmakuProto.CommandDm): CommandDanmak
         // 解析失败：降级为文本卡片，保持原有"投票提示"展示行为
     }
 
+    val fallbackType = if (type == CommandDanmakuType.VOTE) {
+        CommandDanmakuType.TEXT
+    } else {
+        type
+    }
     val text = extractReadableCommandText(cmd.content)
         ?: extractReadableCommandText(cmd.extra)
         ?: when (type) {
@@ -156,7 +161,7 @@ internal fun buildCommandDanmakuItem(cmd: DanmakuProto.CommandDm): CommandDanmak
         ?: return null
     return CommandDanmakuItem(
         id = "cmd_${cmd.id}",
-        type = type,
+        type = fallbackType,
         content = when (type) {
             CommandDanmakuType.LINK -> extractJsonString(extra, "title").orEmpty().ifBlank { text }
             else -> text
@@ -206,17 +211,17 @@ private fun parseVoteDanmakuData(
     cmd: DanmakuProto.CommandDm,
     kind: VoteDanmakuKind
 ): VoteDanmakuPayload? {
-    val payloadJson = parseJsonObject(cmd.extra.trim()) ?: parseJsonObject(cmd.content.trim())
+    val payloadJson = parseJsonObject(cmd.extra.orEmpty().trim()) ?: parseJsonObject(cmd.content.orEmpty().trim())
     var voteId = ""
     var title = ""
     var options: List<VoteOption>? = null
 
     if (payloadJson != null) {
-        voteId = payloadJson.optString("vote_id", "")
-            .ifBlank { payloadJson.optString("id", "") }
-            .ifBlank { payloadJson.optString("grade_id", "") }
-        title = payloadJson.optString("title", "")
-            .ifBlank { payloadJson.optString("question", "") }
+        voteId = payloadJson.optString("vote_id", "").orEmpty()
+            .ifBlank { payloadJson.optString("id", "").orEmpty() }
+            .ifBlank { payloadJson.optString("grade_id", "").orEmpty() }
+        title = payloadJson.optString("title", "").orEmpty()
+            .ifBlank { payloadJson.optString("question", "").orEmpty() }
         options = parseVoteOptions(payloadJson)
     }
 
@@ -257,14 +262,16 @@ private fun parseVoteOptions(json: JSONObject): List<VoteOption>? {
                 val element = raw.opt(i) ?: continue
                 when (element) {
                     is JSONObject -> {
-                        val id = element.optString("id", "")
-                            .ifBlank { element.optString("value", "") }
+                        val id = element.optString("id", "").orEmpty()
+                            .ifBlank { element.optString("value", "").orEmpty() }
                             .ifBlank { i.toString() }
-                        val label = element.optString("title", "")
-                            .ifBlank { element.optString("name", "") }
-                            .ifBlank { element.optString("text", "") }
-                            .ifBlank { element.optString("label", "") }
                         val score = element.optInt("score", -1).takeIf { it >= 0 }
+                        val label = element.optString("title", "").orEmpty()
+                            .ifBlank { element.optString("name", "").orEmpty() }
+                            .ifBlank { element.optString("text", "").orEmpty() }
+                            .ifBlank { element.optString("label", "").orEmpty() }
+                            // 打分弹幕选项可能只有 id+score，用分数兜底做可读标签
+                            .ifBlank { score?.toString().orEmpty() }
                         if (label.isNotBlank()) {
                             result.add(VoteOption(id = id, label = label, score = score))
                         }
@@ -284,7 +291,7 @@ private fun parseVoteOptions(json: JSONObject): List<VoteOption>? {
             val keys = raw.keys()
             while (keys.hasNext()) {
                 val key = keys.next()
-                val value = raw.optString(key, "")
+                val value = raw.optString(key, "").orEmpty()
                 if (value.isNotBlank()) {
                     result.add(VoteOption(id = key, label = value))
                 }

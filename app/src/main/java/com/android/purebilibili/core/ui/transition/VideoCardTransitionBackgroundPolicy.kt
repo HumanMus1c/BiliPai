@@ -580,7 +580,7 @@ internal fun shouldSourceYieldDepthLayerToHost(
 internal fun shouldUseVideoCardTransitionSnapshotBlur(
     exposure: VideoCardTransitionExposure,
     motionTier: MotionTier,
-    realtimeBlurEnabled: Boolean = true,
+    realtimeBlurEnabled: Boolean = false,
     sdkInt: Int = Build.VERSION.SDK_INT,
 ): Boolean {
     if (!resolveVideoCardTransitionRenderDecision(exposure).updateBlurEffect) return false
@@ -665,8 +665,8 @@ internal class VideoCardTransitionSnapshotLayerState {
     var displayListStale: Boolean = false
     /**
      * 源页 dispose 后置 true：下一次源页挂上 BackPreview/Returning 时强制重录真实首页。
-     * 与 [displayListStale] 不同：不阻止 Host 在 SettledHidden 用 OPENING 冻结帧预热满糊
-     * （中断开场仍有糊；完整进入后 Host 仍可持满糊，直到源页重录刷新）。
+     * 与 [displayListStale] 不同：预测返回可暂用 Host 的冻结层作为首帧景深，随后由来源页
+     * 重录真实内容；普通 pop 仍等待来源页刷新以避免黑帧。
      */
     var needsSourceRefresh: Boolean = false
     var lastBlurRadiusPx: Float = Float.NaN
@@ -697,8 +697,9 @@ internal class VideoCardTransitionSnapshotLayerState {
     }
 
     fun markSourceDetachedForRefresh() {
-        // 不标 displayListStale：Host SettledHidden 仍可尝试画 OPENING 满糊预热。
+        // 下一次 BackPreview 先让 Host 维持冻结景深一个绘制帧，再由来源页重录并接手。
         needsSourceRefresh = true
+        freezeRecording = false
         lastBlurRadiusPx = Float.NaN
     }
 
@@ -808,7 +809,7 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
     isGestureRestoreInProgressProvider: () -> Boolean = { false },
     motionTierProvider: () -> MotionTier = { MotionTier.Normal },
     isLightBackgroundProvider: () -> Boolean = { false },
-    realtimeBlurEnabledProvider: () -> Boolean = { true },
+    realtimeBlurEnabledProvider: () -> Boolean = { false },
     scaleReductionProvider: () -> Float = { VIDEO_CARD_TRANSITION_BACKGROUND_SCALE_REDUCTION },
     snapshotHandle: VideoCardTransitionSnapshotHandle? = null,
 ): Modifier {
@@ -1002,6 +1003,20 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
                 hasRecordedContent = snapshotState.hasRecordedContent,
                 displayListStale = snapshotState.displayListStale,
             )
+        if (
+            needsRecord &&
+            activeExposure == VideoCardTransitionExposure.BackPreview &&
+            !snapshotState.freezeRecording &&
+            isVideoCardTransitionSnapshotDrawable(
+                hasRecordedContent = snapshotState.hasRecordedContent,
+                displayListStale = snapshotState.displayListStale,
+            )
+        ) {
+            // 来源页重挂的第一个预测帧不盖住 Host：Host 先画上一场的满模糊冻结层，
+            // 下一帧再录制真实来源页并按 live back progress 消糊。
+            snapshotState.freezeRecording = true
+            return@drawWithContent
+        }
         if (needsRecord) {
             if (size.width <= 0f || size.height <= 0f) {
                 drawContent()
@@ -1042,6 +1057,16 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
             return@drawWithContent
         }
 
+        // 返回末段 / 预览中段：先画 live content 让 hazeSource 重新登记，
+        // 否则顶栏/底栏 unifiedBlur 在预测返回后会一直空白，直到再次进详情 remount。
+        val shouldPrimeHazeSources = shouldPrimeLiveContentForHazeDuringDepthDraw(
+            exposure = activeExposure,
+            depthProgress = activeProgress,
+        )
+        if (shouldPrimeHazeSources) {
+            drawContent()
+        }
+
         applyVideoCardTransitionSnapshotFrame(
             contentLayer = contentLayer,
             snapshotState = snapshotState,
@@ -1056,6 +1081,7 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
                 )
             )
         }
+        // 景深层仍叠在 live 之上；末段 depth≈0 时层接近清晰，与 live 一致。
         drawLayer(contentLayer)
         VideoCardTransitionDiagnostics.onSourceLayerDrawn()
 
@@ -1067,6 +1093,26 @@ internal fun Modifier.videoCardTransitionBackgroundEffect(
             }
             drawRect(scrimColor.copy(alpha = frame.scrimAlpha))
         }
+    }
+}
+
+/**
+ * When depth is nearly clear during back preview / return / restore, also paint live
+ * content so [hazeSource] areas re-register. Frozen-only draws leave chrome blur empty.
+ *
+ * Progress is depth (1 = full blur held, 0 = clear). Prime when depth ≤ threshold.
+ */
+internal fun shouldPrimeLiveContentForHazeDuringDepthDraw(
+    exposure: VideoCardTransitionExposure,
+    depthProgress: Float,
+    clearThreshold: Float = 0.35f,
+): Boolean {
+    return when (exposure) {
+        VideoCardTransitionExposure.BackPreview,
+        VideoCardTransitionExposure.Returning,
+        VideoCardTransitionExposure.Restoring ->
+            depthProgress.coerceIn(0f, 1f) <= clearThreshold
+        else -> false
     }
 }
 

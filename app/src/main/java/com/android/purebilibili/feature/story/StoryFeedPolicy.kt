@@ -153,6 +153,13 @@ private data class PlayableStoryItem(
     }
 }
 
+/**
+ * Story 流条目转竖屏流推荐项(供详情页竖屏全屏等场景混合多样内容)。
+ * 无法播放(缺 aid/cid)的条目返回 null。
+ */
+internal fun storyItemToRelatedVideo(item: StoryItem): RelatedVideo? =
+    toPlayableStoryItem(item)?.toRelatedVideo()
+
 private fun toPlayableStoryItem(item: StoryItem): PlayableStoryItem? {
     val args = item.playerArgs ?: return null
     val aid = args.aid.takeIf { it > 0L } ?: return null

@@ -125,17 +125,22 @@ import com.android.purebilibili.core.ui.common.rememberClipboardCopyHandler
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
+import com.android.purebilibili.core.ui.AppSpacingTokens
+import com.android.purebilibili.core.ui.feedContentTypography
+import com.android.purebilibili.core.theme.LocalCornerRadiusScale
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
 import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.feature.home.components.cards.videoCardShellReturnChromeAlpha
+import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.core.ui.components.UserLevelBadge
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.data.model.response.FavFolder
+import kotlin.math.roundToInt
 import com.android.purebilibili.data.model.response.FollowBangumiItem
 import com.android.purebilibili.data.model.response.SpaceAggregateArchiveItem
 import com.android.purebilibili.data.model.response.SpaceArticleItem
@@ -806,6 +811,10 @@ private fun SpaceContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    // 投稿网格跟随首页信息流设置（固定列数 / 卡宽预设 / 卡片风格），保证排版与首页 feed 一致。
+    val homeSettings by com.android.purebilibili.core.store.SettingsManager
+        .getHomeSettings(context)
+        .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeSettings())
     val selectedMainTab = state.tabShellState.selectedTab
     val displayedMainTabs = remember(state.mainTabs, selectedMainTab) {
         resolveSpaceDisplayedMainTabs(
@@ -1013,7 +1022,7 @@ private fun SpaceContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .responsiveContentWidth(maxWidth = 980.dp)
+            .responsiveContentWidth(maxWidth = SPACE_CONTENT_MAX_WIDTH_DP.dp)
             .then(modifier)
     ) {
         // [重构] 折叠进度：header 是 index 0，滚动偏移驱动 header 内容上移淡出（视差折叠）；
@@ -1031,17 +1040,31 @@ private fun SpaceContent(
             }
         }
 
+        // 投稿/首页视频网格与首页信息流共用列数与卡片布局策略：用户固定列数优先，
+        // 其次按卡宽预设自适应；间距与封面比例跟随首页卡片风格，保证与首页 feed 排版一致。
+        val gridColumns = resolveSpaceContentGridColumnCount(
+            widthDp = LocalConfiguration.current.screenWidthDp,
+            fixedColumnCount = homeSettings.gridColumnCount,
+            cardWidthPreset = homeSettings.homeFeedCardWidthPreset
+        )
+        val spaceFeedCardLayout = resolveHomeFeedCardLayout(
+            style = homeSettings.homeFeedCardStyle,
+            gridColumns = gridColumns
+        )
+        val spaceFeedCoverAspectRatio = spaceFeedCardLayout.coverAspectRatio
+        val spaceFeedCornerRadius = AppSpacingTokens.Small * LocalCornerRadiusScale.current
+
         LazyVerticalGrid(
-            columns = GridCells.Fixed(
-                resolveSpaceContentGridColumnCount(
-                    widthDp = LocalConfiguration.current.screenWidthDp
-                )
-            ),
+            columns = GridCells.Fixed(gridColumns),
             state = gridState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = bottomInset + 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(
+                start = spaceFeedCardLayout.outerPaddingDp.dp,
+                end = spaceFeedCardLayout.outerPaddingDp.dp,
+                bottom = bottomInset + 24.dp
+            ),
+            horizontalArrangement = Arrangement.spacedBy(spaceFeedCardLayout.itemSpacingDp.dp),
+            verticalArrangement = Arrangement.spacedBy(spaceFeedCardLayout.verticalItemSpacingDp.dp)
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 SpaceHeader(
@@ -1100,6 +1123,8 @@ private fun SpaceContent(
                                 localPositionMs = localProgressMs,
                                 syncedProgress = state.watchProgressByBvid[video.bvid]
                             ),
+                            coverAspectRatio = spaceFeedCoverAspectRatio,
+                            cardCornerRadius = spaceFeedCornerRadius,
                             onClick = { playVideoFromSpace(video.bvid) },
                             sharedTransitionKey = resolveSpaceArchiveSharedTransitionKey(video.bvid),
                             sharedTransitionScope = lazyGridSharedTransitionScope,
@@ -1521,6 +1546,8 @@ private fun SpaceContent(
                                             localPositionMs = localProgressMs,
                                             syncedProgress = state.watchProgressByBvid[video.bvid]
                                         ),
+                                        coverAspectRatio = spaceFeedCoverAspectRatio,
+                                        cardCornerRadius = spaceFeedCornerRadius,
                                         badgeLabel = resolveSpaceVideoChargeBadgeLabel(video),
                                         isLocateHighlight = highlightedLocateBvid == video.bvid &&
                                             isLocateHighlightVisible,
@@ -2902,6 +2929,8 @@ private fun SpaceHomeVideoCard(
     progressState: VideoProgressDisplayState,
     badgeLabel: String? = null,
     isLocateHighlight: Boolean = false,
+    coverAspectRatio: Float = 16f / 9f,
+    cardCornerRadius: Dp = 14.dp,
     onClick: () -> Unit,
     sharedTransitionKey: String? = null,
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -2928,7 +2957,7 @@ private fun SpaceHomeVideoCard(
     val densityValue = density.density
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    val coverShape = RoundedCornerShape(14.dp)
+    val coverShape = RoundedCornerShape(cardCornerRadius)
     val sharedTransitionReady = sharedTransitionKey != null &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
@@ -2961,7 +2990,6 @@ private fun SpaceHomeVideoCard(
 
     Column(
         modifier = modifier
-            .padding(horizontal = 8.dp)
             .videoCardShellSharedBoundsOrEmpty(
                 enabled = useCardShellSharedBounds,
                 sharedTransitionScope = sharedTransitionScope,
@@ -2982,7 +3010,7 @@ private fun SpaceHomeVideoCard(
                         screenWidth = screenWidthPx,
                         screenHeight = screenHeightPx,
                         density = densityValue,
-                        sourceCornerDp = 14
+                        sourceCornerDp = cardCornerRadius.value.roundToInt()
                     )
                 }
                 onClick()
@@ -3006,7 +3034,7 @@ private fun SpaceHomeVideoCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(118.dp)
+                    .aspectRatio(coverAspectRatio)
             )
 
             if (!badgeLabel.isNullOrBlank()) {
@@ -3065,12 +3093,11 @@ private fun SpaceHomeVideoCard(
             Spacer(modifier = Modifier.height(8.dp))
             AppText(
                 text = video.title,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Medium,
+                style = feedContentTypography().title.copy(
+                    color = MaterialTheme.colorScheme.onSurface
+                ),
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
+                overflow = TextOverflow.Ellipsis
             )
             val metadata = remember(video.created, video.play, progressState.progressSec) {
                 buildList {

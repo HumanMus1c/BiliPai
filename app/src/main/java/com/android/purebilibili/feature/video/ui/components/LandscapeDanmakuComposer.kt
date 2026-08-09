@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.video.ui.components
 
+import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
+import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -65,9 +67,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.Paintpalette
-import io.github.alexzhirkevich.cupertino.icons.outlined.Xmark
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Close
 import kotlinx.coroutines.delay
 
 @Composable
@@ -284,7 +286,7 @@ fun LandscapeDanmakuComposer(
                         modifier = Modifier.size(40.dp)
                     ) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Outlined.Xmark,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = "关闭",
                             tint = Color.White.copy(alpha = 0.82f),
                             modifier = Modifier.size(18.dp)
@@ -350,7 +352,7 @@ fun LandscapeDanmakuComposer(
                         modifier = Modifier.size(48.dp)
                     ) {
                         AppIcon(
-                            imageVector = CupertinoIcons.Outlined.Paintpalette,
+                            imageVector = Icons.Outlined.Palette,
                             contentDescription = "弹幕样式",
                             tint = if (showStylePanel) {
                                 MaterialTheme.colorScheme.primary
@@ -379,7 +381,9 @@ fun LandscapeDanmakuComposer(
                         shape = AppShapes.container(ContainerLevel.Pill),
                         contentPadding = PaddingValues(horizontal = 12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
+                            containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+
+                            contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme),
                             disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
                         )
                     ) {

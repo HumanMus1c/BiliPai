@@ -8,21 +8,28 @@ import com.android.purebilibili.core.ui.components.AppSwitch
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.util.CrashReporter
 import com.android.purebilibili.core.theme.BiliPink
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.appContentDialogWidth
+import com.android.purebilibili.core.ui.resolveAppContentDialogLayoutPolicy
+import com.android.purebilibili.core.ui.resolveAppContentDialogProperties
 import kotlinx.coroutines.launch
 
 /**
@@ -36,9 +43,17 @@ fun CrashTrackingConsentDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isEnabled by remember { mutableStateOf(true) }  // 默认开启
+    val dialogLayout = remember { resolveAppContentDialogLayoutPolicy(maxWidthDp = 420) }
     
-    Dialog(onDismissRequest = { /* 不允许点击外部关闭 */ }) {
+    Dialog(
+        onDismissRequest = { /* 不允许点击外部关闭 */ },
+        properties = resolveAppContentDialogProperties(
+            base = DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false),
+            usePlatformDefaultWidth = dialogLayout.usePlatformDefaultWidth,
+        ),
+    ) {
         AppSurface(
+            modifier = Modifier.appContentDialogWidth(policy = dialogLayout),
             shape = AppShapes.container(ContainerLevel.Dialog),
             color = AppSurfaceTokens.cardContainer(),
             tonalElevation = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro,

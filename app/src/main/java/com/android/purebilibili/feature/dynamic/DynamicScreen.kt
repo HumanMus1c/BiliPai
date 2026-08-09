@@ -2,6 +2,7 @@
 package com.android.purebilibili.feature.dynamic
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.components.AppTextField
+import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
@@ -586,7 +587,13 @@ fun DynamicScreen(
                         Box(modifier = Modifier.fillMaxSize().weight(1f)) {
                             HorizontalPager(
                                 state = pagerState,
-                                modifier = Modifier.fillMaxSize(),
+                                userScrollEnabled = false,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalPriorityHorizontalPagerSwipe(
+                                        state = pagerState,
+                                        enabled = true,
+                                    ),
                                 key = { page -> visibleTabs[page].logicalIndex }
                             ) { page ->
                                 val tab = visibleTabs[page]
@@ -722,7 +729,13 @@ fun DynamicScreen(
                     Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                         HorizontalPager(
                             state = pagerState,
-                            modifier = Modifier.fillMaxSize(),
+                            userScrollEnabled = false,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalPriorityHorizontalPagerSwipe(
+                                    state = pagerState,
+                                    enabled = true,
+                                ),
                             key = { page -> visibleTabs[page].logicalIndex }
                         ) { page ->
                             val tab = visibleTabs[page]

@@ -3,8 +3,8 @@
 > 文档编号：UI-05  
 > 规范版本：1.0.0-draft  
 > 状态：草案  
-> 最后核对日期：2026-08-02  
-> 适用提交：4443e72ff  
+> 最后核对日期：2026-08-04  
+> 适用提交：55ed2356a  
 > 维护角色：设计系统维护者  
 > 相关文档：[页面母版](08_PAGE_TEMPLATES.md) · [导航组件](components/NAVIGATION_CHROME.md)
 
@@ -30,8 +30,8 @@
 | 场景 | 当前源码事实 | 目标使用方式 |
 |---|---|---|
 | 设置 | 约 840dp 开始双栏 | 设置目录与详情并排，返回语义不能重复 |
-| 搜索 | 600/840/1600dp 等分段 | 控制结果列数、侧区和内容最大宽度 |
-| 视频 | 960/1600dp 等媒体断点 | 播放器、详情和评论按空间重排 |
+| 搜索 | 600/840dp 等分段 | 控制结果列数、侧区和内容最大宽度 |
+| 视频 | 无独立媒体断点，播放器/详情/评论按布局策略重排 | 播放器、详情和评论按空间重排 |
 
 - **必须**在页面档案中说明任何特例断点的原因、结构变化和回退布局。
 - **禁止**把某页面特例提升成全局 Token，除非至少三类页面验证共享语义。
@@ -78,20 +78,20 @@ Expanded（同一语义顺序）
 
 ```kotlin
 BoxWithConstraints {
-    if (maxWidth >= 840.dp) {
-        AppSplitLayout(list = listPane, detail = detailPane)
-    } else {
-        listPane()
-    }
+    AppAdaptiveSplitLayout(
+        useSplitLayout = maxWidth >= 840.dp,
+        primaryContent = { listPane() },
+        secondaryContent = { detailPane() },
+    )
 }
 ```
 
-真实页面优先使用已有自适应策略与 `AppSplitLayout`，示例只解释思路。
+真实页面优先使用已有自适应策略与 `AppAdaptiveSplitLayout`，示例只解释思路。
 
 ## 代码映射
 
 - 公共外壳：`AdaptiveChrome.kt` 中的 `AppScaffold`、`AppTopBar`
-- 分栏：`SplitLayout.kt` 中的 `AppSplitLayout`
+- 分栏：`AppSplitLayout.kt` 中的 `AppAdaptiveSplitLayout`
 - 设备能力：`DeviceUiProfile`
 - 设置宽屏外壳：`SettingsTabletShell.kt`、`SettingsTabletRouteShell.kt`
 - 搜索布局：`SearchScreen.kt` 及其布局策略

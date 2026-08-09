@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-26.0805.1-007AFF?style=flat-square&labelColor=ffffff" alt="Release 26.0805.1" />
+  <img src="https://img.shields.io/badge/Release-0.2.0-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.0" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -175,7 +175,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-26.0805.1-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-26.0805.1.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
+完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.0-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.0.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
 
 `google-services.json` 是可选项：放入 `app/` 后启用 Firebase Crashlytics / Analytics；缺失时构建脚本会跳过相关能力。
 
@@ -196,14 +196,13 @@ cd BiliPai
 
 ## 最近更新
 
-当前构建为 `26.0805.1 / versionCode 283`（日历号 `YY.MMDD.N`）；最新完整发布记录为 `v26.0805.1`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前构建为 `0.2.2 / versionCode 287`（语义化 `MAJOR.MINOR.PATCH`）；最新完整发布记录为 `v0.2.1`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 构建基线升级至 AGP 9.3.1 / Gradle 9.5 / Compose BOM 2026.06.01。
-- Navigation3 runtime/UI 对齐至官方 `1.2.0-alpha07`，继续收敛预测返回真实来源页与整卡稳定性。
-- 视频详情整卡过渡新增冻结会话、稳态隐藏景深层和连续播放器返回策略，并扩展性能门槛。
-- 首页顶部、底部、分段控件和详情操作区复用同源液态玻璃 chrome。
-- 动态转发文本支持表情图片和原动态跳转；搜索顶栏与全屏 FILL 视口稳定性继续修复。
-- 平板首页侧边栏新增可开关的账号切换入口；横屏全屏可直接打开评论与楼中楼侧边面板。
+- 版本号恢复 `X.Y.Z`；实时画面转场 / 转场模糊 / 底栏模糊 / 播放器洞察默认关闭。
+- 首页推荐新增 App+Web 合并模式；搜索页重构（热搜/历史/发现、筛选表、对比度与 IME）。
+- 整卡与预测返回：live-surface 开关、HDR 不降画质、落位与 haze 修复；收藏合集返回对齐首页 morph。
+- 听视频浅色可读、操作 sheet 主题色；收藏夹 API 对齐降低风控；直播 LiveList/SC/清晰度表。
+- 平板侧栏默认开、对话框限宽；DLNA SSDP 双网卡发现加固。
 
 ## 路线图
 

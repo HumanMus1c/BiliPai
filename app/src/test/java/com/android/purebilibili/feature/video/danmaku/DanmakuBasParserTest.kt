@@ -79,9 +79,9 @@ class DanmakuBasParserTest {
         assertEquals(30f, result.rotateZ)
         assertEquals(0.5f, result.startX)
         assertEquals(0.1f, result.startY)
-        // 缺省位移 = 起点
+        // 缺省位移 = 起点 (beginY = 0.1)
         assertEquals(0.5f, result.endX)
-        assertEquals(0.5f, result.endY)
+        assertEquals(0.1f, result.endY)
         // 缺省透明度 = 1.0
         assertEquals(1.0f, result.alphaStart)
         assertEquals(1.0f, result.alphaEnd)

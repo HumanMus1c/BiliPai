@@ -1,6 +1,9 @@
 package com.android.purebilibili.feature.settings
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Palette
@@ -11,13 +14,6 @@ import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.ui.AppSemanticAccentPalette
 import com.android.purebilibili.core.ui.AppSemanticVisualPolicy
 import com.android.purebilibili.core.ui.resolveAppSemanticAccentPalette
-import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.outlined.DocOnDoc
-import io.github.alexzhirkevich.cupertino.icons.outlined.Gift
-import io.github.alexzhirkevich.cupertino.icons.outlined.HandTap
-import io.github.alexzhirkevich.cupertino.icons.outlined.House
-import io.github.alexzhirkevich.cupertino.icons.outlined.TextBubble
-import io.github.alexzhirkevich.cupertino.icons.outlined.XmarkCircle
 import com.android.purebilibili.core.theme.iOSBlue
 import com.android.purebilibili.core.theme.iOSPink
 import org.junit.Assert.assertEquals
@@ -50,15 +46,15 @@ class SettingsEntryVisualPolicyTest {
     @Test
     fun `settings scene entries should use semantic icons`() {
         assertEquals(
-            CupertinoIcons.Outlined.House,
+            Icons.Outlined.Home,
             resolveSettingsEntryVisual(SettingsSearchTarget.HOME_FEED).icon
         )
         assertEquals(
-            CupertinoIcons.Outlined.TextBubble,
+            Icons.Outlined.ChatBubbleOutline,
             resolveSettingsEntryVisual(SettingsSearchTarget.INTERACTION_COMMENT).icon
         )
         assertEquals(
-            CupertinoIcons.Outlined.DocOnDoc,
+            Icons.Outlined.Backup,
             resolveSettingsEntryVisual(SettingsSearchTarget.DATA_BACKUP).icon
         )
     }
@@ -67,14 +63,14 @@ class SettingsEntryVisualPolicyTest {
     fun `blocked list should use explicit blocked semantic icon`() {
         val visual = resolveSettingsEntryVisual(SettingsSearchTarget.BLOCKED_LIST)
         assertNotNull(visual.icon)
-        assertEquals(CupertinoIcons.Outlined.XmarkCircle, visual.icon)
+        assertEquals(Icons.Outlined.Block, visual.icon)
     }
 
     @Test
     fun `donate should use gift semantic icon`() {
         val visual = resolveSettingsEntryVisual(SettingsSearchTarget.DONATE)
         assertNotNull(visual.icon)
-        assertEquals(CupertinoIcons.Outlined.Gift, visual.icon)
+        assertEquals(Icons.Outlined.CardGiftcard, visual.icon)
     }
 
     @Test
@@ -126,7 +122,7 @@ class SettingsEntryVisualPolicyTest {
     @Test
     fun `fullscreen gesture entry should use gesture semantic icon`() {
         assertEquals(
-            CupertinoIcons.Outlined.HandTap,
+            Icons.Outlined.TouchApp,
             resolveSettingsEntryVisual(SettingsSearchTarget.FULLSCREEN_GESTURE).icon
         )
         assertEquals(

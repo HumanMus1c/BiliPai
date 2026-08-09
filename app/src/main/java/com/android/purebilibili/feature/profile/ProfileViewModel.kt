@@ -38,6 +38,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -393,18 +395,23 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         val targets = resolveProfileFavoritePreviewCoverTargets(folders)
         if (targets.isEmpty()) return
 
+        // 限制并发：收藏夹 resource/list 对突发并发较敏感，易触发 412/429
+        val coverFetchSemaphore = Semaphore(2)
         val coversByMediaId = supervisorScope {
             targets.map { target ->
                 async {
-                    val cover = FavoriteRepository.getFavoriteList(
-                        mediaId = target.mediaId,
-                        pn = 1
-                    ).getOrNull()
-                        ?.medias
-                        ?.firstOrNull { it.cover.isNotBlank() }
-                        ?.cover
-                        .orEmpty()
-                    target.mediaId to cover
+                    coverFetchSemaphore.withPermit {
+                        val cover = FavoriteRepository.getFavoriteList(
+                            mediaId = target.mediaId,
+                            pn = 1,
+                            ps = 1
+                        ).getOrNull()
+                            ?.medias
+                            ?.firstOrNull { it.cover.isNotBlank() }
+                            ?.cover
+                            .orEmpty()
+                        target.mediaId to cover
+                    }
                 }
             }.awaitAll()
         }.filter { (_, cover) -> cover.isNotBlank() }

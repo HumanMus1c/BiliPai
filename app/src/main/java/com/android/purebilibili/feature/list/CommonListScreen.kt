@@ -14,6 +14,7 @@ import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -70,7 +71,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.DisposableEffect // [Fix] Missing import
 import kotlinx.coroutines.launch // [Fix] Import
-//  Cupertino Icons - iOS SF Symbols 风格图标
+//  Material Icons
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChipDefaults
@@ -119,7 +120,7 @@ import com.android.purebilibili.core.ui.rememberAppChromeLiquidGlassEnabled
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
 import com.android.purebilibili.core.ui.components.AppSearchField
 import com.android.purebilibili.core.ui.animation.DissolveAnimationPreset
-import com.android.purebilibili.core.ui.animation.DissolvableVideoCard
+import com.android.purebilibili.core.ui.animation.MaybeDissolvableVideoCard
 import com.android.purebilibili.core.ui.animation.jiggleOnDissolve
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
@@ -862,7 +863,13 @@ fun CommonListScreen(
 
                         HorizontalPager(
                             state = pagerState,
-                            modifier = Modifier.fillMaxSize(),
+                            userScrollEnabled = false,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalPriorityHorizontalPagerSwipe(
+                                    state = pagerState,
+                                    enabled = true,
+                                ),
                             beyondViewportPageCount = 1 // 预加载
                         ) { page ->
                             // 获取当前页面的状态
@@ -1916,7 +1923,7 @@ private fun CommonListContent(
                     }
 
                     if (supportsHistoryDissolve) {
-                        DissolvableVideoCard(
+                        MaybeDissolvableVideoCard(
                             isDissolving = isDissolving,
                             onDissolveComplete = { onHistoryDissolveComplete(historyKey) },
                             cardId = historyKey,

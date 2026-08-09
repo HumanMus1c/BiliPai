@@ -166,6 +166,8 @@ class VideoDetailScreenPolicyTest {
         assertTrue(relatedVideoSource.contains("switchVideoInCurrentDetailPage("))
         assertTrue(relatedVideoSource.contains("onVideoClick(targetBvid, navOptions)"))
         assertTrue(relatedVideoSource.contains("relatedNavigationScope.launch"))
+        // 相关推荐 push / 同页切集前必须清掉单例弹幕会话，避免新页绑定时弹幕不显示。
+        assertTrue(relatedVideoSource.contains("sharedDanmakuManager.clearForVideoChange()"))
         assertTrue(
             source.contains("presentationState.switchVideo(normalizedBvid, safeCid)") &&
                 source.contains("viewModel.loadVideo(")
@@ -177,6 +179,7 @@ class VideoDetailScreenPolicyTest {
         assertFalse(switchSource.contains("force = true"))
         assertTrue(switchSource.contains("resolveUgcSeasonEpisodeCoverUrl("))
         assertTrue(switchSource.contains("pendingInPageSwitchCoverUrl"))
+        assertTrue(switchSource.contains("sharedDanmakuManager.clearForVideoChange()"))
     }
 
     @Test

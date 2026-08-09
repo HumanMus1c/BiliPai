@@ -96,8 +96,8 @@ class HomePagerSyncPolicyTest {
     }
 
     @Test
-    fun homeTopLiveCategory_isDisplayedInline() {
-        assertTrue(shouldDisplayHomeTopCategoryInline(HomeCategory.LIVE))
+    fun homeTopLiveCategory_isNotDisplayedInline_routesToLiveList() {
+        assertFalse(shouldDisplayHomeTopCategoryInline(HomeCategory.LIVE))
         assertTrue(shouldDisplayHomeTopCategoryInline(HomeCategory.RECOMMEND))
     }
 

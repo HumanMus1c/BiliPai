@@ -14,7 +14,9 @@ import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.feature.home.HomeGlassResolvedColors
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import com.android.purebilibili.core.theme.AndroidNativeVariant
+import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.ui.resolveAppTopChromePolicy
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -489,7 +491,7 @@ class HomeHeaderVisualPolicyTest {
     @Test
     fun `home header collapse distance includes search spacing before pinned tabs`() {
         assertEquals(
-            54.dp, // 48 search + 6 searchToTabs
+            59.dp, // 48 search + 6 searchToTabs + 5 collapseExtra（2B 迁移：iOS 输入并入 MIUIX）
             resolveHomeTopSearchCollapseDistance(
                 searchBarHeight = 48.dp,
                 uiPreset = UiPreset.IOS
@@ -508,14 +510,27 @@ class HomeHeaderVisualPolicyTest {
     fun `home header trims horizontal spacing without cramping controls`() {
         assertEquals(14.dp, resolveHomeTopSearchRowHorizontalPadding())
         assertEquals(16.dp, resolveHomeTopSearchRowHorizontalPadding(UiPreset.MD3))
-        assertEquals(44.dp, resolveHomeTopSearchPillHeight())
-        assertEquals(52.dp, resolveHomeTopSearchPillHeight(UiPreset.MD3))
-        assertEquals(2.dp, resolveHomeTopTabHorizontalPadding(isTabFloating = true))
-        assertEquals(2.dp, resolveHomeTopTabHorizontalPadding(isTabFloating = true, uiPreset = UiPreset.MD3))
+        // 两主题统一：搜索胶囊与头像、设置按钮同高（36dp）。
+        assertEquals(36.dp, resolveHomeTopSearchPillHeight())
+        assertEquals(36.dp, resolveHomeTopSearchPillHeight(UiPreset.MD3))
+        // 分栏轨道与搜索行共用同一水平内边距，保证左右对齐。
+        assertEquals(14.dp, resolveHomeTopTabHorizontalPadding(isTabFloating = true))
+        assertEquals(16.dp, resolveHomeTopTabHorizontalPadding(isTabFloating = true, uiPreset = UiPreset.MD3))
         assertEquals(6.dp, resolveHomeTopSearchToTabsSpacing())
         assertEquals(6.dp, resolveHomeTopSearchToTabsSpacing(UiPreset.MD3))
         assertEquals(6.dp, resolveHomeTopTabsToContentSpacing())
         assertEquals(6.dp, resolveHomeTopTabsToContentSpacing(UiPreset.MD3))
+    }
+
+    @Test
+    fun `tab dock max width reuses top controls combined width`() {
+        val material3Policy = resolveAppTopChromePolicy(AppUiStyle.MATERIAL3)
+        val miuixPolicy = resolveAppTopChromePolicy(AppUiStyle.MIUIX)
+        // 三控件合计宽度 = 容器宽度 − 2×搜索行水平内边距（M3 16 / Miuix 14）。
+        assertEquals(328.dp, resolveHomeTopControlsContentWidthDp(360.dp, material3Policy))
+        assertEquals(332.dp, resolveHomeTopControlsContentWidthDp(360.dp, miuixPolicy))
+        // 容器宽度小于行内边距时封底为 0。
+        assertEquals(0.dp, resolveHomeTopControlsContentWidthDp(20.dp, material3Policy))
     }
 
     @Test
@@ -550,9 +565,9 @@ class HomeHeaderVisualPolicyTest {
         )
         assertEquals(0.dp, resolveHomeTopUnifiedPanelHorizontalPadding())
         assertEquals(0.dp, resolveHomeTopUnifiedPanelHorizontalPadding(UiPreset.MD3))
-        assertEquals(6.dp, resolveHomeTopUnifiedPanelInnerPadding())
+        assertEquals(9.dp, resolveHomeTopUnifiedPanelInnerPadding()) // 2B 迁移：iOS 输入并入 MIUIX
         assertEquals(10.dp, resolveHomeTopUnifiedPanelInnerPadding(UiPreset.MD3))
-        assertEquals(32.dp, resolveHomeTopUnifiedPanelCornerRadius())
+        assertEquals(18.dp, resolveHomeTopUnifiedPanelCornerRadius()) // 2B 迁移：iOS 输入并入 MIUIX
         assertEquals(16.dp, resolveHomeTopUnifiedPanelCornerRadius(UiPreset.MD3))
         assertEquals(
             18.dp,
@@ -574,7 +589,7 @@ class HomeHeaderVisualPolicyTest {
         assertEquals(48.dp, ios.searchBarHeight)
         assertEquals(48.dp, material3.searchBarHeight)
         assertEquals(48.dp, miuix.searchBarHeight)
-        assertEquals(32.dp, ios.unifiedPanelCornerRadius)
+        assertEquals(18.dp, ios.unifiedPanelCornerRadius) // 2B 迁移：iOS 输入并入 MIUIX
         assertEquals(16.dp, material3.unifiedPanelCornerRadius)
         assertEquals(18.dp, miuix.unifiedPanelCornerRadius)
         assertEquals(6.dp, ios.searchToTabsSpacing)
@@ -589,8 +604,9 @@ class HomeHeaderVisualPolicyTest {
     }
 
     @Test
-    fun `collapsed ios header integrates with status bar instead of floating as a card`() {
-        assertTrue(
+    fun `legacy ios collapsed header no longer integrates after migration`() {
+        // 2B 迁移：integrated 折叠是 iOS 专属行为，已随单向迁移删除（iOS 输入并入 MIUIX）。
+        assertFalse(
             shouldUseIntegratedCollapsedHomeTopBar(
                 searchRevealFraction = 0f,
                 uiPreset = UiPreset.IOS
@@ -625,9 +641,9 @@ class HomeHeaderVisualPolicyTest {
     @Test
     fun `home list top padding reserves full unified header height without underlapping md3 tabs`() {
         // status + search + tabs + panelInner*2 + searchToTabs + tabsToContent (+ floating lift)
-        // iOS docked: 44+48+56+12+6+6 = 172
+        // iOS docked（迁移后并入 MIUIX）: 44+48+56+18+6+6 = 178
         assertEquals(
-            172.dp,
+            178.dp,
             resolveHomeTopReservedListPadding(
                 statusBarHeight = 44.dp,
                 searchBarHeight = 48.dp,
@@ -656,9 +672,9 @@ class HomeHeaderVisualPolicyTest {
                 androidNativeVariant = AndroidNativeVariant.MIUIX
             )
         )
-        // Floating iOS: same chrome + tabsToContent(6) + yOffset(-2) = 170
+        // Floating iOS（迁移后并入 MIUIX）: same chrome + tabsToContent(6) + yOffset(-2) = 176
         assertEquals(
-            170.dp,
+            176.dp,
             resolveHomeTopReservedListPadding(
                 statusBarHeight = 44.dp,
                 searchBarHeight = 48.dp,
@@ -670,21 +686,26 @@ class HomeHeaderVisualPolicyTest {
     }
 
     @Test
-    fun `home header uses symmetrical edge controls around search bar`() {
+    fun `home header keeps edge controls aligned around the search bar`() {
+        assertEquals(36.dp, resolveHomeTopEdgeControlHeight())
         assertEquals(36.dp, resolveHomeTopAvatarOuterSize())
+        assertEquals(36.dp, resolveHomeTopAvatarInnerSize())
+        // 两主题统一：设置按钮、搜索胶囊与头像同高（36dp）。
         assertEquals(36.dp, resolveHomeTopSettingsButtonSize())
-        assertEquals(
-            resolveHomeTopSettingsButtonSize(),
-            resolveHomeTopAvatarInnerSize()
-        )
         assertEquals(18.dp, resolveHomeTopSettingsIconSize())
-        assertEquals(6.dp, resolveHomeTopEdgeControlGap())
+        assertEquals(7.dp, resolveHomeTopEdgeControlGap())
         assertEquals(8.dp, resolveHomeTopEdgeControlGap(UiPreset.MD3))
     }
 
     @Test
-    fun `ios home search pill uses the same capsule shape as bottom bar`() {
+    fun `legacy ios home search pill maps to miuix rounded shape after migration`() {
+        // 2B 迁移：iOS 输入并入 MIUIX，搜索胶囊改用两值风格圆角（不再复用底部胶囊 50% 形状）。
+        assertTrue(resolveHomeTopSearchContainerShape(UiPreset.IOS) is RoundedCornerShape)
         assertEquals(
+            resolveHomeTopSearchContainerShape(UiPreset.MD3, AndroidNativeVariant.MIUIX),
+            resolveHomeTopSearchContainerShape(UiPreset.IOS)
+        )
+        assertNotEquals(
             resolveSharedBottomBarCapsuleShape(),
             resolveHomeTopSearchContainerShape(UiPreset.IOS)
         )
@@ -698,7 +719,7 @@ class HomeHeaderVisualPolicyTest {
         assertTrue(searchShape is RoundedCornerShape)
         assertTrue(edgeShape is RoundedCornerShape)
         assertNotEquals(CircleShape, edgeShape)
-        assertEquals(52.dp, resolveHomeTopSearchPillHeight(UiPreset.MD3))
+        assertEquals(36.dp, resolveHomeTopSearchPillHeight(UiPreset.MD3))
         assertEquals(16.dp, resolveHomeTopSearchContentHorizontalPadding(UiPreset.MD3))
         assertEquals(12.dp, resolveHomeTopSearchIconTextGap(UiPreset.MD3))
     }
@@ -724,7 +745,7 @@ class HomeHeaderVisualPolicyTest {
             )
         )
         assertEquals(
-            48.dp,
+            36.dp,
             resolveHomeTopSearchPillHeight(
                 uiPreset = UiPreset.MD3,
                 androidNativeVariant = AndroidNativeVariant.MIUIX
@@ -923,6 +944,7 @@ class HomeHeaderVisualPolicyTest {
             homeSettings = HomeSettings(
                 isTopBarLiquidGlassEnabled = false,
                 isBottomBarLiquidGlassEnabled = true,
+                isBottomBarBlurEnabled = true,
                 androidNativeLiquidGlassEnabled = true
             ),
             uiPreset = UiPreset.MD3,
@@ -1225,7 +1247,8 @@ class HomeHeaderVisualPolicyTest {
     }
 
     @Test
-    fun `top search legacy highlight is disabled for liquid glass refraction`() {
+    fun `legacy ios search highlight is fully disabled after migration`() {
+        // 2B 迁移：legacy 高亮仅属于 iOS 的 MOVING_CAPSULE 分支，已随单向迁移删除。
         assertFalse(
             shouldDrawHomeTopSearchLegacyHighlight(
                 uiPreset = UiPreset.IOS,
@@ -1234,7 +1257,7 @@ class HomeHeaderVisualPolicyTest {
                 refractionOverlayAlpha = 1f
             )
         )
-        assertTrue(
+        assertFalse(
             shouldDrawHomeTopSearchLegacyHighlight(
                 uiPreset = UiPreset.IOS,
                 useUnifiedTopPanel = false,

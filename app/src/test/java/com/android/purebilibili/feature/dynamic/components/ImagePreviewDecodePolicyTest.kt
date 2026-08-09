@@ -22,4 +22,13 @@ class ImagePreviewDecodePolicyTest {
         assertEquals(ImageDecodeSize(widthPx = 1024, heightPx = 1024), thumbnailSize)
         assertTrue(estimateArgb8888ByteCount(thumbnailSize) < estimateArgb8888ByteCount(previewSize))
     }
+
+    @Test
+    fun originalQuality_exceedsPreviewBudgetForFullResolution() {
+        val previewSize = resolveImageDecodeSize(ImageDecodeTarget.FULLSCREEN_PREVIEW)
+        val originalSize = resolveImageDecodeSize(ImageDecodeTarget.ORIGINAL_QUALITY)
+
+        assertEquals(ImageDecodeSize(widthPx = 8192, heightPx = 8192), originalSize)
+        assertTrue(estimateArgb8888ByteCount(originalSize) > estimateArgb8888ByteCount(previewSize))
+    }
 }

@@ -3,17 +3,13 @@ package com.android.purebilibili.core.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
-import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
+import com.android.purebilibili.core.theme.AppUiStyle
 
 internal enum class AppPullRefreshIndicatorRenderer {
-    CUPERTINO,
     MATERIAL3,
     MIUIX,
 }
@@ -35,17 +31,13 @@ data class AppPullRefreshProfile(
 fun resolveAppPullRefreshProfile(
     renderer: PresetPrimitiveRenderer,
 ): AppPullRefreshProfile = when (renderer) {
-    PresetPrimitiveRenderer.IOS -> AppPullRefreshProfile(
-        AppPullRefreshMotionStyle.CUPERTINO,
-        AppPullRefreshIndicatorStyle.CUPERTINO,
+    PresetPrimitiveRenderer.MIUIX_BRIDGED -> AppPullRefreshProfile(
+        AppPullRefreshMotionStyle.PLATFORM,
+        AppPullRefreshIndicatorStyle.MIUIX_NATIVE,
     )
     PresetPrimitiveRenderer.MATERIAL3 -> AppPullRefreshProfile(
         AppPullRefreshMotionStyle.PLATFORM,
         AppPullRefreshIndicatorStyle.MATERIAL_DEFAULT,
-    )
-    PresetPrimitiveRenderer.MIUIX_BRIDGED -> AppPullRefreshProfile(
-        AppPullRefreshMotionStyle.PLATFORM,
-        AppPullRefreshIndicatorStyle.MIUIX_NATIVE,
     )
 }
 
@@ -54,14 +46,10 @@ fun rememberAppPullRefreshProfile(): AppPullRefreshProfile =
     resolveAppPullRefreshProfile(rememberPresetPrimitiveRenderer())
 
 internal fun resolveAppPullRefreshIndicatorRenderer(
-    uiPreset: UiPreset,
-    androidNativeVariant: AndroidNativeVariant,
-): AppPullRefreshIndicatorRenderer = when (
-    resolvePresetPrimitiveRenderer(uiPreset, androidNativeVariant)
-) {
-    PresetPrimitiveRenderer.IOS -> AppPullRefreshIndicatorRenderer.CUPERTINO
-    PresetPrimitiveRenderer.MATERIAL3 -> AppPullRefreshIndicatorRenderer.MATERIAL3
-    PresetPrimitiveRenderer.MIUIX_BRIDGED -> AppPullRefreshIndicatorRenderer.MIUIX
+    uiStyle: AppUiStyle,
+): AppPullRefreshIndicatorRenderer = when (uiStyle) {
+    AppUiStyle.MIUIX -> AppPullRefreshIndicatorRenderer.MIUIX
+    AppUiStyle.MATERIAL3 -> AppPullRefreshIndicatorRenderer.MATERIAL3
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -78,7 +66,6 @@ fun AppPullRefreshLoadingIndicator(
             modifier = modifier,
         )
 
-        PresetPrimitiveRenderer.IOS,
         PresetPrimitiveRenderer.MIUIX_BRIDGED -> AppPullRefreshLoadingIndicator(
             modifier = modifier,
         )
@@ -91,21 +78,17 @@ fun AppPullRefreshLoadingIndicator(
     color: Color = AppSurfaceTokens.primary(),
 ) {
     when (rememberPresetPrimitiveRenderer()) {
-        PresetPrimitiveRenderer.IOS -> CupertinoActivityIndicator(
-            modifier = modifier.size(AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall),
+        PresetPrimitiveRenderer.MIUIX_BRIDGED -> AdaptiveLoadingIndicator(
+            modifier = modifier,
+            size = AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro,
             color = color,
+            strokeWidth = AppSpacingTokens.Micro,
         )
         PresetPrimitiveRenderer.MATERIAL3 -> AdaptiveLoadingIndicator(
             modifier = modifier,
             size = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall,
             color = color,
             density = AdaptiveLoadingDensity.PAGE,
-        )
-        PresetPrimitiveRenderer.MIUIX_BRIDGED -> AdaptiveLoadingIndicator(
-            modifier = modifier,
-            size = AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro,
-            color = color,
-            strokeWidth = AppSpacingTokens.Micro,
         )
     }
 }

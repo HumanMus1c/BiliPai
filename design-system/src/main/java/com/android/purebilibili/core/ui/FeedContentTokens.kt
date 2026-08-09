@@ -29,8 +29,9 @@ fun feedContentTypography(
     titleHierarchy: FeedTitleHierarchy = FeedTitleHierarchy.Compact,
 ): FeedContentTypography {
     val titleStyle = when (titleHierarchy) {
+        // 紧凑卡片标题降一档：12sp 中粗，同宽能容纳更多字符，减少窄卡省略。
         FeedTitleHierarchy.Compact ->
-            MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+            MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
         FeedTitleHierarchy.Standard ->
             MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
         FeedTitleHierarchy.Prominent ->

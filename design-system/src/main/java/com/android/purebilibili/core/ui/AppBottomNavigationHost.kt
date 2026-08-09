@@ -8,40 +8,27 @@ data class AppBottomNavigationVisualPolicy(
 )
 
 internal fun resolveAppBottomNavigationVisualPolicy(
-    renderer: PresetPrimitiveRenderer,
-    individualLiquidGlassEnabled: Boolean,
     androidNativeLiquidGlassEnabled: Boolean,
 ): AppBottomNavigationVisualPolicy {
-    val liquidGlassEnabled = androidNativeLiquidGlassEnabled ||
-        (renderer == PresetPrimitiveRenderer.IOS && individualLiquidGlassEnabled)
     return AppBottomNavigationVisualPolicy(
-        liquidGlassEnabled = liquidGlassEnabled,
+        liquidGlassEnabled = androidNativeLiquidGlassEnabled,
     )
 }
 
 /** Selects the active bottom-navigation implementation without leaking a style enum to callers. */
 @Composable
 fun AppBottomNavigationHost(
-    individualLiquidGlassEnabled: Boolean,
     androidNativeLiquidGlassEnabled: Boolean,
-    cupertinoContent: @Composable (AppBottomNavigationVisualPolicy) -> Unit,
     materialContent: @Composable (AppBottomNavigationVisualPolicy) -> Unit,
     platformContent: @Composable (AppBottomNavigationVisualPolicy) -> Unit,
 ) {
     val renderer = rememberPresetPrimitiveRenderer()
-    val policy = remember(
-        renderer,
-        individualLiquidGlassEnabled,
-        androidNativeLiquidGlassEnabled,
-    ) {
+    val policy = remember(androidNativeLiquidGlassEnabled) {
         resolveAppBottomNavigationVisualPolicy(
-            renderer = renderer,
-            individualLiquidGlassEnabled = individualLiquidGlassEnabled,
             androidNativeLiquidGlassEnabled = androidNativeLiquidGlassEnabled,
         )
     }
     when (renderer) {
-        PresetPrimitiveRenderer.IOS -> cupertinoContent(policy)
         PresetPrimitiveRenderer.MATERIAL3 -> materialContent(policy)
         PresetPrimitiveRenderer.MIUIX_BRIDGED -> platformContent(policy)
     }

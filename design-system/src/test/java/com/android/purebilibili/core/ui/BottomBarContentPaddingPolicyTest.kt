@@ -1,8 +1,7 @@
 package com.android.purebilibili.core.ui
 
 import androidx.compose.ui.unit.dp
-import com.android.purebilibili.core.theme.AndroidNativeVariant
-import com.android.purebilibili.core.theme.UiPreset
+import com.android.purebilibili.core.theme.AppUiStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -18,8 +17,7 @@ class BottomBarContentPaddingPolicyTest {
                 isBottomBarFloating = true,
                 bottomBarLabelMode = 0,
                 isTablet = false,
-                uiPreset = UiPreset.IOS,
-                androidNativeVariant = AndroidNativeVariant.MATERIAL3,
+                uiStyle = AppUiStyle.MATERIAL3,
                 hasUiSkinDecoration = false,
                 extraContentPadding = 8.dp,
             ),
@@ -36,8 +34,7 @@ class BottomBarContentPaddingPolicyTest {
                 isBottomBarFloating = false,
                 bottomBarLabelMode = 2,
                 isTablet = true,
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MIUIX,
+                uiStyle = AppUiStyle.MIUIX,
                 hasUiSkinDecoration = false,
                 extraContentPadding = 8.dp,
             ),
@@ -54,8 +51,7 @@ class BottomBarContentPaddingPolicyTest {
                 isBottomBarFloating = true,
                 bottomBarLabelMode = 0,
                 isTablet = true,
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MATERIAL3,
+                uiStyle = AppUiStyle.MATERIAL3,
                 hasUiSkinDecoration = false,
                 extraContentPadding = 8.dp,
             ),
@@ -72,8 +68,7 @@ class BottomBarContentPaddingPolicyTest {
                 isBottomBarFloating = false,
                 bottomBarLabelMode = 1,
                 isTablet = false,
-                uiPreset = UiPreset.IOS,
-                androidNativeVariant = AndroidNativeVariant.MATERIAL3,
+                uiStyle = AppUiStyle.MATERIAL3,
                 hasUiSkinDecoration = false,
                 extraContentPadding = (-8).dp,
             ),
@@ -90,8 +85,7 @@ class BottomBarContentPaddingPolicyTest {
                 isBottomBarFloating = true,
                 bottomBarLabelMode = 0,
                 isTablet = false,
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MIUIX,
+                uiStyle = AppUiStyle.MIUIX,
                 hasUiSkinDecoration = true,
                 extraContentPadding = 8.dp,
             ),
@@ -108,8 +102,7 @@ class BottomBarContentPaddingPolicyTest {
                 isBottomBarFloating = false,
                 bottomBarLabelMode = 0,
                 isTablet = false,
-                uiPreset = UiPreset.MD3,
-                androidNativeVariant = AndroidNativeVariant.MATERIAL3,
+                uiStyle = AppUiStyle.MATERIAL3,
                 hasUiSkinDecoration = false,
                 extraContentPadding = 8.dp,
             ),

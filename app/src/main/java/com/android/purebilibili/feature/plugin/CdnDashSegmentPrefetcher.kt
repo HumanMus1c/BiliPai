@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.plugin
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -35,6 +36,8 @@ internal class CdnDashSegmentPrefetcher(
     private val context: Context,
     private val client: OkHttpClient
 ) {
+    // OkHttpDataSource 与 CacheWriter 属 media3 unstable API：预取链路在应用层封装后消费，opt-in 标记会级联污染全部调用方。
+    @SuppressLint("UnsafeOptInUsageError")
     suspend fun prefetch(request: CdnDashPrefetchRequest): CdnDashPrefetchResult = withContext(Dispatchers.IO) {
         val targetCount = resolveCdnPrefetchSegmentCount(request.bufferedDurationMs)
         if (targetCount == 0 || request.candidates.isEmpty()) {

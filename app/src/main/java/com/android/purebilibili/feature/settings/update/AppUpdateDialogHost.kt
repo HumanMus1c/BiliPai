@@ -12,13 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,17 +24,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.android.purebilibili.core.ui.rememberIsNativeMiuixEnabled
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppHorizontalDivider
+import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppText
 import kotlinx.coroutines.delay
-import top.yukonga.miuix.kmp.basic.Button as MiuixButton
-import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
-import top.yukonga.miuix.kmp.basic.LinearProgressIndicator as MiuixLinearProgressIndicator
-import top.yukonga.miuix.kmp.basic.Text as MiuixText
-import top.yukonga.miuix.kmp.basic.TextButton as MiuixTextButton
-import top.yukonga.miuix.kmp.window.WindowDialog as MiuixWindowDialog
 import java.io.File
 
-/** Native update dialog renderer. M3/iOS use Material 3; Android Miuix uses WindowDialog. */
+/** Style-neutral update dialog host backed by the adaptive dialog facade. */
 @Composable
 internal fun AppUpdateDialogHost(
     update: AppUpdateCheckResult,
@@ -49,7 +42,6 @@ internal fun AppUpdateDialogHost(
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-    val useMiuix = rememberIsNativeMiuixEnabled()
     val preferredAsset = remember(update.assets) { selectPreferredAppUpdateAsset(update.assets) }
     val expectedSha256 = remember(preferredAsset, update.buildMetadata) {
         preferredAsset?.let { resolveAppUpdateExpectedSha256(it, update.buildMetadata) }
@@ -99,69 +91,43 @@ internal fun AppUpdateDialogHost(
         "发现新版本 v${update.latestVersion}"
     }
 
-    if (useMiuix) {
-        MiuixWindowDialog(
-            show = true,
-            title = title,
-            summary = "当前版本 v${update.currentVersion}",
-            onDismissRequest = onDismissRequest,
-        ) {
+    AppAlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { AppText(title) },
+        text = {
             UpdateDialogBody(
                 update = update,
                 state = downloadState,
                 showReleaseNotesOnly = showReleaseNotesOnly,
-                useMiuix = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            MiuixUpdateActions(
-                state = downloadState,
-                showReleaseNotesOnly = showReleaseNotesOnly,
-                hasAsset = preferredAsset != null,
-                onPrimaryAction = onPrimaryAction,
-                onCancelDownload = onCancelDownload,
-                onDismissRequest = onDismissRequest,
-            )
-        }
-    } else {
-        AlertDialog(
-            onDismissRequest = onDismissRequest,
-            title = { Text(title) },
-            text = {
-                UpdateDialogBody(
-                    update = update,
-                    state = downloadState,
-                    showReleaseNotesOnly = showReleaseNotesOnly,
-                    useMiuix = false,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
-                if (!showReleaseNotesOnly) {
-                    Button(
-                        onClick = onPrimaryAction,
-                        enabled = downloadState.status != AppUpdateDownloadStatus.DOWNLOADING,
+        },
+        confirmButton = {
+            if (!showReleaseNotesOnly) {
+                AppButton(
+                    onClick = onPrimaryAction,
+                    enabled = downloadState.status != AppUpdateDownloadStatus.DOWNLOADING,
+                    modifier = Modifier.sizeIn(minHeight = 48.dp),
+                ) { AppText(updatePrimaryLabel(downloadState, preferredAsset != null)) }
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (downloadState.status == AppUpdateDownloadStatus.DOWNLOADING ||
+                    downloadState.status == AppUpdateDownloadStatus.QUEUED
+                ) {
+                    AppOutlinedButton(
+                        onClick = onCancelDownload,
                         modifier = Modifier.sizeIn(minHeight = 48.dp),
-                    ) { Text(updatePrimaryLabel(downloadState, preferredAsset != null)) }
+                    ) { AppText("取消下载") }
                 }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (downloadState.status == AppUpdateDownloadStatus.DOWNLOADING ||
-                        downloadState.status == AppUpdateDownloadStatus.QUEUED
-                    ) {
-                        OutlinedButton(
-                            onClick = onCancelDownload,
-                            modifier = Modifier.sizeIn(minHeight = 48.dp),
-                        ) { Text("取消下载") }
-                    }
-                    OutlinedButton(
-                        onClick = onDismissRequest,
-                        modifier = Modifier.sizeIn(minHeight = 48.dp),
-                    ) { Text(if (showReleaseNotesOnly) "关闭" else "稍后") }
-                }
-            },
-        )
-    }
+                AppOutlinedButton(
+                    onClick = onDismissRequest,
+                    modifier = Modifier.sizeIn(minHeight = 48.dp),
+                ) { AppText(if (showReleaseNotesOnly) "关闭" else "稍后") }
+            }
+        },
+    )
 }
 
 @Composable
@@ -169,7 +135,6 @@ private fun UpdateDialogBody(
     update: AppUpdateCheckResult,
     state: AppUpdateDownloadState,
     showReleaseNotesOnly: Boolean,
-    useMiuix: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -177,20 +142,20 @@ private fun UpdateDialogBody(
         modifier = modifier.heightIn(max = 360.dp).verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        UpdateDialogText("当前版本 v${update.currentVersion}", useMiuix, MaterialTheme.typography.bodyMedium)
+        UpdateDialogText("当前版本 v${update.currentVersion}", MaterialTheme.typography.bodyMedium)
         if (!showReleaseNotesOnly) {
             selectPreferredAppUpdateAsset(update.assets)?.let { asset ->
-                UpdateDialogText("安装包：${asset.name}", useMiuix, MaterialTheme.typography.bodySmall)
+                UpdateDialogText("安装包：${asset.name}", MaterialTheme.typography.bodySmall)
             }
-            UpdateDownloadProgress(state, useMiuix)
+            UpdateDownloadProgress(state)
         }
-        HorizontalDivider()
-        UpdateReleaseNotesContent(update.releaseNotes, useMiuix)
+        AppHorizontalDivider()
+        UpdateReleaseNotesContent(update.releaseNotes)
     }
 }
 
 @Composable
-private fun UpdateDownloadProgress(state: AppUpdateDownloadState, useMiuix: Boolean) {
+private fun UpdateDownloadProgress(state: AppUpdateDownloadState) {
     if (state.status == AppUpdateDownloadStatus.IDLE) return
     val statusText = when (state.status) {
         AppUpdateDownloadStatus.QUEUED -> "等待网络后开始下载"
@@ -199,50 +164,39 @@ private fun UpdateDownloadProgress(state: AppUpdateDownloadState, useMiuix: Bool
         AppUpdateDownloadStatus.FAILED -> state.errorMessage ?: "下载失败"
         AppUpdateDownloadStatus.IDLE -> ""
     }
-    UpdateDialogText(statusText, useMiuix, MaterialTheme.typography.bodySmall)
+    UpdateDialogText(statusText, MaterialTheme.typography.bodySmall)
     if (state.status == AppUpdateDownloadStatus.DOWNLOADING || state.status == AppUpdateDownloadStatus.QUEUED) {
-        if (useMiuix) {
-            MiuixLinearProgressIndicator(
-                progress = state.progress.takeIf { state.totalBytes > 0L },
-                modifier = Modifier.fillMaxWidth(),
-            )
+        if (state.totalBytes > 0L) {
+            AppLinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
         } else {
-            if (state.totalBytes > 0L) {
-                LinearProgressIndicator(progress = { state.progress }, modifier = Modifier.fillMaxWidth())
-            } else {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
+            AppLinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
     if (state.status == AppUpdateDownloadStatus.COMPLETED) {
         UpdateDialogText(
             if (state.checksumProvided) "SHA-256 校验通过" else "Release 未提供 SHA-256 校验信息",
-            useMiuix,
             MaterialTheme.typography.bodySmall,
         )
     }
 }
 
 @Composable
-private fun UpdateReleaseNotesContent(releaseNotes: String, useMiuix: Boolean) {
+private fun UpdateReleaseNotesContent(releaseNotes: String) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         parseUpdateReleaseNotes(releaseNotes).forEach { block ->
             when (block) {
                 is AppUpdateReleaseNotesBlock.Heading -> UpdateDialogText(
                     block.text,
-                    useMiuix,
                     if (block.level == 1) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall,
                     FontWeight.SemiBold,
                 )
                 is AppUpdateReleaseNotesBlock.Bullet -> UpdateDialogText(
                     text = if (block.ordered) "• ${block.text}" else "• ${block.text}",
-                    useMiuix = useMiuix,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                AppUpdateReleaseNotesBlock.Divider -> HorizontalDivider()
+                AppUpdateReleaseNotesBlock.Divider -> AppHorizontalDivider()
                 is AppUpdateReleaseNotesBlock.Paragraph -> UpdateDialogText(
                     block.text,
-                    useMiuix,
                     MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -253,53 +207,10 @@ private fun UpdateReleaseNotesContent(releaseNotes: String, useMiuix: Boolean) {
 @Composable
 private fun UpdateDialogText(
     text: String,
-    useMiuix: Boolean,
     style: androidx.compose.ui.text.TextStyle,
     fontWeight: FontWeight? = null,
 ) {
-    if (useMiuix) {
-        MiuixText(text = text, fontWeight = fontWeight)
-    } else {
-        Text(text = text, style = style, fontWeight = fontWeight)
-    }
-}
-
-@Composable
-private fun MiuixUpdateActions(
-    state: AppUpdateDownloadState,
-    showReleaseNotesOnly: Boolean,
-    hasAsset: Boolean,
-    onPrimaryAction: () -> Unit,
-    onCancelDownload: () -> Unit,
-    onDismissRequest: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (state.status == AppUpdateDownloadStatus.DOWNLOADING || state.status == AppUpdateDownloadStatus.QUEUED) {
-            MiuixTextButton(
-                text = "取消下载",
-                onClick = onCancelDownload,
-                modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp),
-            )
-        }
-        MiuixTextButton(
-            text = if (showReleaseNotesOnly) "关闭" else "稍后",
-            onClick = onDismissRequest,
-            modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp),
-        )
-        if (!showReleaseNotesOnly) {
-            MiuixButton(
-                onClick = onPrimaryAction,
-                enabled = state.status != AppUpdateDownloadStatus.DOWNLOADING,
-                colors = MiuixButtonDefaults.buttonColorsPrimary(),
-                modifier = Modifier.weight(1f).sizeIn(minHeight = 48.dp),
-            ) {
-                MiuixText(updatePrimaryLabel(state, hasAsset))
-            }
-        }
-    }
+    AppText(text = text, style = style, fontWeight = fontWeight)
 }
 
 private fun updatePrimaryLabel(state: AppUpdateDownloadState, hasAsset: Boolean): String = when {

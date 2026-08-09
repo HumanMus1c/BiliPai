@@ -117,17 +117,22 @@ object FavoriteRepository {
         ps: Int = 20,
         keyword: String? = null,
         order: String? = null,
+        type: Int = 0,
+        tid: Int = 0,
         platform: String = "web"
     ): Result<FavoriteResourceData> {
         return withContext(Dispatchers.IO) {
             try {
-                // pn defaults to 1 if not passed, but here we pass it
+                // 文档要求 ps 定义域 1-20；超出会提高风控/请求错误概率
+                val safePs = ps.coerceIn(1, 20)
                 val response = api.getFavoriteList(
                     mediaId = mediaId,
-                    pn = pn,
-                    ps = ps,
+                    pn = pn.coerceAtLeast(1),
+                    ps = safePs,
                     keyword = keyword,
                     order = order,
+                    type = type,
+                    tid = tid,
                     platform = platform
                 )
                 if (response.code == 0 && response.data != null) {

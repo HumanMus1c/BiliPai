@@ -15,6 +15,7 @@ import com.android.purebilibili.core.theme.iOSRed
 import com.android.purebilibili.core.theme.iOSTeal
 import com.android.purebilibili.core.ui.AppIcons
 import com.android.purebilibili.core.ui.AppSemanticAccentRole
+import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import com.android.purebilibili.core.ui.AppSemanticVisualPolicy
 import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 
@@ -85,7 +86,12 @@ internal fun rememberSettingsEntryVisual(
 
 internal fun resolveSettingsEntryVisual(
     target: SettingsSearchTarget,
-    policy: AppSemanticVisualPolicy = AppSemanticVisualPolicy.Cupertino,
+    policy: AppSemanticVisualPolicy = AppSemanticVisualPolicy(
+        iconFamily = AppSemanticIconFamily.MATERIAL,
+        accentPalette = null,
+        prefersNativeChrome = false,
+        supportsIndependentLiquidGlass = true,
+    ),
 ): SettingsEntryVisual {
     val iconTint = resolveIosSettingsEntryTint(target)
     return when (target) {
@@ -100,7 +106,7 @@ internal fun resolveSettingsEntryVisual(
         else -> SettingsEntryVisual(
             icon = resolveSettingsSemanticIcon(
                 role = resolveSettingsSearchTargetIconRole(target),
-                iconFamily = policy.iconFamily,
+                iconFamily = policy.effectiveIconFamily,
             ),
             iconTint = iconTint
         )

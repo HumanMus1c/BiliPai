@@ -22,7 +22,6 @@ import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults as MiuixProgressInd
 /**
  * Preset-aware indeterminate loading indicator.
  *
- * - iOS: cute person bounce (legacy look preserved).
  * - Material 3: official [LoadingIndicator] (page) or [CircularProgressIndicator] (compact),
  *   colored with [MaterialTheme.colorScheme.primary] so dynamic color applies automatically.
  * - Miuix: official Miuix infinite / circular progress indicators with theme primary.
@@ -33,8 +32,8 @@ import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults as MiuixProgressInd
  * @param size optional visual size. When omitted, each native component uses its own default.
  *   Sizes ≤ [AdaptiveLoadingCompactSizeThresholdDp] select the compact visual recipe.
  * @param color optional tint. [Color.Unspecified] keeps each theme's default (dynamic primary
- *   on MD3, Miuix primary on Miuix, theme primary on iOS cute person).
- * @param strokeWidth only applied to stroke-based visuals (iOS cute person, circular variants).
+ *   on MD3, Miuix primary on Miuix).
+ * @param strokeWidth only applied to stroke-based visuals (circular variants).
  *   Ignored by the morphing Material 3 [LoadingIndicator].
  * @param density force [AdaptiveLoadingDensity.PAGE] or [AdaptiveLoadingDensity.COMPACT];
  *   when null, inferred from [size].
@@ -60,14 +59,6 @@ fun AdaptiveLoadingIndicator(
     }
 
     when (visual) {
-        AdaptiveLoadingVisual.IOS_CUTE_PERSON -> {
-            IosCutePersonLoadingIndicator(
-                modifier = modifier.then(size?.let { Modifier.size(it) } ?: Modifier),
-                color = resolvedColor,
-                strokeWidth = strokeWidth,
-            )
-        }
-
         AdaptiveLoadingVisual.MATERIAL3_LOADING_INDICATOR -> {
             Material3PageLoadingIndicator(
                 modifier = modifier,
@@ -116,7 +107,6 @@ fun AdaptiveLoadingIndicator(
 @Composable
 private fun resolveAdaptiveLoadingDefaultColor(visual: AdaptiveLoadingVisual): Color {
     return when (visual) {
-        AdaptiveLoadingVisual.IOS_CUTE_PERSON,
         AdaptiveLoadingVisual.MATERIAL3_LOADING_INDICATOR,
         AdaptiveLoadingVisual.MATERIAL3_CIRCULAR -> MaterialTheme.colorScheme.primary
 

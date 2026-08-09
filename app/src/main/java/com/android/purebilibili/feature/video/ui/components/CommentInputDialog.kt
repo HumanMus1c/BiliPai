@@ -1,5 +1,7 @@
 // 文件路径: feature/video/ui/components/CommentInputDialog.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
+import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppScrollableTabRow
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
@@ -73,6 +75,7 @@ import com.android.purebilibili.core.ui.motion.resolveCommentVerticalContentReve
 import com.android.purebilibili.core.ui.motion.verticalContentRevealEnterTransition
 import com.android.purebilibili.core.ui.motion.verticalContentRevealExitTransition
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.data.model.response.MentionSearchUser
 import kotlinx.coroutines.delay
 
@@ -89,11 +92,36 @@ internal data class CommentInputDialogLayoutPolicy(
     val sendButtonHorizontalPaddingDp: Int
 )
 
+/**
+ * 评论输入弹层尺寸策略。
+ *
+ * 平板在 48dp 触控下限之上再抬高输入舒适区（对标 PiliPlus isTablet ? 300 : 170 的加高思路），
+ * 横屏仍相对竖屏略压缩，避免遮挡过多视频区域。
+ */
 internal fun resolveCommentInputDialogLayoutPolicy(
-    isLandscape: Boolean
+    isLandscape: Boolean,
+    isTablet: Boolean = false
 ): CommentInputDialogLayoutPolicy {
-    return if (isLandscape) {
-        CommentInputDialogLayoutPolicy(
+    return when {
+        isTablet && isLandscape -> CommentInputDialogLayoutPolicy(
+            inputBoxMinHeightDp = 96,
+            inputBoxMaxHeightDp = 168,
+            emojiPanelHeightDp = 240,
+            sheetHorizontalPaddingDp = 20,
+            toolbarToolButtonSizeDp = 44,
+            toolbarToolSpacingDp = 8,
+            sendButtonHorizontalPaddingDp = 20
+        )
+        isTablet -> CommentInputDialogLayoutPolicy(
+            inputBoxMinHeightDp = 120,
+            inputBoxMaxHeightDp = 200,
+            emojiPanelHeightDp = 280,
+            sheetHorizontalPaddingDp = 20,
+            toolbarToolButtonSizeDp = 44,
+            toolbarToolSpacingDp = 8,
+            sendButtonHorizontalPaddingDp = 18
+        )
+        isLandscape -> CommentInputDialogLayoutPolicy(
             inputBoxMinHeightDp = 64,
             inputBoxMaxHeightDp = 112,
             emojiPanelHeightDp = 196,
@@ -102,8 +130,7 @@ internal fun resolveCommentInputDialogLayoutPolicy(
             toolbarToolSpacingDp = 6,
             sendButtonHorizontalPaddingDp = 18
         )
-    } else {
-        CommentInputDialogLayoutPolicy(
+        else -> CommentInputDialogLayoutPolicy(
             inputBoxMinHeightDp = 84,
             inputBoxMaxHeightDp = 136,
             emojiPanelHeightDp = 220,
@@ -164,8 +191,13 @@ fun CommentInputDialog(
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
-    val layoutPolicy = remember(isLandscape) {
-        resolveCommentInputDialogLayoutPolicy(isLandscape = isLandscape)
+    // 用设备稳定宽度判定平板（而非瞬时窗口），避免分屏窄窗时误用手机尺寸
+    val isTablet = LocalWindowSizeClass.current.isTabletDevice
+    val layoutPolicy = remember(isLandscape, isTablet) {
+        resolveCommentInputDialogLayoutPolicy(
+            isLandscape = isLandscape,
+            isTablet = isTablet
+        )
     }
 
     // 状态
@@ -590,7 +622,9 @@ fun CommentInputDialog(
                                 enabled = text.isNotBlank() && !isSending && canInputComment,
                                 shape = RoundedCornerShape(20.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary, // 应该是粉色
+                                    containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+
+                                    contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme), // 应该是粉色
                                     disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                                 ),
                                 contentPadding = PaddingValues(horizontal = layoutPolicy.sendButtonHorizontalPaddingDp.dp, vertical = 0.dp),

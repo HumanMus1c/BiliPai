@@ -62,7 +62,7 @@ flowchart TD
 | C204 | 导航栏 | `AppNavigationBar` | 已存在 | [导航与外壳](NAVIGATION_CHROME.md) |
 | C205 | 侧边导航 | `AppPlatformNavigationRail` | 已存在 | [导航与外壳](NAVIGATION_CHROME.md) |
 | C206 | 分段页签 | `AppScrollableTabRow` | 已存在 | [导航与外壳](NAVIGATION_CHROME.md) |
-| C207 | 列表-详情分栏 | `AppSplitLayout` | 已存在 | [导航与外壳](NAVIGATION_CHROME.md) |
+| C207 | 列表-详情分栏 | `AppAdaptiveSplitLayout` | 已存在 | [导航与外壳](NAVIGATION_CHROME.md) |
 | C301 | 标准列表项 | `AppListItem` | 已存在 | [卡片与身份](CARDS_LISTS_IDENTITY.md) |
 | C302 | 用户等级 | `UserLevelBadge` | 已存在 | [卡片与身份](CARDS_LISTS_IDENTITY.md) |
 | C303 | 内容卡面策略 | `ContentCardSurfacePolicy` | 已存在 | [卡片与身份](CARDS_LISTS_IDENTITY.md) |
@@ -70,8 +70,8 @@ flowchart TD
 | C402 | 底部面板 | `AppModalBottomSheet` | 已存在 | [弹层与反馈](OVERLAYS_FEEDBACK.md) |
 | C403 | 短暂反馈 | `AppSnackbar` | 已存在 | [弹层与反馈](OVERLAYS_FEEDBACK.md) |
 | C404 | 选项菜单 | `AppDropdownMenu` | 已存在 | [弹层与反馈](OVERLAYS_FEEDBACK.md) |
-| C405 | 错误状态 | `AppErrorState` | 目标待建 | [弹层与反馈](OVERLAYS_FEEDBACK.md) |
-| C406 | 空内容状态 | `AppEmptyState` | 目标待建 | [弹层与反馈](OVERLAYS_FEEDBACK.md) |
+| C405 | 错误状态 | `AppErrorState` | 已存在 | [弹层与反馈](OVERLAYS_FEEDBACK.md) |
+| C406 | 空内容状态 | `AppEmptyState` | 已存在 | [弹层与反馈](OVERLAYS_FEEDBACK.md) |
 | C501 | 播放器设置面板 | `VideoSettingsPanel` | 已存在 | [媒体与播放器](MEDIA_PLAYER.md) |
 | C502 | 视频分 P 选择 | `video.ui.components.PagesSelector` | 目标收口 | [媒体与播放器](MEDIA_PLAYER.md) |
 | C503 | 迷你播放器壳 | `MiniPlayerOverlay` | 已存在 | [媒体与播放器](MEDIA_PLAYER.md) |

@@ -30,7 +30,7 @@ class AppNavigationAppearancePolicyTest {
         val appearance = resolveAppNavigationAppearance(HomeSettings())
 
         assertTrue(appearance.cardTransitionEnabled)
-        assertTrue(appearance.bottomBarBlurEnabled)
+        assertFalse(appearance.bottomBarBlurEnabled)
         kotlin.test.assertEquals(0, appearance.bottomBarLabelMode)
         assertTrue(appearance.bottomBarFloating)
     }
@@ -40,7 +40,7 @@ class AppNavigationAppearancePolicyTest {
         val appearance = resolveAppNavigationAppearance(HomeSettings())
 
         assertTrue(appearance.bottomBarFloating)
-        assertTrue(appearance.bottomBarBlurEnabled)
+        assertFalse(appearance.bottomBarBlurEnabled)
         kotlin.test.assertEquals(0, appearance.bottomBarLabelMode)
     }
 
@@ -59,10 +59,10 @@ class AppNavigationAppearancePolicyTest {
     }
 
     @Test
-    fun defaultSettings_keepBottomBarBlur() {
+    fun defaultSettings_disableBottomBarBlur() {
         val appearance = resolveAppNavigationAppearance(HomeSettings())
 
-        assertTrue(appearance.bottomBarBlurEnabled)
+        assertFalse(appearance.bottomBarBlurEnabled)
     }
 
     @Test
@@ -85,7 +85,7 @@ class AppNavigationAppearancePolicyTest {
         val appearance = resolveAppNavigationAppearance(HomeSettings())
 
         assertTrue(appearance.bottomBarFloating)
-        assertTrue(appearance.bottomBarBlurEnabled)
+        assertFalse(appearance.bottomBarBlurEnabled)
         kotlin.test.assertEquals(0, appearance.bottomBarLabelMode)
     }
 

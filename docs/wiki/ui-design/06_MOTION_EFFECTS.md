@@ -67,7 +67,7 @@ val alpha by animateFloatAsState(
 
 - 公共参数：`AppMotionTokens.kt`、`AppMotionEasing`
 - 设备动效档位：`DeviceUiProfile`、`MotionTier`
-- 可恢复效果：`RecoverableVisualEffectsPolicy`
+- 可恢复效果：`RecoverableVisualEffects`
 - 预测返回与卡片过渡：`PredictiveBackBackgroundPolicy`、视频卡片 morph 相关策略
 - 玻璃效果：设计系统 blur 与 home liquid 相关策略
 

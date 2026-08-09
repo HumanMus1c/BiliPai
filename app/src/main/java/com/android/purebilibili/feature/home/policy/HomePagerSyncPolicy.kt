@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.home.policy
 
 import com.android.purebilibili.feature.home.HomeCategory
 import com.android.purebilibili.feature.home.HomeTopTabEntry
+import com.android.purebilibili.feature.home.shouldOpenLiveListFromHomeTopTab
 
 internal enum class HomePagerSettledAction {
     NONE,
@@ -12,8 +13,14 @@ internal fun shouldEnableHomeTopPagerUserScroll(isTopLevelActive: Boolean): Bool
     return isTopLevelActive
 }
 
+/**
+ * 是否在首页 Pager 内渲染该分类内容。
+ * 「直播」已统一到独立 LiveList，不再内嵌在顶栏分页里。
+ */
 internal fun shouldDisplayHomeTopCategoryInline(category: HomeCategory?): Boolean {
-    return category != null
+    if (category == null) return false
+    if (shouldOpenLiveListFromHomeTopTab(category)) return false
+    return true
 }
 
 internal fun shouldSwitchHomeCategoryFromPager(
@@ -52,7 +59,11 @@ internal fun resolveHomePagerSettledAction(
         return HomePagerSettledAction.NONE
     }
 
-    return if (shouldDisplayHomeTopCategoryInline(settledCategory)) {
+    // LIVE 虽不内嵌渲染，仍发出 SWITCH_CATEGORY，由 HomeScreen 路由到 LiveList。
+    return if (
+        shouldDisplayHomeTopCategoryInline(settledCategory) ||
+        (settledCategory != null && shouldOpenLiveListFromHomeTopTab(settledCategory))
+    ) {
         HomePagerSettledAction.SWITCH_CATEGORY
     } else {
         HomePagerSettledAction.NONE

@@ -67,6 +67,7 @@ class VideoCardTransitionBackgroundPolicyTest {
             shouldUseVideoCardTransitionSnapshotBlur(
                 exposure = VideoCardTransitionExposure.Opening,
                 motionTier = MotionTier.Normal,
+                realtimeBlurEnabled = true,
                 sdkInt = 35,
             )
         )
@@ -74,6 +75,7 @@ class VideoCardTransitionBackgroundPolicyTest {
             shouldUseVideoCardTransitionSnapshotBlur(
                 exposure = VideoCardTransitionExposure.BackPreview,
                 motionTier = MotionTier.Normal,
+                realtimeBlurEnabled = true,
                 sdkInt = 31,
             )
         )
@@ -81,6 +83,7 @@ class VideoCardTransitionBackgroundPolicyTest {
             shouldUseVideoCardTransitionSnapshotBlur(
                 exposure = VideoCardTransitionExposure.Returning,
                 motionTier = MotionTier.Normal,
+                realtimeBlurEnabled = true,
                 sdkInt = 35,
             )
         )
@@ -196,6 +199,40 @@ class VideoCardTransitionBackgroundPolicyTest {
                 exposure = VideoCardTransitionExposure.SettledHidden,
                 isVideoDetailOnStack = true,
                 isReturningToVideoDetail = true,
+            )
+        )
+    }
+
+    @Test
+    fun hazePrime_drawsLiveContentNearClearDepthDuringReturnPreview() {
+        assertTrue(
+            shouldPrimeLiveContentForHazeDuringDepthDraw(
+                exposure = VideoCardTransitionExposure.Returning,
+                depthProgress = 0.2f,
+            )
+        )
+        assertTrue(
+            shouldPrimeLiveContentForHazeDuringDepthDraw(
+                exposure = VideoCardTransitionExposure.BackPreview,
+                depthProgress = 0.0f,
+            )
+        )
+        assertFalse(
+            shouldPrimeLiveContentForHazeDuringDepthDraw(
+                exposure = VideoCardTransitionExposure.Returning,
+                depthProgress = 0.9f,
+            )
+        )
+        assertFalse(
+            shouldPrimeLiveContentForHazeDuringDepthDraw(
+                exposure = VideoCardTransitionExposure.Opening,
+                depthProgress = 0.1f,
+            )
+        )
+        assertFalse(
+            shouldPrimeLiveContentForHazeDuringDepthDraw(
+                exposure = VideoCardTransitionExposure.SettledHidden,
+                depthProgress = 0.0f,
             )
         )
     }
@@ -1097,9 +1134,10 @@ class VideoCardTransitionBackgroundPolicyTest {
         }
         state.markSourceDetachedForRefresh()
         assertTrue(state.needsSourceRefresh)
+        assertFalse(state.freezeRecording)
         assertTrue(state.hasRecordedContent)
         assertFalse(state.displayListStale)
-        // Host 仍可认为 OPENING 帧 drawable，SettledHidden 能预热满糊
+        // Host 可在预测 BackPreview 首帧暂用冻结内容撑住满模糊。
         assertTrue(
             isVideoCardTransitionSnapshotDrawable(
                 hasRecordedContent = state.hasRecordedContent,
