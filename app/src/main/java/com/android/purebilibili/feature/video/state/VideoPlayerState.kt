@@ -392,6 +392,14 @@ internal fun applyMediaTransitionFirstFrameReset(
     )
 }
 
+/**
+ * 单曲循环会重复当前媒体项，但不会更换媒体源；此时必须保留已出画标志，
+ * 否则封面会重新显示，并可能因为没有新的首帧回调而一直盖住正在播放的视频。
+ */
+internal fun shouldResetFirstFrameForMediaItemTransition(reason: Int): Boolean {
+    return reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+}
+
 internal fun applyPlaybackLoadErrorDebugInfo(
     current: PlaybackDebugInfo,
     errorCodeName: String,
@@ -670,8 +678,12 @@ class VideoPlayerState(
         }
 
         override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-            // 合集/页内换片：清掉旧 firstFrame，避免封面状态机误以为新片已出画。
-            _debugInfo.value = applyMediaTransitionFirstFrameReset(current = _debugInfo.value)
+            // 单曲重播也会回调到这里，但它没有换媒体源。若清掉首帧标志，封面状态机
+            // 会重新盖住仍在输出的视频画面，而重复播放不一定再次派发首帧事件。
+            if (shouldResetFirstFrameForMediaItemTransition(reason)) {
+                // 合集/页内换片：清掉旧 firstFrame，避免封面状态机误以为新片已出画。
+                _debugInfo.value = applyMediaTransitionFirstFrameReset(current = _debugInfo.value)
+            }
             appendDiagnosticEvent("mediaItemTransition reason=$reason")
             Logger.d(
                 "VideoPlayerState",

@@ -72,10 +72,6 @@ fun String.toBuildConfigStringLiteral(): String {
     return "\"$escaped\""
 }
 
-configurations.all {
-    exclude(group = "androidx.navigationevent", module = "navigationevent-compose")
-}
-
 val debugVerboseLogsEnabled = providers.gradleProperty("bili.debug.verboseLogs")
     .map(String::toBoolean)
     .orElse(false)
@@ -122,8 +118,8 @@ android {
         targetSdk = 35  // 保持35以避免Android 16的新运行时行为
         // 版本：语义化 X.Y.Z（MAJOR.MINOR.PATCH）+ versionCode 单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 288
-        versionName = "0.2.2"
+        versionCode = 291
+        versionName = "0.2.3-beta.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -270,6 +266,11 @@ androidComponents {
                 "release" -> "BiliPai-$biliApkVersionName.apk"
                 else -> "BiliPai-$biliApkVersionName-$variantName.apk"
             }
+            // 中间产物直接用规范名：beta 等预发布版本不应带 AGP 默认的 -release 后缀
+            // （archivesName 已含完整 versionName）。AGP 9 VariantOutput.outputFileName。
+            variant.outputs.forEach { output ->
+                output.outputFileName.set(deliveryFileName)
+            }
             val exportTask = tasks.register<ExportBiliPaiApkTask>(
                 "export${capitalizedVariantName}Apk"
             ) {
@@ -350,9 +351,6 @@ composeCompiler {
 }
 
 dependencies {
-    val miuixVersion = "0.9.3"
-    val navigation3Version = "1.2.0-alpha07"
-    val navigationEventVersion = "1.2.0-alpha03"
     val material3Version = "1.5.0-alpha25"
     val media3Version = "1.10.1"
     val lifecycleVersion = "2.11.0"
@@ -379,12 +377,13 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3:$material3Version")
     implementation("androidx.compose.material3:material3-window-size-class:$material3Version") // [新增] 窗口大小类
-    implementation("top.yukonga.miuix.kmp:miuix-ui-android:$miuixVersion")
-    implementation("top.yukonga.miuix.kmp:miuix-preference-android:$miuixVersion")
-    implementation("top.yukonga.miuix.kmp:miuix-blur-android:$miuixVersion")
-    implementation("top.yukonga.miuix.kmp:miuix-shader-android:$miuixVersion")
-    implementation("top.yukonga.miuix.kmp:miuix-squircle-android:$miuixVersion")
-    implementation("top.yukonga.miuix.kmp:miuix-icons-android:$miuixVersion")
+    implementation(libs.miuix.ui)
+    implementation(libs.miuix.preference)
+    implementation(libs.miuix.blur)
+    implementation(libs.miuix.shader)
+    implementation(libs.miuix.squircle)
+    implementation(libs.miuix.icons)
+    implementation(libs.miuix.navigation)
     // 图标扩展库 (全屏、设置图标等)
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.animation:animation")
@@ -430,20 +429,8 @@ dependencies {
     // 🍎 800+ iOS SF Symbols 风格图标
     implementation("io.github.alexzhirkevich:cupertino-icons-extended:0.1.0-alpha04")
     
-    // --- 3.6 Navigation3 (Compose 自有返回栈与预测性返回迁移层) ---
-    // Navigation3 runtime 与 UI 属于 atomic group，必须严格同版。Miuix 0.9.3 的 Nav3 UI
-    // 仍编译于 runtime 1.1.4，不能与 1.2.0-alpha07 混装；使用官方同版 UI 以获得
-    // alpha07 的 SceneState.previousScenes 修复，确保预测返回目标 Scene 被正确绘制。
-    implementation("androidx.navigation3:navigation3-runtime:$navigation3Version")
-    implementation("androidx.navigation3:navigation3-ui:$navigation3Version") {
-        exclude(group = "androidx.navigationevent", module = "navigationevent-compose")
-    }
-    // 预测式返回：使用本地 vendored 版 androidx.navigationevent.compose（位于
-    // app/src/main/java/androidx/navigationevent/compose/），以便在 onBackCompleted 里
-    // 把 transitionState 的提交延迟到用户回调内执行，保证 scale/aosp 退出动画能在
-    // InProgress 状态下读取到最新手势数据。下面排除上游同 group 的 compose 产物，避免与
-    // 本地源码冲突。
-    implementation("androidx.navigationevent:navigationevent:$navigationEventVersion")
+    // --- 3.6 Miuix Navigation ---
+    // The same stack renderer and predictive-back driver used by InstallerX Revived.
     
     // --- 3.7 Startup (应用初始化) ---
     implementation("androidx.startup:startup-runtime:1.2.0")

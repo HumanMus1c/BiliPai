@@ -108,11 +108,26 @@ internal fun BoxScope.VideoDetailFeedbackOverlayAdapter(
     } else {
         feedbackPlacement
     }
+    val feedbackContext = androidx.compose.ui.platform.LocalContext.current
+    val feedbackHintScale by com.android.purebilibili.core.store.SettingsManager
+        .getLongPressSpeedHintScale(feedbackContext)
+        .collectAsStateWithLifecycle(
+            initialValue = com.android.purebilibili.core.store.SettingsManager
+                .getLongPressSpeedHintScaleSync(feedbackContext)
+        )
+    val feedbackHintAlpha by com.android.purebilibili.core.store.SettingsManager
+        .getLongPressSpeedHintAlpha(feedbackContext)
+        .collectAsStateWithLifecycle(
+            initialValue = com.android.purebilibili.core.store.SettingsManager
+                .getLongPressSpeedHintAlphaSync(feedbackContext)
+        )
     VideoActionFeedbackHost(
         message = popupMessage?.message,
         visible = popupMessage != null,
         placement = activeFeedbackPlacement,
         hazeState = hazeState,
+        scale = feedbackHintScale,
+        backgroundAlphaOverride = feedbackHintAlpha,
     )
 
     val resumePlaybackSuggestion by playbackViewModel.resumePlaybackSuggestion.collectAsStateWithLifecycle()

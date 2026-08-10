@@ -80,6 +80,22 @@ class PlaybackDebugInfoMapperTest {
     }
 
     @Test
+    fun repeatMediaItemTransition_preservesRenderedFirstFrame() {
+        assertEquals(
+            false,
+            shouldResetFirstFrameForMediaItemTransition(
+                Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+            )
+        )
+        assertEquals(
+            true,
+            shouldResetFirstFrameForMediaItemTransition(
+                Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+            )
+        )
+    }
+
+    @Test
     fun applyPlaybackLoadErrorDebugInfo_tracksAndTransitionClearsLatestError() {
         val failed = applyPlaybackLoadErrorDebugInfo(
             current = PlaybackDebugInfo(),

@@ -33,7 +33,11 @@ fun BoxScope.VideoActionFeedbackHost(
     visible: Boolean,
     placement: VideoFeedbackPlacement,
     hazeState: HazeState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** 提示整体缩放（与长按倍速提示设置联动）。 */
+    scale: Float = 1.0f,
+    /** 覆盖背景不透明度；null 时沿用强调/普通分支默认值。 */
+    backgroundAlphaOverride: Float? = null,
 ) {
     val alignment = when (placement.anchor) {
         VideoFeedbackAnchor.BottomCenter -> Alignment.BottomCenter
@@ -45,8 +49,9 @@ fun BoxScope.VideoActionFeedbackHost(
     val verticalPadding = if (emphasized) 14.dp else 12.dp
     val minWidth = if (emphasized) 160.dp else 120.dp
     val maxWidth = if (emphasized) 320.dp else 280.dp
-    val backgroundAlpha = if (emphasized) 0.62f else 0.46f
-    val fontSize = if (emphasized) 17.sp else 15.sp
+    val backgroundAlpha = backgroundAlphaOverride
+        ?: if (emphasized) 0.62f else 0.46f
+    val fontSize = (if (emphasized) 17.sp else 15.sp) * scale
     val fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Medium
 
     AnimatedVisibility(
@@ -71,7 +76,7 @@ fun BoxScope.VideoActionFeedbackHost(
             modifier = Modifier
                 .clip(RoundedCornerShape(22.dp))
                 .unifiedBlur(hazeState = hazeState)
-                .widthIn(min = minWidth, max = maxWidth)
+                .widthIn(min = minWidth * scale, max = maxWidth * scale)
         ) {
             AppText(
                 text = message.orEmpty(),
@@ -79,7 +84,10 @@ fun BoxScope.VideoActionFeedbackHost(
                 fontSize = fontSize,
                 fontWeight = fontWeight,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding)
+                modifier = Modifier.padding(
+                    horizontal = horizontalPadding * scale,
+                    vertical = verticalPadding * scale
+                )
             )
         }
     }

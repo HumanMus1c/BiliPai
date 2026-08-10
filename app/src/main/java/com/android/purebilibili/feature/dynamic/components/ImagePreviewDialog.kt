@@ -497,8 +497,7 @@ private fun ImagePreviewOverlayContent(
             NavigationBackHandler(
                 state = backEventState,
                 isBackEnabled = !isDismissing,
-                reportPredictiveProgress = predictiveBackGestureEnabled,
-                onBackCancelled = { commitTransition: () -> Unit ->
+                onBackCancelled = {
                     scope.launch {
                         val dismissMotion = imagePreviewDismissMotion()
                         animateTrigger.animateTo(
@@ -507,12 +506,10 @@ private fun ImagePreviewOverlayContent(
                                 durationMillis = dismissMotion.cancelRecoverDurationMillis
                             ),
                         )
-                        commitTransition()
                     }
                 },
-                onBackCompleted = { commitTransition: () -> Unit ->
+                onBackCompleted = {
                     triggerDismiss()
-                    commitTransition()
                 },
             )
             

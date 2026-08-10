@@ -9,12 +9,11 @@ import kotlin.test.assertNull
 class HomeScrollCoordinatorTest {
 
     @Test
-    fun alwaysVisibleListHeaderMode_keepsHomeRecommendationHeaderExpanded() {
+    fun homeRecommendationHeader_usesItsOwnPreference() {
         assertEquals(
-            HomeHeaderCollapseMode.OFF,
+            HomeHeaderCollapseMode.BOTH,
             resolveHomeRecommendationHeaderCollapseMode(
-                homeHeaderCollapseMode = HomeHeaderCollapseMode.BOTH,
-                commonListHeaderCollapseMode = CommonListHeaderCollapseMode.ALWAYS_VISIBLE
+                homeHeaderCollapseMode = HomeHeaderCollapseMode.BOTH
             )
         )
     }
@@ -24,8 +23,7 @@ class HomeScrollCoordinatorTest {
         assertEquals(
             HomeHeaderCollapseMode.SEARCH_ONLY,
             resolveHomeRecommendationHeaderCollapseMode(
-                homeHeaderCollapseMode = HomeHeaderCollapseMode.SEARCH_ONLY,
-                commonListHeaderCollapseMode = CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY
+                homeHeaderCollapseMode = HomeHeaderCollapseMode.SEARCH_ONLY
             )
         )
     }

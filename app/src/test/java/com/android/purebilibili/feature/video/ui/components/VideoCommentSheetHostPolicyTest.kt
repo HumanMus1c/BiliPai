@@ -101,6 +101,19 @@ class VideoCommentSheetHostPolicyTest {
     }
 
     @Test
+    fun `overridden scrim alpha should suppress shadow while backdrop tap stays intercepted`() {
+        val shown = resolveVideoCommentSheetHostOverlayVisual(
+            mainSheetVisible = true,
+            presentationProgress = 1f,
+            maxScrimAlphaOverride = 0f
+        )
+        assertEquals(0f, shown.scrimAlpha)
+        // 点击背景关闭仍由 mainSheetVisible 控制，不受 scrim 覆盖影响。
+        assertTrue(shouldInterceptVideoCommentSheetHostBackdropTap(mainSheetVisible = true))
+        assertTrue(shouldDismissVideoCommentSheetHostOnBackdropTap(mainSheetVisible = true))
+    }
+
+    @Test
     fun `thread only detail should stay below the reserved top area`() {
         assertEquals(
             0.55f,

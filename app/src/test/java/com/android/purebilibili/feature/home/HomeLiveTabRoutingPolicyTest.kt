@@ -18,4 +18,10 @@ class HomeLiveTabRoutingPolicyTest {
         assertFalse(shouldOpenLiveListFromHomeTopTab(HomeCategory.POPULAR))
         assertFalse(shouldOpenLiveListFromHomeTopTab(HomeCategory.ANIME))
     }
+
+    @Test
+    fun animeTopTabOpensBangumiPage() {
+        assertTrue(shouldOpenBangumiFromHomeTopTab(HomeCategory.ANIME))
+        assertFalse(shouldOpenBangumiFromHomeTopTab(HomeCategory.RECOMMEND))
+    }
 }

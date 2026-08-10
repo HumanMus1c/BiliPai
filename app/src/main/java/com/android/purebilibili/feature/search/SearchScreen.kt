@@ -72,6 +72,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
@@ -179,12 +180,12 @@ internal fun resolveSearchTopBarLayoutSpec(): SearchTopBarLayoutSpec {
     )
 }
 
-internal const val SEARCH_TOP_BAR_VERTICAL_PADDING_DP = 16
+internal const val SEARCH_TOP_BAR_VERTICAL_PADDING_DP = 8
 
 internal fun resolveSearchTopBarRowMinHeightDp(
     inputHeightDp: Int,
     verticalPaddingDp: Int = SEARCH_TOP_BAR_VERTICAL_PADDING_DP
-): Int = maxOf(64, inputHeightDp + verticalPaddingDp)
+): Int = maxOf(48, inputHeightDp + verticalPaddingDp)
 
 internal fun shouldOmitSearchInputLeadingIcon(
     tabPresentation: AppTopTabPresentation,
@@ -791,16 +792,10 @@ fun SearchScreen(
                 searchFieldFocused = searchFieldFocused
             )
         ) {
-            SearchBackAction.DISMISS_CHROME -> {
-                viewModel.dismissSuggestions()
+            SearchBackAction.LEAVE_SEARCH -> {
                 dismissSearchKeyboardAndFocus()
+                onBack()
             }
-            SearchBackAction.EXIT_RESULTS -> {
-                // Exit video/result list without reopening the IME.
-                dismissSearchKeyboardAndFocus()
-                viewModel.exitResultsToLanding()
-            }
-            SearchBackAction.LEAVE_SEARCH -> onBack()
         }
     }
 
@@ -2218,33 +2213,6 @@ fun HistoryChip(
     )
 }
 
-// 保留旧版 HistoryItem 用于兼容 (可选保留)
-@Composable
-fun HistoryItem(
-    history: SearchHistory,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
-) {
-    val historyIcon = rememberAppHistoryIcon()
-    val clearIcon = rememberAppClearIcon()
-    val deleteLabel = stringResource(R.string.common_delete)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 12.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AppIcon(historyIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f), modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.width(12.dp))
-        AppText(text = history.keyword, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, modifier = Modifier.weight(1f))
-        AppIconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
-            AppIcon(clearIcon, contentDescription = deleteLabel, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f), modifier = Modifier.size(16.dp))
-        }
-    }
-    AppHorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 0.5.dp)
-}
-
 /**
  *  快捷分类入口
  */
@@ -2450,57 +2418,6 @@ fun SearchHotSection(
     }
 }
 
-/**
- * 🕒 历史记录板块
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun SearchHistorySection(
-    historyList: List<SearchHistory>,
-    onItemClick: (String) -> Unit,
-    onClear: () -> Unit,
-    onDelete: (SearchHistory) -> Unit
-) {
-    if (historyList.isNotEmpty()) {
-        val historyTitle = stringResource(R.string.search_history_title)
-        val clearLabel = stringResource(R.string.common_clear)
-        Column {
-            Spacer(modifier = Modifier.height(24.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AppText(
-                    historyTitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                AppTextButton(onClick = onClear) {
-                    AppText(clearLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            //  气泡化历史记录
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                historyList.forEach { history ->
-                    HistoryChip(
-                        keyword = history.keyword,
-                        onClick = { onItemClick(history.keyword) },
-                        onDelete = { onDelete(history) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-
 @Composable
 private fun SearchResultTypeTabRow(
     tabs: List<SearchType>,
@@ -2508,12 +2425,9 @@ private fun SearchResultTypeTabRow(
     onTabClick: (Int, SearchType) -> Unit
 ) {
     val selectedPage = pagerState.currentPage.coerceIn(tabs.indices)
-    // Do not use ScrollableTabRow/Tab indicator: the indicator layer paints *over*
-    // the selected label in all themes (empty capsule). Avoid Material Surface too —
-    // under the themed surface the label can still lose contrast. Draw pill +
-    // label ourselves with an explicit color pair.
-    val pillColor = AppSurfaceTokens.surfaceContainerHigh()
-    val selectedLabelColor = AppSurfaceTokens.onSurfaceContainerHigh()
+    // 液态胶囊语言：选中项用 primary 渐变胶囊 + 颜色过渡，与全 app 的
+    // 液体分段控件（BottomBarLiquidSegmentedControl）视觉一致；仍可横向滚动。
+    val selectedLabelColor = MaterialTheme.colorScheme.onPrimary
     val unselectedLabelColor = AppSurfaceTokens.onSurfaceVariantSummary()
     val pillShape = RoundedCornerShape(20.dp)
     Row(
@@ -2526,12 +2440,27 @@ private fun SearchResultTypeTabRow(
     ) {
         tabs.forEachIndexed { index, type ->
             val selected = selectedPage == index
-            val labelColor = if (selected) selectedLabelColor else unselectedLabelColor
+            val labelColor by animateColorAsState(
+                targetValue = if (selected) selectedLabelColor else unselectedLabelColor,
+                animationSpec = tween(220),
+                label = "typeTabLabelColor"
+            )
             Box(
                 modifier = Modifier
                     .heightIn(min = 36.dp)
                     .clip(pillShape)
-                    .background(if (selected) pillColor else Color.Transparent)
+                    .background(
+                        if (selected) {
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.92f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.68f)
+                                )
+                            )
+                        } else {
+                            SolidColor(Color.Transparent)
+                        }
+                    )
                     .clickable { onTabClick(index, type) }
                     .padding(horizontal = 14.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center

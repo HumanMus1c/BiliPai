@@ -17,9 +17,12 @@ class SearchTopBarLayoutPolicyTest {
     }
 
     @Test
-    fun topBarRowMinHeight_accommodatesInputHeightAndVerticalPadding() {
-        assertEquals(72, resolveSearchTopBarRowMinHeightDp(inputHeightDp = 56))
-        assertEquals(64, resolveSearchTopBarRowMinHeightDp(inputHeightDp = 44))
+    fun topBarRowMinHeight_matchesHomeSearchRowHeight() {
+        // 首页搜索胶囊 36dp、行高 48dp；搜索页输入框同为 compactChrome.primaryHeightDp，
+        // 行高应保持与首页一致（48dp），不再被 64dp 下限抬高。
+        assertEquals(48, resolveSearchTopBarRowMinHeightDp(inputHeightDp = 36))
+        assertEquals(52, resolveSearchTopBarRowMinHeightDp(inputHeightDp = 44))
+        assertEquals(64, resolveSearchTopBarRowMinHeightDp(inputHeightDp = 56))
     }
 
     @Test

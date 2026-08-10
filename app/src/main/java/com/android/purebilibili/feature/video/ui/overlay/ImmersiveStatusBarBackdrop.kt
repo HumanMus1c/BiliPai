@@ -36,18 +36,22 @@ internal fun resolveVideoStatusBarAmbientHazeStyle(): HazeBlurStyle = HazeBlurSt
 )
 
 /**
- * Keeps the system status icons visible over an opaque, live ambient strip sampled from playback.
- * Black is retained as the first-frame and capture-failure fallback.
+ * 播放器顶部为系统状态栏预留的背景条，保证系统状态图标在视频画面上清晰可见。
+ *
+ * [useAmbientHaze] 开启（「播放页沉浸状态栏」开关）时，实时采样播放画面做毛玻璃模糊，
+ * 状态栏背景跟随视频画面变化；关闭时保持纯黑背景（默认），视觉统一且零采样开销。
+ * 黑色同时作为首帧与采样失败的兜底。
  */
 @Composable
 internal fun ImmersiveStatusBarBackdrop(
     ambientFrame: State<ImageBitmap?>?,
     height: Dp,
+    useAmbientHaze: Boolean,
     modifier: Modifier = Modifier,
 ) {
     if (height.value <= 0f) return
+    val currentAmbientFrame = if (useAmbientHaze) ambientFrame?.value else null
     val hazeState = rememberRecoverableHazeState()
-    val currentAmbientFrame = ambientFrame?.value
     val colorFaithfulHazeStyle = remember { resolveVideoStatusBarAmbientHazeStyle() }
 
     Box(

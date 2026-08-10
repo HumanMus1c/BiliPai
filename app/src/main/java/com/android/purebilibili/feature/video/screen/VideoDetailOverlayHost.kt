@@ -913,6 +913,8 @@ internal fun DetachedVideoCommentThreadHost(
         maxTimestampMs = successState?.videoDurationMs?.takeIf { it > 0L },
         onBackToTop = onBackToTop,
         forceInitialize = forceInitialize,
-        handleFraudEvents = false
+        handleFraudEvents = false,
+        // 楼中楼（嵌入呈现）不盖全屏阴影：播放器上方保持可见，点背景关闭仍有效。
+        maxScrimAlphaOverride = 0f
     )
 }

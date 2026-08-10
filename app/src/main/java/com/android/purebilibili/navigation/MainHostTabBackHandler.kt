@@ -24,9 +24,6 @@ internal fun MainHostTabBackHandler(
     NavigationBackHandler(
         state = navEventState,
         isBackEnabled = enabled,
-        onBackCompleted = { commitTransition ->
-            onReturnToHomeTab()
-            commitTransition()
-        },
+        onBackCompleted = onReturnToHomeTab,
     )
 }

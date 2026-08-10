@@ -153,6 +153,15 @@ class AdaptiveListComponentPolicyTest {
                 iconStyle = AppIconStyle.THEME_CONTAINER,
             ),
         )
+        assertEquals(
+            colorScheme.onSecondaryContainer,
+            resolveAdaptivePreferenceIconGlyphColor(
+                treatment = AppPreferenceIconTreatment.TONAL,
+                iconStyle = AppIconStyle.THEME_CONTAINER,
+                containerContentColor = colorScheme.onSecondaryContainer,
+                semanticIconColor = colorScheme.secondaryContainer,
+            ),
+        )
     }
 
     @Test
@@ -183,6 +192,17 @@ class AdaptiveListComponentPolicyTest {
                 containerColor = Color.Transparent,
                 colorScheme = colorScheme,
                 iconStyle = AppIconStyle.MD3_STANDARD,
+            ),
+        )
+        // 回归：MD3_STANDARD 容器色为 Transparent，glyph 必须落到
+        // containerContentColor（onSurfaceVariant 单色），否则图标透明消失只剩文字。
+        assertEquals(
+            colorScheme.onSurfaceVariant,
+            resolveAdaptivePreferenceIconGlyphColor(
+                treatment = AppPreferenceIconTreatment.TONAL,
+                iconStyle = AppIconStyle.MD3_STANDARD,
+                containerContentColor = colorScheme.onSurfaceVariant,
+                semanticIconColor = Color.Transparent,
             ),
         )
     }

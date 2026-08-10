@@ -11,14 +11,9 @@ internal fun LocalNavigationBackHandler(
     onBackCompleted: () -> Unit,
 ) {
     val state = rememberNavigationEventState(NavigationEventInfo.None)
-    val predictiveBackGestureEnabled = LocalPredictiveBackGestureEnabled.current
     NavigationBackHandler(
         state = state,
         isBackEnabled = enabled,
-        reportPredictiveProgress = predictiveBackGestureEnabled,
-        onBackCompleted = { commitTransition: () -> Unit ->
-            onBackCompleted()
-            commitTransition()
-        },
+        onBackCompleted = onBackCompleted,
     )
 }

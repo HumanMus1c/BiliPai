@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ClearAll
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.rounded.Refresh
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.AnnotatedString
@@ -97,9 +99,9 @@ internal data class SearchDiscoverOriginalCellColors(
 internal fun resolveSearchDiscoverOriginalCellColors(
     colorScheme: androidx.compose.material3.ColorScheme
 ): SearchDiscoverOriginalCellColors {
-    return if (colorScheme.background.luminance() > 0.5f) {
+        return if (colorScheme.background.luminance() > 0.5f) {
         SearchDiscoverOriginalCellColors(
-            containerColor = colorScheme.surfaceVariant.copy(alpha = 0.72f),
+            containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f),
             titleColor = colorScheme.onSurface,
             subtitleColor = colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
             borderColor = colorScheme.outlineVariant.copy(alpha = 0.55f)
@@ -180,6 +182,7 @@ fun SearchLandingContent(
     fun HistorySection() {
         SearchHistorySectionModern(
             historyList = historyList,
+            columns = layoutPolicy.hotSearchColumns,
             onItemClick = onKeywordClick,
             onClear = onClearHistory,
             onDelete = onDeleteHistory
@@ -198,7 +201,7 @@ fun SearchLandingContent(
                     start = layoutPolicy.splitOuterPaddingDp.dp,
                     end = layoutPolicy.splitInnerGapDp.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item { TrendingSection() }
                 item { DiscoverSection() }
@@ -230,7 +233,7 @@ fun SearchLandingContent(
                 start = layoutPolicy.resultHorizontalPaddingDp.dp,
                 end = layoutPolicy.resultHorizontalPaddingDp.dp
             ),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             sectionOrder.forEach { section ->
                 item(key = section.name) {
@@ -545,14 +548,14 @@ private fun SearchDiscoverOriginalCell(
         shadowElevation = 0.dp
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             AppText(
                 text = item.title,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 15.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = colors.titleColor
                 )
@@ -563,6 +566,7 @@ private fun SearchDiscoverOriginalCell(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 11.sp,
                         color = colors.subtitleColor
                     )
                 )
@@ -637,16 +641,17 @@ internal fun SearchKeywordBadge(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SearchHistorySectionModern(
     historyList: List<SearchHistory>,
+    columns: Int,
     onItemClick: (String) -> Unit,
     onClear: () -> Unit,
     onDelete: (SearchHistory) -> Unit
 ) {
     if (historyList.isEmpty()) return
     val secondary = MaterialTheme.colorScheme.secondary
+    val safeColumns = resolveSearchKeywordSectionColumns(columns, showTrendingAction = false)
 
     Column {
         Row(
@@ -678,17 +683,46 @@ private fun SearchHistorySectionModern(
             }
         }
         Spacer(modifier = Modifier.height(10.dp))
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            historyList.forEach { history ->
-                HistoryChip(
-                    keyword = history.keyword,
-                    onClick = { onItemClick(history.keyword) },
-                    onDelete = { onDelete(history) }
-                )
+        // 与「搜索发现」同构的紧凑网格：历史项 14sp 文字行 + 删除角标，
+        // 行间距 4dp，替代此前间距过大的气泡 FlowRow。
+        historyList.chunked(safeColumns).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                rowItems.forEach { history ->
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onItemClick(history.keyword) }
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AppText(
+                            text = history.keyword,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        AppIconButton(
+                            onClick = { onDelete(history) },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            AppIcon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "删除",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+                if (rowItems.size < safeColumns) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }

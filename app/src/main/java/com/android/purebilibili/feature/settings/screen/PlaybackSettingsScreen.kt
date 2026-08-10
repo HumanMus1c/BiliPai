@@ -38,6 +38,11 @@ import com.android.purebilibili.core.store.DEFAULT_PLAYER_DIAGNOSTIC_LOGGING_ENA
 import com.android.purebilibili.core.store.DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ENABLED
 import com.android.purebilibili.core.store.DEFAULT_QUALITY_SWITCH_FAILURE_DIALOG_ONCE_ENABLED
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.store.LONG_PRESS_SPEED_HINT_ALPHA_MAX
+import com.android.purebilibili.core.store.LONG_PRESS_SPEED_HINT_ALPHA_MIN
+import com.android.purebilibili.core.store.LONG_PRESS_SPEED_HINT_SCALE_MAX
+import com.android.purebilibili.core.store.LONG_PRESS_SPEED_HINT_SCALE_MIN
+import com.android.purebilibili.core.store.LONG_PRESS_SPEED_HINT_STEP
 import com.android.purebilibili.core.store.player.DEFAULT_AUDIO_QUALITY_FOLLOW_LAST
 import com.android.purebilibili.core.store.player.PlayerSettingsStore
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
@@ -58,6 +63,7 @@ import com.android.purebilibili.feature.screenshot.AppScreenshotCaptureMode
 import com.android.purebilibili.feature.screenshot.AppScreenshotGestureMode
 import com.android.purebilibili.feature.video.subtitle.SubtitleAutoPreference
 import com.android.purebilibili.feature.video.subtitle.isSubtitleFeatureEnabledForUser
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.ui.components.*
 import com.android.purebilibili.core.ui.animation.EntranceGroup
@@ -170,6 +176,16 @@ fun PlaybackSettingsContent(
         .getLongPressSpeedHintHidden(context)
         .collectAsStateWithLifecycle(
             initialValue = SettingsManager.getLongPressSpeedHintHiddenSync(context)
+        )
+    val longPressSpeedHintScale by SettingsManager
+        .getLongPressSpeedHintScale(context)
+        .collectAsStateWithLifecycle(
+            initialValue = SettingsManager.getLongPressSpeedHintScaleSync(context)
+        )
+    val longPressSpeedHintAlpha by SettingsManager
+        .getLongPressSpeedHintAlpha(context)
+        .collectAsStateWithLifecycle(
+            initialValue = SettingsManager.getLongPressSpeedHintAlphaSync(context)
         )
     val videoCodecPreference by com.android.purebilibili.core.store.SettingsManager
         .getVideoCodec(context).collectAsStateWithLifecycle(initialValue = "hev1")
@@ -345,6 +361,105 @@ fun PlaybackSettingsContent(
                             },
                             iconTint = com.android.purebilibili.core.theme.iOSBlue,
                         )
+                        AppPreferenceDivider()
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val hintScaleSteps = (
+                                (LONG_PRESS_SPEED_HINT_SCALE_MAX - LONG_PRESS_SPEED_HINT_SCALE_MIN) /
+                                    LONG_PRESS_SPEED_HINT_STEP
+                                ).roundToInt() - 1
+                            var hintScale by remember { mutableFloatStateOf(longPressSpeedHintScale) }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "倍速提示大小",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "长按倍速浮层与提示文字的整体缩放",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Text(
+                                        text = "${(hintScale * 100f).roundToInt()}%",
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                            Slider(
+                                value = hintScale,
+                                onValueChange = { hintScale = it },
+                                onValueChangeFinished = {
+                                    scope.launch {
+                                        SettingsManager.setLongPressSpeedHintScale(context, hintScale)
+                                    }
+                                },
+                                valueRange = LONG_PRESS_SPEED_HINT_SCALE_MIN..LONG_PRESS_SPEED_HINT_SCALE_MAX,
+                                steps = hintScaleSteps
+                            )
+
+                            val hintAlphaSteps = (
+                                (LONG_PRESS_SPEED_HINT_ALPHA_MAX - LONG_PRESS_SPEED_HINT_ALPHA_MIN) /
+                                    LONG_PRESS_SPEED_HINT_STEP
+                                ).roundToInt() - 1
+                            var hintAlpha by remember { mutableFloatStateOf(longPressSpeedHintAlpha) }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "倍速提示透明度",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "长按倍速浮层与全局提示的背景不透明度",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Text(
+                                        text = "${(hintAlpha * 100f).roundToInt()}%",
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                            Slider(
+                                value = hintAlpha,
+                                onValueChange = { hintAlpha = it },
+                                onValueChangeFinished = {
+                                    scope.launch {
+                                        SettingsManager.setLongPressSpeedHintAlpha(context, hintAlpha)
+                                    }
+                                },
+                                valueRange = LONG_PRESS_SPEED_HINT_ALPHA_MIN..LONG_PRESS_SPEED_HINT_ALPHA_MAX,
+                                steps = hintAlphaSteps
+                            )
+                        }
                         AppPreferenceDivider()
                         Column(
                             modifier = Modifier
@@ -1840,9 +1955,9 @@ private fun PlaybackFullscreenGestureSettingsSection(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.IMMERSIVE_STATUS_BAR),
             title = "播放页沉浸状态栏",
             subtitle = if (immersiveVideoPageStatusBar) {
-                "状态栏保留；顶部实时 Haze 模糊并跟随视频画面变化，底部手势条保持显示"
+                "状态栏保留；播放器顶部使用实时模糊背景，系统图标清晰可见，底部手势条保持显示"
             } else {
-                "显示普通透明状态栏；播放器顶栏自动避让，不与系统图标重叠"
+                "状态栏保留；播放器顶部使用纯黑背景，系统图标清晰可见，底部手势条保持显示"
             },
             checked = immersiveVideoPageStatusBar,
             onCheckedChange = {

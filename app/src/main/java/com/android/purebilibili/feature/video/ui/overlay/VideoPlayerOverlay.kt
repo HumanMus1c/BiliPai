@@ -1328,10 +1328,11 @@ fun VideoPlayerOverlay(
         modifier = Modifier
             .fillMaxSize()
     ) {
-        if (!isFullscreen && immersiveVideoPageStatusBar) {
+        if (!isFullscreen) {
             ImmersiveStatusBarBackdrop(
                 ambientFrame = statusBarAmbientFrame,
                 height = statusBarBackdropHeight,
+                useAmbientHaze = immersiveVideoPageStatusBar,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
         }
@@ -1351,7 +1352,7 @@ fun VideoPlayerOverlay(
                     .fillMaxWidth()
                     .height(overlayVisualPolicy.topScrimHeightDp.dp)
                     .background(
-                        if (immersiveVideoPageStatusBar && !isFullscreen) {
+                        if (!isFullscreen) {
                             Brush.verticalGradient(
                                 colorStops = arrayOf(
                                     0f to Color.Transparent,

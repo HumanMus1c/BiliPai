@@ -55,8 +55,8 @@ dependencies {
     implementation("dev.chrisbanes.haze:haze-blur-materials:2.0.0-alpha03")
     implementation("io.github.alexzhirkevich:cupertino:0.1.0-alpha04")
     api("io.github.alexzhirkevich:cupertino-icons-extended:0.1.0-alpha04")
-    api("top.yukonga.miuix.kmp:miuix-ui-android:0.9.3")
-    implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.3")
+    api(libs.miuix.ui)
+    implementation(libs.miuix.preference)
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")

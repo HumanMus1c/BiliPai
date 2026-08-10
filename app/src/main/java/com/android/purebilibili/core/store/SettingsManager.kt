@@ -13,6 +13,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.android.purebilibili.core.ui.AppIconStyle
 import com.android.purebilibili.core.ui.AppListItemStyle
+import com.android.purebilibili.core.ui.components.AppSingleChoicePresentation
 import com.android.purebilibili.core.ui.resolveAppIconStylePreference
 import com.android.purebilibili.core.ui.resolveAppListItemStylePreference
 import com.android.purebilibili.core.ui.blur.BlurIntensity
@@ -131,6 +132,24 @@ internal fun resolveDefaultLiquidGlassStrength(mode: LiquidGlassMode): Float = w
 internal fun normalizeLiquidGlassStrength(value: Float): Float = value.coerceIn(0f, 1f)
 
 internal fun normalizeLiquidGlassProgress(value: Float): Float = value.coerceIn(0f, 1f)
+
+/** 长按倍速提示整体缩放（0.8×–1.5×，默认 1.0×）。 */
+internal const val LONG_PRESS_SPEED_HINT_SCALE_MIN = 0.8f
+internal const val LONG_PRESS_SPEED_HINT_SCALE_MAX = 1.5f
+internal const val LONG_PRESS_SPEED_HINT_DEFAULT_SCALE = 1.0f
+internal const val LONG_PRESS_SPEED_HINT_ALPHA_MIN = 0.3f
+internal const val LONG_PRESS_SPEED_HINT_ALPHA_MAX = 1.0f
+internal const val LONG_PRESS_SPEED_HINT_DEFAULT_ALPHA = 0.5f
+internal const val LONG_PRESS_SPEED_HINT_STEP = 0.05f
+
+internal fun normalizeLongPressSpeedHintScale(value: Float): Float =
+    if (!value.isFinite()) LONG_PRESS_SPEED_HINT_DEFAULT_SCALE
+    else value.coerceIn(LONG_PRESS_SPEED_HINT_SCALE_MIN, LONG_PRESS_SPEED_HINT_SCALE_MAX)
+
+/** 长按倍速提示背景/内容透明度（0.3–1.0，默认 0.5）。 */
+internal fun normalizeLongPressSpeedHintAlpha(value: Float): Float =
+    if (!value.isFinite()) LONG_PRESS_SPEED_HINT_DEFAULT_ALPHA
+    else value.coerceIn(LONG_PRESS_SPEED_HINT_ALPHA_MIN, LONG_PRESS_SPEED_HINT_ALPHA_MAX)
 
 internal fun resolveLegacyLiquidGlassProgress(
     mode: LiquidGlassMode,
@@ -552,7 +571,9 @@ data class AppThemeSettings(
     val appScreenshotCaptureMode: AppScreenshotCaptureMode =
         AppScreenshotCaptureMode.FULL_WINDOW,
     val appIconStyle: AppIconStyle = AppIconStyle.AUTO,
-    val appListItemStyle: AppListItemStyle = AppListItemStyle.AUTO
+    val appListItemStyle: AppListItemStyle = AppListItemStyle.AUTO,
+    val singleChoicePresentation: AppSingleChoicePresentation =
+        AppSingleChoicePresentation.WINDOW_POPUP,
 )
 
 data class ThemeModeRoleOverrides(
@@ -670,7 +691,7 @@ enum class CommonListHeaderCollapseMode(
     val label: String,
     val description: String
 ) {
-    ALWAYS_VISIBLE(0, "始终显示", "首页推荐流、历史记录和收藏夹顶部栏保持展开"),
+    ALWAYS_VISIBLE(0, "始终显示", "历史记录和收藏夹等通用列表的顶部栏保持展开"),
     SHOW_ON_REVERSE_SCROLL(1, "上滑时显示", "向下浏览时折叠，反向上滑时恢复"),
     SHOW_AT_TOP_ONLY(2, "仅回顶显示", "向下浏览时折叠，仅回到列表顶部时恢复");
 
@@ -812,8 +833,8 @@ data class AppNavigationSettings(
     val tabletUseSidebar: Boolean = false,
     val sidebarAccountSwitcherEnabled: Boolean = true,
     val predictiveBackEnabled: Boolean = true,
-    val predictiveBackAnimationStyle: String = "scale",
-    val predictiveBackExitDirection: String = "auto",
+    val predictiveBackAnimationStyle: String = "miuix",
+    val predictiveBackExitDirection: String = "always_right",
 )
 
 internal data class BottomTabMigrationResult(
@@ -914,6 +935,8 @@ data class PlayerInteractionSettings(
      */
     val longPressSpeedHintCloseEnabled: Boolean = false,
     val longPressSpeedHintHidden: Boolean = false,
+    val longPressSpeedHintScale: Float = 1.0f,
+    val longPressSpeedHintAlpha: Float = 0.5f,
     val subtitleVerticalOffsetFraction: Float = 0.0f,
     /** Vertical offset for portrait immersive / story subtitles (independent of landscape). */
     val subtitlePortraitVerticalOffsetFraction: Float = 0.0f,
@@ -1146,6 +1169,8 @@ object SettingsManager {
     private val KEY_THEME_DARK_CONTROL_ACCENT = stringPreferencesKey("theme_dark_control_accent")
     private val KEY_THEME_COLOR_STYLE = stringPreferencesKey("theme_color_style")
     private val KEY_THEME_COLOR_SPEC = stringPreferencesKey("theme_color_spec")
+    private val KEY_SINGLE_CHOICE_PRESENTATION =
+        stringPreferencesKey("single_choice_presentation")
     private val KEY_BG_PLAY = booleanPreferencesKey("bg_play")
     //  [新增] 触感反馈 (默认开启)
     private val KEY_HAPTIC_FEEDBACK_ENABLED = booleanPreferencesKey("haptic_feedback_enabled")
@@ -1174,6 +1199,10 @@ object SettingsManager {
         booleanPreferencesKey("long_press_speed_lock_enabled")
     private val KEY_LONG_PRESS_SPEED_LOCK_HINT_SHOWN =
         booleanPreferencesKey("long_press_speed_lock_hint_shown")
+    private val KEY_LONG_PRESS_SPEED_HINT_SCALE =
+        floatPreferencesKey("long_press_speed_hint_scale")
+    private val KEY_LONG_PRESS_SPEED_HINT_ALPHA =
+        floatPreferencesKey("long_press_speed_hint_alpha")
     private val KEY_TWO_FINGER_VERTICAL_SPEED_ENABLED =
         booleanPreferencesKey("two_finger_vertical_speed_enabled")
     private val KEY_TWO_FINGER_HORIZONTAL_SPEED_ENABLED =
@@ -1561,6 +1590,12 @@ object SettingsManager {
             longPressSpeedHintCloseEnabled =
                 preferences[KEY_LONG_PRESS_SPEED_HINT_CLOSE_ENABLED] ?: false,
             longPressSpeedHintHidden = preferences[KEY_LONG_PRESS_SPEED_HINT_HIDDEN] ?: false,
+            longPressSpeedHintScale = normalizeLongPressSpeedHintScale(
+                preferences[KEY_LONG_PRESS_SPEED_HINT_SCALE] ?: LONG_PRESS_SPEED_HINT_DEFAULT_SCALE
+            ),
+            longPressSpeedHintAlpha = normalizeLongPressSpeedHintAlpha(
+                preferences[KEY_LONG_PRESS_SPEED_HINT_ALPHA] ?: LONG_PRESS_SPEED_HINT_DEFAULT_ALPHA
+            ),
             subtitleVerticalOffsetFraction = normalizeSubtitleVerticalOffsetFraction(
                 preferences[KEY_SUBTITLE_VERTICAL_OFFSET_FRACTION] ?: 0.0f
             ),
@@ -1630,6 +1665,8 @@ object SettingsManager {
     private const val CACHE_KEY_LONG_PRESS_SPEED_HINT_CLOSE_ENABLED =
         "long_press_speed_hint_close_enabled"
     private const val CACHE_KEY_LONG_PRESS_SPEED_HINT_HIDDEN = "long_press_speed_hint_hidden"
+    private const val CACHE_KEY_LONG_PRESS_SPEED_HINT_SCALE = "long_press_speed_hint_scale"
+    private const val CACHE_KEY_LONG_PRESS_SPEED_HINT_ALPHA = "long_press_speed_hint_alpha"
     private const val VIDEO_PAGE_STATUS_BAR_CACHE_PREFS = "video_page_status_bar_cache"
     private const val CACHE_KEY_HIDE_VIDEO_PAGE_STATUS_BAR = "hide_video_page_status_bar"
 
@@ -1907,6 +1944,9 @@ object SettingsManager {
                 preferences[KEY_APP_SCREENSHOT_CAPTURE_MODE]
                     ?: AppScreenshotCaptureMode.FULL_WINDOW.value
             ),
+            singleChoicePresentation = AppSingleChoicePresentation.fromStorageValue(
+                preferences[KEY_SINGLE_CHOICE_PRESENTATION]
+            ),
             appIconStyle = resolveAppIconStylePreference(preferences[KEY_APP_ICON_STYLE]),
             appListItemStyle = resolveAppListItemStylePreference(preferences[KEY_APP_LIST_ITEM_STYLE])
         )
@@ -2001,6 +2041,15 @@ object SettingsManager {
         )
     }
 
+    suspend fun setSingleChoicePresentation(
+        context: Context,
+        presentation: AppSingleChoicePresentation,
+    ) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_SINGLE_CHOICE_PRESENTATION] = presentation.storageValue
+        }
+    }
+
     fun getAppLanguageSync(context: Context): AppLanguage {
         val rawValue = context.getSharedPreferences("theme_cache", Context.MODE_PRIVATE)
             .getInt("app_language", AppLanguage.FOLLOW_SYSTEM.value)
@@ -2015,6 +2064,13 @@ object SettingsManager {
     fun getAppListItemStyle(context: Context): Flow<AppListItemStyle> =
         context.settingsDataStore.data.map { preferences ->
             resolveAppListItemStylePreference(preferences[KEY_APP_LIST_ITEM_STYLE])
+        }
+
+    fun getSingleChoicePresentation(context: Context): Flow<AppSingleChoicePresentation> =
+        context.settingsDataStore.data.map { preferences ->
+            AppSingleChoicePresentation.fromStorageValue(
+                preferences[KEY_SINGLE_CHOICE_PRESENTATION]
+            )
         }
 
     suspend fun setDarkThemeStyle(context: Context, style: DarkThemeStyle) {
@@ -2406,6 +2462,50 @@ object SettingsManager {
     fun getLongPressSpeedHintHiddenSync(context: Context): Boolean =
         context.getSharedPreferences(LONG_PRESS_SPEED_LOCK_CACHE_PREFS, Context.MODE_PRIVATE)
             .getBoolean(CACHE_KEY_LONG_PRESS_SPEED_HINT_HIDDEN, false)
+
+    fun getLongPressSpeedHintScale(context: Context): Flow<Float> = context.settingsDataStore.data
+        .map { preferences ->
+            normalizeLongPressSpeedHintScale(
+                preferences[KEY_LONG_PRESS_SPEED_HINT_SCALE] ?: LONG_PRESS_SPEED_HINT_DEFAULT_SCALE
+            )
+        }
+
+    suspend fun setLongPressSpeedHintScale(context: Context, scale: Float) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LONG_PRESS_SPEED_HINT_SCALE] = normalizeLongPressSpeedHintScale(scale)
+        }
+        context.getSharedPreferences(LONG_PRESS_SPEED_LOCK_CACHE_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(CACHE_KEY_LONG_PRESS_SPEED_HINT_SCALE, normalizeLongPressSpeedHintScale(scale))
+            .apply()
+    }
+
+    fun getLongPressSpeedHintScaleSync(context: Context): Float =
+        context.getSharedPreferences(LONG_PRESS_SPEED_LOCK_CACHE_PREFS, Context.MODE_PRIVATE)
+            .getFloat(CACHE_KEY_LONG_PRESS_SPEED_HINT_SCALE, LONG_PRESS_SPEED_HINT_DEFAULT_SCALE)
+            .let(::normalizeLongPressSpeedHintScale)
+
+    fun getLongPressSpeedHintAlpha(context: Context): Flow<Float> = context.settingsDataStore.data
+        .map { preferences ->
+            normalizeLongPressSpeedHintAlpha(
+                preferences[KEY_LONG_PRESS_SPEED_HINT_ALPHA] ?: LONG_PRESS_SPEED_HINT_DEFAULT_ALPHA
+            )
+        }
+
+    suspend fun setLongPressSpeedHintAlpha(context: Context, alpha: Float) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LONG_PRESS_SPEED_HINT_ALPHA] = normalizeLongPressSpeedHintAlpha(alpha)
+        }
+        context.getSharedPreferences(LONG_PRESS_SPEED_LOCK_CACHE_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(CACHE_KEY_LONG_PRESS_SPEED_HINT_ALPHA, normalizeLongPressSpeedHintAlpha(alpha))
+            .apply()
+    }
+
+    fun getLongPressSpeedHintAlphaSync(context: Context): Float =
+        context.getSharedPreferences(LONG_PRESS_SPEED_LOCK_CACHE_PREFS, Context.MODE_PRIVATE)
+            .getFloat(CACHE_KEY_LONG_PRESS_SPEED_HINT_ALPHA, LONG_PRESS_SPEED_HINT_DEFAULT_ALPHA)
+            .let(::normalizeLongPressSpeedHintAlpha)
 
     fun getSubtitleVerticalOffsetFraction(context: Context): Flow<Float> = context.settingsDataStore.data
         .map { preferences ->
@@ -5150,11 +5250,37 @@ object SettingsManager {
     }
 
     // ==========  应用更新 ==========
+    private val KEY_APP_UPDATE_CHANNEL = intPreferencesKey("app_update_channel")
+
+    /**
+     *  更新检测渠道
+     * - STABLE: 正式版渠道，仅检测稳定版本
+     * - BETA: 测试版渠道，同时检测预发布（Beta / RC）版本
+     */
+    enum class AppUpdateChannel(val value: Int, val label: String, val description: String) {
+        STABLE(0, "正式版", "仅检测稳定版本"),
+        BETA(1, "测试版", "同时检测测试版与预发布版本");
+
+        companion object {
+            fun fromValue(value: Int): AppUpdateChannel = entries.find { it.value == value } ?: STABLE
+        }
+    }
+
     fun getAutoCheckAppUpdate(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_AUTO_CHECK_APP_UPDATE] ?: true } // 默认开启
 
     suspend fun setAutoCheckAppUpdate(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences -> preferences[KEY_AUTO_CHECK_APP_UPDATE] = value }
+    }
+
+    // --- 更新检测渠道 (默认正式版) ---
+    fun getAppUpdateChannel(context: Context): Flow<AppUpdateChannel> = context.settingsDataStore.data
+        .map { preferences ->
+            AppUpdateChannel.fromValue(preferences[KEY_APP_UPDATE_CHANNEL] ?: AppUpdateChannel.STABLE.value)
+        }
+
+    suspend fun setAppUpdateChannel(context: Context, channel: AppUpdateChannel) {
+        context.settingsDataStore.edit { preferences -> preferences[KEY_APP_UPDATE_CHANNEL] = channel.value }
     }
     
     // ==========  隐私无痕模式 ==========
@@ -6203,8 +6329,9 @@ object SettingsManager {
             sidebarAccountSwitcherEnabled =
                 preferences[KEY_SIDEBAR_ACCOUNT_SWITCHER_ENABLED] ?: true,
             predictiveBackEnabled = preferences[KEY_PREDICTIVE_BACK_ENABLED] ?: true,
-            predictiveBackAnimationStyle = preferences[KEY_PREDICTIVE_BACK_ANIMATION_STYLE] ?: "scale",
-            predictiveBackExitDirection = preferences[KEY_PREDICTIVE_BACK_EXIT_DIRECTION] ?: "auto",
+            predictiveBackAnimationStyle = preferences[KEY_PREDICTIVE_BACK_ANIMATION_STYLE] ?: "miuix",
+            predictiveBackExitDirection =
+                preferences[KEY_PREDICTIVE_BACK_EXIT_DIRECTION] ?: "always_right",
         )
     }
 
@@ -6240,6 +6367,13 @@ object SettingsManager {
 
     suspend fun setPredictiveBackExitDirection(context: Context, direction: String) {
         NavigationSettingsStore.setPredictiveBackExitDirection(context, direction)
+    }
+
+    fun getFullScreenSwipeBackEnabled(context: Context): Flow<Boolean> =
+        NavigationSettingsStore.getFullScreenSwipeBackEnabled(context)
+
+    suspend fun setFullScreenSwipeBackEnabled(context: Context, enabled: Boolean) {
+        NavigationSettingsStore.setFullScreenSwipeBackEnabled(context, enabled)
     }
     
     // ========== [问题12] 视频操作按钮可见性 ==========
@@ -6458,6 +6592,10 @@ object SettingsManager {
             StringShareablePreferenceDefinition(KEY_THEME_DARK_CONTROL_ACCENT, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_THEME_COLOR_STYLE, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_THEME_COLOR_SPEC, SettingsShareSection.APPEARANCE),
+            StringShareablePreferenceDefinition(
+                KEY_SINGLE_CHOICE_PRESENTATION,
+                SettingsShareSection.APPEARANCE,
+            ),
             IntShareablePreferenceDefinition(KEY_THEME_COLOR_INDEX, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_APP_ICON, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_APP_ICON_APPEARANCE, SettingsShareSection.APPEARANCE),

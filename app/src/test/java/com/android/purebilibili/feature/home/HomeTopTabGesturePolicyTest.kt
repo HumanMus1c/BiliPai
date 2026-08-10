@@ -93,4 +93,26 @@ class HomeTopTabGesturePolicyTest {
             )
         )
     }
+
+    @Test
+    fun reverseScroll_expandsTabsImmediatelyEvenWhenSearchIsStillCollapsed() {
+        assertFalse(
+            reduceHomeTopTabsAutoCollapseState(
+                isCollapsed = true,
+                scrollDeltaY = 8f,
+                isTopTabAutoCollapseEnabled = true,
+            )
+        )
+    }
+
+    @Test
+    fun forwardScroll_collapsesTabs() {
+        assertTrue(
+            reduceHomeTopTabsAutoCollapseState(
+                isCollapsed = false,
+                scrollDeltaY = -8f,
+                isTopTabAutoCollapseEnabled = true,
+            )
+        )
+    }
 }

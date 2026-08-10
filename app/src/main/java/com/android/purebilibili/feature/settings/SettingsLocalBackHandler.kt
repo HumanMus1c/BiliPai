@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import com.android.purebilibili.core.ui.LocalPredictiveBackGestureEnabled
 
 /**
  * Settings 内局部返回（overlay / drill-down / 搜索态）使用 [NavigationBackHandler]。
@@ -16,11 +15,9 @@ internal fun SettingsLocalBackHandler(
     onBackCompleted: () -> Unit,
 ) {
     val navEventState = rememberNavigationEventState(NavigationEventInfo.None)
-    val predictiveBackGestureEnabled = LocalPredictiveBackGestureEnabled.current
     NavigationBackHandler(
         state = navEventState,
         isBackEnabled = enabled,
-        reportPredictiveProgress = predictiveBackGestureEnabled,
         onBackCompleted = onBackCompleted,
     )
 }

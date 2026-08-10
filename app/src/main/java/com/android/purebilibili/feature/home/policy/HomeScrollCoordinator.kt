@@ -23,14 +23,11 @@ internal data class HomeHeaderSettleTransition(
 )
 
 internal fun resolveHomeRecommendationHeaderCollapseMode(
-    homeHeaderCollapseMode: HomeHeaderCollapseMode,
-    commonListHeaderCollapseMode: CommonListHeaderCollapseMode
+    homeHeaderCollapseMode: HomeHeaderCollapseMode
 ): HomeHeaderCollapseMode {
-    return if (commonListHeaderCollapseMode == CommonListHeaderCollapseMode.ALWAYS_VISIBLE) {
-        HomeHeaderCollapseMode.OFF
-    } else {
-        homeHeaderCollapseMode
-    }
+    // 首页的搜索行和标签页有独立设置；通用列表的策略不能覆盖它们，
+    // 否则切换“仅回顶显示”等选项会让首页标签的显示状态显得不稳定。
+    return homeHeaderCollapseMode
 }
 
 internal fun quantizeHomeHeaderOffset(

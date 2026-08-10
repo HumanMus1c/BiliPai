@@ -1,5 +1,7 @@
 package com.android.purebilibili.navigation3
 
+import androidx.compose.ui.geometry.Rect
+
 internal enum class BiliPaiNavCardSourceDirection {
     NONE,
     SOURCE_LEFT,
@@ -14,6 +16,7 @@ internal data class BiliPaiNavSourceMetadata(
     val cardSourceDirection: BiliPaiNavCardSourceDirection = BiliPaiNavCardSourceDirection.NONE,
     val sourceCornerDp: Int? = null,
     val coverIdentity: String? = null,
+    val sourceBounds: Rect? = null,
 ) {
     val sharedTransitionEntryReady: Boolean
         get() = clickedBoundsRecorded
@@ -91,6 +94,7 @@ internal fun resolveBiliPaiNavSourceMetadata(
     cardSourceDirection: BiliPaiNavCardSourceDirection = BiliPaiNavCardSourceDirection.NONE,
     sourceCornerDp: Int? = null,
     coverIdentity: String? = null,
+    sourceBounds: Rect? = null,
 ): BiliPaiNavSourceMetadata {
     return BiliPaiNavSourceMetadata(
         sourceKey = sourceKey,
@@ -100,5 +104,6 @@ internal fun resolveBiliPaiNavSourceMetadata(
         cardSourceDirection = cardSourceDirection,
         sourceCornerDp = sourceCornerDp?.coerceAtLeast(0),
         coverIdentity = coverIdentity?.trim()?.takeIf(String::isNotEmpty),
+        sourceBounds = sourceBounds,
     )
 }

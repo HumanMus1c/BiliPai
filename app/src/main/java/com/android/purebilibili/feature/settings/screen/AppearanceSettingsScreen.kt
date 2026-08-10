@@ -221,6 +221,15 @@ fun AppearanceSettingsContent(
     context: android.content.Context,
     onAppLanguageChange: (AppLanguage) -> Unit
 ) {
+    val singleChoicePresentation by SettingsManager
+        .getSingleChoicePresentation(context)
+        .collectAsStateWithLifecycle(AppSingleChoicePresentation.WINDOW_POPUP)
+    val singleChoicePresentationOptions = remember {
+        listOf(
+            AppSegmentOption(AppSingleChoicePresentation.WINDOW_POPUP, "跟随选项弹出"),
+            AppSegmentOption(AppSingleChoicePresentation.CENTERED_DIALOG, "居中弹窗"),
+        )
+    }
     val listState = rememberLazyListState()
     val focusRequest by SettingsSearchFocusController.request.collectAsStateWithLifecycle()
     // Animation Trigger
@@ -582,6 +591,25 @@ fun AppearanceSettingsContent(
                             onSelectionChange = { style ->
                                 viewModel.setAppListItemStyle(style)
                             }
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        AppPreferenceDivider()
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        SettingsSingleChoicePreference(
+                            title = "单选项展示方式",
+                            subtitle = "跟随选项弹出与截图一致；也可切回居中弹窗",
+                            options = singleChoicePresentationOptions,
+                            selectedValue = singleChoicePresentation,
+                            onSelectionChange = { presentation ->
+                                scope.launch {
+                                    SettingsManager.setSingleChoicePresentation(
+                                        context = context,
+                                        presentation = presentation,
+                                    )
+                                }
+                            },
                         )
 
                         androidx.compose.animation.AnimatedVisibility(

@@ -6,7 +6,6 @@ import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -18,16 +17,18 @@ import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import kotlin.math.abs
 import kotlin.math.sign
-import kotlin.coroutines.resume
 
 internal enum class PagerGestureDirection {
     UNDECIDED,
@@ -36,26 +37,74 @@ internal enum class PagerGestureDirection {
 }
 
 internal const val PAGER_HORIZONTAL_DOMINANCE_RATIO = 1.5f
-internal const val PAGER_DIRECTION_SLOP_MULTIPLIER = 1.5f
+internal const val PAGER_AMBIGUOUS_DIRECTION_SLOP_MULTIPLIER = 1.5f
+internal const val PAGER_RELEASE_POSITION_THRESHOLD = 0.2f
+internal const val PAGER_RELEASE_MIN_FLING_VELOCITY_DP = 300f
 
 internal fun resolveVerticalPriorityPagerGestureDirection(
     totalX: Float,
     totalY: Float,
     touchSlop: Float,
     horizontalDominanceRatio: Float = PAGER_HORIZONTAL_DOMINANCE_RATIO,
-    directionSlopMultiplier: Float = PAGER_DIRECTION_SLOP_MULTIPLIER,
+    ambiguousDirectionSlopMultiplier: Float = PAGER_AMBIGUOUS_DIRECTION_SLOP_MULTIPLIER,
 ): PagerGestureDirection {
-    val requiredDistance = touchSlop.coerceAtLeast(0f) * directionSlopMultiplier.coerceAtLeast(1f)
+    val systemTouchSlop = touchSlop.coerceAtLeast(0f)
     val totalDistanceSquared = totalX * totalX + totalY * totalY
-    if (totalDistanceSquared < requiredDistance * requiredDistance) {
+    if (totalDistanceSquared == 0f || totalDistanceSquared < systemTouchSlop * systemTouchSlop) {
         return PagerGestureDirection.UNDECIDED
     }
 
-    return if (abs(totalX) >= abs(totalY) * horizontalDominanceRatio.coerceAtLeast(1f)) {
-        PagerGestureDirection.HORIZONTAL
+    val horizontalDistance = abs(totalX)
+    val verticalDistance = abs(totalY)
+    if (horizontalDistance >= verticalDistance * horizontalDominanceRatio.coerceAtLeast(1f)) {
+        return PagerGestureDirection.HORIZONTAL
+    }
+    if (verticalDistance >= horizontalDistance) return PagerGestureDirection.VERTICAL
+
+    // A slightly horizontal diagonal gets a short grace distance to clarify intent. Clear
+    // horizontal and vertical gestures do not pay this extra threshold.
+    val ambiguousDirectionSlop = systemTouchSlop *
+        ambiguousDirectionSlopMultiplier.coerceAtLeast(1f)
+    return if (totalDistanceSquared < ambiguousDirectionSlop * ambiguousDirectionSlop) {
+        PagerGestureDirection.UNDECIDED
     } else {
         PagerGestureDirection.VERTICAL
     }
+}
+
+internal fun resolvePagerInitialHorizontalDelta(
+    totalX: Float,
+    touchSlop: Float,
+): Float {
+    val consumedSlop = touchSlop.coerceAtLeast(0f).coerceAtMost(abs(totalX))
+    return totalX - sign(totalX) * consumedSlop
+}
+
+internal fun resolvePagerReleaseTargetPage(
+    startPage: Int,
+    pageCount: Int,
+    pageSizePx: Float,
+    scrollDeltaPx: Float,
+    scrollVelocityPxPerSecond: Float,
+    positionalThresholdFraction: Float = PAGER_RELEASE_POSITION_THRESHOLD,
+    minimumFlingVelocityPxPerSecond: Float,
+): Int {
+    if (pageCount <= 0) return 0
+    val boundedStartPage = startPage.coerceIn(0, pageCount - 1)
+    val isFastFling = scrollVelocityPxPerSecond != 0f &&
+        abs(scrollVelocityPxPerSecond) >= minimumFlingVelocityPxPerSecond.coerceAtLeast(0f)
+    val crossedPositionThreshold = pageSizePx > 0f &&
+        abs(scrollDeltaPx) >= pageSizePx * positionalThresholdFraction.coerceIn(0f, 1f)
+    if (!isFastFling && !crossedPositionThreshold) return boundedStartPage
+
+    val releaseDirection = if (isFastFling) {
+        sign(scrollVelocityPxPerSecond)
+    } else {
+        sign(scrollDeltaPx)
+    }
+    if (releaseDirection == 0f) return boundedStartPage
+    return (boundedStartPage + if (releaseDirection > 0f) 1 else -1)
+        .coerceIn(0, pageCount - 1)
 }
 
 /**
@@ -73,8 +122,11 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
 ): Modifier = composed {
     if (!enabled) return@composed this
 
-    val flingBehavior = PagerDefaults.flingBehavior(state = state)
     val layoutDirection = LocalLayoutDirection.current
+    val density = LocalDensity.current
+    val minimumFlingVelocityPx = with(density) {
+        PAGER_RELEASE_MIN_FLING_VELOCITY_DP.dp.toPx()
+    }
     val reverseDirection = remember(layoutDirection, reverseLayout) {
         ScrollableDefaults.reverseDirection(
             layoutDirection = layoutDirection,
@@ -83,7 +135,7 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
         )
     }
 
-    pointerInput(state, flingBehavior, reverseDirection) {
+    pointerInput(state, reverseDirection, minimumFlingVelocityPx) {
         val dragCoroutineScope = CoroutineScope(currentCoroutineContext())
         val velocityTracker = VelocityTracker()
         awaitEachGesture gesture@{
@@ -98,6 +150,7 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
             }
             velocityTracker.resetTracking()
             velocityTracker.addPosition(down.uptimeMillis, down.position)
+            val gestureStartPage = state.currentPage
 
             var totalDrag = Offset.Zero
             var direction = PagerGestureDirection.UNDECIDED
@@ -129,25 +182,36 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
             if (direction != PagerGestureDirection.HORIZONTAL) return@gesture
             horizontalLockChange?.consume()
 
-            val directionThreshold =
-                viewConfiguration.touchSlop * PAGER_DIRECTION_SLOP_MULTIPLIER
-            val initialHorizontalDelta =
-                totalDrag.x - sign(totalDrag.x) * directionThreshold
+            val initialHorizontalDelta = resolvePagerInitialHorizontalDelta(
+                totalX = totalDrag.x,
+                touchSlop = viewConfiguration.touchSlop,
+            )
             val scrollDirectionMultiplier = if (reverseDirection) -1f else 1f
             val dragSession = PagerDragScrollSession()
             val scrollJob = dragCoroutineScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                var release: PagerDragRelease? = null
                 state.scroll(MutatePriority.UserInput) {
-                    val horizontalVelocity = with(dragSession) {
-                        awaitReleaseVelocity(
+                    release = with(dragSession) {
+                        awaitRelease(
                             initialDelta = initialHorizontalDelta * scrollDirectionMultiplier,
                         )
                     }
-                    with(flingBehavior) {
-                        performFling(horizontalVelocity)
-                    }
+                }
+                release?.let { dragRelease ->
+                    state.animateScrollToPage(
+                        resolvePagerReleaseTargetPage(
+                            startPage = gestureStartPage,
+                            pageCount = state.pageCount,
+                            pageSizePx = state.layoutInfo.pageSize.toFloat(),
+                            scrollDeltaPx = dragRelease.scrollDeltaPx,
+                            scrollVelocityPxPerSecond = dragRelease.velocityPxPerSecond,
+                            minimumFlingVelocityPxPerSecond = minimumFlingVelocityPx,
+                        ),
+                    )
                 }
             }
 
+            var accumulatedScrollDelta = initialHorizontalDelta * scrollDirectionMultiplier
             var releasedNormally = false
             try {
                 var released = false
@@ -168,13 +232,20 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
                         val horizontalDelta = change.positionChangeIgnoreConsumed().x
                         change.consume()
                         if (horizontalDelta != 0f) {
-                            dragSession.dragBy(horizontalDelta * scrollDirectionMultiplier)
+                            val scrollDelta = horizontalDelta * scrollDirectionMultiplier
+                            accumulatedScrollDelta += scrollDelta
+                            dragSession.dragBy(scrollDelta)
                         }
                     }
                 }
 
-                val horizontalVelocity = velocityTracker.calculateVelocity().x
-                dragSession.release(horizontalVelocity * scrollDirectionMultiplier)
+                dragSession.release(
+                    PagerDragRelease(
+                        velocityPxPerSecond = velocityTracker.calculateVelocity().x *
+                            scrollDirectionMultiplier,
+                        scrollDeltaPx = accumulatedScrollDelta,
+                    ),
+                )
                 releasedNormally = true
             } finally {
                 if (!releasedNormally) {
@@ -186,11 +257,16 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
     }
 }
 
+private data class PagerDragRelease(
+    val velocityPxPerSecond: Float,
+    val scrollDeltaPx: Float,
+)
+
 private class PagerDragScrollSession {
     private var scrollScope: ScrollScope? = null
-    private var releaseContinuation: CancellableContinuation<Float>? = null
+    private var releaseContinuation: CancellableContinuation<PagerDragRelease>? = null
 
-    suspend fun ScrollScope.awaitReleaseVelocity(initialDelta: Float): Float =
+    suspend fun ScrollScope.awaitRelease(initialDelta: Float): PagerDragRelease =
         suspendCancellableCoroutine { continuation ->
             scrollScope = this
             releaseContinuation = continuation
@@ -205,11 +281,11 @@ private class PagerDragScrollSession {
         if (delta != 0f) scrollScope?.scrollBy(delta)
     }
 
-    fun release(velocity: Float) {
+    fun release(release: PagerDragRelease) {
         val continuation = releaseContinuation ?: return
         releaseContinuation = null
         scrollScope = null
-        if (continuation.isActive) continuation.resume(velocity)
+        if (continuation.isActive) continuation.resume(release)
     }
 
     fun cancel() {

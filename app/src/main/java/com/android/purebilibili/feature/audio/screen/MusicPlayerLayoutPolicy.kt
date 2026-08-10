@@ -27,7 +27,8 @@ internal fun resolveMusicArtworkSizeDp(
         MusicPlayerLayout.COMPACT_PAGER -> minOf(
             (availableWidthDp - 48).coerceAtLeast(0),
             (availableHeightDp - 80).coerceAtLeast(0),
-            320
+            // 288 为两行标题 + 控制区留出空间，避免矮屏滚动后裁切底部 dock
+            288
         )
         MusicPlayerLayout.EXPANDED_SPLIT -> minOf(
             (availableWidthDp / 2 - 64).coerceAtLeast(0),

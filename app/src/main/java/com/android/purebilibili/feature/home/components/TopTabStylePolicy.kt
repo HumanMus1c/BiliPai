@@ -652,10 +652,12 @@ internal fun shouldDrawHomeTopTabOuterChromeSurface(
     presentation: AppTopTabPresentation,
     materialMode: TopTabMaterialMode
 ): Boolean {
-    if (presentation != AppTopTabPresentation.MOVING_CAPSULE &&
-        materialMode != TopTabMaterialMode.LIQUID_GLASS
-    ) {
-        return false
+    return when (presentation) {
+        // 原生 Miuix 胶囊 dock 自带底部长胶囊背景，无需额外外壳。
+        AppTopTabPresentation.TONAL_CAPSULE -> false
+        // md3 下划线 tab 也绘制统一的长胶囊背景，避免滑动内容时
+        // tab 文字直接浮现在信息流上方（与 Miuix 主题视觉统一）。
+        AppTopTabPresentation.MATERIAL_UNDERLINE -> true
+        AppTopTabPresentation.MOVING_CAPSULE -> true
     }
-    return presentation != AppTopTabPresentation.TONAL_CAPSULE
 }

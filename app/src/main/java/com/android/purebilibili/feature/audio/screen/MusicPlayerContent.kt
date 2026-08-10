@@ -318,13 +318,14 @@ internal fun MusicPlayerContent(
                                 miuixBackdrop = musicBackdrop,
                                 progressSeekRevision = progressSeekRevision,
                                 controlsVisible = lyricsControlsVisible,
-                                onControlsVisibleChange = { lyricsControlsVisible = it },
-                                showPageSwitcher = true
+                                onControlsVisibleChange = { lyricsControlsVisible = it }
                             )
                         }
                     }
                     AnimatedVisibility(
-                        visible = pagerState.currentPage != 1 || lyricsControlsVisible,
+                        // 歌词页沉浸显示：底部只留浮动控制面板，隐藏「播放/歌词」切换器，
+                        // 避免切换器 + 面板 + 手势条三层叠加；切回播放页用横滑手势。
+                        visible = pagerState.currentPage != 1,
                         modifier = Modifier.align(Alignment.BottomCenter),
                         enter = if (effectiveReduceMotion) EnterTransition.None else fadeIn() + slideInVertically { it / 2 },
                         exit = if (effectiveReduceMotion) ExitTransition.None else fadeOut() + slideOutVertically { it / 2 }
@@ -407,7 +408,6 @@ internal fun MusicPlayerContent(
                     progressSeekRevision = progressSeekRevision,
                     controlsVisible = lyricsControlsVisible,
                     onControlsVisibleChange = { lyricsControlsVisible = it },
-                    showPageSwitcher = false,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -709,14 +709,14 @@ private fun PlayerPage(
                 modifier = Modifier.size(artworkSizeDp.dp)
             )
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(20.dp))
         Column(Modifier.fillMaxWidth()) {
             AppText(
                 text = state.title,
                 color = MusicContentColor,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             AppText(
@@ -731,7 +731,7 @@ private fun PlayerPage(
             }
         }
         onAudioQualityClick?.let { action ->
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
             MusicAudioQualityControl(
                 label = audioQualityLabel,
                 isHiResSelected = isHiResAudioSelected,
@@ -739,7 +739,7 @@ private fun PlayerPage(
                 onClick = action
             )
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(12.dp))
         MusicProgress(state, onSeek)
         Spacer(Modifier.height(8.dp))
         PlaybackControls(state, onPlayPause, onPrevious, onNext)
@@ -763,7 +763,7 @@ private fun MusicAudioQualityControl(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
+            .heightIn(min = 40.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(MusicContentColor.copy(alpha = 0.12f))
             .clickable(onClick = onClick)
@@ -874,8 +874,8 @@ private fun MusicProgress(state: MusicPlayerUiState, onSeek: (Long) -> Unit) {
         )
     )
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        AppText(formatMusicTime(state.positionMs), color = MusicContentColor.copy(alpha = 0.58f), fontSize = 11.sp)
-        AppText("-${formatMusicTime((state.durationMs - state.positionMs).coerceAtLeast(0L))}", color = MusicContentColor.copy(alpha = 0.58f), fontSize = 11.sp)
+        AppText(formatMusicTime(state.positionMs), color = MusicContentColor.copy(alpha = 0.7f), fontSize = 12.sp)
+        AppText("-${formatMusicTime((state.durationMs - state.positionMs).coerceAtLeast(0L))}", color = MusicContentColor.copy(alpha = 0.7f), fontSize = 12.sp)
     }
 }
 
@@ -950,7 +950,6 @@ private fun LyricsPage(
     progressSeekRevision: Int,
     controlsVisible: Boolean,
     onControlsVisibleChange: (Boolean) -> Unit,
-    showPageSwitcher: Boolean,
     modifier: Modifier = Modifier
 ) {
     val document = state.lyrics
@@ -1056,11 +1055,8 @@ private fun LyricsPage(
             visible = controlsVisible,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(
-                    start = 20.dp,
-                    end = 20.dp,
-                    bottom = if (showPageSwitcher) 68.dp else 0.dp
-                ),
+                .navigationBarsPadding()
+                .padding(start = 20.dp, end = 20.dp),
             enter = if (reduceMotion) EnterTransition.None else fadeIn() + slideInVertically { it / 2 },
             exit = if (reduceMotion) ExitTransition.None else fadeOut() + slideOutVertically { it / 2 }
         ) {

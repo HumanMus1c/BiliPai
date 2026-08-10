@@ -44,6 +44,8 @@ import com.android.purebilibili.core.ui.transition.normalizeVideoSharedTransitio
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.feature.home.components.LiquidGlassTuning
 import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
+import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
+import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackExitDirection
 import androidx.compose.material.icons.outlined.*
 import com.android.purebilibili.core.ui.components.*
 import com.android.purebilibili.core.ui.animation.EntranceGroup
@@ -135,6 +137,9 @@ fun AnimationSettingsContent(
     val liveSurfaceCardTransitionEnabled by SettingsManager
         .getLiveSurfaceCardTransitionEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
+    val fullScreenSwipeBackEnabled by SettingsManager
+        .getFullScreenSwipeBackEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val effectiveEntranceSpec = rememberEffectiveEntranceMotionSpec()
     // 开关开着、但有效参数被降级为不动画 → 系统减弱动效在生效。
     val entranceDowngradedBySystem = uiEntranceAnimationEnabled && !effectiveEntranceSpec.animate
@@ -144,6 +149,36 @@ fun AnimationSettingsContent(
             AppSegmentOption(VideoSharedTransitionSpeed.STANDARD, "标准"),
             AppSegmentOption(VideoSharedTransitionSpeed.SLOW, "慢速"),
             AppSegmentOption(VideoSharedTransitionSpeed.CUSTOM, "自定")
+        )
+    }
+    val predictiveBackStyle = remember(appNavigationSettings) {
+        if (appNavigationSettings.predictiveBackEnabled) {
+            BiliPaiPredictiveBackAnimationStyle.fromStorageValue(
+                appNavigationSettings.predictiveBackAnimationStyle
+            )
+        } else {
+            BiliPaiPredictiveBackAnimationStyle.NONE
+        }
+    }
+    val predictiveBackStyleOptions = remember {
+        listOf(
+            AppSegmentOption(BiliPaiPredictiveBackAnimationStyle.NONE, "无"),
+            AppSegmentOption(BiliPaiPredictiveBackAnimationStyle.AOSP, "AOSP"),
+            AppSegmentOption(BiliPaiPredictiveBackAnimationStyle.MIUIX, "Miuix"),
+            AppSegmentOption(BiliPaiPredictiveBackAnimationStyle.SCALE, "缩放"),
+            AppSegmentOption(BiliPaiPredictiveBackAnimationStyle.CLASSIC, "经典"),
+        )
+    }
+    val predictiveBackExitDirection = remember(appNavigationSettings.predictiveBackExitDirection) {
+        BiliPaiPredictiveBackExitDirection.fromStorageValue(
+            appNavigationSettings.predictiveBackExitDirection
+        )
+    }
+    val predictiveBackExitDirectionOptions = remember {
+        listOf(
+            AppSegmentOption(BiliPaiPredictiveBackExitDirection.FOLLOW_GESTURE, "跟随手势"),
+            AppSegmentOption(BiliPaiPredictiveBackExitDirection.ALWAYS_RIGHT, "始终向右"),
+            AppSegmentOption(BiliPaiPredictiveBackExitDirection.ALWAYS_LEFT, "始终向左"),
         )
     }
     var customTransitionDurationMillis by remember(state.videoSharedTransitionCustomDurationMillis) {
@@ -264,14 +299,53 @@ fun AnimationSettingsContent(
                             iconTint = iOSTeal
                         )
                         AppPreferenceDivider()
+                        SettingsSingleChoicePreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PREDICTIVE_BACK),
+                            title = "全局返回动画",
+                            subtitle = "普通返回与预测性返回统一使用 Miuix 导航动画",
+                            options = predictiveBackStyleOptions,
+                            selectedValue = predictiveBackStyle,
+                            onSelectionChange = { style ->
+                                scope.launch {
+                                    SettingsManager.setPredictiveBackEnabled(context, true)
+                                    SettingsManager.setPredictiveBackAnimationStyle(
+                                        context,
+                                        style.storageValue,
+                                    )
+                                }
+                            },
+                            iconTint = iOSTeal
+                        )
+                        if (predictiveBackStyle == BiliPaiPredictiveBackAnimationStyle.SCALE) {
+                            AppPreferenceDivider()
+                            SettingsSingleChoicePreference(
+                                title = "缩放退出方向",
+                                subtitle = "仅缩放样式使用",
+                                options = predictiveBackExitDirectionOptions,
+                                selectedValue = predictiveBackExitDirection,
+                                onSelectionChange = { direction ->
+                                    scope.launch {
+                                        SettingsManager.setPredictiveBackExitDirection(
+                                            context,
+                                            direction.storageValue,
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                        AppPreferenceDivider()
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.PREDICTIVE_BACK),
-                            title = "预测性返回手势",
-                            subtitle = "关闭后仍可边缘返回，但不显示跟手预览，松手后执行普通返回动画",
-                            checked = appNavigationSettings.predictiveBackEnabled,
+                            title = "全屏滑动返回",
+                            subtitle = if (fullScreenSwipeBackEnabled) {
+                                "列表与设置页支持全屏右滑返回；播放器、详情与网页页不受影响"
+                            } else {
+                                "仅屏幕边缘系统手势触发返回"
+                            },
+                            checked = fullScreenSwipeBackEnabled,
                             onCheckedChange = { enabled ->
                                 scope.launch {
-                                    SettingsManager.setPredictiveBackEnabled(context, enabled)
+                                    SettingsManager.setFullScreenSwipeBackEnabled(context, enabled)
                                 }
                             },
                             iconTint = iOSTeal

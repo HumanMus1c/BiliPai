@@ -304,6 +304,7 @@ fun HomeScreen(
     // [Header] 首页重选/双击回顶时需要强制恢复顶部，避免自动收缩后残留空白区域。
     // saveable：进 UP 空间等二级页后返回时保留折叠态，避免顶栏重张开带动列表“自动下滑”感。
     var headerOffsetHeightPx by rememberSaveable { mutableFloatStateOf(0f) }
+    var topTabsAutoCollapsedByScroll by rememberSaveable { mutableStateOf(false) }
     var headerSettleAnimationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     // 离开首页顶层时冻结滚动锚点；返回后校正 LazyGrid 因 contentPadding/重组造成的偏移漂移。
     var pendingFeedScrollAnchor by rememberSaveable(stateSaver = HomeFeedScrollAnchorSaver) {
@@ -421,6 +422,8 @@ fun HomeScreen(
     }
     var programmaticPageSwitchInProgress by remember { mutableStateOf(false) }
     val currentDisplayedTabIndex by rememberUpdatedState(displayedTabIndexFromState)
+    val latestOnLiveListClick by rememberUpdatedState(onLiveListClick)
+    val latestOnBangumiClick by rememberUpdatedState(onBangumiClick)
     TrackJankStateFlag(
         stateName = "home:pager_swipe",
         isActive = pagerState.isScrollInProgress
@@ -443,51 +446,58 @@ fun HomeScreen(
         snapshotFlow { pagerState.currentPage to pagerState.isScrollInProgress }
             .distinctUntilChanged()
             .collect { (page, scrolling) ->
-                if (!scrolling && currentDisplayedTabIndex != page) {
-                    viewModel.updateDisplayedTabIndex(page)
-                }
                 val currentCategoryIndex = topTabEntries
                     .indexOf(HomeTopTabEntry.Category(currentCategory))
                     .takeIf { it >= 0 } ?: 0
                 val settledEntry = resolveHomeTopTabEntryOrNull(topTabEntries, page)
                 val settledCategory = (settledEntry as? HomeTopTabEntry.Category)?.category
-                if (!scrolling && settledEntry != null) {
+                val settledAction = resolveHomePagerSettledAction(
+                    isTopLevelActive = isTopLevelActive,
+                    hasSyncedPagerWithState = hasSyncedPagerWithState,
+                    pagerCurrentPage = page,
+                    pagerScrolling = scrolling,
+                    currentCategoryIndex = currentCategoryIndex,
+                    settledCategory = settledCategory,
+                    programmaticPageSwitchInProgress = programmaticPageSwitchInProgress
+                )
+                val routesAwayFromHome = settledAction == HomePagerSettledAction.OPEN_LIVE_LIST ||
+                    settledAction == HomePagerSettledAction.OPEN_BANGUMI
+                if (!scrolling && !routesAwayFromHome && currentDisplayedTabIndex != page) {
+                    viewModel.updateDisplayedTabIndex(page)
+                }
+                if (!scrolling && !routesAwayFromHome && settledEntry != null) {
                     retainedTopTabEntry = settledEntry
                 }
-                when (resolveHomePagerSettledAction(
-                        isTopLevelActive = isTopLevelActive,
-                        hasSyncedPagerWithState = hasSyncedPagerWithState,
-                        pagerCurrentPage = page,
-                        pagerScrolling = scrolling,
-                        currentCategoryIndex = currentCategoryIndex,
-                        settledCategory = settledCategory,
-                        programmaticPageSwitchInProgress = programmaticPageSwitchInProgress
-                    )
-                ) {
+                when (settledAction) {
                     HomePagerSettledAction.NONE -> return@collect
                     HomePagerSettledAction.SWITCH_CATEGORY -> {
                         val target = settledCategory ?: return@collect
-                        // 侧滑到顶栏「直播」时同样打开底栏直播首页，并回弹到原分类页。
-                        if (shouldOpenLiveListFromHomeTopTab(target)) {
-                            onLiveListClick()
-                            val backIndex = topTabEntries
-                                .indexOf(HomeTopTabEntry.Category(currentCategory))
-                                .takeIf { it >= 0 }
-                                ?: topTabEntries.indexOfFirst {
-                                    it is HomeTopTabEntry.Category &&
-                                        !shouldOpenLiveListFromHomeTopTab(it.category)
-                                }.coerceAtLeast(0)
-                            if (page != backIndex) {
-                                programmaticPageSwitchInProgress = true
-                                try {
-                                    pagerState.scrollToPage(backIndex)
-                                } finally {
-                                    programmaticPageSwitchInProgress = false
-                                }
-                            }
-                            return@collect
-                        }
                         viewModel.switchCategory(target)
+                    }
+                    HomePagerSettledAction.OPEN_LIVE_LIST,
+                    HomePagerSettledAction.OPEN_BANGUMI -> {
+                        // 先同步回原分类页，再离开首页。否则页面离开后协程可能被取消，
+                        // 返回首页时 Pager 会残留在直播/追番页，出现无法侧滑退出或卡住。
+                        if (page != currentCategoryIndex) {
+                            programmaticPageSwitchInProgress = true
+                            try {
+                                pagerState.scrollToPage(currentCategoryIndex)
+                            } finally {
+                                programmaticPageSwitchInProgress = false
+                            }
+                        }
+                        if (currentDisplayedTabIndex != currentCategoryIndex) {
+                            viewModel.updateDisplayedTabIndex(currentCategoryIndex)
+                        }
+                        retainedTopTabEntry = resolveHomeTopTabEntryOrNull(
+                            topTabEntries,
+                            currentCategoryIndex
+                        )
+                        when (settledAction) {
+                            HomePagerSettledAction.OPEN_LIVE_LIST -> latestOnLiveListClick()
+                            HomePagerSettledAction.OPEN_BANGUMI -> latestOnBangumiClick(1)
+                            else -> Unit
+                        }
                     }
                 }
             }
@@ -1331,8 +1341,7 @@ fun HomeScreen(
     // Pixels
     val searchCollapseDistancePx = with(density) { searchCollapseDistanceDp.toPx() }
     val headerCollapseMode = resolveHomeRecommendationHeaderCollapseMode(
-        homeHeaderCollapseMode = homeSettings.homeHeaderCollapseMode,
-        commonListHeaderCollapseMode = homeSettings.commonListHeaderCollapseMode
+        homeHeaderCollapseMode = homeSettings.homeHeaderCollapseMode
     )
     val collapseSearchOnScroll = headerCollapseMode.collapseSearch
     val collapseTabsOnScroll = headerCollapseMode.collapseTabs
@@ -1367,13 +1376,11 @@ fun HomeScreen(
             }
     }
     
-    // 顶部搜索行与标签页分别由设置控制，避免一个开关隐式改变另一块区域。
-    val areTopTabsAutoCollapsed by remember(collapseTabsOnScroll) {
-        derivedStateOf {
-            resolveHomeTopTabsAutoCollapsed(
-                currentHeaderOffsetPx = headerOffsetHeightPx,
-                isTopTabAutoCollapseEnabled = collapseTabsOnScroll
-            )
+    // 标签页与搜索行共用布局偏移，但恢复时不能等待搜索行完全展开；
+    // 反向上滑立即恢复标签，避免出现“同样上滑却有时不显示”的体验。
+    LaunchedEffect(collapseTabsOnScroll) {
+        if (!collapseTabsOnScroll) {
+            topTabsAutoCollapsedByScroll = false
         }
     }
     
@@ -1402,6 +1409,7 @@ fun HomeScreen(
         useSideNavigation,
         isLiquidGlassEnabled,
         canRevealHeader,
+        collapseTabsOnScroll,
         homeSettings.commonListHeaderCollapseMode,
     ) {
         object : NestedScrollConnection {
@@ -1425,6 +1433,11 @@ fun HomeScreen(
                 )
 
                 headerOffsetHeightPx = scrollUpdate.headerOffsetPx
+                topTabsAutoCollapsedByScroll = reduceHomeTopTabsAutoCollapseState(
+                    isCollapsed = topTabsAutoCollapsedByScroll,
+                    scrollDeltaY = available.y,
+                    isTopTabAutoCollapseEnabled = collapseTabsOnScroll,
+                )
                 scrollUpdate.globalScrollOffset?.let { nextOffset ->
                     globalScrollOffset.value = nextOffset
                 }
@@ -2033,7 +2046,7 @@ fun HomeScreen(
         
         // Calculate parameters based on scroll
         val topTabsCollapsedForHeader = if (collapseTabsOnScroll) {
-            areTopTabsAutoCollapsed
+            topTabsAutoCollapsedByScroll
         } else {
             false
         }
@@ -2076,7 +2089,7 @@ fun HomeScreen(
                 }
                 // 顶栏「追番」直接进入番剧独立页(与直播 tab 一致,避免切到空分类)。
                 if (selectedEntry is HomeTopTabEntry.Category &&
-                    selectedEntry.category == HomeCategory.ANIME
+                    shouldOpenBangumiFromHomeTopTab(selectedEntry.category)
                 ) {
                     onBangumiClick(1)
                     return@onCategorySelected

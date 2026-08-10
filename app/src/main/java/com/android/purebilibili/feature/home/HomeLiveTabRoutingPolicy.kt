@@ -6,3 +6,7 @@ package com.android.purebilibili.feature.home
  */
 fun shouldOpenLiveListFromHomeTopTab(category: HomeCategory): Boolean =
     category == HomeCategory.LIVE
+
+/** 首页顶栏「追番」使用番剧独立页，而不是首页 Pager 内的普通分类内容。 */
+fun shouldOpenBangumiFromHomeTopTab(category: HomeCategory): Boolean =
+    category == HomeCategory.ANIME

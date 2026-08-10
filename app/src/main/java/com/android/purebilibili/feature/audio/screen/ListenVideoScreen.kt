@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -256,7 +257,7 @@ private fun ListenVideoHeader(
             Column(modifier = Modifier.weight(1f)) {
                 AppText(
                     text = "听视频",
-                    style = MaterialTheme.typography.headlineLarge,
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
                 AppText(
@@ -265,7 +266,7 @@ private fun ListenVideoHeader(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            AppIconButton(onClick = onRefresh, modifier = Modifier.size(48.dp)) {
+            AppIconButton(onClick = onRefresh, modifier = Modifier.size(40.dp)) {
                 AppIcon(Icons.Filled.Refresh, contentDescription = "刷新音乐资料")
             }
         }
@@ -276,9 +277,10 @@ private fun ListenVideoHeader(
                     .clickable { onNowPlayingClick(item.bvid, item.coverUrl) },
                 shape = AppShapes.container(ContainerLevel.Card),
                 color = AppSurfaceTokens.surface().copy(alpha = 0.58f),
+                // primary 描边区分「正在播放」与下方实体卡
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
                 )
             ) {
                 Row(
@@ -295,11 +297,20 @@ private fun ListenVideoHeader(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        AppText(
-                            text = "正在播放",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AppIcon(
+                                Icons.Filled.MusicNote,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            AppText(
+                                text = "正在播放",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         AppText(
                             text = item.title,
                             maxLines = 1,
@@ -314,7 +325,6 @@ private fun ListenVideoHeader(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    AppIcon(Icons.Filled.MusicNote, contentDescription = null)
                 }
             }
         }
@@ -592,7 +602,7 @@ private fun MusicEntityCard(
 ) {
     AppSurface(
         modifier = modifier
-            .height(92.dp)
+            .heightIn(min = 92.dp)
             .clickable(onClick = onClick),
         shape = AppShapes.borderedContainer(ContainerLevel.Card),
         color = AppSurfaceTokens.surface().copy(alpha = 0.62f),

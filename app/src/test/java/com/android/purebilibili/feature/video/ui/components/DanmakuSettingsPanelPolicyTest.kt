@@ -73,10 +73,10 @@ class DanmakuSettingsPanelPolicyTest {
             fullscreenWidthMode = DanmakuPanelWidthMode.THIRD
         )
 
-        // 统一侧栏宽度：够中文横排，又不占半屏
+        // 分区 Tab 侧栏：放宽到约 45% 屏宽（380-440dp），避免控件拥挤
         assertEquals(fullWidth.maxWidthDp, halfWidth.maxWidthDp)
         assertEquals(fullWidth.maxWidthDp, thirdWidth.maxWidthDp)
-        assertTrue(fullWidth.maxWidthDp in 280..340)
+        assertTrue(fullWidth.maxWidthDp in 380..440)
         assertEquals(fullWidth.minWidthDp, fullWidth.maxWidthDp)
         assertEquals(DanmakuSettingsPanelAnchor.End, fullWidth.anchor)
     }

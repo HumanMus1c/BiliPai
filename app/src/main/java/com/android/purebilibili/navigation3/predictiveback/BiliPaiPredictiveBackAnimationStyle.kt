@@ -1,14 +1,19 @@
 package com.android.purebilibili.navigation3.predictiveback
 
 internal enum class BiliPaiPredictiveBackAnimationStyle(val storageValue: String) {
-    DEFAULT("default"),
-    SCALE("scale"),
+    NONE("none"),
     AOSP("aosp"),
-    CLASSIC("classic");
+    MIUIX("miuix"),
+    SCALE("scale"),
+    CLASSIC("ksu_classic");
 
     companion object {
         fun fromStorageValue(value: String?): BiliPaiPredictiveBackAnimationStyle {
-            return entries.find { it.storageValue == value } ?: SCALE
+            return when (value) {
+                "default" -> MIUIX
+                "classic" -> CLASSIC
+                else -> entries.find { it.storageValue == value } ?: MIUIX
+            }
         }
     }
 }

@@ -35,7 +35,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
-import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.skeleton.CommentListSkeleton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
@@ -271,13 +271,15 @@ internal fun resolveVideoCommentSheetPresentationProgress(
 
 internal fun resolveVideoCommentSheetHostOverlayVisual(
     mainSheetVisible: Boolean,
-    presentationProgress: Float
+    presentationProgress: Float,
+    maxScrimAlphaOverride: Float? = null
 ): InteractiveOverlayProgressVisual {
     return resolveInteractiveOverlayProgressVisual(
         presentationProgress = presentationProgress,
         surfaceType = InteractiveOverlaySurfaceType.BOTTOM_SHEET,
         blurActive = mainSheetVisible,
-        maxScrimAlpha = resolveVideoCommentSheetHostScrimAlpha(mainSheetVisible)
+        maxScrimAlpha = maxScrimAlphaOverride
+            ?: resolveVideoCommentSheetHostScrimAlpha(mainSheetVisible)
     )
 }
 
@@ -286,6 +288,13 @@ internal fun resolveVideoCommentSheetHostOverlayVisual(
 fun VideoCommentSheetHost(
     mainSheetVisible: Boolean,
     onDismiss: () -> Unit,
+    /**
+     * 覆盖全屏 scrim 的峰值透明度。
+     *
+     * 详情页楼中楼（嵌入呈现）场景传入 0f：打开子评论时不再盖住播放器上方的阴影，
+     * 但 backdrop 点击拦截仍由 [mainSheetVisible] 控制，点背景关闭行为不受影响。
+     */
+    maxScrimAlphaOverride: Float? = null,
     onMainSheetVisibilityProgressChange: (Float) -> Unit = {},
     commentViewModel: VideoCommentViewModel,
     aid: Long,
@@ -328,7 +337,8 @@ fun VideoCommentSheetHost(
         subReplyVisible = subReplyState.visible
     )
     val hostVisible = hostContent != VideoCommentSheetHostContent.HIDDEN
-    val scrimAlpha = resolveVideoCommentSheetHostScrimAlpha(mainSheetVisible = mainSheetVisible)
+    val scrimAlpha = maxScrimAlphaOverride
+        ?: resolveVideoCommentSheetHostScrimAlpha(mainSheetVisible = mainSheetVisible)
     val dismissOnBackdropTap = shouldDismissVideoCommentSheetHostOnBackdropTap(
         mainSheetVisible = mainSheetVisible
     )
@@ -401,10 +411,11 @@ fun VideoCommentSheetHost(
             }
         }
     }
-    val overlayVisual = remember(mainSheetVisible, mainSheetVisibilityProgress) {
+    val overlayVisual = remember(mainSheetVisible, mainSheetVisibilityProgress, maxScrimAlphaOverride) {
         resolveVideoCommentSheetHostOverlayVisual(
             mainSheetVisible = mainSheetVisible,
-            presentationProgress = mainSheetVisibilityProgress
+            presentationProgress = mainSheetVisibilityProgress,
+            maxScrimAlphaOverride = maxScrimAlphaOverride
         )
     }
 
@@ -784,9 +795,10 @@ internal fun VideoCommentMainList(
         CommentFraudDetectingBanner(isDetecting = state.isDetectingFraud)
 
         if (state.isRepliesLoading && state.replies.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                AdaptiveLoadingIndicator()
-            }
+            CommentListSkeleton(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = WindowInsets.navigationBars.asPaddingValues(),
+            )
         } else {
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(

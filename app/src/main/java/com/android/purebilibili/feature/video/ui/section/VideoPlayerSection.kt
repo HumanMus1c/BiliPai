@@ -648,6 +648,10 @@ fun VideoPlayerSection(
                     .getLongPressSpeedHintCloseEnabledSync(context),
                 longPressSpeedHintHidden = com.android.purebilibili.core.store.SettingsManager
                     .getLongPressSpeedHintHiddenSync(context),
+                longPressSpeedHintScale = com.android.purebilibili.core.store.SettingsManager
+                    .getLongPressSpeedHintScaleSync(context),
+                longPressSpeedHintAlpha = com.android.purebilibili.core.store.SettingsManager
+                    .getLongPressSpeedHintAlphaSync(context),
                 hiResLongPressCompatHintShown = com.android.purebilibili.core.store.SettingsManager
                     .getHiResLongPressCompatHintShownSync(context)
             ),
@@ -655,6 +659,8 @@ fun VideoPlayerSection(
         )
 
     val gestureSensitivity = playerInteractionSettings.gestureSensitivity
+    val longPressSpeedHintScale = playerInteractionSettings.longPressSpeedHintScale
+    val longPressSpeedHintAlpha = playerInteractionSettings.longPressSpeedHintAlpha
 
     // 📱 [优化] realResolution 现在从 playerState.videoSize 计算（见下方）
     val doubleTapLikeEnabled = playerInteractionSettings.doubleTapLikeEnabled
@@ -1012,9 +1018,9 @@ fun VideoPlayerSection(
         mutableStateOf(INITIAL_PLAYER_CHROME_AUTO_HIDE_HANDLED)
     }
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
-    val statusBarAmbientFrame = remember(bvid) { mutableStateOf<ImageBitmap?>(null) }
     var measuredPlayerViewportSize by remember(bvid) { mutableStateOf(IntSize.Zero) }
     var measuredBottomControlsHeightPx by remember(bvid) { mutableIntStateOf(0) }
+    val statusBarAmbientFrame = remember(bvid) { mutableStateOf<ImageBitmap?>(null) }
     
     // 🔒 [新增] 屏幕锁定状态（全屏时防误触）
     var isScreenLocked by remember { mutableStateOf(false) }
@@ -1034,10 +1040,18 @@ fun VideoPlayerSection(
         }
     }
 
+    // 「播放页沉浸状态栏」开启时，实时采样播放画面作为状态栏背景模糊源；
+    // 关闭（默认）时背景为纯黑，不采样，零开销。
+    val statusBarHazeEnabled by SettingsManager
+        .getHideVideoPageStatusBar(context)
+        .collectAsStateWithLifecycle(
+            initialValue = SettingsManager.getHideVideoPageStatusBarSync(context),
+        )
     val shouldCaptureStatusBarAmbientFrame = contentTopInset.value > 0f &&
         !isFullscreen &&
         !isInPipMode &&
-        hostLifecycleStarted
+        hostLifecycleStarted &&
+        statusBarHazeEnabled
     LaunchedEffect(
         playerViewRef,
         shouldCaptureStatusBarAmbientFrame,
@@ -4423,15 +4437,21 @@ fun VideoPlayerSection(
             ),
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 16.dp),
+                // 关闭「播放页沉浸状态栏」后 contentTopInset 为 0，此时按实时状态栏 inset 避让，
+                // 避免提示落入系统状态栏区域被遮挡。
+                .padding(
+                    top = contentTopInset
+                        .coerceAtLeast(WindowInsets.statusBars.asPaddingValues().calculateTopPadding()) +
+                        16.dp
+                ),
             enter = fadeIn(animationSpec = tween(gestureMotionSpec.longPressHintDurationMillis)) +
                 slideInVertically(initialOffsetY = { -it }),
             exit = fadeOut(animationSpec = tween(gestureMotionSpec.longPressHintDurationMillis)) +
                 slideOutVertically(targetOffsetY = { -it })
         ) {
             AppSurface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color.Black.copy(alpha = 0.56f),
+                shape = RoundedCornerShape(10.dp * longPressSpeedHintScale),
+                color = Color.Black.copy(alpha = longPressSpeedHintAlpha),
                 contentColor = Color.White,
                 tonalElevation = 0.dp
             ) {
@@ -4443,29 +4463,30 @@ fun VideoPlayerSection(
                             "倍速播放中 ${effectiveLongPressSpeed}x"
                         },
                         modifier = Modifier.padding(
-                            start = 10.dp,
+                            start = 8.dp * longPressSpeedHintScale,
                             end = if (shouldShowLongPressSpeedHintCloseButton(longPressSpeedHintCloseEnabled)) {
                                 2.dp
                             } else {
-                                10.dp
+                                8.dp * longPressSpeedHintScale
                             },
-                            top = 6.dp,
-                            bottom = 6.dp,
+                            top = 5.dp * longPressSpeedHintScale,
+                            bottom = 5.dp * longPressSpeedHintScale,
                         ),
                         style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = MaterialTheme.typography.bodyMedium.fontSize * longPressSpeedHintScale,
                             fontWeight = FontWeight.Medium
                         )
                     )
                     if (shouldShowLongPressSpeedHintCloseButton(longPressSpeedHintCloseEnabled)) {
                         AppIconButton(
                             onClick = { longPressSpeedHintDismissed = true },
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(36.dp * longPressSpeedHintScale),
                         ) {
                             AppIcon(
                                 imageVector = Icons.Outlined.Close,
                                 contentDescription = "关闭倍速提示",
                                 tint = Color.White,
-                                modifier = Modifier.size(16.dp),
+                                modifier = Modifier.size(14.dp * longPressSpeedHintScale),
                             )
                         }
                     }
@@ -4487,18 +4508,23 @@ fun VideoPlayerSection(
             exit = fadeOut(animationSpec = tween(gestureMotionSpec.longPressHintDurationMillis))
         ) {
             AppSurface(
-                shape = RoundedCornerShape(20.dp),
-                color = Color.Black.copy(alpha = 0.62f),
+                shape = RoundedCornerShape(20.dp * longPressSpeedHintScale),
+                color = Color.Black.copy(alpha = (0.62f * longPressSpeedHintAlpha).coerceIn(0f, 1f)),
                 contentColor = Color.White,
                 tonalElevation = 0.dp
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(
+                        horizontal = 12.dp * longPressSpeedHintScale,
+                        vertical = 8.dp * longPressSpeedHintScale
+                    )
                 ) {
                     AppText(
                         text = "需要长按锁定倍速吗？",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = MaterialTheme.typography.bodyMedium.fontSize * longPressSpeedHintScale
+                        )
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         AppTextButton(

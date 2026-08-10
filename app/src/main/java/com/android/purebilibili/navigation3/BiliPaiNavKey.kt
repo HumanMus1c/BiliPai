@@ -1,10 +1,13 @@
 package com.android.purebilibili.navigation3
 
-import androidx.navigation3.runtime.NavKey
 import com.android.purebilibili.feature.settings.SettingsRootCategory
+import com.android.purebilibili.data.model.response.FavoriteSearchScope
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonClassDiscriminator
+import top.yukonga.miuix.kmp.nav.core.NavKey
 
 @Serializable
+@JsonClassDiscriminator("nav_key_class")
 internal sealed interface BiliPaiNavKey : NavKey {
     val routeBase: String
 
@@ -154,8 +157,21 @@ internal sealed interface BiliPaiNavKey : NavKey {
     }
 
     @Serializable
+    data class HistorySearch(val query: String = "") : BiliPaiNavKey {
+        override val routeBase: String = "history_search"
+    }
+
+    @Serializable
     data object Favorite : BiliPaiNavKey {
         override val routeBase: String = "favorite"
+    }
+
+    @Serializable
+    data class FavoriteSearch(
+        val query: String = "",
+        val scope: FavoriteSearchScope = FavoriteSearchScope.CURRENT_FOLDER,
+    ) : BiliPaiNavKey {
+        override val routeBase: String = "favorite_search"
     }
 
     @Serializable
@@ -166,6 +182,11 @@ internal sealed interface BiliPaiNavKey : NavKey {
     @Serializable
     data object WatchLater : BiliPaiNavKey {
         override val routeBase: String = "watch_later"
+    }
+
+    @Serializable
+    data class WatchLaterSearch(val query: String = "") : BiliPaiNavKey {
+        override val routeBase: String = "watch_later_search"
     }
 
     @Serializable
@@ -211,7 +232,9 @@ internal sealed interface BiliPaiNavKey : NavKey {
     data class LiveAreaDetail(
         val parentAreaId: Int,
         val areaId: Int,
-        val title: String = ""
+        val title: String = "",
+        /** 每次进入分配自增 id，避免同级分区互跳后同一分区重复入栈时 contentKey 冲突。 */
+        val openId: Long = 0L
     ) : BiliPaiNavKey {
         override val routeBase: String = "live_area_detail"
     }

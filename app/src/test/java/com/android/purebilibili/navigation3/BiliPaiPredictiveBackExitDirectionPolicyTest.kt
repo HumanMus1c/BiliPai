@@ -36,6 +36,26 @@ class BiliPaiPredictiveBackExitDirectionPolicyTest {
     }
 
     @Test
+    fun autoDerived_cardDisabled_alwaysExitsRightLikeNativeBack() {
+        // 关闭过渡动画后提交 pop 恒向右全宽滑出（安卓原生），预测预览必须同向，
+        // 避免「预览右滑、松手提交左滑」的换向撕裂（与卡片列方向无关）。
+        assertEquals(
+            BiliPaiPredictiveBackExitDirection.ALWAYS_RIGHT,
+            resolveBiliPaiAutoPredictiveBackExitDirection(
+                popRouteTransition = BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT,
+                cardSourceDirection = BiliPaiNavCardSourceDirection.SOURCE_LEFT,
+            ),
+        )
+        assertEquals(
+            BiliPaiPredictiveBackExitDirection.ALWAYS_RIGHT,
+            resolveBiliPaiAutoPredictiveBackExitDirection(
+                popRouteTransition = BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT,
+                cardSourceDirection = BiliPaiNavCardSourceDirection.SOURCE_RIGHT,
+            ),
+        )
+    }
+
+    @Test
     fun storageAuto_usesAutoDerived() {
         val autoDerived = BiliPaiPredictiveBackExitDirection.ALWAYS_RIGHT
         assertEquals(

@@ -3,12 +3,15 @@ package com.android.purebilibili.navigation3
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.unit.IntOffset
 import com.android.purebilibili.core.ui.motion.AppMotionEasing
 import com.android.purebilibili.core.ui.motion.SETTINGS_IOS_PUSH_DURATION_MS
 import com.android.purebilibili.core.ui.motion.navigationSlideSpring
@@ -22,6 +25,8 @@ private const val NAV3_REDUCED_MOTION_FADE_MILLIS = 140
 // Slightly longer so card-disabled enter/exit never reads as a hard cut.
 private const val NAV3_DISABLED_VIDEO_DIRECTION_MILLIS = 280
 private const val NAV3_DISABLED_VIDEO_RETURN_MILLIS = 260
+// 关闭「过渡动画」后的原生横滑：源页仅向对向轻退 1/4 宽（安卓 activity_open/close 同款视差）。
+private const val NAV3_DISABLED_VIDEO_NATIVE_PARALLAX = 0.25f
 private const val NAV3_SPACE_FORWARD_MILLIS = 220
 private const val NAV3_LIGHT_SIBLING_MILLIS = 240
 private val NAV3_BOTTOM_BAR_SIBLING_MILLIS =
@@ -35,14 +40,14 @@ internal fun resolveBiliPaiNavContentTransform(
         BiliPaiNavRouteTransition.REDUCED_MOTION_FADE ->
             fadeIn(animationSpec = tween(NAV3_REDUCED_MOTION_FADE_MILLIS)) togetherWith
                 fadeOut(animationSpec = tween(NAV3_REDUCED_MOTION_FADE_MILLIS))
-        BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_FORWARD_FROM_LEFT ->
-            disabledVideoDirectionForwardTransform(directionSign = -1)
+        // 关闭「过渡动画」后首页 ↔ 播放页：安卓原生式左右横滑。LEFT/RIGHT 为历史分类名
+        // （记录卡片列方向），关闭后统一为固定「右入 / 右出」原生横滑，见两个 transform 的 KDoc。
+        BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_FORWARD_FROM_LEFT,
         BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_FORWARD_FROM_RIGHT ->
-            disabledVideoDirectionForwardTransform(directionSign = 1)
-        BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT ->
-            disabledVideoDirectionReturnTransform(directionSign = -1)
+            disabledVideoDirectionForwardTransform()
+        BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_LEFT,
         BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT ->
-            disabledVideoDirectionReturnTransform(directionSign = 1)
+            disabledVideoDirectionReturnTransform()
         BiliPaiNavRouteTransition.SPACE_FORWARD ->
             spaceForwardTransform()
         BiliPaiNavRouteTransition.LIGHT_SIBLING_FORWARD ->
@@ -79,27 +84,27 @@ private fun settingsIosPushPopTransform(): ContentTransform =
     resolveSettingsIosPushPopContentTransform(durationMillis = SETTINGS_IOS_PUSH_DURATION_MS)
 
 /**
- * @param directionSign -1 = source left (enter from left / exit to left)
- *                      +1 = source right (enter from right / exit to right)
+ * 关闭「过渡动画」时首页 → 播放页：安卓原生式左右滑入。
+ *
+ * 播放页自右**全宽**滑入（activity_open_enter），首页向左轻退 1/4 宽（activity_open_exit）。
+ * 固定 tween + FastOutSlowIn（安卓标准插值器），无 spring、无卡片方向依赖、无缩放。
  */
-private fun disabledVideoDirectionForwardTransform(directionSign: Int): ContentTransform {
-    val spatialSpec = navigationSlideSpring(NAV3_DISABLED_VIDEO_DIRECTION_MILLIS)
+private fun disabledVideoDirectionForwardTransform(): ContentTransform {
+    val spatialSpec: FiniteAnimationSpec<IntOffset> = tween(
+        durationMillis = NAV3_DISABLED_VIDEO_DIRECTION_MILLIS,
+        easing = FastOutSlowInEasing,
+    )
     return (
         slideInHorizontally(
             animationSpec = spatialSpec,
-            // ~85% width keeps origin readable without a jarring full wipe.
-            initialOffsetX = { width -> (directionSign * width * 0.85f).toInt() }
+            initialOffsetX = { width -> width }
         ) + fadeIn(
-            animationSpec = tween(
-                NAV3_DISABLED_VIDEO_DIRECTION_MILLIS,
-                easing = AppMotionEasing.EmphasizedEnter
-            )
+            animationSpec = tween(NAV3_DISABLED_VIDEO_DIRECTION_MILLIS)
         )
     ) togetherWith (
         slideOutHorizontally(
             animationSpec = spatialSpec,
-            // Opposite nudge for the list page under the detail.
-            targetOffsetX = { width -> (-directionSign * width * 0.18f).toInt() }
+            targetOffsetX = { width -> -(width * NAV3_DISABLED_VIDEO_NATIVE_PARALLAX).toInt() }
         ) + fadeOut(animationSpec = tween(NAV3_DISABLED_VIDEO_DIRECTION_MILLIS))
     )
 }
@@ -148,32 +153,28 @@ private fun bottomBarSiblingPopTransform(): ContentTransform =
     )
 
 /**
- * Return to card side:
- * - directionSign -1: detail exits left (left card), list re-enters from the right
- * - directionSign +1: detail exits right (right card), list re-enters from the left
+ * 关闭「过渡动画」时播放页 → 首页：安卓原生式左右滑出（重点路径）。
+ *
+ * 播放页自右**全宽**滑出（activity_close_exit），首页自左 1/4 宽归位（activity_close_enter）。
+ * 方向固定右滑出：与系统预测返回预览（[com.android.purebilibili.navigation3.predictiveback.BiliPaiDefaultPredictiveBackAnimation]
+ * 的 ALWAYS_RIGHT）同向，避免「预览右滑、提交左滑」的换向撕裂。
  */
-private fun disabledVideoDirectionReturnTransform(directionSign: Int): ContentTransform {
-    val spatialSpec = navigationSlideSpring(NAV3_DISABLED_VIDEO_RETURN_MILLIS)
+private fun disabledVideoDirectionReturnTransform(): ContentTransform {
+    val spatialSpec: FiniteAnimationSpec<IntOffset> = tween(
+        durationMillis = NAV3_DISABLED_VIDEO_RETURN_MILLIS,
+        easing = FastOutSlowInEasing,
+    )
     return (
         slideInHorizontally(
             animationSpec = spatialSpec,
-            initialOffsetX = { width -> (-directionSign * width * 0.18f).toInt() }
+            initialOffsetX = { width -> -(width * NAV3_DISABLED_VIDEO_NATIVE_PARALLAX).toInt() }
         ) + fadeIn(
-            animationSpec = tween(
-                durationMillis = NAV3_DISABLED_VIDEO_RETURN_MILLIS,
-                easing = AppMotionEasing.EmphasizedEnter
-            )
+            animationSpec = tween(NAV3_DISABLED_VIDEO_RETURN_MILLIS)
         )
     ) togetherWith (
         slideOutHorizontally(
             animationSpec = spatialSpec,
-            // Exit fully toward the card column (left card → left, right card → right).
-            targetOffsetX = { width -> (directionSign * width * 0.9f).toInt() }
-        ) + fadeOut(
-            animationSpec = tween(
-                durationMillis = NAV3_DISABLED_VIDEO_RETURN_MILLIS,
-                easing = AppMotionEasing.EmphasizedExit
-            )
-        )
+            targetOffsetX = { width -> width }
+        ) + fadeOut(animationSpec = tween(NAV3_DISABLED_VIDEO_RETURN_MILLIS))
     )
 }

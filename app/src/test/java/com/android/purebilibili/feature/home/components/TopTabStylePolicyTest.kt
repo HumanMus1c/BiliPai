@@ -546,6 +546,20 @@ class TopTabStylePolicyTest {
                 materialMode = TopTabMaterialMode.LIQUID_GLASS
             )
         )
+        // md3 下划线 tab 也统一绘制长胶囊背景（普通/模糊模式同样绘制），
+        // 避免滚动时 tab 文字直接浮现在信息流上方。
+        assertTrue(
+            shouldDrawHomeTopTabOuterChromeSurface(
+                presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+                materialMode = TopTabMaterialMode.PLAIN
+            )
+        )
+        assertTrue(
+            shouldDrawHomeTopTabOuterChromeSurface(
+                presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
+                materialMode = TopTabMaterialMode.BLUR
+            )
+        )
         assertTrue(
             shouldDrawHomeTopTabOuterChromeSurface(
                 presentation = AppTopTabPresentation.MOVING_CAPSULE,
@@ -636,14 +650,15 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `md3 top tabs remove outer dock when liquid glass is off`() {
-        assertFalse(
+    fun `md3 top tabs keep outer dock in every material mode`() {
+        // md3 下划线 tab 统一绘制长胶囊背景（BLUR/PLAIN/LIQUID_GLASS 均绘制）。
+        assertTrue(
             shouldDrawHomeTopTabOuterChromeSurface(
                 presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
                 materialMode = TopTabMaterialMode.BLUR
             )
         )
-        assertFalse(
+        assertTrue(
             shouldDrawHomeTopTabOuterChromeSurface(
                 presentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
                 materialMode = TopTabMaterialMode.PLAIN

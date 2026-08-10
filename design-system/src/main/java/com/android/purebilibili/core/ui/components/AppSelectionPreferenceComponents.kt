@@ -16,10 +16,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +47,22 @@ import com.android.purebilibili.core.ui.appContentDialogWidth
 import com.android.purebilibili.core.ui.resolveAppContentDialogLayoutPolicy
 import com.android.purebilibili.core.ui.resolveAppContentDialogProperties
 import kotlin.math.round
+import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.preference.WindowSpinnerPreference
+
+enum class AppSingleChoicePresentation(val storageValue: String) {
+    WINDOW_POPUP("window_popup"),
+    CENTERED_DIALOG("centered_dialog");
+
+    companion object {
+        fun fromStorageValue(value: String?): AppSingleChoicePresentation =
+            entries.firstOrNull { it.storageValue == value } ?: WINDOW_POPUP
+    }
+}
+
+val LocalAppSingleChoicePresentation = compositionLocalOf {
+    AppSingleChoicePresentation.WINDOW_POPUP
+}
 
 @Immutable
 data class AppChoiceOption<T>(
@@ -65,7 +83,48 @@ fun <T> AppSingleChoicePreference(
     enabled: Boolean = true,
     iconTint: Color = MaterialTheme.colorScheme.primary,
     dialogTitle: String = title,
+    presentation: AppSingleChoicePresentation = LocalAppSingleChoicePresentation.current,
 ) {
+    if (presentation == AppSingleChoicePresentation.WINDOW_POPUP) {
+        val selectedIndex = options.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
+        val dropdownItems = remember(options) {
+            options.map { option ->
+                DropdownItem(
+                    text = option.label,
+                    summary = option.description,
+                )
+            }
+        }
+        WindowSpinnerPreference(
+            items = dropdownItems,
+            selectedIndex = selectedIndex,
+            title = title,
+            summary = subtitle,
+            enabled = enabled,
+            modifier = modifier.alpha(if (enabled) 1f else 0.6f),
+            startAction = icon?.let { imageVector ->
+                {
+                    Icon(
+                        imageVector = imageVector,
+                        contentDescription = null,
+                        // 与其他设置条目一致：MD3 官方推荐预设下为 onSurfaceVariant 单色，
+                        // 其余预设保留多彩语义色（MIUIX 等）。
+                        tint = rememberAdaptivePreferenceIconTint(iconTint),
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            },
+            onSelectedIndexChange = { index ->
+                options.getOrNull(index)?.value?.let { requestedValue ->
+                    if (shouldDispatchAppChoiceSelection(selectedValue, requestedValue)) {
+                        onValueChange(requestedValue)
+                    }
+                }
+            },
+        )
+        return
+    }
+
     var dialogVisible by rememberSaveable { mutableStateOf(false) }
     val selectedLabel = options.firstOrNull { it.value == selectedValue }?.label
 

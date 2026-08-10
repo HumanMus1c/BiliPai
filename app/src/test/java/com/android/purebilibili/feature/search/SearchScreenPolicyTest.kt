@@ -358,12 +358,13 @@ class SearchScreenPolicyTest {
         assertFalse(resultPagerBody.contains("SearchFilterBar("))
         assertFalse(resultPagerBody.contains("SearchVideoFilterBar("))
         assertFalse(searchSource.contains("detectHorizontalDragGestures"))
-        // Custom horizontal pills (not TabRow indicator which covered selected label).
+        // 液态胶囊 Tab（primary 渐变选中态 + 颜色过渡，与液体分段控件同语言，
+        // 可横向滚动；不再用静态 surfaceContainerHigh 灰胶囊）。
         assertTrue(searchSource.contains("private fun SearchResultTypeTabRow("))
         assertTrue(searchSource.contains("horizontalScroll(rememberScrollState())"))
-        assertTrue(searchSource.contains("AppSurfaceTokens.surfaceContainerHigh()"))
-        assertTrue(searchSource.contains("AppSurfaceTokens.onSurfaceContainerHigh()"))
-        assertTrue(searchSource.contains(".background(if (selected) pillColor else Color.Transparent)"))
+        assertTrue(searchSource.contains("Brush.horizontalGradient("))
+        assertTrue(searchSource.contains("SolidColor(Color.Transparent)"))
+        assertTrue(searchSource.contains("animateColorAsState("))
         assertFalse(searchSource.contains("androidx.compose.material3.ScrollableTabRow("))
         assertFalse(searchSource.contains("tabIndicatorOffset("))
         // Top bar uses native BasicTextField + TextFieldValue (not AppSearchField wrapper).

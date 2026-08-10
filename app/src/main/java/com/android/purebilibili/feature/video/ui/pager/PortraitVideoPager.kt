@@ -1648,6 +1648,16 @@ private fun VideoPageItem(
         .collectAsStateWithLifecycle(
             initialValue = SettingsManager.getLongPressSpeedHintHiddenSync(context)
         )
+    val longPressSpeedHintScale by SettingsManager
+        .getLongPressSpeedHintScale(context)
+        .collectAsStateWithLifecycle(
+            initialValue = SettingsManager.getLongPressSpeedHintScaleSync(context)
+        )
+    val longPressSpeedHintAlpha by SettingsManager
+        .getLongPressSpeedHintAlpha(context)
+        .collectAsStateWithLifecycle(
+            initialValue = SettingsManager.getLongPressSpeedHintAlphaSync(context)
+        )
     val doubleTapSeekEnabled by SettingsManager
         .getDoubleTapSeekEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
@@ -2574,7 +2584,8 @@ private fun VideoPageItem(
             ),
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 48.dp),
+                // 状态栏可见（关闭沉浸式/瞬态显示）时随系统栏 inset 下移，避免被预留位遮挡。
+                .padding(top = (pageDanmakuTopInset + 16.dp).coerceAtLeast(48.dp)),
             enter = fadeIn(animationSpec = tween(200)) + slideInVertically(initialOffsetY = { -it }),
             exit = fadeOut(animationSpec = tween(200)) + slideOutVertically(targetOffsetY = { -it })
         ) {
@@ -2627,12 +2638,18 @@ private fun VideoPageItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                // 透明度设置作用于整个提示（箭头 + 文字 + 关闭按钮）。
+                modifier = Modifier
+                    .graphicsLayer { alpha = longPressSpeedHintAlpha }
+                    .padding(
+                        horizontal = 8.dp * longPressSpeedHintScale,
+                        vertical = 5.dp * longPressSpeedHintScale
+                    )
             ) {
                 val arrowAlphas = listOf(arrow1Alpha, arrow2Alpha, arrow3Alpha)
                 arrowAlphas.forEach { alpha ->
                     Canvas(
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(10.dp * longPressSpeedHintScale)
                     ) {
                         val path = Path().apply {
                             moveTo(0f, 0f)
@@ -2646,15 +2663,15 @@ private fun VideoPageItem(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(5.dp * longPressSpeedHintScale))
                 AppText(
                     text = "${effectiveLongPressSpeed}x",
                     color = Color.White,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp * longPressSpeedHintScale,
                     fontWeight = FontWeight.Medium,
                     style = androidx.compose.ui.text.TextStyle(
                         shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.35f),
+                            color = Color.Black.copy(alpha = 0.25f),
                             offset = Offset(1f, 1f),
                             blurRadius = 2f
                         )
@@ -2663,13 +2680,13 @@ private fun VideoPageItem(
                 if (shouldShowLongPressSpeedHintCloseButton(longPressSpeedHintCloseEnabled)) {
                     AppIconButton(
                         onClick = { longPressSpeedHintDismissed = true },
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(36.dp * longPressSpeedHintScale),
                     ) {
                         AppIcon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "关闭倍速提示",
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(14.dp * longPressSpeedHintScale),
                         )
                     }
                 }

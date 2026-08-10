@@ -22,14 +22,18 @@ class BiliPaiNavContentTransformPolicyStructureTest {
     }
 
     @Test
-    fun disabledVideoDirectionalReturnMovesTargetPageFromOppositeSide() {
+    fun disabledVideoDirectionalReturnEntersHomeFromLeftQuarter() {
         val source = contentTransformPolicySource()
         val returnFunctionStart = source.indexOf("private fun disabledVideoDirectionReturnTransform")
         val returnFunctionEnd = source.length
         val returnFunction = source.substring(returnFunctionStart, returnFunctionEnd)
 
         assertTrue(returnFunction.contains("slideInHorizontally("))
-        assertTrue(returnFunction.contains("initialOffsetX = { width -> (-directionSign * width * 0.18f).toInt() }"))
+        assertTrue(
+            returnFunction.contains(
+                "initialOffsetX = { width -> -(width * NAV3_DISABLED_VIDEO_NATIVE_PARALLAX).toInt() }"
+            )
+        )
     }
 
     @Test
@@ -44,13 +48,13 @@ class BiliPaiNavContentTransformPolicyStructureTest {
     }
 
     @Test
-    fun disabledVideoDirectionalReturnSlidesTowardCardColumn() {
+    fun disabledVideoDirectionalReturnExitsPlayerFullWidthToTheRight() {
         val source = contentTransformPolicySource()
         val returnFunctionStart = source.indexOf("private fun disabledVideoDirectionReturnTransform")
         val returnFunctionEnd = source.length
         val returnFunction = source.substring(returnFunctionStart, returnFunctionEnd)
 
-        assertTrue(returnFunction.contains("targetOffsetX = { width -> (directionSign * width * 0.9f).toInt() }"))
+        assertTrue(returnFunction.contains("targetOffsetX = { width -> width }"))
     }
 
     @Test
@@ -69,6 +73,56 @@ class BiliPaiNavContentTransformPolicyStructureTest {
 
         assertTrue(returnFunction.contains("fadeIn("))
         assertTrue(returnFunction.contains("fadeOut("))
+    }
+
+    @Test
+    fun disabledVideoDirectionalForwardEntersPlayerFullWidthFromTheRight() {
+        val source = contentTransformPolicySource()
+        val forwardFunctionStart = source.indexOf("private fun disabledVideoDirectionForwardTransform")
+        val forwardFunctionEnd = source.indexOf("private fun disabledVideoDirectionReturnTransform")
+        val forwardFunction = source.substring(forwardFunctionStart, forwardFunctionEnd)
+
+        assertTrue(forwardFunction.contains("slideInHorizontally("))
+        assertTrue(forwardFunction.contains("initialOffsetX = { width -> width }"))
+        assertTrue(forwardFunction.contains("slideOutHorizontally("))
+    }
+
+    @Test
+    fun disabledVideoDirectionalTransformsUseNativeTweenWithoutSpring() {
+        val source = contentTransformPolicySource()
+        val forwardFunctionStart = source.indexOf("private fun disabledVideoDirectionForwardTransform")
+        val forwardFunctionEnd = source.indexOf("private fun spaceForwardTransform")
+        val forwardFunction = source.substring(forwardFunctionStart, forwardFunctionEnd)
+        val returnFunction = source.substring(
+            source.indexOf("private fun disabledVideoDirectionReturnTransform")
+        )
+
+        assertTrue(forwardFunction.contains("FastOutSlowInEasing"))
+        assertTrue(returnFunction.contains("FastOutSlowInEasing"))
+        // 关闭过渡动画后的原生横滑禁止 spring：弹簧回弹与部分位移正是旧实现“复杂”的来源。
+        assertTrue(forwardFunction.contains("navigationSlideSpring").not())
+        assertTrue(returnFunction.contains("navigationSlideSpring").not())
+    }
+
+    @Test
+    fun disabledVideoDirectionVariantsShareSingleNativeTransform() {
+        val source = contentTransformPolicySource()
+        // when 分支把 LEFT/RIGHT 两个历史分类名合并到同一个原生 transform（无 directionSign 参数）。
+        // 用 \s* 匹配换行符，兼容 CRLF/LF 工作区。
+        assertTrue(
+            Regex(
+                "CARD_DISABLED_VIDEO_FORWARD_FROM_LEFT,\\s*" +
+                    "BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_FORWARD_FROM_RIGHT ->"
+            ).containsMatchIn(source)
+        )
+        assertTrue(
+            Regex(
+                "CARD_DISABLED_VIDEO_RETURN_TO_LEFT,\\s*" +
+                    "BiliPaiNavRouteTransition.CARD_DISABLED_VIDEO_RETURN_TO_RIGHT ->"
+            ).containsMatchIn(source)
+        )
+        assertTrue(source.contains("disabledVideoDirectionForwardTransform(directionSign").not())
+        assertTrue(source.contains("disabledVideoDirectionReturnTransform(directionSign").not())
     }
 
     @Test
