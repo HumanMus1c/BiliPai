@@ -1471,24 +1471,21 @@ private fun LightweightHomeTopTabs(
                     md3ContentPadding
                 }
                 val topTabContentPadding = PaddingValues(horizontal = topTabHorizontalPadding)
-                // Frame-synced export scroll (no second LazyList / LaunchedEffect lag → no ghost).
-                val topTabListScrollOffsetPx by remember(density, itemWidth, listState) {
-                    derivedStateOf {
-                        with(density) {
-                            listState.firstVisibleItemIndex * itemWidth.toPx() +
-                                listState.firstVisibleItemScrollOffset.toFloat()
-                        }
+                // Read LazyRow motion from the layer phase so the hidden export and visible row
+                // are transformed in the same frame without scroll-driven recomposition.
+                val topTabListScrollOffsetPxProvider = {
+                    with(density) {
+                        listState.firstVisibleItemIndex * itemWidth.toPx() +
+                            listState.firstVisibleItemScrollOffset.toFloat()
                     }
                 }
-                val topTabContentPanelOffsetPx =
+                val topTabIndicatorPanelOffsetPx =
                     if (shouldUseLiquidGlassIndicator) topTabPanelOffsetPx else 0f
                 val topTabHorizontalPaddingPx = with(density) { topTabHorizontalPadding.toPx() }
-                // One shared shift for export + visible + capsule avoids double panel offset ghosts.
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { translationX = topTabContentPanelOffsetPx }
-                ) {
+                // Keep the sampled and visible labels fixed. Moving this whole group makes the
+                // tab strip rebound with the indicator and desynchronizes backdrop sampling from
+                // LazyRow's own gesture transform. Only the indicator receives the liquid offset.
+                Box(modifier = Modifier.fillMaxSize()) {
                 // Match the bottom bar: keep the export capture inside the dock band.
                 // When the indicator scales beyond it, the combined backdrop exposes the
                 // page source above and below instead of stretching dock material outward.
@@ -1506,7 +1503,8 @@ private fun LightweightHomeTopTabs(
                                             .graphicsLayer {
                                                 // Only mirror LazyRow content origin (padding - scroll).
                                                 translationX =
-                                                    topTabHorizontalPaddingPx - topTabListScrollOffsetPx
+                                                    topTabHorizontalPaddingPx -
+                                                        topTabListScrollOffsetPxProvider()
                                             }
                                             .miuixDrawBackdrop(
                                                 backdrop = miuixBackdrop,
@@ -1542,7 +1540,8 @@ private fun LightweightHomeTopTabs(
                                         layerBackdrop(topTabContentBackdrop)
                                             .graphicsLayer {
                                                 translationX =
-                                                    topTabHorizontalPaddingPx - topTabListScrollOffsetPx
+                                                    topTabHorizontalPaddingPx -
+                                                        topTabListScrollOffsetPxProvider()
                                             }
                                             .drawBackdrop(
                                                 backdrop = backdrop,
@@ -1580,7 +1579,8 @@ private fun LightweightHomeTopTabs(
                                         layerBackdrop(topTabContentBackdrop)
                                             .graphicsLayer {
                                                 translationX =
-                                                    topTabHorizontalPaddingPx - topTabListScrollOffsetPx
+                                                    topTabHorizontalPaddingPx -
+                                                        topTabListScrollOffsetPxProvider()
                                             }
                                             .background(topTabIndicatorCaptureSurfaceColor)
                                     }
@@ -1631,6 +1631,10 @@ private fun LightweightHomeTopTabs(
                         .zIndex(topTabVisibleContentZIndex),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start,
+                    // Stretch overscroll transforms only the visible LazyRow, not the hidden
+                    // backdrop export row. That mismatch duplicates selected glyphs and makes the
+                    // entire top strip shake at its bounds, so this chrome has no edge rebound.
+                    overscrollEffect = null,
                     contentPadding = topTabContentPadding
                 ) {
                     itemsIndexed(
@@ -1709,8 +1713,8 @@ private fun LightweightHomeTopTabs(
                     }
                 }
                 // Keep the indicator between its capture layer and the visible tab content.
-                // The parent owns the panel offset; clip=false lets the bottom-bar motion
-                // transform exceed the dock chrome.
+                // The indicator owns its panel offset; clip=false lets its bottom-bar motion
+                // transform exceed the dock chrome without moving the label/capture layers.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -1732,7 +1736,7 @@ private fun LightweightHomeTopTabs(
                                     dockIndicatorHorizontalGap.toPx()
                                 }
                             ),
-                            indicatorPanelOffsetPx = 0f,
+                            indicatorPanelOffsetPx = topTabIndicatorPanelOffsetPx,
                             indicatorWidth = indicatorWidth,
                             indicatorHeight = dockIndicatorHeight,
                             shellShape = capsuleShape,
@@ -1760,7 +1764,7 @@ private fun LightweightHomeTopTabs(
                             visible = true,
                             dockContentAlpha = 1f,
                             indicatorTranslationXPx = md3IndicatorTranslationXPx,
-                            indicatorPanelOffsetPx = 0f,
+                            indicatorPanelOffsetPx = topTabIndicatorPanelOffsetPx,
                             indicatorWidth = md3LiquidCapsuleWidth,
                             indicatorHeight = dockIndicatorHeight,
                             shellShape = resolveSharedBottomBarCapsuleShape(),
@@ -1788,7 +1792,7 @@ private fun LightweightHomeTopTabs(
                             visible = true,
                             dockContentAlpha = 1f,
                             indicatorTranslationXPx = md3IndicatorTranslationXPx,
-                            indicatorPanelOffsetPx = 0f,
+                            indicatorPanelOffsetPx = topTabIndicatorPanelOffsetPx,
                             indicatorWidth = md3LiquidCapsuleWidth,
                             indicatorHeight = dockIndicatorHeight,
                             shellShape = capsuleShape,
@@ -1811,7 +1815,7 @@ private fun LightweightHomeTopTabs(
                         )
                     }
                 }
-                } // shared panel-offset group (export + visible + capsule)
+                } // stable export + visible content with indicator-only motion
 
                 // 纯色 wash 胶囊仅在 skin 主题下兜底（skin 不走移动胶囊路径）；
                 // 常规主题始终由移动胶囊负责，玻璃只切换胶囊材质。

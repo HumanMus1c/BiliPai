@@ -238,27 +238,30 @@ class VideoCardTransitionBackgroundPolicyTest {
     }
 
     @Test
-    fun frozenDepthLayerHandsOffContinuouslyToLiveContentAtEndOfReturn() {
+    fun frozenDepthLayerHandsOffContinuouslyToTheCompleteSourceCardBeforeLanding() {
         assertEquals(
             1f,
             resolveVideoCardTransitionFrozenLayerAlpha(
                 exposure = VideoCardTransitionExposure.BackPreview,
-                depthProgress = 0.32f,
+                depthProgress = 0.45f,
             ),
+            absoluteTolerance = 0.0001f,
         )
         assertEquals(
             0.5f,
             resolveVideoCardTransitionFrozenLayerAlpha(
                 exposure = VideoCardTransitionExposure.Returning,
-                depthProgress = 0.19f,
+                depthProgress = 0.275f,
             ),
+            absoluteTolerance = 0.0001f,
         )
         assertEquals(
             0f,
             resolveVideoCardTransitionFrozenLayerAlpha(
                 exposure = VideoCardTransitionExposure.BackPreview,
-                depthProgress = 0.06f,
+                depthProgress = 0.10f,
             ),
+            absoluteTolerance = 0.0001f,
         )
     }
 
@@ -462,6 +465,24 @@ class VideoCardTransitionBackgroundPolicyTest {
 
         assertEquals(0.009f, relatedReduction, 0.0001f)
         assertEquals(0.012f, partitionReduction, 0.0001f)
+        assertTrue(
+            shouldUseRealtimeVideoCardTransitionBackgroundBlur(
+                source = VideoCardTransitionBackgroundSource.RelatedVideo,
+                realtimeBlurEnabled = true,
+            )
+        )
+        assertFalse(
+            shouldUseRealtimeVideoCardTransitionBackgroundBlur(
+                source = VideoCardTransitionBackgroundSource.RelatedVideo,
+                realtimeBlurEnabled = false,
+            )
+        )
+        assertTrue(
+            shouldUseRealtimeVideoCardTransitionBackgroundBlur(
+                source = VideoCardTransitionBackgroundSource.Home,
+                realtimeBlurEnabled = true,
+            )
+        )
         assertEquals(
             0.991f,
             resolveVideoCardTransitionContentScale(

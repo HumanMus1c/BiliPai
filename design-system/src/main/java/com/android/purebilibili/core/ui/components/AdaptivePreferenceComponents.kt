@@ -83,6 +83,19 @@ private object NoOpHapticFeedback : HapticFeedback {
     override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) = Unit
 }
 
+/**
+ * Trailing preference value layout (version / channel / short detail on the right).
+ *
+ * Previously hard-capped at 120.dp + single-line ellipsis, which clipped common Chinese
+ * labels like「开源约定与官方渠道」and version strings on phone-width settings rows.
+ * Shared by every AdaptivePreferenceContent renderer (MD3 / Miuix / fallback).
+ */
+internal const val APP_PREFERENCE_VALUE_MAX_WIDTH_DP = 200
+internal const val APP_PREFERENCE_VALUE_MAX_LINES = 2
+
+internal fun Modifier.appPreferenceValueTextModifier(): Modifier =
+    this.widthIn(max = APP_PREFERENCE_VALUE_MAX_WIDTH_DP.dp)
+
 // ═══════════════════════════════════════════════════
 //  Common iOS List Components (Reused across Settings, Profile, etc.)
 // ═══════════════════════════════════════════════════
@@ -438,7 +451,6 @@ fun AppAdaptiveSwitch(
     val uiStyle = LocalAppUiStyle.current
     when (resolveAppAdaptiveSwitchTreatment(uiStyle)) {
         AppAdaptiveSwitchTreatment.MATERIAL -> {
-            val colorScheme = MaterialTheme.colorScheme
             val platformHaptic = LocalHapticFeedback.current
             val effectiveHaptic = if (LocalAppThemeConfig.current.hapticFeedbackEnabled) {
                 platformHaptic
@@ -446,20 +458,11 @@ fun AppAdaptiveSwitch(
                 NoOpHapticFeedback
             }
             CompositionLocalProvider(LocalHapticFeedback provides effectiveHaptic) {
-                Switch(
+                AppSwitch(
                     checked = checked,
                     onCheckedChange = onCheckedChange,
                     enabled = enabled,
                     modifier = modifier,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = resolveSwitchCheckedThumbColor(
-                            onPrimary = colorScheme.onPrimary,
-                        ),
-                        checkedTrackColor = colorScheme.primary,
-                        uncheckedThumbColor = colorScheme.surface,
-                        uncheckedTrackColor = colorScheme.surfaceContainerHighest,
-                        uncheckedBorderColor = colorScheme.outline,
-                    )
                 )
             }
         }
@@ -611,8 +614,6 @@ internal fun AdaptiveSwitchPreferenceContent(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
                     color = textColor,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
             },
             supportingContent = subtitle?.let { subtitleText ->
@@ -909,8 +910,6 @@ private fun Md3NativeListItemContent(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 color = textColor,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             )
         },
         supportingContent = subtitle?.let { subtitleText ->
@@ -951,10 +950,13 @@ private fun Md3NativeListItemContent(
                         text = value,
                         style = MaterialTheme.typography.bodySmall,
                         color = valueColor,
-                        maxLines = 1,
-                        softWrap = false,
+                        maxLines = APP_PREFERENCE_VALUE_MAX_LINES,
+                        softWrap = true,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(start = 12.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .appPreferenceValueTextModifier(),
                     )
                 }
                 if (showChevron && onClick != null) {
@@ -1108,12 +1110,12 @@ internal fun AdaptivePreferenceContent(
                         text = value,
                         style = MaterialTheme.typography.bodySmall,
                         color = valueColor,
-                        maxLines = 1,
-                        softWrap = false,
+                        maxLines = APP_PREFERENCE_VALUE_MAX_LINES,
+                        softWrap = true,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         textAlign = androidx.compose.ui.text.style.TextAlign.End,
                         modifier = Modifier
-                            .widthIn(max = 120.dp)
+                            .appPreferenceValueTextModifier()
                             .onLongPressAction(
                                 enabled = enableCopy && onCopyRequest != null,
                                 onLongPress = { onCopyRequest?.invoke(copyValue ?: value, title) },
@@ -1136,16 +1138,12 @@ internal fun AdaptivePreferenceContent(
                 color = textColor,
                 fontSize = MiuixTheme.textStyles.headline1.fontSize,
                 fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
                     color = subtitleColor,
                     fontSize = MiuixTheme.textStyles.body2.fontSize,
-                    maxLines = 2,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
             }
         }
@@ -1207,8 +1205,6 @@ internal fun AdaptivePreferenceContent(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
                     color = textColor,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 if (subtitle != null) {
                     Spacer(modifier = Modifier.height(2.dp))
@@ -1216,8 +1212,6 @@ internal fun AdaptivePreferenceContent(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = subtitleColor,
-                        maxLines = 2,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -1231,11 +1225,11 @@ internal fun AdaptivePreferenceContent(
                             style = MaterialTheme.typography.bodyMedium,
                             color = valueColor,
                             textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                            maxLines = 1,
-                            softWrap = false,
+                            maxLines = APP_PREFERENCE_VALUE_MAX_LINES,
+                            softWrap = true,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             modifier = Modifier
-                                .widthIn(max = 120.dp)
+                                .appPreferenceValueTextModifier()
                                 .onLongPressAction(
                                     enabled = enableCopy && onCopyRequest != null,
                                     onLongPress = { onCopyRequest?.invoke(copyValue ?: value, title) },
@@ -1320,12 +1314,12 @@ internal fun AdaptivePreferenceContent(
                         text = value,
                         style = MaterialTheme.typography.bodySmall,
                         color = AppSurfaceTokens.onSurfaceVariantSummary(),
-                        maxLines = 1,
-                        softWrap = false,
+                        maxLines = APP_PREFERENCE_VALUE_MAX_LINES,
+                        softWrap = true,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         textAlign = androidx.compose.ui.text.style.TextAlign.End,
                         modifier = Modifier
-                            .widthIn(max = 120.dp)
+                            .appPreferenceValueTextModifier()
                             .onLongPressAction(
                                 enabled = enableCopy && onCopyRequest != null,
                                 onLongPress = { onCopyRequest?.invoke(copyValue ?: value, title) },
@@ -1450,12 +1444,12 @@ internal fun AdaptivePreferenceContent(
                         text = value,
                         style = MaterialTheme.typography.bodyMedium,
                         color = valueColor,
-                        maxLines = 1,
-                        softWrap = false,
+                        maxLines = APP_PREFERENCE_VALUE_MAX_LINES,
+                        softWrap = true,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         textAlign = androidx.compose.ui.text.style.TextAlign.End,
                         modifier = Modifier
-                            .widthIn(max = 120.dp)
+                            .appPreferenceValueTextModifier()
                             .onLongPressAction(
                                 enabled = enableCopy && onCopyRequest != null,
                                 onLongPress = { onCopyRequest?.invoke(copyValue ?: value, title) },

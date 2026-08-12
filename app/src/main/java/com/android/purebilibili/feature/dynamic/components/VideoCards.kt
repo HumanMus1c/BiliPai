@@ -46,11 +46,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
+import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionVisualSpec
@@ -89,9 +92,19 @@ fun VideoCardLarge(
         with(density) { configuration.screenHeightDp.dp.toPx() }
     }
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
+    val cardBoundsRef = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
     val coverBoundsRef = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
+    val stationaryCoverRequest = remember(coverUrl) {
+        ImageRequest.Builder(context)
+            .data(coverUrl)
+            .addHeader("Referer", "https://www.bilibili.com/")
+            .crossfade(false)
+            .memoryCacheKey(coverUrl)
+            .diskCacheKey(coverUrl)
+            .build()
+    }
     val triggerClick = {
-        coverBoundsRef.value?.let { bounds ->
+        cardBoundsRef.value?.let { bounds ->
             CardPositionManager.recordVideoCardPosition(
                 bvid = archive.bvid,
                 sourceRoute = sourceRoute,
@@ -99,7 +112,24 @@ fun VideoCardLarge(
                 screenWidth = screenWidthPx,
                 screenHeight = screenHeightPx,
                 density = density.density,
-                sourceCornerDp = 10
+                sourceCornerDp = 10,
+                coverBounds = coverBoundsRef.value,
+                sourceLayout = VideoCardSourceLayout.STACKED,
+                sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
+                    title = archive.title,
+                    ownerName = collectionTitle.takeIf { isCollection }.orEmpty(),
+                    ownerFaceUrl = "",
+                    viewText = archive.stat.play,
+                    danmakuText = archive.stat.danmaku,
+                    durationText = archive.duration_text,
+                    infoPresentation = com.android.purebilibili.core.ui.transition
+                        .resolveVideoCardSourceInfoPresentation(
+                            publishTimeText = "",
+                            showStatsInInfo = true,
+                        ),
+                    coverUrl = coverUrl,
+                    coverCacheKey = coverUrl,
+                ),
             )
         }
         onClick()
@@ -159,16 +189,19 @@ fun VideoCardLarge(
                 clipShape = coverShape
             )
             .onGloballyPositioned { coordinates ->
-                coverBoundsRef.value = coordinates.boundsInRoot()
+                cardBoundsRef.value = coordinates.boundsInRoot()
             }
     ) {
         VideoCardLargeCover(
             archive = archive,
             coverUrl = coverUrl,
-            context = context,
+            coverRequest = stationaryCoverRequest,
             isCollection = isCollection,
             cornerBadgeText = cornerBadgeText,
-            coverShape = coverShape
+            coverShape = coverShape,
+            modifier = Modifier.onGloballyPositioned { coordinates ->
+                coverBoundsRef.value = coordinates.boundsInRoot()
+            },
         )
         Column(
             modifier = Modifier.videoCardShellReturnChromeAlpha(
@@ -192,7 +225,7 @@ fun VideoCardLarge(
 private fun VideoCardLargeCover(
     archive: ArchiveMajor,
     coverUrl: String,
-    context: android.content.Context,
+    coverRequest: ImageRequest,
     isCollection: Boolean,
     cornerBadgeText: String?,
     coverShape: androidx.compose.ui.graphics.Shape,
@@ -207,11 +240,7 @@ private fun VideoCardLargeCover(
     ) {
         if (coverUrl.isNotEmpty()) {
             AsyncImage(
-                model = coil.request.ImageRequest.Builder(context)
-                    .data(coverUrl)
-                    .addHeader("Referer", "https://www.bilibili.com/")
-                    .crossfade(true)
-                    .build(),
+                model = coverRequest,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop

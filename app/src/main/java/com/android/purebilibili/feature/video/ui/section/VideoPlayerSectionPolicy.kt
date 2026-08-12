@@ -657,6 +657,16 @@ internal fun shouldTriggerFullscreenBySwipe(
     }
 }
 
+/**
+ * Vertical inline videos own a dedicated portrait-fullscreen pager. Routing their completed
+ * upward gesture through the orientation fullscreen toggle can leave the activity in portrait
+ * without ever activating that pager, so dispatch directly to the portrait callback.
+ */
+internal fun shouldEnterPortraitFullscreenFromSwipe(
+    isFullscreen: Boolean,
+    isVerticalVideo: Boolean,
+): Boolean = !isFullscreen && isVerticalVideo
+
 internal fun shouldAllowPlaybackStateAutoFullscreen(
     smallestScreenWidthDp: Int
 ): Boolean {
@@ -1503,6 +1513,28 @@ internal fun shouldAutoHidePlayerChromeOnPlaybackStart(
         isFirstFrameRendered &&
         !forceCoverDuringReturnAnimation &&
         !isSeekScrubbing
+}
+
+internal enum class MediaSwitchSurfaceRebindAction {
+    SKIP,
+    WAIT_FOR_OUTPUT,
+    REBIND
+}
+
+internal fun resolveMediaSwitchSurfaceRebindAction(
+    hasSuccessPlaybackIdentity: Boolean,
+    shouldBindInlinePlayerView: Boolean,
+    isInPipMode: Boolean,
+    hasPlayerView: Boolean,
+    mediaItemCount: Int
+): MediaSwitchSurfaceRebindAction {
+    if (!hasSuccessPlaybackIdentity || !shouldBindInlinePlayerView || isInPipMode) {
+        return MediaSwitchSurfaceRebindAction.SKIP
+    }
+    if (!hasPlayerView || mediaItemCount <= 0) {
+        return MediaSwitchSurfaceRebindAction.WAIT_FOR_OUTPUT
+    }
+    return MediaSwitchSurfaceRebindAction.REBIND
 }
 
 internal fun shouldRebindPlayerSurfaceOnForeground(

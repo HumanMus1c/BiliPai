@@ -19,13 +19,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
+import com.android.purebilibili.core.ui.LocalSetBottomBarVisible
 import com.android.purebilibili.core.ui.TopReadabilityChrome
 import com.android.purebilibili.core.ui.blur.BlurStyles
 import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
@@ -37,7 +43,54 @@ import com.android.purebilibili.core.ui.components.AppPreferenceIconTreatment
 import com.android.purebilibili.core.ui.components.AppPreferenceGroupPresentation
 import com.android.purebilibili.core.ui.components.LocalAppPreferenceIconTreatment
 import com.android.purebilibili.core.ui.components.LocalAppPreferenceGroupPresentation
+import com.android.purebilibili.feature.settings.SettingsBottomBarScrollState
+import com.android.purebilibili.feature.settings.SettingsBottomBarScrollTracker
 import com.android.purebilibili.feature.settings.SettingsPageScrollHost
+import com.android.purebilibili.feature.settings.reduceSettingsBottomBarScroll
+import kotlinx.coroutines.flow.distinctUntilChanged
+
+@Composable
+internal fun SettingsBottomBarScrollEffect(listState: LazyListState) {
+    val setBottomBarVisible = LocalSetBottomBarVisible.current
+    val density = LocalDensity.current
+    val topRevealThresholdPx = with(density) { 24.dp.roundToPx() }
+    val directionThresholdPx = with(density) { 32.dp.roundToPx() }
+
+    LaunchedEffect(
+        listState,
+        setBottomBarVisible,
+        topRevealThresholdPx,
+        directionThresholdPx,
+    ) {
+        var tracker = SettingsBottomBarScrollTracker(
+            previousState = SettingsBottomBarScrollState(
+                firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+            ),
+        )
+        snapshotFlow {
+            SettingsBottomBarScrollState(
+                firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+            )
+        }
+            .distinctUntilChanged()
+            .collect { currentState ->
+                val update = reduceSettingsBottomBarScroll(
+                    tracker = tracker,
+                    currentState = currentState,
+                    topRevealThresholdPx = topRevealThresholdPx,
+                    directionThresholdPx = directionThresholdPx,
+                )
+                update.bottomBarVisible?.let(setBottomBarVisible)
+                tracker = update.tracker
+            }
+    }
+
+    DisposableEffect(setBottomBarVisible) {
+        onDispose { setBottomBarVisible(true) }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +108,13 @@ internal fun SettingsPageScaffold(
     lazyListContent: (LazyListScope.() -> Unit)? = null,
     content: @Composable () -> Unit = {},
 ) {
+    if (scrollHost == SettingsPageScrollHost.LazyColumn) {
+        SettingsBottomBarScrollEffect(listState)
+    }
+    val resolvedBottomContentPadding = maxOf(
+        bottomContentPadding,
+        LocalBottomBarContentPadding.current,
+    )
     val hazeState = rememberRecoverableHazeState()
     val blurIntensity = currentUnifiedBlurIntensity()
     val topBarSurfaceAlpha = if (topBarBlurEnabled) {
@@ -114,7 +174,7 @@ internal fun SettingsPageScaffold(
                     LazyColumn(
                         state = listState,
                         modifier = scrollModifier,
-                        contentPadding = PaddingValues(bottom = bottomContentPadding),
+                        contentPadding = PaddingValues(bottom = resolvedBottomContentPadding),
                     ) {
                         if (header != null) {
                             item {

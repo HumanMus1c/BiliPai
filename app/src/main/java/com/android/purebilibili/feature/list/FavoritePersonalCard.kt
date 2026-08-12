@@ -19,10 +19,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -36,6 +38,8 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
+import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellSharedBounds
 import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
@@ -65,6 +69,7 @@ internal fun FavoritePersonalCard(
     onRemove: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val sourceRoute = LocalVideoCardSharedElementSourceRoute.current
@@ -81,12 +86,22 @@ internal fun FavoritePersonalCard(
     }
     val useSharedBounds = shouldUseVideoCardShellSharedBounds(sourceRoute, sharedElementReady)
     val cardBounds = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
+    val coverBounds = remember { object { var value: androidx.compose.ui.geometry.Rect? = null } }
     val progressState = remember(item.progress, item.duration, item.view_at) {
         resolveVideoDisplayProgressState(
             serverProgressSec = item.progress,
             durationSec = item.duration,
             viewAt = item.view_at,
         )
+    }
+    val stationaryCoverUrl = remember(item.pic) { FormatUtils.fixImageUrl(item.pic) }
+    val stationaryCoverRequest = remember(stationaryCoverUrl) {
+        ImageRequest.Builder(context)
+            .data(stationaryCoverUrl)
+            .crossfade(false)
+            .memoryCacheKey(stationaryCoverUrl)
+            .diskCacheKey(stationaryCoverUrl)
+            .build()
     }
     val triggerClick = {
         if (!batchMode) {
@@ -98,6 +113,23 @@ internal fun FavoritePersonalCard(
                     screenWidth = configuration.screenWidthDp * density.density,
                     screenHeight = configuration.screenHeightDp * density.density,
                     sourceCornerDp = 12,
+                    coverBounds = coverBounds.value,
+                    sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
+                    sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
+                        title = item.title,
+                        ownerName = item.owner.name.ifBlank { "未知UP主" },
+                        ownerFaceUrl = item.owner.face,
+                        viewText = FormatUtils.formatStat(item.stat.view.toLong()),
+                        danmakuText = FormatUtils.formatStat(item.stat.danmaku.toLong()),
+                        durationText = FormatUtils.formatDuration(item.duration),
+                        infoPresentation = com.android.purebilibili.core.ui.transition
+                            .resolveVideoCardSourceInfoPresentation(
+                                publishTimeText = "",
+                                showStatsInInfo = true,
+                            ),
+                        coverUrl = stationaryCoverUrl,
+                        coverCacheKey = stationaryCoverUrl,
+                    ),
                 )
             }
         }
@@ -105,6 +137,9 @@ internal fun FavoritePersonalCard(
     }
 
     PersonalMediaCardFrame(
+        coverModifier = Modifier.onGloballyPositioned {
+            coverBounds.value = it.boundsInRoot()
+        },
         modifier = modifier
             .videoCardShellSharedBoundsOrEmpty(
                 enabled = useSharedBounds,
@@ -148,7 +183,7 @@ internal fun FavoritePersonalCard(
         },
         coverContent = {
             AsyncImage(
-                model = FormatUtils.fixImageUrl(item.pic),
+                model = stationaryCoverRequest,
                 contentDescription = item.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

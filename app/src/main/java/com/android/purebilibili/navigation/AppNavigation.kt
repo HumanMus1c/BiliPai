@@ -71,10 +71,10 @@ import com.android.purebilibili.feature.settings.share.SettingsShareViewModel
 import com.android.purebilibili.feature.settings.share.SettingsShareViewModelFactory
 import com.android.purebilibili.feature.settings.webdav.WebDavBackupViewModel
 import com.android.purebilibili.feature.settings.webdav.WebDavBackupViewModelFactory
-import com.android.purebilibili.feature.settings.OFFICIAL_GITHUB_URL
-import com.android.purebilibili.feature.settings.OFFICIAL_TELEGRAM_URL
+import com.android.purebilibili.feature.onboarding.APP_WELCOME_PREFS_NAME
+import com.android.purebilibili.feature.onboarding.USER_AGREEMENT_ACK_KEY
+import com.android.purebilibili.feature.onboarding.isUserAgreementRequired
 import com.android.purebilibili.feature.settings.RELEASE_DISCLAIMER_ACK_KEY
-import com.android.purebilibili.feature.settings.ReleaseChannelDisclaimerDialog
 import com.android.purebilibili.feature.list.CommonListScreen
 import com.android.purebilibili.feature.list.HistoryViewModel
 import com.android.purebilibili.feature.list.LikedVideosViewModel
@@ -115,6 +115,7 @@ import com.android.purebilibili.core.ui.transition.shouldApplyPredictiveBackBlur
 import com.android.purebilibili.core.ui.transition.shouldApplyVideoCardTransitionBackgroundToRoute
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundScaleReduction
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundSource
+import com.android.purebilibili.core.ui.transition.shouldUseRealtimeVideoCardTransitionBackgroundBlur
 import com.android.purebilibili.core.ui.transition.videoCardTransitionBackgroundEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
@@ -418,17 +419,14 @@ fun AppNavigation(
             onInitialSearchKeywordConsumed(consumedKeyword)
         }
     }
-    // 🚀 [新手引导] 检查是否首次启动
-    // 如果是首次启动，则进入 OnboardingScreen，否则进入 HomeScreen
-    val welcomePrefs = androidx.compose.runtime.remember { context.getSharedPreferences("app_welcome", android.content.Context.MODE_PRIVATE) }
-    // 注意：这里仅读取初始状态用于设置 startDestination
-    // 后续状态更新由 OnboardingScreen 完成
-    val firstLaunchShown = welcomePrefs.getBoolean("first_launch_shown", false)
-    val launchDisclaimerAck = welcomePrefs.getBoolean(RELEASE_DISCLAIMER_ACK_KEY, false)
-    var showLaunchDisclaimer by remember {
-        mutableStateOf(!firstLaunchShown && !launchDisclaimerAck)
+    // 使用须知：新/老用户只要未确认 user_agreement_ack_v1 都必须进入门禁页
+    val welcomePrefs = androidx.compose.runtime.remember {
+        context.getSharedPreferences(APP_WELCOME_PREFS_NAME, android.content.Context.MODE_PRIVATE)
     }
-    val startDestination = if (firstLaunchShown) ScreenRoutes.Home.route else ScreenRoutes.Onboarding.route
+    val userAgreementAcked = welcomePrefs.getBoolean(USER_AGREEMENT_ACK_KEY, false)
+    val agreementRequired = isUserAgreementRequired(userAgreementAcked)
+    val startDestination =
+        if (agreementRequired) ScreenRoutes.Onboarding.route else ScreenRoutes.Home.route
     val cachedPortraitStartupRoute = remember(context) {
         SettingsManager.getCachedLaunchToPortraitFeedOnStartup(context)
     }
@@ -477,10 +475,10 @@ fun AppNavigation(
             startDestination,
             launchToPortraitFeedOnStartupAtInit,
         ) {
-            resolveInitialBiliPaiBackStack(
+                resolveInitialBiliPaiBackStack(
                     firstRoute = startDestination,
-                    onboardingRequired = !firstLaunchShown,
-                    openPortraitFeedOnStartup = firstLaunchShown && launchToPortraitFeedOnStartupAtInit
+                    onboardingRequired = agreementRequired,
+                    openPortraitFeedOnStartup = launchToPortraitFeedOnStartupAtInit
                 )
         }
         @Suppress("UNCHECKED_CAST")
@@ -676,6 +674,10 @@ fun AppNavigation(
             sourceCornerDp = navigation3ReturnSession.transitionSession?.sourceCornerDp,
             coverIdentity = navigation3ReturnSession.transitionSession?.coverIdentity,
             sourceBounds = navigation3ReturnSession.transitionSession?.cardBounds,
+            sourceCoverBounds = navigation3ReturnSession.transitionSession?.coverBounds,
+            sourceLayout = navigation3ReturnSession.transitionSession?.sourceLayout
+                ?: com.android.purebilibili.core.ui.transition.VideoCardSourceLayout.COVER_ONLY,
+            sourceChromeSnapshot = navigation3ReturnSession.transitionSession?.sourceChromeSnapshot,
         )
         fun captureCardSourceDirectionForSession(): BiliPaiNavCardSourceDirection {
             return resolveBiliPaiNavCardSourceDirection(
@@ -693,11 +695,14 @@ fun AppNavigation(
             bvid = bvid,
             source = source,
             cardBounds = CardPositionManager.lastClickedCardBounds,
+            coverBounds = CardPositionManager.lastClickedCoverBounds,
             sourceCornerDp = CardPositionManager.lastClickedVideoSourceCornerDp,
             cardSourceDirection = captureCardSourceDirectionForSession(),
             coverIdentity = coverIdentity,
             cardFullyVisible = CardPositionManager.isCardFullyVisible,
             isSingleColumnCard = CardPositionManager.isSingleColumnCard,
+            sourceLayout = CardPositionManager.lastClickedVideoSourceLayout,
+            sourceChromeSnapshot = CardPositionManager.lastClickedVideoSourceChromeSnapshot,
         )
         var lastVideoDetailOpenId by remember { mutableLongStateOf(0L) }
         var lastLiveAreaDetailOpenId by remember { mutableLongStateOf(0L) }
@@ -1734,10 +1739,11 @@ fun AppNavigation(
                     val entryRoute = key.toLegacyRoute()
                     val backgroundState = LocalVideoCardTransitionBackgroundState.current
                     val predictiveBackState = LocalPredictiveBackBackgroundState.current
+                    val backgroundSource = resolveVideoCardTransitionBackgroundSource(
+                        sourceRoute = backgroundState.sourceRouteProvider(),
+                    )
                     val backgroundScaleReduction = resolveVideoCardTransitionBackgroundScaleReduction(
-                        resolveVideoCardTransitionBackgroundSource(
-                            sourceRoute = backgroundState.sourceRouteProvider(),
-                        )
+                        backgroundSource
                     )
                     val shouldApplyBackground = cardTransitionEnabled &&
                         shouldApplyVideoCardTransitionBackgroundToRoute(
@@ -1748,6 +1754,7 @@ fun AppNavigation(
                     val shouldApplyPredictiveBlur = shouldApplyPredictiveBackBlurToRoute(
                         entryKey = key,
                         targetBackKey = predictiveBackState.targetKeyProvider(),
+                        videoCardBackgroundApplied = shouldApplyBackground,
                     )
                     val routeModifier = Modifier
                         .fillMaxSize()
@@ -1765,7 +1772,10 @@ fun AppNavigation(
                                             motionTierProvider = backgroundState.motionTierProvider,
                                             isLightBackgroundProvider = backgroundState.isLightBackgroundProvider,
                                             realtimeBlurEnabledProvider = {
-                                                videoTransitionRealtimeBlurEnabled
+                                                shouldUseRealtimeVideoCardTransitionBackgroundBlur(
+                                                    source = backgroundSource,
+                                                    realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
+                                                )
                                             },
                                             scaleReductionProvider = {
                                                 backgroundScaleReduction
@@ -2407,20 +2417,25 @@ fun AppNavigation(
                         }
                         BiliPaiNavEntryContentRole.ONBOARDING ->
                             com.android.purebilibili.feature.onboarding.OnboardingScreen(
-                                onApplySettingsProfile = { profile ->
-                                    com.android.purebilibili.feature.onboarding.applyOnboardingSettingsGuidePreset(
-                                        context,
-                                        profile
+                                onFinish = {
+                                    welcomePrefs.edit()
+                                        .putBoolean(USER_AGREEMENT_ACK_KEY, true)
+                                        // Keep legacy flags in sync so splash / older checks stay consistent.
+                                        .putBoolean("first_launch_shown", true)
+                                        .putBoolean(RELEASE_DISCLAIMER_ACK_KEY, true)
+                                        .apply()
+                                    replaceNavigation3BackStack(
+                                        resolveInitialBiliPaiBackStack(
+                                            firstRoute = ScreenRoutes.Home.route,
+                                            onboardingRequired = false,
+                                            openPortraitFeedOnStartup = launchToPortraitFeedOnStartupAtInit
+                                        )
                                     )
                                 },
-                                onFinish = {
-                                    welcomePrefs.edit().putBoolean("first_launch_shown", true).apply()
-                                    replaceNavigation3BackStack(resolveInitialBiliPaiBackStack(
-                                        firstRoute = ScreenRoutes.Home.route,
-                                        onboardingRequired = false,
-                                        openPortraitFeedOnStartup = launchToPortraitFeedOnStartupAtInit
-                                    ))
-                                }
+                                onDisagree = {
+                                    // Leave no residual task: disagree means exit the app.
+                                    context.findActivity()?.finishAffinity()
+                                },
                             )
                         BiliPaiNavEntryContentRole.SETTINGS ->
                             SettingsTabletEntry {
@@ -3328,8 +3343,13 @@ fun AppNavigation(
                     videoCardClock = videoCardTransitionClock,
                     predictiveBackAnimationStyle = predictiveBackAnimationStyle,
                     predictiveBackExitDirection = predictiveBackExitDirection,
+                    miuixTransitionBlurEnabled =
+                        appNavigationSettings.miuixTransitionBlurEnabled,
                     sourceMetadata = navigation3SourceMetadata,
                     programmaticBackDispatcher = navigation3ProgrammaticBackDispatcher,
+                    // 来源卡内容进入飞行 shared-bounds 壳，在后段由播放器/详情信息
+                    // 形变为封面、标题和统计；不能把完整源卡留在列表原位直接揭示。
+                    preferWholeCardReturn = false,
                     onBack = { performSystemBackAction() },
                     onPrepareVideoCardSharedReturn = {
                         // 普通返回(顶部按钮/系统手势提交)兜底预热。
@@ -3341,7 +3361,7 @@ fun AppNavigation(
                     },
                     onRelatedVideoDetailReturned = {
                         navigation3ReturnSession =
-                            navigation3ReturnSession.restoreListVideoSourceAfterRelatedReturn()
+                            navigation3ReturnSession.restorePreviousVideoSourceAfterRelatedReturn()
                         CardPositionManager.restoreVideoSourceKey(
                             navigation3ReturnSession.lastVideoSourceKey
                         )
@@ -3453,18 +3473,6 @@ fun AppNavigation(
                     }
                 },
             )
-
-            if (showLaunchDisclaimer) {
-                ReleaseChannelDisclaimerDialog(
-                    title = "首次使用声明",
-                    onDismiss = {
-                        showLaunchDisclaimer = false
-                        welcomePrefs.edit().putBoolean(RELEASE_DISCLAIMER_ACK_KEY, true).apply()
-                    },
-                    onOpenGithub = { uriHandler.openUri(OFFICIAL_GITHUB_URL) },
-                    onOpenTelegram = { uriHandler.openUri(OFFICIAL_TELEGRAM_URL) }
-                )
-            }
 
             ImagePreviewOverlayHost(
                 modifier = Modifier

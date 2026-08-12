@@ -15,10 +15,11 @@ import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackg
 import com.android.purebilibili.core.util.CardPositionManager
 
 /**
- * 源卡信息区（标题/UP 等）在 shell morph 时的 chrome 视觉。
- * 返回末段在封面像素交接前开始淡入，并在落位前完成，避免收尾只剩封面；
- * 横卡可选择随主进度短距离移动；快速返回若仍保留 live surface 也走同一交接。
- * 所有进度都在绘制阶段读取，避免整卡重组。
+ * 源卡信息区在 shell morph 时的 chrome 视觉。
+ *
+ * morph 中列表真卡保持透明（飞行层盖住列表）；卸层后再亮。
+ * 返回途中可见的标题/UP 由飞行壳 [VideoDetailReturnSourceCardChrome] 绘制。
+ * 横卡可选择随主进度短距离移动。进度在绘制阶段读取，避免整卡重组。
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -47,7 +48,8 @@ internal fun Modifier.videoCardShellReturnChromeAlpha(
     }
     return graphicsLayer {
         val phase = bgState.phaseProvider()
-        val returnGestureInProgress = bgState.isReturnGestureInProgressProvider()
+        val returnGestureInProgress = bgState.isReturnGestureInProgressProvider() ||
+            bgState.isGestureRestoreInProgressProvider()
         val transitionActive = sharedTransitionScope?.isTransitionActive == true
         val progress = bgState.progressProvider()
         val quickReturn = isQuickReturnFromDetail ||
@@ -100,6 +102,7 @@ internal fun Modifier.videoCardShellReturnCoverAlpha(
     isReturningFromDetail: Boolean = false,
 ): Modifier {
     if (!enabled || bvid.isBlank()) return this
+    val sharedTransitionScope = LocalSharedTransitionScope.current
     val bgState = LocalVideoCardTransitionBackgroundState.current
     val isSharedMorphSourceCard = remember(
         bvid,
@@ -118,9 +121,12 @@ internal fun Modifier.videoCardShellReturnCoverAlpha(
             isSharedMorphSourceCard = isSharedMorphSourceCard,
             isReturningFromDetail = isReturningFromDetail,
             transitionBackgroundPhase = bgState.phaseProvider(),
-            isVideoCardReturnGestureInProgress = bgState.isReturnGestureInProgressProvider(),
+            isVideoCardReturnGestureInProgress =
+                bgState.isReturnGestureInProgressProvider() ||
+                    bgState.isGestureRestoreInProgressProvider(),
+            isSharedTransitionActive = sharedTransitionScope?.isTransitionActive == true,
             transitionBackgroundProgress = bgState.progressProvider(),
-            // 快速返回仍可能是 LIVE surface；只有显式整卡回退才允许提前全显。
+            // 来源封面位于 sharedBounds 飞行层，在最后 82%–98% 把播放器变为封面。
             preferWholeCardReturn = bgState.preferWholeCardReturnProvider(),
         )
     }
