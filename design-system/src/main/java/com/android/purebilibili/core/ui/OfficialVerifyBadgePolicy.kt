@@ -2,7 +2,6 @@ package com.android.purebilibili.core.ui
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -108,7 +107,7 @@ fun OfficialVerifyBadge(
         modifier = modifier.widthIn(max = if (compact) 48.dp else 120.dp),
         color = containerColor,
         contentColor = contentColor,
-        shape = RoundedCornerShape(4.dp)
+        shape = AppShapes.container(ContainerLevel.Tag)
     ) {
         Text(
             text = badge.text,

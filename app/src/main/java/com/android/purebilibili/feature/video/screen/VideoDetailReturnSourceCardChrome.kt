@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -21,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -33,8 +33,10 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.MediaContrastPalette
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.feedContentTypography
@@ -532,15 +534,10 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
         )
     }
     // STACKED: bottom corners only (matches VideoCard info plate under cover).
-    val stackedInfoShape = RoundedCornerShape(
-        topStart = 0.dp,
-        topEnd = 0.dp,
-        bottomStart = AppSpacingTokens.Small,
-        bottomEnd = AppSpacingTokens.Small,
-    )
-    val sideInfoShape = RoundedCornerShape(AppSpacingTokens.Small)
+    val stackedInfoShape = AppShapes.bottomRounded(AppSpacingTokens.Small)
+    val sideInfoShape = AppShapes.container(ContainerLevel.Field)
 
-    fun Modifier.landingInfoSurface(shape: RoundedCornerShape): Modifier {
+    fun Modifier.landingInfoSurface(shape: Shape): Modifier {
         if (!infoSurfaceSpec.useTintedSurface) {
             return this.background(infoSurfaceSpec.containerColor, shape)
         }

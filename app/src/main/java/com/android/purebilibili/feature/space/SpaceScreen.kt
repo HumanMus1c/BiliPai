@@ -727,7 +727,7 @@ private fun SpacePlayedVideoLocatePrompt(
         )
     ) {
         AppSurface(
-            shape = RoundedCornerShape(18.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 6.dp,
             shadowElevation = 8.dp
@@ -2253,11 +2253,26 @@ private fun SpaceHeader(
                             .copyOnLongPress(userInfo.name, "UP主名称"),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (userInfo.vip.status == 1) Color(0xFFFF6699) else MaterialTheme.colorScheme.onSurface,
+                        // VIP name tint uses theme secondary (readable on light/dark).
+                        color = if (userInfo.vip.status == 1) {
+                            MaterialTheme.colorScheme.secondary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     UserLevelBadge(level = userInfo.level)
+                    if (userInfo.vip.status == 1) {
+                        com.android.purebilibili.core.ui.components.UserVipBadge(
+                            label = com.android.purebilibili.core.ui.components
+                                .resolveUserVipBadgeLabel(
+                                    label = userInfo.vip.label.text,
+                                    vipType = userInfo.vip.type,
+                                ),
+                            compact = true,
+                        )
+                    }
                 }
                 SpaceHeaderRelationActions(
                     followLabel = followLabel,
@@ -2274,10 +2289,7 @@ private fun SpaceHeader(
                 )
             }
 
-            val hasExtraBadges =
-                (userInfo.vip.status == 1 && userInfo.vip.label.text.isNotBlank()) ||
-                    (userInfo.liveRoom?.liveStatus == 1 && userInfo.liveRoom.url.isNotBlank())
-            if (hasExtraBadges) {
+            if (userInfo.liveRoom?.liveStatus == 1 && userInfo.liveRoom.url.isNotBlank()) {
                 FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2285,26 +2297,17 @@ private fun SpaceHeader(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    if (userInfo.vip.status == 1 && userInfo.vip.label.text.isNotBlank()) {
-                        SpaceBadgeChip(
-                            text = userInfo.vip.label.text,
-                            containerColor = Color(0xFFFF5F96),
-                            contentColor = Color.White
-                        )
-                    }
-                    if (userInfo.liveRoom?.liveStatus == 1 && userInfo.liveRoom.url.isNotBlank()) {
-                        SpaceBadgeChip(
-                            text = "直播中",
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                            onClick = {
-                                onLiveClick(
-                                    userInfo.liveRoom.url,
-                                    userInfo.liveRoom.title.ifBlank { userInfo.name }
-                                )
-                            }
-                        )
-                    }
+                    SpaceBadgeChip(
+                        text = "直播中",
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        onClick = {
+                            onLiveClick(
+                                userInfo.liveRoom.url,
+                                userInfo.liveRoom.title.ifBlank { userInfo.name }
+                            )
+                        }
+                    )
                 }
             }
 
@@ -2876,7 +2879,7 @@ private fun SpaceSectionHeader(
 @Composable
 private fun Modifier.spaceVideoCoverSharedBounds(
     sharedTransitionKey: String? = null,
-    coverShape: RoundedCornerShape,
+    coverShape: androidx.compose.ui.graphics.Shape,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ): Modifier {
@@ -3074,7 +3077,7 @@ private fun SpaceHomeVideoCard(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp),
-                    shape = RoundedCornerShape(6.dp),
+                    shape = AppShapes.container(ContainerLevel.Chip),
                     color = MaterialTheme.colorScheme.primary
                 ) {
                     AppText(
@@ -3091,7 +3094,7 @@ private fun SpaceHomeVideoCard(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(8.dp),
-                shape = RoundedCornerShape(6.dp),
+                shape = AppShapes.container(ContainerLevel.Chip),
                 color = Color.Black.copy(alpha = 0.72f)
             ) {
                 AppText(
@@ -3184,7 +3187,7 @@ private fun SpaceAggregateMediaCard(
             .diskCacheKey(stationaryCoverUrl)
             .build()
     }
-    val coverShape = RoundedCornerShape(14.dp)
+    val coverShape = AppShapes.container(ContainerLevel.Dialog)
     val coverModifier = Modifier.spaceVideoCoverSharedBounds(
         sharedTransitionKey = sharedTransitionKey,
         coverShape = coverShape,
@@ -3249,7 +3252,7 @@ private fun SpaceAggregateMediaCard(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(8.dp),
-                    shape = RoundedCornerShape(6.dp),
+                    shape = AppShapes.container(ContainerLevel.Chip),
                     color = Color.Black.copy(alpha = 0.72f)
                 ) {
                     AppText(
@@ -3283,14 +3286,14 @@ private fun SpaceAggregatePosterCard(
     Column(
         modifier = Modifier
             .padding(horizontal = 8.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(AppShapes.container(ContainerLevel.Dialog))
             .clickable { onClick() }
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(196.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(AppShapes.container(ContainerLevel.Dialog))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
@@ -3358,7 +3361,7 @@ private fun SpaceTopVideoCard(
             .diskCacheKey(stationaryCoverUrl)
             .build()
     }
-    val coverShape = RoundedCornerShape(12.dp)
+    val coverShape = AppShapes.container(ContainerLevel.Card)
     val coverModifier = Modifier.spaceVideoCoverSharedBounds(
         sharedTransitionKey = sharedTransitionKey,
         coverShape = coverShape,
@@ -3370,7 +3373,7 @@ private fun SpaceTopVideoCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
             .clickable {
                 coverBounds?.let { bounds ->
@@ -3464,7 +3467,7 @@ private fun SpaceNoticeCard(notice: String) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
             .padding(14.dp)
     ) {
@@ -3548,7 +3551,7 @@ private fun SpaceArchiveListItemRow(
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val coverWidth = 160.dp
     val coverHeight = coverWidth / VIDEO_SHARED_COVER_ASPECT_RATIO
-    val coverShape = RoundedCornerShape(12.dp)
+    val coverShape = AppShapes.container(ContainerLevel.Card)
     val sharedTransitionReady = sharedTransitionKey != null &&
         sharedTransitionScope != null &&
         animatedVisibilityScope != null
@@ -3556,7 +3559,7 @@ private fun SpaceArchiveListItemRow(
         sourceRoute = sourceRoute,
         transitionEnabled = sharedTransitionReady
     )
-    val cardShellShape = remember { RoundedCornerShape(12.dp) }
+    val cardShellShape = AppShapes.container(ContainerLevel.Card)
 
     Row(
         modifier = modifier
@@ -3630,7 +3633,7 @@ private fun SpaceArchiveListItemRow(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(6.dp),
-                    shape = RoundedCornerShape(6.dp),
+                    shape = AppShapes.container(ContainerLevel.Chip),
                     color = MaterialTheme.colorScheme.primary
                 ) {
                     AppText(
@@ -3647,7 +3650,7 @@ private fun SpaceArchiveListItemRow(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(6.dp),
-                    shape = RoundedCornerShape(6.dp),
+                    shape = AppShapes.container(ContainerLevel.Chip),
                     color = Color.Black.copy(alpha = 0.72f)
                 ) {
                     AppText(
@@ -3763,7 +3766,7 @@ private fun SpaceAudioListItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .clickable { onClick() }
             .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -3772,7 +3775,7 @@ private fun SpaceAudioListItem(
         Box(
             modifier = Modifier
                 .size(72.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(AppShapes.container(ContainerLevel.Dialog))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
@@ -3830,7 +3833,7 @@ private fun SpaceArticleListItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .clickable { onClick() }
             .padding(vertical = 6.dp)
     ) {
@@ -3860,7 +3863,7 @@ private fun SpaceArticleListItem(
                         modifier = Modifier
                             .width(140.dp)
                             .height(92.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(AppShapes.container(ContainerLevel.Card))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     )
                 }
@@ -3888,7 +3891,7 @@ private fun SpaceFavoriteFolderRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.26f),
         onClick = onClick
     ) {
@@ -3930,14 +3933,14 @@ private fun SpaceBangumiCard(
     Column(
         modifier = Modifier
             .padding(horizontal = 8.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(AppShapes.container(ContainerLevel.Dialog))
             .clickable { onClick() }
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(196.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(AppShapes.container(ContainerLevel.Dialog))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
@@ -3988,7 +3991,7 @@ private fun SpaceCollectionSummaryCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
         onClick = onClick
     ) {
@@ -4002,7 +4005,7 @@ private fun SpaceCollectionSummaryCard(
                 modifier = Modifier
                     .width(116.dp)
                     .height(72.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(AppShapes.container(ContainerLevel.Card))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 AsyncImage(
@@ -4063,7 +4066,7 @@ private fun SpaceCollectionWithPreviewCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.24f),
         onClick = onClick
     ) {
@@ -4077,7 +4080,7 @@ private fun SpaceCollectionWithPreviewCard(
                     modifier = Modifier
                         .width(116.dp)
                         .height(72.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(AppShapes.container(ContainerLevel.Card))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     AsyncImage(
@@ -4133,7 +4136,7 @@ private fun SpaceCollectionWithPreviewCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(70.dp)
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .clip(AppShapes.container(ContainerLevel.Field))
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                             )
                             Spacer(modifier = Modifier.height(6.dp))
@@ -4167,7 +4170,7 @@ private fun SpaceBadgeChip(
 ) {
     AppSurface(
         modifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier,
-        shape = RoundedCornerShape(999.dp),
+        shape = AppShapes.container(ContainerLevel.Pill),
         color = containerColor
     ) {
         AppText(
@@ -4221,7 +4224,7 @@ private fun SpaceHeaderRelationActions(
             modifier = Modifier
                 .widthIn(min = 80.dp, max = 100.dp)
                 .height(32.dp),
-            shape = RoundedCornerShape(999.dp),
+            shape = AppShapes.container(ContainerLevel.Pill),
             colors = ButtonDefaults.buttonColors(
                 containerColor = followButtonColors.backgroundColor,
                 contentColor = followButtonColors.textColor

@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.R
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal enum class UserLevelBadgeAsset {
     LEVEL_0,
@@ -97,7 +99,7 @@ private fun LegacyUserLevelBadge(
     val badgeColor = resolveUserLevelFallbackColor(level)
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(3.dp))
+            .clip(AppShapes.container(ContainerLevel.Tag))
             .background(
                 brush = Brush.horizontalGradient(
                     colors = listOf(

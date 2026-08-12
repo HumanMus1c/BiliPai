@@ -32,6 +32,8 @@ import com.android.purebilibili.feature.plugin.sponsorBlockAllowedActionTypes
 import com.android.purebilibili.data.model.response.SponsorSegment
 import com.android.purebilibili.feature.video.viewmodel.SponsorContributionPhase
 import com.android.purebilibili.feature.video.viewmodel.SponsorContributionUiState
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 空降助手跳过按钮 UI
@@ -58,7 +60,7 @@ fun SponsorSkipButton(
             AppSurface(
                 modifier = Modifier
                     .padding(16.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                    .clip(AppShapes.container(ContainerLevel.Card)),
                 color = Color.Black.copy(alpha = 0.8f),
                 shadowElevation = 8.dp
             ) {
@@ -78,7 +80,7 @@ fun SponsorSkipButton(
                     // 跳过按钮
                     AppSurface(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(AppShapes.container(ContainerLevel.Chip))
                             .clickable { onSkip() },
                         color = Color(0xFF00C853)
                     ) {
@@ -138,7 +140,7 @@ fun SponsorContributionOverlay(
         val marking = state.phase == SponsorContributionPhase.MARKING
         AppSurface(
             modifier = modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(AppShapes.container(ContainerLevel.Card))
                 .clickable { onMarkBoundary() },
             color = Color.Black.copy(alpha = 0.8f),
             shadowElevation = 8.dp,
@@ -307,7 +309,7 @@ fun SponsorSkipToast(
             AppSurface(
                 modifier = Modifier
                     .padding(top = 60.dp, start = 16.dp, end = 16.dp)
-                    .clip(RoundedCornerShape(20.dp)),
+                    .clip(AppShapes.container(ContainerLevel.Floating)),
                 color = Color(0xFF00C853).copy(alpha = 0.9f)
             ) {
                 Row(

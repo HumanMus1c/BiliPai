@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.plugin.PluginManager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
 fun EyeProtectionOverlay() {
@@ -118,7 +120,7 @@ private fun RestReminderDialog(
         modifier = Modifier
             .fillMaxWidth()
             .fillMaxHeight(layoutPolicy.maxHeightFraction),
-        shape = RoundedCornerShape(24.dp),
+        shape = AppShapes.container(ContainerLevel.Floating),
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 8.dp,
         icon = {
@@ -127,7 +129,7 @@ private fun RestReminderDialog(
                     .size(64.dp)
                     .background(
                         color = Color(0xFF7E57C2).copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(16.dp)
+                        shape = AppShapes.container(ContainerLevel.Card)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -182,7 +184,7 @@ private fun RestReminderDialog(
             AppButton(
                 onClick = onRest,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E57C2)),
-                shape = RoundedCornerShape(12.dp),
+                shape = AppShapes.container(ContainerLevel.Card),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 AppText("我去休息 20 秒", fontWeight = FontWeight.Medium)

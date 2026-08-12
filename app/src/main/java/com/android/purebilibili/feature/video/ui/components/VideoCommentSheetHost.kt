@@ -95,6 +95,8 @@ import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.roundToInt
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private const val MAIN_COMMENT_SHEET_HEIGHT_FRACTION = 0.60f
 private const val MAIN_COMMENT_SHEET_SCRIM_ALPHA = 0.5f
@@ -817,7 +819,7 @@ internal fun VideoCommentMainList(
                                 .fillMaxWidth()
                                 .padding(horizontal = 14.dp, vertical = 8.dp),
                             color = appearance.composerHintBackgroundColor,
-                            shape = RoundedCornerShape(16.dp),
+                            shape = AppShapes.container(ContainerLevel.Card),
                             onClick = onRootCommentClick
                         ) {
                             AppText(

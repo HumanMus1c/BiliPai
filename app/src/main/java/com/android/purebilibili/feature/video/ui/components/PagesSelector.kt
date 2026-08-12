@@ -30,6 +30,8 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -140,7 +142,7 @@ fun PagesSelector(
             if (showExpandAction) {
                 Row(
                     modifier = Modifier
-                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(999.dp))
+                        .clip(AppShapes.container(ContainerLevel.Pill))
                         .clickable { showExpandedSheet = true }
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -475,7 +477,7 @@ private fun PageSelectorItem(
     AppSurface(
         onClick = { onClick(index) },
         color = containerColor,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         border = BorderStroke(1.dp, borderColor),
         modifier = modifier
     ) {

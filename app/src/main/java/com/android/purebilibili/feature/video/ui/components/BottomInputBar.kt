@@ -52,6 +52,8 @@ import com.android.purebilibili.feature.home.components.resolveBottomBarSurfaceC
 import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import dev.chrisbanes.haze.HazeState
 import top.yukonga.miuix.kmp.blur.Backdrop
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal const val BOTTOM_INPUT_BAR_PLACEHOLDER_MIN_CONTRAST = 4.5f
 
@@ -365,7 +367,7 @@ private fun BottomInputBarContentRow(
             modifier = Modifier
                 .weight(1f)
                 .height(36.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .clip(AppShapes.container(ContainerLevel.Card))
                 .background(inputContainerColor)
                 .clickable { onCommentClick() }
                 .padding(horizontal = 12.dp),

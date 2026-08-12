@@ -91,6 +91,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal suspend fun dispatchBuiltInPluginToggle(
     pluginId: String,
@@ -515,7 +517,7 @@ fun PluginsContent(
                 AppSurface(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(12.dp)),
+                        .clip(AppShapes.container(ContainerLevel.Card)),
                     color = MaterialTheme.colorScheme.surface,
                     tonalElevation = 1.dp
                 ) {
@@ -586,7 +588,7 @@ fun PluginsContent(
                 AppSurface(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(AppShapes.container(ContainerLevel.Card))
                         .clickable { showImportDialog = true },
                     color = MaterialTheme.colorScheme.surface,
                     tonalElevation = 1.dp
@@ -638,7 +640,7 @@ fun PluginsContent(
                 AppSurface(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(12.dp)),
+                        .clip(AppShapes.container(ContainerLevel.Card)),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
                     tonalElevation = 0.dp
                 ) {
@@ -715,7 +717,7 @@ fun PluginsContent(
                     AppSurface(
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
-                            .clip(RoundedCornerShape(12.dp)),
+                            .clip(AppShapes.container(ContainerLevel.Card)),
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 1.dp
                     ) {
@@ -753,7 +755,7 @@ fun PluginsContent(
                 AppSurface(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(AppShapes.container(ContainerLevel.Card))
                         .clickable(enabled = !isKotlinPackageLoading) {
                             kotlinPackagePicker.launch("*/*")
                         },
@@ -797,7 +799,7 @@ fun PluginsContent(
                             )
                         }
                         AppSurface(
-                            shape = RoundedCornerShape(6.dp),
+                            shape = AppShapes.container(ContainerLevel.Chip),
                             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
                         ) {
                             AppText(
@@ -828,7 +830,7 @@ fun PluginsContent(
                     AppSurface(
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
-                            .clip(RoundedCornerShape(12.dp)),
+                            .clip(AppShapes.container(ContainerLevel.Card)),
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 1.dp
                     ) {
@@ -886,7 +888,7 @@ fun PluginsContent(
                 AppSurface(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(AppShapes.container(ContainerLevel.Card))
                         .clickable(enabled = !isUiSkinPackageLoading) {
                             uiSkinPackagePicker.launch("*/*")
                         },
@@ -930,7 +932,7 @@ fun PluginsContent(
                             )
                         }
                         AppSurface(
-                            shape = RoundedCornerShape(6.dp),
+                            shape = AppShapes.container(ContainerLevel.Chip),
                             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
                         ) {
                             AppText(
@@ -960,7 +962,7 @@ fun PluginsContent(
                     AppSurface(
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 12.dp)
-                            .clip(RoundedCornerShape(12.dp)),
+                            .clip(AppShapes.container(ContainerLevel.Card)),
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 1.dp
                     ) {
@@ -1027,7 +1029,7 @@ fun PluginsContent(
                     AppSurface(
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
-                            .clip(RoundedCornerShape(12.dp)),
+                            .clip(AppShapes.container(ContainerLevel.Card)),
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 1.dp
                     ) {
@@ -1400,7 +1402,7 @@ fun PluginsContent(
                             contentDescription = null,
                             modifier = Modifier
                                 .size(28.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(AppShapes.container(ContainerLevel.Chip))
                         )
                     } else {
                         AppIcon(Icons.Outlined.Extension, contentDescription = null)
@@ -1862,7 +1864,7 @@ private fun UiSkinImagePreviewGrid(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(AppShapes.container(ContainerLevel.Chip))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
                 AppText(
@@ -2011,7 +2013,7 @@ private fun PluginItem(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         AppSurface(
-                            shape = RoundedCornerShape(4.dp),
+                            shape = AppShapes.container(ContainerLevel.Tag),
                             color = unavailableColors.containerColor,
                         ) {
                             AppText(
@@ -2089,7 +2091,7 @@ private fun PluginDetailScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = AppShapes.container(ContainerLevel.Card),
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         AppText(
@@ -2219,7 +2221,7 @@ private fun PluginCapabilityChips(
     ) {
         models.forEach { model ->
             AppSurface(
-                shape = RoundedCornerShape(6.dp),
+                shape = AppShapes.container(ContainerLevel.Chip),
                 color = if (showAuthorizationLabels && model.requiresExplicitApproval) {
                     approvalColors.containerColor
                 } else {
@@ -2302,7 +2304,7 @@ private fun JsonPluginStatsNotificationSection(
     AppSurface(
         modifier = Modifier
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(12.dp)),
+            .clip(AppShapes.container(ContainerLevel.Card)),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp
     ) {
@@ -2407,7 +2409,7 @@ private fun JsonPluginItem(
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(AppShapes.container(ContainerLevel.Field))
                     )
                 } else {
                     AppIcon(
@@ -2455,7 +2457,7 @@ private fun JsonPluginItem(
                     Spacer(modifier = Modifier.width(8.dp))
                     //  统计始终显示
                     AppSurface(
-                        shape = RoundedCornerShape(4.dp),
+                        shape = AppShapes.container(ContainerLevel.Tag),
                         color = if (filterCount > 0) 
                             iOSGreen.copy(alpha = 0.15f)
                         else 
@@ -2503,7 +2505,7 @@ private fun JsonPluginItem(
                     .fillMaxWidth()
                     .padding(start = 66.dp, end = 16.dp, bottom = 8.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(8.dp)
+                shape = AppShapes.container(ContainerLevel.Chip)
             ) {
                 Row(
                     modifier = Modifier
@@ -2625,7 +2627,7 @@ private fun TestResultDialog(
                 
                 // 统计卡片
                 AppSurface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = AppShapes.container(ContainerLevel.Chip),
                     color = resultContainerColor,
                 ) {
                     Row(

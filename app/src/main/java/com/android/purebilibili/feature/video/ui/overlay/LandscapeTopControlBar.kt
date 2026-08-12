@@ -30,6 +30,8 @@ import com.android.purebilibili.core.ui.rememberAppLikeIcon
 import com.android.purebilibili.core.ui.rememberAppMoreIcon
 import com.android.purebilibili.core.ui.rememberAppShareIcon
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  横屏顶部控制栏（官方 B 站样式）
@@ -170,7 +172,7 @@ private fun TopBarActionButton(
     AppSurface(
         onClick = onClick,
         color = Color.Transparent,
-        shape = RoundedCornerShape(4.dp)
+        shape = AppShapes.container(ContainerLevel.Tag)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

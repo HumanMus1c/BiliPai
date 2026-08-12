@@ -70,6 +70,8 @@ import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSo
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
 import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 🖥️ 平板端视频详情页布局
@@ -605,7 +607,7 @@ private fun TabletSecondaryContent(
                                         .fillMaxWidth()
                                         .padding(horizontal = 8.dp, vertical = 6.dp),
                                     color = commentAppearance.composerHintBackgroundColor,
-                                    shape = RoundedCornerShape(14.dp),
+                                    shape = AppShapes.container(ContainerLevel.Dialog),
                                     onClick = {
                                         playbackActions.openRootCommentComposer()
                                     }
@@ -941,7 +943,7 @@ private fun ScrollableVideoInfoSection(
                         .animateContentSize()
                         .background(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), // 🎨 修复粉色背景，使用中性灰
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                            shape = AppShapes.container(ContainerLevel.Chip)
                         )
                         .clickable { isExpanded = !isExpanded }
                         .padding(12.dp)
@@ -1004,7 +1006,7 @@ private fun ScrollableVideoInfoSection(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(1.6f)
-                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+                                    .clip(AppShapes.container(ContainerLevel.Chip))
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                             ) {
                                 coil.compose.AsyncImage(
@@ -1017,7 +1019,7 @@ private fun ScrollableVideoInfoSection(
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)
                                         .padding(4.dp)
-                                        .background(Color.Black.copy(alpha = 0.6f), androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                                        .background(Color.Black.copy(alpha = 0.6f), AppShapes.container(ContainerLevel.Tag))
                                         .padding(horizontal = 4.dp, vertical = 2.dp)
                                 ) {
                                     AppText(
@@ -1055,7 +1057,7 @@ private fun ScrollableVideoInfoSection(
                         .height(100.dp)
                         .background(
                             color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.3f),
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                            shape = AppShapes.container(ContainerLevel.Chip)
                         ),
                     contentAlignment = Alignment.Center
                 ) {

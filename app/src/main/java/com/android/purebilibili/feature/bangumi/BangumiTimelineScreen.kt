@@ -225,7 +225,7 @@ private fun TimelineEpisodeCard(
             Box(
                 modifier = Modifier
                     .size(80.dp, 60.dp)
-                    .clip(AppShapes.container(ContainerLevel.Chip))
+                    .clip(AppShapes.container(ContainerLevel.Field))
             ) {
                 AsyncImage(
                     model = FormatUtils.fixImageUrl(episode.cover.ifEmpty { episode.squareCover }),

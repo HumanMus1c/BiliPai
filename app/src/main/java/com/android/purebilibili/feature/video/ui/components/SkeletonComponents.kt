@@ -29,6 +29,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  骨架屏组件 - iOS 风格加载占位
@@ -265,7 +267,7 @@ private fun RelatedVideoItemSkeleton(
     val coverHeight = coverWidth / coverAspectRatio.coerceAtLeast(1f)
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surface)
             .padding(8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -275,7 +277,7 @@ private fun RelatedVideoItemSkeleton(
             modifier = Modifier
                 .width(coverWidth)
                 .height(coverHeight),
-            shape = RoundedCornerShape(10.dp),
+            shape = AppShapes.container(ContainerLevel.Field),
         )
         Column(
             modifier = Modifier
@@ -302,7 +304,7 @@ private fun RelatedVideoItemSkeleton(
 @Composable
 private fun SkeletonBlock(
     modifier: Modifier,
-    shape: Shape = RoundedCornerShape(8.dp)
+    shape: Shape = AppShapes.container(ContainerLevel.Chip)
 ) {
     Box(
         modifier = modifier

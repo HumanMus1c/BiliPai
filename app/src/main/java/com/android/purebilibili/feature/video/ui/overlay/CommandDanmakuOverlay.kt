@@ -75,6 +75,8 @@ import com.android.purebilibili.feature.video.danmaku.VoteDanmakuKind
 import com.android.purebilibili.feature.video.danmaku.VoteOption
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
 internal fun CommandDanmakuOverlay(
@@ -153,7 +155,7 @@ private fun CommandDanmakuCard(
             .width(cardWidthDp.dp),
         color = resolveCommandDanmakuContainerColor(item.type),
         contentColor = Color.White,
-        shape = RoundedCornerShape(8.dp)
+        shape = AppShapes.container(ContainerLevel.Chip)
     ) {
         Box {
             when (item.type) {
@@ -255,7 +257,7 @@ private fun AttentionCommandCard(
                     playTripleAction()
                 }
             },
-            shape = RoundedCornerShape(999.dp),
+            shape = AppShapes.container(ContainerLevel.Pill),
             colors = ButtonDefaults.buttonColors(
                 containerColor = BiliPink,
                 contentColor = Color.White
@@ -341,7 +343,7 @@ private fun CommandTripleActionBurst(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
+                .clip(AppShapes.container(ContainerLevel.Pill))
                 .background(BiliPink.copy(alpha = 0.16f))
                 .widthIn(min = 118.dp)
                 .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -497,7 +499,7 @@ private fun VoteCommandCard(
                         }
                     },
                     enabled = !isSubmitted,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = AppShapes.container(ContainerLevel.Chip),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isSelected) BiliPink else Color.White.copy(alpha = 0.14f),
                         contentColor = Color.White,

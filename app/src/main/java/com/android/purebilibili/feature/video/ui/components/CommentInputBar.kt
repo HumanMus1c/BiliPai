@@ -42,6 +42,8 @@ import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.outlined.*
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * [新增] 评论输入栏组件
@@ -127,7 +129,7 @@ fun CommentInputBar(
                     .height(36.dp)
                     .background(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(18.dp)
+                        shape = AppShapes.container(ContainerLevel.Card)
                     )
                     .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.CenterStart

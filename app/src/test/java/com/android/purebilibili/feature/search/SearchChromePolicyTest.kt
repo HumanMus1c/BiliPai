@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.theme.AndroidNativeVariant
 import com.android.purebilibili.core.theme.UiPreset
 import com.android.purebilibili.core.theme.resolveUiStyle
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.resolveAppTopChromePolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -19,13 +20,15 @@ class SearchChromePolicyTest {
         )
 
         assertEquals(56, spec.inputHeightDp)
-        assertEquals(28, spec.inputCornerRadiusDp)
+        assertEquals(ContainerLevel.Field, spec.inputShapeLevel)
+        assertEquals(ContainerLevel.Card, spec.actionShapeLevel)
+        assertEquals(ContainerLevel.Card, spec.suggestionShapeLevel)
+        assertEquals(ContainerLevel.Chip, spec.chipShapeLevel)
         assertEquals(48, spec.clearActionSizeDp)
         assertEquals(48, spec.submitActionSizeDp)
         assertEquals(24, spec.actionIconSizeDp)
         assertEquals(12, spec.horizontalGapDp)
         assertTrue(spec.useFilledSearchAction)
-        assertEquals(20, spec.suggestionContainerCornerRadiusDp)
     }
 
     @Test
@@ -36,12 +39,13 @@ class SearchChromePolicyTest {
         )
 
         assertEquals(48, spec.inputHeightDp)
-        assertEquals(22, spec.inputCornerRadiusDp)
+        assertEquals(ContainerLevel.Field, spec.inputShapeLevel)
+        assertEquals(ContainerLevel.Card, spec.actionShapeLevel)
         assertEquals(48, spec.clearActionSizeDp)
         assertEquals(48, spec.submitActionSizeDp)
         assertEquals(14, spec.inputHorizontalPaddingDp)
         assertTrue(spec.useFilledSearchAction)
-        assertEquals(18, spec.suggestionContainerCornerRadiusDp)
+        assertEquals(ContainerLevel.Card, spec.suggestionShapeLevel)
     }
 
     @Test
@@ -51,12 +55,14 @@ class SearchChromePolicyTest {
         )
 
         assertEquals(48, spec.inputHeightDp)
-        assertEquals(22, spec.inputCornerRadiusDp)
+        assertEquals(ContainerLevel.Field, spec.inputShapeLevel)
+        assertEquals(ContainerLevel.Card, spec.actionShapeLevel)
         assertEquals(48, spec.clearActionSizeDp)
         assertEquals(48, spec.submitActionSizeDp)
         assertEquals(14, spec.inputHorizontalPaddingDp)
         assertTrue(spec.useFilledSearchAction)
-        assertEquals(18, spec.suggestionContainerCornerRadiusDp)
+        assertEquals(ContainerLevel.Card, spec.suggestionShapeLevel)
+        assertEquals(ContainerLevel.Chip, spec.chipShapeLevel)
     }
 
     @Test

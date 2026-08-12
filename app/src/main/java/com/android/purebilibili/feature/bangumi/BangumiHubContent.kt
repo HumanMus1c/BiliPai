@@ -532,10 +532,11 @@ private fun FilterChoiceChip(
     onClick: () -> Unit,
 ) {
     val color = if (selected) AppSurfaceTokens.secondaryContainer() else Color.Transparent
+    // Filter labels use Field corners — less capsule than Pill chrome chips.
     AppSurface(
         color = color,
         contentColor = if (selected) AppSurfaceTokens.onSecondaryContainer() else MaterialTheme.colorScheme.onSurface,
-        shape = AppShapes.container(ContainerLevel.Chip),
+        shape = AppShapes.container(ContainerLevel.Field),
         modifier = Modifier
             .heightIn(min = 48.dp)
             .combinedClickable(onClick = onClick),
@@ -797,10 +798,9 @@ private fun PosterGridCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
+    // Only the poster is rounded; keep the title block square for cleaner media rows.
     Column(
-        modifier = Modifier
-            .clip(AppShapes.container(ContainerLevel.Chip))
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         PosterImage(
             cover = item.cover,
@@ -827,9 +827,7 @@ private fun SearchPosterCard(
     onLongClick: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .clip(AppShapes.container(ContainerLevel.Chip))
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         PosterImage(
             cover = item.cover,
@@ -859,11 +857,12 @@ private fun PosterImage(
     badge: String = "",
     footer: String = "",
 ) {
+    // Media posters use Field-level corners (~10–12dp), not Pill/Floating soft chrome.
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(BANGUMI_POSTER_ASPECT_RATIO)
-            .clip(AppShapes.container(ContainerLevel.Chip)),
+            .clip(AppShapes.container(ContainerLevel.Field)),
     ) {
         AsyncImage(
             model = FormatUtils.fixImageUrl(cover),
@@ -896,9 +895,7 @@ private fun FollowPosterCard(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier
-            .clip(AppShapes.container(ContainerLevel.Chip))
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        modifier = modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         PosterImage(
             cover = item.cover,
@@ -922,7 +919,6 @@ private fun TimelineEpisodeCard(episode: TimelineEpisode, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .width(104.dp)
-            .clip(AppShapes.container(ContainerLevel.Chip))
             .combinedClickable(onClick = onClick),
     ) {
         PosterImage(

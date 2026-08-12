@@ -74,9 +74,17 @@ import com.android.purebilibili.core.ui.components.rememberAdaptiveListVisualCap
 import androidx.compose.ui.res.stringResource
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
+import com.android.purebilibili.core.ui.components.AppTextField
 import com.android.purebilibili.core.store.MAX_HOME_REFRESH_COUNT
 import com.android.purebilibili.core.store.MIN_HOME_REFRESH_COUNT
+import com.android.purebilibili.core.store.NetworkProxyStore
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.network.policy.AppHttpProxySettings
+import com.android.purebilibili.core.network.policy.formatAppHttpProxyEndpoint
+import com.android.purebilibili.core.network.policy.formatAppHttpProxySummary
+import com.android.purebilibili.core.network.policy.isAppHttpProxyConfigured
+import com.android.purebilibili.core.network.policy.sanitizeProxyHostInput
+import com.android.purebilibili.core.network.policy.sanitizeProxyPortInput
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.feature.dynamic.allDynamicTabSpecs
 import com.android.purebilibili.feature.dynamic.shouldAllowDynamicTabVisibilityToggleOff
@@ -1605,9 +1613,16 @@ private fun DiagnosticsSection(
     onAnalyticsChange: (Boolean) -> Unit,
     onExportLogsClick: () -> Unit,
 ) {
+    val context = LocalContext.current
     val crashTrackingTint = rememberSettingsEntryTint(AppSemanticAccentRole.SECONDARY, iOSTeal)
     val analyticsTint = rememberSettingsEntryTint(AppSemanticAccentRole.PRIMARY, iOSBlue)
+    val proxyTint = rememberSettingsEntryTint(AppSemanticAccentRole.TERTIARY, iOSPurple)
     val exportLogsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.EXPORT_LOGS)
+    val proxySettings by NetworkProxyStore.settings.collectAsStateWithLifecycle(
+        initialValue = NetworkProxyStore.getSync(context)
+    )
+    var showProxyDialog by remember { mutableStateOf(false) }
+
     SettingsCardGroup {
         SettingSwitchItem(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.CRASH_TRACKING),
@@ -1627,6 +1642,31 @@ private fun DiagnosticsSection(
             iconTint = analyticsTint,
         )
         SettingsAdaptiveDivider()
+        SettingSwitchItem(
+            icon = Icons.Outlined.Lan,
+            title = "HTTP 代理",
+            subtitle = formatAppHttpProxySummary(proxySettings) +
+                "（API/登录；播放流仍直连）",
+            checked = proxySettings.enabled,
+            onCheckedChange = { enabled ->
+                if (enabled && !isAppHttpProxyConfigured(proxySettings)) {
+                    showProxyDialog = true
+                } else {
+                    NetworkProxyStore.save(context, proxySettings.copy(enabled = enabled))
+                }
+            },
+            iconTint = proxyTint,
+        )
+        SettingsAdaptiveDivider()
+        SettingClickableItem(
+            icon = Icons.Outlined.Dns,
+            title = "代理地址",
+            value = formatAppHttpProxyEndpoint(proxySettings),
+            subtitle = "host:port，如 127.0.0.1:7890",
+            onClick = { showProxyDialog = true },
+            iconTint = proxyTint,
+        )
+        SettingsAdaptiveDivider()
         SettingClickableItem(
             icon = exportLogsVisual.icon,
             iconPainter = exportLogsVisual.iconResId?.let { painterResource(id = it) },
@@ -1636,6 +1676,118 @@ private fun DiagnosticsSection(
             iconTint = exportLogsVisual.iconTint,
         )
     }
+
+    if (showProxyDialog) {
+        NetworkProxyEditDialog(
+            initial = proxySettings,
+            onDismiss = { showProxyDialog = false },
+            onConfirm = { next ->
+                NetworkProxyStore.save(context, next)
+                showProxyDialog = false
+            },
+        )
+    }
+}
+
+/**
+ * Adaptive dialog for app HTTP proxy host/port (API traffic only).
+ * Uses design-system adaptive entry points so Material 3 style renders MD3
+ * primitives and Miuix style renders Miuix native components.
+ */
+@Composable
+private fun NetworkProxyEditDialog(
+    initial: AppHttpProxySettings,
+    onDismiss: () -> Unit,
+    onConfirm: (AppHttpProxySettings) -> Unit,
+) {
+    var host by remember(initial) { mutableStateOf(initial.host) }
+    var portText by remember(initial) { mutableStateOf(initial.portText) }
+    var enabled by remember(initial) { mutableStateOf(initial.enabled) }
+    val draft = AppHttpProxySettings(
+        enabled = enabled,
+        host = sanitizeProxyHostInput(host),
+        portText = sanitizeProxyPortInput(portText),
+    )
+    val canSave = !enabled || isAppHttpProxyConfigured(draft)
+
+    AppAlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            AppText(
+                text = "设置 HTTP 代理",
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AppText(
+                    text = "仅作用于 API / 登录请求。播放媒体仍直连，避免本地代理端口不可用导致卡顿。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                AppTextField(
+                    value = host,
+                    onValueChange = { host = it },
+                    label = "主机",
+                    placeholder = "127.0.0.1",
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = portText,
+                    onValueChange = { portText = sanitizeProxyPortInput(it) },
+                    label = "端口",
+                    placeholder = "7890",
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    AppText(
+                        text = "启用代理",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    AppAdaptiveSwitch(
+                        checked = enabled,
+                        onCheckedChange = { enabled = it },
+                    )
+                }
+                if (enabled && !isAppHttpProxyConfigured(draft)) {
+                    AppText(
+                        text = "请填写有效的主机与端口（1–65535）",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            AppDialogAction(
+                onClick = {
+                    if (canSave) {
+                        onConfirm(draft)
+                    }
+                },
+            ) {
+                AppText(
+                    text = "保存",
+                    color = if (canSave) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    },
+                )
+            }
+        },
+        dismissButton = {
+            AppDialogAction(onClick = onDismiss) {
+                AppText("取消")
+            }
+        },
+    )
 }
 
 @Composable
@@ -1648,49 +1800,26 @@ fun DeveloperSection(
     onPluginsClick: () -> Unit,
     onExportLogsClick: () -> Unit
 ) {
-    val crashTrackingTint = rememberSettingsEntryTint(AppSemanticAccentRole.SECONDARY, iOSTeal)
-    val analyticsTint = rememberSettingsEntryTint(AppSemanticAccentRole.PRIMARY, iOSBlue)
+    // Keep public API for older call sites; diagnostics + proxy live in DiagnosticsSection.
     val pluginsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.PLUGINS)
-    val exportLogsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.EXPORT_LOGS)
-    val crashTrackingIcon = rememberSettingsSemanticIcon(SettingsIconRole.DEVELOPER_CRASH_TRACKING)
-    val analyticsIcon = rememberSettingsSemanticIcon(SettingsIconRole.DEVELOPER_ANALYTICS)
-
-    SettingsCardGroup {
-        SettingSwitchItem(
-            icon = crashTrackingIcon,
-            title = "崩溃追踪",
-            subtitle = "默认开启，仅用于定位崩溃与严重故障",
-            checked = crashTrackingEnabled,
-            onCheckedChange = onCrashTrackingChange,
-            iconTint = crashTrackingTint
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        DiagnosticsSection(
+            crashTrackingEnabled = crashTrackingEnabled,
+            analyticsEnabled = analyticsEnabled,
+            onCrashTrackingChange = onCrashTrackingChange,
+            onAnalyticsChange = onAnalyticsChange,
+            onExportLogsClick = onExportLogsClick,
         )
-        SettingsAdaptiveDivider()
-        SettingSwitchItem(
-            icon = analyticsIcon,
-            title = "使用情况统计",
-            subtitle = "默认开启，开启后用于匿名统计每日活跃与基础使用情况",
-            checked = analyticsEnabled,
-            onCheckedChange = onAnalyticsChange,
-            iconTint = analyticsTint
-        )
-        SettingsAdaptiveDivider()
-        SettingClickableItem(
-            icon = pluginsVisual.icon,
-            iconPainter = pluginsVisual.iconResId?.let { painterResource(id = it) },
-            title = "插件中心",
-            value = "$pluginCount 个已启用",
-            onClick = onPluginsClick,
-            iconTint = pluginsVisual.iconTint
-        )
-        SettingsAdaptiveDivider()
-        SettingClickableItem(
-            icon = exportLogsVisual.icon,
-            iconPainter = exportLogsVisual.iconResId?.let { painterResource(id = it) },
-            title = "导出日志",
-            value = "播放器诊断与问题反馈",
-            onClick = onExportLogsClick,
-            iconTint = exportLogsVisual.iconTint
-        )
+        SettingsCardGroup {
+            SettingClickableItem(
+                icon = pluginsVisual.icon,
+                iconPainter = pluginsVisual.iconResId?.let { painterResource(id = it) },
+                title = "插件中心",
+                value = "$pluginCount 个已启用",
+                onClick = onPluginsClick,
+                iconTint = pluginsVisual.iconTint
+            )
+        }
     }
 }
 

@@ -48,6 +48,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -395,7 +397,7 @@ private fun MessageCenterShortcutCard(
                             .padding(start = 8.dp)
                             .background(
                                 color = MaterialTheme.colorScheme.primary,
-                                shape = RoundedCornerShape(999.dp)
+                                shape = AppShapes.container(ContainerLevel.Pill)
                             )
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
@@ -503,7 +505,7 @@ private fun MessageUnreadBadge(
             .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
             .background(
                 color = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(8.dp)
+                shape = AppShapes.container(ContainerLevel.Chip)
             )
             .padding(horizontal = 4.dp, vertical = 1.dp),
         contentAlignment = Alignment.Center
@@ -606,7 +608,7 @@ fun SessionListItem(
                         modifier = Modifier
                             .background(
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                RoundedCornerShape(2.dp)
+                                AppShapes.container(ContainerLevel.Tag)
                             )
                             .padding(horizontal = 4.dp, vertical = 1.dp)
                     )
@@ -709,7 +711,7 @@ private fun MessageSmallFlag(text: String) {
         modifier = Modifier
             .background(
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                RoundedCornerShape(2.dp)
+                AppShapes.container(ContainerLevel.Tag)
             )
             .padding(horizontal = 4.dp, vertical = 1.dp)
     )

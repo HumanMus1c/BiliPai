@@ -139,6 +139,8 @@ import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import kotlinx.coroutines.launch
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -342,7 +344,7 @@ internal fun TabletCinemaLayout(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = AppShapes.container(ContainerLevel.Floating),
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                     ) {
                         Box(
@@ -468,7 +470,7 @@ private fun CinemaStagePlayer(
                 .width(playerWidth)
                 .height(videoHeight)
                 .aspectRatio(playerWidth / videoHeight),
-            shape = RoundedCornerShape(24.dp),
+            shape = AppShapes.container(ContainerLevel.Floating),
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
             tonalElevation = 4.dp
         ) {
@@ -629,7 +631,7 @@ private fun CinemaMetaPanel(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 0.dp),
-        shape = RoundedCornerShape(24.dp),
+        shape = AppShapes.container(ContainerLevel.Floating),
         color = resolveCinemaMetaPanelContainerColor(
             isDarkTheme = isDarkTheme,
             surfaceColor = MaterialTheme.colorScheme.surface
@@ -894,7 +896,7 @@ private fun CinemaVideoIntroSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 6.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             color = resolveCinemaIntroCardContainerColor(
                 isDarkTheme = isDarkTheme,
                 surfaceContainerLowColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -1019,7 +1021,7 @@ private fun CinemaSideCurtain(
                         .width(width)
                         .fillMaxHeight()
                         .animateContentSize(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = AppShapes.container(ContainerLevel.Floating),
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                 ) {
                     if (targetState == TabletSideCurtainState.PEEK) {
@@ -1265,7 +1267,7 @@ private fun CinemaCommentsPane(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     color = commentAppearance.composerHintBackgroundColor,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = AppShapes.container(ContainerLevel.Dialog),
                     onClick = {
                         playbackActions.openRootCommentComposer()
                     }

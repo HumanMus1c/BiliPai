@@ -52,6 +52,8 @@ import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import kotlinx.coroutines.delay
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal data class DanmakuSendDialogLayoutPolicy(
     val fillMaxWidthFraction: Float,
@@ -225,9 +227,9 @@ fun DanmakuSendDialog(
                         .heightIn(max = maxSheetHeight)
                         .wrapContentHeight(),
                     shape = if (layoutPolicy.bottomAligned) {
-                        RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                        AppShapes.container(ContainerLevel.Sheet)
                     } else {
-                        RoundedCornerShape(20.dp)
+                        AppShapes.container(ContainerLevel.Floating)
                     },
                     color = MaterialTheme.colorScheme.surface,
                     tonalElevation = 6.dp
@@ -270,7 +272,7 @@ fun DanmakuSendDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(AppShapes.container(ContainerLevel.Card))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                 .padding(horizontal = 16.dp),
                             contentAlignment = Alignment.CenterStart
@@ -395,7 +397,7 @@ fun DanmakuSendDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(AppShapes.container(ContainerLevel.Card))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f))
                                 .clickable {
                                     attentionCommandChecked = !attentionCommandChecked
@@ -517,7 +519,7 @@ fun DanmakuSendDialog(
                                 .fillMaxWidth()
                                 .height(48.dp),
                             enabled = text.isNotBlank() && !isSending,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = AppShapes.container(ContainerLevel.Card),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
 

@@ -60,6 +60,8 @@ import com.android.purebilibili.feature.bangumi.ui.detail.RatingRow
 import com.android.purebilibili.feature.bangumi.ui.detail.FollowButton
 import com.android.purebilibili.feature.bangumi.ui.detail.SeasonSelector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 番剧详情页面
@@ -206,7 +208,7 @@ private fun TabletBangumiDetailContent(
                             modifier = Modifier
                                 .width(140.dp)
                                 .aspectRatio(0.75f)
-                                .clip(RoundedCornerShape(12.dp)),
+                                .clip(AppShapes.container(ContainerLevel.Card)),
                             contentScale = ContentScale.Crop
                         )
                         
@@ -277,7 +279,7 @@ private fun TabletBangumiDetailContent(
                                 contentColor = if(isFollowing) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary
                             ),
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = AppShapes.container(ContainerLevel.Chip)
                         ) {
                             AppIcon(
                                 if (isFollowing) Icons.Outlined.Check else Icons.Outlined.Add,
@@ -395,7 +397,7 @@ private fun TabletBangumiDetailContent(
                          val isCurrentSeason = season.seasonId == detail.seasonId
                          AppSurface(
                             onClick = { if (!isCurrentSeason) onSeasonClick(season.seasonId) },
-                            shape = RoundedCornerShape(8.dp),
+                            shape = AppShapes.container(ContainerLevel.Chip),
                             color = if (isCurrentSeason) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                             modifier = Modifier.height(48.dp) // Fixed height for consistency
                          ) {
@@ -550,7 +552,7 @@ private fun MobileBangumiDetailContent(
                             modifier = Modifier
                                 .width(120.dp)
                                 .aspectRatio(0.75f)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(AppShapes.container(ContainerLevel.Chip)),
                             contentScale = ContentScale.Crop
                         )
                         
@@ -762,7 +764,7 @@ private fun MobileBangumiDetailContent(
                                 AppSurface(
                                     onClick = { selectedPreviewPage = page },
                                     color = if (isCurrentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = RoundedCornerShape(16.dp)
+                                    shape = AppShapes.container(ContainerLevel.Card)
                                 ) {
                                     AppText(
                                         text = "$start-$end",
@@ -809,7 +811,7 @@ private fun MobileBangumiDetailContent(
                                     modifier = Modifier
                                         .width(80.dp)
                                         .aspectRatio(16f / 9f),
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = AppShapes.container(ContainerLevel.Chip),
                                     color = MaterialTheme.colorScheme.surfaceVariant
                                 ) {
                                     Box(
@@ -874,7 +876,7 @@ private fun MobileBangumiDetailContent(
                                         onSeasonClick(season.seasonId)
                                     }
                                 },
-                                shape = RoundedCornerShape(8.dp),
+                                shape = AppShapes.container(ContainerLevel.Chip),
                                 color = if (isCurrentSeason) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
@@ -1079,7 +1081,7 @@ private fun BangumiFollowStatusDialog(
                 BANGUMI_FOLLOW_STATUS_OPTIONS.forEach { option ->
                     AppSurface(
                         onClick = { onSelect(option.status) },
-                        shape = RoundedCornerShape(8.dp),
+                        shape = AppShapes.container(ContainerLevel.Chip),
                         color = if (currentStatus == option.status) {
                             MaterialTheme.colorScheme.primaryContainer
                         } else {
@@ -1148,7 +1150,7 @@ private fun EpisodeChip(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f),
-            shape = RoundedCornerShape(8.dp),
+            shape = AppShapes.container(ContainerLevel.Chip),
             color = MaterialTheme.colorScheme.surfaceVariant
         ) {
             Box {
@@ -1167,7 +1169,7 @@ private fun EpisodeChip(
                             .align(Alignment.TopEnd)
                             .padding(4.dp),
                         color = badgeColors.backgroundColor,
-                        shape = RoundedCornerShape(4.dp)
+                        shape = AppShapes.container(ContainerLevel.Tag)
                     ) {
                         AppText(
                             text = episode.badge,
@@ -1276,7 +1278,7 @@ private fun EpisodeSelectionSheet(
                                     onDismiss()
                                 }
                             },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = AppShapes.container(ContainerLevel.Card),
                             color = if (isCurrentSeason) {
                                 MaterialTheme.colorScheme.primary
                             } else {
@@ -1336,7 +1338,7 @@ private fun EpisodeSelectionSheet(
                         AppSurface(
                             onClick = { selectedPage = page },
                             color = if (isCurrentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(16.dp)
+                            shape = AppShapes.container(ContainerLevel.Card)
                         ) {
                             AppText(
                                 text = "$start-$end",
@@ -1400,7 +1402,7 @@ private fun EpisodeListItem(
             modifier = Modifier
                 .width(80.dp)
                 .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(4.dp))
+                .clip(AppShapes.container(ContainerLevel.Tag))
         ) {
             AsyncImage(
                 model = FormatUtils.fixImageUrl(episode.cover),
@@ -1417,7 +1419,7 @@ private fun EpisodeListItem(
                         .align(Alignment.TopEnd)
                         .padding(2.dp),
                     color = badgeColors.backgroundColor,
-                    shape = RoundedCornerShape(2.dp)
+                    shape = AppShapes.container(ContainerLevel.Tag)
                 ) {
                     AppText(
                         text = episode.badge,

@@ -61,6 +61,8 @@ import com.android.purebilibili.feature.anime4k.VideoEnhancementAlgorithm
 import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private data class VideoSettingsPanelVisualSpec(
     val rowHorizontalPadding: androidx.compose.ui.unit.Dp,
@@ -630,7 +632,7 @@ fun VideoSettingsPanel(
                             val isSelected = currentCodec == codec
                             AppSurface(
                                 onClick = { onCodecChange(codec) },
-                                shape = RoundedCornerShape(16.dp),
+                                shape = AppShapes.container(ContainerLevel.Card),
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                 modifier = Modifier.height(32.dp)
                             ) {
@@ -693,7 +695,7 @@ fun VideoSettingsPanel(
                             val isSelected = currentSecondCodec == codec
                             AppSurface(
                                 onClick = { onSecondCodecChange(codec) },
-                                shape = RoundedCornerShape(16.dp),
+                                shape = AppShapes.container(ContainerLevel.Card),
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                 modifier = Modifier.height(32.dp)
                             ) {
@@ -753,7 +755,7 @@ fun VideoSettingsPanel(
                             val isSelected = currentAudioQuality == option.preferenceId
                             AppSurface(
                                 onClick = { onAudioQualityChange(option.preferenceId) },
-                                shape = RoundedCornerShape(16.dp),
+                                shape = AppShapes.container(ContainerLevel.Card),
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                 modifier = Modifier.height(48.dp)
                             ) {
@@ -816,7 +818,7 @@ fun VideoSettingsPanel(
                                 val isSelected = currentAudioLang == item.langCode
                                 AppSurface(
                                     onClick = { onAudioLangChange(item.langCode) },
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = AppShapes.container(ContainerLevel.Card),
                                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                     modifier = Modifier.height(32.dp)
                                 ) {
@@ -1221,7 +1223,7 @@ private fun CdnLineRow(
 
     AppSurface(
         onClick = onClick,
-        shape = RoundedCornerShape(8.dp),
+        shape = AppShapes.container(ContainerLevel.Chip),
         color = if (isSelected) {
             MaterialTheme.colorScheme.primaryContainer
         } else {

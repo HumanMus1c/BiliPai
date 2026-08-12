@@ -76,6 +76,8 @@ import com.android.purebilibili.feature.anime4k.FSR_SHARPNESS_SLIDER_STEPS
 import com.android.purebilibili.feature.anime4k.VideoEnhancementAlgorithm
 import com.android.purebilibili.feature.anime4k.resolveAnime4KPresetLabel
 import kotlin.math.roundToInt
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * Bottom Control Bar Component
@@ -726,7 +728,7 @@ fun BottomControlBar(
                 Row(
                     modifier = Modifier
                         .heightIn(min = 40.dp)
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(AppShapes.container(ContainerLevel.Dialog))
                         .background(
                             if (danmakuEnabled) {
                                 danmakuActiveColor.copy(alpha = 0.22f)
@@ -815,7 +817,7 @@ fun BottomControlBar(
                         fontSize = layoutPolicy.actionTextFontSp.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(AppShapes.container(ContainerLevel.Card))
                             .background(Color.White.copy(alpha = 0.16f))
                             .clickable(onClick = onDanmakuInputClick)
                             .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -892,7 +894,7 @@ fun BottomControlBar(
                         } else {
                             Color.White.copy(alpha = 0.18f)
                         },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = AppShapes.container(ContainerLevel.Field),
                         onClick = {
                             val nextShowSubtitlePanel = !showSubtitlePanel
                             com.android.purebilibili.core.util.Logger.d(
@@ -926,7 +928,7 @@ fun BottomControlBar(
                         fontSize = layoutPolicy.actionTextFontSp.sp,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(AppShapes.container(ContainerLevel.Field))
                             .clickable {
                                 showMoreActionsPanel = !showMoreActionsPanel
                                 if (showMoreActionsPanel) {
@@ -985,7 +987,7 @@ fun BottomControlBar(
         ) {
             AppSurface(
                 color = Color.Black.copy(alpha = 0.76f),
-                shape = RoundedCornerShape(12.dp),
+                shape = AppShapes.container(ContainerLevel.Card),
                 border = androidx.compose.foundation.BorderStroke(
                     width = 0.5.dp,
                     color = Color.White.copy(alpha = 0.12f)
@@ -1082,7 +1084,7 @@ fun BottomControlBar(
         ) {
             AppSurface(
                 color = Color.Black.copy(alpha = 0.78f),
-                shape = RoundedCornerShape(16.dp),
+                shape = AppShapes.container(ContainerLevel.Card),
                 border = androidx.compose.foundation.BorderStroke(
                     width = 1.dp,
                     color = Color.White.copy(alpha = 0.2f)
@@ -1267,7 +1269,7 @@ private fun SubtitlePanelOption(
         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
         modifier = Modifier
             .widthIn(min = minWidthDp.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(AppShapes.container(ContainerLevel.Chip))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 4.dp)
     )
@@ -1288,7 +1290,7 @@ private fun MoreActionTextButton(
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier
             .widthIn(min = minWidthDp.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(AppShapes.container(ContainerLevel.Field))
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 8.dp)
     )
@@ -1309,7 +1311,7 @@ private fun VideoEnhancementSettingsPanel(
 ) {
     AppSurface(
         color = Color.Black.copy(alpha = 0.82f),
-        shape = RoundedCornerShape(16.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         border = androidx.compose.foundation.BorderStroke(
             width = 1.dp,
             color = Color.White.copy(alpha = 0.2f)
@@ -1447,7 +1449,7 @@ private fun VideoEnhancementChoice(
     Box(
         modifier = modifier
             .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(AppShapes.container(ContainerLevel.Field))
             .background(
                 if (selected) {
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)

@@ -56,7 +56,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.foundation.text.KeyboardActions
@@ -94,9 +93,17 @@ import androidx.activity.compose.BackHandler
 import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
+import com.android.purebilibili.core.theme.resolveFilledSelectionAccentColors
+import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
+import com.android.purebilibili.feature.home.components.SimpleLiquidIndicator
+import com.android.purebilibili.feature.home.components.resolveTopTabPagerPosition
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import com.android.purebilibili.core.database.entity.SearchHistory
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
@@ -213,12 +220,21 @@ internal fun shouldUseSearchTopBarHeaderBlur(
     globalWallpaperVisible: Boolean
 ): Boolean = hazeSourceEnabled && !globalWallpaperVisible
 
+/**
+ * Search top chrome sizes + semantic shape levels.
+ *
+ * Corners go through [AppShapes.container] (theme-scaled tokens), not hand-drawn
+ * `RoundedCornerShape(N.dp)` or per-preset raw radius constants.
+ */
 internal data class SearchChromeVisualSpec(
     val inputHeightDp: Int,
-    val inputCornerRadiusDp: Int,
-    val actionContainerCornerRadiusDp: Int,
+    /** Search input shell — [ContainerLevel.Field] (input / search bars). */
+    val inputShapeLevel: ContainerLevel,
+    /** Square search-action hit target beside the field. */
+    val actionShapeLevel: ContainerLevel,
     val useFilledSearchAction: Boolean,
-    val suggestionContainerCornerRadiusDp: Int,
+    /** Suggestion / history / discover surface cards. */
+    val suggestionShapeLevel: ContainerLevel,
     val clearActionSizeDp: Int,
     val submitActionSizeDp: Int,
     val actionIconSizeDp: Int,
@@ -226,7 +242,7 @@ internal data class SearchChromeVisualSpec(
     val inputHorizontalPaddingDp: Int,
     val chipHeightDp: Int,
     val compactChipHeightDp: Int,
-    val chipCornerRadiusDp: Int,
+    val chipShapeLevel: ContainerLevel,
     val chipHorizontalPaddingDp: Int
 )
 
@@ -234,13 +250,18 @@ internal fun resolveSearchChromeVisualSpec(
     chromePolicy: AppTopChromePolicy,
 ): SearchChromeVisualSpec {
     val compactChrome = chromePolicy.compactChromeSpec
+    // Shared semantic levels for all tab presentations — theme scale does the rest.
+    val inputShapeLevel = ContainerLevel.Field
+    val actionShapeLevel = ContainerLevel.Card
+    val suggestionShapeLevel = ContainerLevel.Card
+    val chipShapeLevel = ContainerLevel.Chip
     return if (chromePolicy.tabPresentation == AppTopTabPresentation.TONAL_CAPSULE) {
         SearchChromeVisualSpec(
             inputHeightDp = compactChrome.primaryHeightDp,
-            inputCornerRadiusDp = compactChrome.primaryCornerRadiusDp,
-            actionContainerCornerRadiusDp = compactChrome.secondaryButtonCornerRadiusDp,
+            inputShapeLevel = inputShapeLevel,
+            actionShapeLevel = actionShapeLevel,
             useFilledSearchAction = true,
-            suggestionContainerCornerRadiusDp = 18,
+            suggestionShapeLevel = suggestionShapeLevel,
             clearActionSizeDp = compactChrome.secondaryButtonSizeDp,
             submitActionSizeDp = compactChrome.secondaryButtonSizeDp,
             actionIconSizeDp = compactChrome.iconSizeDp,
@@ -248,16 +269,16 @@ internal fun resolveSearchChromeVisualSpec(
             inputHorizontalPaddingDp = compactChrome.inputHorizontalPaddingDp,
             chipHeightDp = compactChrome.chipHeightDp,
             compactChipHeightDp = compactChrome.compactChipHeightDp,
-            chipCornerRadiusDp = compactChrome.chipCornerRadiusDp,
+            chipShapeLevel = chipShapeLevel,
             chipHorizontalPaddingDp = compactChrome.chipHorizontalPaddingDp
         )
     } else if (chromePolicy.tabPresentation == AppTopTabPresentation.MATERIAL_UNDERLINE) {
         SearchChromeVisualSpec(
             inputHeightDp = compactChrome.primaryHeightDp,
-            inputCornerRadiusDp = compactChrome.primaryCornerRadiusDp,
-            actionContainerCornerRadiusDp = compactChrome.secondaryButtonCornerRadiusDp,
+            inputShapeLevel = inputShapeLevel,
+            actionShapeLevel = actionShapeLevel,
             useFilledSearchAction = true,
-            suggestionContainerCornerRadiusDp = 20,
+            suggestionShapeLevel = suggestionShapeLevel,
             clearActionSizeDp = compactChrome.secondaryButtonSizeDp,
             submitActionSizeDp = compactChrome.secondaryButtonSizeDp,
             actionIconSizeDp = compactChrome.iconSizeDp,
@@ -265,16 +286,16 @@ internal fun resolveSearchChromeVisualSpec(
             inputHorizontalPaddingDp = compactChrome.inputHorizontalPaddingDp,
             chipHeightDp = compactChrome.chipHeightDp,
             compactChipHeightDp = compactChrome.compactChipHeightDp,
-            chipCornerRadiusDp = compactChrome.chipCornerRadiusDp,
+            chipShapeLevel = chipShapeLevel,
             chipHorizontalPaddingDp = compactChrome.chipHorizontalPaddingDp
         )
     } else {
         SearchChromeVisualSpec(
             inputHeightDp = compactChrome.primaryHeightDp,
-            inputCornerRadiusDp = compactChrome.primaryCornerRadiusDp,
-            actionContainerCornerRadiusDp = compactChrome.secondaryButtonCornerRadiusDp,
+            inputShapeLevel = inputShapeLevel,
+            actionShapeLevel = actionShapeLevel,
             useFilledSearchAction = false,
-            suggestionContainerCornerRadiusDp = 12,
+            suggestionShapeLevel = suggestionShapeLevel,
             clearActionSizeDp = compactChrome.secondaryButtonSizeDp,
             submitActionSizeDp = compactChrome.secondaryButtonSizeDp,
             actionIconSizeDp = compactChrome.iconSizeDp,
@@ -282,7 +303,7 @@ internal fun resolveSearchChromeVisualSpec(
             inputHorizontalPaddingDp = compactChrome.inputHorizontalPaddingDp,
             chipHeightDp = compactChrome.chipHeightDp,
             compactChipHeightDp = compactChrome.compactChipHeightDp,
-            chipCornerRadiusDp = compactChrome.chipCornerRadiusDp,
+            chipShapeLevel = chipShapeLevel,
             chipHorizontalPaddingDp = compactChrome.chipHorizontalPaddingDp
         )
     }
@@ -902,7 +923,7 @@ fun SearchScreen(
                                         .fillMaxWidth()
                                         .padding(horizontal = 12.dp, vertical = 6.dp),
                                     color = easterEggColors.containerColor,
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = AppShapes.container(ContainerLevel.Card)
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -2004,8 +2025,10 @@ fun SearchTopBar(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
+                val inputShape = AppShapes.container(chromeSpec.inputShapeLevel)
+                val actionShape = AppShapes.container(chromeSpec.actionShapeLevel)
                 BottomBarMatchedReusableLiquidDock(
-                    shape = RoundedCornerShape(chromeSpec.inputCornerRadiusDp.dp),
+                    shape = inputShape,
                     modifier = Modifier
                         .weight(1f)
                         .height(chromeSpec.inputHeightDp.dp),
@@ -2032,7 +2055,7 @@ fun SearchTopBar(
                         },
                         placeholder = placeholder,
                         containerColor = containerColor,
-                        cornerRadiusDp = chromeSpec.inputCornerRadiusDp,
+                        fieldShape = inputShape,
                         heightDp = chromeSpec.inputHeightDp,
                         focusRequester = focusRequester,
                         interactionSource = searchInteractionSource,
@@ -2050,7 +2073,7 @@ fun SearchTopBar(
                     enabled = canSubmit,
                     modifier = Modifier
                         .size(chromeSpec.submitActionSizeDp.dp)
-                        .clip(RoundedCornerShape(chromeSpec.actionContainerCornerRadiusDp.dp))
+                        .clip(actionShape)
                         .background(
                             if (canSubmit) {
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
@@ -2114,13 +2137,12 @@ private fun SearchTopBarInputField(
     onSearch: () -> Unit,
     placeholder: String,
     containerColor: Color,
-    cornerRadiusDp: Int,
+    fieldShape: androidx.compose.ui.graphics.Shape,
     @Suppress("UNUSED_PARAMETER") heightDp: Int,
     focusRequester: androidx.compose.ui.focus.FocusRequester,
     interactionSource: MutableInteractionSource,
     modifier: Modifier = Modifier
 ) {
-    val fieldShape = RoundedCornerShape(cornerRadiusDp.dp)
     val isFocused by interactionSource.collectIsFocusedAsState()
     // Use AppSurfaceTokens so capsule text keeps contrast in both themes.
     val contentColor = AppSurfaceTokens.onSurface()
@@ -2298,7 +2320,7 @@ fun SearchDiscoverySection(
             list.forEach { keyword -> //  使用动态列表
                 AppSurface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(6.dp),
+                    shape = AppShapes.container(ContainerLevel.Chip),
                     modifier = Modifier.clickable { onItemClick(keyword) }
                 ) {
                     AppText(
@@ -2351,7 +2373,7 @@ fun SearchHotSection(
                 }
                 AppSurface(
                     onClick = onToggleHotSearch,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = AppShapes.container(ContainerLevel.Card),
                     color = if (hotSearchEnabled) {
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                     } else {
@@ -2428,60 +2450,111 @@ fun SearchHotSection(
     }
 }
 
+/**
+ * Search type tabs — same interaction model as home top tabs:
+ * floating capsule follows [PagerState.currentPage] + [PagerState.currentPageOffsetFraction]
+ * and can be interrupted mid-swipe / mid-animate.
+ */
 @Composable
 private fun SearchResultTypeTabRow(
     tabs: List<SearchType>,
     pagerState: PagerState,
     onTabClick: (Int, SearchType) -> Unit
 ) {
-    val selectedPage = pagerState.currentPage.coerceIn(tabs.indices)
-    // 液态胶囊语言：选中项用 primary 渐变胶囊 + 颜色过渡，与全 app 的
-    // 液体分段控件（BottomBarLiquidSegmentedControl）视觉一致；仍可横向滚动。
-    val selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+    if (tabs.isEmpty()) return
+    val colorScheme = MaterialTheme.colorScheme
+    val selectionColors = resolveFilledSelectionAccentColors(colorScheme)
     val unselectedLabelColor = AppSurfaceTokens.onSurfaceVariantSummary()
-    val pillShape = RoundedCornerShape(20.dp)
-    Row(
+    val selectedLabelColor = selectionColors.contentColor
+    val uiStyle = LocalAppUiStyle.current
+    val pillCorner = AppShapes.resolveContainerCornerDp(ContainerLevel.Pill, uiStyle)
+    val density = LocalDensity.current
+    // Equal-width slots like home top tabs so SimpleLiquidIndicator can track by index.
+    val itemWidth = 64.dp
+    val itemWidthPx = with(density) { itemWidth.toPx() }
+    val rowHeight = 40.dp
+    val isScrolling = pagerState.isScrollInProgress
+    val selectedIndex = pagerState.currentPage.coerceIn(0, tabs.lastIndex)
+    // Same formula as home TopBar: live offset while scrolling, settle to current page at rest.
+    val indicatorPosition = resolveTopTabPagerPosition(
+        selectedIndex = selectedIndex,
+        pagerCurrentPage = pagerState.currentPage,
+        pagerTargetPage = pagerState.targetPage,
+        pagerCurrentPageOffsetFraction = pagerState.currentPageOffsetFraction,
+        pagerIsScrolling = isScrolling,
+    )
+    val nearestIndex = indicatorPosition.roundToInt().coerceIn(0, tabs.lastIndex)
+    val scrollState = rememberScrollState()
+
+    // Keep the moving capsule roughly in view while swiping across many types.
+    LaunchedEffect(nearestIndex, itemWidthPx) {
+        val targetPx = (nearestIndex * itemWidthPx - itemWidthPx).coerceAtLeast(0f).roundToInt()
+        if (abs(scrollState.value - targetPx) > itemWidthPx * 0.35f) {
+            scrollState.animateScrollTo(targetPx)
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .height(rowHeight)
+            .horizontalScroll(scrollState)
+            .padding(horizontal = 8.dp),
     ) {
-        tabs.forEachIndexed { index, type ->
-            val selected = selectedPage == index
-            val labelColor by animateColorAsState(
-                targetValue = if (selected) selectedLabelColor else unselectedLabelColor,
-                animationSpec = tween(220),
-                label = "typeTabLabelColor"
+        Box(
+            modifier = Modifier
+                .width(itemWidth * tabs.size)
+                .fillMaxHeight(),
+        ) {
+            SimpleLiquidIndicator(
+                position = indicatorPosition,
+                itemWidthPx = itemWidthPx,
+                isDragging = isScrolling,
+                indicatorColor = selectionColors.backgroundColor,
+                indicatorHeight = rowHeight - 8.dp,
+                cornerRadius = pillCorner,
+                widthRatio = 0.92f,
+                minWidth = 48.dp,
+                horizontalInset = 4.dp,
+                // Soft tonal pill: no optical highlight ring outside the capsule.
+                drawHighlightBorder = false,
+                modifier = Modifier.fillMaxSize(),
             )
-            Box(
-                modifier = Modifier
-                    .heightIn(min = 36.dp)
-                    .clip(pillShape)
-                    .background(
-                        if (selected) {
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.92f),
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.68f)
-                                )
-                            )
-                        } else {
-                            SolidColor(Color.Transparent)
-                        }
-                    )
-                    .clickable { onTabClick(index, type) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                AppText(
-                    text = type.displayName,
-                    fontSize = 13.sp,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                    color = labelColor,
-                    maxLines = 1
-                )
+                tabs.forEachIndexed { index, type ->
+                    val selectedStrength = (1f - abs(indicatorPosition - index)).coerceIn(0f, 1f)
+                    val labelColor = androidx.compose.ui.graphics.lerp(
+                        unselectedLabelColor,
+                        selectedLabelColor,
+                        selectedStrength,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(itemWidth)
+                            .fillMaxHeight()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { onTabClick(index, type) },
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        AppText(
+                            text = type.displayName,
+                            maxLines = 1,
+                            fontWeight = if (selectedStrength > 0.55f) {
+                                FontWeight.SemiBold
+                            } else {
+                                FontWeight.Normal
+                            },
+                            fontSize = 13.sp,
+                            color = labelColor,
+                        )
+                    }
+                }
             }
         }
     }
@@ -2874,7 +2947,7 @@ fun SearchResultCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .clickable { onClick(video.bvid) }
             .padding(bottom = 8.dp)
     ) {
@@ -2883,7 +2956,7 @@ fun SearchResultCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 10f)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(AppShapes.container(ContainerLevel.Card))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
@@ -2918,7 +2991,7 @@ fun SearchResultCard(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(8.dp),
-                shape = RoundedCornerShape(4.dp),
+                shape = AppShapes.container(ContainerLevel.Tag),
                 color = Color.Black.copy(alpha = 0.6f)
             ) {
                 AppText(
@@ -3157,7 +3230,7 @@ internal fun BangumiSearchResultCard(
                 modifier = Modifier
                     .width(80.dp)
                     .height(110.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(AppShapes.container(ContainerLevel.Chip))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentScale = ContentScale.Crop
             )
@@ -3281,7 +3354,7 @@ internal fun LiveSearchResultCard(
                     modifier = Modifier
                         .width(120.dp)
                         .height(68.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(AppShapes.container(ContainerLevel.Chip))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentScale = ContentScale.Crop
                 )
@@ -3293,7 +3366,7 @@ internal fun LiveSearchResultCard(
                             .align(Alignment.TopStart)
                             .padding(4.dp),
                         color = Color(0xFFFF4081),
-                        shape = RoundedCornerShape(4.dp)
+                        shape = AppShapes.container(ContainerLevel.Tag)
                     ) {
                         AppText(
                             text = "直播中",
@@ -3311,7 +3384,7 @@ internal fun LiveSearchResultCard(
                             .align(Alignment.BottomEnd)
                             .padding(4.dp),
                         color = Color.Black.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(4.dp)
+                        shape = AppShapes.container(ContainerLevel.Tag)
                     ) {
                         AppText(
                             text = FormatUtils.formatStat(item.online.toLong()),
@@ -3471,7 +3544,7 @@ internal fun LiveUserSearchResultCard(
                         Spacer(modifier = Modifier.width(8.dp))
                         AppSurface(
                             color = Color(0xFFFF4081),
-                            shape = RoundedCornerShape(4.dp)
+                            shape = AppShapes.container(ContainerLevel.Tag)
                         ) {
                             AppText(
                                 text = "直播中",
@@ -3518,7 +3591,7 @@ internal fun TopicSearchResultCard(
                 contentDescription = cleaned.title,
                 modifier = Modifier
                     .size(64.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(AppShapes.container(ContainerLevel.Chip))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentScale = ContentScale.Crop
             )
@@ -3579,7 +3652,7 @@ internal fun PhotoSearchResultCard(
                 contentDescription = cleaned.title,
                 modifier = Modifier
                     .size(width = 104.dp, height = 72.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(AppShapes.container(ContainerLevel.Chip))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentScale = ContentScale.Crop
             )
@@ -3647,7 +3720,7 @@ internal fun ArticleSearchResultCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(width = 112.dp, height = 74.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(AppShapes.container(ContainerLevel.Field))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
             }

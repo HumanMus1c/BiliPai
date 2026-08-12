@@ -2,6 +2,7 @@
 // 此文件包含对话框和错误状态展示
 // UserState 定义在 HomeViewModel.kt 中
 package com.android.purebilibili.feature.home
+import com.android.purebilibili.core.theme.resolveFilledSelectionAccentColors
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppText
@@ -97,13 +98,14 @@ fun LiveSubCategoryRow(
     ) {
         LiveSubCategory.entries.forEach { subCategory ->
             val isSelected = selectedSubCategory == subCategory
+            val selectionColors = resolveFilledSelectionAccentColors(MaterialTheme.colorScheme)
             AppFilterChip(
                 selected = isSelected,
                 onClick = { onSubCategorySelected(subCategory) },
                 label = { AppText(stringResource(resolveLiveSubCategoryLabelRes(subCategory))) },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,  //  使用主题色
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary     //  使用主题对应的前景色
+                    selectedContainerColor = selectionColors.backgroundColor,
+                    selectedLabelColor = selectionColors.contentColor,
                 )
             )
         }

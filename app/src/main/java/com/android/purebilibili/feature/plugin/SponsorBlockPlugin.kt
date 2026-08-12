@@ -66,6 +66,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.io.File
 import java.io.FileOutputStream
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private const val TAG = "SponsorBlockPlugin"
 const val SPONSOR_BLOCK_PLUGIN_ID = "sponsor_block"
@@ -905,7 +907,7 @@ private fun SponsorBlockSettingsSection(
         AppSurface(
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f),
-            shape = RoundedCornerShape(16.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
         ) {
             Column(content = content)
         }
@@ -924,7 +926,7 @@ private fun SponsorBlockCategorySettingsSection(
             AppSurface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.62f),
-                shape = RoundedCornerShape(12.dp),
+                shape = AppShapes.container(ContainerLevel.Card),
             ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     AppText(setting.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
@@ -953,7 +955,7 @@ private fun SponsorBlockInsightPanel(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
             .padding(14.dp)
     ) {
@@ -1065,7 +1067,7 @@ private fun SponsorBlockSummaryHeader(summary: SponsorBlockInsightSummary) {
         }
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
+                .clip(AppShapes.container(ContainerLevel.Pill))
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
                 .padding(horizontal = 10.dp, vertical = 5.dp)
         ) {
@@ -1084,7 +1086,7 @@ private fun SponsorBlockCompactStats(summary: SponsorBlockInsightSummary) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
             .padding(horizontal = 10.dp, vertical = 9.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1146,7 +1148,7 @@ private fun SponsorBlockPeriodStats(summary: SponsorBlockInsightSummary) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
             .padding(horizontal = 10.dp, vertical = 9.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1189,7 +1191,7 @@ private fun SponsorBlockFavoriteSection(summary: SponsorBlockInsightSummary) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
             .padding(horizontal = 10.dp, vertical = 9.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1251,7 +1253,7 @@ private fun SponsorBlockStatTile(
 ) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -1275,7 +1277,7 @@ private fun SponsorBlockEmptyInsight() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.62f))
             .padding(horizontal = 14.dp, vertical = 18.dp),
         contentAlignment = Alignment.Center
@@ -1301,7 +1303,7 @@ private fun SponsorBlockRecordRow(record: SponsorBlockSkipRecord) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
             .combinedClickable(
                 onClick = {},
@@ -1320,7 +1322,7 @@ private fun SponsorBlockRecordRow(record: SponsorBlockSkipRecord) {
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(SPONSOR_BLOCK_RECENT_COVER_ASPECT_RATIO)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(AppShapes.container(ContainerLevel.Chip))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
         Column(
@@ -1429,7 +1431,7 @@ private fun SponsorBlockDetailLine(
 private fun SponsorBlockChip(text: String) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
+            .clip(AppShapes.container(ContainerLevel.Pill))
             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
             .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {

@@ -157,6 +157,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.unit.times
 import kotlinx.coroutines.launch
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 
 internal fun shouldEnableProfileHeaderLoginClick(isLogin: Boolean): Boolean = !isLogin
@@ -1252,7 +1254,7 @@ private fun ProfileQuickAccessDashboard(
                 AppSurface(
                     onClick = action,
                     modifier = Modifier.weight(1f).heightIn(min = 72.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = AppShapes.container(ContainerLevel.Card),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
                 ) {
                     Column(
@@ -1451,14 +1453,10 @@ private fun ProfileSpaceHeader(
                 UserLevelBadge(level = user.level)
                 if (user.isVip) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    AppText(
-                        text = user.vipLabel.ifBlank { "大会员" },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(MaterialTheme.colorScheme.secondary)
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    com.android.purebilibili.core.ui.components.UserVipBadge(
+                        label = user.vipLabel,
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                        compact = true,
                     )
                 }
             }
@@ -1529,7 +1527,7 @@ private fun ProfileSpaceHeader(
                     .height(48.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = heroChrome.actionButtonContentColor),
                 border = BorderStroke(1.dp, heroChrome.actionButtonContentColor.copy(alpha = heroChrome.actionButtonBorderAlpha)),
-                shape = RoundedCornerShape(12.dp)
+                shape = AppShapes.container(ContainerLevel.Card)
             ) {
                 AppText("编辑资料")
             }
@@ -1553,7 +1551,7 @@ private fun ProfileIdentityDrawer(
     containerColor: Color,
     borderColor: Color
 ) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = AppShapes.container(ContainerLevel.Card)
     AnimatedVisibility(
         visible = expanded,
         enter = expandVertically() + fadeIn(),
@@ -1615,7 +1613,7 @@ private fun ProfileSpaceMetaChip(
 ) {
     if (text.isBlank()) return
     AppSurface(
-        shape = RoundedCornerShape(999.dp),
+        shape = AppShapes.container(ContainerLevel.Pill),
         color = containerColor,
         border = BorderStroke(0.6.dp, borderColor)
     ) {
@@ -1723,7 +1721,7 @@ private fun ProfileSpaceTabs(
                     modifier = Modifier
                         .width(24.dp)
                         .height(3.dp)
-                        .clip(RoundedCornerShape(999.dp))
+                        .clip(AppShapes.container(ContainerLevel.Pill))
                         .background(if (selected) contentChrome.primaryColor else Color.Transparent)
                 )
             }
@@ -2422,7 +2420,7 @@ private fun ProfileDynamicOriginalContent(item: SpaceDynamicItem, onVideoClick: 
 
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = AppShapes.container(ContainerLevel.Chip),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
         shadowElevation = 0.dp
     ) {
@@ -2507,7 +2505,7 @@ private fun ProfileDynamicMajorContent(item: SpaceDynamicItem, onVideoClick: (St
                 modifier = Modifier
                     .fillMaxWidth(0.72f)
                     .aspectRatio(1f)
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(AppShapes.container(ContainerLevel.Chip))
                     .onGloballyPositioned { coordinates ->
                         sourceRect = coordinates.boundsInWindow()
                     }
@@ -2595,7 +2593,7 @@ private fun ProfileSpaceListRow(title: String, subtitle: String, imageUrl: Strin
     AppSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(AppShapes.container(ContainerLevel.Chip))
             .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
         shadowElevation = 0.dp
@@ -2608,7 +2606,7 @@ private fun ProfileSpaceListRow(title: String, subtitle: String, imageUrl: Strin
             Box(
                 modifier = Modifier
                     .size(width = 112.dp, height = 64.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(AppShapes.container(ContainerLevel.Chip))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
@@ -2763,9 +2761,9 @@ fun TabletProfileContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp) // Outer padding
-                    .clip(RoundedCornerShape(32.dp))
+                    .clip(AppShapes.container(ContainerLevel.Floating))
                     .background(glassContainerColor)
-                    .border(1.dp, glassBorderColor, RoundedCornerShape(32.dp))
+                    .border(1.dp, glassBorderColor, AppShapes.container(ContainerLevel.Floating))
                     .padding(24.dp)
                     .verticalScroll(rememberScrollState())
             ) {
@@ -3145,7 +3143,7 @@ fun GuestProfileContent(
         ) {
             // Logo - 使用 3D 蓝色图标
             AppSurface(
-                shape = RoundedCornerShape(24.dp),
+                shape = AppShapes.container(ContainerLevel.Floating),
                 shadowElevation = 16.dp,
                 modifier = Modifier.size(100.dp)
             ) {
@@ -3259,7 +3257,7 @@ private fun ProfileWallpaperMenuButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = AppShapes.container(ContainerLevel.Card)
     AppSurface(
         modifier = modifier
             .size(48.dp)
@@ -3294,7 +3292,7 @@ private fun ProfileWallpaperActionSheet(
     AppModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        shape = AppShapes.container(ContainerLevel.Sheet)
     ) {
         Column(
             modifier = Modifier
@@ -3337,7 +3335,7 @@ private fun ProfileWallpaperSheetActionRow(
     onClick: () -> Unit,
     enabled: Boolean = true
 ) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = AppShapes.container(ContainerLevel.Card)
     val contentColor = if (enabled) {
         MaterialTheme.colorScheme.onSurface
     } else {
@@ -3363,7 +3361,7 @@ private fun ProfileWallpaperSheetActionRow(
         ) {
             AppSurface(
                 modifier = Modifier.size(34.dp),
-                shape = RoundedCornerShape(11.dp),
+                shape = AppShapes.container(ContainerLevel.Field),
                 color = MaterialTheme.colorScheme.surface.copy(alpha = if (enabled) 0.82f else 0.46f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -3529,7 +3527,7 @@ private fun ProfileWallpaperActionButton(
     borderColor: Color = Color.Transparent,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(20.dp)
+    val shape = AppShapes.container(ContainerLevel.Floating)
     val effectiveContentColor = if (enabled) contentColor else contentColor.copy(alpha = 0.38f)
     val effectiveSecondaryColor = if (enabled) secondaryColor else secondaryColor.copy(alpha = 0.5f)
     val displayTitle = titleLines.joinToString("\n")
@@ -3565,7 +3563,7 @@ private fun ProfileWallpaperActionButton(
         ) {
             AppSurface(
                 color = Color.White.copy(alpha = if (effectiveContentColor == Color.White) 0.16f else 0.55f),
-                shape = RoundedCornerShape(12.dp)
+                shape = AppShapes.container(ContainerLevel.Card)
             ) {
                 Box(
                     modifier = Modifier
@@ -3623,16 +3621,14 @@ fun UserInfoText(user: UserState, centered: Boolean = false, forceWhite: Boolean
         LevelTag(level = user.level)
         Spacer(modifier = Modifier.width(8.dp))
         if (user.isVip) {
-            AppSurface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(4.dp)) {
-                AppText(
-                    user.vipLabel.ifEmpty { "大会员" },
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                )
-            }
+            // Theme soft pill (same as space header / side drawer), not brand primary pink.
+            com.android.purebilibili.core.ui.components.UserVipBadge(
+                label = user.vipLabel,
+                fontSize = 10.sp,
+                compact = true,
+            )
         } else {
-            AppSurface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(4.dp)) {
+            AppSurface(color = MaterialTheme.colorScheme.surfaceVariant, shape = AppShapes.container(ContainerLevel.Tag)) {
                 AppText("正式会员", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
             }
         }
@@ -3717,7 +3713,7 @@ fun VipBannerSection(user: UserState) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .height(60.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(AppShapes.container(ContainerLevel.Chip))
             .background(
                 Brush.horizontalGradient(
                     colors = listOf(
@@ -3934,7 +3930,7 @@ fun ServicesSection(
             AppSurface(
                 modifier = modifier
                     .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(24.dp)),
+                    .clip(AppShapes.container(ContainerLevel.Floating)),
                 color = containerColor,
                 shadowElevation = 0.dp,
                 tonalElevation = 0.dp // Ensure no extra overlay
@@ -4015,7 +4011,7 @@ private fun ProfileServicesListIsland(
 ) {
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = AppShapes.container(ContainerLevel.Floating),
         color = containerColor,
         border = borderColor?.let { BorderStroke(0.5.dp, it) },
         shadowElevation = 0.dp,
@@ -4044,7 +4040,7 @@ private fun ProfileServiceRow(
         Box(
             modifier = Modifier
                 .size(38.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(AppShapes.container(ContainerLevel.Card))
                 .background(iconTint.copy(alpha = 0.14f)),
             contentAlignment = Alignment.Center
         ) {
@@ -4120,7 +4116,7 @@ private fun ProfileAccountActionArea(
                 )
             }
         }
-        val logoutShape = RoundedCornerShape(22.dp)
+        val logoutShape = AppShapes.container(ContainerLevel.Floating)
         val logoutContainer = if (embeddedInPanel) {
             textColor.copy(alpha = 0.08f)
         } else {
@@ -4237,7 +4233,7 @@ private fun ProfileFavoriteFolderShortcutChip(
     Row(
         modifier = modifier
             .heightIn(min = if (compact) 42.dp else 48.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(AppShapes.container(ContainerLevel.Dialog))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = if (compact) 0.22f else 0.28f))
             .clickable(onClick = onClick)
             .padding(horizontal = if (compact) 9.dp else 10.dp, vertical = if (compact) 7.dp else 8.dp),
@@ -4279,7 +4275,7 @@ private fun ProfileFavoriteFolderMoreChip(
     Box(
         modifier = modifier
             .heightIn(min = 42.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(AppShapes.container(ContainerLevel.Dialog))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.18f))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -4350,7 +4346,7 @@ internal fun AccountSwitchDialog(
 
                 if (playbackAccount != null) {
                     AppSurface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = AppShapes.container(ContainerLevel.Dialog),
                         color = playbackAccountColors.containerColor,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -4370,7 +4366,7 @@ internal fun AccountSwitchDialog(
                 } else if (showPlaybackGuide) {
                     val guideAccount = accounts.firstOrNull { it.isVip && it.mid != activeAccountMid }
                     AppSurface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = AppShapes.container(ContainerLevel.Dialog),
                         color = playbackGuideColors.containerColor,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -4402,7 +4398,7 @@ internal fun AccountSwitchDialog(
                         val isActive = account.mid == activeAccountMid
                         val isPlayback = account.mid == playbackAccountMid
                         AppSurface(
-                            shape = RoundedCornerShape(18.dp),
+                            shape = AppShapes.container(ContainerLevel.Card),
                             color = if (isPlayback) {
                                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
                             } else {

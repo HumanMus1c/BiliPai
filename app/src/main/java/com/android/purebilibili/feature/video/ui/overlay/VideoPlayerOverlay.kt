@@ -147,6 +147,8 @@ import androidx.lifecycle.compose.currentStateAsState
 import com.android.purebilibili.feature.video.playback.session.PendingPlaybackUserAction
 import dev.chrisbanes.haze.HazeState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal fun shouldShowEpisodeEntryFromVideoData(
     relatedVideosCount: Int,
@@ -1670,7 +1672,7 @@ fun VideoPlayerOverlay(
                 onClick = { showInsightDetails = true },
                 color = Color.Black.copy(alpha = 0.68f),
                 contentColor = Color.White,
-                shape = RoundedCornerShape(14.dp),
+                shape = AppShapes.container(ContainerLevel.Dialog),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(
@@ -1768,7 +1770,7 @@ fun VideoPlayerOverlay(
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 AppSurface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = AppShapes.container(ContainerLevel.Card),
                     color = Color.Black.copy(alpha = 0.82f),
                     contentColor = Color.White,
                     tonalElevation = 0.dp
@@ -2222,7 +2224,7 @@ fun VideoPlayerOverlay(
                 contentAlignment = Alignment.BottomCenter
             ) {
                 AppSurface(
-                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                    shape = AppShapes.container(ContainerLevel.Sheet),
                     color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2554,7 +2556,7 @@ private fun PlaybackInsightPanel(
     hazeState: HazeState?,
     modifier: Modifier = Modifier
 ) {
-    val panelShape = RoundedCornerShape(22.dp)
+    val panelShape = AppShapes.container(ContainerLevel.Floating)
     val realtimeHazeState = hazeState?.takeIf {
         shouldAllowRuntimeShaderBackedHazeEffect(Build.VERSION.SDK_INT)
     }
@@ -2830,7 +2832,7 @@ fun LandscapeEndDrawer(
                                     vertical = 0.dp
                                 ),
                                 modifier = Modifier.height(layoutPolicy.followButtonHeightDp.dp),
-                                shape = RoundedCornerShape(16.dp)
+                                shape = AppShapes.container(ContainerLevel.Card)
                             ) {
                                 AppText(
                                     if (isFollowed) "已关注" else "+ 关注",
@@ -3209,7 +3211,7 @@ private fun LandscapeVideoItem(
             .fillMaxWidth()
             .height(layoutPolicy.videoItemHeightDp.dp)
             .clickable(onClick = onClick)
-            .background(if (isCurrent) MaterialTheme.colorScheme.onSurface.copy(0.1f) else Color.Transparent, RoundedCornerShape(4.dp))
+            .background(if (isCurrent) MaterialTheme.colorScheme.onSurface.copy(0.1f) else Color.Transparent, AppShapes.container(ContainerLevel.Tag))
             .padding(4.dp)
     ) {
         // 封面
@@ -3217,7 +3219,7 @@ private fun LandscapeVideoItem(
             modifier = Modifier
                 .aspectRatio(16f / 9f)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(4.dp))
+                .clip(AppShapes.container(ContainerLevel.Tag))
         ) {
              coil.compose.AsyncImage(
                 model = video.pic,
@@ -3232,7 +3234,7 @@ private fun LandscapeVideoItem(
                 fontSize = layoutPolicy.itemDurationFontSp.sp,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .background(Color.Black.copy(0.6f), RoundedCornerShape(2.dp))
+                    .background(Color.Black.copy(0.6f), AppShapes.container(ContainerLevel.Tag))
                     .padding(horizontal = 2.dp)
             )
         }
@@ -3275,7 +3277,7 @@ private fun LandscapeEpisodeItem(
             .fillMaxWidth()
             .height(layoutPolicy.episodeItemHeightDp.dp)
             .clickable(onClick = onClick)
-            .background(if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent, RoundedCornerShape(4.dp))
+            .background(if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent, AppShapes.container(ContainerLevel.Tag))
             .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -3285,7 +3287,7 @@ private fun LandscapeEpisodeItem(
                 modifier = Modifier
                     .aspectRatio(16f / 9f)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(AppShapes.container(ContainerLevel.Tag))
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             ) {
                 coil.compose.AsyncImage(
@@ -3301,7 +3303,10 @@ private fun LandscapeEpisodeItem(
                     fontSize = layoutPolicy.itemDurationFontSp.sp,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .background(Color.Black.copy(0.6f), RoundedCornerShape(topStart = 4.dp))
+                        .background(
+                            Color.Black.copy(0.6f),
+                            AppShapes.topStartRounded(AppShapes.containerCornerDp(ContainerLevel.Tag)),
+                        )
                         .padding(horizontal = 4.dp, vertical = 1.dp)
                 )
             }

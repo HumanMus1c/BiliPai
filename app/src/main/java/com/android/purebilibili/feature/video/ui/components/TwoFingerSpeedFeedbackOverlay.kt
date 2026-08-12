@@ -36,6 +36,8 @@ import dev.chrisbanes.haze.HazeState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.SwapVert
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
 fun BoxScope.TwoFingerSpeedFeedbackOverlay(
@@ -47,7 +49,7 @@ fun BoxScope.TwoFingerSpeedFeedbackOverlay(
 ) {
     if (mode == TwoFingerSpeedGestureMode.Off) return
 
-    val shape = RoundedCornerShape(26.dp)
+    val shape = AppShapes.container(ContainerLevel.Floating)
     val cueText = when (mode) {
         TwoFingerSpeedGestureMode.Vertical -> "双指上下调速"
         TwoFingerSpeedGestureMode.Horizontal -> "双指左右调速"

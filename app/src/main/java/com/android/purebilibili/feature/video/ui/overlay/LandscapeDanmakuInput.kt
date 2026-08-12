@@ -18,6 +18,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private fun Modifier.consumeTap(onTap: () -> Unit): Modifier {
     return pointerInput(onTap) {
@@ -48,7 +50,7 @@ fun LandscapeDanmakuInput(
     Box(
         modifier = modifier
             .height(34.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(Color.White.copy(alpha = 0.15f))
             .consumeTap(onClick)
             .padding(horizontal = 16.dp),
@@ -76,7 +78,7 @@ fun LandscapeQuickActionButton(
     Box(
         modifier = modifier
             .size(32.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(Color.White.copy(alpha = 0.15f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center

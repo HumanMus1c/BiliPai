@@ -30,6 +30,8 @@ import coil.request.ImageRequest
 import com.android.purebilibili.data.model.response.EmotePackage
 import com.android.purebilibili.data.model.response.EmoteItem
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * [新增] 表情选择面板组件
@@ -171,7 +173,7 @@ private fun EmoteGridItem(
     Box(
         modifier = Modifier
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(AppShapes.container(ContainerLevel.Chip))
             .clickable(onClick = onClick)
             .padding(4.dp),
         contentAlignment = Alignment.Center

@@ -1815,7 +1815,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         nextLevelExp = navData.level_info.next_exp ?: 0,
                         coin = navData.money,
                         bcoin = navData.wallet.bcoin_balance,
-                        isVip = isVip
+                        isVip = isVip,
+                        vipLabel = navData.vip.label.text.orEmpty(),
+                        vipType = navData.vip.type,
                     )
                 )
                 refreshMessageUnreadInBackground()

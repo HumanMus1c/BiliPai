@@ -92,6 +92,8 @@ import java.util.concurrent.ConcurrentHashMap
 import com.android.purebilibili.core.ui.components.UserLevelBadge
 import com.android.purebilibili.core.ui.components.UserUpBadge
 import kotlinx.coroutines.launch
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private val EMOTE_TOKEN_PATTERN = """\[(.*?)\]""".toRegex()
 private const val COMMENT_INLINE_UP_BADGE_ID = "comment_inline_up_badge"
@@ -1563,7 +1565,7 @@ fun ReplyItemView(
                         modifier = Modifier
                             .fillMaxWidth()
                             .animateContentSize(animationSpec = tween(durationMillis = 180))
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(AppShapes.container(ContainerLevel.Chip))
                             .background(appearance.composerHintBackgroundColor)
                             .padding(horizontal = 8.dp, vertical = 6.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -2276,11 +2278,11 @@ private fun FansMedalTag(detail: ReplyFansDetail) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .clip(RoundedCornerShape(3.dp))
+            .clip(AppShapes.container(ContainerLevel.Tag))
             .border(
                 width = 0.8.dp,
                 color = accentColor.copy(alpha = 0.75f),
-                shape = RoundedCornerShape(3.dp)
+                shape = AppShapes.container(ContainerLevel.Tag)
             )
             .background(accentColor.copy(alpha = 0.14f))
     ) {
@@ -2318,7 +2320,7 @@ private fun NameplateTag(imageUrl: String) {
         contentDescription = "Nameplate",
         modifier = Modifier
             .size(width = 20.dp, height = 12.dp)
-            .clip(RoundedCornerShape(2.dp))
+            .clip(AppShapes.container(ContainerLevel.Tag))
     )
 }
 
@@ -2624,11 +2626,11 @@ fun UpTag() {
 fun TopTag() {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(3.dp))
+            .clip(AppShapes.container(ContainerLevel.Tag))
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(3.dp)
+                shape = AppShapes.container(ContainerLevel.Tag)
             )
             .padding(horizontal = 3.dp, vertical = 2.dp),
     ) {
@@ -2698,7 +2700,7 @@ fun CommentPictures(
                     .heightIn(max = 220.dp)
                     .testTag("${testTagPrefix}0")
                     .aspectRatio(aspectRatio)
-                    .clip(RoundedCornerShape(12.dp))  //  [优化] 更大圆角 8dp → 12dp
+                    .clip(AppShapes.container(ContainerLevel.Card))  //  [优化] 更大圆角 8dp → 12dp
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .onGloballyPositioned { coordinates ->
                         imageRect = coordinates.boundsInWindow()
@@ -2738,7 +2740,7 @@ fun CommentPictures(
                                 modifier = Modifier
                                     .size(85.dp)  //  [优化] 增大尺寸 80dp → 85dp
                                     .testTag("${testTagPrefix}$globalIndex")
-                                    .clip(RoundedCornerShape(10.dp))  //  [优化] 更大圆角 6dp → 10dp
+                                    .clip(AppShapes.container(ContainerLevel.Field))  //  [优化] 更大圆角 6dp → 10dp
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .onGloballyPositioned { coordinates ->
                                         imageRect = coordinates.boundsInWindow()

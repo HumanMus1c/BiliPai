@@ -38,6 +38,8 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.components.AppSurface
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +105,7 @@ private fun PlaybackOrderCompactOverlay(
         contentAlignment = Alignment.BottomEnd,
     ) {
         AppSurface(
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 0.dp, bottomEnd = 0.dp),
+            shape = AppShapes.container(ContainerLevel.Sheet),
             color = AppSurfaceTokens.surface(),
             modifier = Modifier
                 .widthIn(max = layoutSpec.maxWidthDp.dp)

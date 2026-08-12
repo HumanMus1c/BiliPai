@@ -638,7 +638,7 @@ internal fun ExternalPlaylistQueueSheet(
     val bottomSpacerHeight = resolveExternalPlaylistQueueBottomSpacerDp(
         navigationBarBottomPadding.value.roundToInt()
     ).dp
-    val sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    val sheetShape = AppShapes.container(ContainerLevel.Sheet)
 
     when (presentation) {
         ExternalPlaylistQueueSheetPresentation.INLINE_HAZE -> {

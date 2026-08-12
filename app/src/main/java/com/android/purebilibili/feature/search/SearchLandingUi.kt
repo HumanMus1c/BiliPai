@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ClearAll
@@ -53,6 +52,8 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.util.responsiveContentWidth
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private const val SEARCH_HIGHLIGHT_START_TOKEN = "§hl§"
 private const val SEARCH_HIGHLIGHT_END_TOKEN = "§/hl§"
@@ -259,7 +260,7 @@ fun SearchSuggestionDropdown(
 
     AppSurface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         tonalElevation = 8.dp,
         shadowElevation = 10.dp,
         color = AppSurfaceTokens.surface()
@@ -542,7 +543,7 @@ private fun SearchDiscoverOriginalCell(
     AppSurface(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
+        shape = AppShapes.container(ContainerLevel.Field),
         color = colors.containerColor,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
@@ -627,7 +628,7 @@ internal fun SearchKeywordBadge(
         modifier = Modifier
             .background(
                 color = containerColor,
-                shape = RoundedCornerShape(4.dp)
+                shape = AppShapes.container(ContainerLevel.Tag)
             )
             .padding(horizontal = 5.dp, vertical = 1.dp),
         contentAlignment = Alignment.Center
@@ -694,7 +695,7 @@ private fun SearchHistorySectionModern(
                     Row(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(AppShapes.container(ContainerLevel.Chip))
                             .clickable { onItemClick(history.keyword) }
                             .padding(horizontal = 8.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically

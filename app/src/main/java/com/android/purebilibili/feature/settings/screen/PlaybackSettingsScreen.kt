@@ -75,6 +75,8 @@ import com.android.purebilibili.core.ui.components.*
 import com.android.purebilibili.core.ui.animation.EntranceGroup
 import com.android.purebilibili.core.ui.animation.entrance
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  播放设置二级页面
@@ -396,7 +398,7 @@ fun PlaybackSettingsContent(
                                     )
                                 }
                                 Surface(
-                                    shape = RoundedCornerShape(999.dp),
+                                    shape = AppShapes.container(ContainerLevel.Pill),
                                     color = MaterialTheme.colorScheme.primaryContainer
                                 ) {
                                     Text(
@@ -442,7 +444,7 @@ fun PlaybackSettingsContent(
                                     )
                                 }
                                 Surface(
-                                    shape = RoundedCornerShape(999.dp),
+                                    shape = AppShapes.container(ContainerLevel.Pill),
                                     color = MaterialTheme.colorScheme.primaryContainer
                                 ) {
                                     Text(

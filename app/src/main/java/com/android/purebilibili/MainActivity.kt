@@ -163,6 +163,8 @@ import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private const val TAG = "MainActivity"
 private const val PREFS_NAME = "app_welcome"
@@ -1670,7 +1672,7 @@ open class MainActivity : AppCompatActivity() {
                                             )
                                     )
                                     Card(
-                                        shape = RoundedCornerShape(26.dp),
+                                        shape = AppShapes.container(ContainerLevel.Floating),
                                         elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
                                         modifier = Modifier
                                             .align(Alignment.Center)

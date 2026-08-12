@@ -22,6 +22,8 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.anime4k.gl.Anime4KDisplayScaleMode
 import kotlin.math.roundToInt
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 //  已改用 MaterialTheme.colorScheme.primary
 
 /**
@@ -231,7 +233,7 @@ fun AspectRatioMenu(
 ) {
     AppSurface(
         modifier = modifier.widthIn(min = 120.dp, max = 200.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         color = Color.Black.copy(alpha = 0.85f),
         shadowElevation = 8.dp
     ) {
@@ -254,7 +256,7 @@ fun AspectRatioMenu(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 2.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = AppShapes.container(ContainerLevel.Chip),
                     color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
                     onClick = {
                         onRatioSelected(ratio)
@@ -286,7 +288,7 @@ fun AspectRatioButton(
     AppSurface(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(6.dp),
+        shape = AppShapes.container(ContainerLevel.Chip),
         color = Color.Black.copy(alpha = 0.5f)
     ) {
         Row(

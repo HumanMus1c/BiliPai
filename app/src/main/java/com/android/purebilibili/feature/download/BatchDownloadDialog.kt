@@ -42,6 +42,8 @@ import androidx.compose.ui.window.Dialog
 import com.android.purebilibili.core.ui.appContentDialogWidth
 import com.android.purebilibili.core.ui.resolveAppExpandedContentDialogLayoutPolicy
 import com.android.purebilibili.core.ui.resolveAppContentDialogProperties
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
 internal fun BatchDownloadDialog(
@@ -78,7 +80,7 @@ internal fun BatchDownloadDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = dialogMaxHeight),
-                shape = RoundedCornerShape(20.dp),
+                shape = AppShapes.container(ContainerLevel.Floating),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -191,7 +193,7 @@ internal fun BatchDownloadDialog(
                                         modifier = Modifier
                                             .background(
                                                 color = MaterialTheme.colorScheme.secondaryContainer,
-                                                shape = RoundedCornerShape(999.dp)
+                                                shape = AppShapes.container(ContainerLevel.Pill)
                                             )
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {

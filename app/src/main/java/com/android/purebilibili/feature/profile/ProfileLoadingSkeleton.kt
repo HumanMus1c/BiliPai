@@ -257,7 +257,7 @@ private fun ProfileSkeletonBlock(
     width: Dp,
     height: Dp,
     color: Color,
-    shape: Shape = RoundedCornerShape(8.dp),
+    shape: Shape = AppShapes.container(ContainerLevel.Chip),
     modifier: Modifier = Modifier,
 ) {
     Box(

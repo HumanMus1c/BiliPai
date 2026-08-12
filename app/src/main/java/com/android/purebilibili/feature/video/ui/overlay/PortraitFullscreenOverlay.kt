@@ -50,6 +50,8 @@ import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.VideoshotData
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal fun shouldShowPortraitViewCount(viewCount: Int, compactMode: Boolean): Boolean {
     return viewCount > 0 && !compactMode
@@ -344,7 +346,7 @@ fun PortraitFullscreenOverlay(
                 ) {
                     AppSurface(
                         color = Color.Black.copy(alpha = 0.72f),
-                        shape = RoundedCornerShape(18.dp)
+                        shape = AppShapes.container(ContainerLevel.Card)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -494,7 +496,7 @@ private fun PortraitChromeChip(
     AppSurface(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(999.dp),
+        shape = AppShapes.container(ContainerLevel.Pill),
         color = Color.White.copy(alpha = 0.14f),
         contentColor = if (highlighted) {
             MaterialTheme.colorScheme.primary

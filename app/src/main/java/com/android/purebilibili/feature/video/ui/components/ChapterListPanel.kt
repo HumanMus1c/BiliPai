@@ -30,6 +30,8 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.data.model.response.ViewPoint
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 📖 视频章节列表面板
@@ -72,7 +74,7 @@ fun ChapterListPanel(
                     indication = null,
                     onClick = {}
                 ),
-            shape = RoundedCornerShape(12.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             color = Color(0xE6222222),  // 深色半透明
             shadowElevation = 8.dp
         ) {

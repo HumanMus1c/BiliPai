@@ -45,6 +45,8 @@ import com.android.purebilibili.core.util.Logger
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal const val HOME_FEED_ANONYMIZER_PLUGIN_ID = "home_feed_anonymizer"
 private const val TAG = "HomeFeedAnonymizerPlugin"
@@ -262,7 +264,7 @@ private fun HomeFeedAnonymizerSection(
         )
         AppSurface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
+            shape = AppShapes.container(ContainerLevel.Chip),
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.62f)
         ) {
             Column(
@@ -295,7 +297,7 @@ private fun HomeFeedAnonymizerInfoRowView(
             )
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-                shape = RoundedCornerShape(6.dp)
+                shape = AppShapes.container(ContainerLevel.Chip)
             )
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top

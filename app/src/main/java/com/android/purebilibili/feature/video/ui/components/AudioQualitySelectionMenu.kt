@@ -38,6 +38,8 @@ import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private val HiResGold = Color(0xFFFFD36A)
 private val DolbyBlue = Color(0xFF8DCDFF)
@@ -77,7 +79,7 @@ private fun AudioFormatBadge(
         modifier = modifier,
         color = backgroundColor.copy(alpha = 0.9f),
         contentColor = accentColor,
-        shape = RoundedCornerShape(4.dp),
+        shape = AppShapes.container(ContainerLevel.Tag),
         border = androidx.compose.foundation.BorderStroke(0.75.dp, accentColor.copy(alpha = 0.9f))
     ) {
         AppText(
@@ -112,14 +114,14 @@ fun AudioQualitySelectionMenu(
             modifier = Modifier
                 .widthIn(min = 200.dp, max = 280.dp)
                 .heightIn(max = 400.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(AppShapes.container(ContainerLevel.Card))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = {}
                 ),
             color = Color(0xFF2B2B2B),
-            shape = RoundedCornerShape(12.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             tonalElevation = 8.dp
         ) {
             Column(

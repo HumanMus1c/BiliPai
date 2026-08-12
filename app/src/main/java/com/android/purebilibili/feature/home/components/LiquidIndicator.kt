@@ -255,6 +255,8 @@ fun SimpleLiquidIndicator(
     widthRatio: Float = 0.78f,
     minWidth: Dp = AppSpacingTokens.TripleExtraLarge,
     horizontalInset: Dp = AppSpacingTokens.Large,
+    /** Home chrome keeps a thin optical highlight; soft tonal tabs can turn it off. */
+    drawHighlightBorder: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -353,10 +355,18 @@ fun SimpleLiquidIndicator(
                         this.background(resolvedIndicatorColor)
                     }
                 }
-                .border(
-                    width = AppSpacingTokens.Micro * 0.35f,
-                    color = OpticalContrastPalette.Highlight.copy(alpha = if (isLiquidGlassEnabled) 0.62f else 0.25f),
-                    shape = RoundedCornerShape(cornerRadius)
+                .then(
+                    if (drawHighlightBorder) {
+                        Modifier.border(
+                            width = AppSpacingTokens.Micro * 0.35f,
+                            color = OpticalContrastPalette.Highlight.copy(
+                                alpha = if (isLiquidGlassEnabled) 0.62f else 0.25f
+                            ),
+                            shape = RoundedCornerShape(cornerRadius),
+                        )
+                    } else {
+                        Modifier
+                    }
                 )
         )
     }

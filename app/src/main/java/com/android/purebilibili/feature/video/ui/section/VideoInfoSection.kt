@@ -88,6 +88,8 @@ import com.android.purebilibili.feature.video.ui.components.ShimmerContainer
 import com.android.purebilibili.feature.video.ui.components.SkeletonBox
 import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal const val VIDEO_DESCRIPTION_URL_TAG = "VIDEO_DESCRIPTION_URL"
 private val VIDEO_DESCRIPTION_URL_PATTERN =
@@ -247,7 +249,9 @@ fun VideoTitleSection(
             if (emphasizePublishTime) {
                 AppSurface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = com.android.purebilibili.core.ui.AppShapes.container(
+                        com.android.purebilibili.core.ui.ContainerLevel.Field
+                    )
                 ) {
                     AppText(
                         text = publishTimeRowText,
@@ -540,7 +544,9 @@ fun VideoTitleWithDesc(
             if (emphasizePublishTime) {
                 AppSurface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = com.android.purebilibili.core.ui.AppShapes.container(
+                        com.android.purebilibili.core.ui.ContainerLevel.Field
+                    )
                 ) {
                     AppText(
                         text = publishTimeRowText,
@@ -648,23 +654,14 @@ fun VideoTitleWithDesc(
                 Spacer(Modifier.height(8.dp))
                 androidx.compose.foundation.layout.FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     videoTags.take(10).forEach { tag ->
-                        AppSurface(
+                        com.android.purebilibili.core.ui.components.AppTagChip(
+                            label = tag.tag_name,
                             onClick = { onTagClick(tag.tag_name) },
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            AppText(
-                                text = tag.tag_name,
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                                    .copyOnLongPress(tag.tag_name, "标签")
-                            )
-                        }
+                            modifier = Modifier.copyOnLongPress(tag.tag_name, "标签"),
+                        )
                     }
                 }
             }
@@ -677,30 +674,10 @@ private fun VideoDetailBadgeChip(
     text: String,
     emphasized: Boolean
 ) {
-    val containerColor = if (emphasized) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f)
-    }
-    val contentColor = if (emphasized) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    AppSurface(
-        color = containerColor,
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        AppText(
-            text = text,
-            fontSize = 11.sp,
-            lineHeight = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = contentColor,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-        )
-    }
+    com.android.purebilibili.core.ui.components.AppStatusBadge(
+        label = text,
+        emphasized = emphasized,
+    )
 }
 
 /**
@@ -917,7 +894,7 @@ fun UpInfoSection(
                                     targetBounds = targetBounds
                                 )
                             },
-                            clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(16.dp))
+                            clipInOverlayDuringTransition = OverlayClip(AppShapes.container(ContainerLevel.Card))
                         )
                     }
                 }
@@ -935,7 +912,7 @@ fun UpInfoSection(
                         FollowButtonTone.PRIMARY -> MaterialTheme.colorScheme.primary
                         FollowButtonTone.PRIMARY_CONTAINER -> MaterialTheme.colorScheme.primaryContainer
                     },
-                    shape = RoundedCornerShape(18.dp),
+                    shape = AppShapes.container(ContainerLevel.Card),
                     modifier = followActionModifier
                 ) {
                     Row(
@@ -1034,7 +1011,7 @@ private fun CreatorTeamMemberChip(
     }
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(AppShapes.container(ContainerLevel.Chip))
             .clickable(enabled = member.mid > 0L, onClick = onClick)
             .padding(end = 4.dp)
             .heightIn(min = 48.dp),
@@ -1214,7 +1191,7 @@ fun BgmInfoRow(
 
     AppSurface(
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-        shape = RoundedCornerShape(8.dp),
+        shape = AppShapes.container(ContainerLevel.Chip),
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
@@ -1647,7 +1624,7 @@ private fun BgmSelectionStrip(
                 Box(
                     modifier = Modifier
                         .size(76.dp)
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(AppShapes.container(ContainerLevel.Floating))
                         .background(
                             if (selected) {
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -1662,7 +1639,7 @@ private fun BgmSelectionStrip(
                             } else {
                                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f)
                             },
-                            shape = RoundedCornerShape(20.dp)
+                            shape = AppShapes.container(ContainerLevel.Floating)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1725,7 +1702,7 @@ private fun BgmDetailCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(24.dp),
+        shape = AppShapes.container(ContainerLevel.Floating),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
     ) {
         if (isLoading) {
@@ -1885,7 +1862,7 @@ private fun BgmDetailCover(
     Box(
         modifier = Modifier
             .size(width = 112.dp, height = 112.dp)
-            .clip(RoundedCornerShape(22.dp))
+            .clip(AppShapes.container(ContainerLevel.Floating))
             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
         contentAlignment = Alignment.Center
     ) {

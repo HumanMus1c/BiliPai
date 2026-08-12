@@ -38,6 +38,8 @@ import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppCard
 import com.android.purebilibili.core.ui.components.AppSlider
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +105,7 @@ fun WallpaperAdjustmentSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp, vertical = 8.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(AppShapes.container(ContainerLevel.Chip))
                     .background(
                         opaqueCompositeOver(
                             MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
@@ -182,7 +184,7 @@ fun WallpaperAdjustmentSheet(
                             fontSize = 10.sp,
                             modifier = Modifier
                                 .align(Alignment.Center)
-                                .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                .background(Color.Black.copy(alpha = 0.3f), AppShapes.container(ContainerLevel.Tag))
                                 .padding(4.dp)
                         )
                     }
@@ -298,7 +300,7 @@ fun ProfileWallpaperAdjustmentSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp, vertical = 8.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(AppShapes.container(ContainerLevel.Chip))
                     .background(
                         opaqueCompositeOver(
                             MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
@@ -417,7 +419,7 @@ fun ProfileWallpaperAdjustmentSheet(
                             fontSize = 10.sp,
                             modifier = Modifier
                                 .align(Alignment.Center)
-                                .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                .background(Color.Black.copy(alpha = 0.3f), AppShapes.container(ContainerLevel.Tag))
                                 .padding(horizontal = 6.dp, vertical = 4.dp)
                         )
                     }
@@ -475,7 +477,7 @@ private fun TabItem(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(AppShapes.container(ContainerLevel.Chip))
             .background(if (isSelected) MaterialTheme.colorScheme.background else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(vertical = 8.dp),

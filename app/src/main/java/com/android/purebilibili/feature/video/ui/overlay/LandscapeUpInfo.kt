@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.android.purebilibili.core.ui.components.AppSurface
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  横屏 UP 主信息组件
@@ -34,7 +36,7 @@ fun LandscapeUpInfo(
 ) {
     AppSurface(
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
+        shape = AppShapes.container(ContainerLevel.Floating),
         color = Color.Black.copy(alpha = 0.5f)
     ) {
         Row(
@@ -81,7 +83,7 @@ fun LandscapeViewerCount(
     
     AppSurface(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         color = Color.Black.copy(alpha = 0.5f)
     ) {
         Row(

@@ -1,9 +1,12 @@
 package com.android.purebilibili.core.theme
 
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class AdaptiveAccentColorPolicyTest {
 
@@ -53,5 +56,54 @@ class AdaptiveAccentColorPolicyTest {
 
         assertEquals(scheme.tertiaryContainer, colors.backgroundColor)
         assertEquals(scheme.onTertiaryContainer, colors.contentColor)
+    }
+
+    @Test
+    fun `dark surface bright orange with black onPrimary prefers light selection label`() {
+        val scheme = darkColorScheme(
+            primary = Color(0xFFFF8A50),
+            onPrimary = Color(0xFF1A1A1A),
+            primaryContainer = Color(0xFF5C2E12),
+            onPrimaryContainer = Color(0xFFFFDBCB),
+            surface = Color(0xFF121212),
+        )
+
+        val colors = resolveAdaptivePrimaryAccentColors(scheme)
+
+        // Must not keep black label on brand orange for filled selection chrome.
+        assertTrue(colors.contentColor.luminance() > 0.5f)
+    }
+
+    @Test
+    fun `filled selection on dark surface uses soft primaryContainer not neon primary`() {
+        val scheme = darkColorScheme(
+            primary = Color(0xFFFF8A50),
+            onPrimary = Color(0xFF1A1A1A),
+            primaryContainer = Color(0xFF5C2E12),
+            onPrimaryContainer = Color(0xFFFFDBCB),
+            surface = Color(0xFF121212),
+        )
+
+        val colors = resolveFilledSelectionAccentColors(scheme)
+
+        // Soft tonal fill: container pair (or lightened content on that fill).
+        assertTrue(colors.backgroundColor.luminance() < scheme.primary.luminance())
+        assertTrue(colors.contentColor.luminance() > 0.5f)
+    }
+
+    @Test
+    fun `filled selection on light surface also uses primaryContainer not solid primary`() {
+        val scheme = lightColorScheme(
+            primary = Color(0xFFFF6A00),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFFFDBCB),
+            onPrimaryContainer = Color(0xFF3A1600),
+            surface = Color(0xFFFFFBFE),
+        )
+
+        val colors = resolveFilledSelectionAccentColors(scheme)
+
+        assertEquals(scheme.primaryContainer, colors.backgroundColor)
+        assertEquals(scheme.onPrimaryContainer, colors.contentColor)
     }
 }

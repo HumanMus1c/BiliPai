@@ -346,7 +346,7 @@ fun DynamicCardV2(
                             .border(
                                 width = AppSurfaceTokens.OutlineWidth,
                                 color = MaterialTheme.colorScheme.primary,
-                                shape = RoundedCornerShape(4.dp)
+                                shape = AppShapes.container(ContainerLevel.Tag)
                             )
                             .padding(
                                 horizontal = AppSpacingTokens.ExtraSmall,
@@ -601,7 +601,7 @@ fun DynamicCardV2(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = AppSpacingTokens.Medium)
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(AppShapes.container(ContainerLevel.Chip))
                         .background(disputeColors.containerColor)
                         .then(disputeClickModifier)
                         .padding(
@@ -1029,7 +1029,7 @@ fun DynamicCardV2(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(AppShapes.container(ContainerLevel.Chip))
                         .clickable { onDynamicDetailClick(item.id_str) }
                         .padding(vertical = AppSpacingTokens.Small),
                     horizontalArrangement = Arrangement.Center,

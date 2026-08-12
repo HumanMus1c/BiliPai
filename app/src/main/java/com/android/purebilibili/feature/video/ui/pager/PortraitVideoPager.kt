@@ -209,6 +209,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal data class PortraitVideoInteractionOverride(
     val isLiked: Boolean? = null,
@@ -2642,7 +2644,7 @@ private fun VideoPageItem(
             Column(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .background(Color.Black.copy(alpha = 0.7f), androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                    .background(Color.Black.copy(alpha = 0.7f), AppShapes.container(ContainerLevel.Card))
                     .padding(horizontal = 24.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -2677,7 +2679,7 @@ private fun VideoPageItem(
             Box(
                 modifier = Modifier
                     .size(100.dp)
-                    .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(20.dp)),
+                    .background(Color.Black.copy(alpha = 0.75f), AppShapes.container(ContainerLevel.Floating)),
                 contentAlignment = Alignment.Center
             ) {
                 AppText(
@@ -2829,7 +2831,7 @@ private fun VideoPageItem(
                     containerColor = Color.Black.copy(alpha = 0.6f),
                     contentColor = Color.White
                 ),
-                shape = RoundedCornerShape(24.dp)
+                shape = AppShapes.container(ContainerLevel.Floating)
             ) {
                 AppIcon(
                     imageVector = Icons.Filled.Refresh,

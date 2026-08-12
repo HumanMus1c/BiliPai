@@ -40,6 +40,8 @@ import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppSwitch
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 修复壁纸图片 URL (不添加缩放后缀，保持原图质量)
@@ -170,11 +172,11 @@ fun OfficialWallpaperSheet(
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
                                             .aspectRatio(9f / 16f)
-                                            .clip(RoundedCornerShape(8.dp))
+                                            .clip(AppShapes.container(ContainerLevel.Chip))
                                             .border(
                                                 width = if (isSelected) 2.dp else 0.dp,
                                                 color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                                shape = RoundedCornerShape(8.dp)
+                                                shape = AppShapes.container(ContainerLevel.Chip)
                                             )
                                     )
                                     
@@ -312,7 +314,7 @@ fun OfficialWallpaperSheet(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(50.dp),
-                            shape = RoundedCornerShape(25.dp),
+                            shape = AppShapes.container(ContainerLevel.Floating),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -337,7 +339,7 @@ fun OfficialWallpaperSheet(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(50.dp),
-                            shape = RoundedCornerShape(25.dp),
+                            shape = AppShapes.container(ContainerLevel.Floating),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
 

@@ -34,6 +34,8 @@ import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.util.NetworkUtils
 import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  离线缓存列表页面
@@ -180,7 +182,7 @@ private fun DownloadTaskItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
@@ -196,7 +198,7 @@ private fun DownloadTaskItem(
                 modifier = Modifier
                     .width(120.dp)
                     .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(AppShapes.container(ContainerLevel.Chip))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 // 🖼️ [修复] 优先使用本地封面（无网络时也能显示）
@@ -262,7 +264,7 @@ private fun DownloadTaskItem(
                         .padding(4.dp)
                         .background(
                             Color.Black.copy(alpha = 0.7f),
-                            RoundedCornerShape(4.dp)
+                            AppShapes.container(ContainerLevel.Tag)
                         )
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {

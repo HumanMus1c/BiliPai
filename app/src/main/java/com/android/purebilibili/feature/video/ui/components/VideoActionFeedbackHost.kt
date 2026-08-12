@@ -26,6 +26,8 @@ import com.android.purebilibili.feature.video.ui.feedback.VideoFeedbackAnchor
 import com.android.purebilibili.feature.video.ui.feedback.VideoFeedbackEmphasis
 import com.android.purebilibili.feature.video.ui.feedback.VideoFeedbackPlacement
 import dev.chrisbanes.haze.HazeState
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
 fun BoxScope.VideoActionFeedbackHost(
@@ -70,11 +72,11 @@ fun BoxScope.VideoActionFeedbackHost(
         AppSurface(
             color = Color.Black.copy(alpha = backgroundAlpha),
             contentColor = Color.White,
-            shape = RoundedCornerShape(22.dp),
+            shape = AppShapes.container(ContainerLevel.Floating),
             tonalElevation = 0.dp,
             shadowElevation = 12.dp,
             modifier = Modifier
-                .clip(RoundedCornerShape(22.dp))
+                .clip(AppShapes.container(ContainerLevel.Floating))
                 .unifiedBlur(hazeState = hazeState)
                 .widthIn(min = minWidth * scale, max = maxWidth * scale)
         ) {

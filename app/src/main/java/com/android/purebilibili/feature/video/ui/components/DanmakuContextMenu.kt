@@ -34,6 +34,8 @@ import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Reply
 import com.android.purebilibili.core.ui.common.copyPlainTextToClipboard
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 // iOS Visual Styles
 private val MenuBackground = Color(0xCC1C1C1E) // Translucent Black
@@ -177,7 +179,7 @@ private fun RecallConfirmMenu(
     Column(
         modifier = Modifier
             .width(280.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(AppShapes.container(ContainerLevel.Dialog))
             .background(MenuBackground),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -267,7 +269,7 @@ private fun MainMenu(
     Column(
         modifier = Modifier
             .width(280.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(AppShapes.container(ContainerLevel.Dialog))
             .background(MenuBackground)
             .padding(vertical = 0.dp), // iOS menus often have no outer padding inside the rounded container
         horizontalAlignment = Alignment.CenterHorizontally
@@ -367,7 +369,7 @@ private fun ReportReasonMenu(
     Column(
         modifier = Modifier
             .width(280.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(AppShapes.container(ContainerLevel.Dialog))
             .background(MenuBackground),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

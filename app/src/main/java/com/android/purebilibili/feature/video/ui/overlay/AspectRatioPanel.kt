@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  画面比例选择面板（官方 B 站样式）
@@ -97,7 +99,7 @@ fun AspectRatioPanel(
                         )
                     }
                     .clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { /* 阻止点击穿透 */ },
-                shape = RoundedCornerShape(12.dp),
+                shape = AppShapes.container(ContainerLevel.Card),
                 color = Color.Black.copy(alpha = 0.85f)
             ) {
                 Column(
@@ -122,7 +124,7 @@ fun AspectRatioPanel(
                                 onDismiss()
                             },
                             color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
-                            shape = RoundedCornerShape(6.dp),
+                            shape = AppShapes.container(ContainerLevel.Chip),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 8.dp, vertical = 2.dp)

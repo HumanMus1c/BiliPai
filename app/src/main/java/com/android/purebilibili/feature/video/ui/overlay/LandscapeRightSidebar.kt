@@ -34,6 +34,8 @@ import com.android.purebilibili.core.ui.rememberAppMoreIcon
 import com.android.purebilibili.core.ui.rememberAppShareIcon
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  横屏右侧操作栏
@@ -167,7 +169,7 @@ private fun SidebarTextButton(
     AppSurface(
         onClick = onClick,
         color = Color.Black.copy(alpha = 0.5f),
-        shape = RoundedCornerShape(6.dp)
+        shape = AppShapes.container(ContainerLevel.Chip)
     ) {
         AppText(
             text = text,
@@ -203,7 +205,7 @@ private fun SidebarActionButton(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .scale(scale)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(AppShapes.container(ContainerLevel.Chip))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

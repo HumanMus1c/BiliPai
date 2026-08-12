@@ -33,7 +33,10 @@ data class UserState(
     val follower: Int = 0,
     val dynamic: Int = 0,
     val isVip: Boolean = false,
+    /** Server vip.label.text, e.g. 大会员 / 年度大会员 */
     val vipLabel: String = "",
+    /** vip.type: 1 monthly, 2 annual — used when [vipLabel] is empty */
+    val vipType: Int = 0,
     //  [New] 顶部背景图
     val topPhoto: String = ""
 )

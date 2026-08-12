@@ -53,6 +53,8 @@ import kotlinx.serialization.decodeFromString
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private const val TAG = "AdFilterPlugin"
 internal const val ADFILTER_PLUGIN_ID = "adfilter"
@@ -753,7 +755,7 @@ private fun AdFilterInsightPanel(summary: AdFilterInsightSummary) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -777,7 +779,7 @@ private fun AdFilterInsightPanel(summary: AdFilterInsightSummary) {
                 )
             }
             AppSurface(
-                shape = RoundedCornerShape(999.dp),
+                shape = AppShapes.container(ContainerLevel.Pill),
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             ) {
                 AppText(
@@ -848,7 +850,7 @@ private fun AdFilterStatTile(
 ) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
             .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -889,7 +891,7 @@ private fun AdFilterRecordSection(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(AppShapes.container(ContainerLevel.Card))
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.58f))
                     .padding(horizontal = 12.dp, vertical = 14.dp),
                 contentAlignment = Alignment.Center
@@ -931,7 +933,7 @@ private fun AdFilterRecordCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
             .combinedClickable(
                 onClick = {},
@@ -950,7 +952,7 @@ private fun AdFilterRecordCard(
             modifier = Modifier
                 .width(92.dp)
                 .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(AppShapes.container(ContainerLevel.Chip))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
         Column(
@@ -1060,7 +1062,7 @@ private fun AdFilterDetailLine(
 @Composable
 private fun AdFilterChip(text: String) {
     AppSurface(
-        shape = RoundedCornerShape(999.dp),
+        shape = AppShapes.container(ContainerLevel.Pill),
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
     ) {
         AppText(
@@ -1132,7 +1134,7 @@ private fun AdFilterCustomListSection(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
+                .clip(AppShapes.container(ContainerLevel.Field))
                 .clickable { onExpandedChange(!expanded) }
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -1145,7 +1147,7 @@ private fun AdFilterCustomListSection(
                 modifier = Modifier.weight(1f)
             )
             AppSurface(
-                shape = RoundedCornerShape(999.dp),
+                shape = AppShapes.container(ContainerLevel.Pill),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.68f)
             ) {
                 AppText(

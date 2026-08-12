@@ -105,6 +105,8 @@ import java.util.Date
 import java.util.Locale
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private const val AUTO_HIDE_DELAY = 4000L
 private const val VISIBLE_TOP_CONTROLS_GESTURE_EXCLUSION_HEIGHT_DP = 96
@@ -996,7 +998,7 @@ fun FullscreenPlayerOverlay(
                         val danmakuInactiveColor = Color.White.copy(alpha = 0.74f)
                         Row(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(14.dp))
+                                .clip(AppShapes.container(ContainerLevel.Dialog))
                                 .background(
                                     if (danmakuEnabled) {
                                         danmakuActiveColor.copy(alpha = 0.22f)
@@ -1351,7 +1353,7 @@ private fun GestureIndicator(
     val overlayStyle = remember(playerChromeProfile.tabPresentation) {
         resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
     }
-    val overlayShape = RoundedCornerShape(18.dp)
+    val overlayShape = AppShapes.container(ContainerLevel.Card)
     if (mode == FullscreenGestureMode.Seek) {
         AppSurface(
             modifier = modifier.then(
@@ -1428,7 +1430,7 @@ private fun FullscreenControlButton(
 ) {
     AppSurface(
         onClick = onClick,
-        shape = RoundedCornerShape(6.dp),
+        shape = AppShapes.container(ContainerLevel.Chip),
         color = Color.Black.copy(alpha = 0.5f)
     ) {
         AppText(

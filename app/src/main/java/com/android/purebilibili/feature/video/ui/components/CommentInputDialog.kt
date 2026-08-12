@@ -80,6 +80,8 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.data.model.response.MentionSearchUser
 import kotlinx.coroutines.delay
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private const val COMMENT_INPUT_FOCUS_RETRY_COUNT = 3
 private const val COMMENT_INPUT_FOCUS_RETRY_DELAY_MS = 80L
@@ -335,7 +337,7 @@ fun CommentInputDialog(
                     modifier = modifier
                         .fillMaxWidth()
                         .wrapContentHeight(),
-                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                    shape = AppShapes.container(ContainerLevel.Sheet),
                     color = MaterialTheme.colorScheme.surface,
                     tonalElevation = 8.dp
                 ) {
@@ -352,7 +354,7 @@ fun CommentInputDialog(
                                     min = layoutPolicy.inputBoxMinHeightDp.dp,
                                     max = layoutPolicy.inputBoxMaxHeightDp.dp
                                 )
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), AppShapes.container(ContainerLevel.Chip))
                                 .padding(12.dp)
                         ) {
                             BasicTextField(
@@ -451,11 +453,11 @@ fun CommentInputDialog(
                                     Box(
                                         modifier = Modifier
                                             .size(64.dp)
-                                            .clip(RoundedCornerShape(8.dp))
+                                            .clip(AppShapes.container(ContainerLevel.Chip))
                                             .border(
                                                 width = 1.dp,
                                                 color = MaterialTheme.colorScheme.outlineVariant,
-                                                shape = RoundedCornerShape(8.dp)
+                                                shape = AppShapes.container(ContainerLevel.Chip)
                                             )
                                     ) {
                                         AsyncImage(
@@ -464,7 +466,7 @@ fun CommentInputDialog(
                                             modifier = Modifier.fillMaxSize()
                                         )
                                         AppSurface(
-                                            shape = RoundedCornerShape(999.dp),
+                                            shape = AppShapes.container(ContainerLevel.Pill),
                                             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                                             modifier = Modifier
                                                 .align(Alignment.TopEnd)
@@ -510,7 +512,7 @@ fun CommentInputDialog(
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .clip(AppShapes.container(ContainerLevel.Tag))
                                         .clickable(enabled = canInputComment && !isSending) {
                                             isForwardToDynamic = !isForwardToDynamic
                                             onDraftChange(
@@ -622,7 +624,7 @@ fun CommentInputDialog(
                                     }
                                 },
                                 enabled = text.isNotBlank() && !isSending && canInputComment,
-                                shape = RoundedCornerShape(20.dp),
+                                shape = AppShapes.container(ContainerLevel.Floating),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
 
@@ -751,7 +753,7 @@ fun CommentInputDialog(
                                                         contentAlignment = Alignment.Center,
                                                         modifier = Modifier
                                                             .height(36.dp)
-                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .clip(AppShapes.container(ContainerLevel.Tag))
                                                             .clickable { insertTextAtCursor(kaomojis[i]) }
                                                             .background(
                                                                 opaqueCompositeOver(
@@ -850,7 +852,7 @@ private fun CommentMentionSearchPanel(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(max = 220.dp),
-        shape = RoundedCornerShape(8.dp),
+        shape = AppShapes.container(ContainerLevel.Chip),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
     ) {
         Column(
@@ -872,7 +874,7 @@ private fun CommentMentionSearchPanel(
                 },
                 placeholder = { AppText("搜索好友昵称") },
                 textStyle = MaterialTheme.typography.bodySmall,
-                shape = RoundedCornerShape(18.dp),
+                shape = AppShapes.container(ContainerLevel.Card),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
                     unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.56f),
@@ -939,7 +941,7 @@ private fun CommentMentionSearchPanel(
                                     contentDescription = user.name,
                                     modifier = Modifier
                                         .size(34.dp)
-                                        .clip(RoundedCornerShape(17.dp))
+                                        .clip(AppShapes.container(ContainerLevel.Card))
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(

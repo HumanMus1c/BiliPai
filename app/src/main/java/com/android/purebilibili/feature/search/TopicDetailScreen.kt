@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -54,6 +53,8 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.TopicTopDetails
 import com.android.purebilibili.data.model.response.normalizeSearchImageUrl
 import com.android.purebilibili.feature.dynamic.components.DynamicCardV2
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
 fun TopicDetailScreen(
@@ -197,7 +198,7 @@ private fun TopicHeaderCard(details: TopicTopDetails?) {
     val creatorName = creator?.name
     val creatorFace = creator?.face
     AppSurface(
-        shape = RoundedCornerShape(8.dp),
+        shape = AppShapes.container(ContainerLevel.Chip),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
         modifier = Modifier.fillMaxWidth()
@@ -216,7 +217,7 @@ private fun TopicHeaderCard(details: TopicTopDetails?) {
                 contentDescription = topic?.name,
                 modifier = Modifier
                     .size(58.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(AppShapes.container(ContainerLevel.Chip))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentScale = ContentScale.Crop
             )

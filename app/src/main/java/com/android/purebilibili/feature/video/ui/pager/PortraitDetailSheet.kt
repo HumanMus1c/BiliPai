@@ -42,6 +42,8 @@ import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 竖屏视频详情页 (简介)
@@ -105,7 +107,7 @@ fun PortraitDetailSheet(
                     .fillMaxWidth()
                     .heightIn(max = screenHeight * 0.75f) // max height 75%
                     .clickable(enabled = false) {}, // 拦截点击防止穿透
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                shape = AppShapes.container(ContainerLevel.Sheet),
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 8.dp
             ) {
@@ -232,7 +234,7 @@ fun PortraitDetailSheet(
                                 if (emphasizePublishTime) {
                                     AppSurface(
                                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-                                        shape = RoundedCornerShape(10.dp),
+                                        shape = AppShapes.container(ContainerLevel.Field),
                                         modifier = Modifier.padding(bottom = 10.dp)
                                     ) {
                                         AppText(
@@ -375,7 +377,7 @@ fun PortraitDetailSheet(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clip(RoundedCornerShape(10.dp))
+                                            .clip(AppShapes.container(ContainerLevel.Field))
                                             .clickable { onRecommendationClick(video.bvid) }
                                             .padding(vertical = 6.dp),
                                         verticalAlignment = Alignment.CenterVertically
@@ -385,7 +387,7 @@ fun PortraitDetailSheet(
                                             contentDescription = null,
                                             modifier = Modifier
                                                 .size(width = 96.dp, height = 54.dp)
-                                                .clip(RoundedCornerShape(8.dp))
+                                                .clip(AppShapes.container(ContainerLevel.Chip))
                                                 .background(Color.Gray.copy(alpha = 0.2f)),
                                             contentScale = ContentScale.Crop
                                         )
@@ -451,7 +453,7 @@ private fun PortraitCollectionSection(
             key(item.key) {
                 AppSurface(
                     onClick = item.onClick,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = AppShapes.container(ContainerLevel.Field),
                     color = if (item.selected) {
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                     } else {

@@ -74,6 +74,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.abs
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 手势模式枚举
@@ -727,7 +729,7 @@ fun OfflineVideoPlayerScreen(
             Box(
                 modifier = Modifier
                     .size(100.dp)
-                    .background(Color.Black.copy(0.75f), RoundedCornerShape(20.dp)),
+                    .background(Color.Black.copy(0.75f), AppShapes.container(ContainerLevel.Floating)),
                 contentAlignment = Alignment.Center
             ) {
                 AppText(
@@ -747,7 +749,7 @@ fun OfflineVideoPlayerScreen(
         ) {
             AppSurface(
                 color = Color.Black.copy(alpha = 0.7f),
-                shape = RoundedCornerShape(20.dp)
+                shape = AppShapes.container(ContainerLevel.Floating)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -881,7 +883,7 @@ fun OfflineVideoPlayerScreen(
                             },
                             enabled = currentEpisodeIndex > 0,
                             color = Color.White.copy(alpha = if (currentEpisodeIndex > 0) 0.15f else 0.08f),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = AppShapes.container(ContainerLevel.Chip)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -909,7 +911,7 @@ fun OfflineVideoPlayerScreen(
                             },
                             enabled = currentEpisodeIndex < episodeQueue.lastIndex,
                             color = Color.White.copy(alpha = if (currentEpisodeIndex < episodeQueue.lastIndex) 0.15f else 0.08f),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = AppShapes.container(ContainerLevel.Chip)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -973,7 +975,7 @@ fun OfflineVideoPlayerScreen(
                             } else {
                                 Color.White.copy(alpha = 0.15f)
                             },
-                            shape = RoundedCornerShape(8.dp),
+                            shape = AppShapes.container(ContainerLevel.Chip),
                             modifier = Modifier.size(40.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -997,7 +999,7 @@ fun OfflineVideoPlayerScreen(
                         } else {
                             Color.White.copy(alpha = 0.15f)
                         },
-                        shape = RoundedCornerShape(8.dp),
+                        shape = AppShapes.container(ContainerLevel.Chip),
                         modifier = Modifier.size(40.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -1125,7 +1127,7 @@ private fun OfflineProgressBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(3.dp)
-                .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(1.5.dp))
+                .background(Color.White.copy(alpha = 0.3f), AppShapes.container(ContainerLevel.Micro))
         )
         
         // 缓冲进度
@@ -1133,7 +1135,7 @@ private fun OfflineProgressBar(
             modifier = Modifier
                 .fillMaxWidth(bufferedProgress.coerceIn(0f, 1f))
                 .height(3.dp)
-                .background(Color.White.copy(alpha = 0.5f), RoundedCornerShape(1.5.dp))
+                .background(Color.White.copy(alpha = 0.5f), AppShapes.container(ContainerLevel.Micro))
         )
         
         // 当前进度
@@ -1141,7 +1143,7 @@ private fun OfflineProgressBar(
             modifier = Modifier
                 .fillMaxWidth(displayProgress.coerceIn(0f, 1f))
                 .height(3.dp)
-                .background(primaryColor, RoundedCornerShape(1.5.dp))
+                .background(primaryColor, AppShapes.container(ContainerLevel.Micro))
         )
         
         // 滑块（圆点）

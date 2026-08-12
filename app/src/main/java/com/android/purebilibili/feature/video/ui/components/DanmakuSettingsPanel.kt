@@ -74,6 +74,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 横屏全屏侧栏：分区 Tab 后放宽到 ~45% 屏宽，避免控件拥挤；
@@ -500,12 +502,12 @@ fun DanmakuSettingsPanel(
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(999.dp))
+                                .clip(AppShapes.container(ContainerLevel.Pill))
                                 .background(panelColors.badgeBackgroundColor)
                                 .border(
                                     width = 1.dp,
                                     color = panelColors.badgeBorderColor,
-                                    shape = RoundedCornerShape(999.dp)
+                                    shape = AppShapes.container(ContainerLevel.Pill)
                                 )
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
@@ -564,7 +566,7 @@ fun DanmakuSettingsPanel(
                         AppSurface(
                             modifier = Modifier.fillMaxWidth(),
                             color = panelColors.itemColor,
-                            shape = RoundedCornerShape(16.dp)
+                            shape = AppShapes.container(ContainerLevel.Card)
                         ) {
                             Column(
                                 modifier = Modifier
@@ -632,7 +634,7 @@ fun DanmakuSettingsPanel(
                                         ) {
                                             Box(
                                                 modifier = Modifier
-                                                    .clip(RoundedCornerShape(999.dp))
+                                                    .clip(AppShapes.container(ContainerLevel.Pill))
                                                     .background(panelColors.badgeBackgroundColor)
                                                     .padding(horizontal = 10.dp, vertical = 5.dp)
                                             ) {
@@ -647,7 +649,7 @@ fun DanmakuSettingsPanel(
                                                 onClick = onSyncNowClick,
                                                 enabled = syncUiState.status != DanmakuCloudSyncStatus.SYNCING,
                                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                                shape = RoundedCornerShape(10.dp)
+                                                shape = AppShapes.container(ContainerLevel.Field)
                                             ) {
                                                 AppText(
                                                     text = if (shouldShowDanmakuSyncRetry(syncUiState.status)) {
@@ -673,7 +675,7 @@ fun DanmakuSettingsPanel(
                         AppSurface(
                             modifier = Modifier.fillMaxWidth(),
                             color = panelColors.itemColor,
-                            shape = RoundedCornerShape(16.dp)
+                            shape = AppShapes.container(ContainerLevel.Card)
                         ) {
                             Column(
                                 modifier = Modifier.padding(
@@ -770,7 +772,7 @@ fun DanmakuSettingsPanel(
                         AppSurface(
                             modifier = Modifier.fillMaxWidth(),
                             color = panelColors.itemColor,
-                            shape = RoundedCornerShape(16.dp)
+                            shape = AppShapes.container(ContainerLevel.Card)
                         ) {
                             Column(
                                 modifier = Modifier.padding(16.dp),
@@ -899,7 +901,7 @@ fun DanmakuSettingsPanel(
                         AppSurface(
                             modifier = Modifier.fillMaxWidth(),
                             color = panelColors.itemColor,
-                            shape = RoundedCornerShape(16.dp),
+                            shape = AppShapes.container(ContainerLevel.Card),
                             onClick = { onMergeDuplicatesChange(!mergeDuplicates) }
                         ) {
                         Row(
@@ -936,7 +938,7 @@ fun DanmakuSettingsPanel(
                         AppSurface(
                             modifier = Modifier.fillMaxWidth(),
                             color = panelColors.itemColor,
-                            shape = RoundedCornerShape(16.dp)
+                            shape = AppShapes.container(ContainerLevel.Card)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 DanmakuSliderItem(
@@ -979,7 +981,7 @@ fun DanmakuSettingsPanel(
                         AppSurface(
                             modifier = Modifier.fillMaxWidth(),
                             color = panelColors.itemColor,
-                            shape = RoundedCornerShape(16.dp),
+                            shape = AppShapes.container(ContainerLevel.Card),
                             onClick = { onSmartOcclusionChange(!smartOcclusion) }
                         ) {
                             Row(
@@ -1020,7 +1022,7 @@ fun DanmakuSettingsPanel(
                         AppSurface(
                             modifier = Modifier.fillMaxWidth(),
                             color = panelColors.itemColor,
-                            shape = RoundedCornerShape(16.dp)
+                            shape = AppShapes.container(ContainerLevel.Card)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 AppText(
@@ -1090,7 +1092,7 @@ fun DanmakuSettingsPanel(
                         AppSurface(
                             modifier = Modifier.fillMaxWidth(),
                             color = panelColors.itemColor,
-                            shape = RoundedCornerShape(16.dp)
+                            shape = AppShapes.container(ContainerLevel.Card)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 AppText(
@@ -1102,7 +1104,7 @@ fun DanmakuSettingsPanel(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 AppOutlinedButton(
                                     onClick = { showBlockManager = true },
-                                    shape = RoundedCornerShape(10.dp),
+                                    shape = AppShapes.container(ContainerLevel.Field),
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                                 ) {
                                     Row(
@@ -1117,7 +1119,7 @@ fun DanmakuSettingsPanel(
                                         if (totalBlockRuleCount > 0) {
                                             Box(
                                                 modifier = Modifier
-                                                    .clip(RoundedCornerShape(999.dp))
+                                                    .clip(AppShapes.container(ContainerLevel.Pill))
                                                     .background(panelColors.badgeBackgroundColor)
                                                     .padding(horizontal = 8.dp, vertical = 2.dp)
                                             ) {
@@ -1163,7 +1165,7 @@ fun DanmakuSettingsPanel(
                                         focusedContainerColor = panelColors.fieldBackgroundColor,
                                         unfocusedContainerColor = panelColors.fieldBackgroundColor
                                     ),
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = AppShapes.container(ContainerLevel.Card)
                                 )
                             }
                         }
@@ -1301,7 +1303,7 @@ private fun DanmakuBlockManagerDialog(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
             color = panelColors.panelColor,
-            shape = RoundedCornerShape(20.dp),
+            shape = AppShapes.container(ContainerLevel.Floating),
             tonalElevation = 16.dp,
             shadowElevation = 24.dp
         ) {
@@ -1380,7 +1382,7 @@ private fun DanmakuBlockManagerDialog(
                         focusedContainerColor = panelColors.fieldBackgroundColor,
                         unfocusedContainerColor = panelColors.fieldBackgroundColor
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = AppShapes.container(ContainerLevel.Card)
                 )
 
                 Row(
@@ -1413,7 +1415,7 @@ private fun DanmakuBlockManagerDialog(
                 AppSurface(
                     modifier = Modifier.fillMaxWidth(),
                     color = panelColors.itemColor,
-                    shape = RoundedCornerShape(16.dp)
+                    shape = AppShapes.container(ContainerLevel.Card)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         if (currentRules.isEmpty()) {
@@ -1531,7 +1533,7 @@ private fun PortraitDanmakuDisplayAreaModeSelector(
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         color = colors.itemColor,
-        shape = RoundedCornerShape(16.dp)
+        shape = AppShapes.container(ContainerLevel.Card)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             AppText(
@@ -1550,7 +1552,7 @@ private fun PortraitDanmakuDisplayAreaModeSelector(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(AppShapes.container(ContainerLevel.Card))
                             .then(
                                 if (isSelected) {
                                     Modifier.background(MaterialTheme.colorScheme.primary)
@@ -1560,7 +1562,7 @@ private fun PortraitDanmakuDisplayAreaModeSelector(
                                         .border(
                                             1.dp,
                                             colors.fieldBorderColor,
-                                            RoundedCornerShape(12.dp)
+                                            AppShapes.container(ContainerLevel.Card)
                                         )
                                 }
                             )
@@ -1611,7 +1613,7 @@ private fun DanmakuAreaSelector(
     AppSurface(
         modifier = Modifier.fillMaxWidth(),
         color = colors.itemColor,
-        shape = RoundedCornerShape(16.dp)
+        shape = AppShapes.container(ContainerLevel.Card)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -1636,7 +1638,7 @@ private fun DanmakuAreaSelector(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(AppShapes.container(ContainerLevel.Card))
                             .then(
                                 if (isSelected) {
                                     Modifier.background(
@@ -1650,7 +1652,7 @@ private fun DanmakuAreaSelector(
                                 } else {
                                     Modifier
                                         .background(colors.fieldBackgroundColor)
-                                        .border(1.dp, colors.fieldBorderColor, RoundedCornerShape(12.dp))
+                                        .border(1.dp, colors.fieldBorderColor, AppShapes.container(ContainerLevel.Card))
                                 }
                             )
                             .clickable { 
@@ -1758,7 +1760,7 @@ private fun DanmakuSliderItem(
                 )
                 AppSurface(
                     color = colors.itemColor,
-                    shape = RoundedCornerShape(999.dp)
+                    shape = AppShapes.container(ContainerLevel.Pill)
                 ) {
                     AppText(
                         text = displayValue(localValue),

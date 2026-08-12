@@ -783,7 +783,7 @@ private fun MusicAudioQualityControl(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 40.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(AppShapes.container(ContainerLevel.Dialog))
             .background(MusicAccentColor.copy(alpha = 0.16f))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),

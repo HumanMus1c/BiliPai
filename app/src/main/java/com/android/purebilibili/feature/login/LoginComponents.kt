@@ -83,6 +83,8 @@ import com.android.purebilibili.core.ui.LoadingAnimation
 import com.android.purebilibili.core.ui.SuccessAnimation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @Immutable
 internal data class LoginPalette(
@@ -283,7 +285,7 @@ fun LoginBackground() {
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(34.dp),
+    shape: Shape = AppShapes.container(ContainerLevel.Floating),
     content: @Composable BoxScope.() -> Unit
 ) {
     val palette = rememberLoginPalette()
@@ -318,7 +320,7 @@ fun BrandingHeader(isSmall: Boolean = false) {
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         AppSurface(
-            shape = RoundedCornerShape(999.dp),
+            shape = AppShapes.container(ContainerLevel.Pill),
             color = palette.segmentTrack,
             border = BorderStroke(1.dp, palette.segmentBorder)
         ) {
@@ -390,9 +392,9 @@ fun LoginMethodTabs(
         modifier = Modifier
             .fillMaxWidth()
             .height(54.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(AppShapes.container(ContainerLevel.Card))
             .background(palette.segmentTrack)
-            .border(1.dp, palette.segmentBorder, RoundedCornerShape(16.dp))
+            .border(1.dp, palette.segmentBorder, AppShapes.container(ContainerLevel.Card))
             .padding(4.dp)
     ) {
         Row(
@@ -417,12 +419,12 @@ fun LoginMethodTabs(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(AppShapes.container(ContainerLevel.Card))
                         .background(bgBrush)
                         .border(
                             width = if (selected) 1.2.dp else 0.dp,
                             color = if (selected) palette.segmentBorder else Color.Transparent,
-                            shape = RoundedCornerShape(12.dp)
+                            shape = AppShapes.container(ContainerLevel.Card)
                         )
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -490,7 +492,7 @@ fun QrCodeLoginContent(
         Box(
             modifier = Modifier
                 .size(262.dp)
-                .clip(RoundedCornerShape(24.dp))
+                .clip(AppShapes.container(ContainerLevel.Floating))
                 .background(palette.qrShell)
                 .border(
                     width = 1.4.dp,
@@ -500,7 +502,7 @@ fun QrCodeLoginContent(
                             palette.accentEnd.copy(alpha = 0.42f)
                         )
                     ),
-                    shape = RoundedCornerShape(24.dp)
+                    shape = AppShapes.container(ContainerLevel.Floating)
                 )
                 .padding(16.dp),
             contentAlignment = Alignment.Center
@@ -508,7 +510,7 @@ fun QrCodeLoginContent(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(AppShapes.container(ContainerLevel.Card))
                     .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
@@ -572,7 +574,7 @@ fun QrCodeLoginContent(
 
         Spacer(modifier = Modifier.height(14.dp))
         AppSurface(
-            shape = RoundedCornerShape(999.dp),
+            shape = AppShapes.container(ContainerLevel.Pill),
             color = palette.segmentTrack,
             border = BorderStroke(1.dp, palette.segmentBorder),
             modifier = Modifier.clickable(onClick = onRefresh)
@@ -667,7 +669,7 @@ fun PhoneLoginContent(
 
         Spacer(modifier = Modifier.height(8.dp))
         AppSurface(
-            shape = RoundedCornerShape(12.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             color = palette.segmentTrack,
             border = BorderStroke(1.dp, palette.segmentBorder),
             modifier = Modifier.fillMaxWidth()
@@ -759,7 +761,7 @@ fun PhoneLoginContent(
 
         Spacer(modifier = Modifier.height(18.dp))
         AppSurface(
-            shape = RoundedCornerShape(12.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             color = palette.segmentTrack,
             border = BorderStroke(1.dp, palette.segmentBorder),
             modifier = Modifier.fillMaxWidth()
@@ -839,9 +841,9 @@ private fun CountryCodeSelector(
     Row(
         modifier = modifier
             .heightIn(min = 54.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(AppShapes.container(ContainerLevel.Dialog))
             .background(palette.inputFill)
-            .border(1.dp, palette.inputStroke, RoundedCornerShape(14.dp))
+            .border(1.dp, palette.inputStroke, AppShapes.container(ContainerLevel.Dialog))
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -900,9 +902,9 @@ fun ModernTextField(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 54.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(AppShapes.container(ContainerLevel.Dialog))
                     .background(palette.inputFill)
-                    .border(1.dp, palette.inputStroke, RoundedCornerShape(14.dp))
+                    .border(1.dp, palette.inputStroke, AppShapes.container(ContainerLevel.Dialog))
                     .padding(horizontal = 14.dp, vertical = 14.dp)
             ) {
                 Row(
@@ -948,7 +950,7 @@ fun ModernButton(
 ) {
     val palette = rememberLoginPalette()
     val isEnabled = enabled && !isLoading
-    val shape = RoundedCornerShape(14.dp)
+    val shape = AppShapes.container(ContainerLevel.Dialog)
     val gradientBrush = Brush.horizontalGradient(
         colors = listOf(
             palette.buttonGradientStart,
@@ -1016,7 +1018,7 @@ fun TopBar(
 @Composable
 private fun LoginPill(text: String, palette: LoginPalette) {
     AppSurface(
-        shape = RoundedCornerShape(999.dp),
+        shape = AppShapes.container(ContainerLevel.Pill),
         color = palette.segmentTrack,
         border = BorderStroke(1.dp, palette.segmentBorder)
     ) {

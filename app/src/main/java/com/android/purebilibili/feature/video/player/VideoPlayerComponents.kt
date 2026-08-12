@@ -46,6 +46,8 @@ import com.android.purebilibili.core.ui.rememberAppBookmarkIcon
 import com.android.purebilibili.core.ui.rememberAppCoinIcon
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 //  [重构] 视频标题区域 (官方B站样式：紧凑布局)
 @Composable
@@ -227,7 +229,7 @@ fun UpInfoSection(
         AppSurface(
             onClick = onFollowClick,
             color = if (isFollowing) MaterialTheme.colorScheme.surfaceVariant else BiliPink,
-            shape = RoundedCornerShape(16.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             modifier = Modifier.height(32.dp)
         ) {
             Row(
@@ -604,7 +606,7 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                 modifier = Modifier
                     .width(150.dp)
                     .height(94.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(AppShapes.container(ContainerLevel.Card))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 AsyncImage(
@@ -622,7 +624,7 @@ fun RelatedVideoItem(video: RelatedVideo, onClick: () -> Unit) {
                         .align(Alignment.BottomEnd)
                         .padding(6.dp),
                     color = Color.Black.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(4.dp)
+                    shape = AppShapes.container(ContainerLevel.Tag)
                 ) {
                     AppText(
                         text = FormatUtils.formatDuration(video.duration),
@@ -834,7 +836,7 @@ fun PagesSelector(
                             AppSurface(
                                 onClick = { onPageSelect(actualIndex) },
                                 color = if (isSelected) selectedColors.backgroundColor else MaterialTheme.colorScheme.surfaceVariant,
-                                shape = RoundedCornerShape(8.dp),
+                                shape = AppShapes.container(ContainerLevel.Chip),
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Column(
@@ -878,7 +880,7 @@ fun PagesSelector(
                     AppSurface(
                         onClick = { onPageSelect(index) },
                         color = if (isSelected) selectedColors.backgroundColor else MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = AppShapes.container(ContainerLevel.Chip),
                         modifier = Modifier.width(120.dp)
                     ) {
                         Column(

@@ -30,8 +30,24 @@ class AppSegmentedControlPolicyTest {
     }
 
     @Test
-    fun `segmented pills resolve per-style corner radius`() {
-        assertEquals(28.dp, resolveAppSegmentedControlPolicy(AppUiStyle.MATERIAL3).pillCornerRadius)
-        assertEquals(22.dp, resolveAppSegmentedControlPolicy(AppUiStyle.MIUIX).pillCornerRadius)
+    fun `segmented corners are height-capped below half of tab height`() {
+        // Card preferred then capped at 30% of 40dp tab height → max 12dp.
+        val material = resolveAppSegmentedControlPolicy(AppUiStyle.MATERIAL3)
+        val miuix = resolveAppSegmentedControlPolicy(AppUiStyle.MIUIX)
+        assertEquals(40.dp, material.nativeTabRowHeight)
+        assertEquals(40.dp, miuix.nativeTabRowHeight)
+        // MD3 card 10.8 < 12 cap; Miuix card 13.8 → capped to 12.
+        assertEquals(10.8.dp, material.pillCornerRadius)
+        assertEquals(12.dp, miuix.pillCornerRadius)
+        assertTrue(material.pillCornerRadius < material.nativeTabRowHeight / 2)
+        assertTrue(miuix.pillCornerRadius < miuix.nativeTabRowHeight / 2)
+    }
+
+    @Test
+    fun `height cap prevents full capsule on 48dp bars`() {
+        val preferred = 28.dp
+        val capped = resolveHeightCappedCornerRadius(48.dp, preferred)
+        assertEquals(14.4.dp, capped)
+        assertTrue(capped < 24.dp) // half of 48
     }
 }

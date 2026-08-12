@@ -31,6 +31,8 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.resolveAppExpandedContentDialogLayoutPolicy
 import com.android.purebilibili.core.ui.resolveAppContentDialogProperties
 import java.io.File
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 📂 文件夹选择对话框
@@ -76,7 +78,7 @@ fun DirectorySelectionDialog(
             modifier = Modifier
                 .appContentDialogWidth(policy = dialogLayout, wrapHeight = false)
                 .height(500.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -94,7 +96,7 @@ fun DirectorySelectionDialog(
                 // 当前路径显示
                 AppSurface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = AppShapes.container(ContainerLevel.Chip),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                 ) {
                     Row(
@@ -201,7 +203,7 @@ fun DirectorySelectionDialog(
                     AppOutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = AppShapes.container(ContainerLevel.Chip)
                     ) {
                         AppText("取消")
                     }
@@ -209,7 +211,7 @@ fun DirectorySelectionDialog(
                     AppButton(
                         onClick = { onPathSelected(currentPath) },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = AppShapes.container(ContainerLevel.Chip)
                     ) {
                         AppText("选择此目录")
                     }

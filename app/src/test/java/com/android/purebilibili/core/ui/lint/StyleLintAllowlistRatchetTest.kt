@@ -159,7 +159,7 @@ class StyleLintAllowlistRatchetTest {
         // 且 8dp 无对应 ContainerLevel；迁移到命名 Spec 后调小。
         // 85 → 86：上游 SearchLandingUi（悬浮建议卡片）带入的存量字面圆角，
         // 同样受 preset 缩放约束（16/10/4dp 无对应 ContainerLevel）；迁移后调小。
-        const val MAX_SHAPE_HITS = 86
+        const val MAX_SHAPE_HITS = 0
         const val MAX_MOTION_HITS = 15
         const val MAX_SURFACE_HITS = 48
 

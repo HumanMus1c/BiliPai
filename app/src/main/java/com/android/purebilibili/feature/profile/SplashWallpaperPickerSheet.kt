@@ -45,6 +45,8 @@ import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppSwitch
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 🖼️ 开屏壁纸选择器 (用于设置页)
@@ -233,11 +235,11 @@ fun SplashWallpaperPickerSheet(
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
                                             .aspectRatio(9f / 16f)
-                                            .clip(RoundedCornerShape(8.dp))
+                                            .clip(AppShapes.container(ContainerLevel.Chip))
                                             .border(
                                                 width = if (isSelected) 2.dp else 0.dp,
                                                 color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                                shape = RoundedCornerShape(8.dp)
+                                                shape = AppShapes.container(ContainerLevel.Chip)
                                             )
                                     )
 
@@ -372,7 +374,7 @@ fun SplashWallpaperPickerSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
-                        shape = RoundedCornerShape(25.dp)
+                        shape = AppShapes.container(ContainerLevel.Floating)
                     ) {
                         if (isSaving) {
                             AppCircularProgressIndicator(
@@ -414,7 +416,7 @@ private fun SplashCustomWallpaperTile(
         Box(
             modifier = Modifier
                 .aspectRatio(9f / 16f)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(AppShapes.container(ContainerLevel.Chip))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .border(
                     width = if (isSelected) 2.dp else 1.dp,
@@ -423,7 +425,7 @@ private fun SplashCustomWallpaperTile(
                     } else {
                         MaterialTheme.colorScheme.outlineVariant
                     },
-                    shape = RoundedCornerShape(8.dp)
+                    shape = AppShapes.container(ContainerLevel.Chip)
                 ),
             contentAlignment = Alignment.Center
         ) {

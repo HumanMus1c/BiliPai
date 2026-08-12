@@ -49,6 +49,8 @@ import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.data.repository.ArticleDetailUiModel
 import com.android.purebilibili.data.repository.ArticleRepository
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private const val ARTICLE_BANNER_CORNER_RADIUS_DP = 20f
 private const val ARTICLE_BODY_IMAGE_CORNER_RADIUS_DP = 18f
@@ -216,7 +218,7 @@ private fun ArticleDetailContent(
     }
     val baseBannerModifier = Modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(20.dp))
+        .clip(AppShapes.container(ContainerLevel.Floating))
         .onGloballyPositioned { coordinates ->
             bannerSourceRect = coordinates.boundsInWindow()
         }
@@ -234,7 +236,7 @@ private fun ArticleDetailContent(
                 sharedContentState = rememberSharedContentState(key = coverTransitionKey),
                 animatedVisibilityScope = requireNotNull(animatedVisibilityScope),
                 boundsTransform = { _, _ -> spring(dampingRatio = 0.82f, stiffness = 260f) },
-                clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(20.dp))
+                clipInOverlayDuringTransition = OverlayClip(AppShapes.container(ContainerLevel.Floating))
             )
         }
     } else {
@@ -359,7 +361,7 @@ private fun ArticleDetailContent(
                                     Modifier
                                 }
                             )
-                            .clip(RoundedCornerShape(18.dp))
+                            .clip(AppShapes.container(ContainerLevel.Card))
                             .onGloballyPositioned { coordinates ->
                                 bodyImageSourceRects[index] = coordinates.boundsInWindow()
                             }

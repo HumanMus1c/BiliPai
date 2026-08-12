@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.North
@@ -52,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
 import com.android.purebilibili.core.ui.globalWallpaperAwareChromeColor
+import androidx.compose.ui.graphics.RectangleShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -224,7 +224,7 @@ private fun SearchTrendingRow(
     AppSurface(
         onClick = onClick,
         color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(0.dp)
+        shape = RectangleShape
     ) {
         Column {
             Row(

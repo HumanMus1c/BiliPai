@@ -121,6 +121,8 @@ import com.android.purebilibili.feature.video.note.buildVideoNoteShareText
 import com.android.purebilibili.feature.video.note.shouldShowVideoNoteCard
 import kotlin.math.abs
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal fun shouldShowDanmakuSendInput(isPlayerCollapsed: Boolean): Boolean = !isPlayerCollapsed
 
@@ -1866,7 +1868,7 @@ private fun VideoContentTabBar(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .padding(end = 8.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(AppShapes.container(ContainerLevel.Card))
                         .background(MaterialTheme.colorScheme.primary)
                         .clickable { onRestorePlayer() }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -2037,7 +2039,7 @@ fun VideoTagChip(
     AppSurface(
         onClick = { onClick(tagName) },
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-        shape = RoundedCornerShape(14.dp)
+        shape = AppShapes.container(ContainerLevel.Dialog)
     ) {
         AppText(
             text = tagName,

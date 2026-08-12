@@ -33,6 +33,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PlayArrow
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  视频合集底部弹窗
@@ -214,7 +216,7 @@ fun CollectionSheet(
                             modifier = Modifier
                                 .width(120.dp)
                                 .aspectRatio(16f / 9f)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(AppShapes.container(ContainerLevel.Chip))
                                 .background(MaterialTheme.colorScheme.surfaceVariant)
                         ) {
                             // 封面图
@@ -239,7 +241,7 @@ fun CollectionSheet(
                                             .padding(4.dp)
                                             .background(
                                                 Color.Black.copy(alpha = 0.7f),
-                                                RoundedCornerShape(4.dp)
+                                                AppShapes.container(ContainerLevel.Tag)
                                             )
                                             .padding(horizontal = 4.dp, vertical = 2.dp)
                                     ) {

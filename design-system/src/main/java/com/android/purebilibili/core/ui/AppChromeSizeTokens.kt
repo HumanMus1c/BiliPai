@@ -41,37 +41,57 @@ fun resolveCompactCapsuleChromeSpec(
 ): CompactCapsuleChromeSpec {
     val chromeTokens = resolveAndroidNativeChromeTokens(uiStyle)
     return when (uiStyle) {
-        AppUiStyle.MIUIX -> CompactCapsuleChromeSpec(
-            primaryHeightDp = 48,
-            secondaryButtonSizeDp = chromeTokens.rowMinTouchTargetDp,
-            chipHeightDp = 32,
-            compactChipHeightDp = 28,
-            primaryCornerRadiusDp = chromeTokens.pillCornerRadiusDp,
-            secondaryButtonCornerRadiusDp = chromeTokens.containerCornerRadiusDp,
-            chipCornerRadiusDp = 16,
-            compactChipCornerRadiusDp = 14,
-            iconSizeDp = 20,
-            smallIconSizeDp = 16,
-            inputHorizontalPaddingDp = 14,
-            chipHorizontalPaddingDp = 12,
-            compactChipHorizontalPaddingDp = 10,
-            standardGapDp = 8
-        )
-        AppUiStyle.MATERIAL3 -> CompactCapsuleChromeSpec(
-            primaryHeightDp = 56,
-            secondaryButtonSizeDp = chromeTokens.rowMinTouchTargetDp,
-            chipHeightDp = 32,
-            compactChipHeightDp = 28,
-            primaryCornerRadiusDp = chromeTokens.pillCornerRadiusDp,
-            secondaryButtonCornerRadiusDp = chromeTokens.containerCornerRadiusDp,
-            chipCornerRadiusDp = 8,
-            compactChipCornerRadiusDp = 8,
-            iconSizeDp = 24,
-            smallIconSizeDp = 18,
-            inputHorizontalPaddingDp = 16,
-            chipHorizontalPaddingDp = 16,
-            compactChipHorizontalPaddingDp = 12,
-            standardGapDp = 12
-        )
+        // primaryCornerRadius must stay well below height/2 or search/filter bars
+        // become full sausages (same failure mode as 48dp TabRow + 22–28dp Pill).
+        AppUiStyle.MIUIX -> {
+            val primaryHeight = 48
+            CompactCapsuleChromeSpec(
+                primaryHeightDp = primaryHeight,
+                secondaryButtonSizeDp = chromeTokens.rowMinTouchTargetDp,
+                chipHeightDp = 32,
+                compactChipHeightDp = 28,
+                primaryCornerRadiusDp = minOf(
+                    chromeTokens.containerCornerRadiusDp, // 20
+                    (primaryHeight * 0.3f).toInt(), // 14
+                ),
+                secondaryButtonCornerRadiusDp = minOf(
+                    chromeTokens.containerCornerRadiusDp,
+                    (chromeTokens.rowMinTouchTargetDp * 0.3f).toInt(),
+                ),
+                chipCornerRadiusDp = minOf(16, (32 * 0.3f).toInt()), // 9 → keep 9
+                compactChipCornerRadiusDp = minOf(14, (28 * 0.3f).toInt()),
+                iconSizeDp = 20,
+                smallIconSizeDp = 16,
+                inputHorizontalPaddingDp = 14,
+                chipHorizontalPaddingDp = 12,
+                compactChipHorizontalPaddingDp = 10,
+                standardGapDp = 8
+            )
+        }
+        AppUiStyle.MATERIAL3 -> {
+            val primaryHeight = 56
+            CompactCapsuleChromeSpec(
+                primaryHeightDp = primaryHeight,
+                secondaryButtonSizeDp = chromeTokens.rowMinTouchTargetDp,
+                chipHeightDp = 32,
+                compactChipHeightDp = 28,
+                primaryCornerRadiusDp = minOf(
+                    chromeTokens.containerCornerRadiusDp, // 24
+                    (primaryHeight * 0.3f).toInt(), // 16
+                ),
+                secondaryButtonCornerRadiusDp = minOf(
+                    chromeTokens.containerCornerRadiusDp,
+                    (chromeTokens.rowMinTouchTargetDp * 0.3f).toInt(),
+                ),
+                chipCornerRadiusDp = 8,
+                compactChipCornerRadiusDp = 8,
+                iconSizeDp = 24,
+                smallIconSizeDp = 18,
+                inputHorizontalPaddingDp = 16,
+                chipHorizontalPaddingDp = 16,
+                compactChipHorizontalPaddingDp = 12,
+                standardGapDp = 12
+            )
+        }
     }
 }

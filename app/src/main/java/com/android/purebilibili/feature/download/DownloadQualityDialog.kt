@@ -28,6 +28,8 @@ import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.resolveAppContentDialogLayoutPolicy
 import com.android.purebilibili.core.ui.resolveAppContentDialogProperties
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  下载画质选择对话框
@@ -50,7 +52,7 @@ fun DownloadQualityDialog(
     ) {
         AppCard(
             modifier = Modifier.appContentDialogWidth(policy = dialogLayout),
-            shape = RoundedCornerShape(16.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -92,7 +94,7 @@ fun DownloadQualityDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(AppShapes.container(ContainerLevel.Chip))
                         .clickable { includeDanmaku = !includeDanmaku }
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -118,7 +120,7 @@ fun DownloadQualityDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(AppShapes.container(ContainerLevel.Chip))
                             .background(
                                 if (isSelected) MaterialTheme.colorScheme.primaryContainer
                                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
@@ -141,7 +143,7 @@ fun DownloadQualityDialog(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 AppSurface(
                                     color = MaterialTheme.colorScheme.tertiary,
-                                    shape = RoundedCornerShape(4.dp)
+                                    shape = AppShapes.container(ContainerLevel.Tag)
                                 ) {
                                     AppText(
                                         text = "VIP",
@@ -170,7 +172,7 @@ fun DownloadQualityDialog(
                 AppOutlinedButton(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = AppShapes.container(ContainerLevel.Chip)
                 ) {
                     AppText("取消")
                 }

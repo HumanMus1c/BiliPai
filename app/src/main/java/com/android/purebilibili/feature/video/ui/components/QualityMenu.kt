@@ -37,6 +37,8 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /** Minimum touch target for quality/speed rows (Material accessibility). */
 private val QualityMenuRowMinHeight = 48.dp
@@ -96,13 +98,13 @@ fun QualitySelectionMenu(
                 modifier = Modifier
                     .widthIn(min = 220.dp, max = 300.dp)
                     .heightIn(max = 440.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(AppShapes.container(ContainerLevel.Card))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) {},
                 color = Color(0xFF2B2B2B),
-                shape = RoundedCornerShape(12.dp),
+                shape = AppShapes.container(ContainerLevel.Card),
                 tonalElevation = 8.dp
             ) {
                 Column(
@@ -164,7 +166,7 @@ fun QualitySelectionMenu(
                                     } else {
                                         Color(0xFF666666)
                                     },
-                                    shape = RoundedCornerShape(4.dp)
+                                    shape = AppShapes.container(ContainerLevel.Tag)
                                 ) {
                                     AppText(
                                         text = tag,
@@ -249,13 +251,13 @@ fun SpeedSelectionMenu(
                     )
                     .widthIn(min = 200.dp, max = 260.dp)
                     .heightIn(max = 440.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(AppShapes.container(ContainerLevel.Card))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) {},
                 color = Color(0xFF2B2B2B),
-                shape = RoundedCornerShape(12.dp),
+                shape = AppShapes.container(ContainerLevel.Card),
                 tonalElevation = 8.dp
             ) {
                 Column(

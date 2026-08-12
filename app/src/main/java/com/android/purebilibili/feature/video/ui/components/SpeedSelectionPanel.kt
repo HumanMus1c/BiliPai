@@ -16,6 +16,8 @@ import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppSlider
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 //  已改用 MaterialTheme.colorScheme.primary
 
 /**
@@ -55,7 +57,7 @@ fun SpeedSelectionMenu(
 ) {
     AppSurface(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         color = Color.Black.copy(alpha = 0.85f),
         shadowElevation = 8.dp
     ) {
@@ -156,7 +158,7 @@ fun SpeedSelectionMenu(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 2.dp),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = AppShapes.container(ContainerLevel.Chip),
                         color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
                         onClick = {
                             onSpeedSelected(speed)
@@ -178,7 +180,7 @@ fun SpeedSelectionMenu(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 6.dp), // 稍微分开一点
-                    shape = RoundedCornerShape(8.dp),
+                    shape = AppShapes.container(ContainerLevel.Chip),
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(0.3f)),
                     color = Color.Transparent,
                     onClick = { isCustomMode = true }
@@ -208,7 +210,7 @@ fun SpeedButton(
     AppSurface(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(6.dp),
+        shape = AppShapes.container(ContainerLevel.Chip),
         color = Color.Black.copy(alpha = 0.5f)
     ) {
         AppText(

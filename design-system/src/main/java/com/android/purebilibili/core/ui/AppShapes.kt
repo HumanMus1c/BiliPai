@@ -12,6 +12,8 @@ import com.android.purebilibili.core.theme.resolveCornerRadiusScale
 
 /** Semantic container categories shared across the three UI presets. */
 enum class ContainerLevel {
+    /** Progress tracks / hairline chips. base = 1.5dp. */
+    Micro,
     /** Tiny tags / badges. iOS base = 4dp. */
     Tag,
     /** Small chips / micro-buttons. iOS base = 6dp. */
@@ -38,6 +40,7 @@ enum class ContainerLevel {
 object AppShapes {
 
     private fun baseDp(level: ContainerLevel): Float = when (level) {
+        ContainerLevel.Micro -> 1.5f
         ContainerLevel.Tag -> 4f
         ContainerLevel.Chip -> 6f
         ContainerLevel.Field -> 10f
@@ -65,7 +68,7 @@ object AppShapes {
     ): Shape {
         val dp = resolveContainerCornerDp(level, uiStyle)
         return if (level == ContainerLevel.Sheet) {
-            RoundedCornerShape(topStart = dp, topEnd = dp, bottomStart = 0.dp, bottomEnd = 0.dp)
+            topRounded(dp)
         } else {
             RoundedCornerShape(dp)
         }
@@ -82,10 +85,58 @@ object AppShapes {
     ): Shape {
         val dp = resolveContainerCornerDp(level, uiStyle)
         return if (level == ContainerLevel.Sheet) {
-            RoundedCornerShape(topStart = dp, topEnd = dp, bottomStart = 0.dp, bottomEnd = 0.dp)
+            topRounded(dp)
         } else {
             RoundedCornerShape(dp)
         }
+    }
+
+    /** Top corners only (sheet / stacked cover plate). Bottom stays square. */
+    fun topRounded(radius: Dp): Shape =
+        RoundedCornerShape(topStart = radius, topEnd = radius)
+
+    /** Bottom corners only (stacked info plate under cover). Top stays square. */
+    fun bottomRounded(radius: Dp): Shape =
+        RoundedCornerShape(bottomStart = radius, bottomEnd = radius)
+
+    /** Leading vertical edge rounded (e.g. mini-player stashed on the right). */
+    fun startRounded(radius: Dp): Shape =
+        RoundedCornerShape(topStart = radius, bottomStart = radius)
+
+    /** Trailing vertical edge rounded (e.g. mini-player stashed on the left). */
+    fun endRounded(radius: Dp): Shape =
+        RoundedCornerShape(topEnd = radius, bottomEnd = radius)
+
+    /** Single-corner badge (duration chip on cover). */
+    fun topStartRounded(radius: Dp): Shape =
+        RoundedCornerShape(topStart = radius)
+
+    /** Diagonal corners (resize grip on mini-player). */
+    fun diagonalTopStartBottomEnd(topStart: Dp, bottomEnd: Dp): Shape =
+        RoundedCornerShape(topStart = topStart, bottomEnd = bottomEnd)
+
+    /**
+     * Chat / message bubble: large outer corners, small tail corner on the
+     * near side of the speaker.
+     */
+    fun messageBubble(
+        isOutgoing: Boolean,
+        large: Dp,
+        small: Dp,
+    ): Shape = if (isOutgoing) {
+        RoundedCornerShape(
+            topStart = large,
+            topEnd = large,
+            bottomStart = large,
+            bottomEnd = small,
+        )
+    } else {
+        RoundedCornerShape(
+            topStart = large,
+            topEnd = large,
+            bottomStart = small,
+            bottomEnd = large,
+        )
     }
 
     @Composable
@@ -104,5 +155,19 @@ object AppShapes {
     fun containerCornerDp(level: ContainerLevel): Dp = resolveContainerCornerDp(
         level = level,
         uiStyle = LocalAppUiStyle.current
+    )
+
+    /** Scale a semantic radius (e.g. long-press hint size multiplier). */
+    @Composable
+    fun scaledContainer(level: ContainerLevel, scale: Float): Shape {
+        val base = containerCornerDp(level)
+        return RoundedCornerShape(base * scale.coerceAtLeast(0.1f))
+    }
+
+    @Composable
+    fun messageBubble(isOutgoing: Boolean): Shape = messageBubble(
+        isOutgoing = isOutgoing,
+        large = containerCornerDp(ContainerLevel.Card),
+        small = containerCornerDp(ContainerLevel.Tag),
     )
 }

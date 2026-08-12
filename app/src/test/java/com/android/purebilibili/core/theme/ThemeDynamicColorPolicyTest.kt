@@ -251,12 +251,15 @@ class ThemeDynamicColorPolicyTest {
     }
 
     @Test
-    fun `static palette keeps selected theme color as light primary even when generated palette drifts`() {
+    fun `static palette keeps MaterialKolor primary roles and only tints with seed`() {
         val selectedThemeColor = Color(0xFF007AFF)
         val generatedScheme = lightColorScheme(
-            primary = Color(0xFF2E7D32),
-            primaryContainer = Color(0xFFC8E6C9),
-            background = Color(0xFFF8FBFF)
+            primary = Color(0xFF005BBC),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFD6E3FF),
+            onPrimaryContainer = Color(0xFF001B3E),
+            background = Color(0xFFF8FBFF),
+            surface = Color(0xFFFFFBFE),
         )
 
         val scheme = alignStaticColorSchemeWithThemePrimary(
@@ -265,11 +268,35 @@ class ThemeDynamicColorPolicyTest {
             darkTheme = false
         )
 
-        assertEquals(selectedThemeColor, scheme.primary)
-        assertNotEquals(generatedScheme.primary, scheme.primary)
-        assertNotEquals(generatedScheme.primaryContainer, scheme.primaryContainer)
+        // Do not overwrite HCT-mapped control roles with the raw seed hex.
+        assertEquals(generatedScheme.primary, scheme.primary)
+        assertEquals(generatedScheme.onPrimary, scheme.onPrimary)
+        assertEquals(generatedScheme.primaryContainer, scheme.primaryContainer)
+        assertEquals(selectedThemeColor, scheme.surfaceTint)
+    }
+
+    @Test
+    fun `static palette does not force neon bright seed as light primary`() {
+        val neonOrange = Color(0xFFFF6A00)
+        val generatedScheme = lightColorScheme(
+            primary = Color(0xFFA33B00),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFFFDBCB),
+            onPrimaryContainer = Color(0xFF3A1600),
+            surface = Color.White,
+            background = Color.White,
+        )
+
+        val scheme = alignStaticColorSchemeWithThemePrimary(
+            scheme = generatedScheme,
+            themePrimaryColor = neonOrange,
+            darkTheme = false,
+        )
+
+        assertEquals(generatedScheme.primary, scheme.primary)
+        assertEquals(generatedScheme.primaryContainer, scheme.primaryContainer)
+        assertEquals(neonOrange, scheme.surfaceTint)
         assertTrue(calculateContrastRatio(scheme.onPrimary, scheme.primary) >= 4.5f)
-        assertTrue(calculateContrastRatio(scheme.onPrimaryContainer, scheme.primaryContainer) >= 4.5f)
     }
 
     @Test
@@ -287,8 +314,9 @@ class ThemeDynamicColorPolicyTest {
             darkTheme = false,
         )
 
-        assertNotEquals(lowContrastGreen, scheme.primary)
+        // Seed is not forced; MaterialKolor primary is preserved.
         assertEquals(generatedScheme.primary, scheme.primary)
+        assertEquals(lowContrastGreen, scheme.surfaceTint)
         assertTrue(calculateContrastRatio(scheme.primary, scheme.surface) >= 3f)
     }
 

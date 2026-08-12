@@ -87,6 +87,8 @@ import com.android.purebilibili.feature.bangumi.resolveBangumiPlayerTopControlsP
 import com.android.purebilibili.core.store.DEFAULT_LONG_PRESS_SPEED
 import com.android.purebilibili.core.store.SettingsManager
 import kotlinx.coroutines.launch
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 手势模式枚举
@@ -773,7 +775,7 @@ fun BangumiGestureIndicator(
         BangumiGestureMode.Seek -> {
             AppSurface(
                 modifier = modifier,
-                shape = RoundedCornerShape(18.dp),
+                shape = AppShapes.container(ContainerLevel.Card),
                 color = Color.Black.copy(alpha = 0.74f),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.58f)),
                 shadowElevation = 6.dp,
@@ -905,10 +907,10 @@ fun BangumiQualityMenu(
         AppSurface(
             modifier = Modifier
                 .widthIn(min = 200.dp, max = 280.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(AppShapes.container(ContainerLevel.Card))
                 .clickable(enabled = false) {},
             color = Color(0xFF2B2B2B),
-            shape = RoundedCornerShape(12.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             tonalElevation = 8.dp
         ) {
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
@@ -945,7 +947,7 @@ fun BangumiQualityMenu(
                             Spacer(modifier = Modifier.width(8.dp))
                             AppSurface(
                                 color = MaterialTheme.colorScheme.primary,
-                                shape = RoundedCornerShape(4.dp)
+                                shape = AppShapes.container(ContainerLevel.Tag)
                             ) {
                                 AppText(
                                     text = tag,
@@ -1037,7 +1039,7 @@ fun BangumiSlimProgressBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(3.dp)
-                .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(1.5.dp))
+                .background(Color.White.copy(alpha = 0.3f), AppShapes.container(ContainerLevel.Micro))
         )
         
         // 当前进度
@@ -1045,7 +1047,7 @@ fun BangumiSlimProgressBar(
             modifier = Modifier
                 .fillMaxWidth(displayProgress.coerceIn(0f, 1f))
                 .height(3.dp)
-                .background(primaryColor, RoundedCornerShape(1.5.dp))
+                .background(primaryColor, AppShapes.container(ContainerLevel.Micro))
         )
         
         // 滑块（圆点）- 拖动时放大

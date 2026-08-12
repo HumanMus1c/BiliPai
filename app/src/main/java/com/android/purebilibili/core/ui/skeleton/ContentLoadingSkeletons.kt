@@ -39,6 +39,8 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 内容列表首屏骨架（视频网格 / 媒体行 / 用户行）。
@@ -83,7 +85,7 @@ fun rememberContentSkeletonBlockColor(pulse: Float): Color {
 fun ContentSkeletonBlock(
     color: Color,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(4.dp),
+    shape: Shape = AppShapes.container(ContainerLevel.Tag),
 ) {
     Box(
         modifier = modifier
@@ -173,7 +175,7 @@ fun ContentVideoGridItemSkeleton(
     ) {
         ContentSkeletonBlock(
             color = blockColor,
-            shape = RoundedCornerShape(8.dp),
+            shape = AppShapes.container(ContainerLevel.Chip),
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(coverAspectRatio),
@@ -213,7 +215,7 @@ fun MediaListRowSkeleton(
     ) {
         ContentSkeletonBlock(
             color = color,
-            shape = RoundedCornerShape(8.dp),
+            shape = AppShapes.container(ContainerLevel.Chip),
             modifier = Modifier
                 .width(coverWidth)
                 .aspectRatio(coverAspectRatio),

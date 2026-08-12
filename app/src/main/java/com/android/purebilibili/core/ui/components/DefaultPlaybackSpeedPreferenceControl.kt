@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal const val DEFAULT_PLAYBACK_SPEED_MIN = 0.5f
 internal const val DEFAULT_PLAYBACK_SPEED_MAX = 2.0f
@@ -106,7 +108,7 @@ fun DefaultPlaybackSpeedPreferenceControl(
 
                 if (showCurrentValue) {
                     Surface(
-                        shape = RoundedCornerShape(999.dp),
+                        shape = AppShapes.container(ContainerLevel.Pill),
                         color = MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Text(
@@ -159,7 +161,7 @@ fun DefaultPlaybackSpeedPreferenceControl(
                         sliderValue = normalizedPreset
                         onSpeedChange(normalizedPreset)
                     },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = AppShapes.container(ContainerLevel.Card),
                     color = if (isSelected) {
                         MaterialTheme.colorScheme.primary
                     } else {

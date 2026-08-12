@@ -20,8 +20,10 @@ class AppChromeSizeTokensTest {
         assertEquals(48, spec.secondaryButtonSizeDp)
         assertEquals(32, spec.chipHeightDp)
         assertEquals(28, spec.compactChipHeightDp)
-        assertEquals(28, spec.primaryCornerRadiusDp)
-        assertEquals(24, spec.secondaryButtonCornerRadiusDp)
+        // 56 * 0.3 = 16; never full pill (28)
+        assertEquals(16, spec.primaryCornerRadiusDp)
+        // 48 * 0.3 = 14
+        assertEquals(14, spec.secondaryButtonCornerRadiusDp)
         assertEquals(24, spec.iconSizeDp)
         assertEquals(12, spec.standardGapDp)
     }
@@ -32,7 +34,8 @@ class AppChromeSizeTokensTest {
 
         assertEquals(48, spec.primaryHeightDp)
         assertEquals(48, spec.secondaryButtonSizeDp)
-        assertEquals(22, spec.primaryCornerRadiusDp)
+        // 48 * 0.3 = 14; never full pill (22)
+        assertEquals(14, spec.primaryCornerRadiusDp)
         assertEquals(14, spec.inputHorizontalPaddingDp)
         assertEquals(8, spec.standardGapDp)
     }

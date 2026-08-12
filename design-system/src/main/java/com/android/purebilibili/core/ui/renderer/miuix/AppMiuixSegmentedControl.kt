@@ -7,11 +7,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.android.purebilibili.core.ui.AppMiuixSegmentedItemHeightDp
+import com.android.purebilibili.core.ui.AppNativeTabRowHeightDp
 import com.android.purebilibili.core.ui.adaptiveSquircleBackground
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppSegmentedControlColors
 import com.android.purebilibili.core.ui.components.resolveAppMiuixSegmentedColors
 import com.android.purebilibili.core.ui.components.resolveAppSegmentedSelectionIndex
+import com.android.purebilibili.core.ui.resolveHeightCappedCornerRadius
 import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.TabRowDefaults
 
@@ -27,12 +30,17 @@ internal fun <T> AppMiuixSegmentedControl(
 ) {
     val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
     val tabColors = resolveAppMiuixSegmentedColors(colors)
+    val itemHeight = AppMiuixSegmentedItemHeightDp.dp
+    val corner = resolveHeightCappedCornerRadius(itemHeight, pillCornerRadius)
+    // Outer track is itemHeight + 8dp padding; cap that shell separately.
+    val outerHeight = itemHeight + 8.dp
+    val outerCorner = resolveHeightCappedCornerRadius(outerHeight, pillCornerRadius)
     Box(
         modifier = modifier
             .fillMaxWidth()
             .adaptiveSquircleBackground(
                 color = colors.outerContainerColor,
-                cornerRadius = pillCornerRadius,
+                cornerRadius = outerCorner,
             )
             .padding(4.dp),
     ) {
@@ -49,8 +57,8 @@ internal fun <T> AppMiuixSegmentedControl(
                 selectedBackgroundColor = tabColors.selectedBackgroundColor,
                 selectedContentColor = tabColors.selectedContentColor,
             ),
-            height = 40.dp,
-            cornerRadius = pillCornerRadius,
+            height = itemHeight,
+            cornerRadius = corner,
             itemSpacing = 4.dp,
             // 与 AppMiuixTabRow 一致：交给 Miuix 按容器宽度均分，避免默认 minWidth=76dp
             // 在选项较多时压缩文字。
@@ -74,6 +82,9 @@ internal fun <T> AppMiuixTabRow(
 ) {
     val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
     val tabColors = resolveAppMiuixSegmentedColors(colors)
+    // 40dp (not 48): still ≥ min touch via outer padding; avoids half-height capsule look.
+    val itemHeight = AppNativeTabRowHeightDp.dp
+    val corner = resolveHeightCappedCornerRadius(itemHeight, pillCornerRadius)
     TabRow(
         tabs = options.map { it.label },
         selectedTabIndex = selectedIndex,
@@ -88,12 +99,11 @@ internal fun <T> AppMiuixTabRow(
             selectedContentColor = tabColors.selectedContentColor,
         ),
         // 非 scrollable（如频道/状态切换）：交给 Miuix 按容器宽度均分，与 Material TabRow
-        // 一致，避免固定 48dp 造成文字截断与左侧堆叠；scrollable（如时间表/分类）：
-        // minTabWidth 兜底保证可读，maxWidth 放开允许内容扩展。
+        // 一致；scrollable（如时间表/分类）：minTabWidth 兜底保证可读。
         minWidth = if (scrollable) minTabWidth else 0.dp,
         maxWidth = Dp.Infinity,
-        height = 48.dp,
-        cornerRadius = pillCornerRadius,
+        height = itemHeight,
+        cornerRadius = corner,
         itemSpacing = 8.dp,
     )
 }

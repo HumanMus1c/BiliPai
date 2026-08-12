@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  iOS 风格毛玻璃卡片
@@ -65,7 +67,7 @@ fun GlassDurationTag(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(AppShapes.container(ContainerLevel.Chip))
             .background(Color.Black.copy(alpha = 0.55f))
             .padding(horizontal = 6.dp, vertical = 3.dp)
     ) {

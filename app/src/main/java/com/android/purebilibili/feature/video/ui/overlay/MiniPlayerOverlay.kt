@@ -53,6 +53,8 @@ import com.android.purebilibili.feature.video.usecase.seekPlayerFromUserAction
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 private const val TAG = "MiniPlayerOverlay"
 private const val AUTO_HIDE_DELAY_MS = 3000L
@@ -757,7 +759,7 @@ fun MiniPlayerOverlay(
                                 .padding(start = 8.dp, top = 8.dp)
                                 .background(
                                     color = Color(0xFFFF4444).copy(alpha = 0.9f),
-                                    shape = RoundedCornerShape(4.dp)
+                                    shape = AppShapes.container(ContainerLevel.Tag)
                                 )
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
@@ -834,9 +836,9 @@ fun MiniPlayerOverlay(
                                     }
                                 )
                             },
-                        shape = RoundedCornerShape(
-                            topStart = 16.dp,
-                            bottomEnd = shellVisual.cardCornerRadiusDp.dp
+                        shape = AppShapes.diagonalTopStartBottomEnd(
+                            topStart = AppShapes.containerCornerDp(ContainerLevel.Card),
+                            bottomEnd = shellVisual.cardCornerRadiusDp.dp,
                         ),
                         color = Color.Black.copy(alpha = 0.35f)
                     ) {
@@ -872,15 +874,9 @@ private fun StashedMiniPlayerView(
     val stashedCorner =
         shellVisual.cardCornerRadiusDp.dp + layoutPolicy.stashedSideCornerExtraDp.dp
     val shape = if (isLeft) {
-        RoundedCornerShape(
-            topEnd = stashedCorner,
-            bottomEnd = stashedCorner
-        )
+        AppShapes.endRounded(stashedCorner)
     } else {
-        RoundedCornerShape(
-            topStart = stashedCorner,
-            bottomStart = stashedCorner
-        )
+        AppShapes.startRounded(stashedCorner)
     }
 
     AppSurface(

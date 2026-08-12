@@ -38,6 +38,8 @@ import com.android.purebilibili.data.model.response.VideoItem
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  * 推荐流过滤插件(移植自 PiliNara 的「推荐流设置」RecommendFilter)。
@@ -265,7 +267,7 @@ class PiliNaraFeedFilterPlugin : FeedPlugin {
                 color = MaterialTheme.colorScheme.onSurface
             )
             Surface(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)),
+                modifier = Modifier.fillMaxWidth().clip(AppShapes.container(ContainerLevel.Card)),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f),
             ) {
                 Column(content = content)

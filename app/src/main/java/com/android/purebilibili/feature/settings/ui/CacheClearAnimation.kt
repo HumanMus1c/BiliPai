@@ -39,6 +39,8 @@ import kotlin.random.Random
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeEffectCompat
 import dev.chrisbanes.haze.blur.materials.HazeMaterials
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  缓存清理进度数据
@@ -662,7 +664,7 @@ internal fun CacheClearConfirmDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(AppShapes.container(ContainerLevel.Dialog))
                             .clickable {
                                 onTargetToggle(option.target, option.target !in selectedTargets)
                             }
@@ -773,7 +775,7 @@ fun CacheClearAnimationDialog(
             Box(
                 modifier = Modifier
                     .padding(48.dp)
-                    .clip(RoundedCornerShape(28.dp))
+                    .clip(AppShapes.container(ContainerLevel.Floating))
                     .background(
                         Brush.linearGradient(
                             colors = listOf(

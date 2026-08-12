@@ -28,6 +28,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.feature.video.interaction.InteractiveChoicePanelUiState
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
 fun InteractiveChoiceOverlay(
@@ -98,7 +100,7 @@ fun InteractiveChoiceOverlay(
                         .fillMaxWidth()
                         .background(
                             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
-                            shape = RoundedCornerShape(18.dp)
+                            shape = AppShapes.container(ContainerLevel.Card)
                         )
                         .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -164,7 +166,7 @@ private fun CoordinateModeHeader(
         modifier = modifier
             .background(
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-                shape = RoundedCornerShape(12.dp)
+                shape = AppShapes.container(ContainerLevel.Card)
             )
             .padding(horizontal = 10.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -34,6 +34,28 @@ sealed class LoginState {
     data class CaptchaReady(val captchaData: CaptchaData) : LoginState()  // 验证码准备就绪
     data class SmsSent(val captchaKey: String) : LoginState()  // 短信已发送
     object PasswordMode : LoginState()  // 密码登录模式
+
+    /** Password login hit status=2 risk check; show bound phone and send SMS. */
+    data class RiskVerificationRequired(
+        val hideTel: String,
+        val message: String,
+        val errorMessage: String? = null,
+    ) : LoginState()
+
+    /** Risk-flow geetest ready (from safecenter/captcha/pre). */
+    data class RiskCaptchaReady(
+        val hideTel: String,
+        val gt: String,
+        val challenge: String,
+        val recaptchaToken: String,
+    ) : LoginState()
+
+    /** Risk SMS already sent; waiting for user code. */
+    data class RiskSmsSent(
+        val hideTel: String,
+        val captchaKey: String,
+        val errorMessage: String? = null,
+    ) : LoginState()
 }
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
@@ -185,7 +207,24 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun showLoginError(message: String) {
-        _state.value = LoginState.Error(message)
+        if (riskTmpCode.isNotBlank()) {
+            restoreRiskVerificationUi(errorMessage = message)
+        } else {
+            _state.value = LoginState.Error(message)
+        }
+    }
+
+    /** Keep risk session and return to the bound-phone SMS step. */
+    fun restoreRiskVerificationUi(errorMessage: String? = null) {
+        if (riskTmpCode.isBlank()) {
+            _state.value = LoginState.Error(errorMessage ?: "风控会话已失效，请重新密码登录")
+            return
+        }
+        _state.value = LoginState.RiskVerificationRequired(
+            hideTel = riskHideTel.ifBlank { "已绑定手机号" },
+            message = "本次登录环境存在风险，需使用手机号进行验证",
+            errorMessage = errorMessage,
+        )
     }
 
     private fun generateQrBitmap(content: String): Bitmap {
@@ -216,6 +255,15 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     private val appLoginDeviceId = UUID.randomUUID().toString().replace("-", "").uppercase()
     private val appLoginBuvid = TokenManager.buvid3Cache
         ?: "${appLoginDeviceId.lowercase()}infoc".also { TokenManager.buvid3Cache = it }
+
+    // Password-login risk verification (safe center)
+    private var riskTmpCode: String = ""
+    private var riskRequestId: String = ""
+    private var riskSource: String = "risk"
+    private var riskRefererUrl: String = ""
+    private var riskCaptchaKey: String = ""
+    private var riskHideTel: String = ""
+    private var riskRecaptchaToken: String = ""
 
     /**
      * 拉取 passport 国际冠字码列表（common + others）。
@@ -447,11 +495,15 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 
                 val body = response.body()
                 if (body?.code == 0) {
-                    handleLoginResponse(
-                        response = response,
-                        source = "password",
-                        accessTokenPlatform = TokenManager.ACCESS_TOKEN_PLATFORM_ANDROID
-                    )
+                    if (isPasswordLoginRiskChallenge(body.data)) {
+                        beginPasswordRiskVerification(body.data!!)
+                    } else {
+                        handleLoginResponse(
+                            response = response,
+                            source = "password",
+                            accessTokenPlatform = TokenManager.ACCESS_TOKEN_PLATFORM_ANDROID
+                        )
+                    }
                 } else {
                     _state.value = LoginState.Error(
                         "登录失败(${body?.code}): ${body?.message ?: "未知错误"} " +
@@ -464,6 +516,213 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    /**
+     * Password login status=2: load bound phone info and prompt SMS risk check.
+     */
+    private suspend fun beginPasswordRiskVerification(
+        data: com.android.purebilibili.data.model.response.LoginData
+    ) {
+        val riskParams = parseRiskVerifyUrl(data.url) ?: run {
+            _state.value = LoginState.Error(
+                "登录环境存在风险，但验证参数缺失。请改用扫码或 Cookie 导入。"
+            )
+            return
+        }
+        riskTmpCode = riskParams.tmpToken
+        riskRequestId = riskParams.requestId
+        riskSource = riskParams.source
+        riskRefererUrl = riskParams.refererUrl
+        riskCaptchaKey = ""
+        riskRecaptchaToken = ""
+
+        try {
+            val info = NetworkModule.passportApi.safeCenterGetInfo(tmpCode = riskTmpCode)
+            if (info.code != 0 || info.data?.accountInfo == null) {
+                _state.value = LoginState.Error(
+                    "获取安全验证信息失败(${info.code}): ${info.message.ifBlank { "请改用扫码登录" }}"
+                )
+                return
+            }
+            val account = info.data.accountInfo
+            if (!account.telVerify) {
+                _state.value = LoginState.Error(
+                    "当前账号不支持手机号风控验证，请改用扫码或 Cookie 导入。"
+                )
+                return
+            }
+            riskHideTel = account.hideTel.ifBlank { "已绑定手机号" }
+            val message = data.message.ifBlank {
+                "本次登录环境存在风险，需使用手机号进行验证"
+            }
+            Logger.d("LoginDebug", "密码登录触发风控，hideTel=$riskHideTel")
+            _state.value = LoginState.RiskVerificationRequired(
+                hideTel = riskHideTel,
+                message = message,
+            )
+        } catch (e: Exception) {
+            Logger.e("LoginDebug", "安全中心信息获取失败", e)
+            _state.value = LoginState.Error("安全验证准备失败: ${e.message}")
+        }
+    }
+
+    /**
+     * Start risk-flow geetest via safecenter/captcha/pre.
+     */
+    fun prepareRiskSmsCaptcha() {
+        viewModelScope.launch {
+            try {
+                if (riskTmpCode.isBlank()) {
+                    _state.value = LoginState.Error("风控会话已失效，请重新密码登录")
+                    return@launch
+                }
+                _state.value = LoginState.Loading
+                val pre = NetworkModule.passportApi.safeCenterPreCapture()
+                val data = pre.data
+                if (pre.code != 0 || data == null ||
+                    data.geeGt.isBlank() || data.geeChallenge.isBlank() || data.recaptchaToken.isBlank()
+                ) {
+                    _state.value = LoginState.Error(
+                        "获取风控验证码失败(${pre.code}): ${pre.message.ifBlank { "请改用扫码登录" }}"
+                    )
+                    return@launch
+                }
+                riskRecaptchaToken = data.recaptchaToken
+                _state.value = LoginState.RiskCaptchaReady(
+                    hideTel = riskHideTel,
+                    gt = data.geeGt,
+                    challenge = data.geeChallenge,
+                    recaptchaToken = data.recaptchaToken,
+                )
+            } catch (e: Exception) {
+                Logger.e("LoginDebug", "风控极验准备失败", e)
+                _state.value = LoginState.Error("网络错误: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * After risk geetest success, send safe-center SMS.
+     */
+    fun sendRiskSmsCode(validate: String, seccode: String, challenge: String) {
+        viewModelScope.launch {
+            try {
+                if (riskTmpCode.isBlank() || riskRecaptchaToken.isBlank()) {
+                    _state.value = LoginState.Error("风控会话已失效，请重新密码登录")
+                    return@launch
+                }
+                _state.value = LoginState.Loading
+                val params = buildSafeCenterSmsSendParams(
+                    tmpCode = riskTmpCode,
+                    recaptchaToken = riskRecaptchaToken,
+                    challenge = challenge,
+                    validate = validate,
+                    seccode = seccode,
+                )
+                val signed = com.android.purebilibili.core.network.AppSignUtils
+                    .signForAndroidHdLogin(params)
+                val response = NetworkModule.passportApi.safeCenterSendSms(
+                    referer = riskRefererUrl,
+                    params = signed,
+                )
+                if (response.code == 0 && response.data?.captchaKey.orEmpty().isNotBlank()) {
+                    riskCaptchaKey = response.data!!.captchaKey
+                    Logger.d("LoginDebug", "风控短信已发送")
+                    _state.value = LoginState.RiskSmsSent(
+                        hideTel = riskHideTel,
+                        captchaKey = riskCaptchaKey,
+                    )
+                } else {
+                    restoreRiskVerificationUi(
+                        errorMessage = "风控短信发送失败(${response.code}): " +
+                            response.message.ifBlank { "请改用扫码登录" }
+                    )
+                }
+            } catch (e: Exception) {
+                Logger.e("LoginDebug", "风控短信发送异常", e)
+                restoreRiskVerificationUi(errorMessage = "网络错误: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Submit risk SMS code, exchange oauth code for cookies/token.
+     */
+    fun verifyRiskSmsCode(code: String) {
+        viewModelScope.launch {
+            try {
+                val trimmed = code.trim()
+                if (trimmed.isEmpty()) {
+                    _state.value = LoginState.Error("请输入短信验证码")
+                    return@launch
+                }
+                if (riskTmpCode.isBlank() || riskCaptchaKey.isBlank()) {
+                    _state.value = LoginState.Error("请先获取风控验证码")
+                    return@launch
+                }
+                _state.value = LoginState.Loading
+
+                val verifyParams = buildSafeCenterSmsVerifyParams(
+                    code = trimmed,
+                    tmpCode = riskTmpCode,
+                    requestId = riskRequestId,
+                    source = riskSource,
+                    captchaKey = riskCaptchaKey,
+                )
+                val verifySigned = com.android.purebilibili.core.network.AppSignUtils
+                    .signForAndroidHdLogin(verifyParams)
+                val verifyResponse = NetworkModule.passportApi.safeCenterVerifySms(
+                    referer = riskRefererUrl,
+                    params = verifySigned,
+                )
+                val exchangeCode = verifyResponse.data?.code.orEmpty()
+                if (verifyResponse.code != 0 || exchangeCode.isBlank()) {
+                    _state.value = LoginState.RiskSmsSent(
+                        hideTel = riskHideTel,
+                        captchaKey = riskCaptchaKey,
+                        errorMessage = "风控验证失败(${verifyResponse.code}): " +
+                            verifyResponse.message.ifBlank { "验证码错误" },
+                    )
+                    return@launch
+                }
+
+                val tokenParams = buildOauth2AccessTokenParams(
+                    code = exchangeCode,
+                    buvid = appLoginBuvid,
+                    timestampSeconds = com.android.purebilibili.core.network.AppSignUtils.getTimestamp(),
+                )
+                val tokenResponse = NetworkModule.passportApi.oauth2AccessToken(
+                    com.android.purebilibili.core.network.AppSignUtils.signForAndroidHdLogin(tokenParams)
+                )
+                val body = tokenResponse.body()
+                if (body?.code == 0) {
+                    clearRiskSession()
+                    handleLoginResponse(
+                        response = tokenResponse,
+                        source = "password_risk",
+                        accessTokenPlatform = TokenManager.ACCESS_TOKEN_PLATFORM_ANDROID,
+                    )
+                } else {
+                    _state.value = LoginState.Error(
+                        "换取登录态失败(${body?.code}): ${body?.message ?: "请改用扫码登录"}"
+                    )
+                }
+            } catch (e: Exception) {
+                Logger.e("LoginDebug", "风控短信验证异常", e)
+                _state.value = LoginState.Error("网络错误: ${e.message}")
+            }
+        }
+    }
+
+    private fun clearRiskSession() {
+        riskTmpCode = ""
+        riskRequestId = ""
+        riskSource = "risk"
+        riskRefererUrl = ""
+        riskCaptchaKey = ""
+        riskHideTel = ""
+        riskRecaptchaToken = ""
+    }
     
     /**
      * 处理登录返回的 Cookie
@@ -475,6 +734,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val body = response.body() ?: run {
             _state.value = LoginState.Error("登录响应为空")
+            return
+        }
+        if (isPasswordLoginRiskChallenge(body.data)) {
+            beginPasswordRiskVerification(body.data!!)
             return
         }
         val cookies = response.headers().values("Set-Cookie")
@@ -504,7 +767,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 source = source
             )
         } else {
-            _state.value = LoginState.Error("Cookie 解析失败")
+            val riskHint = body.data?.message?.takeIf { it.isNotBlank() }
+            _state.value = LoginState.Error(
+                riskHint?.let { "登录未返回 Cookie：$it。可改用扫码或 Cookie 导入。" }
+                    ?: "Cookie 解析失败，可改用扫码或 Cookie 导入。"
+            )
         }
     }
 
@@ -615,6 +882,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         currentCaptchaKey = ""
         currentPhone = ""
         currentCountryCode = DEFAULT_PHONE_REGION_CID
+        clearRiskSession()
         _state.value = LoginState.PhoneIdle
     }
     

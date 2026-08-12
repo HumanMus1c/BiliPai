@@ -2134,6 +2134,36 @@ interface PassportApi {
     suspend fun loginByPasswordApp(
         @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
     ): Response<LoginResponse>
+
+    // ========== 密码登录风控（安全中心手机验证） ==========
+
+    @GET("x/safecenter/user/info")
+    suspend fun safeCenterGetInfo(
+        @Query("tmp_code") tmpCode: String
+    ): com.android.purebilibili.data.model.response.SafeCenterInfoResponse
+
+    @retrofit2.http.POST("x/safecenter/captcha/pre")
+    suspend fun safeCenterPreCapture(): com.android.purebilibili.data.model.response.SafeCenterPreCaptureResponse
+
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("x/safecenter/common/sms/send")
+    suspend fun safeCenterSendSms(
+        @retrofit2.http.Header("Referer") referer: String,
+        @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
+    ): com.android.purebilibili.data.model.response.SafeCenterSmsSendResponse
+
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("x/safecenter/login/tel/verify")
+    suspend fun safeCenterVerifySms(
+        @retrofit2.http.Header("Referer") referer: String,
+        @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
+    ): com.android.purebilibili.data.model.response.SafeCenterSmsVerifyResponse
+
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("x/passport-login/oauth2/access_token")
+    suspend fun oauth2AccessToken(
+        @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
+    ): Response<LoginResponse>
     
     // ==========  TV 端登录 (获取 access_token 用于高画质视频) ==========
     
@@ -2428,6 +2458,7 @@ object NetworkModule {
 
     fun init(context: Context) {
         appContext = context.applicationContext
+        com.android.purebilibili.core.store.NetworkProxyStore.init(context.applicationContext)
     }
 
     fun clearRuntimeCookies() {
@@ -2505,8 +2536,39 @@ object NetworkModule {
         return when (encodedPath) {
             "/x/passport-login/sms/send",
             "/x/passport-login/login/sms",
-            "/x/passport-login/oauth2/login" -> "android_hd"
+            "/x/passport-login/oauth2/login",
+            "/x/passport-login/oauth2/access_token" -> "android_hd"
             else -> null
+        }
+    }
+
+    /**
+     * Dynamic proxy: app HTTP proxy when enabled, else system proxy / VPN.
+     * Read live from [NetworkProxyStore] so toggle works without rebuilding clients.
+     */
+    internal fun buildAppProxySelector(): java.net.ProxySelector {
+        return object : java.net.ProxySelector() {
+            override fun select(uri: java.net.URI?): List<Proxy> {
+                val settings = com.android.purebilibili.core.store.NetworkProxyStore.getSync()
+                val systemProxies = runCatching {
+                    getDefault()?.select(uri).orEmpty()
+                }.getOrDefault(emptyList())
+                return com.android.purebilibili.core.network.policy.selectAppHttpProxies(
+                    settings = settings,
+                    systemProxies = systemProxies,
+                )
+            }
+
+            override fun connectFailed(
+                uri: java.net.URI?,
+                sa: java.net.SocketAddress?,
+                ioe: java.io.IOException?,
+            ) {
+                com.android.purebilibili.core.util.Logger.w(
+                    "ApiClient",
+                    "Proxy connect failed uri=$uri sa=$sa: ${ioe?.message}"
+                )
+            }
         }
     }
 
@@ -2521,6 +2583,7 @@ object NetworkModule {
     val okHttpClient: OkHttpClient by lazy {
         val builder = OkHttpClient.Builder()
             .protocols(resolveSharedNetworkProtocols())
+            .proxySelector(buildAppProxySelector())
             //  [新增] 超时配置，提高网络稳定性
             .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
@@ -2726,6 +2789,7 @@ object NetworkModule {
     val guestOkHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .protocols(resolveSharedNetworkProtocols())
+            .proxySelector(buildAppProxySelector())
             .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
             .writeTimeout(15, java.util.concurrent.TimeUnit.SECONDS)

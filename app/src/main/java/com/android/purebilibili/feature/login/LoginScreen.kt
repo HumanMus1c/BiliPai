@@ -84,6 +84,7 @@ internal fun resolveQrLoginReason(): String {
 private sealed interface CaptchaRequest {
     data class Sms(val phone: String, val countryCid: Int) : CaptchaRequest
     data class Password(val phone: String, val password: String) : CaptchaRequest
+    data object RiskSms : CaptchaRequest
 }
 
 @Composable
@@ -117,9 +118,32 @@ fun LoginScreen(
     }
 
     LaunchedEffect(state, captchaRequest, activity) {
+        val hostActivity = activity ?: return@LaunchedEffect
+
+        // Password-login risk flow uses safecenter/captcha/pre (RiskCaptchaReady).
+        val riskReady = state as? LoginState.RiskCaptchaReady
+        if (riskReady != null) {
+            captchaManager?.destroy()
+            captchaManager = CaptchaManager(hostActivity).also { manager ->
+                manager.startCaptcha(
+                    gt = riskReady.gt,
+                    challenge = riskReady.challenge,
+                    onSuccess = { validate, seccode, challenge ->
+                        viewModel.sendRiskSmsCode(validate, seccode, challenge)
+                    },
+                    onFailed = { error ->
+                        viewModel.showLoginError(error)
+                    },
+                    onCancel = {
+                        viewModel.showLoginError("已取消风控安全验证")
+                    }
+                )
+            }
+            return@LaunchedEffect
+        }
+
         val request = captchaRequest ?: return@LaunchedEffect
         val captchaData = (state as? LoginState.CaptchaReady)?.captchaData ?: return@LaunchedEffect
-        val hostActivity = activity ?: return@LaunchedEffect
         captchaManager?.destroy()
         captchaManager = CaptchaManager(hostActivity).also { manager ->
             manager.startCaptcha(
@@ -133,6 +157,7 @@ fun LoginScreen(
                             countryCode = request.countryCid,
                         )
                         is CaptchaRequest.Password -> viewModel.loginByPassword(request.phone, request.password)
+                        CaptchaRequest.RiskSms -> viewModel.sendRiskSmsCode(validate, seccode, challenge)
                     }
                     captchaRequest = null
                 },
@@ -173,7 +198,9 @@ fun LoginScreen(
         },
         onImportCookie = viewModel::loginByCookie,
         onContinueWithStandardSession = viewModel::continueWithStandardSession,
-        onAuthorizeHighQuality = { selectedMethod = LoginMethod.TV_QR }
+        onAuthorizeHighQuality = { selectedMethod = LoginMethod.TV_QR },
+        onPrepareRiskSms = viewModel::prepareRiskSmsCaptcha,
+        onVerifyRiskSms = viewModel::verifyRiskSmsCode,
     )
 }
 
@@ -192,6 +219,8 @@ internal fun LoginPage(
     onImportCookie: (String) -> Unit,
     onContinueWithStandardSession: () -> Unit,
     onAuthorizeHighQuality: () -> Unit,
+    onPrepareRiskSms: () -> Unit = {},
+    onVerifyRiskSms: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     AppSurface(modifier = modifier.fillMaxSize(), color = AppSurfaceTokens.chromeBackground()) {
@@ -249,7 +278,12 @@ internal fun LoginPage(
                     item {
                         when (selectedMethod) {
                             LoginMethod.TV_QR -> TvQrLoginContent(state, onRefreshQr)
-                            LoginMethod.PASSWORD -> PasswordLoginContent(state, onRequestPassword)
+                            LoginMethod.PASSWORD -> PasswordLoginContent(
+                                state = state,
+                                onSubmit = onRequestPassword,
+                                onPrepareRiskSms = onPrepareRiskSms,
+                                onVerifyRiskSms = onVerifyRiskSms,
+                            )
                             LoginMethod.SMS -> SmsLoginContent(
                                 state = state,
                                 phoneRegions = phoneRegions,
@@ -432,52 +466,137 @@ private fun TvQrLoginContent(
 private fun PasswordLoginContent(
     state: LoginState,
     onSubmit: (String, String) -> Unit,
+    onPrepareRiskSms: () -> Unit,
+    onVerifyRiskSms: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var phone by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
-    val isLoading = state is LoginState.Loading || state is LoginState.CaptchaReady
+    var riskCode by rememberSaveable { mutableStateOf("") }
+    val isLoading = state is LoginState.Loading ||
+        state is LoginState.CaptchaReady ||
+        state is LoginState.RiskCaptchaReady
+    val riskRequired = state as? LoginState.RiskVerificationRequired
+    val riskSmsSent = state as? LoginState.RiskSmsSent
+    val riskHideTel = riskRequired?.hideTel
+        ?: riskSmsSent?.hideTel
+        ?: (state as? LoginState.RiskCaptchaReady)?.hideTel
+    val inRiskFlow = riskHideTel != null
 
-    LoginFormCard(title = "密码登录", modifier = modifier) {
-        AppOutlinedTextField(
-            value = phone,
-            onValueChange = { phone = it.filter(Char::isDigit) },
-            label = { AppText("手机号") },
-            leadingIcon = { AppIcon(Icons.Outlined.Phone, contentDescription = null) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        AppOutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { AppText("密码") },
-            leadingIcon = { AppIcon(Icons.Outlined.Lock, contentDescription = null) },
-            trailingIcon = {
-                AppIconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    AppIcon(
-                        if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                        contentDescription = if (passwordVisible) "隐藏密码" else "显示密码"
+    LoginFormCard(title = if (inRiskFlow) "安全验证" else "密码登录", modifier = modifier) {
+        if (inRiskFlow) {
+            AppText(
+                text = riskRequired?.message
+                    ?: "本次登录环境存在风险，需验证绑定手机号。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            AppText(
+                text = "绑定手机：${riskHideTel.orEmpty()}",
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (riskSmsSent != null) {
+                AppOutlinedTextField(
+                    value = riskCode,
+                    onValueChange = { value ->
+                        if (value.length <= 6 && value.all { it.isDigit() }) {
+                            riskCode = value
+                        }
+                    },
+                    label = { AppText("短信验证码") },
+                    leadingIcon = { AppIcon(Icons.Outlined.Lock, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                riskSmsSent.errorMessage?.let { err ->
+                    AppText(
+                        text = err,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
-            },
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        AppText(
-            text = "提交前需要完成安全验证。遇到风控时请改用扫码登录。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        AppButton(
-            onClick = { onSubmit(phone, password) },
-            enabled = phone.isNotBlank() && password.isNotBlank() && !isLoading,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            AppText("验证并登录")
+                AppButton(
+                    onClick = { onVerifyRiskSms(riskCode) },
+                    enabled = riskCode.length == 6 && !isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    AppText("确认验证并登录")
+                }
+                AppOutlinedButton(
+                    onClick = {
+                        riskCode = ""
+                        onPrepareRiskSms()
+                    },
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    AppText("重新发送验证码")
+                }
+            } else {
+                riskRequired?.errorMessage?.let { err ->
+                    AppText(
+                        text = err,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                AppButton(
+                    onClick = onPrepareRiskSms,
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    AppText(if (isLoading) "准备验证中…" else "发送短信验证码")
+                }
+                AppText(
+                    text = "将向绑定手机发送验证码。若收不到短信，请改用扫码或 Cookie 导入。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            AppOutlinedTextField(
+                value = phone,
+                onValueChange = { phone = it.filter(Char::isDigit) },
+                label = { AppText("手机号 / 账号") },
+                leadingIcon = { AppIcon(Icons.Outlined.Phone, contentDescription = null) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            AppOutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { AppText("密码") },
+                leadingIcon = { AppIcon(Icons.Outlined.Lock, contentDescription = null) },
+                trailingIcon = {
+                    AppIconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        AppIcon(
+                            if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = if (passwordVisible) "隐藏密码" else "显示密码"
+                        )
+                    }
+                },
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            AppText(
+                text = "提交前需要完成安全验证。若触发环境风控，将引导绑定手机二次验证。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            AppButton(
+                onClick = { onSubmit(phone, password) },
+                enabled = phone.isNotBlank() && password.isNotBlank() && !isLoading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                AppText("验证并登录")
+            }
         }
     }
 }

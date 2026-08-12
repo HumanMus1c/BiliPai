@@ -56,6 +56,8 @@ import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
 import com.android.purebilibili.core.theme.opaqueCompositeOver
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  iOS 风格新手引导底部弹窗
@@ -121,7 +123,7 @@ fun OnboardingBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.85f) //  占 85% 屏幕高度
-                    .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                    .clip(AppShapes.container(ContainerLevel.Sheet))
                     //  [新方案] 多层背景模拟毛玻璃
                     .background(
                         brush = Brush.verticalGradient(
@@ -137,7 +139,7 @@ fun OnboardingBottomSheet(
                                 )
                             }
                         ),
-                        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+                        shape = AppShapes.container(ContainerLevel.Sheet)
                     )
                     // 防止点击穿透到遮罩层
                     .clickable(
@@ -158,7 +160,7 @@ fun OnboardingBottomSheet(
                         modifier = Modifier
                             .padding(top = 12.dp, bottom = 8.dp)
                             .size(width = 40.dp, height = 4.dp)
-                            .clip(RoundedCornerShape(2.dp))
+                            .clip(AppShapes.container(ContainerLevel.Tag))
                             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
                     )
                     
@@ -199,7 +201,7 @@ fun OnboardingBottomSheet(
                                 modifier = Modifier
                                     .padding(horizontal = 4.dp)
                                     .size(width = width.dp, height = 8.dp)
-                                    .clip(RoundedCornerShape(4.dp))
+                                    .clip(AppShapes.container(ContainerLevel.Tag))
                                     .background(
                                         if (isSelected) MaterialTheme.colorScheme.primary
                                         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
@@ -222,7 +224,7 @@ fun OnboardingBottomSheet(
                             AppOutlinedButton(
                                 onClick = onDismiss,
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = AppShapes.container(ContainerLevel.Card),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.onSurface
                                 ),
@@ -242,7 +244,7 @@ fun OnboardingBottomSheet(
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = AppShapes.container(ContainerLevel.Card),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
 
@@ -258,7 +260,7 @@ fun OnboardingBottomSheet(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(52.dp),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = AppShapes.container(ContainerLevel.Card),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
 
@@ -344,7 +346,7 @@ private fun WelcomePage(hazeState: HazeState) {
                 contentDescription = "BiliPai Logo",
                 modifier = Modifier
                     .size(80.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(AppShapes.container(ContainerLevel.Floating))
             )
             //  Lottie 装饰动画 (环绕效果)
             LottieAnimation(
@@ -423,7 +425,7 @@ private fun WelcomePage(hazeState: HazeState) {
         // 免责声明
         AppSurface(
             color = disclaimerColors.containerColor,
-            shape = RoundedCornerShape(12.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             modifier = Modifier.graphicsLayer {
                 alpha = animatedItems[5].value
                 translationY = (1f - animatedItems[5].value) * 20f
@@ -813,7 +815,7 @@ private fun FeatureListItem(
     //  真正的毛玻璃卡片效果
     AppSurface(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        shape = RoundedCornerShape(16.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
@@ -839,7 +841,7 @@ private fun FeatureListItem(
                     .size(44.dp)
                     .background(
                         color = MaterialTheme.colorScheme.surface,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = AppShapes.container(ContainerLevel.Card)
                     ),
                 contentAlignment = Alignment.Center
             ) {

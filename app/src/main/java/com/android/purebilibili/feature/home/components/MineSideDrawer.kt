@@ -47,6 +47,8 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.components.AppPreference
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.UserLevelBadge
+import com.android.purebilibili.core.ui.components.UserVipBadge
+import com.android.purebilibili.core.ui.components.resolveUserVipBadgeLabel
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.rememberAppDrawerVisualPolicy
@@ -249,41 +251,34 @@ fun MineSideDrawer(
                     
                     Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
                     
-                    // 用户名和等级
+                    // 用户名 + 等级 / 大会员（与个人空间同一行：LV + 主题色软胶囊）
                     Column(modifier = Modifier.weight(1f)) {
                         AppText(
                             text = user.name.ifEmpty { "未登录" },
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = activeContentColor,
-                            maxLines = 1
+                            maxLines = 1,
                         )
-                        
+
                         if (user.isLogin) {
                             Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro),
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                // 等级徽章
                                 if (user.level > 0) {
                                     UserLevelBadge(level = user.level)
                                 }
-                                
-                                // VIP 徽章
                                 if (user.isVip) {
-                                    AppSurface(
-                                        color = colorScheme.primary,
-                                        shape = AppShapes.container(ContainerLevel.Tag)
-                                    ) {
-                                        AppText(
-                                            text = "大会员",
-                                            color = colorScheme.onPrimary,
-                                            fontSize = layoutPolicy.badgeFontSp.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Micro)
-                                        )
-                                    }
+                                    UserVipBadge(
+                                        label = resolveUserVipBadgeLabel(
+                                            label = user.vipLabel,
+                                            vipType = user.vipType,
+                                        ),
+                                        fontSize = maxOf(layoutPolicy.badgeFontSp, 10).sp,
+                                        compact = true,
+                                    )
                                 }
                             }
                         }

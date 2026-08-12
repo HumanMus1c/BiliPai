@@ -39,6 +39,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
 fun AppScreenshotRegionOverlay(
@@ -148,7 +150,7 @@ fun AppScreenshotRegionOverlay(
         AppSurface(
             color = Color.Black.copy(alpha = 0.54f),
             contentColor = Color.White,
-            shape = RoundedCornerShape(18.dp),
+            shape = AppShapes.container(ContainerLevel.Card),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()

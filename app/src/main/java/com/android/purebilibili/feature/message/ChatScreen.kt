@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -71,6 +70,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -429,7 +430,7 @@ fun ChatInputBar(
                 maxLines = 4,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { onSend() }),
-                shape = RoundedCornerShape(24.dp)
+                shape = AppShapes.container(ContainerLevel.Floating)
             )
             
             Spacer(modifier = Modifier.width(8.dp))
@@ -515,14 +516,7 @@ fun MessageBubble(
                         Modifier
                     }
                 )
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (isOwnMessage) 16.dp else 4.dp,
-                        bottomEnd = if (isOwnMessage) 4.dp else 16.dp
-                    )
-                )
+                .clip(AppShapes.messageBubble(isOutgoing = isOwnMessage))
                 .background(bubbleColor)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
@@ -556,7 +550,7 @@ fun MessageBubble(
                             modifier = Modifier
                                 .widthIn(max = 200.dp)
                                 .heightIn(max = 300.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(AppShapes.container(ContainerLevel.Chip)),
                             contentScale = ContentScale.Fit
                         )
                     } else {
@@ -576,7 +570,7 @@ fun MessageBubble(
                             contentDescription = "表情",
                             modifier = Modifier
                                 .size(100.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(AppShapes.container(ContainerLevel.Chip)),
                             contentScale = ContentScale.Fit
                         )
                     } else {
@@ -672,7 +666,7 @@ fun VideoLinkPreviewCard(
         modifier = Modifier
             .widthIn(max = 260.dp)
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -717,7 +711,7 @@ fun VideoLinkPreviewCard(
                             .padding(4.dp)
                             .background(
                                 Color.Black.copy(alpha = 0.7f),
-                                RoundedCornerShape(4.dp)
+                                AppShapes.container(ContainerLevel.Tag)
                             )
                             .padding(horizontal = 4.dp, vertical = 2.dp),
                         color = Color.White,
@@ -781,7 +775,7 @@ fun MessageCardPreviewCard(
         modifier = Modifier
             .widthIn(max = 260.dp)
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = AppShapes.container(ContainerLevel.Card),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
@@ -797,7 +791,7 @@ fun MessageCardPreviewCard(
                     contentDescription = preview.title,
                     modifier = Modifier
                         .size(72.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(AppShapes.container(ContainerLevel.Chip))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentScale = ContentScale.Crop
                 )

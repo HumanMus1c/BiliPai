@@ -743,29 +743,24 @@ internal fun createStaticMd3ColorScheme(
     }
 }
 
+/**
+ * Align a MaterialKolor-generated scheme with the user-picked seed.
+ *
+ * Official wallpaper MD3 keeps HCT tone-mapped roles (Switch / FilterChip / buttons).
+ * Custom seed previously forced the raw hex into [ColorScheme.primary], which made
+ * bright seeds produce black onPrimary and neon tracks in light mode — while wallpaper
+ * dynamic color (no force-align) looked correct.
+ *
+ * MaterialKolor already maps [themePrimaryColor] into proper primary / onPrimary /
+ * primaryContainer roles. Only stamp the seed onto [ColorScheme.surfaceTint] so brand
+ * identity remains without breaking control colors.
+ */
 internal fun alignStaticColorSchemeWithThemePrimary(
     scheme: ColorScheme,
     themePrimaryColor: Color,
-    darkTheme: Boolean
+    @Suppress("UNUSED_PARAMETER") darkTheme: Boolean
 ): ColorScheme {
-    val primaryCandidates = listOf(themePrimaryColor, scheme.primary, scheme.onSurface).distinct()
-    val primary = primaryCandidates.firstOrNull {
-        calculateContrastRatio(it, scheme.surface) >= ACCESSIBLE_UI_MIN_CONTRAST
-    } ?: primaryCandidates.maxBy {
-        calculateContrastRatio(it, scheme.surface)
-    }
-    val primaryContainer = blendColors(
-        background = scheme.background,
-        foreground = primary,
-        foregroundRatio = if (darkTheme) 0.34f else 0.18f
-    )
-    return scheme.copy(
-        primary = primary,
-        onPrimary = chooseReadableOnColor(primary),
-        primaryContainer = primaryContainer,
-        onPrimaryContainer = chooseReadableOnColor(primaryContainer),
-        surfaceTint = primary
-    )
+    return scheme.copy(surfaceTint = themePrimaryColor)
 }
 
 private fun createMd3DarkColorScheme(primaryColor: Color) = createStaticMd3ColorScheme(

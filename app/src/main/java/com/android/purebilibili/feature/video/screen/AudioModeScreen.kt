@@ -53,6 +53,8 @@ import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
 import com.android.purebilibili.feature.video.viewmodel.toEngagementSeed
 import com.android.purebilibili.feature.video.viewmodel.toSupplementSeed
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 internal fun resolveAudioPlayModeLabel(mode: PlayMode): String = when (mode) {
     PlayMode.SEQUENTIAL -> "顺序播放"
@@ -378,7 +380,7 @@ internal fun AudioModeSleepTimerDialog(
                         val isSelected = currentMinutes == minutes
                         AppSurface(
                             onClick = { onSelectPreset(minutes) },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = AppShapes.container(ContainerLevel.Card),
                             color = if (isSelected) {
                                 MaterialTheme.colorScheme.primary
                             } else {

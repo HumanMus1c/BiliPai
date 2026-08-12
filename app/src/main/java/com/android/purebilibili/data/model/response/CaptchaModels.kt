@@ -132,3 +132,75 @@ data class CookieItem(
     val httpOnly: Int = 0,
     val expires: Long = 0
 )
+
+// ========== 密码登录风控（安全中心） ==========
+
+@Serializable
+data class SafeCenterInfoResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: SafeCenterInfoData? = null,
+)
+
+@Serializable
+data class SafeCenterInfoData(
+    @SerialName("account_info")
+    val accountInfo: SafeCenterAccountInfo? = null,
+)
+
+@Serializable
+data class SafeCenterAccountInfo(
+    @SerialName("hide_tel")
+    val hideTel: String = "",
+    @SerialName("hide_mail")
+    val hideMail: String = "",
+    @SerialName("bind_tel")
+    val bindTel: Boolean = false,
+    @SerialName("tel_verify")
+    val telVerify: Boolean = false,
+)
+
+@Serializable
+data class SafeCenterPreCaptureResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: SafeCenterPreCaptureData? = null,
+)
+
+@Serializable
+data class SafeCenterPreCaptureData(
+    @SerialName("recaptcha_type")
+    val recaptchaType: String = "",
+    @SerialName("recaptcha_token")
+    val recaptchaToken: String = "",
+    @SerialName("gee_challenge")
+    val geeChallenge: String = "",
+    @SerialName("gee_gt")
+    val geeGt: String = "",
+)
+
+@Serializable
+data class SafeCenterSmsSendResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: SafeCenterSmsSendData? = null,
+)
+
+@Serializable
+data class SafeCenterSmsSendData(
+    @SerialName("captcha_key")
+    val captchaKey: String = "",
+)
+
+@Serializable
+data class SafeCenterSmsVerifyResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: SafeCenterSmsVerifyData? = null,
+)
+
+@Serializable
+data class SafeCenterSmsVerifyData(
+    /** Exchange code used by oauth2/access_token */
+    val code: String = "",
+)

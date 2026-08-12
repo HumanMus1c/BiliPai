@@ -212,6 +212,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 @Composable
 private fun GesturePercentDigit(
@@ -3697,7 +3699,7 @@ fun VideoPlayerSection(
                                     .align(Alignment.TopCenter)
                                     .offset(x = (-11).dp, y = 4.dp)
                                     .size(width = 12.dp, height = 6.dp)
-                                    .clip(RoundedCornerShape(999.dp))
+                                    .clip(AppShapes.container(ContainerLevel.Pill))
                                     .background(Color.White.copy(alpha = 0.96f))
                             )
                             Box(
@@ -3705,7 +3707,7 @@ fun VideoPlayerSection(
                                     .align(Alignment.TopCenter)
                                     .offset(x = 11.dp, y = 4.dp)
                                     .size(width = 12.dp, height = 6.dp)
-                                    .clip(RoundedCornerShape(999.dp))
+                                    .clip(AppShapes.container(ContainerLevel.Pill))
                                     .background(Color.White.copy(alpha = 0.96f))
                             )
                         }
@@ -3713,7 +3715,7 @@ fun VideoPlayerSection(
                             modifier = Modifier
                                 .align(if (manualStartPlayButtonLayoutSpec.showTopDecorations) Alignment.BottomCenter else Alignment.Center)
                                 .size(width = 58.dp, height = 46.dp)
-                                .clip(RoundedCornerShape(16.dp))
+                                .clip(AppShapes.container(ContainerLevel.Card))
                                 .background(Color.White.copy(alpha = 0.96f)),
                             contentAlignment = Alignment.Center
                         ) {
@@ -4378,7 +4380,7 @@ fun VideoPlayerSection(
             Box(
                 modifier = Modifier
                     .size(uiLayoutPolicy.seekFeedbackSizeDp.dp)
-                    .background(Color.Black.copy(0.75f), RoundedCornerShape(20.dp)),
+                    .background(Color.Black.copy(0.75f), AppShapes.container(ContainerLevel.Floating)),
                 contentAlignment = Alignment.Center
             ) {
                 AppText(
@@ -4422,7 +4424,7 @@ fun VideoPlayerSection(
                     horizontal = uiLayoutPolicy.restoreButtonHorizontalPaddingDp.dp,
                     vertical = uiLayoutPolicy.restoreButtonVerticalPaddingDp.dp
                 ),
-                shape = RoundedCornerShape(24.dp)
+                shape = AppShapes.container(ContainerLevel.Floating)
             ) {
                 AppIcon(
                     imageVector = Icons.Filled.Refresh,
@@ -4469,7 +4471,7 @@ fun VideoPlayerSection(
                             .align(Alignment.TopCenter)
                             .fillMaxWidth(lockZoneVisual.centerMarkerWidthFraction)
                             .height(lockZoneVisual.centerMarkerHeightDp.dp)
-                            .clip(RoundedCornerShape(999.dp))
+                            .clip(AppShapes.container(ContainerLevel.Pill))
                             .background(markerColor.copy(alpha = lockZoneVisual.centerMarkerAlpha))
                     )
                 }
@@ -4497,7 +4499,7 @@ fun VideoPlayerSection(
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth(lockZoneVisual.centerMarkerWidthFraction)
                             .height(lockZoneVisual.centerMarkerHeightDp.dp)
-                            .clip(RoundedCornerShape(999.dp))
+                            .clip(AppShapes.container(ContainerLevel.Pill))
                             .background(markerColor.copy(alpha = lockZoneVisual.centerMarkerAlpha))
                     )
                 }
@@ -4527,7 +4529,7 @@ fun VideoPlayerSection(
                 slideOutVertically(targetOffsetY = { -it })
         ) {
             AppSurface(
-                shape = RoundedCornerShape(10.dp * longPressSpeedHintScale),
+                shape = AppShapes.scaledContainer(ContainerLevel.Field, longPressSpeedHintScale),
                 color = Color.Black.copy(alpha = longPressSpeedHintAlpha),
                 contentColor = Color.White,
                 tonalElevation = 0.dp
@@ -4585,7 +4587,7 @@ fun VideoPlayerSection(
             exit = fadeOut(animationSpec = tween(gestureMotionSpec.longPressHintDurationMillis))
         ) {
             AppSurface(
-                shape = RoundedCornerShape(20.dp * longPressSpeedHintScale),
+                shape = AppShapes.scaledContainer(ContainerLevel.Floating, longPressSpeedHintScale),
                 color = Color.Black.copy(alpha = (0.62f * longPressSpeedHintAlpha).coerceIn(0f, 1f)),
                 contentColor = Color.White,
                 tonalElevation = 0.dp
