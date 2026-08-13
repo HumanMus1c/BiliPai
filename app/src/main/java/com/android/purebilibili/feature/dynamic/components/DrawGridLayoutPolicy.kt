@@ -12,7 +12,7 @@ private const val PILI_PLUS_DYNAMIC_MAX_IMAGE_RATIO = 22f / 9f
 private const val PILI_PLUS_SINGLE_IMAGE_WIDE_THRESHOLD = 1.5f
 private const val PILI_PLUS_DYNAMIC_LONG_IMAGE_THRESHOLD = 2.2f
 
-// 单图长图判定（对齐 PiliPlus image_grid_view 的长图徽标）：
+// 单图长图判定（对齐 BiliPai image_grid_view 的长图徽标）：
 // 高宽比超过阈值且宽度足够大时显示"长图"徽标。
 internal fun shouldShowDrawGridLongImageBadge(
     width: Int,

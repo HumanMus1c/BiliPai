@@ -6,7 +6,6 @@ import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,8 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Folder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.purebilibili.core.ui.AppShapes
-import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.feature.video.ui.VideoDetailShapes
 
 /**
  *  视频合集展示行
@@ -84,7 +82,7 @@ fun CollectionRow(
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .clip(AppShapes.container(ContainerLevel.Chip))
+                    .clip(VideoDetailShapes.compactIcon())
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {

@@ -316,7 +316,7 @@ internal fun resolveSegmentedControlMotionSpec(): BottomBarMotionSpec {
 }
 
 /**
- * Same panel-offset formula as [KernelSuAlignedBottomBar]: fraction of full dock width,
+ * Same panel-offset formula as [BiliPaiFloatingBottomBar]: fraction of full dock width,
  * capped at AppSpacingTokens.ExtraSmall, EaseOut mapped.
  */
 internal fun resolveSharedLiquidIndicatorPanelOffsetPx(
@@ -351,7 +351,7 @@ internal fun resolveSharedLiquidIndicatorUseGlassColorPath(
     lensProgress: Float
 ): Boolean = liquidGlassEnabled && lensProgress > 0.001f
 
-/** Capture lens strength: full 24dp while interacting, like KernelSu bottom bar capture. */
+/** Capture lens strength: full 24dp while interacting, like BiliPai bottom bar capture. */
 internal fun resolveSharedLiquidIndicatorCaptureLensProgress(
     lensProgress: Float,
     isDragging: Boolean
@@ -722,8 +722,7 @@ fun BottomBarLiquidSegmentedControl(
         }
 
         BottomBarMatchedLiquidDock(
-            backdrop = if (useBottomBarMatchedMiuix) pageMiuixBackdrop else null,
-            legacyBackdrop = backdrop,
+            backdrop = pageMiuixBackdrop,
             containerColor = containerColor,
             shape = containerShape,
             blurEnabled = liquidGlassEnabled,
@@ -861,57 +860,34 @@ fun BottomBarLiquidSegmentedControl(
             )
         }
 
-        // 3) Capsule on top — samples export theme glyphs through glass.
-        if (useBottomBarMatchedMiuix) {
-            BottomBarMatchedLiquidIndicator(
-                visible = true,
-                dockContentAlpha = 1f,
-                indicatorTranslationXPx = with(density) { indicatorOffset.toPx() },
-                indicatorPanelOffsetPx = panelOffsetPx,
-                indicatorWidth = indicatorWidth,
-                indicatorHeight = resolvedIndicatorHeight,
-                shellShape = indicatorShape,
-                liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
-                contentBackdrop = combinedMiuixBackdrop,
-                backdrop = pageMiuixBackdrop,
-                indicatorLensSpec = indicatorLensSpec,
-                effectivePressProgress = lensProgress,
-                indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
-                glassEnabled = liquidGlassEnabled,
-                motionProgress = motionProgress,
-                velocityItemsPerSecond = motionVelocityItemsPerSecond,
-                isDragging = indicatorShouldStretch,
-                indicatorLayerScaleProgress = indicatorLayerScaleProgress,
-                bottomBarMotionSpec = motionSpec,
-                isDarkTheme = isDarkTheme
-            )
-        } else {
-            BottomBarMatchedLiquidIndicator(
-                visible = true,
-                dockContentAlpha = 1f,
-                indicatorTranslationXPx = with(density) { indicatorOffset.toPx() },
-                indicatorPanelOffsetPx = panelOffsetPx,
-                indicatorWidth = indicatorWidth,
-                indicatorHeight = resolvedIndicatorHeight,
-                shellShape = indicatorShape,
-                liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
-                contentBackdrop = null,
-                backdrop = null,
-                legacyContentBackdrop = tabsBackdrop,
-                legacyBackdrop = backdrop,
-                indicatorLensSpec = indicatorLensSpec,
-                effectivePressProgress = lensProgress,
-                indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
-                glassEnabled = liquidGlassEnabled,
-                motionProgress = motionProgress,
-                velocityItemsPerSecond = motionVelocityItemsPerSecond,
-                isDragging = indicatorShouldStretch,
-                indicatorLayerScaleProgress = indicatorLayerScaleProgress,
-                bottomBarMotionSpec = motionSpec,
-                isDarkTheme = isDarkTheme,
-                indicatorSettleReboundTransform = clickPulseTransform
-            )
-        }
+        // 3) Capsule on top — samples export theme glyphs through glass (Miuix-only).
+        BottomBarMatchedLiquidIndicator(
+            visible = true,
+            dockContentAlpha = 1f,
+            indicatorTranslationXPx = with(density) { indicatorOffset.toPx() },
+            indicatorPanelOffsetPx = panelOffsetPx,
+            indicatorWidth = indicatorWidth,
+            indicatorHeight = resolvedIndicatorHeight,
+            shellShape = indicatorShape,
+            liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
+            contentBackdrop = combinedMiuixBackdrop,
+            backdrop = pageMiuixBackdrop,
+            indicatorLensSpec = indicatorLensSpec,
+            effectivePressProgress = lensProgress,
+            indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
+            glassEnabled = liquidGlassEnabled,
+            motionProgress = motionProgress,
+            velocityItemsPerSecond = motionVelocityItemsPerSecond,
+            isDragging = indicatorShouldStretch,
+            indicatorLayerScaleProgress = indicatorLayerScaleProgress,
+            bottomBarMotionSpec = motionSpec,
+            isDarkTheme = isDarkTheme,
+            indicatorSettleReboundTransform = if (useBottomBarMatchedMiuix) {
+                BottomBarClickPulseTransform(scaleX = 1f)
+            } else {
+                clickPulseTransform
+            }
+        )
 
         // 4) Invisible hit / drag layer above everything.
         BottomBarLiquidSegmentedLabels(

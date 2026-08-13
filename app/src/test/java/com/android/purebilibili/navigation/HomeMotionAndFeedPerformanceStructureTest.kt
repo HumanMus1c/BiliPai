@@ -7,15 +7,14 @@ import kotlin.test.assertTrue
 
 class HomeMotionAndFeedPerformanceStructureTest {
     @Test
-    fun bottomTabSwitch_animatesPagerOffsetWithKernelSuScrollBy() {
+    fun bottomTabSwitch_usesUserInputPagerMutation() {
         val source = sourceFile("navigation/MainBottomPagerState.kt")
 
-        // KernelSU MainPagerState.animateToPage: animateScrollBy continuous scroll.
-        assertTrue(source.contains("pagerState.animateScrollBy("))
+        assertTrue(source.contains("pagerState.scroll(MutatePriority.UserInput)"))
+        assertTrue(source.contains("scrollBy(currentValue - previousValue)"))
         assertTrue(source.contains("easing = EaseInOut"))
         assertTrue(source.contains("resolveBottomPagerNavigationDurationMillis("))
-        assertTrue(!source.contains("AnimationState(initialValue = 0f).animateTo("))
-        assertTrue(!source.contains("scrollScope.scrollBy(value - previousValue)"))
+        assertFalse(source.contains("pagerState.animateScrollBy("))
         assertTrue(!source.contains("dispatchRawDelta"))
     }
 

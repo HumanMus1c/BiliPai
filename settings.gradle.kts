@@ -13,7 +13,7 @@ pluginManagement {
 }
 
 // Optional local checkout for deterministic development when GitHub Packages credentials are not
-// available. Production/default resolution still uses the exact InstallerX package coordinates.
+// available. Production/default resolution still uses the exact declared package coordinates.
 providers.gradleProperty("bili.miuix.source").orNull?.let { sourcePath ->
     includeBuild(sourcePath) {
         dependencySubstitution {

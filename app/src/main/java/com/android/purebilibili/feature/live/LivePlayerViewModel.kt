@@ -552,7 +552,7 @@ class LivePlayerViewModel : ViewModel() {
     }
 
     /**
-     * PiliPlus 直播控制栏同款“仅播放音频”：切换后保留当前画质并重新请求播放地址。
+     * BiliPai 直播控制栏同款“仅播放音频”：切换后保留当前画质并重新请求播放地址。
      */
     fun toggleAudioOnly() {
         val currentState = _uiState.value as? LivePlayerState.Success ?: return

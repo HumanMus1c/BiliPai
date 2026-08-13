@@ -767,66 +767,8 @@ fun AppearanceSettingsContent(
 	                                ) {
 	                                    Column(modifier = Modifier.padding(top = 12.dp)) {
                                 
-	                                //  [新增] 实时主题色预览
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 24.dp)
-                                        .height(140.dp)
-                                        .clip(AppShapes.container(ContainerLevel.Sheet))
-                                        .background(
-                                            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                                                colors = listOf(
-                                                    selectedCustomThemeColor.copy(alpha = 0.15f),
-                                                    selectedCustomThemeColor.copy(alpha = 0.05f)
-                                                )
-                                            )
-                                        )
-                                        .border(
-                                            width = 1.dp,
-                                            color = selectedCustomThemeColor.copy(alpha = 0.3f),
-                                            shape = AppShapes.borderedContainer(ContainerLevel.Sheet)
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        // 模拟应用图标/Logo
-                                        Box(
-                                            modifier = Modifier
-                                                .size(60.dp)
-                                                .padding(bottom = 12.dp)
-                                                .background(
-                                                    brush = androidx.compose.ui.graphics.Brush.linearGradient(
-                                                        colors = listOf(
-                                                            selectedCustomThemeColor,
-                                                            selectedCustomThemeColor.copy(alpha = 0.8f)
-                                                        )
-                                                    ),
-                                                    shape = AppShapes.container(ContainerLevel.Dialog)
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            AppIcon(
-                                                Icons.Filled.PlayArrow,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(32.dp)
-                                            )
-                                        }
-                                        
-                                        // 当前选中颜色名称
-                                        AppText(
-                                            text = state.md3CustomColorHex,
-                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        AppText(
-                                            text = "正在预览自定义 MD3 主题色",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
+	                                // 直接预览最终 MaterialTheme ColorScheme，不再用原始种子色手工画渐变。
+                                Md3ThemeColorPreview(colorHex = state.md3CustomColorHex)
 
                                 //  [Redesign] Theme Color Grid - Strict 2 Rows x 5 Columns
                                 val spacing = 12.dp
@@ -2166,6 +2108,72 @@ internal fun restartApp(context: android.content.Context) {
     launchIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
     (context as? android.app.Activity)?.finishAffinity()
     context.startActivity(launchIntent)
+}
+
+/**
+ * Material 3 native preview of the generated theme roles.
+ *
+ * The picker value is only a seed. This preview deliberately consumes the active
+ * [MaterialTheme.colorScheme], so its container, control and text colors match the roles that
+ * the rest of the app receives after MaterialKolor tone mapping.
+ */
+@Composable
+private fun Md3ThemeColorPreview(
+    colorHex: String,
+    modifier: Modifier = Modifier,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+
+    ElevatedCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 24.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = colorScheme.surfaceContainerLow,
+            contentColor = colorScheme.onSurface,
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Surface(
+                modifier = Modifier.size(56.dp),
+                shape = MaterialTheme.shapes.large,
+                color = colorScheme.primaryContainer,
+                contentColor = colorScheme.onPrimaryContainer,
+                tonalElevation = 2.dp,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = colorHex,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = colorScheme.onSurface,
+                )
+                Text(
+                    text = "Material 3 原生配色预览",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
 }
 
 

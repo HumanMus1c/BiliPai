@@ -1,4 +1,4 @@
-// 文件路径: feature/plugin/PiliNaraFeedFilterPlugin.kt
+// 文件路径: feature/plugin/BiliPaiFeedFilterPlugin.kt
 package com.android.purebilibili.feature.plugin
 
 import android.util.Log
@@ -42,23 +42,23 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
- * 推荐流过滤插件(移植自 PiliNara 的「推荐流设置」RecommendFilter)。
+ * 推荐流过滤插件(移植自 BiliPai 的「推荐流设置」RecommendFilter)。
  *
  * 过滤规则: 白名单豁免 → 视频时长 → 播放量/点赞率 → 标题关键词 → 本地屏蔽用户 →
  * 分区关键词(tname)。已关注 UP 主可豁免(推荐流)。
  *
- * 默认关闭, 可在插件中心启用; 各规则阈值与 PiliNara 默认值一致(0 = 不过滤)。
+ * 默认关闭, 可在插件中心启用; 各规则阈值与 BiliPai 默认值一致(0 = 不过滤)。
  */
-class PiliNaraFeedFilterPlugin : FeedPlugin {
+class BiliPaiFeedFilterPlugin : FeedPlugin {
 
-    override val id = "pilinara_feed_filter"
+    override val id = "bilipai_feed_filter"
     override val name = "推荐流过滤"
-    override val description = "移植自 PiliNara 的推荐流过滤: 时长/播放量/点赞率/标题关键词/屏蔽用户/白名单"
+    override val description = "移植自 BiliPai 的推荐流过滤: 时长/播放量/点赞率/标题关键词/屏蔽用户/白名单"
     override val version = "1.0.0"
     override val author = "qyo123oyq"
     override val icon: ImageVector = Icons.Outlined.FilterList
 
-    private var config = PiliNaraFeedFilterConfig()
+    private var config = BiliPaiFeedFilterConfig()
 
     // 编译期组装的正则(配置变更时重建)
     private var rcmdRegExp: Regex? = null       // 标题关键词
@@ -74,7 +74,7 @@ class PiliNaraFeedFilterPlugin : FeedPlugin {
         Log.d(TAG, "推荐流过滤已禁用")
     }
 
-    // ==================== 过滤规则(还原 PiliNara RecommendFilter) ====================
+    // ==================== 过滤规则(还原 BiliPai RecommendFilter) ====================
 
     override fun shouldShowItem(item: VideoItem): Boolean = shouldShowItem(item, FeedKind.HOME_RECOMMEND)
 
@@ -94,7 +94,7 @@ class PiliNaraFeedFilterPlugin : FeedPlugin {
         try {
             val json = PluginStore.getConfigJson(context, id)
             if (json != null) {
-                config = Json.decodeFromString(PiliNaraFeedFilterConfig.serializer(), json)
+                config = Json.decodeFromString(BiliPaiFeedFilterConfig.serializer(), json)
             }
         } catch (e: Exception) {
             Log.w(TAG, "加载配置失败, 使用默认值: ${e.message}")
@@ -106,11 +106,11 @@ class PiliNaraFeedFilterPlugin : FeedPlugin {
         zoneRegExp = parseBanWordToRegex(config.banWordForZone)?.let { Regex(it, RegexOption.IGNORE_CASE) }
     }
 
-    private fun persistConfig(context: android.content.Context, next: PiliNaraFeedFilterConfig) {
+    private fun persistConfig(context: android.content.Context, next: BiliPaiFeedFilterConfig) {
         config = next
         rebuildRegexes()
         com.android.purebilibili.core.coroutines.AppScope.ioScope.launch {
-            PluginStore.setConfigJson(context, id, Json.encodeToString(PiliNaraFeedFilterConfig.serializer(), next))
+            PluginStore.setConfigJson(context, id, Json.encodeToString(BiliPaiFeedFilterConfig.serializer(), next))
         }
     }
 
@@ -140,12 +140,12 @@ class PiliNaraFeedFilterPlugin : FeedPlugin {
         }
         if (!loaded) return
 
-        fun persist(next: PiliNaraFeedFilterConfig) {
+        fun persist(next: BiliPaiFeedFilterConfig) {
             cfg = next
             config = next
             rebuildRegexes()
             scope.launch {
-                PluginStore.setConfigJson(context, id, Json.encodeToString(PiliNaraFeedFilterConfig.serializer(), next))
+                PluginStore.setConfigJson(context, id, Json.encodeToString(BiliPaiFeedFilterConfig.serializer(), next))
             }
         }
 
@@ -368,10 +368,10 @@ class PiliNaraFeedFilterPlugin : FeedPlugin {
     }
 
     internal companion object {
-        const val TAG = "PiliNaraFeedFilterPlugin"
+        const val TAG = "BiliPaiFeedFilterPlugin"
 
         /**
-         * 移植 PiliNara Pref.parseBanWordToRegex:
+         * 移植 BiliPai Pref.parseBanWordToRegex:
          * 换行分隔、trim、去空; 含 `|` 且不以 `(` 开头的项包成 `(item)`; 最后用 `|` 连接。
          */
         fun parseBanWordToRegex(stored: String): String? {
@@ -406,9 +406,9 @@ class PiliNaraFeedFilterPlugin : FeedPlugin {
     }
 }
 
-/** 插件配置(默认值对齐 PiliNara) */
+/** 插件配置(默认值对齐 BiliPai) */
 @Serializable
-data class PiliNaraFeedFilterConfig(
+data class BiliPaiFeedFilterConfig(
     val minDurationForRcmd: Long = 0,                  // 最小时长(秒), 0 不过滤
     val minPlayForRcmd: Long = 0,                      // 最小播放量, 0 不过滤
     val minLikeRatioForRecommend: Int = 0,             // 最小点赞率(%), 0 不过滤
@@ -428,17 +428,17 @@ private fun Map<Long, String>.toEditorText(): String = entries.joinToString("\n"
 
 /**
  * 推荐流过滤规则(纯函数, 便于单元测试)。
- * 还原 PiliNara RecommendFilter: 白名单 → 时长 → 播放量/点赞率 → 标题关键词 → 屏蔽用户 → 分区关键词。
+ * 还原 BiliPai RecommendFilter: 白名单 → 时长 → 播放量/点赞率 → 标题关键词 → 屏蔽用户 → 分区关键词。
  * 返回 true 表示显示, false 表示隐藏。
  */
 internal fun shouldShowFeedItem(
-    config: PiliNaraFeedFilterConfig,
+    config: BiliPaiFeedFilterConfig,
     item: VideoItem,
     feedKind: FeedKind,
     rcmdRegExp: Regex?,
     zoneRegExp: Regex?
 ): Boolean {
-    // 按来源开关: PiliNara 的「过滤器也应用于热门/排行/搜索」
+    // 按来源开关: BiliPai 的「过滤器也应用于热门/排行/搜索」
     val allowedByKind = when (feedKind) {
         FeedKind.HOME_POPULAR -> config.applyToHotVideos
         FeedKind.HOME_RANK -> config.applyToRankVideos
@@ -451,7 +451,7 @@ internal fun shouldShowFeedItem(
     // 白名单: 最高优先级豁免
     if (mid > 0L && config.whitelistMids.containsKey(mid)) return true
 
-    // 已关注豁免(仅推荐流, 与 PiliNara filter() 一致; 其余来源用 filterAll 无豁免)
+    // 已关注豁免(仅推荐流, 与 BiliPai filter() 一致; 其余来源用 filterAll 无豁免)
     if (feedKind == FeedKind.HOME_RECOMMEND && item.isFollowed && config.exemptFilterForFollowed) {
         return true
     }

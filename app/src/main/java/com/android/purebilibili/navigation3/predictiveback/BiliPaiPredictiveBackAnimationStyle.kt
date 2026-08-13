@@ -5,7 +5,7 @@ internal enum class BiliPaiPredictiveBackAnimationStyle(val storageValue: String
     AOSP("aosp"),
     MIUIX("miuix"),
     SCALE("scale"),
-    CLASSIC("ksu_classic");
+    CLASSIC("bilipai_classic");
 
     companion object {
         fun fromStorageValue(value: String?): BiliPaiPredictiveBackAnimationStyle {

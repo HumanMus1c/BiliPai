@@ -416,7 +416,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    /** PiliPlus-style single duration selection for the filter sheet. */
+    /** BiliPai-style single duration selection for the filter sheet. */
     fun setSearchDuration(duration: SearchDuration) {
         _uiState.update {
             it.copy(searchDurations = resolveSearchDurationSelection(duration))

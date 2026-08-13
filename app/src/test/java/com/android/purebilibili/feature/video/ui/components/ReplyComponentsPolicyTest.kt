@@ -684,11 +684,11 @@ class ReplyComponentsPolicyTest {
         )
         assertEquals(
             40,
-            resolveReplyItemHeaderEndPaddingDp(hasPiliPlusDecoration = false, policy = policy)
+            resolveReplyItemHeaderEndPaddingDp(hasBiliPaiDecoration = false, policy = policy)
         )
         assertEquals(
             104,
-            resolveReplyItemHeaderEndPaddingDp(hasPiliPlusDecoration = true, policy = policy)
+            resolveReplyItemHeaderEndPaddingDp(hasBiliPaiDecoration = true, policy = policy)
         )
         assertEquals(
             12,
@@ -976,7 +976,7 @@ class ReplyComponentsPolicyTest {
             .replace("\r\n", "\n")
         val decorationSource = source
             .substringAfter("@Composable\ninternal fun FanGroupDecorationBadge(")
-            .substringBefore("@Composable\nprivate fun PiliPlusGarbCardDecoration(")
+            .substringBefore("@Composable\nprivate fun BiliPaiGarbCardDecoration(")
 
         assertTrue(decorationSource.contains("contentScale = ContentScale.Fit"))
         assertFalse(decorationSource.contains("contentScale = ContentScale.Crop"))

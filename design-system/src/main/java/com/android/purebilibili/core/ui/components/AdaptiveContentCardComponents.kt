@@ -24,7 +24,7 @@ import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 
 /**
  * Content card that follows the active UI style:
- * - Material 3 → [Card] with [CardDefaults.shape]
+ * - Material 3 → [Card] with the theme's large content-container shape
  * - Miuix → [MiuixCard] with native corner radius
  *
  * Prefer this over hand-rolled [Surface] + [RoundedCornerShape] for video/detail
@@ -54,7 +54,7 @@ fun AppContentCard(
         AppUiStyle.MATERIAL3 -> {
             Card(
                 modifier = modifier,
-                shape = CardDefaults.shape,
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = containerColor,
                     contentColor = contentColor,
@@ -145,7 +145,10 @@ fun AppStatusBadge(
     }
     Surface(
         modifier = modifier,
-        shape = AppShapes.container(ContainerLevel.Tag),
+        shape = when (LocalAppUiStyle.current) {
+            AppUiStyle.MATERIAL3 -> MaterialTheme.shapes.small
+            AppUiStyle.MIUIX -> AppShapes.container(ContainerLevel.Tag)
+        },
         color = containerColor,
         contentColor = contentColor,
     ) {

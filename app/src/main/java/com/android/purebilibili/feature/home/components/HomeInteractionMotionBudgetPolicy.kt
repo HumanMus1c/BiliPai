@@ -235,7 +235,14 @@ internal fun shouldDrawLightweightTopTabItemContainer(
     skinPlainStyle: Boolean,
     hasSkinStickerIcon: Boolean
 ): Boolean {
-    return presentation != AppTopTabPresentation.MOVING_CAPSULE || skinPlainStyle || hasSkinStickerIcon
+    // Skin stickers keep per-item chrome. BiliPai moving indicator owns selection for
+    // MOVING_CAPSULE + TONAL_CAPSULE (Miuix) — never double-draw secondaryContainer pills.
+    if (skinPlainStyle || hasSkinStickerIcon) return true
+    return when (presentation) {
+        AppTopTabPresentation.MOVING_CAPSULE,
+        AppTopTabPresentation.TONAL_CAPSULE -> false
+        AppTopTabPresentation.MATERIAL_UNDERLINE -> true
+    }
 }
 
 internal fun shouldUseLightweightTopTabItemClickIndication(

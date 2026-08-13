@@ -261,7 +261,7 @@ class VideoLoadPolicyTest {
     }
 
     @Test
-    fun `shouldTryAppApiForTargetQuality stays disabled for PiliPlus parity playback strategy`() {
+    fun `shouldTryAppApiForTargetQuality stays disabled for BiliPai parity playback strategy`() {
         assertFalse(shouldTryAppApiForTargetQuality(targetQn = 80, hasSessionCookie = false))
         assertFalse(shouldTryAppApiForTargetQuality(targetQn = 80, hasSessionCookie = true))
         assertFalse(shouldTryAppApiForTargetQuality(64))

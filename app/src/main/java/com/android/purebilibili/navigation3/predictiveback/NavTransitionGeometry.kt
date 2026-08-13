@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2026 InstallerX Revived contributors
 package com.android.purebilibili.navigation3.predictiveback
 
 import kotlin.math.roundToInt
@@ -17,4 +16,3 @@ internal fun snapTranslationToPixelEdge(
     val scaledEdgeOffset = extent * pivotFraction * (1f - scale)
     return (translation + scaledEdgeOffset).roundToInt() - scaledEdgeOffset
 }
-

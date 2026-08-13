@@ -12,6 +12,7 @@ import com.android.purebilibili.core.theme.LocalDynamicColorActive
 
 enum class AppSemanticIconFamily {
     MATERIAL,
+    MIUIX,
 }
 
 /**
@@ -136,6 +137,7 @@ fun resolveAppSemanticVisualPolicy(
 ): AppSemanticVisualPolicy = when (uiStyle) {
     AppUiStyle.MATERIAL3 -> AppSemanticVisualPolicy.material(materialPalette).copy(iconStyle = iconStyle)
     AppUiStyle.MIUIX -> AppSemanticVisualPolicy.material(materialPalette).copy(
+        iconFamily = AppSemanticIconFamily.MIUIX,
         prefersGroupedListCards = true,
         iconStyle = iconStyle,
     )

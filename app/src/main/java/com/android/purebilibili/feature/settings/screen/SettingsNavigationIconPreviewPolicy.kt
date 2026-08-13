@@ -7,6 +7,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.*
 
 private enum class SettingsNavigationIconRole {
     HOME,
@@ -29,7 +31,7 @@ private enum class SettingsNavigationIconRole {
     TECH,
 }
 
-/** Keeps the configurable-navigation preview unchanged while home runtime uses Miuix. */
+/** Uses the active native icon family so the navigation preview matches the runtime chrome. */
 internal fun resolveSettingsNavigationPreviewIcon(
     tabId: String,
     iconFamily: AppSemanticIconFamily,
@@ -58,6 +60,26 @@ internal fun resolveSettingsNavigationPreviewIcon(
     }
 
     return when (iconFamily) {
+        AppSemanticIconFamily.MIUIX -> when (role) {
+            SettingsNavigationIconRole.HOME -> if (selected) MiuixIcons.Medium.Th1 else MiuixIcons.Th1
+            SettingsNavigationIconRole.DYNAMIC -> if (selected) MiuixIcons.Medium.Messages else MiuixIcons.Messages
+            SettingsNavigationIconRole.STORY -> if (selected) MiuixIcons.Medium.Recording else MiuixIcons.Recording
+            SettingsNavigationIconRole.HISTORY -> if (selected) MiuixIcons.Medium.Recent else MiuixIcons.Recent
+            SettingsNavigationIconRole.LISTEN_VIDEO -> if (selected) MiuixIcons.Medium.Music else MiuixIcons.Music
+            SettingsNavigationIconRole.PROFILE -> MiuixIcons.ContactsCircle
+            SettingsNavigationIconRole.FAVORITE -> if (selected) MiuixIcons.FavoritesFill else MiuixIcons.Favorites
+            SettingsNavigationIconRole.LIVE -> if (selected) MiuixIcons.Medium.RecordingTape else MiuixIcons.RecordingTape
+            SettingsNavigationIconRole.WATCH_LATER -> if (selected) MiuixIcons.Medium.WorldClock else MiuixIcons.WorldClock
+            SettingsNavigationIconRole.SETTINGS -> if (selected) MiuixIcons.Medium.Settings else MiuixIcons.Settings
+            SettingsNavigationIconRole.PLUGINS -> if (selected) MiuixIcons.FolderFill else MiuixIcons.Folder
+            SettingsNavigationIconRole.FOLLOW -> MiuixIcons.Contacts
+            SettingsNavigationIconRole.POPULAR -> MiuixIcons.TopDownloads
+            SettingsNavigationIconRole.ANIME -> MiuixIcons.Play
+            SettingsNavigationIconRole.GAME -> MiuixIcons.Store
+            SettingsNavigationIconRole.PARTITION -> if (selected) MiuixIcons.Medium.GridView else MiuixIcons.GridView
+            SettingsNavigationIconRole.KNOWLEDGE -> MiuixIcons.Notes
+            SettingsNavigationIconRole.TECH -> MiuixIcons.Theme
+        }
         AppSemanticIconFamily.MATERIAL -> when (role) {
             SettingsNavigationIconRole.HOME -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
             SettingsNavigationIconRole.DYNAMIC -> if (selected) Icons.Filled.Notifications else Icons.Outlined.NotificationsNone

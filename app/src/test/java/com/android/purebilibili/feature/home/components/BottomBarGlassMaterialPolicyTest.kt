@@ -82,7 +82,7 @@ class BottomBarGlassMaterialPolicyTest {
     }
 
     @Test
-    fun `ios26 material spec uses KSU visible shell chain`() {
+    fun `ios26 material spec uses BiliPai visible shell chain`() {
         val light = resolveBottomBarGlassMaterialSpec(
             preset = BottomBarLiquidGlassPreset.IOS26_REFINED,
             isDarkTheme = false,

@@ -98,7 +98,7 @@ class SearchScreenPolicyTest {
     }
 
     @Test
-    fun searchFilterTabs_followPiliPlusPrimaryOrder() {
+    fun searchFilterTabs_followBiliPaiPrimaryOrder() {
         assertEquals(
             listOf(
                 SearchType.VIDEO,

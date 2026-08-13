@@ -354,7 +354,9 @@ fun resolveAppTopChromePolicy(
     iconStyle: AppIconStyle = AppIconStyle.AUTO,
 ): AppTopChromePolicy = when (uiStyle) {
     AppUiStyle.MIUIX -> AppTopChromePolicy(
-        tabPresentation = AppTopTabPresentation.TONAL_CAPSULE,
+        // Miuix liquid glass uses the same moving dock indicator contract as the
+        // Material renderer. TONAL_CAPSULE is the retired per-item filled capsule.
+        tabPresentation = AppTopTabPresentation.MATERIAL_UNDERLINE,
         iconFamily = AppSemanticIconFamily.MATERIAL,
         iconStyle = iconStyle,
         compactChromeSpec = resolveCompactCapsuleChromeSpec(uiStyle),

@@ -32,7 +32,7 @@ internal fun isUsableLiveFeedAreaEntry(card: LiveFeedRoomCard): Boolean {
 
 /**
  * Parse app live feed `card_list` into home snapshot.
- * Only keeps: small_card_v1 / my_idol_v1 / area_entrance_v3 (PiliPlus same set).
+ * Only keeps: small_card_v1 / my_idol_v1 / area_entrance_v3 (BiliPai same set).
  */
 internal fun parseLiveFeedHomeSnapshot(data: LiveFeedIndexData): LiveFeedHomeSnapshot {
     val rooms = linkedMapOf<Long, LiveRoom>()

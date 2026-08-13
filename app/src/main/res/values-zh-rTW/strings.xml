@@ -65,7 +65,7 @@
     <string name="space_unblock_user">解除封鎖</string>
     <string name="dynamic_detail_title">動態詳情</string>
     <string name="dynamic_detail_load_failed">動態詳情載入失敗</string>
-    <string name="bottom_nav_home">首頁</string>
+    <string name="bottom_nav_home">推薦</string>
     <string name="bottom_nav_dynamic">動態</string>
     <string name="bottom_nav_story">短影片</string>
     <string name="bottom_nav_history">歷史</string>

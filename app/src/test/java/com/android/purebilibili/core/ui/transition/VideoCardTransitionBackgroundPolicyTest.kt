@@ -681,7 +681,7 @@ class VideoCardTransitionBackgroundPolicyTest {
     }
 
     @Test
-    fun detailToDetailSourceBlursOnlyTheExactPreviousDetailEntry() {
+    fun detailToDetailSourceAppliesDepthToTheLivePreviousDetailInsteadOfAHostSnapshot() {
         assertTrue(
             shouldApplyVideoCardTransitionBackgroundToRoute(
                 entryRoute = "video/BV_A",
@@ -689,6 +689,19 @@ class VideoCardTransitionBackgroundPolicyTest {
                 activeMainHostRoute = "home"
             )
         )
+        assertFalse(
+            shouldApplyVideoCardTransitionBackgroundToRoute(
+                entryRoute = "video/BV_B",
+                sourceRoute = "video/BV_A",
+                activeMainHostRoute = "home"
+            )
+        )
+        assertFalse(
+            shouldUseHostOwnedVideoCardTransitionSnapshot(
+                sourceRoute = "video/BV_A?from=related"
+            )
+        )
+        assertTrue(shouldUseHostOwnedVideoCardTransitionSnapshot(sourceRoute = "home"))
     }
 
     @Test

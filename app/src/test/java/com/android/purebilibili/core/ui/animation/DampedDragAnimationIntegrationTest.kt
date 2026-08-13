@@ -8,19 +8,34 @@ import kotlin.test.assertTrue
 class DampedDragAnimationIntegrationTest {
 
     @Test
-    fun `bottom bar input layer keeps horizontal drag gesture wiring`() {
-        val source = listOf(
-            File("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt"),
-            File("src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt"),
+    fun `FloatingBottomBar wires drag modifiers on the moving indicator`() {
+        val floating = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt"),
+            File("src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt"),
         ).first { it.exists() }.readText()
-        val inputLayerSource = source
-            .substringAfter("private fun BoxScope.KernelSuBottomBarInputLayer(")
-            .substringBefore("private fun KernelSuBottomBarSearchSlot(")
+        val dragPort = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/home/components/miuix/DampedDragAnimation.kt"),
+            File("src/main/java/com/android/purebilibili/feature/home/components/miuix/DampedDragAnimation.kt"),
+        ).first { it.exists() }.readText()
+        val body = floating.substringAfter("fun FloatingBottomBar(")
+        val baseRow = body
+            .substringAfter("CompositionLocalProvider(LocalFloatingBottomBarContentColor provides colors.contentColor)")
+            .substringBefore("if (isLiquidGlassMode && backdrop != null)")
+        val movingIndicator = body.substringAfter("if (tabWidthPx > 0f)")
 
-        assertTrue(inputLayerSource.contains(".horizontalDragGesture("))
-        assertTrue(inputLayerSource.contains("dragState = dampedDragState"))
-        assertTrue(inputLayerSource.contains("itemWidthPx = itemWidthPx"))
-        assertTrue(inputLayerSource.contains("onPressChanged = dampedDragState::setPressed"))
-        assertFalse(inputLayerSource.contains("pointerInput("))
+        assertTrue(body.contains("DampedDragAnimation("))
+        assertTrue(baseRow.contains(".then(dampedDragAnimation.modifier)"))
+        assertTrue(baseRow.contains("interactiveHighlight.gestureModifier"))
+        assertFalse(movingIndicator.contains(".then(dampedDragAnimation.modifier)"))
+        assertFalse(movingIndicator.contains("interactiveHighlight?.gestureModifier"))
+        assertTrue(body.contains("canDrag = { position ->"))
+        assertTrue(body.contains("pressedScale = FloatingBottomBarPressedScale"))
+        assertTrue(dragPort.contains("inspectDragGestures("))
+        assertTrue(dragPort.contains("val modifier: Modifier = Modifier.pointerInput(Unit)"))
+
+        // Must not use design-system horizontal drag stack for the floating dock.
+        assertFalse(floating.contains("horizontalDragGesture"))
+        assertFalse(floating.contains("rememberDampedDragAnimationState"))
+        assertFalse(floating.contains("BiliPaiBottomBarInputLayer"))
     }
 }

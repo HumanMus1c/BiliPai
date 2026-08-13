@@ -113,7 +113,7 @@ class DanmakuProtoPolicyTest {
     }
 
     @Test
-    fun parseDmSegMobileReply_readsPiliPlusExtendedElemFields() {
+    fun parseDmSegMobileReply_readsBiliPaiExtendedElemFields() {
         val elem = buildList<Byte> {
             addFieldVarint(fieldNumber = 1, value = 123L)
             addFieldVarint(fieldNumber = 2, value = 4567L)

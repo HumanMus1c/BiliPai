@@ -34,8 +34,10 @@ class HomeVideoTransitionBackgroundStructureTest {
 
         assertTrue(source.contains("VideoCardTransitionBackgroundRouteContent("))
         assertTrue(source.contains("videoCardTransitionBackgroundEffect("))
+        assertTrue(source.contains("videoCardTransitionLiveBackgroundEffect("))
         assertTrue(source.contains("realtimeBlurEnabledProvider"))
         assertTrue(source.contains("shouldApplyVideoCardTransitionBackgroundToRoute("))
+        assertTrue(source.contains("shouldUseHostOwnedVideoCardTransitionSnapshot("))
         assertTrue(source.contains("RenderNavigationContent(key)"))
         assertTrue(source.contains("sourceRoute = backgroundState.sourceRouteProvider()"))
         assertFalse(source.contains("val predictiveBlurProgress = predictiveBackState.progressProvider()"))

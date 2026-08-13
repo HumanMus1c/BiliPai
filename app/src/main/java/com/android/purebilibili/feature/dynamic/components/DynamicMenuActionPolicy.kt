@@ -3,7 +3,7 @@ package com.android.purebilibili.feature.dynamic.components
 import com.android.purebilibili.data.model.response.DynamicItem
 
 /**
- * 更多菜单的管理动作与参数解析（对齐 PiliPlus 作者区 morePanel 的
+ * 更多菜单的管理动作与参数解析（对齐 BiliPai 作者区 morePanel 的
  * 置顶 / 可见范围 / 评论互动设置 / 临时屏蔽）。
  */
 sealed interface DynamicManageAction {

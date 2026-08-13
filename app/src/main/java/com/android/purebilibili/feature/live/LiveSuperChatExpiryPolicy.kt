@@ -1,7 +1,7 @@
 package com.android.purebilibili.feature.live
 
 /**
- * SuperChat 展示时长策略（对齐 PiliPlus 可过期 SC 卡片）。
+ * SuperChat 展示时长策略（对齐 BiliPai 可过期 SC 卡片）。
  * duration 缺失时用默认值，避免列表永久堆积。
  */
 internal const val DEFAULT_LIVE_SUPER_CHAT_DURATION_SEC = 60

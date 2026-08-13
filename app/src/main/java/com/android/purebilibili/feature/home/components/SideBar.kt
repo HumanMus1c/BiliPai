@@ -475,10 +475,14 @@ private fun FrostedSideBarContent(
                                     contentDescription = itemLabel,
                                     size = resolveBottomBarMiuixSkinDockIconSize()
                                 )
-                            } else if (isSelected) {
-                                item.selectedIcon()
                             } else {
-                                item.unselectedIcon()
+                                AppIcon(
+                                    imageVector = resolveHomeNavigationBarIcon(
+                                        item = item,
+                                        selected = isSelected
+                                    ),
+                                    contentDescription = itemLabel
+                                )
                             }
                         }
                     }

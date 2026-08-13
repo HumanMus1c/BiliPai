@@ -68,7 +68,7 @@ fun buildDefaultSpaceMainTabs(): List<SpaceMainTabItem> {
 }
 
 /**
- * Keep the primary space destinations always visible (PiliPlus-like).
+ * Keep the primary space destinations always visible (BiliPai-like).
  * 主页 / 动态 / 投稿 / 合集 — avoid burying collections behind overflow.
  */
 internal fun resolveSpaceDisplayedMainTabs(

@@ -202,7 +202,7 @@ private fun DrawGridImage(
             }
         }
 
-        //  [新增] 长图徽标（对齐 PiliPlus image_grid_view 右下角"长图"标记）
+        //  [新增] 长图徽标（对齐 BiliPai image_grid_view 右下角"长图"标记）
         if (displayCount == 1 &&
             shouldShowDrawGridLongImageBadge(width = item.width, height = item.height)
         ) {

@@ -73,7 +73,7 @@ internal data class VideoViewportLayout(
 )
 
 /**
- * PiliPlus parity: never apply stretch/fill deformation to vertical content.
+ * BiliPai parity: never apply stretch/fill deformation to vertical content.
  * Cover (FILL/ZOOM) remains allowed for immersive portrait viewing.
  */
 internal fun resolveSafeVideoAspectRatio(

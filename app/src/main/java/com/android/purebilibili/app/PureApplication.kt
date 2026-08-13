@@ -232,8 +232,8 @@ class PureApplication : Application(), ImageLoaderFactory, ComponentCallbacks2 {
         PluginManager.register(HomeFeedAnonymizerPlugin())
         PluginManager.register(DlnaCastPlugin())
         PluginManager.register(GoogleCastPlugin())
-        //  [PiliNara 移植] 推荐流过滤(默认关闭, 可在插件中心启用)
-        PluginManager.register(com.android.purebilibili.feature.plugin.PiliNaraFeedFilterPlugin())
+        //  [BiliPai 移植] 推荐流过滤(默认关闭, 可在插件中心启用)
+        PluginManager.register(com.android.purebilibili.feature.plugin.BiliPaiFeedFilterPlugin())
         Logger.d(PureApplicationRuntimeConfig.TAG, " Plugin system initialized with 11 built-in plugins")
 
         com.android.purebilibili.core.plugin.json.JsonPluginManager.initialize(this)

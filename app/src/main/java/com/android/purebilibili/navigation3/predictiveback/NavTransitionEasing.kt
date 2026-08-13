@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2026 InstallerX Revived contributors
 package com.android.purebilibili.navigation3.predictiveback
 
 import androidx.compose.animation.core.CubicBezierEasing
@@ -29,4 +28,3 @@ internal val BackGestureEasing: Easing = CubicBezierEasing(0.1f, 0.1f, 0f, 1f)
 internal fun topProgress(depth: Float): Float = (1f + depth).coerceIn(0f, 1f)
 
 internal fun coverProgress(depth: Float): Float = depth.coerceIn(0f, 1f)
-

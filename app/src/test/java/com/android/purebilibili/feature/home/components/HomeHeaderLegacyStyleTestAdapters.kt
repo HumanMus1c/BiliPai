@@ -18,8 +18,6 @@ private fun legacyHomeChromePolicy(
     androidNativeVariant: AndroidNativeVariant = AndroidNativeVariant.MATERIAL3,
 ): AppTopChromePolicy = resolveAppTopChromePolicy(resolveUiStyle(uiPreset, androidNativeVariant))
 
-private fun UiPreset.supportsIndependentLiquidGlass(): Boolean = this == UiPreset.IOS
-
 private fun UiPreset.usesNativeContainerTreatment(): Boolean = this == UiPreset.MD3
 
 private fun usesTonalContainerTreatment(
@@ -43,7 +41,6 @@ internal fun resolveHomeTopLinkedBottomBarAppearance(
 ): HomeTopLinkedBottomBarAppearance = resolveHomeTopLinkedBottomBarAppearance(
     homeSettings = homeSettings,
     presentation = legacyHomeChromePolicy(uiPreset, androidNativeVariant).tabPresentation,
-    supportsIndependentLiquidGlass = uiPreset.supportsIndependentLiquidGlass(),
 )
 
 internal fun resolveHomeTopChromeLiquidGlassEnabled(
@@ -51,7 +48,6 @@ internal fun resolveHomeTopChromeLiquidGlassEnabled(
     uiPreset: UiPreset,
 ): Boolean = resolveHomeTopChromeLiquidGlassEnabled(
     homeSettings = homeSettings,
-    supportsIndependentLiquidGlass = uiPreset.supportsIndependentLiquidGlass(),
 )
 
 internal fun resolveHomeTopTabIndicatorLiquidGlassEnabled(
@@ -59,7 +55,6 @@ internal fun resolveHomeTopTabIndicatorLiquidGlassEnabled(
     uiPreset: UiPreset,
 ): Boolean = resolveHomeTopTabIndicatorLiquidGlassEnabled(
     homeSettings = homeSettings,
-    supportsIndependentLiquidGlass = uiPreset.supportsIndependentLiquidGlass(),
 )
 
 internal fun resolveHomeTopSearchLiquidGlassEnabled(
@@ -67,7 +62,6 @@ internal fun resolveHomeTopSearchLiquidGlassEnabled(
     uiPreset: UiPreset,
 ): Boolean = resolveHomeTopSearchLiquidGlassEnabled(
     homeSettings = homeSettings,
-    supportsIndependentLiquidGlass = uiPreset.supportsIndependentLiquidGlass(),
 )
 
 @Suppress("UNUSED_PARAMETER")

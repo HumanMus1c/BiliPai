@@ -8,6 +8,20 @@ import kotlin.test.assertTrue
 class VideoPlayerSurfacePolicyTest {
 
     @Test
+    fun relatedBackPreviewKeepsTextureSurfaceStableAfterLanding() {
+        val source = java.io.File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/section/VideoPlayerSection.kt"
+        ).readText()
+
+        assertTrue(source.contains("hasUsedLiveBackPreviewTexture"))
+        assertTrue(
+            source.contains(
+                "liveBackPreview = liveBackPreview || hasUsedLiveBackPreviewTexture"
+            )
+        )
+    }
+
+    @Test
     fun `flip disabled keeps default surface type`() {
         assertFalse(
             shouldUseTextureSurfaceForFlip(

@@ -496,6 +496,7 @@ class VideoSharedTransitionPolicyTest {
             "src/main/java/com/android/purebilibili/feature/home/components/cards/VideoCardShellReturnChrome.kt"
         ).readText()
         assertTrue(chromeHelper.contains("resolveHomeCardChromeAlphaDuringShellReturnMorph("))
+        assertTrue(chromeHelper.contains("resolveSourceOwnershipAtDraw: Boolean = false"))
         val shellHelper = File(
             "src/main/java/com/android/purebilibili/core/ui/transition/VideoCardShellSharedBounds.kt"
         ).readText()
@@ -719,7 +720,8 @@ class VideoSharedTransitionPolicyTest {
         assertFalse(relatedCardSource.contains("videoCardShellSharedBoundsOrEmpty("))
         assertTrue(relatedCardSource.contains("sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE"))
         assertTrue(relatedCardSource.contains("sourceChromeSnapshot = VideoCardSourceChromeSnapshot("))
-        assertFalse(relatedCardSource.contains("videoCardShellReturnChromeAlpha("))
+        assertTrue(relatedCardSource.contains("videoCardShellReturnChromeAlpha("))
+        assertFalse(relatedCardSource.contains("videoCardShellReturnCoverAlpha("))
         assertFalse(relatedCardSource.contains("followShellMotion = true"))
         assertFalse(partitionSource.contains("videoTitleSharedElementKey("))
         assertTrue(cinematicCardSource.contains("videoCardShellSharedBoundsOrEmpty("))

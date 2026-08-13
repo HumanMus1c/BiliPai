@@ -10,7 +10,7 @@ class AppTopChromePolicyTest {
         val miuix = resolveAppTopChromePolicy(AppUiStyle.MIUIX)
         val material3 = resolveAppTopChromePolicy(AppUiStyle.MATERIAL3)
 
-        assertEquals(AppTopTabPresentation.TONAL_CAPSULE, miuix.tabPresentation)
+        assertEquals(AppTopTabPresentation.MATERIAL_UNDERLINE, miuix.tabPresentation)
         assertEquals(AppSemanticIconFamily.MATERIAL, miuix.iconFamily)
         assertEquals(AppTopTabPresentation.MATERIAL_UNDERLINE, material3.tabPresentation)
         assertEquals(AppSemanticIconFamily.MATERIAL, material3.iconFamily)

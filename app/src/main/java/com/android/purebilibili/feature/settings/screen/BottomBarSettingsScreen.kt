@@ -102,7 +102,7 @@ internal fun resolveTopTabIcon(
 internal fun resolveAllBottomBarTabs(
     iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.MATERIAL,
 ): List<BottomBarTabConfig> = listOf(
-    BottomBarTabConfig("HOME", "首页", resolveBottomBarTabIcon("HOME", iconFamily), isDefault = true),
+    BottomBarTabConfig("HOME", "推荐", resolveBottomBarTabIcon("HOME", iconFamily), isDefault = true),
     BottomBarTabConfig("DYNAMIC", "动态", resolveBottomBarTabIcon("DYNAMIC", iconFamily), isDefault = true),
     BottomBarTabConfig("STORY", "短视频", resolveBottomBarTabIcon("STORY", iconFamily), isDefault = false),
     BottomBarTabConfig("HISTORY", "历史", resolveBottomBarTabIcon("HISTORY", iconFamily), isDefault = true),

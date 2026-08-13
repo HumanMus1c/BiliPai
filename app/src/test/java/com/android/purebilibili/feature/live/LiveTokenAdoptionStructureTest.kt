@@ -37,7 +37,7 @@ class LiveTokenAdoptionStructureTest {
         listOf("LiveListScreen.kt", "LiveFollowingScreen.kt", "LiveAreaDetailScreen.kt", "LiveSearchScreen.kt")
             .forEach { fileName ->
                 val source = File(liveRoot, fileName).readText()
-                assertTrue(source.contains("resolveLivePiliPlusGridColumns("), "$fileName column policy")
+                assertTrue(source.contains("resolveLiveBiliPaiGridColumns("), "$fileName column policy")
                 assertTrue(source.contains("windowSizeClass.isTablet"), "$fileName tablet layout")
                 assertTrue(source.contains("LocalBottomBarContentPadding.current"), "$fileName bottom padding")
             }

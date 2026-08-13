@@ -65,7 +65,7 @@
     <string name="space_unblock_user">Unblock</string>
     <string name="dynamic_detail_title">Dynamic Detail</string>
     <string name="dynamic_detail_load_failed">Failed to load dynamic detail</string>
-    <string name="bottom_nav_home">Home</string>
+    <string name="bottom_nav_home">Recommend</string>
     <string name="bottom_nav_dynamic">Dynamic</string>
     <string name="bottom_nav_story">Shorts</string>
     <string name="bottom_nav_history">History</string>

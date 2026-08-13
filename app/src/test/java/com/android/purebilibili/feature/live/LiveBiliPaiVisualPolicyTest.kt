@@ -6,11 +6,11 @@ import com.android.purebilibili.core.ui.CompactCapsuleChromeSpec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class LivePiliPlusVisualPolicyTest {
+class LiveBiliPaiVisualPolicyTest {
 
     @Test
-    fun `home metrics mirror PiliPlus live constants`() {
-        val metrics = resolveLivePiliPlusHomeMetrics()
+    fun `home metrics mirror BiliPai live constants`() {
+        val metrics = resolveLiveBiliPaiHomeMetrics()
 
         assertEquals(12, metrics.safeSpaceDp)
         assertEquals(8, metrics.cardSpaceDp)
@@ -46,15 +46,15 @@ class LivePiliPlusVisualPolicyTest {
 
     @Test
     fun `mobile and tablet grids follow layout class`() {
-        assertEquals(2, resolveLivePiliPlusGridColumns(widthDp = 390, isTabletLayout = false))
-        assertEquals(3, resolveLivePiliPlusGridColumns(widthDp = 720, isTabletLayout = true))
-        assertEquals(4, resolveLivePiliPlusGridColumns(widthDp = 1100, isTabletLayout = true))
-        assertEquals(5, resolveLivePiliPlusGridColumns(widthDp = 1200, isTabletLayout = true))
+        assertEquals(2, resolveLiveBiliPaiGridColumns(widthDp = 390, isTabletLayout = false))
+        assertEquals(3, resolveLiveBiliPaiGridColumns(widthDp = 720, isTabletLayout = true))
+        assertEquals(4, resolveLiveBiliPaiGridColumns(widthDp = 1100, isTabletLayout = true))
+        assertEquals(5, resolveLiveBiliPaiGridColumns(widthDp = 1200, isTabletLayout = true))
     }
 
     @Test
     fun `chip colors use theme accent for selected home category`() {
-        val colors = resolveLivePiliPlusChipColors(
+        val colors = resolveLiveBiliPaiChipColors(
             selectedContainer = Color(0xFF8FD5FF),
             selectedContent = Color(0xFF001F2A),
             unselectedContent = Color(0xFF49454F)
@@ -68,8 +68,8 @@ class LivePiliPlusVisualPolicyTest {
 
     @Test
     fun `overlay chat bubble removes black shadow background`() {
-        val dark = resolveLivePiliPlusChatBubbleTokens(isOverlay = true, isDark = true)
-        val light = resolveLivePiliPlusChatBubbleTokens(isOverlay = true, isDark = false)
+        val dark = resolveLiveBiliPaiChatBubbleTokens(isOverlay = true, isDark = true)
+        val light = resolveLiveBiliPaiChatBubbleTokens(isOverlay = true, isDark = false)
 
         assertEquals(14, dark.cornerRadiusDp)
         assertEquals(10, dark.horizontalPaddingDp)
@@ -154,8 +154,8 @@ class LivePiliPlusVisualPolicyTest {
     }
 
     @Test
-    fun `live room backdrop and input alpha mirror PiliPlus transparent stack`() {
-        val tokens = resolveLivePiliPlusRoomColorTokens(
+    fun `live room backdrop and input alpha mirror BiliPai transparent stack`() {
+        val tokens = resolveLiveBiliPaiRoomColorTokens(
             inputOverlayColor = Color(0xFFDDE1E6),
             inputContentColor = Color(0xFFE6E1E5)
         )

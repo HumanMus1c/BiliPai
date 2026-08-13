@@ -46,7 +46,6 @@ import com.android.purebilibili.core.ui.motion.emphasizedExitTween
 import com.android.purebilibili.core.ui.motion.softLandingSpring
 import com.android.purebilibili.feature.home.components.liquid.rememberCombinedBackdrop
 import dev.chrisbanes.haze.HazeState
-import com.kyant.backdrop.Backdrop as KyantBackdrop
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
@@ -145,12 +144,11 @@ internal fun rememberBottomBarMatchedLiquidChromeState(
 }
 
 /**
- * Exact Miuix/KernelSU material used by the home floating bottom bar.
+ * Exact Miuix/BiliPai material used by the home floating bottom bar.
  */
 @Composable
 internal fun BottomBarMatchedLiquidDock(
     backdrop: Backdrop?,
-    legacyBackdrop: KyantBackdrop? = null,
     containerColor: Color,
     shape: Shape,
     blurEnabled: Boolean,
@@ -177,7 +175,6 @@ internal fun BottomBarMatchedLiquidDock(
                 .bottomBarMatchedLiquidDockSurface(
                     shape = shape,
                     backdrop = backdrop,
-                    legacyBackdrop = legacyBackdrop,
                     containerColor = containerColor,
                     blurEnabled = blurEnabled,
                     glassEnabled = glassEnabled,
@@ -202,7 +199,6 @@ internal fun BottomBarMatchedLiquidDock(
 @Composable
 internal fun Modifier.bottomBarMatchedLiquidDockSurface(
     backdrop: Backdrop?,
-    legacyBackdrop: KyantBackdrop? = null,
     containerColor: Color,
     shape: Shape,
     blurEnabled: Boolean,
@@ -230,47 +226,26 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
         label = "bottomBarMatchedMaterialScrollProgress"
     )
     val materialScrollProgress = materialScrollProgressOverride ?: animatedScrollProgress
-    if (backdrop != null) {
-        kernelSuMiuixFloatingDockSurface(
-            shape = shape,
-            backdrop = backdrop,
-            containerColor = containerColor,
-            blurEnabled = blurEnabled,
-            glassEnabled = glassEnabled,
-            drawShellLens = drawShellLens,
-            shellLensIntensity = shellLensIntensity,
-            blurRadius = blurRadius,
-            hazeState = hazeState,
-            motionTier = motionTier,
-            isTransitionRunning = isTransitionRunning,
-            forceLowBlurBudget = forceLowBlurBudget,
-            liquidGlassPreset = liquidGlassPreset,
-            isScrolling = isScrolling,
-            materialScrollProgress = materialScrollProgress,
-            materialMotionProgress = materialMotionProgress,
-            materialPressProgress = materialPressProgress
-        )
-    } else {
-        kernelSuFloatingDockSurface(
-            shape = shape,
-            backdrop = legacyBackdrop,
-            containerColor = containerColor,
-            blurEnabled = blurEnabled,
-            glassEnabled = glassEnabled,
-            drawShellLens = drawShellLens,
-            shellLensIntensity = shellLensIntensity,
-            blurRadius = blurRadius,
-            hazeState = hazeState,
-            motionTier = motionTier,
-            isTransitionRunning = isTransitionRunning,
-            forceLowBlurBudget = forceLowBlurBudget,
-            liquidGlassPreset = liquidGlassPreset,
-            isScrolling = isScrolling,
-            materialScrollProgress = materialScrollProgress,
-            materialMotionProgress = materialMotionProgress,
-            materialPressProgress = materialPressProgress
-        )
-    }
+    // Miuix-only: no Kyant fallback. Null backdrop degrades inside biliPaiMiuixFloatingDockSurface.
+    biliPaiMiuixFloatingDockSurface(
+        shape = shape,
+        backdrop = backdrop,
+        containerColor = containerColor,
+        blurEnabled = blurEnabled,
+        glassEnabled = glassEnabled,
+        drawShellLens = drawShellLens,
+        shellLensIntensity = shellLensIntensity,
+        blurRadius = blurRadius,
+        hazeState = hazeState,
+        motionTier = motionTier,
+        isTransitionRunning = isTransitionRunning,
+        forceLowBlurBudget = forceLowBlurBudget,
+        liquidGlassPreset = liquidGlassPreset,
+        isScrolling = isScrolling,
+        materialScrollProgress = materialScrollProgress,
+        materialMotionProgress = materialMotionProgress,
+        materialPressProgress = materialPressProgress
+    )
 }
 
 /**
@@ -397,8 +372,6 @@ internal fun BoxScope.BottomBarMatchedLiquidIndicator(
     liquidGlassPreset: BottomBarLiquidGlassPreset,
     contentBackdrop: Backdrop?,
     backdrop: Backdrop?,
-    legacyContentBackdrop: KyantBackdrop? = null,
-    legacyBackdrop: KyantBackdrop? = null,
     indicatorLensSpec: BottomBarBackdropPresetLensSpec,
     effectivePressProgress: Float,
     indicatorIdleSurfaceColor: Color,
@@ -416,38 +389,8 @@ internal fun BoxScope.BottomBarMatchedLiquidIndicator(
     orientation: BottomBarLiquidOrientation = BottomBarLiquidOrientation.HORIZONTAL,
     indicatorAlignment: Alignment = Alignment.CenterStart
 ) {
-    if (backdrop != null) {
-        KernelSuMiuixBottomBarIndicatorLayer(
-            visible = visible,
-            dockContentAlpha = dockContentAlpha,
-            indicatorTranslationXPx = indicatorTranslationXPx,
-            indicatorTranslationYPx = indicatorTranslationYPx,
-            indicatorPanelOffsetPx = indicatorPanelOffsetPx,
-            indicatorPanelOffsetYPx = indicatorPanelOffsetYPx,
-            indicatorWidth = indicatorWidth,
-            indicatorHeight = indicatorHeight,
-            shellShape = shellShape,
-            liquidGlassPreset = liquidGlassPreset,
-            contentBackdrop = contentBackdrop,
-            backdrop = backdrop,
-            indicatorLensSpec = indicatorLensSpec,
-            effectivePressProgress = effectivePressProgress,
-            indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
-            glassEnabled = glassEnabled,
-            indicatorEffectsEnabled = indicatorEffectsEnabled,
-            motionProgress = motionProgress,
-            velocityItemsPerSecond = velocityItemsPerSecond,
-            isDragging = isDragging,
-            indicatorLayerScaleProgress = indicatorLayerScaleProgress,
-            indicatorLayerScaleTransform = indicatorLayerScaleTransform,
-            bottomBarMotionSpec = bottomBarMotionSpec,
-            isDarkTheme = isDarkTheme,
-            swapMotionAxes = orientation == BottomBarLiquidOrientation.VERTICAL,
-            indicatorAlignment = indicatorAlignment
-        )
-        return
-    }
-    KernelSuBottomBarIndicatorLayer(
+    // Miuix-only indicator path. Null backdrop degrades to solid surface inside the layer.
+    BiliPaiMiuixBottomBarIndicatorLayer(
         visible = visible,
         dockContentAlpha = dockContentAlpha,
         indicatorTranslationXPx = indicatorTranslationXPx,
@@ -458,10 +401,9 @@ internal fun BoxScope.BottomBarMatchedLiquidIndicator(
         indicatorHeight = indicatorHeight,
         shellShape = shellShape,
         liquidGlassPreset = liquidGlassPreset,
-        contentBackdrop = legacyContentBackdrop,
-        backdrop = legacyBackdrop,
+        contentBackdrop = contentBackdrop,
+        backdrop = backdrop,
         indicatorLensSpec = indicatorLensSpec,
-        indicatorSettleReboundTransform = indicatorSettleReboundTransform,
         effectivePressProgress = effectivePressProgress,
         indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
         glassEnabled = glassEnabled,

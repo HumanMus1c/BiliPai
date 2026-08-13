@@ -86,6 +86,7 @@ import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.feature.video.ui.components.ShimmerContainer
 import com.android.purebilibili.feature.video.ui.components.SkeletonBox
+import com.android.purebilibili.feature.video.ui.VideoDetailShapes
 import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AppShapes
@@ -894,7 +895,7 @@ fun UpInfoSection(
                                     targetBounds = targetBounds
                                 )
                             },
-                            clipInOverlayDuringTransition = OverlayClip(AppShapes.container(ContainerLevel.Card))
+                            clipInOverlayDuringTransition = OverlayClip(VideoDetailShapes.action())
                         )
                     }
                 }
@@ -912,7 +913,7 @@ fun UpInfoSection(
                         FollowButtonTone.PRIMARY -> MaterialTheme.colorScheme.primary
                         FollowButtonTone.PRIMARY_CONTAINER -> MaterialTheme.colorScheme.primaryContainer
                     },
-                    shape = AppShapes.container(ContainerLevel.Card),
+                    shape = VideoDetailShapes.action(),
                     modifier = followActionModifier
                 ) {
                     Row(

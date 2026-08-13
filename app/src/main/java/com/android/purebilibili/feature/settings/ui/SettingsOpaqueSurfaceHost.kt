@@ -10,7 +10,7 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 
 /**
- * InstallerX 风格设置层级：单一不透明底色 + 透明导航 entry，避免全局壁纸半透明
+ * BiliPai 风格设置层级：单一不透明底色 + 透明导航 entry，避免全局壁纸半透明
  * Scaffold / 分组卡片在 push/pop 时叠色闪烁。
  */
 @Composable

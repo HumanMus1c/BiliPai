@@ -118,8 +118,8 @@ android {
         targetSdk = 35  // 保持35以避免Android 16的新运行时行为
         // 版本：语义化 X.Y.Z（MAJOR.MINOR.PATCH）+ versionCode 单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 292
-        versionName = "0.2.3-beta.3"
+        versionCode = 293
+        versionName = "0.2.3-beta.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -430,7 +430,7 @@ dependencies {
     implementation("io.github.alexzhirkevich:cupertino-icons-extended:0.1.0-alpha04")
     
     // --- 3.6 Miuix Navigation ---
-    // The same stack renderer and predictive-back driver used by InstallerX Revived.
+    // Miuix stack renderer and predictive-back driver.
     
     // --- 3.7 Startup (应用初始化) ---
     implementation("androidx.startup:startup-runtime:1.2.0")

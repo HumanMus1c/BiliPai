@@ -10,7 +10,7 @@ import org.junit.Test
 class HomeChromeLiquidSurfaceStructureTest {
 
     @Test
-    fun `top header uses shared renderer while bottom bar uses ksu renderer only`() {
+    fun `top header uses shared renderer while bottom bar uses BiliPai renderer only`() {
         val workspaceRoot = generateSequence(
             Paths.get(System.getProperty("user.dir")).toAbsolutePath()
         ) { current ->
@@ -40,7 +40,7 @@ class HomeChromeLiquidSurfaceStructureTest {
         val topBarSource = topBar.readText()
         val sharedChromeSource = sharedChrome.readText()
         assertTrue(
-            "top header liquid chrome should route through the bottom-bar matched KSU surface",
+            "top header liquid chrome should route through the bottom-bar matched BiliPai surface",
             topHeaderSource.contains("return@composed this.homeTopBottomBarMatchedSurface(") &&
                 topHeaderSource.contains("liquidGlassPreset: BottomBarLiquidGlassPreset") &&
                 topHeaderSource.contains("private data class HomeTopChromeSurfaceStyle(") &&
@@ -190,30 +190,28 @@ class HomeChromeLiquidSurfaceStructureTest {
             topBarSource.contains("val shouldUseMd3LiquidCapsule = effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE") &&
                 topBarSource.contains("!hasOuterChromeSurface") &&
                 topBarSource.contains("val shouldUseMd3DockBackedCapsule =") &&
-                topBarSource.contains("BottomBarMatchedLiquidIndicator(") &&
-                topBarSource.contains("rememberBottomBarMatchedLiquidChromeState(") &&
+                topBarSource.contains("BiliPaiFloatingDockIndicator(") &&
+                !topBarSource.contains("BottomBarMatchedLiquidIndicator(") &&
                 topBarSource.contains("val shouldPrimeTopTabLiquidGlassCapture =") &&
-                topBarSource.contains("val topTabContentBackdrop = rememberLayerBackdrop()") &&
+                !topBarSource.contains("val topTabContentBackdrop = rememberLayerBackdrop()") &&
                 topBarSource.contains("val topTabMiuixContentBackdrop = rememberMiuixLayerBackdrop()") &&
-                topBarSource.contains("layerBackdrop(topTabContentBackdrop)") &&
+                !topBarSource.contains("layerBackdrop(topTabContentBackdrop)") &&
                 topBarSource.contains("miuixLayerBackdrop(topTabMiuixContentBackdrop)") &&
                 topBarSource.contains("rememberMiuixCombinedBackdrop(miuixBackdrop, topTabMiuixContentBackdrop)") &&
-                topBarSource.contains(".miuixDrawBackdrop(") &&
-                topBarSource.contains(".drawBackdrop(") &&
-                topBarSource.contains("drawRect(topTabIndicatorCaptureSurfaceColor)") &&
+                topBarSource.contains("biliPaiFloatingDockCaptureSurface(") &&
+                topBarSource.contains("biliPaiFloatingDockShell(") &&
                 topBarSource.contains("ColorFilter.tint(topTabExportTintColor)") &&
                 topBarSource.contains("TopTabLiquidColorMode.GLASS_EXPORT") &&
                 topBarSource.contains("TopTabLiquidColorMode.GLASS_VISIBLE") &&
                 topBarSource.contains("resolveSharedLiquidExportMonochromeColor(") &&
                 topBarSource.contains("resolveTopTabIndicatorBackdropPolicy(") &&
-                topBarSource.contains("contentBackdrop = effectiveTopTabMiuixContentBackdrop") &&
-                topBarSource.contains("backdrop = topTabIndicatorMiuixBackdrop") &&
-                topBarSource.contains("legacyContentBackdrop = topTabContentBackdrop") &&
+                !topBarSource.contains("topTabIndicatorDrag(") &&
+                !topBarSource.contains("import com.kyant") &&
                 topBarSource.contains("topTabListScrollOffsetPx") &&
                 topBarSource.contains("One shared shift for export") &&
                 topBarSource.contains("indicatorPanelOffsetPx = 0f") &&
                 topBarSource.contains("!shouldUseMd3DockBackedCapsule && !shouldUseMd3LiquidCapsule") &&
-                sharedChromeSource.contains("KernelSuMiuixBottomBarIndicatorLayer(")
+                !sharedChromeSource.contains("BiliPaiBottomBarIndicatorLayer(")
         )
         assertFalse(
             "top tab row should not keep the old bottom-bar local backdrop capture names",
@@ -231,17 +229,16 @@ class HomeChromeLiquidSurfaceStructureTest {
                 topBarSource.contains("rememberCombinedBackdrop(backdrop, tabContentBackdrop)")
         )
         assertTrue(
-            "KSU dock surface should use backdrop vibrancy, blur, and soft-scalable shell lens like the floating bottom bar",
-            bottomBar.readText().contains("internal fun Modifier.kernelSuFloatingDockSurface(") &&
-                bottomBar.readText().contains("vibrancy()") &&
+            "Miuix dock surface should use vibrancy, blur, and soft-scalable shell lens like the floating bottom bar",
+            bottomBar.readText().contains("internal fun Modifier.biliPaiMiuixFloatingDockSurface(") &&
+                !bottomBar.readText().contains("internal fun Modifier.biliPaiFloatingDockSurface(") &&
+                bottomBar.readText().contains("miuixVibrancy()") &&
                 bottomBar.readText().contains("drawShellLens: Boolean = true") &&
                 bottomBar.readText().contains("shellLensIntensity: Float = 1f") &&
                 bottomBar.readText().contains("effectiveShellLensIntensity") &&
                 bottomBar.readText().contains("drawShellLens &&") &&
                 bottomBar.readText().contains("shellRefractionHeightDp") &&
-                bottomBar.readText().contains("shellRefractionAmountDp") &&
-                bottomBar.readText().contains("runtimeShaderEffect(") &&
-                bottomBar.readText().contains("LIQUID_GLASS_SHADER_KEY")
+                bottomBar.readText().contains("shellRefractionAmountDp")
         )
         assertFalse(
             "bottom bar should not keep the old appChromeLiquidSurface renderer",

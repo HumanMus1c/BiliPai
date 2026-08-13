@@ -9,6 +9,8 @@ import top.yukonga.miuix.kmp.icon.extended.Contacts
 import top.yukonga.miuix.kmp.icon.extended.ContactsCircle
 import top.yukonga.miuix.kmp.icon.extended.Favorites
 import top.yukonga.miuix.kmp.icon.extended.FavoritesFill
+import top.yukonga.miuix.kmp.icon.extended.Folder
+import top.yukonga.miuix.kmp.icon.extended.FolderFill
 import top.yukonga.miuix.kmp.icon.extended.GridView
 import top.yukonga.miuix.kmp.icon.extended.Home
 import top.yukonga.miuix.kmp.icon.extended.Music
@@ -107,10 +109,18 @@ internal fun resolveMiuixPreferredHomeNavigationIcon(
     val role = resolveHomeNavigationIconRole(tabId)
     return when (resolveMiuixPreferredHomeNavigationIconSource(tabId)) {
         HomeNavigationIconSource.MIUIX -> resolveMiuixHomeNavigationIcon(role, selected)
-        HomeNavigationIconSource.LOCAL_DYNAMIC -> ImageVector.vectorResource(R.drawable.ic_home_nav_dynamic)
-        HomeNavigationIconSource.LOCAL_STORY -> ImageVector.vectorResource(R.drawable.ic_home_nav_story)
-        HomeNavigationIconSource.LOCAL_LIVE -> ImageVector.vectorResource(R.drawable.ic_home_nav_live)
-        HomeNavigationIconSource.LOCAL_GAME -> ImageVector.vectorResource(R.drawable.ic_home_nav_game)
+        HomeNavigationIconSource.LOCAL_DYNAMIC -> ImageVector.vectorResource(
+            if (selected) R.drawable.ic_home_nav_dynamic_filled else R.drawable.ic_home_nav_dynamic
+        )
+        HomeNavigationIconSource.LOCAL_STORY -> ImageVector.vectorResource(
+            if (selected) R.drawable.ic_home_nav_story_filled else R.drawable.ic_home_nav_story
+        )
+        HomeNavigationIconSource.LOCAL_LIVE -> ImageVector.vectorResource(
+            if (selected) R.drawable.ic_home_nav_live_filled else R.drawable.ic_home_nav_live
+        )
+        HomeNavigationIconSource.LOCAL_GAME -> ImageVector.vectorResource(
+            if (selected) R.drawable.ic_home_nav_game_filled else R.drawable.ic_home_nav_game
+        )
     }
 }
 
@@ -126,7 +136,7 @@ private fun resolveMiuixHomeNavigationIcon(
     HomeNavigationIconRole.SETTINGS -> if (selected) MiuixIcons.Medium.Settings else MiuixIcons.Settings
     HomeNavigationIconRole.PARTITION -> if (selected) MiuixIcons.Medium.GridView else MiuixIcons.GridView
     HomeNavigationIconRole.PROFILE -> MiuixIcons.ContactsCircle
-    HomeNavigationIconRole.PLUGINS -> MiuixIcons.GridView
+    HomeNavigationIconRole.PLUGINS -> if (selected) MiuixIcons.FolderFill else MiuixIcons.Folder
     HomeNavigationIconRole.FOLLOW -> MiuixIcons.Contacts
     HomeNavigationIconRole.POPULAR -> MiuixIcons.TopDownloads
     HomeNavigationIconRole.ANIME -> MiuixIcons.Play

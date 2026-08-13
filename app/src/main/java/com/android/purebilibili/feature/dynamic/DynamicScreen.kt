@@ -972,7 +972,7 @@ fun DynamicScreen(
         )
     }
 
-    //  [新增] 发布动态弹窗（纯文本，对齐 PiliPlus 发布入口）
+    //  [新增] 发布动态弹窗（纯文本，对齐 BiliPai 发布入口）
     if (showPublishDialog) {
         var publishContent by remember { mutableStateOf("") }
         AppAlertDialog(
@@ -1073,7 +1073,7 @@ private fun DynamicList(
 
     LazyVerticalStaggeredGrid(
         columns = if (feedLayoutMode == SettingsManager.DynamicFeedLayoutMode.LIST) {
-            //  [新增] 列表模式：单列居中（对齐 PiliPlus dynamicsWaterfallFlow 的列表布局）
+            //  [新增] 列表模式：单列居中（对齐 BiliPai dynamicsWaterfallFlow 的列表布局）
             StaggeredGridCells.Fixed(1)
         } else {
             StaggeredGridCells.Adaptive(resolveDynamicTimelineMinColumnWidth())
@@ -1089,7 +1089,7 @@ private fun DynamicList(
             .responsiveContentWidth(maxWidth = resolveDynamicTimelineMaxWidth())
             .fillMaxSize()
     ) {
-        // 首屏骨架屏（列表为空且加载中时显示，对齐 PiliPlus dynSkeleton）
+        // 首屏骨架屏（列表为空且加载中时显示，对齐 BiliPai dynSkeleton）
         if (showSkeleton) {
             items(
                 count = com.android.purebilibili.feature.dynamic.components.DYNAMIC_FEED_SKELETON_ITEM_COUNT,
@@ -1369,7 +1369,7 @@ private fun HorizontalUserList(
                                     contentScale = ContentScale.Crop
                                 )
                             }
-                            //  [新增] UP 未读红点（对齐 PiliPlus up_panel 8px 红点）
+                            //  [新增] UP 未读红点（对齐 BiliPai up_panel 8px 红点）
                             if (user.uid in uplistUpdateMids) {
                                 Box(
                                     modifier = Modifier

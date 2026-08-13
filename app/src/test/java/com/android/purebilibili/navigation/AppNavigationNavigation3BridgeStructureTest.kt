@@ -139,12 +139,16 @@ class AppNavigationNavigation3BridgeStructureTest {
     }
 
     @Test
-    fun videoBackPreviewDoesNotActivateTheTargetPlaybackSession() {
+    fun videoBackPreviewActivatesTargetPlaybackOnlyThroughTheExplicitBindPolicy() {
         val videoDetailBranch = appNavigationSource()
             .substringAfter("BiliPaiNavEntryContentRole.VIDEO_DETAIL ->")
             .substringBefore("BiliPaiNavEntryContentRole.ARTICLE_DETAIL ->")
 
         assertTrue(videoDetailBranch.contains("isVisible = shouldActivateVideoDetailPlaybackSession("))
+        assertTrue(videoDetailBranch.contains("bindLivePlayerForBackPreview = bindVideoBackPreviewPlayer"))
+        assertTrue(videoDetailBranch.contains("activateBackPreviewPlayback ="))
+        assertTrue(videoDetailBranch.contains("activateVideoBackPreviewPlayback"))
+        assertTrue(videoDetailBranch.contains("navigation3ReturnSession.isReturningFromDetail"))
         assertFalse(videoDetailBranch.contains("isVisible = true"))
     }
 

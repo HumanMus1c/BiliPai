@@ -91,7 +91,7 @@ internal fun normalizeSponsorBlockServerUrl(raw: String): String? {
 
 internal fun generateSponsorBlockUserId(): String = UUID.randomUUID().toString().replace("-", "")
 
-/** Same minimum format expected by PiliPlus and SponsorBlock-compatible servers. */
+/** Same minimum format expected by BiliPai and SponsorBlock-compatible servers. */
 internal fun validateSponsorBlockUserId(value: String): String? {
     val normalized = value.trim()
     return when {

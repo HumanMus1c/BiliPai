@@ -95,6 +95,15 @@ internal fun resolveBottomPagerItemForPage(
     return visibleItems.getOrNull(page) ?: BottomNavItem.HOME
 }
 
+internal fun shouldResetNavigation3BackStackForBottomPager(
+    currentStack: List<BiliPaiNavKey>
+): Boolean {
+    // Sibling tabs switch entirely inside the pager. BiliPai only needs Nav3 here when leaving a
+    // secondary destination; rebuilding an existing MainHost invalidates the
+    // composable that currently owns the pager mutation.
+    return currentStack.size != 1 || currentStack.singleOrNull() != BiliPaiNavKey.MainHost
+}
+
 internal fun resolveVisibleBottomBarItems(
     orderedVisibleTabIds: List<String>
 ): List<BottomNavItem> {
@@ -198,7 +207,7 @@ internal fun resolveBottomPagerRenderBudget(isNavigating: Boolean): BottomPagerR
 internal fun shouldEnableBottomPagerUserScroll(): Boolean = false
 
 /**
- * KernelSU MainScreen composition:
+ * BiliPai MainScreen composition:
  * `if (isCurrentPage || contentReady) XxxPager(...)`
  *
  * After first-frame ready, every bottom-tab slot stays mounted so

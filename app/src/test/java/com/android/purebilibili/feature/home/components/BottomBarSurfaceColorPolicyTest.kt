@@ -164,7 +164,7 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `ios26 liquid glass preset keeps KSU shell translucency`() {
+    fun `ios26 liquid glass preset keeps BiliPai shell translucency`() {
         val tuning = resolveAndroidNativeBottomBarTuning(
             blurEnabled = true,
             darkTheme = true
@@ -483,7 +483,7 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `android native idle glass indicator uses ksu neutral overlay in light mode`() {
+    fun `android native idle glass indicator uses BiliPai neutral overlay in light mode`() {
         val themeIndicator = resolveAndroidNativeIndicatorColor(
             themeColor = Color(0xFF00A1D6),
             darkTheme = false
@@ -504,8 +504,8 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `ksu light glass shell uses native white surface container`() {
-        val color = resolveKernelSuBottomBarContainerColor(darkTheme = false)
+    fun `BiliPai light glass shell uses native white surface container`() {
+        val color = resolveBiliPaiBottomBarContainerColor(darkTheme = false)
 
         assertEquals(Color.White.red, color.red, 0.001f)
         assertEquals(Color.White.green, color.green, 0.001f)
@@ -514,8 +514,8 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `ksu dark glass shell uses native 242424 surface container`() {
-        val color = resolveKernelSuBottomBarContainerColor(darkTheme = true)
+    fun `BiliPai dark glass shell uses native 242424 surface container`() {
+        val color = resolveBiliPaiBottomBarContainerColor(darkTheme = true)
         val expected = Color(0xFF242424)
 
         assertEquals(expected.red, color.red, 0.001f)
@@ -525,29 +525,29 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `ksu blur only shell keeps configured blur surface alpha`() {
+    fun `BiliPai blur only shell keeps configured blur surface alpha`() {
         val themeSurface = Color(0x66352F2A)
-        val color = resolveKernelSuBottomBarShellColor(
+        val color = resolveBiliPaiBottomBarShellColor(
             containerColor = themeSurface,
             liquidGlassEnabled = false,
             darkTheme = true
         )
 
         assertEquals(themeSurface, color)
-        assertTrue(shouldBlurKernelSuBottomBarShell(blurEnabled = true))
-        assertFalse(shouldBlurKernelSuBottomBarShell(blurEnabled = false))
+        assertTrue(shouldBlurBiliPaiBottomBarShell(blurEnabled = true))
+        assertFalse(shouldBlurBiliPaiBottomBarShell(blurEnabled = false))
     }
 
     @Test
-    fun `ksu liquid glass shell keeps glass material and shell blur`() {
-        val color = resolveKernelSuBottomBarShellColor(
+    fun `BiliPai liquid glass shell keeps glass material and shell blur`() {
+        val color = resolveBiliPaiBottomBarShellColor(
             containerColor = Color.Red,
             liquidGlassEnabled = true,
             darkTheme = true
         )
 
-        assertEquals(resolveKernelSuBottomBarContainerColor(darkTheme = true), color)
-        assertTrue(shouldBlurKernelSuBottomBarShell(blurEnabled = true))
+        assertEquals(resolveBiliPaiBottomBarContainerColor(darkTheme = true), color)
+        assertTrue(shouldBlurBiliPaiBottomBarShell(blurEnabled = true))
     }
 
     @Test
@@ -557,7 +557,7 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `android native idle glass indicator uses ksu neutral overlay in dark mode`() {
+    fun `android native idle glass indicator uses BiliPai neutral overlay in dark mode`() {
         val idleIndicator = resolveAndroidNativeIdleIndicatorSurfaceColor(
             darkTheme = true
         )
@@ -569,7 +569,7 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `ios26 idle glass indicator uses same ksu overlay in dark mode`() {
+    fun `ios26 idle glass indicator uses same BiliPai overlay in dark mode`() {
         val tunedDark = resolveBottomBarIdleIndicatorSurfaceColor(
             preset = BottomBarLiquidGlassPreset.BILIPAI_TUNED,
             darkTheme = true
@@ -586,7 +586,7 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `ios26 idle glass indicator keeps ksu low alpha overlay in light mode`() {
+    fun `ios26 idle glass indicator keeps BiliPai low alpha overlay in light mode`() {
         val tunedLight = resolveBottomBarIdleIndicatorSurfaceColor(
             preset = BottomBarLiquidGlassPreset.BILIPAI_TUNED,
             darkTheme = false

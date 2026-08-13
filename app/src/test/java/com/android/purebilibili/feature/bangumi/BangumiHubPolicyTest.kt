@@ -12,7 +12,7 @@ import org.junit.Test
 
 class BangumiHubPolicyTest {
     @Test
-    fun `initial types map to the two PiliPlus channels`() {
+    fun `initial types map to the two BiliPai channels`() {
         assertEquals(BangumiChannel.BANGUMI, resolveBangumiChannel(1))
         assertEquals(BangumiChannel.BANGUMI, resolveBangumiChannel(4))
         assertEquals(BangumiChannel.CINEMA, resolveBangumiChannel(2))
@@ -121,7 +121,7 @@ class BangumiHubPolicyTest {
     }
 
     @Test
-    fun `cinema index categories produce PiliPlus query targets`() {
+    fun `cinema index categories produce BiliPai query targets`() {
         assertEquals(
             BangumiIndexQueryTarget(seasonType = null, indexType = 102),
             resolveBangumiIndexQueryTarget(BangumiIndexCategory.CINEMA_ALL),

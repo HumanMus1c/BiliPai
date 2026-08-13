@@ -181,7 +181,7 @@ internal fun resolveInlinePortraitPlayerCommentCollapseDurationMillis(
 /**
  * Inline portrait detail player size.
  *
- * PiliPlus parity for phone: expanded ≈ max(longestSide * 0.65, shortestSide),
+ * BiliPai parity for phone: expanded ≈ max(longestSide * 0.65, shortestSide),
  * so vertical videos get a tall preview without becoming full-screen cards.
  * Wide foldable portrait windows stay capped so intro/comment remain reachable.
  */

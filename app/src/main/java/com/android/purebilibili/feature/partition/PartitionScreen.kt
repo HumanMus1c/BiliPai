@@ -223,7 +223,8 @@ internal fun resolvePartitionSideRailIcon(
     iconFamily: AppSemanticIconFamily,
     selected: Boolean,
 ): ImageVector = when (iconFamily) {
-    AppSemanticIconFamily.MATERIAL -> when (partitionId) {
+    AppSemanticIconFamily.MATERIAL,
+    AppSemanticIconFamily.MIUIX -> when (partitionId) {
         0 -> if (selected) Icons.Filled.GridView else Icons.Outlined.GridView
         1 -> if (selected) Icons.Filled.Animation else Icons.Outlined.Animation
         13 -> if (selected) Icons.Filled.Tv else Icons.Outlined.Tv

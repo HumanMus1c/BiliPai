@@ -1109,6 +1109,15 @@ fun VideoPlayerSection(
     val forceCoverDuringReturnAnimation = shouldForceCoverDuringReturnAnimation(
         forceCoverOnly = forceCoverOnly
     )
+    var hasUsedLiveBackPreviewTexture by remember(bvid) { mutableStateOf(false) }
+    LaunchedEffect(bvid, liveBackPreview) {
+        if (liveBackPreview) {
+            // Keep the chosen TextureView for the rest of this detail entry. Switching back to a
+            // SurfaceView immediately after landing recreates PlayerView and exposes its cover
+            // underlay for one frame. HDR still overrides this choice in the policy below.
+            hasUsedLiveBackPreviewTexture = true
+        }
+    }
     val shouldBindInlinePlayerView = remember(
         isPortraitFullscreen,
         hostLifecycleStarted,
@@ -3054,7 +3063,7 @@ fun VideoPlayerSection(
         val useTextureSurface = shouldUseTextureSurfaceForFlip(
             isFlippedHorizontal = isFlippedHorizontal,
             isFlippedVertical = isFlippedVertical,
-            liveBackPreview = liveBackPreview,
+            liveBackPreview = liveBackPreview || hasUsedLiveBackPreviewTexture,
             navigationTransformEnabled = useTextureSurfaceForNavigation,
             requiresHdrSurfaceOutput = requiresHdrSurface
         )

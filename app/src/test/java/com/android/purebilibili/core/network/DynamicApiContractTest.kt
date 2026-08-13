@@ -148,7 +148,7 @@ class DynamicApiContractTest {
     }
 
     @Test
-    fun favoriteFolderDynamicRequest_usesPiliPlusResourcePayload() {
+    fun favoriteFolderDynamicRequest_usesBiliPaiResourcePayload() {
         val request = buildFavoriteFolderDynamicRequest(
             mediaId = 12345L,
             content = "分享收藏夹",

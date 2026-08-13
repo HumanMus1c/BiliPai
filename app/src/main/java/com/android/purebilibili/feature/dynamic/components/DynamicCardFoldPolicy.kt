@@ -6,7 +6,7 @@ import com.android.purebilibili.data.model.response.DynamicTagModule
 
 /**
  * 卡片附加模块的渲染策略：相关动态折叠条、置顶标、风险提示条。
- * 对齐 PiliPlus 的 moduleFold / moduleTag / moduleDispute 处理。
+ * 对齐 BiliPai 的 moduleFold / moduleTag / moduleDispute 处理。
  */
 
 // 置顶标：module_tag 存在且 text 非空（B 站固定返回 "置顶"）时显示。

@@ -138,7 +138,7 @@ class TopTabStylePolicyTest {
 
     @Test
     fun `home top tab presentation routes by preset and native variant`() {
-        // 2B 迁移：iOS 输入经迁移表并入 MIUIX，落到 TONAL_CAPSULE→MATERIAL_UNDERLINE 首页呈现。
+        // iOS 输入经迁移表并入 MIUIX，两值风格现在共用新的移动指示器呈现。
         assertEquals(
             AppTopTabPresentation.MATERIAL_UNDERLINE,
             topStyle(UiPreset.IOS, AndroidNativeVariant.MATERIAL3).presentation
@@ -342,11 +342,8 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `top tab indicator reuses bottom bar immediate drag and liquid rendering`() {
+    fun `top tab indicator keeps liquid rendering without owning horizontal drag`() {
         val source = sourceText("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
-        val gestureBlock = source
-            .substringAfter("private fun Modifier.topTabSelectedItemDrag(")
-            .substringBefore("@Composable\nprivate fun")
         val iosIndicatorBlock = source
             .substringAfter("if (shouldUseMovingIosCapsule) {")
             .substringBefore("if (shouldUseMd3DockBackedCapsule)")
@@ -355,20 +352,28 @@ class TopTabStylePolicyTest {
         )
         val bottomBarIndicatorBlock = sourceText(
             "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt"
-        ).substringAfter("internal fun BoxScope.KernelSuBottomBarIndicatorLayer(")
-            .substringBefore("@Composable\nprivate fun BoxScope.KernelSuBottomBarInputLayer(")
+        ).substringAfter("internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(")
+            .substringBefore("@Composable\nprivate fun BiliPaiBottomBarSearchSlot(")
 
-        assertTrue(gestureBlock.contains("awaitHorizontalTouchSlopOrCancellation"))
-        assertFalse(gestureBlock.contains("awaitLongPressOrCancellation"))
-        assertTrue(iosIndicatorBlock.contains("BottomBarMatchedLiquidIndicator("))
-        assertEquals(1, iosIndicatorBlock.split("BottomBarMatchedLiquidIndicator(").size - 1)
-        assertTrue(iosIndicatorBlock.contains("glassEnabled = shouldUseLiquidGlassIndicator"))
-        assertTrue(iosIndicatorBlock.contains("indicatorEffectsEnabled = shouldUseLiquidGlassIndicator"))
+        assertFalse(source.contains("topTabIndicatorDrag("))
+        assertFalse(source.contains("awaitHorizontalTouchSlopOrCancellation"))
+        assertTrue(iosIndicatorBlock.contains("BiliPaiFloatingDockIndicator("))
+        assertEquals(1, iosIndicatorBlock.split("BiliPaiFloatingDockIndicator(").size - 1)
+        assertTrue(iosIndicatorBlock.contains("combinedBackdrop = indicatorCombinedBackdrop"))
+        assertTrue(iosIndicatorBlock.contains("pressProgress = topTabLensProgress"))
+        assertTrue(iosIndicatorBlock.contains("scaleX = indicatorScaleX"))
+        assertTrue(iosIndicatorBlock.contains("scaleY = indicatorScaleY"))
         assertFalse(iosIndicatorBlock.contains(".fillMaxHeight()"))
+        assertTrue(source.contains(".zIndex(3f)"))
+        assertTrue(source.contains(".then(indicatorGestureModifier)"))
         assertFalse(source.contains("shouldForceDragLiquidGlassIndicator"))
         assertFalse(chromeSource.contains("Modifier.clip(tabShape)"))
         assertTrue(bottomBarIndicatorBlock.contains("indicatorIdleSurfaceColor"))
         assertTrue(bottomBarIndicatorBlock.contains("shellShape"))
+        assertTrue(bottomBarIndicatorBlock.contains("miuixDrawBackdrop("))
+        assertFalse(bottomBarIndicatorBlock.contains("BiliPaiBottomBarIndicatorLayer"))
+        assertFalse(source.contains("shouldUseTonalDockCapsule"))
+        assertFalse(source.contains("secondaryContainer.copy(alpha = 0.70f * selectionFraction)"))
     }
 
     @Test
@@ -387,12 +392,12 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `dragging an offscreen top tab synchronizes its viewport`() {
+    fun `top tab viewport follows selection without indicator drag state`() {
         val source = sourceText("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
 
-        assertTrue(source.contains("val topTabDragTargetIndex = topTabDragPosition.roundToInt()"))
-        assertTrue(source.contains("LaunchedEffect(topTabDragActive, topTabDragTargetIndex, isViewportSyncEnabled)"))
-        assertTrue(source.contains("listState.scrollToItem(topTabDragTargetIndex)"))
+        assertFalse(source.contains("LaunchedEffect(topTabDragActive"))
+        assertFalse(source.contains("topTabDragTargetIndex"))
+        assertTrue(source.contains("listState.animateScrollToItem(targetIndex)"))
     }
 
     @Test

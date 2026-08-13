@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 class SearchVideoFilterPolicyTest {
 
     @Test
-    fun orderChipLabels_matchPiliPlus() {
+    fun orderChipLabels_matchBiliPai() {
         assertEquals("默认排序", resolveSearchOrderChipLabel(SearchOrder.TOTALRANK))
         assertEquals("播放多", resolveSearchOrderChipLabel(SearchOrder.CLICK))
         assertEquals("新发布", resolveSearchOrderChipLabel(SearchOrder.PUBDATE))
@@ -23,7 +23,7 @@ class SearchVideoFilterPolicyTest {
     }
 
     @Test
-    fun durationChipLabels_matchPiliPlus() {
+    fun durationChipLabels_matchBiliPai() {
         assertEquals("全部时长", resolveSearchDurationChipLabel(SearchDuration.ALL))
         assertEquals("0-10分钟", resolveSearchDurationChipLabel(SearchDuration.UNDER_10MIN))
         assertEquals("10-30分钟", resolveSearchDurationChipLabel(SearchDuration.TEN_TO_30MIN))
@@ -32,7 +32,7 @@ class SearchVideoFilterPolicyTest {
     }
 
     @Test
-    fun zoneOptions_includePiliPlusPartitions() {
+    fun zoneOptions_includeBiliPaiPartitions() {
         val labels = resolveSearchVideoZoneOptions().map { it.label }
         assertTrue("全部" in labels)
         assertTrue("动画" in labels)

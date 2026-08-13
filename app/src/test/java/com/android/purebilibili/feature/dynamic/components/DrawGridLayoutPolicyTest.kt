@@ -25,7 +25,7 @@ class DrawGridLayoutPolicyTest {
     }
 
     @Test
-    fun resolveSingleImageAspectRatio_matchesPiliPlusLongImageClamp() {
+    fun resolveSingleImageAspectRatio_matchesBiliPaiLongImageClamp() {
         assertEquals(9f / 22f, resolveSingleImageAspectRatio(width = 900, height = 3000))
     }
 
@@ -55,7 +55,7 @@ class DrawGridLayoutPolicyTest {
     }
 
     @Test
-    fun resolveDrawGridSpacingDp_matchesPiliPlusGridSpacing() {
+    fun resolveDrawGridSpacingDp_matchesBiliPaiGridSpacing() {
         assertEquals(5, resolveDrawGridSpacingDp())
         assertEquals(10, resolveDrawGridCornerRadiusDp())
     }

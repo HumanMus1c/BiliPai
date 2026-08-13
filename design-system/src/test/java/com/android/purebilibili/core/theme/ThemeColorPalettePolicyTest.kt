@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 class ThemeColorPalettePolicyTest {
 
     @Test
-    fun `theme color palette includes KernelSU material seed colors`() {
+    fun `theme color palette includes BiliPai material seed colors`() {
         assertTrue(ThemeColors.contains(Color(0xFFF44336)))
         assertTrue(ThemeColors.contains(Color(0xFF2196F3)))
         assertTrue(ThemeColors.contains(Color(0xFFFFC107)))
@@ -18,13 +18,13 @@ class ThemeColorPalettePolicyTest {
     }
 
     @Test
-    fun `KernelSU inspired theme color names are user facing labels`() {
-        val kernelSuInspiredNames = ThemeColorNames.drop(10)
+    fun `BiliPai inspired theme color names are user facing labels`() {
+        val biliPaiInspiredNames = ThemeColorNames.drop(10)
 
-        assertFalse(kernelSuInspiredNames.any { it.startsWith("KSU") })
-        assertTrue("炽焰红" in kernelSuInspiredNames)
-        assertTrue("日光黄" in kernelSuInspiredNames)
-        assertTrue("雾霭蓝灰" in kernelSuInspiredNames)
+        assertFalse(biliPaiInspiredNames.any { it.startsWith("BiliPai") })
+        assertTrue("炽焰红" in biliPaiInspiredNames)
+        assertTrue("日光黄" in biliPaiInspiredNames)
+        assertTrue("雾霭蓝灰" in biliPaiInspiredNames)
     }
 
     @Test

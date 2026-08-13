@@ -115,8 +115,10 @@ import com.android.purebilibili.core.ui.transition.shouldApplyPredictiveBackBlur
 import com.android.purebilibili.core.ui.transition.shouldApplyVideoCardTransitionBackgroundToRoute
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundScaleReduction
 import com.android.purebilibili.core.ui.transition.resolveVideoCardTransitionBackgroundSource
+import com.android.purebilibili.core.ui.transition.shouldUseHostOwnedVideoCardTransitionSnapshot
 import com.android.purebilibili.core.ui.transition.shouldUseRealtimeVideoCardTransitionBackgroundBlur
 import com.android.purebilibili.core.ui.transition.videoCardTransitionBackgroundEffect
+import com.android.purebilibili.core.ui.transition.videoCardTransitionLiveBackgroundEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
 import com.android.purebilibili.data.model.response.BgmInfo
@@ -787,7 +789,11 @@ fun AppNavigation(
             val target = legacyRouteToBiliPaiNavKey(route).toPrivacyNavigationTarget()
             val performPagerNavigation = {
                 beforeNavigation?.invoke()
-                replaceNavigation3BackStack(listOf(BiliPaiNavKey.MainHost))
+                // Same-level bottom tabs switch directly through the pager. Keep Nav3 out of the
+                // path when MainHost is already the sole destination.
+                if (shouldResetNavigation3BackStackForBottomPager(navigation3BackStack)) {
+                    replaceNavigation3BackStack(listOf(BiliPaiNavKey.MainHost))
+                }
                 mainBottomPagerState.switchToPage(page)
             }
             if (
@@ -1751,6 +1757,10 @@ fun AppNavigation(
                             sourceRoute = backgroundState.sourceRouteProvider(),
                             activeMainHostRoute = activeMainHostRoute
                         )
+                    val useHostOwnedBackgroundSnapshot =
+                        shouldUseHostOwnedVideoCardTransitionSnapshot(
+                            backgroundState.sourceRouteProvider()
+                        )
                     val shouldApplyPredictiveBlur = shouldApplyPredictiveBackBlurToRoute(
                         entryKey = key,
                         targetBackKey = predictiveBackState.targetKeyProvider(),
@@ -1762,26 +1772,46 @@ fun AppNavigation(
                             baseModifier
                                 .let { modifier ->
                                     if (shouldApplyBackground) {
-                                        modifier
+                                        val pinnedModifier = modifier
                                             .pinSourcePageDuringSharedTransition()
-                                            .videoCardTransitionBackgroundEffect(
-                                            progressProvider = backgroundState.progressProvider,
-                                            phaseProvider = backgroundState.phaseProvider,
-                                            exposureProvider = backgroundState.exposureProvider,
-                                            isGestureRestoreInProgressProvider = backgroundState.isGestureRestoreInProgressProvider,
-                                            motionTierProvider = backgroundState.motionTierProvider,
-                                            isLightBackgroundProvider = backgroundState.isLightBackgroundProvider,
-                                            realtimeBlurEnabledProvider = {
-                                                shouldUseRealtimeVideoCardTransitionBackgroundBlur(
-                                                    source = backgroundSource,
-                                                    realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
-                                                )
-                                            },
-                                            scaleReductionProvider = {
-                                                backgroundScaleReduction
-                                            },
-                                            snapshotHandle = backgroundState.snapshotHandle,
-                                        )
+                                        if (useHostOwnedBackgroundSnapshot) {
+                                            pinnedModifier.videoCardTransitionBackgroundEffect(
+                                                progressProvider = backgroundState.progressProvider,
+                                                phaseProvider = backgroundState.phaseProvider,
+                                                exposureProvider = backgroundState.exposureProvider,
+                                                isGestureRestoreInProgressProvider = backgroundState.isGestureRestoreInProgressProvider,
+                                                motionTierProvider = backgroundState.motionTierProvider,
+                                                isLightBackgroundProvider = backgroundState.isLightBackgroundProvider,
+                                                realtimeBlurEnabledProvider = {
+                                                    shouldUseRealtimeVideoCardTransitionBackgroundBlur(
+                                                        source = backgroundSource,
+                                                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
+                                                    )
+                                                },
+                                                scaleReductionProvider = {
+                                                    backgroundScaleReduction
+                                                },
+                                                snapshotHandle = backgroundState.snapshotHandle,
+                                            )
+                                        } else {
+                                            pinnedModifier.videoCardTransitionLiveBackgroundEffect(
+                                                progressProvider = backgroundState.progressProvider,
+                                                phaseProvider = backgroundState.phaseProvider,
+                                                exposureProvider = backgroundState.exposureProvider,
+                                                isGestureRestoreInProgressProvider = backgroundState.isGestureRestoreInProgressProvider,
+                                                motionTierProvider = backgroundState.motionTierProvider,
+                                                isLightBackgroundProvider = backgroundState.isLightBackgroundProvider,
+                                                realtimeBlurEnabledProvider = {
+                                                    shouldUseRealtimeVideoCardTransitionBackgroundBlur(
+                                                        source = backgroundSource,
+                                                        realtimeBlurEnabled = videoTransitionRealtimeBlurEnabled,
+                                                    )
+                                                },
+                                                scaleReductionProvider = {
+                                                    backgroundScaleReduction
+                                                },
+                                            )
+                                        }
                                     } else {
                                         modifier
                                     }
@@ -2266,6 +2296,19 @@ fun AppNavigation(
                             val videoKey = key as BiliPaiNavKey.VideoDetail
                             val activity = context as? android.app.Activity
                             var isNavigatingToAudioMode by remember(videoKey.bvid) { mutableStateOf(false) }
+                            val isImmediateVideoBackPreview =
+                                navigation3BackStack.getOrNull(
+                                    navigation3BackStack.lastIndex - 1
+                                ) == videoKey
+                            val bindVideoBackPreviewPlayer =
+                                isImmediateVideoBackPreview &&
+                                    shouldBindVideoDetailBackPreviewPlayer(
+                                        currentKey = navigation3BackStack.lastOrNull(),
+                                        previewKey = videoKey,
+                                    )
+                            val activateVideoBackPreviewPlayback =
+                                bindVideoBackPreviewPlayer &&
+                                    navigation3ReturnSession.isReturningFromDetail
                             val latestNavTopIsVideo by rememberUpdatedState(
                                 navigation3BackStack.lastOrNull() is BiliPaiNavKey.VideoDetail
                             )
@@ -2313,8 +2356,9 @@ fun AppNavigation(
                                 isVisible = shouldActivateVideoDetailPlaybackSession(
                                     currentKey = navigation3BackStack.lastOrNull(),
                                     detailKey = videoKey,
-                                    isImmediateBackPreview =
-                                        navigation3BackStack.getOrNull(navigation3BackStack.lastIndex - 1) == videoKey
+                                    isImmediateBackPreview = isImmediateVideoBackPreview,
+                                    activateBackPreviewPlayback =
+                                        activateVideoBackPreviewPlayback,
                                 ),
                                 startInFullscreen = videoKey.fullscreen,
                                 startAudioFromRoute = videoKey.startAudio,
@@ -2325,14 +2369,8 @@ fun AppNavigation(
                                 openCommentRootRpidFromRoute = videoKey.commentRootRpid,
                                 openCommentTargetRpidFromRoute = videoKey.commentTargetRpid,
                                 sourceRouteForSharedElement = videoKey.sourceRoute,
-                                keepLoadedContentForBackPreview =
-                                    navigation3BackStack.getOrNull(navigation3BackStack.lastIndex - 1) == videoKey,
-                                bindLivePlayerForBackPreview =
-                                    navigation3BackStack.getOrNull(navigation3BackStack.lastIndex - 1) == videoKey &&
-                                        shouldBindVideoDetailBackPreviewPlayer(
-                                            currentKey = navigation3BackStack.lastOrNull(),
-                                            previewKey = videoKey
-                                        ),
+                                keepLoadedContentForBackPreview = isImmediateVideoBackPreview,
+                                bindLivePlayerForBackPreview = bindVideoBackPreviewPlayer,
                                 predictiveBackCancelRecoveryGeneration =
                                     predictiveBackCancelRecoveryGeneration.takeIf {
                                         navigation3BackStack.lastOrNull() == videoKey
@@ -2699,7 +2737,7 @@ fun AppNavigation(
                         BiliPaiNavEntryContentRole.LIVE_LIST ->
                             com.android.purebilibili.feature.live.LiveListScreen(
                                 onBack = { performSystemBackAction() },
-                                // 底栏/顶栏进入的主直播首页：无返回箭头，与 PiliPlus 主 tab 一致。
+                                // 底栏/顶栏进入的主直播首页：无返回箭头，与 BiliPai 主 tab 一致。
                                 showNavigationBack = false,
                                 onLiveClick = { roomId, title, uname ->
                                     pushNavigation3Key(BiliPaiNavKey.Live(roomId = roomId.toString(), title = title, uname = uname))
@@ -3463,7 +3501,7 @@ fun AppNavigation(
                 }
             }
 
-            // KernelSU MainScreenBackHandler: onBackCompleted → animateToPage(home)
+            // BiliPai MainScreenBackHandler: onBackCompleted → animateToPage(home)
             MainHostTabBackHandler(
                 enabled = shouldInterceptTabBack,
                 onReturnToHomeTab = {

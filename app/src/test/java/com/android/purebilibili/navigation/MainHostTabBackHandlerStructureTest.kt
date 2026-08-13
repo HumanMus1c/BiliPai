@@ -8,10 +8,10 @@ import kotlin.test.assertTrue
 class MainHostTabBackHandlerStructureTest {
 
     @Test
-    fun mainHostTabBackHandler_copiesKernelSuMainScreenBackHandler() {
+    fun mainHostTabBackHandler_copiesBiliPaiMainScreenBackHandler() {
         val source = mainHostTabBackHandlerSource()
 
-        // KernelSU MainScreenBackHandler: NavigationBackHandler + onBackCompleted only.
+        // BiliPai MainScreenBackHandler: NavigationBackHandler + onBackCompleted only.
         assertTrue(source.contains("NavigationBackHandler("))
         assertTrue(source.contains("rememberNavigationEventState(NavigationEventInfo.None)"))
         assertTrue(source.contains("isBackEnabled = enabled"))

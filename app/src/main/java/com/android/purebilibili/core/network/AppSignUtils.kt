@@ -27,7 +27,7 @@ object AppSignUtils {
     private const val ANDROID_HD_APP_SEC = "b5475a8825547a4fc26c7d518eaaa02e"
     
     /**
-     * Percent-encode like Dart/PiliPlus Uri.encodeComponent / encodeURIComponent.
+     * Percent-encode like Dart/BiliPai Uri.encodeComponent / encodeURIComponent.
      * Uses URLEncoder then maps '+' to '%20' so spaces match form-urlencoded clients
      * that do not use application/x-www-form-urlencoded's plus convention.
      */
@@ -72,7 +72,7 @@ object AppSignUtils {
     }
 
     /**
-     * HD 登录签名：与 bilibili-API-collect Java demo / PiliPlus AppSign 一致，
+     * HD 登录签名：与 bilibili-API-collect Java demo / BiliPai AppSign 一致，
      * 对 key/value 做 percent-encode 后再 MD5(query + appsec)。
      */
     fun signForAndroidHdLogin(params: Map<String, String>): Map<String, String> {

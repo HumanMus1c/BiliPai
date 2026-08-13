@@ -24,7 +24,7 @@ interface FeedPlugin : Plugin {
     /**
      * 带信息流来源的判断(默认委托给 [shouldShowItem] 以保持向后兼容)。
      *
-     * 需要按来源区分行为(如 PiliNara 的「过滤器也应用于热门/排行/搜索」开关)时覆写此方法。
+     * 需要按来源区分行为(如 BiliPai 的「过滤器也应用于热门/排行/搜索」开关)时覆写此方法。
      */
     fun shouldShowItem(item: VideoItem, feedKind: FeedKind): Boolean = shouldShowItem(item)
 }

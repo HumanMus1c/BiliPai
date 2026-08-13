@@ -83,7 +83,7 @@ fun LiveAreaDetailScreen(
         windowSizeClass.widthDp
     }
     val gridColumns = remember(contentWidth, windowSizeClass.isTablet) {
-        resolveLivePiliPlusGridColumns(
+        resolveLiveBiliPaiGridColumns(
             widthDp = contentWidth.value.toInt(),
             isTabletLayout = windowSizeClass.isTablet,
         )

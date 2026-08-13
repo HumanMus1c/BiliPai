@@ -53,7 +53,7 @@ internal fun resolveBottomBarGlassMaterialSpec(
         )
     }
     return when (preset) {
-        BottomBarLiquidGlassPreset.BILIPAI_TUNED -> bilipaiTunedBottomBarGlassMaterial()
+        BottomBarLiquidGlassPreset.BILIPAI_TUNED -> biliPaiTunedBottomBarGlassMaterial()
         BottomBarLiquidGlassPreset.IOS26_REFINED -> ios26BottomBarGlassMaterial(
             motionProgress = motionProgress,
             pressProgress = pressProgress,
@@ -77,7 +77,7 @@ internal fun resolveBottomBarGlassMaterialContainerColor(
     return surfaceColor.copy(alpha = alpha)
 }
 
-private fun bilipaiTunedBottomBarGlassMaterial(): BottomBarGlassMaterialSpec =
+private fun biliPaiTunedBottomBarGlassMaterial(): BottomBarGlassMaterialSpec =
     BottomBarGlassMaterialSpec(
         blurRadiusDp = 4f,
         vibrancy = true,
@@ -100,8 +100,8 @@ private fun ios26BottomBarGlassMaterial(
     pressProgress: Float,
     scrollProgress: Float
 ): BottomBarGlassMaterialSpec {
-    // iOS26 在底栏实际走 Miuix/KSU drawBackdrop 链；这条链不消费 shellShader。
-    // 因此壳层主材质必须使用 KSU 可见的 vibrancy + blur + lens 组合，否则只剩淡底色和弱内圈。
+    // iOS26 在底栏实际走 Miuix/BiliPai drawBackdrop 链；这条链不消费 shellShader。
+    // 因此壳层主材质必须使用 BiliPai 可见的 vibrancy + blur + lens 组合，否则只剩淡底色和弱内圈。
     val scrollLift = scrollProgress.coerceIn(0f, 1f)
     return BottomBarGlassMaterialSpec(
         blurRadiusDp = 4f,

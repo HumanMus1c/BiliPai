@@ -160,6 +160,7 @@ fun GeneralSection(
     val appearanceVisual = rememberSettingsEntryVisual(SettingsSearchTarget.APPEARANCE)
     val playbackVisual = rememberSettingsEntryVisual(SettingsSearchTarget.PLAYBACK)
     val bottomBarVisual = rememberSettingsEntryVisual(SettingsSearchTarget.BOTTOM_BAR)
+    val siblingTints = remember { resolveSettingsSiblingIconTints(3) }
 
     SettingsCardGroup {
         SettingClickableItem(
@@ -168,7 +169,7 @@ fun GeneralSection(
             title = "外观设置",
             value = "界面风格、颜色、字体和显示大小",
             onClick = onAppearanceClick,
-            iconTint = appearanceVisual.iconTint
+            iconTint = siblingTints[0]
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -177,7 +178,7 @@ fun GeneralSection(
             title = "播放设置",
             value = "清晰度、倍速、小窗、后台播放和全屏操作",
             onClick = onPlaybackClick,
-            iconTint = playbackVisual.iconTint
+            iconTint = siblingTints[1]
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -186,7 +187,7 @@ fun GeneralSection(
             title = "导航设置",
             value = "底栏、顶部入口、图标文字和排列顺序",
             onClick = onBottomBarClick,
-            iconTint = bottomBarVisual.iconTint
+            iconTint = siblingTints[2]
         )
     }
 }
@@ -379,6 +380,9 @@ internal fun SettingsRootCategoryListSection(
     categories: List<SettingsRootCategory>,
     onCategoryClick: (SettingsRootCategory) -> Unit
 ) {
+    val siblingTints = remember(categories.size) {
+        resolveSettingsSiblingIconTints(categories.size)
+    }
     SettingsCardGroup {
         categories.forEachIndexed { index, category ->
             val visual = rememberSettingsEntryVisual(category.searchTarget)
@@ -387,7 +391,7 @@ internal fun SettingsRootCategoryListSection(
                 subtitle = category.subtitle,
                 icon = visual.icon,
                 iconPainter = visual.iconResId?.let { painterResource(id = it) },
-                iconTint = visual.iconTint,
+                iconTint = siblingTints[index],
                 onClick = { onCategoryClick(category) },
             )
             if (index != categories.lastIndex) {
@@ -587,6 +591,9 @@ internal fun SettingsDetailGroup(
 internal fun SettingsDetailEntrySection(
     entries: List<SettingsDetailEntry>
 ) {
+    val siblingTints = remember(entries.size) {
+        resolveSettingsSiblingIconTints(entries.size)
+    }
     SettingsCardGroup {
         entries.forEachIndexed { index, entry ->
             val visual = rememberSettingsEntryVisual(entry.target)
@@ -601,7 +608,7 @@ internal fun SettingsDetailEntrySection(
                     } ?: SettingsSearchFocusController.clear()
                     entry.onClick()
                 },
-                iconTint = visual.iconTint
+                iconTint = siblingTints[index]
             )
             if (index != entries.lastIndex) {
                 SettingsAdaptiveDivider()
@@ -1092,6 +1099,7 @@ fun SupportToolsSection(
 ) {
     val tipsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.TIPS)
     val openLinksVisual = rememberSettingsEntryVisual(SettingsSearchTarget.OPEN_LINKS)
+    val siblingTints = remember { resolveSettingsSiblingIconTints(2, paletteOffset = 1) }
 
     SettingsCardGroup {
         SettingClickableItem(
@@ -1100,7 +1108,7 @@ fun SupportToolsSection(
             title = "小贴士 & 隐藏操作",
             value = "探索更多功能",
             onClick = onTipsClick,
-            iconTint = tipsVisual.iconTint
+            iconTint = siblingTints[0]
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1109,7 +1117,7 @@ fun SupportToolsSection(
             title = "默认打开链接",
             value = "设置应用链接支持",
             onClick = onOpenLinksClick,
-            iconTint = openLinksVisual.iconTint
+            iconTint = siblingTints[1]
         )
     }
 }
@@ -1219,10 +1227,7 @@ fun SettingsSubpageEntrySection(
     onExtensionsAndDebugClick: () -> Unit,
     onAboutAndSupportClick: () -> Unit
 ) {
-    val storageTint = rememberSettingsEntryTint(AppSemanticAccentRole.SECONDARY, iOSBlue)
-    val privacyTint = rememberSettingsEntryTint(AppSemanticAccentRole.TERTIARY, iOSPurple)
-    val developerTint = rememberSettingsEntryTint(AppSemanticAccentRole.SECONDARY, iOSTeal)
-    val aboutTint = rememberSettingsEntryTint(AppSemanticAccentRole.TERTIARY, iOSOrange)
+    val siblingTints = remember { resolveSettingsSiblingIconTints(4, paletteOffset = 2) }
     val contentAndStorageIcon = rememberSettingsSemanticIcon(SettingsIconRole.DATA_BACKUP)
     val privacyIcon = rememberSettingsSemanticIcon(SettingsIconRole.PRIVACY_PERMISSION)
     val developerVisual = rememberSettingsEntryVisual(SettingsSearchTarget.DIAGNOSTICS)
@@ -1233,7 +1238,7 @@ fun SettingsSubpageEntrySection(
             title = "内容与存储",
             value = "推荐流、下载与缓存",
             onClick = onContentAndStorageClick,
-            iconTint = storageTint
+            iconTint = siblingTints[0]
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1241,7 +1246,7 @@ fun SettingsSubpageEntrySection(
             title = "隐私与安全",
             value = "无痕模式、权限与黑名单",
             onClick = onPrivacyAndSecurityClick,
-            iconTint = privacyTint
+            iconTint = siblingTints[1]
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1250,7 +1255,7 @@ fun SettingsSubpageEntrySection(
             title = "扩展与调试",
             value = "插件、日志与数据采集",
             onClick = onExtensionsAndDebugClick,
-            iconTint = developerTint
+            iconTint = siblingTints[2]
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1258,7 +1263,7 @@ fun SettingsSubpageEntrySection(
             title = "关于与支持",
             value = "版本、开源、帮助与作者",
             onClick = onAboutAndSupportClick,
-            iconTint = aboutTint
+            iconTint = siblingTints[3]
         )
     }
 }
@@ -1282,8 +1287,7 @@ fun FeedApiSection(
     homeRefreshCount: Int,
     onHomeRefreshCountChange: (Int) -> Unit
 ) {
-    val feedTint = rememberSettingsEntryTint(AppSemanticAccentRole.TERTIARY, iOSOrange)
-    val incrementalRefreshTint = rememberSettingsEntryTint(AppSemanticAccentRole.SECONDARY, iOSGreen)
+    val siblingTints = remember { resolveSettingsSiblingIconTints(8, paletteOffset = 1) }
     val feedIcon = rememberSettingsSemanticIcon(SettingsIconRole.FEED_API)
     val refreshIcon = rememberSettingsSemanticIcon(SettingsIconRole.REFRESH_COUNT)
     val visibilityIcon = rememberSettingsSemanticIcon(SettingsIconRole.DYNAMIC_TAB_VISIBILITY)
@@ -1296,7 +1300,7 @@ fun FeedApiSection(
             options = resolveFeedApiSegmentOptions(),
             selectedValue = feedApiType,
             icon = feedIcon,
-            iconTint = feedTint,
+            iconTint = siblingTints[0],
             onSelectionChange = onFeedApiTypeChange,
         )
         SettingsAdaptiveDivider()
@@ -1306,7 +1310,7 @@ fun FeedApiSection(
             subtitle = "下拉刷新只把新动态加到顶部，不重新排列已看到的内容",
             checked = incrementalTimelineRefreshEnabled,
             onCheckedChange = onIncrementalTimelineRefreshChange,
-            iconTint = incrementalRefreshTint
+            iconTint = siblingTints[1]
         )
         SettingsAdaptiveDivider()
         SettingSwitchItem(
@@ -1315,7 +1319,7 @@ fun FeedApiSection(
             subtitle = "打开图文动态图片时默认显示下方文字，可用右上角眼睛临时切换",
             checked = dynamicImagePreviewTextVisible,
             onCheckedChange = onDynamicImagePreviewTextVisibleChange,
-            iconTint = feedTint
+            iconTint = siblingTints[2]
         )
         SettingsAdaptiveDivider()
         SettingSwitchItem(
@@ -1324,7 +1328,7 @@ fun FeedApiSection(
             subtitle = "关闭后隐藏顶部横向用户列表，“UP主”页仍可选择关注用户",
             checked = dynamicAllTabHorizontalUserListVisible,
             onCheckedChange = onDynamicAllTabHorizontalUserListVisibleChange,
-            iconTint = feedTint
+            iconTint = siblingTints[3]
         )
         SettingsAdaptiveDivider()
         SettingSwitchItem(
@@ -1337,7 +1341,7 @@ fun FeedApiSection(
             },
             checked = dynamicTopBarCollapseOnScroll,
             onCheckedChange = onDynamicTopBarCollapseOnScrollChange,
-            iconTint = feedTint
+            iconTint = siblingTints[4]
         )
         SettingsAdaptiveDivider()
         SettingsSingleChoicePreference(
@@ -1351,7 +1355,7 @@ fun FeedApiSection(
             },
             selectedValue = dynamicFeedLayoutMode,
             icon = feedIcon,
-            iconTint = feedTint,
+            iconTint = siblingTints[5],
             onSelectionChange = onDynamicFeedLayoutModeChange,
         )
         SettingsAdaptiveDivider()
@@ -1359,7 +1363,7 @@ fun FeedApiSection(
             icon = visibilityIcon,
             visibleTabIds = dynamicVisibleTabIds,
             onTabVisibilityChange = onDynamicTabVisibilityChange,
-            iconTint = feedTint
+            iconTint = siblingTints[6]
         )
         SettingsAdaptiveDivider()
         SettingSliderItem(
@@ -1371,7 +1375,7 @@ fun FeedApiSection(
             valueRange = resolveHomeRefreshSliderRange(),
             steps = resolveHomeRefreshSliderSteps(),
             valueFormatter = { value -> value.roundToInt().toString() },
-            iconTint = incrementalRefreshTint
+            iconTint = siblingTints[7]
         )
     }
 }
@@ -1469,7 +1473,7 @@ fun PrivacySection(
     onPermissionClick: () -> Unit,
     onBlockedListClick: () -> Unit // [New]
 ) {
-    val privacyModeTint = rememberSettingsEntryTint(AppSemanticAccentRole.TERTIARY, iOSPurple)
+    val siblingTints = remember { resolveSettingsSiblingIconTints(4, paletteOffset = 4) }
     val permissionVisual = rememberSettingsEntryVisual(SettingsSearchTarget.PERMISSION)
     val blockedListVisual = rememberSettingsEntryVisual(SettingsSearchTarget.BLOCKED_LIST)
     val visibilityOffIcon = rememberSettingsSemanticIcon(SettingsIconRole.PRIVACY_HISTORY)
@@ -1484,7 +1488,7 @@ fun PrivacySection(
             subtitle = "启用后不记录播放历史和搜索历史",
             checked = privacyModeEnabled,
             onCheckedChange = onPrivacyModeChange,
-            iconTint = privacyModeTint
+            iconTint = siblingTints[0]
         )
         SettingsAdaptiveDivider()
         SettingSwitchItem(
@@ -1493,7 +1497,7 @@ fun PrivacySection(
             subtitle = "进入收藏、历史等页面时使用指纹、人脸或锁屏密码",
             checked = privacyContentAuthenticationEnabled,
             onCheckedChange = onPrivacyContentAuthenticationChange,
-            iconTint = permissionVisual.iconTint
+            iconTint = siblingTints[1]
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1502,7 +1506,7 @@ fun PrivacySection(
             title = "权限管理",
             value = "查看应用权限",
             onClick = onPermissionClick,
-            iconTint = permissionVisual.iconTint
+            iconTint = siblingTints[2]
         )
          SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1511,7 +1515,7 @@ fun PrivacySection(
             title = "黑名单管理",
             value = "管理已屏蔽的 UP 主",
             onClick = onBlockedListClick,
-            iconTint = blockedListVisual.iconTint
+            iconTint = siblingTints[3]
         )
     }
 }
@@ -1532,6 +1536,7 @@ fun DataStorageSection(
     val downloadPathVisual = rememberSettingsEntryVisual(SettingsSearchTarget.DOWNLOAD_PATH)
     val imageSavePathVisual = rememberSettingsEntryVisual(SettingsSearchTarget.IMAGE_SAVE_PATH)
     val clearCacheVisual = rememberSettingsEntryVisual(SettingsSearchTarget.CLEAR_CACHE)
+    val siblingTints = remember { resolveSettingsSiblingIconTints(5, paletteOffset = 2) }
     val showExplicitActionChevron =
         rememberAdaptiveListVisualCapabilities().showExplicitActionChevron
 
@@ -1542,7 +1547,7 @@ fun DataStorageSection(
             title = "设置分享",
             value = "导出并导入可分享设置",
             onClick = onSettingsShareClick,
-            iconTint = settingsShareVisual.iconTint
+            iconTint = siblingTints[0]
         )
         SettingsAdaptiveDivider()
         // WebDAV 是“备份副本”场景，使用双文档图标比链路图标更贴合语义。
@@ -1552,7 +1557,7 @@ fun DataStorageSection(
             title = "WebDAV 云备份",
             value = "备份与恢复设置/插件",
             onClick = onWebDavBackupClick,
-            iconTint = webDavVisual.iconTint
+            iconTint = siblingTints[1]
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1561,7 +1566,7 @@ fun DataStorageSection(
             title = "下载位置",
             value = if (customDownloadPath != null) "自定义" else "默认",
             onClick = onDownloadPathClick,
-            iconTint = downloadPathVisual.iconTint,
+            iconTint = siblingTints[2],
             showChevron = showExplicitActionChevron
         )
         SettingsAdaptiveDivider()
@@ -1571,7 +1576,7 @@ fun DataStorageSection(
             title = "图片保存位置",
             value = if (customImageSavePath != null) "已选择目录" else "默认",
             onClick = onImageSavePathClick,
-            iconTint = imageSavePathVisual.iconTint,
+            iconTint = siblingTints[3],
             showChevron = showExplicitActionChevron
         )
         SettingsAdaptiveDivider()
@@ -1581,7 +1586,7 @@ fun DataStorageSection(
             title = "清除缓存",
             value = cacheSize,
             onClick = onClearCacheClick,
-            iconTint = clearCacheVisual.iconTint,
+            iconTint = siblingTints[4],
             showChevron = showExplicitActionChevron
         )
     }
@@ -1614,9 +1619,7 @@ private fun DiagnosticsSection(
     onExportLogsClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    val crashTrackingTint = rememberSettingsEntryTint(AppSemanticAccentRole.SECONDARY, iOSTeal)
-    val analyticsTint = rememberSettingsEntryTint(AppSemanticAccentRole.PRIMARY, iOSBlue)
-    val proxyTint = rememberSettingsEntryTint(AppSemanticAccentRole.TERTIARY, iOSPurple)
+    val siblingTints = remember { resolveSettingsSiblingIconTints(5, paletteOffset = 5) }
     val exportLogsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.EXPORT_LOGS)
     val proxySettings by NetworkProxyStore.settings.collectAsStateWithLifecycle(
         initialValue = NetworkProxyStore.getSync(context)
@@ -1630,7 +1633,7 @@ private fun DiagnosticsSection(
             subtitle = "默认开启，仅用于定位崩溃与严重故障",
             checked = crashTrackingEnabled,
             onCheckedChange = onCrashTrackingChange,
-            iconTint = crashTrackingTint,
+            iconTint = siblingTints[0],
         )
         SettingsAdaptiveDivider()
         SettingSwitchItem(
@@ -1639,7 +1642,7 @@ private fun DiagnosticsSection(
             subtitle = "默认开启，用于匿名统计每日活跃与基础使用情况",
             checked = analyticsEnabled,
             onCheckedChange = onAnalyticsChange,
-            iconTint = analyticsTint,
+            iconTint = siblingTints[1],
         )
         SettingsAdaptiveDivider()
         SettingSwitchItem(
@@ -1655,7 +1658,7 @@ private fun DiagnosticsSection(
                     NetworkProxyStore.save(context, proxySettings.copy(enabled = enabled))
                 }
             },
-            iconTint = proxyTint,
+            iconTint = siblingTints[2],
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1664,7 +1667,7 @@ private fun DiagnosticsSection(
             value = formatAppHttpProxyEndpoint(proxySettings),
             subtitle = "host:port，如 127.0.0.1:7890",
             onClick = { showProxyDialog = true },
-            iconTint = proxyTint,
+            iconTint = siblingTints[3],
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1673,7 +1676,7 @@ private fun DiagnosticsSection(
             title = "导出日志",
             value = "播放器诊断与问题反馈",
             onClick = onExportLogsClick,
-            iconTint = exportLogsVisual.iconTint,
+            iconTint = siblingTints[4],
         )
     }
 
@@ -1863,8 +1866,8 @@ fun AboutSection(
         resolveIconOptionPreviewRes(appIconKey, appIconAppearance)
     }
     var detailDialogContent by remember { mutableStateOf<AppBuildInfoDialogContent?>(null) }
-    val autoCheckTint = rememberSettingsEntryTint(AppSemanticAccentRole.PRIMARY, iOSBlue)
     val easterEggTint = rememberSettingsEntryTint(AppSemanticAccentRole.TERTIARY, iOSYellow)
+    val updateSiblingTints = remember { resolveSettingsSiblingIconTints(5, paletteOffset = 3) }
     val licensesVisual = rememberSettingsEntryVisual(SettingsSearchTarget.OPEN_SOURCE_LICENSES)
     val openSourceHomeVisual = rememberSettingsEntryVisual(SettingsSearchTarget.OPEN_SOURCE_HOME)
     val checkUpdateVisual = rememberSettingsEntryVisual(SettingsSearchTarget.CHECK_UPDATE)
@@ -2031,7 +2034,7 @@ fun AboutSection(
             title = "开源许可证",
             value = "License",
             onClick = onLicenseClick,
-            iconTint = licensesVisual.iconTint
+            iconTint = updateSiblingTints[0]
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -2040,7 +2043,7 @@ fun AboutSection(
             title = "检查更新",
             value = if (isCheckingUpdate) "检查中..." else updateStatusText,
             onClick = onCheckUpdateClick,
-            iconTint = checkUpdateVisual.iconTint
+            iconTint = updateSiblingTints[1]
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -2049,7 +2052,7 @@ fun AboutSection(
             title = "查看更新日志",
             value = "最新版本说明",
             onClick = onViewReleaseNotesClick,
-            iconTint = releaseNotesVisual.iconTint
+            iconTint = updateSiblingTints[2]
         )
         SettingsAdaptiveDivider()
         SettingSwitchItem(
@@ -2058,7 +2061,7 @@ fun AboutSection(
             subtitle = resolveAutoCheckUpdateSubtitle(autoCheckEnabled = autoCheckUpdateEnabled),
             checked = autoCheckUpdateEnabled,
             onCheckedChange = onAutoCheckUpdateChange,
-            iconTint = autoCheckTint
+            iconTint = updateSiblingTints[3]
         )
         SettingsAdaptiveDivider()
         SettingsSingleChoicePreference(
@@ -2072,7 +2075,7 @@ fun AboutSection(
             },
             selectedValue = appUpdateChannel,
             icon = checkUpdateVisual.icon,
-            iconTint = autoCheckTint,
+            iconTint = updateSiblingTints[4],
             onSelectionChange = onAppUpdateChannelChange
         )
     }

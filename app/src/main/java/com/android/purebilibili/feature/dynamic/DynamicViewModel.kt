@@ -1573,7 +1573,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    //  [新增] 发布纯文本动态（对齐 PiliPlus 动态页发布入口，成功后延迟校验防 shadow-ban）
+    //  [新增] 发布纯文本动态（对齐 BiliPai 动态页发布入口，成功后延迟校验防 shadow-ban）
     fun publishDynamic(content: String, onResult: (Boolean, String) -> Unit) {
         val trimmed = content.trim()
         if (trimmed.isEmpty()) {
@@ -1594,7 +1594,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                 if (response.code == 0) {
                     onResult(true, "发布成功")
                     refresh(selectedTab = _selectedTab.value)
-                    //  防 shadow-ban：延迟后拉详情验证动态真实可见（对齐 PiliPlus checkCreatedDyn）
+                    //  防 shadow-ban：延迟后拉详情验证动态真实可见（对齐 BiliPai checkCreatedDyn）
                     val createdId = response.data?.dynamic_id_str
                     if (createdId.isNullOrBlank()) return@launch
                     try {
@@ -1784,7 +1784,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         private const val USER_SELECTION_DEBOUNCE_MS = 120L
         private const val PREFS_DYNAMIC_CACHE = "dynamic_cache"
         private const val PREFS_DYNAMIC_USERS = "dynamic_user_prefs"
-        //  发布动态后延迟校验时间（对齐 PiliPlus checkCreatedDyn 的 5 秒）
+        //  发布动态后延迟校验时间（对齐 BiliPai checkCreatedDyn 的 5 秒）
         private const val DYNAMIC_CREATE_ANTIFRAUD_DELAY_MS = 5_000L
         private const val KEY_DYNAMIC_CACHE = "dynamic_items_cache"
         private const val KEY_DYNAMIC_CACHE_TIME = "dynamic_cache_time"

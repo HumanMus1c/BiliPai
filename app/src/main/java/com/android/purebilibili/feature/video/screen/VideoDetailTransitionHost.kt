@@ -35,6 +35,7 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.transition.LocalVideoCardMorphProgressReporter
 import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
+import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionBackgroundState
 import com.android.purebilibili.core.ui.transition.LocalVideoCardTransitionClock
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionMotionSpec
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
@@ -44,6 +45,7 @@ import com.android.purebilibili.core.ui.transition.shouldUseVideoCardShellContai
 internal data class VideoDetailTransitionState(
     val animatedVisibilityScope: AnimatedVisibilityScope?,
     val sharedTransitionScope: SharedTransitionScope?,
+    val entryOwnsMiuixCardTransition: Boolean,
     val isExitTransitionInProgress: Boolean,
     val detailShellSharedBoundsEnabled: Boolean,
     val suppressEnterFadeAfterBackPreview: Boolean,
@@ -68,20 +70,33 @@ internal fun rememberVideoDetailTransitionState(
     val sharedTransitionScope = LocalSharedTransitionScope.current
     val videoCardClock = LocalVideoCardTransitionClock.current
     val miuixCardTransition = LocalMiuixVideoCardTransitionState.current
+    val transitionBackgroundState = LocalVideoCardTransitionBackgroundState.current
+    val entryOwnsMiuixCardTransition = isVideoDetailEntryActiveMiuixTransitionSource(
+        entrySourceRoute = sourceRoute,
+        activeSourceRoute = transitionBackgroundState.sourceRouteProvider(),
+    )
+    val entryMiuixTransitionEnabled =
+        miuixCardTransition.enabled && entryOwnsMiuixCardTransition
     // Nav3 1.2 + ExitTransition.None can finish AnimatedContent before PostExit is observed.
     // Also treat card-clock RETURNING as exit so secondary chrome / live morph stay in sync.
+    val scopedVideoCardPhase = videoCardClock?.phase?.takeIf {
+        !miuixCardTransition.enabled || entryOwnsMiuixCardTransition
+    }
     val isExitTransitionInProgress = shouldTreatVideoDetailExitTransitionInProgress(
         animatedVisibilityTargetIsPostExit =
             animatedVisibilityScope?.transition?.targetState == EnterExitState.PostExit,
-        videoCardBackgroundPhase = videoCardClock?.phase,
-    ) || (miuixCardTransition.enabled && miuixCardTransition.isGestureInProgressProvider())
-    val detailShellSharedBoundsEnabled = miuixCardTransition.enabled ||
+        videoCardBackgroundPhase = scopedVideoCardPhase,
+    ) || (entryMiuixTransitionEnabled && miuixCardTransition.isGestureInProgressProvider())
+    val detailShellSharedBoundsEnabled = if (miuixCardTransition.enabled) {
+        entryMiuixTransitionEnabled
+    } else {
         shouldUseVideoCardShellContainerTransform(
-        sourceRoute = sourceRoute,
-        transitionEnabled = transitionEnabled,
-        hasSharedTransitionScope = sharedTransitionScope != null,
-        hasAnimatedVisibilityScope = animatedVisibilityScope != null,
-    )
+            sourceRoute = sourceRoute,
+            transitionEnabled = transitionEnabled,
+            hasSharedTransitionScope = sharedTransitionScope != null,
+            hasAnimatedVisibilityScope = animatedVisibilityScope != null,
+        )
+    }
     var wasKeptAsBackPreview by rememberSaveable(bvid) { mutableStateOf(false) }
     SideEffect {
         if (keepLoadedContentForBackPreview) wasKeptAsBackPreview = true
@@ -92,7 +107,7 @@ internal fun rememberVideoDetailTransitionState(
     )
     // Shell sharedBounds 路径：根 progress 必须与 boundsTransform 同 duration/easing，
     // 再回灌 VideoCardTransitionClock，形成单时钟。
-    val progress = if (miuixCardTransition.enabled) {
+    val progress = if (entryMiuixTransitionEnabled) {
         remember(miuixCardTransition) {
             derivedStateOf { miuixCardTransition.progressProvider() }
         }
@@ -138,7 +153,7 @@ internal fun rememberVideoDetailTransitionState(
     // 不可重启，若在这里读会把每帧重组放大到整个详情 StateHolder，
     // morph 期间掉帧直接表现为进场/返回画面抖动。
     ReportVideoDetailMorphProgressToClock(
-        enabled = detailShellSharedBoundsEnabled && !miuixCardTransition.enabled,
+        enabled = detailShellSharedBoundsEnabled && !entryMiuixTransitionEnabled,
         progress = progress,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope,
@@ -151,6 +166,7 @@ internal fun rememberVideoDetailTransitionState(
     return VideoDetailTransitionState(
         animatedVisibilityScope = animatedVisibilityScope,
         sharedTransitionScope = sharedTransitionScope,
+        entryOwnsMiuixCardTransition = entryOwnsMiuixCardTransition,
         isExitTransitionInProgress = isExitTransitionInProgress,
         detailShellSharedBoundsEnabled = detailShellSharedBoundsEnabled,
         suppressEnterFadeAfterBackPreview = suppressEnterFadeAfterBackPreview,

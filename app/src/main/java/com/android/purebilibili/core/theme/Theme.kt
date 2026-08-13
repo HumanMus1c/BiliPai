@@ -840,7 +840,7 @@ private fun rememberSystemWallpaperRefreshToken(
 private const val SYSTEM_WALLPAPER_PALETTE_SETTLE_DELAY_MS = 200L
 
 @Composable
-private fun rememberKernelSuStyleColorScheme(
+private fun rememberBiliPaiStyleColorScheme(
     seedColor: Color,
     darkTheme: Boolean,
     amoledDarkTheme: Boolean,
@@ -855,7 +855,7 @@ private fun rememberKernelSuStyleColorScheme(
     colorSpec,
     dynamicBaseScheme,
 ) {
-    createKernelSuStyleColorScheme(
+    createBiliPaiStyleColorScheme(
         seedColor = seedColor,
         darkTheme = darkTheme,
         amoledDarkTheme = amoledDarkTheme,
@@ -865,7 +865,7 @@ private fun rememberKernelSuStyleColorScheme(
     )
 }
 
-internal fun createKernelSuStyleColorScheme(
+internal fun createBiliPaiStyleColorScheme(
     seedColor: Color,
     darkTheme: Boolean,
     amoledDarkTheme: Boolean,
@@ -987,7 +987,7 @@ fun PureBiliBiliTheme(
     } else {
         null
     }
-    val lightMaterialScheme = rememberKernelSuStyleColorScheme(
+    val lightMaterialScheme = rememberBiliPaiStyleColorScheme(
         seedColor = customPrimaryColor,
         darkTheme = false,
         amoledDarkTheme = false,
@@ -995,7 +995,7 @@ fun PureBiliBiliTheme(
         colorSpec = colorSpec,
         dynamicBaseScheme = dynamicLightBaseScheme
     )
-    val darkMaterialScheme = rememberKernelSuStyleColorScheme(
+    val darkMaterialScheme = rememberBiliPaiStyleColorScheme(
         seedColor = customPrimaryColor,
         darkTheme = true,
         amoledDarkTheme = amoledDarkTheme,

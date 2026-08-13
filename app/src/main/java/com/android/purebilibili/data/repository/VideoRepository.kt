@@ -582,7 +582,7 @@ object VideoRepository {
                     }
                 }
                 com.android.purebilibili.core.store.SettingsManager.FeedApiType.MERGED -> {
-                    // 合并模式(参数对齐 PiliNara 原版):
+                    // 合并模式(参数对齐 BiliPai 原版):
                     // Web 半边用 fresh_type=4/feed_version=V8/brush=idx 等参数;
                     // App 半边用匿名 android_hd 取流(不依赖登录), 并行请求后交错合并、按视频去重
                     return coroutineScope {
@@ -709,7 +709,7 @@ object VideoRepository {
         }
     }
     
-    //  [合并模式] Web 端推荐流 - 参数对齐 PiliNara 原版合并模式
+    //  [合并模式] Web 端推荐流 - 参数对齐 BiliPai 原版合并模式
     //  (feed_version=V8 常量会话、fresh_type=4、brush=idx、version=1、homepage_ver=1)
     //  仅用于 FeedApiType.MERGED, 不影响 Web 单独模式
     private suspend fun fetchMergedWebFeed(idx: Int, refreshCount: Int): Result<List<VideoItem>> {
@@ -747,7 +747,7 @@ object VideoRepository {
         }
     }
 
-    //  [合并模式] App 端推荐流 - 匿名 android_hd 取流, 参数对齐 PiliNara 原版合并模式
+    //  [合并模式] App 端推荐流 - 匿名 android_hd 取流, 参数对齐 BiliPai 原版合并模式
     //  与 App 单独模式(TV appkey + access_token)无关: 不依赖登录, 靠 buvid 建立会话
     private suspend fun fetchMergedMobileFeed(idx: Int): Result<List<VideoItem>> {
         try {
@@ -786,7 +786,7 @@ object VideoRepository {
                 "voice_balance" to "0"
             )
 
-            // PiliPlus/PiliNara 风格: key/value percent-encode 后拼接签名,
+            // BiliPai/BiliPai 风格: key/value percent-encode 后拼接签名,
             // 再用 encoded=true 端点原样发送, 保证签名与线上 query 完全一致
             val signedParams = AppSignUtils.signForAndroidHdLogin(params)
             val encodedParams = signedParams.mapValues { (_, value) -> AppSignUtils.percentEncode(value) }
@@ -1602,7 +1602,7 @@ object VideoRepository {
         return !data.durl.isNullOrEmpty() || !data.dash?.video.isNullOrEmpty()
     }
 
-    // 已登录用户：保持 PiliPlus 对齐的单条 Web/WBI 主路径。
+    // 已登录用户：保持 BiliPai 对齐的单条 Web/WBI 主路径。
     private suspend fun fetchDashWithFallback(
         bvid: String,
         cid: Long,
@@ -1837,7 +1837,7 @@ object VideoRepository {
         return null
     }
     
-    // 未登录用户：保持 PiliPlus 对齐的单条 Web/WBI 主路径。
+    // 未登录用户：保持 BiliPai 对齐的单条 Web/WBI 主路径。
     private suspend fun fetchGuestPlaybackWithFallback(
         bvid: String,
         cid: Long,

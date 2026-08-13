@@ -273,7 +273,7 @@ fun DynamicDetailScreen(
                 }
 
                 if (useSplitLayout) {
-                    //  [新增] 大屏/横屏：左卡片 + 右评论（对齐 PiliPlus 横屏分栏）
+                    //  [新增] 大屏/横屏：左卡片 + 右评论（对齐 BiliPai 横屏分栏）
                     AppSplitLayout(
                         primaryRatio = 0.5f,
                         modifier = Modifier.padding(paddingValues),

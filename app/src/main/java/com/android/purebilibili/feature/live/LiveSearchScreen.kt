@@ -87,7 +87,7 @@ fun LiveSearchScreen(
         windowSizeClass.widthDp
     }
     val gridColumns = remember(contentWidth, windowSizeClass.isTablet) {
-        resolveLivePiliPlusGridColumns(
+        resolveLiveBiliPaiGridColumns(
             widthDp = contentWidth.value.toInt(),
             isTabletLayout = windowSizeClass.isTablet,
         )
@@ -239,7 +239,7 @@ fun LiveSearchScreen(
             if (!hasSubmitted) {
                 LiveSearchState("输入关键词后搜索直播间或主播")
             } else {
-                // PiliPlus TabBar 同款：原生 chip 分发（MD3 FilterChip / Miuix·iOS 胶囊）
+                // BiliPai TabBar 同款：原生 chip 分发（MD3 FilterChip / Miuix·iOS 胶囊）
                 Row(
                     modifier = Modifier
                         .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)

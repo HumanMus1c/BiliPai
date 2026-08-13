@@ -976,8 +976,8 @@ class HomeHeaderVisualPolicyTest {
                 uiPreset = UiPreset.MD3
             )
         )
-        // MD3 without global master keeps liquid glass off even if the individual
-        // top-dock toggle is on; iOS still allows individual enablement.
+        // The top dock now follows the bottom bar exactly: per-surface toggles do not
+        // bypass the shared Android-native liquid-glass master in either style.
         assertFalse(
             resolveHomeTopTabIndicatorLiquidGlassEnabled(
                 homeSettings = HomeSettings(
@@ -987,7 +987,7 @@ class HomeHeaderVisualPolicyTest {
                 uiPreset = UiPreset.MD3
             )
         )
-        assertTrue(
+        assertFalse(
             resolveHomeTopTabIndicatorLiquidGlassEnabled(
                 homeSettings = HomeSettings(
                     isTopBarLiquidGlassEnabled = true,
@@ -1020,7 +1020,7 @@ class HomeHeaderVisualPolicyTest {
                 uiPreset = UiPreset.MD3
             )
         )
-        assertTrue(
+        assertFalse(
             resolveHomeTopChromeLiquidGlassEnabled(
                 homeSettings = HomeSettings(
                     isTopBarLiquidGlassEnabled = true,
@@ -1064,7 +1064,7 @@ class HomeHeaderVisualPolicyTest {
                 uiPreset = UiPreset.MD3
             )
         )
-        assertTrue(
+        assertFalse(
             resolveHomeTopSearchLiquidGlassEnabled(
                 homeSettings = HomeSettings(
                     isTopBarLiquidGlassEnabled = false,
@@ -1848,7 +1848,7 @@ class HomeHeaderVisualPolicyTest {
         assertTrue(searchCapsuleSource.contains("renderMode = searchChromeRenderMode"))
         assertTrue(searchCapsuleSource.contains("liquidGlassPreset = bottomBarLiquidGlassPreset"))
         assertTrue(searchCapsuleSource.contains("Modifier.homeTopChromeSurface("))
-        assertFalse(searchCapsuleSource.contains("KernelSuBottomBarIndicatorLayer("))
+        assertFalse(searchCapsuleSource.contains("BiliPaiBottomBarIndicatorLayer("))
         assertFalse(searchCapsuleSource.contains("searchChromeRenderModeEffective"))
         assertFalse(searchCapsuleSource.contains("SimpleLiquidIndicator("))
         assertFalse(searchCapsuleSource.contains(".matchParentSize()\n                                                .background("))

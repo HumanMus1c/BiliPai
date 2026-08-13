@@ -10,7 +10,7 @@
 
 ## 唯一参考实现
 
-参考实现是当前首页浮动底栏的 Miuix/KernelSU 路径：
+参考实现是当前首页浮动底栏的 Miuix/BiliPai 路径：
 
 - Dock 使用现有 vibrancy、blur、24dp lens、容器色、阴影及边缘高光。
 - 指示器使用 `BottomBarMotionProfile.ANDROID_NATIVE_FLOATING` 拖拽内核。

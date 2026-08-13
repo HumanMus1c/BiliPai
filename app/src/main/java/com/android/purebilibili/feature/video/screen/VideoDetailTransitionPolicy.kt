@@ -7,6 +7,7 @@ import com.android.purebilibili.core.ui.transition.VideoCardReturnCoverOwnership
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionPlaybackIntent
 import com.android.purebilibili.core.ui.transition.isVideoCardLiveReturnMorphOwnership
+import com.android.purebilibili.core.ui.transition.normalizeSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.resolveReturnSessionLockedCoverOwnership
 import com.android.purebilibili.core.ui.transition.resolveVideoCardLiveMorphSecondaryContentAlpha
 import com.android.purebilibili.core.ui.transition.resolveVideoCardLiveReturnVisualHandoffAlpha
@@ -19,6 +20,22 @@ import com.android.purebilibili.core.ui.transition.shouldUseVideoCardLiveReturnM
 
 private const val COVER_TAKEOVER_PRE_BACK_DELAY_MILLIS = 0L
 internal const val VIDEO_CONTENT_COMMENT_TAB_INDEX = 1
+
+/**
+ * 嵌套详情共享同一组 CompositionLocal，但一次卡片 morph 只能由目标详情 entry 消费。
+ * 例如 video/A -> video/B 时，活动 source 是 video/A，因此仅 B 的 entry sourceRoute
+ * 能匹配；作为返回预览的 A 不得误用 B 的封面快照和卡片落位信息。
+ */
+internal fun isVideoDetailEntryActiveMiuixTransitionSource(
+    entrySourceRoute: String?,
+    activeSourceRoute: String?,
+): Boolean {
+    val normalizedEntrySource =
+        normalizeSharedElementSourceRoute(entrySourceRoute) ?: return false
+    val normalizedActiveSource =
+        normalizeSharedElementSourceRoute(activeSourceRoute) ?: return false
+    return normalizedEntrySource == normalizedActiveSource
+}
 
 internal fun resolveForceCoverOnlyForReturn(
     forceCoverOnlyOnReturn: Boolean,

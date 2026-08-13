@@ -49,6 +49,7 @@ import com.android.purebilibili.core.ui.transition.resolveVideoCardTimelineSpec
 import com.android.purebilibili.core.ui.transition.resolvePredictiveBackGestureBlurProgress
 import com.android.purebilibili.core.ui.transition.shouldReleaseHostOwnedDepthLayer
 import com.android.purebilibili.core.ui.transition.shouldShowVideoCardTransitionNavBackdrop
+import com.android.purebilibili.core.ui.transition.shouldUseHostOwnedVideoCardTransitionSnapshot
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackExitDirection
@@ -438,7 +439,8 @@ internal fun BiliPaiNavDisplayHost(
             .background(AppSurfaceTokens.groupedListContainer()),
     ) {
         VideoCardTransitionHostDepthLayer(
-            enabled = cardMorphAvailable,
+            enabled = cardMorphAvailable &&
+                shouldUseHostOwnedVideoCardTransitionSnapshot(sourceMetadata.sourceRoute),
             snapshotHandle = videoCardSnapshotHandle,
             progressProvider = videoCardProgressProvider,
             phaseProvider = { videoCardClock.phase },

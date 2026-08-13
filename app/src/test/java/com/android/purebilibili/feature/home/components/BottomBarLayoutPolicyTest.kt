@@ -46,30 +46,79 @@ class BottomBarLayoutPolicyTest {
     }
 
     @Test
-    fun `kernelsu floating width uses intrinsic item width when space allows`() {
-        val width = resolveKernelSuFloatingBottomBarWidth(
+    fun `bilipai floating width uses intrinsic item width when space allows`() {
+        val width = resolveBiliPaiFloatingBottomBarWidth(
             containerWidth = 393.dp,
             itemCount = 4,
-            minEdgePadding = 20.dp
+            minEdgePadding = 20.dp,
+            labelMode = 0
         )
 
         assertEquals(312.dp, width)
     }
 
     @Test
-    fun `kernelsu floating width keeps safe edge padding on crowded phones`() {
-        val width = resolveKernelSuFloatingBottomBarWidth(
+    fun `bilipai floating width keeps safe edge padding on crowded phones`() {
+        val width = resolveBiliPaiFloatingBottomBarWidth(
             containerWidth = 393.dp,
             itemCount = 5,
-            minEdgePadding = 20.dp
+            minEdgePadding = 20.dp,
+            labelMode = 0
         )
 
         assertEquals(353.dp, width)
     }
 
     @Test
-    fun `kernelsu item slot width matches indicator geometry on crowded phones`() {
-        val slotWidth = resolveKernelSuBottomBarItemSlotWidth(
+    fun `bilipai floating width follows icon label presentation mode`() {
+        val iconOnlyWidth = resolveBiliPaiFloatingBottomBarWidth(
+            containerWidth = 393.dp,
+            itemCount = 5,
+            minEdgePadding = 20.dp,
+            labelMode = 1
+        )
+        val iconAndTextWidth = resolveBiliPaiFloatingBottomBarWidth(
+            containerWidth = 393.dp,
+            itemCount = 5,
+            minEdgePadding = 20.dp,
+            labelMode = 0
+        )
+        val textOnlyWidth = resolveBiliPaiFloatingBottomBarWidth(
+            containerWidth = 393.dp,
+            itemCount = 5,
+            minEdgePadding = 20.dp,
+            labelMode = 2
+        )
+
+        assertEquals(328.dp, iconOnlyWidth)
+        assertEquals(353.dp, iconAndTextWidth)
+        assertEquals(348.dp, textOnlyWidth)
+    }
+
+    @Test
+    fun `bilipai icon only width follows capsule corner radius`() {
+        val compactCorners = resolveBiliPaiFloatingBottomBarWidth(
+            containerWidth = 393.dp,
+            itemCount = 4,
+            minEdgePadding = 20.dp,
+            labelMode = 1,
+            cornerRadius = 28.dp
+        )
+        val rounderCorners = resolveBiliPaiFloatingBottomBarWidth(
+            containerWidth = 393.dp,
+            itemCount = 4,
+            minEdgePadding = 20.dp,
+            labelMode = 1,
+            cornerRadius = 36.dp
+        )
+
+        assertEquals(232.dp, compactCorners)
+        assertEquals(296.dp, rounderCorners)
+    }
+
+    @Test
+    fun `bilipai item slot width matches indicator geometry on crowded phones`() {
+        val slotWidth = resolveBiliPaiBottomBarItemSlotWidth(
             dockWidth = 353.dp,
             horizontalPadding = 4.dp,
             itemCount = 5
@@ -78,7 +127,7 @@ class BottomBarLayoutPolicyTest {
         assertEquals(69.dp, slotWidth)
         assertEquals(
             314.5.dp,
-            resolveKernelSuBottomBarItemCenterX(
+            resolveBiliPaiBottomBarItemCenterX(
                 itemIndex = 4,
                 itemWidth = slotWidth,
                 horizontalPadding = 4.dp
@@ -87,8 +136,8 @@ class BottomBarLayoutPolicyTest {
     }
 
     @Test
-    fun `kernelsu search entry shares safe floating width while collapsed`() {
-        val layout = resolveKernelSuBottomBarSearchLayout(
+    fun `bilipai search entry shares safe floating width while collapsed`() {
+        val layout = resolveBiliPaiBottomBarSearchLayout(
             containerWidth = 393.dp,
             itemCount = 4,
             minEdgePadding = 20.dp,
@@ -102,8 +151,8 @@ class BottomBarLayoutPolicyTest {
     }
 
     @Test
-    fun `kernelsu search entry keeps dock wider than home capsule when expanded`() {
-        val layout = resolveKernelSuBottomBarSearchLayout(
+    fun `bilipai search entry keeps dock wider than home capsule when expanded`() {
+        val layout = resolveBiliPaiBottomBarSearchLayout(
             containerWidth = 393.dp,
             itemCount = 4,
             minEdgePadding = 20.dp,
@@ -119,7 +168,7 @@ class BottomBarLayoutPolicyTest {
 
     @Test
     fun `compact search layout keeps home dock with expanded search field`() {
-        val layout = resolveKernelSuBottomBarSearchLayout(
+        val layout = resolveBiliPaiBottomBarSearchLayout(
             containerWidth = 393.dp,
             itemCount = 4,
             minEdgePadding = 20.dp,
@@ -128,7 +177,7 @@ class BottomBarLayoutPolicyTest {
             searchLayoutMode = BottomBarSearchLayoutMode.HOME_AND_SEARCH
         )
 
-        assertEquals(resolveKernelSuBottomBarSearchCircleSize(), layout.dockWidth)
+        assertEquals(resolveBiliPaiBottomBarSearchCircleSize(), layout.dockWidth)
         assertEquals(279.dp, layout.searchWidth)
         assertEquals(10.dp, layout.gap)
     }
@@ -137,7 +186,7 @@ class BottomBarLayoutPolicyTest {
     fun `full dock search layout keeps compact search visual when auto expanded`() {
         assertEquals(
             false,
-            resolveKernelSuBottomBarSearchFieldExpanded(
+            resolveBiliPaiBottomBarSearchFieldExpanded(
                 searchExpanded = true,
                 searchLayoutMode = BottomBarSearchLayoutMode.FULL_DOCK
             )
@@ -148,7 +197,7 @@ class BottomBarLayoutPolicyTest {
     fun `compact search layout renders expanded search field`() {
         assertEquals(
             true,
-            resolveKernelSuBottomBarSearchFieldExpanded(
+            resolveBiliPaiBottomBarSearchFieldExpanded(
                 searchExpanded = true,
                 searchLayoutMode = BottomBarSearchLayoutMode.HOME_AND_SEARCH
             )
@@ -156,18 +205,18 @@ class BottomBarLayoutPolicyTest {
     }
 
     @Test
-    fun `kernelsu expanded home dock copies search circle size`() {
-        assertEquals(64.dp, resolveKernelSuBottomBarSearchCircleSize())
-        assertEquals(64.dp, resolveKernelSuBottomBarDockHeight(searchExpanded = false))
-        assertEquals(resolveKernelSuBottomBarSearchCircleSize(), resolveKernelSuBottomBarDockHeight(searchExpanded = true))
-        assertEquals(64.dp, resolveKernelSuBottomBarSearchHeight(searchExpanded = false))
-        assertEquals(64.dp, resolveKernelSuBottomBarSearchHeight(searchExpanded = true))
+    fun `bilipai expanded home dock copies search circle size`() {
+        assertEquals(64.dp, resolveBiliPaiBottomBarSearchCircleSize())
+        assertEquals(64.dp, resolveBiliPaiBottomBarDockHeight(searchExpanded = false))
+        assertEquals(resolveBiliPaiBottomBarSearchCircleSize(), resolveBiliPaiBottomBarDockHeight(searchExpanded = true))
+        assertEquals(64.dp, resolveBiliPaiBottomBarSearchHeight(searchExpanded = false))
+        assertEquals(64.dp, resolveBiliPaiBottomBarSearchHeight(searchExpanded = true))
     }
 
     @Test
-    fun `kernelsu expanded home icon matches compact search icon size`() {
-        assertEquals(28.dp, resolveKernelSuExpandedHomeIconSize())
-        assertEquals(0.92f, resolveKernelSuExpandedHomeIconScale(), 0.001f)
+    fun `bilipai expanded home icon matches compact search icon size`() {
+        assertEquals(28.dp, resolveBiliPaiExpandedHomeIconSize())
+        assertEquals(0.92f, resolveBiliPaiExpandedHomeIconScale(), 0.001f)
     }
 
     @Test

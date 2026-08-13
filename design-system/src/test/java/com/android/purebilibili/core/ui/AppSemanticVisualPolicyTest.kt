@@ -19,14 +19,17 @@ class AppSemanticVisualPolicyTest {
     )
 
     @Test
-    fun twoValueStylesUseMaterialSemanticVisuals() {
+    fun twoValueStylesUseTheirNativeSemanticIconFamily() {
         listOf(AppUiStyle.MATERIAL3, AppUiStyle.MIUIX).forEach { style ->
             val policy = resolveAppSemanticVisualPolicy(
                 uiStyle = style,
                 materialPalette = palette,
             )
 
-            assertEquals(AppSemanticIconFamily.MATERIAL, policy.iconFamily)
+            assertEquals(
+                if (style == AppUiStyle.MIUIX) AppSemanticIconFamily.MIUIX else AppSemanticIconFamily.MATERIAL,
+                policy.iconFamily,
+            )
             assertEquals(
                 style == AppUiStyle.MIUIX,
                 policy.prefersGroupedListCards,

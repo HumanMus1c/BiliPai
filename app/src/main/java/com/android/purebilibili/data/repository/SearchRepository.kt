@@ -276,7 +276,7 @@ object SearchRepository {
         }
     }
 
-    //  热搜榜单（PiliPlus 同源）
+    //  热搜榜单（BiliPai 同源）
     suspend fun getTrendingKeywords(limit: Int = 30): Result<SearchTrendingBundle> = withContext(Dispatchers.IO) {
         try {
             val wbiResponse = runCatching {

@@ -162,7 +162,7 @@ fun LivePlayerScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val palette = rememberLiveChromePalette()
-    val roomColorTokens = resolveLivePiliPlusRoomColorTokens()
+    val roomColorTokens = resolveLiveBiliPaiRoomColorTokens()
     
     // 状态
     var showQualityMenu by remember { mutableStateOf(false) }
@@ -1226,7 +1226,7 @@ fun LivePlayerScreen(
     )
     }
     
-    // 画质菜单（PiliPlus 同款底部选择 + 原生 chip 分发）
+    // 画质菜单（BiliPai 同款底部选择 + 原生 chip 分发）
     if (showQualityMenu) {
         val successState = uiState as? LivePlayerState.Success
         if (successState != null) {
@@ -1448,7 +1448,7 @@ private fun LiveRoomBackdrop(
     imageUrl: String,
     modifier: Modifier = Modifier
 ) {
-    val tokens = resolveLivePiliPlusRoomColorTokens()
+    val tokens = resolveLiveBiliPaiRoomColorTokens()
     Box(modifier = modifier.background(tokens.baseBackgroundColor)) {
         if (imageUrl.isNotBlank()) {
             AsyncImage(
@@ -1488,7 +1488,7 @@ private fun LivePortraitOverlayAppBar(
     modifier: Modifier = Modifier
 ) {
     val palette = rememberLiveChromePalette()
-    val roomColorTokens = resolveLivePiliPlusRoomColorTokens()
+    val roomColorTokens = resolveLiveBiliPaiRoomColorTokens()
     val backIcon = rememberAppBackIcon()
     val playerChromeProfile = rememberAppPlayerChromeProfile()
     val liveVisualSpec = remember(playerChromeProfile.tabPresentation) {
@@ -1863,7 +1863,7 @@ private fun LiveLandscapeChatPanel(
     content: @Composable () -> Unit
 ) {
     val palette = rememberLiveChromePalette()
-    val roomColorTokens = resolveLivePiliPlusRoomColorTokens()
+    val roomColorTokens = resolveLiveBiliPaiRoomColorTokens()
     AppSurface(
         modifier = modifier,
         shape = AppShapes.borderedContainer(ContainerLevel.Floating),

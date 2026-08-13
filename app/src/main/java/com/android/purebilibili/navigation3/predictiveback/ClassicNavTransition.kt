@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2026 InstallerX Revived contributors
 package com.android.purebilibili.navigation3.predictiveback
 
 import androidx.compose.animation.core.CubicBezierEasing
@@ -61,4 +60,3 @@ internal val ClassicNavTransition: NavTransition = navDirectionalTransition(
     pop = ClassicScalePop,
     predictivePop = ClassicScalePop,
 )
-

@@ -168,7 +168,7 @@ fun DynamicCardV2(
         )
     }
 
-    //  [新增] 评论互动设置弹窗（评论精选 / 评论开关，对齐 PiliPlus）
+    //  [新增] 评论互动设置弹窗（评论精选 / 评论开关，对齐 BiliPai）
     showReplyInteractionDialog?.let { interactionData ->
         val selection = interactionData.up_reply_selection
         val reply = interactionData.up_reply
@@ -338,7 +338,7 @@ fun DynamicCardV2(
                     )
                 }
                 
-                //  置顶标（module_tag：B 站固定返回 "置顶"，对齐 PiliPlus 作者区头部样式）
+                //  置顶标（module_tag：B 站固定返回 "置顶"，对齐 BiliPai 作者区头部样式）
                 if (shouldShowDynamicPinnedTag(item.modules.module_tag)) {
                     Box(
                         modifier = Modifier
@@ -398,7 +398,7 @@ fun DynamicCardV2(
                             }
                         )
 
-                        //  [新增] 分享动态（系统分享，对齐 PiliPlus 分享面板）
+                        //  [新增] 分享动态（系统分享，对齐 BiliPai 分享面板）
                         AppDropdownMenuItem(
                             text = { AppText("分享动态", color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = {
@@ -481,7 +481,7 @@ fun DynamicCardV2(
                             }
                         )
 
-                        //  [新增] 置顶 / 取消置顶（对齐 PiliPlus morePanel）
+                        //  [新增] 置顶 / 取消置顶（对齐 BiliPai morePanel）
                         AppDropdownMenuItem(
                             text = { AppText(resolveDynamicPinnedMenuLabel(isCurrentlyTop), color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = {

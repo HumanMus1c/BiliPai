@@ -8,6 +8,6 @@ class HomeVisualPaletteTest {
     @Test
     fun namedHomeColors_preserveBrandAndOpticalIdentity() {
         assertEquals(Color(0xFF00D1B2), HomeVisualPalette.VerticalVideoAccent)
-        assertEquals(Color(0xFF242424), HomeVisualPalette.KernelSuDarkSurface)
+        assertEquals(Color(0xFF242424), HomeVisualPalette.BiliPaiDarkSurface)
     }
 }

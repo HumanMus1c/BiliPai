@@ -196,10 +196,10 @@ internal fun resolveReplyAvatarFaceFraction(hasPendant: Boolean): Float {
 }
 
 internal fun resolveReplyItemHeaderEndPaddingDp(
-    hasPiliPlusDecoration: Boolean,
+    hasBiliPaiDecoration: Boolean,
     policy: ReplyItemLayoutPolicy = resolveReplyItemLayoutPolicy()
 ): Int {
-    return policy.actionButtonSizeDp + if (hasPiliPlusDecoration) policy.decorationWidthReserveDp else 0
+    return policy.actionButtonSizeDp + if (hasBiliPaiDecoration) policy.decorationWidthReserveDp else 0
 }
 
 internal fun resolveReplyItemContentStartPaddingDp(
@@ -1186,7 +1186,7 @@ fun ReplyItemView(
     } else {
         null
     }
-    val piliPlusDecoration = fanGroupVisual
+    val biliPaiDecoration = fanGroupVisual
     val replyOfficialBadge = remember(item.member.officialVerify) {
         resolveOfficialVerifyBadge(
             type = item.member.officialVerify.type,
@@ -1370,7 +1370,7 @@ fun ReplyItemView(
                 )
         ) {
             val headerEndPadding = resolveReplyItemHeaderEndPaddingDp(
-                hasPiliPlusDecoration = piliPlusDecoration != null,
+                hasBiliPaiDecoration = biliPaiDecoration != null,
                 policy = layoutPolicy
             ).dp
             val startPadding = resolveReplyItemContentStartPaddingDp(
@@ -1718,9 +1718,9 @@ fun ReplyItemView(
             }
         }
 
-        if (piliPlusDecoration != null) {
+        if (biliPaiDecoration != null) {
             FanGroupDecorationBadge(
-                visual = piliPlusDecoration,
+                visual = biliPaiDecoration,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(
@@ -2263,7 +2263,7 @@ fun EmojiText(
     )
 }
 
-//  评论等级标签（PiliPlus pixel badge with text fallback）
+//  评论等级标签（BiliPai pixel badge with text fallback）
 @Composable
 fun LevelTag(level: Int, isSeniorMember: Boolean = false) {
     UserLevelBadge(
@@ -2436,7 +2436,7 @@ internal fun FanGroupDecorationBadge(
 }
 
 @Composable
-private fun PiliPlusGarbCardDecoration(
+private fun BiliPaiGarbCardDecoration(
     visual: FanGroupTagVisual,
     modifier: Modifier = Modifier
 ) {
@@ -2616,7 +2616,7 @@ private fun ReplyActionSheetItem(
     )
 }
 
-//  UP 标签 - PiliPlus small badge style
+//  UP 标签 - BiliPai small badge style
 @Composable
 fun UpTag() {
     UserUpBadge()

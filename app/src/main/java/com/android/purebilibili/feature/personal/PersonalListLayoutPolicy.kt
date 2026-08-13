@@ -9,7 +9,7 @@ internal const val PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO = 16f / 9f
 internal const val PERSONAL_LIST_POSTER_ASPECT_RATIO = 3f / 4f
 
 /**
- * Mirrors PiliPlus' max-cross-axis-extent behavior: secondary personal lists
+ * Mirrors BiliPai' max-cross-axis-extent behavior: secondary personal lists
  * add another column once the available width exceeds the 480dp item target.
  */
 internal fun resolvePersonalListColumnCount(

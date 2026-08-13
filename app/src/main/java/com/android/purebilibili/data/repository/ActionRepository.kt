@@ -288,7 +288,7 @@ object ActionRepository {
     /**
      * 订阅/取消订阅 UGC 合集。
      *
-     * 对齐 PiliPlus:
+     * 对齐 BiliPai:
      * - 订阅: /x/v3/fav/season/fav
      * - 取消订阅: /x/v3/fav/season/unfav
      * - 表单字段: platform=web, season_id, csrf

@@ -36,19 +36,19 @@ class HomeFeedCardStylePolicyTest {
     }
 
     @Test
-    fun piliPlusStyle_usesSixteenByTenBetweenFullAndTall() {
-        val layout = resolveHomeFeedCardLayout(HomeFeedCardStyle.PILIPLUS)
+    fun biliPaiStyle_usesSixteenByTenBetweenFullAndTall() {
+        val layout = resolveHomeFeedCardLayout(HomeFeedCardStyle.BILIPAI)
 
-        assertEquals(HOME_FEED_PILIPLUS_COVER_ASPECT_RATIO, layout.coverAspectRatio, 0.0001f)
-        assertEquals(16f / 10f, resolveHomeFeedCoverAspectRatio(HomeFeedCardStyle.PILIPLUS), 0.0001f)
+        assertEquals(HOME_FEED_BILIPAI_COVER_ASPECT_RATIO, layout.coverAspectRatio, 0.0001f)
+        assertEquals(16f / 10f, resolveHomeFeedCoverAspectRatio(HomeFeedCardStyle.BILIPAI), 0.0001f)
         assertEquals(6, layout.outerPaddingDp)
         assertEquals(6, layout.itemSpacingDp)
         assertEquals(6, layout.verticalItemSpacingDp)
         assertEquals(8, layout.storyCardHorizontalPaddingDp)
         assertEquals(true, layout.compactMetadata)
-        assertEquals("16:10", HomeFeedCardStyle.PILIPLUS.label)
-        assertEquals(2, HomeFeedCardStyle.PILIPLUS.value)
-        assertEquals(HomeFeedCardStyle.PILIPLUS, HomeFeedCardStyle.fromValue(2))
+        assertEquals("16:10", HomeFeedCardStyle.BILIPAI.label)
+        assertEquals(2, HomeFeedCardStyle.BILIPAI.value)
+        assertEquals(HomeFeedCardStyle.BILIPAI, HomeFeedCardStyle.fromValue(2))
     }
 
     @Test
@@ -73,9 +73,9 @@ class HomeFeedCardStylePolicyTest {
             0.0001f,
         )
         assertEquals(
-            HOME_FEED_PILIPLUS_COVER_ASPECT_RATIO,
+            HOME_FEED_BILIPAI_COVER_ASPECT_RATIO,
             resolveHomeFeedCoverAspectRatio(
-                style = HomeFeedCardStyle.PILIPLUS,
+                style = HomeFeedCardStyle.BILIPAI,
                 gridColumns = 3,
             ),
             0.0001f,

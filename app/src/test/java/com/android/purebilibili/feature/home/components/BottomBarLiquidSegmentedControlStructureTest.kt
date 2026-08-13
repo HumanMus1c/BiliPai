@@ -351,11 +351,14 @@ class BottomBarLiquidSegmentedControlStructureTest {
 
         assertTrue(sharedChrome.contains("holdPressUntilReleaseTargetSettles = true"))
         assertTrue(sharedChrome.contains("resolveBottomBarMaterialScrollAnimationDurationMillis(isScrolling)"))
-        assertTrue(sharedChrome.contains("KernelSuMiuixBottomBarIndicatorLayer("))
+        assertTrue(sharedChrome.contains("BiliPaiMiuixBottomBarIndicatorLayer("))
         assertTrue(sharedChrome.contains("BottomBarLiquidOrientation.VERTICAL"))
         assertTrue(sharedChrome.contains("swapMotionAxes = orientation == BottomBarLiquidOrientation.VERTICAL"))
         assertTrue(source.contains("contentBackdrop = combinedMiuixBackdrop"))
-        assertTrue(source.contains("legacyContentBackdrop = tabsBackdrop"))
+        assertTrue(source.contains("backdrop = pageMiuixBackdrop"))
+        // Kyant legacy capture path removed.
+        assertFalse(source.contains("legacyContentBackdrop = tabsBackdrop"))
+        assertFalse(source.contains("legacyBackdrop = backdrop"))
     }
 
     @Test

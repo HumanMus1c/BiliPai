@@ -209,7 +209,7 @@ internal fun shouldTryAppApiForTargetQuality(
     hasSessionCookie: Boolean = true,
     directedTrafficMode: Boolean = false
 ): Boolean {
-    // PiliPlus parity: playback stays on the Web/WBI playurl path instead of
+    // BiliPai parity: playback stays on the Web/WBI playurl path instead of
     // prioritizing the APP access_token endpoint for 1080P and premium tiers.
     return false
 }

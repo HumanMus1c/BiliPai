@@ -1301,18 +1301,25 @@ fun HomeScreen(
     var isHeaderVisible by rememberSaveable { mutableStateOf(true) }
     
     // Constants
-    val topTabStyle = remember(isBottomBarFloating, isHeaderBlurEnabled) {
+    val topTabStyle = remember(
+        isBottomBarFloating,
+        isHeaderBlurEnabled,
+        homePerformanceConfig.topBarLiquidGlassEnabled,
+    ) {
         resolveTopTabStyle(
             isBottomBarFloating = isBottomBarFloating,
             isBottomBarBlurEnabled = isHeaderBlurEnabled,
-            isLiquidGlassEnabled = false
+            isLiquidGlassEnabled = homePerformanceConfig.topBarLiquidGlassEnabled,
         )
     }
-    val topChromeMaterialMode = remember(isHeaderBlurEnabled) {
+    val topChromeMaterialMode = remember(
+        isHeaderBlurEnabled,
+        homePerformanceConfig.topBarLiquidGlassEnabled,
+    ) {
         resolveHomeTopChromeMaterialMode(
             isHeaderBlurEnabled = isHeaderBlurEnabled,
             isBottomBarBlurEnabled = false,
-            isLiquidGlassEnabled = false
+            isLiquidGlassEnabled = homePerformanceConfig.topBarLiquidGlassEnabled,
         )
     }
     val homeTopPresetStyle = remember(topChromePolicy, homeSettings.topTabLabelMode) {
@@ -2130,7 +2137,6 @@ fun HomeScreen(
             isRefreshing = isRefreshing,
             pullProgress = 0f, // [Fix] Outer header doesn't track inner pull state
             pagerState = pagerState,
-            backdrop = homeBackdrop,
             miuixBackdrop = homeMiuixBackdrop,
             homeSettings = effectiveHomeSettings,
             topTabsVisible = resolveHomeTopTabsVisible(

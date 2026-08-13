@@ -65,7 +65,7 @@ import com.android.purebilibili.feature.home.components.cards.videoCardShellRetu
 import com.android.purebilibili.data.model.response.ArchiveMajor
 
 /**
- * 对齐 PiliPlus 的动态视频呈现：
+ * 对齐 BiliPai 的动态视频呈现：
  * 1. 手机和平板都保持纵向视频卡
  * 2. 封面使用 16:10 比例
  * 3. 统计信息压到封面渐变层，正文只保留标题信息

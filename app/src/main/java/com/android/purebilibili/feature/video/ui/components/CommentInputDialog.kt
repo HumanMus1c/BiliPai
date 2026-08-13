@@ -99,7 +99,7 @@ internal data class CommentInputDialogLayoutPolicy(
 /**
  * 评论输入弹层尺寸策略。
  *
- * 平板在 48dp 触控下限之上再抬高输入舒适区（对标 PiliPlus isTablet ? 300 : 170 的加高思路），
+ * 平板在 48dp 触控下限之上再抬高输入舒适区（对标 BiliPai isTablet ? 300 : 170 的加高思路），
  * 横屏仍相对竖屏略压缩，避免遮挡过多视频区域。
  */
 internal fun resolveCommentInputDialogLayoutPolicy(

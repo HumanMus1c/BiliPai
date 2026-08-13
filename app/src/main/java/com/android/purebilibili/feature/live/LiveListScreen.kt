@@ -318,7 +318,7 @@ fun LiveListScreen(
     onFollowingClick: () -> Unit,
     onAreaDetailClick: (Int, Int, String) -> Unit,
     onMatchClick: () -> Unit = {},
-    /** 底栏主入口时隐藏返回，更接近 PiliPlus 主 tab 形态。 */
+    /** 底栏主入口时隐藏返回，更接近 BiliPai 主 tab 形态。 */
     showNavigationBack: Boolean = true,
     viewModel: LiveListViewModel = viewModel(),
     globalHazeState: HazeState? = null
@@ -353,7 +353,7 @@ fun LiveListScreen(
         windowSizeClass.widthDp
     }
     val gridColumns = remember(contentWidth, windowSizeClass.isTablet) {
-        resolveLivePiliPlusGridColumns(contentWidth.value.toInt(), windowSizeClass.isTablet)
+        resolveLiveBiliPaiGridColumns(contentWidth.value.toInt(), windowSizeClass.isTablet)
     }
     val gridBottomPadding = LocalBottomBarContentPadding.current
 
@@ -462,7 +462,7 @@ private fun LiveHomeContent(
     showFirstFrame: Boolean,
     gridColumns: Int,
     bottomPadding: androidx.compose.ui.unit.Dp,
-    metrics: LivePiliPlusHomeMetrics,
+    metrics: LiveBiliPaiHomeMetrics,
     visualSpec: LiveVisualSpec,
     onLiveClick: (Long, String, String) -> Unit,
     onAreaSelected: (Int) -> Unit,
@@ -572,7 +572,7 @@ private fun LiveHomeContent(
 
 @Composable
 private fun LiveListHeader(
-    metrics: LivePiliPlusHomeMetrics,
+    metrics: LiveBiliPaiHomeMetrics,
     livingCount: Int,
     primaryFace: String,
     showNavigationBack: Boolean,
@@ -760,7 +760,7 @@ private fun LiveFollowHeader(
 @Composable
 private fun LiveFollowAvatarRow(
     items: List<LiveRoomItem>,
-    metrics: LivePiliPlusHomeMetrics,
+    metrics: LiveBiliPaiHomeMetrics,
     onLiveClick: (Long, String, String) -> Unit
 ) {
     val palette = rememberLiveChromePalette()
@@ -815,7 +815,7 @@ private fun LiveAreaHomeChipRow(
     onAreaListClick: () -> Unit,
     onMatchClick: () -> Unit,
 ) {
-    // PiliPlus: 横向分区 chip + 右侧工具（封面/首帧、赛事、全部分区）
+    // BiliPai: 横向分区 chip + 右侧工具（封面/首帧、赛事、全部分区）
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -905,7 +905,7 @@ private fun LiveHomeLoadMoreFooter(
     hasMore: Boolean,
     onLoadMore: () -> Unit,
 ) {
-    // 滚到底部时自动请求下一页（对齐 PiliPlus onLoadMore）
+    // 滚到底部时自动请求下一页（对齐 BiliPai onLoadMore）
     LaunchedEffect(contentCount, isLoadingMore, hasMore) {
         if (hasMore && !isLoadingMore && contentCount > 0) {
             onLoadMore()

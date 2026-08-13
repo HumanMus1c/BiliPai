@@ -42,7 +42,7 @@ class DampedDragAnimationPolicyTest {
     }
 
     @Test
-    fun `shared drag animation uses 9-0-0 gesture detection with KSU drag scale`() {
+    fun `shared drag animation uses 9-0-0 gesture detection with BiliPai drag scale`() {
         val source = listOf(
             File("design-system/src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
             File("src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
@@ -54,9 +54,9 @@ class DampedDragAnimationPolicyTest {
             .substringAfter("fun onDragEnd(")
             .substringBefore("fun updateIndex(")
 
-        // KSU 拖动手感保留
-        assertTrue(source.contains("private const val KERNEL_SU_PRESSED_SCALE = 78f / 56f"))
-        assertTrue(source.contains("pressedScale: Float = KERNEL_SU_PRESSED_SCALE"))
+        // BiliPai 拖动手感保留
+        assertTrue(source.contains("private const val BILIPAI_PRESSED_SCALE = 78f / 56f"))
+        assertTrue(source.contains("pressedScale: Float = BILIPAI_PRESSED_SCALE"))
         assertTrue(source.contains("pressedScale = pressedScale.coerceAtLeast(1f)"))
         assertTrue(source.contains("scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec)"))
         assertTrue(source.contains("scaleYAnimation.animateTo(pressedScale, scaleYAnimationSpec)"))
@@ -73,20 +73,21 @@ class DampedDragAnimationPolicyTest {
         assertTrue(dragSource.contains("motionSpec.drag.baseResistance"))
         assertTrue(dragSource.contains("overscrollResistance"))
         assertTrue(dragSource.contains("overscrollLimitItems"))
-        // 偏移累计保留（KSU 风格）
+        // 偏移累计保留（BiliPai 风格）
         assertTrue(dragSource.contains("offsetAnimation.snapTo(offsetAnimation.value + dragAmountPx)"))
         // 9.0.0 速度飞掷投影
         assertTrue(releaseSource.contains("resolveDampedDragReleaseTargetIndex("))
         assertTrue(releaseSource.contains("velocityPxPerSecond = velocityX"))
         assertTrue(releaseSource.contains("offsetAnimation.animateTo(0f"))
-        // 首页 InstallerX 分支：拖拽逐帧跟手，释放时就近吸附，不做速度投影。
-        assertTrue(source.contains("DampedDragTrackingMode.INSTALLER_X_SPRING"))
-        assertTrue(dragSource.contains("valueAnimation.snapTo(desiredValue)"))
+        // 首页 BiliPai 分支：拖拽 spring-follow（animateTo，对齐 FloatingBottomBar），
+        // 释放时就近吸附，不做速度投影。
+        assertTrue(source.contains("DampedDragTrackingMode.BILIPAI_SPRING"))
+        assertTrue(dragSource.contains("valueAnimation.animateTo(desiredValue, valueAnimationSpec)"))
         assertTrue(releaseSource.contains("desiredValue.roundToInt()"))
     }
 
     @Test
-    fun `drag velocity uses KernelSU value tracker for indicator deformation`() {
+    fun `drag velocity uses BiliPai value tracker for indicator deformation`() {
         val source = listOf(
             File("design-system/src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
             File("src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
@@ -122,7 +123,7 @@ class DampedDragAnimationPolicyTest {
             .substringBefore("fun updateIndex(")
         val updateIndexSource = source
             .substringAfter("fun updateIndex(index: Int)")
-            .substringBefore("private const val KERNEL_SU_PRESSED_SCALE")
+            .substringBefore("private const val BILIPAI_PRESSED_SCALE")
 
         assertTrue(source.contains("var settledReleaseCount by mutableIntStateOf(0)"))
         assertTrue(source.contains("var settledSelectionCount by mutableIntStateOf(0)"))
@@ -140,7 +141,7 @@ class DampedDragAnimationPolicyTest {
         ).first { it.exists() }.readText()
         val updateIndexSource = source
             .substringAfter("fun updateIndex(index: Int)")
-            .substringBefore("private const val KERNEL_SU_PRESSED_SCALE")
+            .substringBefore("private const val BILIPAI_PRESSED_SCALE")
 
         assertTrue(updateIndexSource.contains("animateToValue(safeIndex.toFloat())"))
         assertTrue(source.contains("fun animateToValue(value: Float, onSettled: (() -> Unit)? = null)"))

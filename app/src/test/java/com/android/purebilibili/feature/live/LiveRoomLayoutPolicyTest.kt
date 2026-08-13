@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 class LiveRoomLayoutPolicyTest {
 
     @Test
-    fun `portrait vertical live uses overlay layout like PiliPlus portrait room`() {
+    fun `portrait vertical live uses overlay layout like BiliPai portrait room`() {
         val mode = resolveLiveRoomLayoutMode(
             isLandscape = false,
             isTablet = false,

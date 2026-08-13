@@ -13,6 +13,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Backup
+import top.yukonga.miuix.kmp.icon.extended.Lock
+import top.yukonga.miuix.kmp.icon.extended.Play
+import top.yukonga.miuix.kmp.icon.extended.Theme
+import top.yukonga.miuix.kmp.icon.extended.Th1
 
 class SettingsSemanticIconPolicyTest {
 
@@ -45,6 +51,30 @@ class SettingsSemanticIconPolicyTest {
         assertSameVectorAsset(
             Icons.Outlined.Terminal,
             resolveSettingsSemanticIcon(SettingsIconRole.DIAGNOSTICS, AppSemanticIconFamily.MATERIAL)
+        )
+    }
+
+    @Test
+    fun miuixRootDirectoriesUseNativeMiuixGlyphs() {
+        assertSameVectorAsset(
+            MiuixIcons.Theme,
+            resolveSettingsSemanticIcon(SettingsIconRole.INTERFACE_THEME, AppSemanticIconFamily.MIUIX),
+        )
+        assertSameVectorAsset(
+            MiuixIcons.Play,
+            resolveSettingsSemanticIcon(SettingsIconRole.PLAYBACK_QUALITY, AppSemanticIconFamily.MIUIX),
+        )
+        assertSameVectorAsset(
+            MiuixIcons.Th1,
+            resolveSettingsSemanticIcon(SettingsIconRole.HOME_FEED, AppSemanticIconFamily.MIUIX),
+        )
+        assertSameVectorAsset(
+            MiuixIcons.Lock,
+            resolveSettingsSemanticIcon(SettingsIconRole.PRIVACY_PERMISSION, AppSemanticIconFamily.MIUIX),
+        )
+        assertSameVectorAsset(
+            MiuixIcons.Backup,
+            resolveSettingsSemanticIcon(SettingsIconRole.DATA_BACKUP, AppSemanticIconFamily.MIUIX),
         )
     }
 

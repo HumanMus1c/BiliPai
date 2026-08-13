@@ -484,7 +484,7 @@ interface BilibiliApi {
     @GET("https://app.bilibili.com/x/v2/feed/index")
     suspend fun getMobileFeed(@QueryMap params: Map<String, String>): MobileFeedResponse
 
-    //  合并模式 App 半边专用: 参数已按 PiliPlus/PiliNara 规范 percent-encode 后签名,
+    //  合并模式 App 半边专用: 参数已按 BiliPai/BiliPai 规范 percent-encode 后签名,
     //  用 encoded=true 原样发送, 避免 Retrofit 二次编码导致签名不一致(-403/-400)
     @GET("https://app.bilibili.com/x/v2/feed/index")
     suspend fun getMobileFeedEncoded(
@@ -568,13 +568,13 @@ interface BilibiliApi {
         @Query("sort_type") sortType: String = "online"
     ): LiveSecondAreaResponse
 
-    // PiliPlus-aligned app live home feed
+    // BiliPai-aligned app live home feed
     @GET("https://api.live.bilibili.com/xlive/app-interface/v2/index/feed")
     suspend fun getLiveFeedIndex(
         @QueryMap params: Map<String, String>
     ): com.android.purebilibili.data.model.response.LiveFeedIndexResponse
 
-    // PiliPlus-aligned app second-area list (supports new_tags sort chips)
+    // BiliPai-aligned app second-area list (supports new_tags sort chips)
     @GET("https://api.live.bilibili.com/xlive/app-interface/v2/second/getList")
     suspend fun getLiveAppSecondList(
         @QueryMap params: Map<String, String>
@@ -1986,7 +1986,7 @@ interface BangumiApi {
         @Query("ep_id") epId: Long? = null
     ): ResponseBody
     
-    // 番剧播放地址 - PiliPlus parity path
+    // 番剧播放地址 - BiliPai parity path
     @GET(BANGUMI_PLAY_URL_PATH)
     suspend fun getBangumiPlayUrl(
         @QueryMap params: Map<String, String>

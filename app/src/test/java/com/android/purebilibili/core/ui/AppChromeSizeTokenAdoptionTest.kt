@@ -14,7 +14,7 @@ class AppChromeSizeTokenAdoptionTest {
             "app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt",
             "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt",
             "app/src/main/java/com/android/purebilibili/feature/video/ui/components/CommentSortFilterBar.kt",
-            "app/src/main/java/com/android/purebilibili/feature/live/LivePiliPlusVisualPolicy.kt",
+            "app/src/main/java/com/android/purebilibili/feature/live/LiveBiliPaiVisualPolicy.kt",
             "app/src/main/java/com/android/purebilibili/feature/live/LiveHomeCategoryIndicatorPolicy.kt",
             "app/src/main/java/com/android/purebilibili/feature/space/SpaceTabChromePolicy.kt",
             "app/src/main/java/com/android/purebilibili/feature/list/CommonListAppearancePolicy.kt"
@@ -35,7 +35,7 @@ class AppChromeSizeTokenAdoptionTest {
     @Test
     fun `first batch segmented chrome no longer keeps oversized local heights`() {
         val segmentedSources = listOf(
-            "app/src/main/java/com/android/purebilibili/feature/live/LivePiliPlusVisualPolicy.kt",
+            "app/src/main/java/com/android/purebilibili/feature/live/LiveBiliPaiVisualPolicy.kt",
             "app/src/main/java/com/android/purebilibili/feature/live/LiveHomeCategoryIndicatorPolicy.kt",
             "app/src/main/java/com/android/purebilibili/feature/space/SpaceTabChromePolicy.kt"
         )

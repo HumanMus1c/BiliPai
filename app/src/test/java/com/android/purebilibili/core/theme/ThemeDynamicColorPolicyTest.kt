@@ -34,7 +34,7 @@ class ThemeDynamicColorPolicyTest {
                 seeds.forEach { seed ->
                     modes.forEach { (dark, amoled, mode) ->
                         val label = "$style/$spec/$mode/${seed.value}"
-                        val scheme = createKernelSuStyleColorScheme(
+                        val scheme = createBiliPaiStyleColorScheme(
                             seedColor = seed,
                             darkTheme = dark,
                             amoledDarkTheme = amoled,

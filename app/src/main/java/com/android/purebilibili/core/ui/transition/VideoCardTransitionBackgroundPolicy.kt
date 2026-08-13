@@ -1,11 +1,13 @@
 package com.android.purebilibili.core.ui.transition
 
 import android.os.Build
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -17,10 +19,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.navigation.isVideoCardReturnTargetRoute
 import kotlin.math.pow
@@ -101,18 +106,23 @@ internal fun resolveVideoCardTransitionBackgroundScaleReduction(
         VIDEO_CARD_TRANSITION_PARTITION_SCALE_REDUCTION
 }
 
-/**
- * Whether the retained source snapshot should receive the progress-driven blur effect.
- *
- * Related-video navigation now places a click-time, player-composited freeze frame over the
- * parent detail before the source layer is recorded. The transition therefore blurs that SDR
- * snapshot instead of touching the live player surface (and its HDR output path).
- */
+/** Whether the retained source snapshot should receive the progress-driven blur effect. */
 @Suppress("UNUSED_PARAMETER")
 internal fun shouldUseRealtimeVideoCardTransitionBackgroundBlur(
     source: VideoCardTransitionBackgroundSource,
     realtimeBlurEnabled: Boolean,
 ): Boolean = realtimeBlurEnabled
+
+/**
+ * 详情压详情时保留真实父 entry，不录制整页 Host 快照。
+ * Android player Surface 不属于 Compose GraphicsLayer，录制结果会把播放器区域变黑；
+ * 返回相关推荐时直接让 NavDisplay 的父详情参与预览，才能保留真实组件和画面。
+ */
+internal fun shouldUseHostOwnedVideoCardTransitionSnapshot(
+    sourceRoute: String?,
+): Boolean = sourceRoute
+    ?.substringBefore('?')
+    ?.startsWith("video/") != true
 
 internal data class VideoCardTransitionBackgroundFrame(
     val blurRadiusPx: Float,
@@ -475,6 +485,111 @@ internal fun shouldApplyVideoCardTransitionBackgroundToRoute(
         }
     }
     return false
+}
+
+/**
+ * 详情压详情的真实父页景深。
+ *
+ * 这里直接变换仍在 NavDisplay 中的父 entry，不把整页录进 GraphicsLayer。这样既保留
+ * 模糊、收缩、圆角和 scrim，也不会把独立渲染的 Player Surface 固化成黑色快照。
+ */
+@Composable
+internal fun Modifier.videoCardTransitionLiveBackgroundEffect(
+    progressProvider: () -> Float,
+    phaseProvider: () -> VideoCardTransitionBackgroundPhase,
+    exposureProvider: () -> VideoCardTransitionExposure,
+    isGestureRestoreInProgressProvider: () -> Boolean = { false },
+    motionTierProvider: () -> MotionTier = { MotionTier.Normal },
+    isLightBackgroundProvider: () -> Boolean = { false },
+    realtimeBlurEnabledProvider: () -> Boolean = { false },
+    scaleReductionProvider: () -> Float = { VIDEO_CARD_TRANSITION_RELATED_SCALE_REDUCTION },
+): Modifier {
+    val view = LocalView.current
+    val screenDensity = LocalDensity.current.density
+    var deviceCornerRadiusPx by remember { mutableFloatStateOf(0f) }
+    SideEffect {
+        deviceCornerRadiusPx = resolveDeviceDisplayCornerRadiusPx(view.rootWindowInsets)
+    }
+    val frameState = remember(
+        progressProvider,
+        phaseProvider,
+        exposureProvider,
+        isGestureRestoreInProgressProvider,
+        motionTierProvider,
+        isLightBackgroundProvider,
+        scaleReductionProvider,
+        screenDensity,
+    ) {
+        derivedStateOf {
+            val exposure = exposureProvider()
+            val renderDecision = resolveVideoCardTransitionRenderDecision(exposure)
+            val retainHeldDepth = shouldPaintRetainedSourceWithoutTransitionBackground(
+                renderDecision
+            )
+            val activePhase = if (
+                renderDecision.drawTransitionBackground || retainHeldDepth
+            ) {
+                phaseProvider()
+            } else {
+                VideoCardTransitionBackgroundPhase.IDLE
+            }
+            resolveVideoCardTransitionBackgroundFrame(
+                progress = if (retainHeldDepth) 1f else progressProvider(),
+                phase = activePhase,
+                motionTier = motionTierProvider(),
+                isLightBackground = isLightBackgroundProvider(),
+                isGestureRestoreInProgress = isGestureRestoreInProgressProvider(),
+                density = screenDensity,
+                deviceCornerRadiusPx = deviceCornerRadiusPx,
+                scaleReduction = scaleReductionProvider(),
+            )
+        }
+    }
+
+    return this
+        .drawWithContent {
+            val frame = frameState.value
+            if (shouldDrawVideoCardTransitionScaleGapFill(frame.contentScale)) {
+                drawRect(
+                    resolveVideoCardTransitionScaleGapFillColor(
+                        isLightBackground = frame.useLightScrimTint,
+                        scrimAlpha = frame.scrimAlpha,
+                    )
+                )
+            }
+            drawContent()
+            if (frame.scrimAlpha > 0.001f) {
+                val scrimColor = if (frame.useLightScrimTint) {
+                    VIDEO_CARD_TRANSITION_LIGHT_SCRIM_TINT
+                } else {
+                    Color.Black
+                }
+                drawRect(scrimColor.copy(alpha = frame.scrimAlpha))
+            }
+        }
+        .graphicsLayer {
+            val frame = frameState.value
+            scaleX = frame.contentScale
+            scaleY = frame.contentScale
+            val shouldClip = frame.cornerRadiusPx > 0.01f
+            clip = shouldClip
+            if (shouldClip) {
+                shape = RoundedCornerShape(
+                    (frame.cornerRadiusPx / screenDensity.coerceAtLeast(0.01f)).dp
+                )
+            }
+            renderEffect = if (
+                realtimeBlurEnabledProvider() && frame.blurRadiusPx > 0.01f
+            ) {
+                BlurEffect(
+                    radiusX = frame.blurRadiusPx,
+                    radiusY = frame.blurRadiusPx,
+                    edgeTreatment = TileMode.Clamp,
+                )
+            } else {
+                null
+            }
+        }
 }
 
 /**

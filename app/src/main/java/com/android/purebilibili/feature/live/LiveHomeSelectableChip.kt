@@ -15,7 +15,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 
 /**
- * PiliPlus 风格的直播首页分区/标签 chip，使用中性 App* 组件与主题 Token 实现。
+ * BiliPai 风格的直播首页分区/标签 chip，使用中性 App* 组件与主题 Token 实现。
  */
 @Composable
 fun LiveHomeSelectableChip(

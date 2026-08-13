@@ -12,7 +12,7 @@ import org.junit.Test
 class BangumiPlaybackUrlPolicyTest {
 
     @Test
-    fun `bangumi playurl path matches PiliPlus v2 endpoint`() {
+    fun `bangumi playurl path matches BiliPai v2 endpoint`() {
         assertEquals("pgc/player/web/v2/playurl", BANGUMI_PLAY_URL_PATH)
     }
 
@@ -41,7 +41,7 @@ class BangumiPlaybackUrlPolicyTest {
     }
 
     @Test
-    fun `bangumi playurl params keep PiliPlus parity fields`() {
+    fun `bangumi playurl params keep BiliPai parity fields`() {
         val params = com.android.purebilibili.data.repository.buildBangumiPlayUrlParams(
             epId = 1001L,
             cid = 2002L,

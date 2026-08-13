@@ -393,12 +393,12 @@ enum class HomeFeedCardWidthPreset(
  * 双列视频卡封面框三档（全局一份设置，均居中 Crop）：
  * - [CURRENT] 16:9：与 CDN 投稿源同比例，标准封面几乎不裁
  * - [OFFICIAL] 4:3：更高列表框，左右会裁
- * - [PILIPLUS] 16:10：介于 16:9 与 4:3 之间
+ * - [BILIPAI] 16:10：介于 16:9 与 4:3 之间
  */
 enum class HomeFeedCardStyle(val value: Int, val label: String, val subtitle: String) {
     CURRENT(0, "16:9", "完整显示，接近投稿源图"),
     OFFICIAL(1, "4:3", "更高列表框，左右居中裁切"),
-    PILIPLUS(2, "16:10", "介于两者之间，轻微裁切");
+    BILIPAI(2, "16:10", "介于两者之间，轻微裁切");
 
     companion object {
         fun fromValue(value: Int): HomeFeedCardStyle =
@@ -3664,7 +3664,8 @@ object SettingsManager {
     // ==========  弹幕设置 ==========
     
     private const val DANMAKU_DEFAULTS_VERSION = 5
-    private const val HOME_VISUAL_DEFAULTS_VERSION = 1
+    // v3: force-refresh the bottom navigation once, restoring Recommend (HOME) as item one.
+    private const val HOME_VISUAL_DEFAULTS_VERSION = 3
     private const val DEFAULT_DANMAKU_OPACITY = DANMAKU_DEFAULT_OPACITY
     private const val DEFAULT_DANMAKU_FONT_SCALE = 1.0f
     private const val DEFAULT_DANMAKU_SPEED = 1.0f
@@ -4698,7 +4699,8 @@ object SettingsManager {
 
     /**
      * 启动时一次性迁移首页视觉默认值（仅在版本未迁移时覆盖）。
-     * 目标：默认开启底栏悬浮、液态玻璃、顶部模糊。
+     * 目标：默认开启底栏悬浮、顶/底液态玻璃、顶部模糊，并在 v3 一次性
+     * 覆盖底栏项目，确保“推荐”（HOME）恢复为第一项。版本标记写入后不再重复覆盖。
      */
     suspend fun ensureHomeVisualDefaults(context: Context) {
         context.settingsDataStore.edit { preferences ->
@@ -4707,7 +4709,11 @@ object SettingsManager {
                 preferences[KEY_BOTTOM_BAR_FLOATING] = true
                 preferences[KEY_LIQUID_GLASS_ENABLED] = true
                 preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED] = true
+                preferences[KEY_TOP_BAR_LIQUID_GLASS_ENABLED] = true
+                preferences[KEY_HOME_SEARCH_LIQUID_GLASS_ENABLED] = true
                 preferences[KEY_HEADER_BLUR_ENABLED] = true
+                preferences[KEY_BOTTOM_BAR_ORDER] = DEFAULT_BOTTOM_BAR_ORDER
+                preferences[KEY_BOTTOM_BAR_VISIBLE_TABS] = DEFAULT_BOTTOM_BAR_VISIBLE_TABS
                 preferences[KEY_HOME_VISUAL_DEFAULTS_VERSION] = HOME_VISUAL_DEFAULTS_VERSION
             }
         }
@@ -6495,7 +6501,7 @@ object SettingsManager {
         }
     }
 
-    // ========== [新增] 动态 Feed 布局模式（对齐 PiliPlus dynamicsWaterfallFlow） ==========
+    // ========== [新增] 动态 Feed 布局模式（对齐 BiliPai dynamicsWaterfallFlow） ==========
 
     private val KEY_DYNAMIC_FEED_LAYOUT_MODE = intPreferencesKey("dynamic_feed_layout_mode")
 

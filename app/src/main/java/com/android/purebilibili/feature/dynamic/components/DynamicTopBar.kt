@@ -127,7 +127,7 @@ fun DynamicTopBarWithTabs(
                     )
                 }
 
-                //  发布动态入口（对齐 PiliPlus AppBar actions 的发布按钮）
+                //  发布动态入口（对齐 BiliPai AppBar actions 的发布按钮）
                 if (onPublishClick != null) {
                     AppIconButton(
                         onClick = onPublishClick,

@@ -39,7 +39,7 @@ class BottomInputBarStructureTest {
         assertTrue(source.contains("评论 UP 主和大家"))
         assertTrue(source.contains("onSurface.copy(alpha = 0.08f)"))
         assertFalse(source.contains("BottomBarMatchedLiquidDock("))
-        assertTrue(!source.contains(".kernelSuFloatingDockSurface("))
+        assertTrue(!source.contains(".biliPaiFloatingDockSurface("))
         assertTrue(source.contains("resolveSharedBottomBarCapsuleShape()"))
         assertTrue(!source.contains("resolveAndroidNativeFloatingBottomBarContainerColor("))
         assertTrue(!source.contains("commentFieldContainerColor"))

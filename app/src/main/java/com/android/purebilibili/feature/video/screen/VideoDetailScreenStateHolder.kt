@@ -13,7 +13,6 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.database.ContentObserver
-import android.graphics.Bitmap
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -551,15 +550,10 @@ internal fun VideoDetailScreenStateHolder(
     val videoContentPagerState: PagerState = key(currentBvid) {
         rememberPagerState(pageCount = { 2 })
     }
-    var relatedParentFreezeFrame by remember(currentBvid) {
-        mutableStateOf<Bitmap?>(null)
-    }
     var relatedParentUiSnapshot by remember(currentBvid) {
         mutableStateOf<VideoDetailParentUiSnapshot?>(null)
     }
     var relatedParentWasCovered by remember(currentBvid) { mutableStateOf(false) }
-    var relatedParentCaptureInProgress by remember(currentBvid) { mutableStateOf(false) }
-    val relatedParentCaptureScope = rememberCoroutineScope()
 
     val entryRootAnimatedVisibilityScope = LocalAnimatedVisibilityScope.current
     val entryRootSharedTransitionScope = LocalSharedTransitionScope.current
@@ -665,13 +659,9 @@ internal fun VideoDetailScreenStateHolder(
         uiState,
         currentBvid,
         sharedDanmakuManager,
-        relatedParentCaptureScope,
         introListState,
         commentListState,
-        videoContentPagerState,
         selectedVideoContentTabIndex,
-        view,
-        context,
     ) {
         { targetBvid: String, options: android.os.Bundle? ->
             val success = uiState as? VideoPlaybackUiState.Success
@@ -700,10 +690,9 @@ internal fun VideoDetailScreenStateHolder(
                     autoPlay = true
                 )
             } else {
-                if (!relatedParentCaptureInProgress) {
-                    relatedParentCaptureInProgress = true
+                if (!hasCommittedRelatedVideoNavigation) {
                     relatedParentWasCovered = false
-                    val frozenUi = captureVideoDetailParentUiSnapshot(
+                    relatedParentUiSnapshot = captureVideoDetailParentUiSnapshot(
                         selectedTabIndex = selectedVideoContentTabIndex,
                         introListState = introListState,
                         commentListState = commentListState,
@@ -714,28 +703,15 @@ internal fun VideoDetailScreenStateHolder(
                             putLong(VIDEO_NAV_TARGET_CID_KEY, resolvedCid)
                         }
                     }
-                    relatedParentCaptureScope.launch {
-                        // Capture before halting/rebinding the shared player so PixelCopy sees the
-                        // actual click-time video frame instead of a black or cover fallback.
-                        val frozenFrame = kotlinx.coroutines.withTimeoutOrNull(320L) {
-                            captureVideoDetailParentFreezeFrame(
-                                window = context.findActivity()?.window,
-                                view = view,
-                            )
-                        }
-                        relatedParentUiSnapshot = frozenUi
-                        relatedParentFreezeFrame = frozenFrame
-                        relatedParentCaptureInProgress = false
 
-                        // 先摘掉父详情壳 sharedBounds，再 push，避免相关卡嵌套在父壳内吃不到 morph。
-                        // 同时清掉单例弹幕缓存，防止新页 attach 时重放旧片或 load 结果落到旧 controller。
-                        sharedDanmakuManager.clearForVideoChange()
-                        hasCommittedRelatedVideoNavigation = true
-                        presentationState.markNavigatingToVideo()
-                        miniPlayerManager?.isNavigatingToVideo = true
-                        markSecondaryNavigationLeave(expectedBvid = parentBvid)
-                        onVideoClick(targetBvid, navOptions)
-                    }
+                    // 先摘掉父详情壳 sharedBounds，再 push，避免相关卡嵌套在父壳内吃不到 morph。
+                    // 只保留轻量 UI 位置快照；整屏位图捕获会把导航提交阻塞数百毫秒。
+                    sharedDanmakuManager.clearForVideoChange()
+                    hasCommittedRelatedVideoNavigation = true
+                    presentationState.markNavigatingToVideo()
+                    miniPlayerManager?.isNavigatingToVideo = true
+                    markSecondaryNavigationLeave(expectedBvid = parentBvid)
+                    onVideoClick(targetBvid, navOptions)
                 }
                 Unit
             }
@@ -752,47 +728,47 @@ internal fun VideoDetailScreenStateHolder(
     ) {
         if (!hasCommittedRelatedVideoNavigation) return@LaunchedEffect
         if (!isVisible) {
-            // The child detail has become topmost. Keep both scroll state and frozen frame pinned.
+            // Restore while the child fully covers this parent. The next back preview therefore
+            // starts from the click-time list geometry instead of revealing a reset live layout
+            // underneath the retained navigation snapshot.
+            if (!relatedParentWasCovered) {
+                relatedParentUiSnapshot?.let { parentUi ->
+                    presentationState.selectTab(parentUi.selectedTabIndex)
+                    restoreVideoDetailParentUiSnapshot(
+                        snapshot = parentUi,
+                        introListState = introListState,
+                        commentListState = commentListState,
+                        pagerState = videoContentPagerState,
+                    )
+                }
+            }
             relatedParentWasCovered = true
             return@LaunchedEffect
         }
         if (!relatedParentWasCovered) {
-            // Navigation may be rejected after capture; never leave a frozen parent blocking UI.
+            // Navigation may be rejected after the click; release the pending parent state.
             kotlinx.coroutines.delay(transitionEnterDurationMillis.coerceAtLeast(0).toLong() + 96L)
             if (isVisible && !relatedParentWasCovered) {
                 hasCommittedRelatedVideoNavigation = false
                 relatedParentUiSnapshot = null
-                relatedParentFreezeFrame = null
             }
             return@LaunchedEffect
         }
 
         // The parent can become the top key before Miuix has finished the return morph. Keep the
-        // frozen pixels only until the shared transition clock reaches IDLE; a duration-based wait
-        // here starts too late on some devices and leaves a visibly stuck full-screen frame.
+        // navigation-leave guards until the flying layer has completely parked.
         if (videoCardDepthBackgroundState.phaseProvider() !=
             VideoCardTransitionBackgroundPhase.IDLE
         ) {
             return@LaunchedEffect
         }
 
-        relatedParentUiSnapshot?.let { frozenUi ->
-            presentationState.selectTab(frozenUi.selectedTabIndex)
-            restoreVideoDetailParentUiSnapshot(
-                snapshot = frozenUi,
-                introListState = introListState,
-                commentListState = commentListState,
-                pagerState = videoContentPagerState,
-            )
-        }
-        // Let the restored layout produce one frame before handing pixels back to the live parent.
-        // This is a one-frame ownership handoff, not a second navigation-duration hold.
+        // Let the already-restored parent produce one live frame before reactivating its player.
         withFrameNanos { }
         if (isVisible) {
             hasCommittedRelatedVideoNavigation = false
             relatedParentWasCovered = false
             relatedParentUiSnapshot = null
-            relatedParentFreezeFrame = null
         }
     }
 
@@ -1253,6 +1229,7 @@ internal fun VideoDetailScreenStateHolder(
     )
     val rootAnimatedVisibilityScope = transitionState.animatedVisibilityScope
     val rootSharedTransitionScope = transitionState.sharedTransitionScope
+    val entryOwnsMiuixCardTransition = transitionState.entryOwnsMiuixCardTransition
     val isExitTransitionInProgress = transitionState.isExitTransitionInProgress
     val detailShellSharedBoundsEnabled = transitionState.detailShellSharedBoundsEnabled
     val suppressEnterFadeAfterBackPreview = transitionState.suppressEnterFadeAfterBackPreview
@@ -1326,8 +1303,10 @@ internal fun VideoDetailScreenStateHolder(
     val miuixCoverSnapshot =
         com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState.current
             .sourceChromeSnapshot
+            .takeIf { entryOwnsMiuixCardTransition }
     val clickCoverSnapshot =
         com.android.purebilibili.core.util.CardPositionManager.lastClickedVideoSourceChromeSnapshot
+            .takeIf { entryOwnsMiuixCardTransition }
     val homePrefetchCover = remember(bvid) {
         com.android.purebilibili.core.util.HomeCoverReturnPrefetchRegistry.snapshot()
             .firstOrNull { it.bvid == bvid.trim() }
@@ -1766,15 +1745,22 @@ internal fun VideoDetailScreenStateHolder(
         isCommittedCardReturn = isCommittedCardReturn,
     )
     val videoCardTransitionDensity = LocalDensity.current
-    val videoCardDetailChromeAlphaProvider = remember(videoCardDepthBackgroundState) {
+    val videoCardDetailChromeAlphaProvider = remember(
+        videoCardDepthBackgroundState,
+        entryOwnsMiuixCardTransition,
+    ) {
         {
-            resolveVideoCardDetailChromeAlpha(
-                morphDepthProgress = videoCardDepthBackgroundState.progressProvider(),
-                phase = videoCardDepthBackgroundState.phaseProvider(),
-                isReturnGestureInProgress =
-                    videoCardDepthBackgroundState.isReturnGestureInProgressProvider() ||
-                        videoCardDepthBackgroundState.isGestureRestoreInProgressProvider(),
-            )
+            if (!entryOwnsMiuixCardTransition) {
+                1f
+            } else {
+                resolveVideoCardDetailChromeAlpha(
+                    morphDepthProgress = videoCardDepthBackgroundState.progressProvider(),
+                    phase = videoCardDepthBackgroundState.phaseProvider(),
+                    isReturnGestureInProgress =
+                        videoCardDepthBackgroundState.isReturnGestureInProgressProvider() ||
+                            videoCardDepthBackgroundState.isGestureRestoreInProgressProvider(),
+                )
+            }
         }
     }
     // Settled 返回运动预算：保 LIVE 一镜到底，旁路减负。
@@ -3582,29 +3568,39 @@ internal fun VideoDetailScreenStateHolder(
                             detailShellSharedBoundsEnabled,
                             sharedBoundsActive,
                             liveReturnMorph,
+                            entryOwnsMiuixCardTransition,
                             miuixReturnState,
                             videoCardDepthBackgroundState,
                         ) {
                             derivedStateOf {
                                 val miuixGesture =
-                                    miuixReturnState.enabled &&
+                                    entryOwnsMiuixCardTransition &&
+                                        miuixReturnState.enabled &&
                                         miuixReturnState.isGestureInProgressProvider()
-                                val phase = videoCardDepthBackgroundState.phaseProvider()
+                                val phase = if (entryOwnsMiuixCardTransition) {
+                                    videoCardDepthBackgroundState.phaseProvider()
+                                } else {
+                                    VideoCardTransitionBackgroundPhase.IDLE
+                                }
                                 shouldExpandPlayerViewportForSharedReturn(
                                     isExitTransitionInProgress = isExitTransitionInProgress ||
                                         miuixGesture ||
                                         phase == VideoCardTransitionBackgroundPhase.RETURNING,
                                     isReturnGestureInProgress =
-                                        videoCardDepthBackgroundState
-                                            .isReturnGestureInProgressProvider() ||
-                                            miuixGesture,
+                                        (
+                                            entryOwnsMiuixCardTransition &&
+                                                videoCardDepthBackgroundState
+                                                    .isReturnGestureInProgressProvider()
+                                        ) || miuixGesture,
                                     isGestureRestoreInProgress =
-                                        videoCardDepthBackgroundState
-                                            .isGestureRestoreInProgressProvider(),
+                                        entryOwnsMiuixCardTransition &&
+                                            videoCardDepthBackgroundState
+                                                .isGestureRestoreInProgressProvider(),
                                     sharedReturnLikely = detailShellSharedBoundsEnabled ||
                                         sharedBoundsActive ||
                                         liveReturnMorph ||
-                                        miuixReturnState.enabled,
+                                        (entryOwnsMiuixCardTransition &&
+                                            miuixReturnState.enabled),
                                 )
                             }
                         }
@@ -3761,7 +3757,10 @@ internal fun VideoDetailScreenStateHolder(
                             com.android.purebilibili.core.ui.transition
                                 .LocalMiuixVideoCardTransitionState.current
                         val landingLayoutForMedia = run {
-                            if (!miuixLandingState.enabled) return@run null
+                            if (
+                                !entryOwnsMiuixCardTransition ||
+                                !miuixLandingState.enabled
+                            ) return@run null
                             val viewportW = miuixLandingState.layoutWidthProvider()
                                 .takeIf { it > 1f }
                                 ?: with(videoCardTransitionDensity) {
@@ -3775,18 +3774,22 @@ internal fun VideoDetailScreenStateHolder(
                             ).takeIf { it.canRender }
                         }
                         val returnMediaHandoffProgressProvider: () -> Float = {
-                            com.android.purebilibili.core.ui.transition
-                                .resolveVideoCardSourceChromeVisualFrame(
-                                    morphDepthProgress = miuixLandingState.progressProvider(),
-                                    phase = videoCardDepthBackgroundState.phaseProvider(),
-                                    isReturnGestureInProgress =
-                                        videoCardDepthBackgroundState
-                                            .isReturnGestureInProgressProvider() ||
+                            if (!entryOwnsMiuixCardTransition) {
+                                0f
+                            } else {
+                                com.android.purebilibili.core.ui.transition
+                                    .resolveVideoCardSourceChromeVisualFrame(
+                                        morphDepthProgress = miuixLandingState.progressProvider(),
+                                        phase = videoCardDepthBackgroundState.phaseProvider(),
+                                        isReturnGestureInProgress =
                                             videoCardDepthBackgroundState
-                                                .isGestureRestoreInProgressProvider(),
-                                    sourceLayout = landingLayoutForMedia?.layout
-                                        ?: miuixLandingState.sourceLayout,
-                                ).handoffProgress
+                                                .isReturnGestureInProgressProvider() ||
+                                                videoCardDepthBackgroundState
+                                                    .isGestureRestoreInProgressProvider(),
+                                        sourceLayout = landingLayoutForMedia?.layout
+                                            ?: miuixLandingState.sourceLayout,
+                                    ).handoffProgress
+                            }
                         }
                         Box(
                             modifier = playerContainerModifier
@@ -4300,6 +4303,7 @@ internal fun VideoDetailScreenStateHolder(
                     // 返回信息区必须画在飞行壳上：sharedBounds 遮罩盖住列表，真卡露不出来。
                     // 文案用点击快照 + ViewInfo，尽量对齐列表；卸层后再露列表真卡。
                     if (
+                        entryOwnsMiuixCardTransition &&
                         shouldDrawFlyingReturnSourceCardChrome() &&
                         !suppressPhoneDetailBodyForDirectPortrait
                     ) {
@@ -4559,8 +4563,6 @@ internal fun VideoDetailScreenStateHolder(
             isPortraitFullscreen = isPortraitFullscreen,
             danmakuManager = danmakuManager,
         )
-
-        VideoDetailParentFreezeFrame(frame = relatedParentFreezeFrame)
     }
 
     VideoDetailScreenContent(

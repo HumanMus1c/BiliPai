@@ -8,6 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
 import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.*
 
 internal enum class SettingsIconRole {
     INTERFACE_THEME,
@@ -215,6 +217,163 @@ internal fun resolveSettingsSemanticIcon(
     iconFamily: AppSemanticIconFamily = AppSemanticIconFamily.MATERIAL,
 ): ImageVector = when (iconFamily) {
     AppSemanticIconFamily.MATERIAL -> resolveMd3SettingsSemanticIcon(role)
+    AppSemanticIconFamily.MIUIX -> resolveMiuixSettingsSemanticIcon(role)
+}
+
+/**
+ * Miuix 设置页优先使用 miuix-icons 自带字形。这里按设置语义集中映射，避免各页面
+ * 自行混入 Material 图标；远隔层级允许复用，同一个可见设置组仍由角色保持区分。
+ */
+private fun resolveMiuixSettingsSemanticIcon(role: SettingsIconRole): ImageVector = when (role) {
+    SettingsIconRole.INTERFACE_THEME -> MiuixIcons.Theme
+    SettingsIconRole.HOME_FEED -> MiuixIcons.Th1
+    SettingsIconRole.NAVIGATION -> MiuixIcons.Sidebar
+    SettingsIconRole.PLAYBACK_QUALITY -> MiuixIcons.Play
+    SettingsIconRole.FULLSCREEN_GESTURE -> MiuixIcons.ScreenCapture
+    SettingsIconRole.INTERACTION_COMMENT -> MiuixIcons.Messages
+    SettingsIconRole.DATA_BACKUP -> MiuixIcons.Backup
+    SettingsIconRole.PRIVACY_PERMISSION -> MiuixIcons.Lock
+    SettingsIconRole.DIAGNOSTICS -> MiuixIcons.AppRecording
+    SettingsIconRole.ABOUT_SUPPORT -> MiuixIcons.Info
+    SettingsIconRole.APPEARANCE -> MiuixIcons.Image
+    SettingsIconRole.ANIMATION -> MiuixIcons.RecordingTape
+    SettingsIconRole.PLAYBACK -> MiuixIcons.Play
+    SettingsIconRole.BOTTOM_BAR -> MiuixIcons.HorizontalSplit
+    SettingsIconRole.PERMISSION -> MiuixIcons.Unlock
+    SettingsIconRole.BLOCKED_LIST -> MiuixIcons.Blocklist
+    SettingsIconRole.SETTINGS_SHARE -> MiuixIcons.Share
+    SettingsIconRole.WEBDAV_BACKUP -> MiuixIcons.UploadCloud
+    SettingsIconRole.DOWNLOAD_PATH -> MiuixIcons.Folder
+    SettingsIconRole.IMAGE_SAVE_PATH -> MiuixIcons.Photos
+    SettingsIconRole.CLEAR_CACHE -> MiuixIcons.Clear
+    SettingsIconRole.PLUGINS -> MiuixIcons.AddFolder
+    SettingsIconRole.EXPORT_LOGS -> MiuixIcons.File
+    SettingsIconRole.OPEN_SOURCE_LICENSES -> MiuixIcons.Notes
+    SettingsIconRole.OPEN_SOURCE_HOME -> MiuixIcons.Link
+    SettingsIconRole.CHECK_UPDATE -> MiuixIcons.Update
+    SettingsIconRole.VIEW_RELEASE_NOTES -> MiuixIcons.NotesFill
+    SettingsIconRole.REPLAY_ONBOARDING -> MiuixIcons.Reset
+    SettingsIconRole.TIPS -> MiuixIcons.Help
+    SettingsIconRole.OPEN_LINKS -> MiuixIcons.Link
+    SettingsIconRole.DONATE -> MiuixIcons.BankCards
+    SettingsIconRole.DISCLAIMER -> MiuixIcons.Report
+    SettingsIconRole.RELEASE_CHANNEL -> MiuixIcons.Promotions
+    SettingsIconRole.CRASH_TRACKING -> MiuixIcons.Report
+    SettingsIconRole.ANALYTICS -> MiuixIcons.Th28
+    SettingsIconRole.FEED_API -> MiuixIcons.All
+    SettingsIconRole.REFRESH_COUNT -> MiuixIcons.Refresh
+    SettingsIconRole.DYNAMIC_PREVIEW_TEXT -> MiuixIcons.Show
+    SettingsIconRole.DYNAMIC_TAB_VISIBILITY -> MiuixIcons.SelectAll
+    SettingsIconRole.EASTER_EGG -> MiuixIcons.Favorites
+    SettingsIconRole.AUTO_CHECK_UPDATE -> MiuixIcons.Update
+    SettingsIconRole.BUILD_SOURCE -> MiuixIcons.File
+    SettingsIconRole.BUILD_FINGERPRINT -> MiuixIcons.Scan
+    SettingsIconRole.BUILD_VERIFICATION -> MiuixIcons.Ok
+    SettingsIconRole.ANDROID_LIQUID_GLASS -> MiuixIcons.Layers
+    SettingsIconRole.DYNAMIC_COLOR -> MiuixIcons.Promotions
+    SettingsIconRole.THEME_COLOR_PICKER -> MiuixIcons.Tune
+    SettingsIconRole.COLOR_STYLE -> MiuixIcons.Edit
+    SettingsIconRole.COLOR_SPEC -> MiuixIcons.Settings
+    SettingsIconRole.APP_LANGUAGE -> MiuixIcons.Translate
+    SettingsIconRole.FONT_FILE -> MiuixIcons.File
+    SettingsIconRole.SPLASH_WALLPAPER -> MiuixIcons.Image
+    SettingsIconRole.RANDOM_WALLPAPER -> MiuixIcons.Replace
+    SettingsIconRole.DISPLAY_STYLE -> MiuixIcons.GridView
+    SettingsIconRole.HOME_COVER_GLASS -> MiuixIcons.Background
+    SettingsIconRole.VIDEO_DURATION_BADGES -> MiuixIcons.Timer
+    SettingsIconRole.HOME_INFO_GLASS -> MiuixIcons.Info
+    SettingsIconRole.HOME_WALLPAPER -> MiuixIcons.MapAlbum
+    SettingsIconRole.WALLPAPER_EFFECT -> MiuixIcons.Layers
+    SettingsIconRole.HOME_UP_BADGES -> MiuixIcons.Promotions
+    SettingsIconRole.HOME_UP_AVATAR -> MiuixIcons.ContactsCircle
+    SettingsIconRole.ONLINE_COUNT -> MiuixIcons.Contacts
+    SettingsIconRole.GRID_COLUMNS -> MiuixIcons.GridView
+    SettingsIconRole.HOME_CARD_WIDTH -> MiuixIcons.HorizontalSplit
+    SettingsIconRole.CARD_ENTRANCE_ANIMATION -> MiuixIcons.Forward
+    SettingsIconRole.CARD_TRANSITION_ANIMATION -> MiuixIcons.Replace
+    SettingsIconRole.LIVE_SURFACE_TRANSITION -> MiuixIcons.ScreenMirroring
+    SettingsIconRole.PREDICTIVE_BACK -> MiuixIcons.Back
+    SettingsIconRole.MIUIX_TRANSITION_BLUR -> MiuixIcons.Layers
+    SettingsIconRole.TOP_DOCK_GLASS -> MiuixIcons.Th1
+    SettingsIconRole.HOME_SEARCH_GLASS -> MiuixIcons.Search
+    SettingsIconRole.BOTTOM_BAR_GLASS -> MiuixIcons.Th2
+    SettingsIconRole.TOP_BAR_BLUR -> MiuixIcons.Th3
+    SettingsIconRole.HEADER_COLLAPSE -> MiuixIcons.ExpandLess
+    SettingsIconRole.BOTTOM_BAR_BLUR -> MiuixIcons.Th4
+    SettingsIconRole.FLOATING_BOTTOM_BAR -> MiuixIcons.Sidebar
+    SettingsIconRole.HARDWARE_DECODER -> MiuixIcons.Carrier
+    SettingsIconRole.PLAYBACK_SPEED -> MiuixIcons.Stopwatch
+    SettingsIconRole.LONG_PRESS_SPEED_HINT -> MiuixIcons.Hide
+    SettingsIconRole.RESUME_PLAYBACK_PROMPT -> MiuixIcons.Recent
+    SettingsIconRole.STOP_ON_EXIT -> MiuixIcons.Pause
+    SettingsIconRole.BACKGROUND_PLAYBACK -> MiuixIcons.Music
+    SettingsIconRole.PLAYLIST_AUTO_CONTINUE -> MiuixIcons.Playlist
+    SettingsIconRole.AUDIO_FOCUS -> MiuixIcons.VolumeUp
+    SettingsIconRole.SLIDE_VOLUME_BRIGHTNESS -> MiuixIcons.VerticalSplit
+    SettingsIconRole.PIP_DANMAKU -> MiuixIcons.Messages
+    SettingsIconRole.DANMAKU_CLOUD_SYNC -> MiuixIcons.CloudFill
+    SettingsIconRole.AUDIO_MODE_PIP -> MiuixIcons.ScreenMirroring
+    SettingsIconRole.PLAYER_DIAGNOSTICS -> MiuixIcons.AppRecording
+    SettingsIconRole.QUALITY_WARNING -> MiuixIcons.Report
+    SettingsIconRole.SUBTITLE -> MiuixIcons.Notes
+    SettingsIconRole.COMMENT_DECORATION -> MiuixIcons.Community
+    SettingsIconRole.AI_SUMMARY -> MiuixIcons.MindMap
+    SettingsIconRole.VIDEO_NOTE -> MiuixIcons.NotesFill
+    SettingsIconRole.LIKE_INTERACTION -> MiuixIcons.Favorites
+    SettingsIconRole.VIDEO_DESCRIPTION -> MiuixIcons.File
+    SettingsIconRole.FULLSCREEN_ORIENTATION -> MiuixIcons.RotateLeft
+    SettingsIconRole.HORIZONTAL_ADAPTATION -> MiuixIcons.HorizontalSplit
+    SettingsIconRole.FULLSCREEN_GESTURE_REVERSE -> MiuixIcons.VerticalSplit
+    SettingsIconRole.IMMERSIVE_STATUS_BAR -> MiuixIcons.ExpandMore
+    SettingsIconRole.AUTO_ENTER_FULLSCREEN -> MiuixIcons.ZoomOut
+    SettingsIconRole.AUTO_EXIT_FULLSCREEN -> MiuixIcons.Close2
+    SettingsIconRole.FULLSCREEN_LOCK -> MiuixIcons.Lock
+    SettingsIconRole.FULLSCREEN_SCREENSHOT -> MiuixIcons.ScreenCapture
+    SettingsIconRole.CLEAN_SCREENSHOT -> MiuixIcons.Photos
+    SettingsIconRole.BATTERY_STATUS -> MiuixIcons.Carrier
+    SettingsIconRole.TIME_STATUS -> MiuixIcons.WorldClock
+    SettingsIconRole.PLAYER_ACTIONS -> MiuixIcons.More
+    SettingsIconRole.PRIVACY_CONTENT_AUTHENTICATION -> MiuixIcons.Unlock
+    SettingsIconRole.PLAYER_STATS -> MiuixIcons.Th28
+    SettingsIconRole.PLAYER_DIAGNOSTIC_LOGS -> MiuixIcons.Recording
+    SettingsIconRole.QUALITY_WARNING_ONCE -> MiuixIcons.Alarm
+    SettingsIconRole.DIRECTED_TRAFFIC -> MiuixIcons.SearchDevice
+    SettingsIconRole.AUTO_HIGHEST_QUALITY -> MiuixIcons.TopDownloads
+    SettingsIconRole.AUTO_PLAY_ON_OPEN -> MiuixIcons.Play
+    SettingsIconRole.STARTUP_PORTRAIT_FEED -> MiuixIcons.Forward
+    SettingsIconRole.HOME_HERO_AUTOPLAY -> MiuixIcons.Recording
+    SettingsIconRole.AUTO_PLAY_NEXT -> MiuixIcons.Playlist
+    SettingsIconRole.VIDEO_NOTE_COLLAPSE -> MiuixIcons.ExpandLess
+    SettingsIconRole.INTERACTIVE_COMMANDS -> MiuixIcons.Messages
+    SettingsIconRole.PORTRAIT_SWIPE_FULLSCREEN -> MiuixIcons.VerticalSplit
+    SettingsIconRole.CENTER_SWIPE_FULLSCREEN -> MiuixIcons.SelectAll
+    SettingsIconRole.SYSTEM_BRIGHTNESS -> MiuixIcons.Theme
+    SettingsIconRole.APP_ICON -> MiuixIcons.AppRecording
+    SettingsIconRole.HOME_CARD_STATS_COMPACT -> MiuixIcons.Th29
+    SettingsIconRole.HOME_HERO_CAROUSEL -> MiuixIcons.MapAlbum
+    SettingsIconRole.HOME_ONLINE_COUNT -> MiuixIcons.Contacts
+    SettingsIconRole.PORTRAIT_STORY_ENTRY -> MiuixIcons.RecordingTape
+    SettingsIconRole.DISPLAY_SCALE -> MiuixIcons.ZoomOut
+    SettingsIconRole.UI_ENTRANCE_ANIMATION -> MiuixIcons.Forward
+    SettingsIconRole.FULLSCREEN_SWIPE_BACK -> MiuixIcons.Back
+    SettingsIconRole.FOLLOW_BUTTON -> MiuixIcons.AddCircle
+    SettingsIconRole.PRIVACY_HISTORY -> MiuixIcons.Recent
+    SettingsIconRole.CUSTOM_MD3_COLOR -> MiuixIcons.Tune
+    SettingsIconRole.THEME_LIGHT_BACKGROUND -> MiuixIcons.Background
+    SettingsIconRole.THEME_LIGHT_PRIMARY_TEXT -> MiuixIcons.Show
+    SettingsIconRole.THEME_LIGHT_SECONDARY_TEXT -> MiuixIcons.Notes
+    SettingsIconRole.THEME_LIGHT_CONTROL -> MiuixIcons.Settings
+    SettingsIconRole.THEME_DARK_BACKGROUND -> MiuixIcons.Hide
+    SettingsIconRole.THEME_DARK_PRIMARY_TEXT -> MiuixIcons.File
+    SettingsIconRole.THEME_DARK_SECONDARY_TEXT -> MiuixIcons.NotesFill
+    SettingsIconRole.THEME_DARK_CONTROL -> MiuixIcons.Tune
+    SettingsIconRole.DEVELOPER_CRASH_TRACKING -> MiuixIcons.Report
+    SettingsIconRole.DEVELOPER_ANALYTICS -> MiuixIcons.Th30
+    SettingsIconRole.APP_VERSION -> MiuixIcons.Info
+    SettingsIconRole.BOTTOM_BAR_GLASS_PREVIEW -> MiuixIcons.Th2
+    SettingsIconRole.ADVANCED_COLOR -> MiuixIcons.Theme
+    SettingsIconRole.CAST_BUTTON -> MiuixIcons.ScreenMirroring
+    SettingsIconRole.PROGRESS_PEAK_DANMAKU -> MiuixIcons.RecordingTape
 }
 
 private fun resolveMd3SettingsSemanticIcon(role: SettingsIconRole): ImageVector = when (role) {

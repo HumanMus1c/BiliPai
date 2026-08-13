@@ -186,6 +186,27 @@ class AppTopLevelNavigationPolicyTest {
     }
 
     @Test
+    fun bottomPagerSwitch_doesNotRebuildNavigation3MainHost() {
+        assertFalse(
+            shouldResetNavigation3BackStackForBottomPager(
+                currentStack = listOf(BiliPaiNavKey.MainHost)
+            )
+        )
+    }
+
+    @Test
+    fun bottomPagerSwitch_restoresNavigation3MainHostFromSecondaryDestination() {
+        assertTrue(
+            shouldResetNavigation3BackStackForBottomPager(
+                currentStack = listOf(
+                    BiliPaiNavKey.MainHost,
+                    BiliPaiNavKey.Settings
+                )
+            )
+        )
+    }
+
+    @Test
     fun bottomPagerSaveableStateKey_followsTabIdentityInsteadOfPageIndex() {
         assertEquals(
             "bottom:${ScreenRoutes.Home.route}",
@@ -575,7 +596,7 @@ class AppTopLevelNavigationPolicyTest {
 
     @Test
     fun bottomPagerDuringNavigation_composesAllPagesWhenContentReady() {
-        // KernelSU: contentReady → every tab stays mounted through animateScrollBy.
+        // BiliPai: contentReady → every tab stays mounted through animateScrollBy.
         assertTrue(
             shouldComposeBottomPagerPage(
                 item = BottomNavItem.HOME,
@@ -689,8 +710,8 @@ class AppTopLevelNavigationPolicyTest {
     }
 
     @Test
-    fun storyBottomPagerPage_staysComposedAfterContentReadyLikeKernelSu() {
-        // KernelSU mounts every page after contentReady; active work still uses settledPage.
+    fun storyBottomPagerPage_staysComposedAfterContentReadyLikeBiliPai() {
+        // BiliPai mounts every page after contentReady; active work still uses settledPage.
         assertTrue(
             shouldComposeBottomPagerPage(
                 item = BottomNavItem.STORY,
@@ -727,7 +748,7 @@ class AppTopLevelNavigationPolicyTest {
     }
 
     @Test
-    fun settingsBottomPagerPage_staysComposedAfterContentReadyLikeKernelSu() {
+    fun settingsBottomPagerPage_staysComposedAfterContentReadyLikeBiliPai() {
         assertTrue(
             shouldComposeBottomPagerPage(
                 item = BottomNavItem.SETTINGS,

@@ -30,6 +30,7 @@ internal fun Modifier.videoCardShellReturnChromeAlpha(
     isReturningFromDetail: Boolean = false,
     isQuickReturnFromDetail: Boolean = false,
     followShellMotion: Boolean = false,
+    resolveSourceOwnershipAtDraw: Boolean = false,
 ): Modifier {
     if (!enabled || bvid.isBlank()) return this
     val sharedTransitionScope = LocalSharedTransitionScope.current
@@ -47,6 +48,15 @@ internal fun Modifier.videoCardShellReturnChromeAlpha(
         )
     }
     return graphicsLayer {
+        val effectiveSharedMorphSourceCard = if (resolveSourceOwnershipAtDraw) {
+            isVideoCardSharedReturnTarget(
+                bvid = bvid,
+                sourceRoute = sourceRoute,
+                lastClickedVideoSourceKey = CardPositionManager.lastClickedVideoSourceKey,
+            )
+        } else {
+            isSharedMorphSourceCard
+        }
         val phase = bgState.phaseProvider()
         val returnGestureInProgress = bgState.isReturnGestureInProgressProvider() ||
             bgState.isGestureRestoreInProgressProvider()
@@ -58,7 +68,7 @@ internal fun Modifier.videoCardShellReturnChromeAlpha(
         if (followShellMotion) {
             val frame = resolveHorizontalCardChromeMotionFrame(
                 useCardContainerSharedBounds = enabled,
-                isSharedMorphSourceCard = isSharedMorphSourceCard,
+                isSharedMorphSourceCard = effectiveSharedMorphSourceCard,
                 isReturningFromDetail = isReturningFromDetail,
                 transitionBackgroundPhase = phase,
                 isVideoCardReturnGestureInProgress = returnGestureInProgress,
@@ -76,7 +86,7 @@ internal fun Modifier.videoCardShellReturnChromeAlpha(
         } else {
             alpha = resolveHomeCardChromeAlphaDuringShellReturnMorph(
                 useCardContainerSharedBounds = enabled,
-                isSharedMorphSourceCard = isSharedMorphSourceCard,
+                isSharedMorphSourceCard = effectiveSharedMorphSourceCard,
                 isReturningFromDetail = isReturningFromDetail,
                 transitionBackgroundPhase = phase,
                 isVideoCardReturnGestureInProgress = returnGestureInProgress,

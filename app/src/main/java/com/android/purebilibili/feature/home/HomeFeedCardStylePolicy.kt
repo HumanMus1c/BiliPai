@@ -15,7 +15,7 @@ internal data class HomeFeedCardLayout(
 internal const val HOME_FEED_OFFICIAL_COVER_ASPECT_RATIO = 4f / 3f
 
 /** 16:10，介于 16:9 与 4:3 之间。 */
-internal const val HOME_FEED_PILIPLUS_COVER_ASPECT_RATIO = 16f / 10f
+internal const val HOME_FEED_BILIPAI_COVER_ASPECT_RATIO = 16f / 10f
 
 /** 与投稿/CDN 源同比例，标准封面几乎不裁。 */
 internal const val HOME_FEED_FULL_COVER_ASPECT_RATIO = 16f / 9f
@@ -36,7 +36,7 @@ internal fun resolveHomeFeedCoverAspectRatio(
     return when (style) {
         HomeFeedCardStyle.CURRENT -> HOME_FEED_FULL_COVER_ASPECT_RATIO
         HomeFeedCardStyle.OFFICIAL -> HOME_FEED_OFFICIAL_COVER_ASPECT_RATIO
-        HomeFeedCardStyle.PILIPLUS -> HOME_FEED_PILIPLUS_COVER_ASPECT_RATIO
+        HomeFeedCardStyle.BILIPAI -> HOME_FEED_BILIPAI_COVER_ASPECT_RATIO
     }
 }
 
@@ -68,8 +68,8 @@ internal fun resolveHomeFeedCardLayout(
             compactMetadata = true
         )
 
-        HomeFeedCardStyle.PILIPLUS -> HomeFeedCardLayout(
-            // 间距对齐 PiliPlus Style.cardSpace / safeSpace 系：6dp 卡间距
+        HomeFeedCardStyle.BILIPAI -> HomeFeedCardLayout(
+            // 间距对齐 BiliPai Style.cardSpace / safeSpace 系：6dp 卡间距
             coverAspectRatio = coverAspectRatio,
             outerPaddingDp = 6,
             itemSpacingDp = 6,

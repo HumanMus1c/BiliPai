@@ -33,12 +33,14 @@ class BottomBarMiuixPolicyTest {
 
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
         val renderer = source
-            .substringAfter("private fun KernelSuAlignedBottomBar(")
-            .substringBefore("@Composable\nprivate fun AndroidNativeBottomBarItem(")
+            .substringAfter("private fun BiliPaiFloatingBottomBar(")
+            .substringBefore("internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(")
         assertTrue(renderer.contains("val effectiveGlassEnabled = shouldRenderBottomBarLiquidGlassEffects("))
-        assertTrue(renderer.contains("val glassLayersAlwaysOn = effectiveGlassEnabled && miuixBackdrop != null"))
-        assertTrue(renderer.contains("shouldUseBottomBarCaptureLens(effectiveGlassEnabled)"))
-        assertTrue(renderer.contains("glassEnabled = effectiveGlassEnabled"))
+        assertTrue(renderer.contains("FloatingBottomBarMode.LiquidGlass"))
+        assertTrue(
+            renderer.contains("effectiveGlassEnabled && miuixBackdrop != null -> FloatingBottomBarMode.LiquidGlass")
+        )
+        assertTrue(renderer.contains("FloatingBottomBar("))
     }
 
     @Test
@@ -140,59 +142,61 @@ class BottomBarMiuixPolicyTest {
 
         assertTrue(source.contains("resolveAndroidNativeBottomBarTuning("))
         assertTrue(source.contains("resolveAndroidNativeBottomBarContainerColor("))
-        assertTrue(source.contains("KernelSuAlignedBottomBar("))
+        assertTrue(source.contains("BiliPaiFloatingBottomBar("))
         assertTrue(source.contains("iconStyle = sharedBarIconStyle"))
         assertTrue(source.contains("SharedFloatingBottomBarIconStyle.MATERIAL"))
     }
 
     @Test
-    fun `android native floating branch uses sukisu three layer backdrop structure`() {
-        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
-
-        assertTrue(source.contains("val tabsBackdrop = rememberMiuixLayerBackdrop()"))
-        assertTrue(source.contains(".miuixLayerBackdrop(tabsBackdrop)"))
-        assertTrue(source.contains("val contentBackdrop = if (shouldRenderIndicatorBackdrop && miuixBackdrop != null)"))
-        assertTrue(source.contains("rememberMiuixCombinedBackdrop(miuixBackdrop, tabsBackdrop)"))
-        assertTrue(
-            source.contains(
-                "miuixBlur(AppSpacingTokens.ExtraSmall.toPx(), AppSpacingTokens.ExtraSmall.toPx())"
-            )
+    fun `android native floating branch uses BiliPai three layer backdrop structure`() {
+        val floating = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt"
         )
-        assertTrue(source.contains("refractionHeight = AppSpacingTokens.ExtraLarge.toPx()"))
-        assertTrue(source.contains("refractionAmount = AppSpacingTokens.ExtraLarge.toPx()"))
-        assertTrue(source.contains("BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET = 78f / 56f"))
+
+        assertTrue(floating.contains("val tabsBackdrop = rememberLayerBackdrop()"))
+        assertTrue(floating.contains(".layerBackdrop(tabsBackdrop)"))
+        assertTrue(floating.contains("rememberCombinedBackdrop(backdrop, tabsBackdrop)"))
+        assertTrue(floating.contains("blur(4.dp.toPx(), 4.dp.toPx())"))
+        assertTrue(floating.contains("refractionHeight = 24.dp.toPx()"))
+        assertTrue(floating.contains("refractionAmount = 24.dp.toPx()"))
+        assertTrue(floating.contains("FloatingBottomBarPressedScale: Float = 78f / 56f"))
     }
 
     @Test
-    fun `android native indicator backdrop matches sukisu lens order`() {
-        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+    fun `android native indicator backdrop matches BiliPai lens order`() {
+        val floating = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt"
+        )
 
         assertTrue(
             Regex(
-                """rememberMiuixCombinedBackdrop\(miuixBackdrop, tabsBackdrop\)[\s\S]*?miuixDrawBackdrop\([\s\S]*?effects = \{[\s\S]*?miuixLens\(""",
+                """rememberCombinedBackdrop\(backdrop, tabsBackdrop\)[\s\S]*?drawBackdrop\([\s\S]*?effects = \{[\s\S]*?lens\(""",
                 RegexOption.MULTILINE
-            ).containsMatchIn(source)
+            ).containsMatchIn(floating)
         )
+        assertTrue(floating.contains("chromaticAberration = 0.5f"))
+        assertTrue(floating.contains("depthEffect = true"))
     }
 
     @Test
-    fun `android native indicator follows InstallerX combined page plus tabs capture`() {
-        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
-        val renderer = source
-            .substringAfter("private fun KernelSuAlignedBottomBar(")
-            .substringBefore("@Composable\nprivate fun AndroidNativeBottomBarItem(")
-        val refractionCaptureSource = source
-            .substringAfter("if (shouldRenderIndicatorContentCapture && miuixBackdrop != null) {")
-            .substringBefore("KernelSuMiuixBottomBarIndicatorLayer(")
+    fun `android native indicator follows BiliPai combined page plus tabs capture`() {
+        val floating = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt"
+        )
+        val host = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+        val renderer = host
+            .substringAfter("private fun BiliPaiFloatingBottomBar(")
+            .substringBefore("internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(")
 
-        assertTrue(renderer.contains("rememberMiuixCombinedBackdrop(miuixBackdrop, tabsBackdrop)"))
-        assertTrue(refractionCaptureSource.contains(".miuixLayerBackdrop(tabsBackdrop)"))
-        assertTrue(refractionCaptureSource.contains("backdrop = miuixBackdrop"))
-        assertTrue(refractionCaptureSource.contains("miuixDrawBackdrop("))
-        assertTrue(refractionCaptureSource.contains("BOTTOM_BAR_INDICATOR_DOCK_BAND_HEIGHT_DP.dp"))
-        assertFalse(refractionCaptureSource.contains("resolveBottomBarIndicatorExportCaptureHeightDp("))
-        assertFalse(refractionCaptureSource.contains(".background(ksuContainerColor, shellShape)"))
-        assertTrue(source.contains("BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET = 78f / 56f"))
+        assertTrue(floating.contains("rememberCombinedBackdrop(backdrop, tabsBackdrop)"))
+        assertTrue(floating.contains(".layerBackdrop(tabsBackdrop)"))
+        assertTrue(floating.contains("FloatingBottomBarIndicatorHeight: Dp = 56.dp"))
+        assertTrue(renderer.contains("FloatingBottomBar("))
+        assertTrue(renderer.contains("indicatorHeight = BOTTOM_BAR_INDICATOR_DOCK_BAND_HEIGHT_DP.dp"))
+        assertTrue(
+            floating.contains("FloatingBottomBarPressedScale: Float = 78f / 56f") ||
+                host.contains("BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET = 78f / 56f")
+        )
     }
 
     @Test

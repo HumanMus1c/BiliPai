@@ -73,6 +73,13 @@ class RelatedVideoItemPolicyTest {
         assertTrue(source.contains("sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE"))
         assertTrue(source.contains("sourceChromeSnapshot = VideoCardSourceChromeSnapshot("))
         assertTrue(source.contains("coverBounds = coverCoordinatesRef.value"))
+        assertTrue(source.contains(".videoCardShellReturnChromeAlpha("))
+        assertTrue(source.contains("resolveSourceOwnershipAtDraw = true"))
+        assertFalse(source.contains(".videoCardShellReturnCoverAlpha("))
+        assertTrue(
+            source.indexOf(".videoCardShellReturnChromeAlpha(") <
+                source.indexOf(".background(AppSurfaceTokens.cardContainer())")
+        )
         assertTrue(source.contains("RelatedVideoGridRow("))
         assertTrue(source.contains("chunkRelatedVideosForHomeStyleGrid("))
         assertFalse(source.contains("relatedCoverWidth = 130.dp"))

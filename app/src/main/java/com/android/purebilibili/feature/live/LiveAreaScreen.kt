@@ -85,7 +85,7 @@ fun LiveAreaScreen(
     val metrics = visualSpec.homeMetrics
     val windowSizeClass = LocalWindowSizeClass.current
     val gridColumns = remember(windowSizeClass.widthDp, windowSizeClass.isTablet) {
-        resolveLivePiliPlusGridColumns(
+        resolveLiveBiliPaiGridColumns(
             widthDp = windowSizeClass.widthDp.value.toInt(),
             isTabletLayout = windowSizeClass.isTablet,
         )
@@ -283,7 +283,7 @@ private fun LiveAreaParentTabRow(
 ) {
     if (areas.isEmpty()) return
     val safeSelectedTab = selectedTab.coerceIn(0, areas.lastIndex)
-    // PiliPlus TabBar + SearchText 形态：横向 chip，按 MD3/Miuix/iOS 原生分发。
+    // BiliPai TabBar + SearchText 形态：横向 chip，按 MD3/Miuix/iOS 原生分发。
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()

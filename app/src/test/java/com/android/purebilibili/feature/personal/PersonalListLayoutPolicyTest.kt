@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 class PersonalListLayoutPolicyTest {
 
     @Test
-    fun columnCount_matchesPiliPlusMaxExtentBehavior() {
+    fun columnCount_matchesBiliPaiMaxExtentBehavior() {
         assertEquals(1, resolvePersonalListColumnCount(360f))
         assertEquals(1, resolvePersonalListColumnCount(480f))
         assertEquals(2, resolvePersonalListColumnCount(600f))

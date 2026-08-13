@@ -38,8 +38,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.em
 import com.android.purebilibili.feature.live.LiveDanmakuItem
 import com.android.purebilibili.feature.live.rememberLiveChromePalette
-import com.android.purebilibili.feature.live.resolveLivePiliPlusChatBubbleTokens
-import com.android.purebilibili.feature.live.resolveLivePiliPlusRoomColorTokens
+import com.android.purebilibili.feature.live.resolveLiveBiliPaiChatBubbleTokens
+import com.android.purebilibili.feature.live.resolveLiveBiliPaiRoomColorTokens
 import com.android.purebilibili.feature.live.resolveLiveChatInputVisualSpec
 import com.android.purebilibili.feature.live.shouldRenderLiveDanmakuImageEmoticon
 import com.android.purebilibili.feature.live.LiveStatusPalette
@@ -263,7 +263,7 @@ private fun ChatMessageItem(
     val context = LocalContext.current
     val palette = rememberLiveChromePalette()
     var showMenu by remember { mutableStateOf(false) }
-    val tokens = resolveLivePiliPlusChatBubbleTokens(isOverlay = isOverlay, isDark = palette.isDark)
+    val tokens = resolveLiveBiliPaiChatBubbleTokens(isOverlay = isOverlay, isDark = palette.isDark)
     val bubbleShape = RoundedCornerShape(tokens.cornerRadiusDp.dp)
     val bubbleBackground = when {
         isOverlay -> LiveStatusPalette.MediaScrim.copy(alpha = tokens.backgroundAlpha)
@@ -602,7 +602,7 @@ private fun ChatInputBar(
     val focusManager = LocalFocusManager.current
     val palette = rememberLiveChromePalette()
     val inputVisualSpec = remember { resolveLiveChatInputVisualSpec() }
-    val roomTokens = resolveLivePiliPlusRoomColorTokens(
+    val roomTokens = resolveLiveBiliPaiRoomColorTokens(
         inputOverlayColor = LiveStatusPalette.MediaContent,
         inputContentColor = LiveStatusPalette.MediaContent
     )

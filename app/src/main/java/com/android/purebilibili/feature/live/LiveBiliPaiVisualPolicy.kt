@@ -4,7 +4,7 @@ import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.ui.AppTopTabPresentation
 import com.android.purebilibili.core.ui.CompactCapsuleChromeSpec
 
-internal data class LivePiliPlusHomeMetrics(
+internal data class LiveBiliPaiHomeMetrics(
     val safeSpaceDp: Int,
     val cardSpaceDp: Int,
     val cardRadiusDp: Int,
@@ -14,7 +14,7 @@ internal data class LivePiliPlusHomeMetrics(
 )
 
 internal data class LiveVisualSpec(
-    val homeMetrics: LivePiliPlusHomeMetrics,
+    val homeMetrics: LiveBiliPaiHomeMetrics,
     val maxContentWidthDp: Int,
     val roomCardDetailsMinHeightDp: Int,
     val playerButtonTouchTargetDp: Int,
@@ -47,14 +47,14 @@ internal data class LivePlayerControlVisualSpec(
     val iconSizeDp: Int,
 )
 
-internal data class LivePiliPlusChipColors(
+internal data class LiveBiliPaiChipColors(
     val selectedContainerColor: Color,
     val selectedContentColor: Color,
     val unselectedContainerColor: Color,
     val unselectedContentColor: Color
 )
 
-internal data class LivePiliPlusChatBubbleTokens(
+internal data class LiveBiliPaiChatBubbleTokens(
     val cornerRadiusDp: Int,
     val horizontalPaddingDp: Int,
     val verticalPaddingDp: Int,
@@ -63,7 +63,7 @@ internal data class LivePiliPlusChatBubbleTokens(
     val nameAlpha: Float
 )
 
-internal data class LivePiliPlusRoomColorTokens(
+internal data class LiveBiliPaiRoomColorTokens(
     val baseBackgroundColor: Color,
     val backdropImageAlpha: Float,
     val inputContainerAlpha: Float,
@@ -119,7 +119,7 @@ internal fun resolveLiveVisualSpec(
         AppTopTabPresentation.MATERIAL_UNDERLINE -> 88
     }
     return LiveVisualSpec(
-        homeMetrics = LivePiliPlusHomeMetrics(
+        homeMetrics = LiveBiliPaiHomeMetrics(
             safeSpaceDp = safeSpaceDp,
             cardSpaceDp = cardSpaceDp,
             cardRadiusDp = 10,
@@ -161,19 +161,19 @@ internal fun resolveLivePlayerControlVisualSpec(): LivePlayerControlVisualSpec =
         iconSizeDp = 14,
     )
 
-internal fun resolveLivePiliPlusHomeMetrics(): LivePiliPlusHomeMetrics {
+internal fun resolveLiveBiliPaiHomeMetrics(): LiveBiliPaiHomeMetrics {
     return resolveLiveVisualSpec(
         tabPresentation = AppTopTabPresentation.MOVING_CAPSULE,
     ).homeMetrics
 }
 
-internal fun resolveLivePiliPlusHomeMetrics(
+internal fun resolveLiveBiliPaiHomeMetrics(
     tabPresentation: AppTopTabPresentation,
-): LivePiliPlusHomeMetrics {
+): LiveBiliPaiHomeMetrics {
     return resolveLiveVisualSpec(tabPresentation).homeMetrics
 }
 
-internal fun resolveLivePiliPlusGridColumns(
+internal fun resolveLiveBiliPaiGridColumns(
     widthDp: Int,
     isTabletLayout: Boolean,
 ): Int {
@@ -181,12 +181,12 @@ internal fun resolveLivePiliPlusGridColumns(
     return (widthDp / 240).coerceIn(3, 5)
 }
 
-internal fun resolveLivePiliPlusChipColors(
+internal fun resolveLiveBiliPaiChipColors(
     selectedContainer: Color,
     selectedContent: Color,
     unselectedContent: Color
-): LivePiliPlusChipColors {
-    return LivePiliPlusChipColors(
+): LiveBiliPaiChipColors {
+    return LiveBiliPaiChipColors(
         selectedContainerColor = selectedContainer,
         selectedContentColor = selectedContent,
         unselectedContainerColor = Color.Transparent,
@@ -194,16 +194,16 @@ internal fun resolveLivePiliPlusChipColors(
     )
 }
 
-internal fun resolveLivePiliPlusChatBubbleTokens(
+internal fun resolveLiveBiliPaiChatBubbleTokens(
     isOverlay: Boolean,
     isDark: Boolean
-): LivePiliPlusChatBubbleTokens {
+): LiveBiliPaiChatBubbleTokens {
     val backgroundAlpha = when {
         isOverlay -> 0f
         else -> 0.08f
     }
     val nameAlpha = if (isOverlay) 0.90f else 0.60f
-    return LivePiliPlusChatBubbleTokens(
+    return LiveBiliPaiChatBubbleTokens(
         cornerRadiusDp = 14,
         horizontalPaddingDp = 10,
         verticalPaddingDp = 4,
@@ -274,11 +274,11 @@ internal fun resolveLiveLevelColor(level: Int): Color = when {
     else -> LiveStatusPalette.LevelLow
 }
 
-internal fun resolveLivePiliPlusRoomColorTokens(
+internal fun resolveLiveBiliPaiRoomColorTokens(
     inputOverlayColor: Color = LiveStatusPalette.MediaContent,
     inputContentColor: Color = LiveStatusPalette.InputContent,
-): LivePiliPlusRoomColorTokens {
-    return LivePiliPlusRoomColorTokens(
+): LiveBiliPaiRoomColorTokens {
+    return LiveBiliPaiRoomColorTokens(
         baseBackgroundColor = LiveStatusPalette.MediaScrim,
         backdropImageAlpha = 0.60f,
         inputContainerAlpha = 0.10f,

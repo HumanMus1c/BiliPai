@@ -23,7 +23,7 @@ class SearchLandingUiPolicyTest {
     }
 
     @Test
-    fun `search landing section order matches piliplus portrait layout`() {
+    fun `search landing section order matches bilipai portrait layout`() {
         assertEquals(
             listOf(
                 SearchLandingSection.TRENDING,

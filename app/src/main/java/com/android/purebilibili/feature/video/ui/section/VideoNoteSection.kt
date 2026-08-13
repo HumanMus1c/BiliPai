@@ -26,8 +26,6 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FormatColorFill
 import androidx.compose.material.icons.outlined.Share
 import com.android.purebilibili.core.ui.AppAlertDialog
-import com.android.purebilibili.core.ui.AppShapes
-import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.components.AppAssistChip
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
@@ -60,6 +58,7 @@ import com.android.purebilibili.feature.video.note.VideoNoteBlock
 import com.android.purebilibili.feature.video.note.VideoNoteEditorDocument
 import com.android.purebilibili.feature.video.note.VideoNoteLoadStatus
 import com.android.purebilibili.feature.video.note.VideoNoteUiState
+import com.android.purebilibili.feature.video.ui.VideoDetailShapes
 import com.android.purebilibili.feature.video.note.hasUnsavedVideoNoteDraft
 import com.android.purebilibili.feature.video.note.resolveVideoNotePrimaryActionLabel
 import com.android.purebilibili.feature.video.note.resolveVideoNoteEmptyMessage
@@ -214,7 +213,7 @@ fun VideoNoteCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(AppShapes.container(ContainerLevel.Field))
+                            .clip(VideoDetailShapes.field())
                             .clickable { onPublicNoteClick(note.cvid, note.webUrl) }
                             .padding(vertical = 6.dp),
                     )
@@ -330,7 +329,7 @@ fun VideoNoteEditorSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp)
-                    .clip(AppShapes.container(ContainerLevel.Field))
+                    .clip(VideoDetailShapes.field())
                     .background(MaterialTheme.colorScheme.surfaceContainerLow)
                     .padding(10.dp)
             )
@@ -428,7 +427,7 @@ private fun IconBox() {
     Box(
         modifier = Modifier
             .size(36.dp)
-            .clip(AppShapes.container(ContainerLevel.Chip))
+            .clip(VideoDetailShapes.leadingIcon())
             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
         contentAlignment = Alignment.Center,
     ) {

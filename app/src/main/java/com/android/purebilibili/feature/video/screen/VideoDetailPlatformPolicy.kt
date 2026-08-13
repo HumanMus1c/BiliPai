@@ -769,7 +769,7 @@ internal fun shouldObservePhoneAutoRotate(
 ): Boolean {
     if (!autoRotateEnabled) return false
     if (isInMultiWindowMode || isInPictureInPictureMode) return false
-    // PiliPlus-style: vertical immersive FS is not kicked by gravity / sensor landscape.
+    // BiliPai-style: vertical immersive FS is not kicked by gravity / sensor landscape.
     if (isPortraitFullscreen) return false
     if (!shouldApplyPhoneAutoRotatePolicy(isCompactDevice)) return false
     if (!isOrientationDrivenFullscreen) return false

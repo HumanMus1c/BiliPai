@@ -25,6 +25,7 @@ import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.data.model.response.AiSummaryData
+import com.android.purebilibili.feature.video.ui.VideoDetailShapes
 import com.android.purebilibili.feature.video.viewmodel.AiSummaryPromptState
 import com.android.purebilibili.feature.video.viewmodel.AiSummaryPromptTone
 import androidx.compose.material.icons.Icons
@@ -240,7 +241,7 @@ private fun LeadingIconBadge(
     Box(
         modifier = Modifier
             .size(36.dp)
-            .clip(AppShapes.container(ContainerLevel.Chip))
+            .clip(VideoDetailShapes.leadingIcon())
             .background(containerColor),
         contentAlignment = Alignment.Center,
         content = { content() },

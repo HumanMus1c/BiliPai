@@ -6,7 +6,6 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppTopChromePolicy
 import com.android.purebilibili.core.ui.AppTopTabPresentation
-import com.android.purebilibili.core.ui.resolveAppChromeLiquidGlassEnabled
 import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
 import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
@@ -45,7 +44,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalDensity
-import com.kyant.backdrop.backdrops.LayerBackdrop
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,6 +71,7 @@ import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.HomeTopLayoutOrder
 import com.android.purebilibili.core.store.HomeTopRightAction
 import com.android.purebilibili.core.store.BottomBarLiquidGlassPreset
+import com.android.purebilibili.core.store.resolveGlobalLiquidGlassReuseEnabled
 import com.android.purebilibili.feature.home.resolveHomeTopCategories
 import com.android.purebilibili.feature.home.resolveHomeTopCollapsedHandleHeight
 import com.android.purebilibili.feature.home.resolveHomeTopTabPresentationHeight
@@ -157,7 +156,6 @@ internal enum class HomeTopChromeSurfaceTreatment {
 internal fun resolveHomeTopLinkedBottomBarAppearance(
     homeSettings: HomeSettings?,
     presentation: AppTopTabPresentation,
-    supportsIndependentLiquidGlass: Boolean,
 ): HomeTopLinkedBottomBarAppearance {
     val resolvedHomeSettings = homeSettings ?: HomeSettings()
     val navigationAppearance = resolveAppNavigationAppearance(
@@ -171,7 +169,6 @@ internal fun resolveHomeTopLinkedBottomBarAppearance(
             ),
         liquidGlassEnabled = resolveHomeTopChromeLiquidGlassEnabled(
             homeSettings = resolvedHomeSettings,
-            supportsIndependentLiquidGlass = supportsIndependentLiquidGlass,
         )
     )
 }
@@ -220,36 +217,29 @@ internal fun resolveHomeTopRightActionContentDescription(
     return "${action.label}，$badgeText 条未读"
 }
 
+/**
+ * Top dock / search / indicator liquid glass uses the exact bottom-bar contract:
+ * the shared "安卓原生液态玻璃" switch is the single source of truth.
+ */
 internal fun resolveHomeTopChromeLiquidGlassEnabled(
     homeSettings: HomeSettings?,
-    supportsIndependentLiquidGlass: Boolean,
 ): Boolean {
     val resolvedHomeSettings = homeSettings ?: HomeSettings()
-    return resolveAppChromeLiquidGlassEnabled(
-        supportsIndependentLiquidGlass = supportsIndependentLiquidGlass,
-        individualEnabled = resolvedHomeSettings.isTopBarLiquidGlassEnabled,
-        androidNativeEnabled = resolvedHomeSettings.androidNativeLiquidGlassEnabled,
+    return resolveGlobalLiquidGlassReuseEnabled(
+        androidNativeLiquidGlassEnabled = resolvedHomeSettings.androidNativeLiquidGlassEnabled,
     )
 }
 
 internal fun resolveHomeTopTabIndicatorLiquidGlassEnabled(
     homeSettings: HomeSettings?,
-    supportsIndependentLiquidGlass: Boolean,
 ): Boolean {
-    // Indicator glass follows the same shared chrome contract as the top dock shell.
-    return resolveHomeTopChromeLiquidGlassEnabled(homeSettings, supportsIndependentLiquidGlass)
+    return resolveHomeTopChromeLiquidGlassEnabled(homeSettings)
 }
 
 internal fun resolveHomeTopSearchLiquidGlassEnabled(
     homeSettings: HomeSettings?,
-    supportsIndependentLiquidGlass: Boolean,
 ): Boolean {
-    val resolvedHomeSettings = homeSettings ?: HomeSettings()
-    return resolveAppChromeLiquidGlassEnabled(
-        supportsIndependentLiquidGlass = supportsIndependentLiquidGlass,
-        individualEnabled = resolvedHomeSettings.isHomeSearchLiquidGlassEnabled,
-        androidNativeEnabled = resolvedHomeSettings.androidNativeLiquidGlassEnabled,
-    )
+    return resolveHomeTopChromeLiquidGlassEnabled(homeSettings)
 }
 
 internal fun resolveHomeTopChromeMaterialMode(
@@ -1306,7 +1296,6 @@ internal fun Modifier.homeTopChromeSurface(
     shape: Shape,
     surfaceColor: Color,
     hazeState: HazeState?,
-    backdrop: LayerBackdrop?,
     miuixBackdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
     liquidStyle: LiquidGlassStyle,
     liquidGlassTuning: LiquidGlassTuning? = null,
@@ -1320,14 +1309,13 @@ internal fun Modifier.homeTopChromeSurface(
 ): Modifier = composed {
     val isLiquidGlassMode = renderMode == HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP ||
         renderMode == HomeTopChromeRenderMode.LIQUID_GLASS_HAZE
-    // Liquid chrome always reuses the bottom-bar KSU material so every reusable surface
+    // Liquid chrome always reuses the bottom-bar BiliPai material so every reusable surface
     // (top dock / search / continuous slab / segmented dock) stays visually identical.
     if (isLiquidGlassMode) {
         return@composed this.homeTopBottomBarMatchedSurface(
             renderMode = renderMode,
             shape = shape,
             hazeState = hazeState,
-            backdrop = backdrop,
             miuixBackdrop = miuixBackdrop,
             liquidGlassStyle = liquidStyle,
             liquidGlassTuning = liquidGlassTuning,
@@ -1402,8 +1390,7 @@ fun HomeHeader(
     isRefreshing: Boolean = false,
     pullProgress: Float = 0f,  // 0.0 ~ 1.0+ 下拉进度
     pagerState: androidx.compose.foundation.pager.PagerState? = null, // [New] PagerState for sync
-    // [New] LayerBackdrop for liquid glass effect
-    backdrop: com.kyant.backdrop.backdrops.LayerBackdrop? = null,
+    // Miuix is the single liquid-glass renderer for the home chrome.
     miuixBackdrop: top.yukonga.miuix.kmp.blur.Backdrop? = null,
     homeSettings: com.android.purebilibili.core.store.HomeSettings? = null,
     topTabsVisible: Boolean = true,
@@ -1433,12 +1420,10 @@ fun HomeHeader(
     val linkedBottomBarAppearance = remember(
         homeSettings,
         topChromePolicy.tabPresentation,
-        semanticVisualPolicy.supportsIndependentLiquidGlass,
     ) {
         resolveHomeTopLinkedBottomBarAppearance(
             homeSettings = homeSettings,
             presentation = topChromePolicy.tabPresentation,
-            supportsIndependentLiquidGlass = semanticVisualPolicy.supportsIndependentLiquidGlass,
         )
     }
     val edgeButtonShape = resolveHomeTopEdgeButtonShape(topChromePolicy)
@@ -1464,7 +1449,6 @@ fun HomeHeader(
     }
     val topChromeLiquidGlassEnabled = resolveHomeTopChromeLiquidGlassEnabled(
         homeSettings = homeSettings,
-        supportsIndependentLiquidGlass = semanticVisualPolicy.supportsIndependentLiquidGlass,
     )
 
     // 状态栏高度
@@ -1480,7 +1464,6 @@ fun HomeHeader(
     val isTopChromeBlurEnabled = topChromeMaterialMode != TopTabMaterialMode.PLAIN
     val searchLiquidGlassEnabled = resolveHomeTopSearchLiquidGlassEnabled(
         homeSettings = homeSettings,
-        supportsIndependentLiquidGlass = semanticVisualPolicy.supportsIndependentLiquidGlass,
     )
     val searchChromeMaterialMode = resolveHomeTopChromeMaterialMode(
         isHeaderBlurEnabled = isHeaderBlurEnabled,
@@ -1526,7 +1509,7 @@ fun HomeHeader(
     val topChromeRenderMode = resolveHomeTopChromeRenderMode(
         materialMode = topChromeMaterialMode,
         isGlassSupported = isGlassSupported,
-        hasBackdrop = backdrop != null,
+        hasBackdrop = miuixBackdrop != null,
         hasHazeState = hazeState != null,
         allowHazeLiquidGlassFallback = allowHazeLiquidGlassFallback
     )
@@ -1664,7 +1647,7 @@ fun HomeHeader(
         TopTabMaterialMode.LIQUID_GLASS -> resolveHomeTopChromeRenderMode(
             materialMode = effectiveTabMaterialMode,
             isGlassSupported = isGlassSupported,
-            hasBackdrop = backdrop != null,
+            hasBackdrop = miuixBackdrop != null,
             hasHazeState = hazeState != null,
             allowHazeLiquidGlassFallback = allowHazeLiquidGlassFallback
         )
@@ -1691,7 +1674,7 @@ fun HomeHeader(
     val searchChromeBaseRenderMode = resolveHomeTopChromeRenderMode(
         materialMode = searchChromeMaterialMode,
         isGlassSupported = isGlassSupported,
-        hasBackdrop = backdrop != null,
+        hasBackdrop = miuixBackdrop != null,
         hasHazeState = hazeState != null,
         allowHazeLiquidGlassFallback = allowHazeLiquidGlassFallback
     )
@@ -2012,7 +1995,6 @@ fun HomeHeader(
             },
             tabSurfaceColor = skinTintedTabSurfaceColor,
             hazeState = hazeState,
-            backdrop = backdrop,
             miuixBackdrop = miuixBackdrop,
             liquidStyle = liquidStyle,
             liquidGlassTuning = liquidGlassTuning,
@@ -2076,13 +2058,11 @@ fun HomeHeader(
                 labelMode = topTabLabelMode,
                 isLiquidGlassEnabled = resolveHomeTopTabIndicatorLiquidGlassEnabled(
                     homeSettings = homeSettings,
-                    supportsIndependentLiquidGlass = semanticVisualPolicy.supportsIndependentLiquidGlass,
                 ) && isGlassSupported,
                 liquidGlassStyle = liquidStyle,
                 liquidGlassTuning = liquidGlassTuning,
                 liquidGlassPreset = bottomBarLiquidGlassPreset,
                 hazeState = hazeState,
-                backdrop = backdrop,
                 miuixBackdrop = miuixBackdrop,
                 isFloatingStyle = isTabFloating,
                 edgeToEdge = integratedCollapsedTopBar,
@@ -2129,7 +2109,6 @@ fun HomeHeader(
                             renderMode = effectiveContinuousSlabRenderMode
                         ),
                         hazeState = hazeState,
-                        backdrop = backdrop,
                         miuixBackdrop = miuixBackdrop,
                         liquidStyle = liquidStyle,
                         liquidGlassTuning = liquidGlassTuning,
@@ -2178,7 +2157,9 @@ fun HomeHeader(
                                             shape = unifiedPanelShape,
                                             surfaceColor = headerChromeColors.containerColor,
                                             hazeState = hazeState,
-                                            backdrop = backdrop,
+
+                                            miuixBackdrop = miuixBackdrop,
+
                                             liquidStyle = liquidStyle,
                                             liquidGlassTuning = liquidGlassTuning,
                                             liquidGlassPreset = bottomBarLiquidGlassPreset,
@@ -2336,7 +2317,9 @@ fun HomeHeader(
                                                             shape = edgeButtonShape,
                                                             surfaceColor = headerChromeColors.containerColor,
                                                             hazeState = hazeState,
-                                                            backdrop = backdrop,
+
+                                                            miuixBackdrop = miuixBackdrop,
+
                                                             liquidStyle = liquidStyle,
                                                             liquidGlassTuning = liquidGlassTuning,
                                                             liquidGlassPreset = bottomBarLiquidGlassPreset,
@@ -2359,7 +2342,9 @@ fun HomeHeader(
                                                         shape = edgeButtonShape,
                                                         surfaceColor = headerChromeColors.containerColor,
                                                         hazeState = hazeState,
-                                                        backdrop = backdrop,
+
+                                                        miuixBackdrop = miuixBackdrop,
+
                                                         liquidStyle = liquidStyle,
                                                         liquidGlassTuning = liquidGlassTuning,
                                                         liquidGlassPreset = bottomBarLiquidGlassPreset,
@@ -2444,14 +2429,21 @@ fun HomeHeader(
                                         .widthIn(max = AppSpacingTokens.TripleExtraLarge * 13 + AppSpacingTokens.Large)
                                         .fillMaxWidth()
                                         .height(resolveHomeTopSearchPillHeight(topChromePolicy))
-                                        .clip(searchContainerShape)
+                                        .then(
+                                            // drawBackdrop owns the glass shape. Pre-clipping the
+                                            // BiliPai lens cuts its sampled rim into a bright line.
+                                            if (useBottomBarMatchedTopControls) {
+                                                Modifier
+                                            } else {
+                                                Modifier.clip(searchContainerShape)
+                                            }
+                                        )
                                         .then(
                                             if (useBottomBarMatchedTopControls) {
                                                 Modifier.homeTopBottomBarMatchedSurface(
                                                     renderMode = searchChromeRenderMode,
                                                     shape = searchContainerShape,
                                                     hazeState = hazeState,
-                                                    backdrop = backdrop,
                                                     miuixBackdrop = miuixBackdrop,
                                                     liquidGlassStyle = liquidStyle,
                                                     liquidGlassTuning = liquidGlassTuning,
@@ -2459,6 +2451,9 @@ fun HomeHeader(
                                                     motionTier = motionTier,
                                                     isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
                                                     forceLowBlurBudget = forceLowBlurBudget,
+                                                    // Same soft BiliPai shell as the top dock.
+                                                    drawShellLens = true,
+                                                    shellLensIntensity = TOP_DOCK_SHELL_LENS_INTENSITY,
                                                     isScrolling = topChromeMotionPolicy.isScrolling
                                                 )
                                             } else {
@@ -2467,7 +2462,9 @@ fun HomeHeader(
                                                     shape = searchContainerShape,
                                                     surfaceColor = skinSearchSurfaceColor,
                                                     hazeState = hazeState,
-                                                    backdrop = backdrop,
+
+                                                    miuixBackdrop = miuixBackdrop,
+
                                                     liquidStyle = liquidStyle,
                                                     liquidGlassTuning = liquidGlassTuning,
                                                     liquidGlassPreset = bottomBarLiquidGlassPreset,
@@ -2566,7 +2563,6 @@ fun HomeHeader(
                                                             renderMode = localTopChromeRenderMode,
                                                             shape = edgeButtonShape,
                                                             hazeState = hazeState,
-                                                            backdrop = backdrop,
                                                             miuixBackdrop = miuixBackdrop,
                                                             liquidGlassStyle = liquidStyle,
                                                             liquidGlassTuning = liquidGlassTuning,
@@ -2601,7 +2597,9 @@ fun HomeHeader(
                                                         shape = edgeButtonShape,
                                                         surfaceColor = headerChromeColors.containerColor,
                                                         hazeState = hazeState,
-                                                        backdrop = backdrop,
+
+                                                        miuixBackdrop = miuixBackdrop,
+
                                                         liquidStyle = liquidStyle,
                                                         liquidGlassTuning = liquidGlassTuning,
                                                         liquidGlassPreset = bottomBarLiquidGlassPreset,

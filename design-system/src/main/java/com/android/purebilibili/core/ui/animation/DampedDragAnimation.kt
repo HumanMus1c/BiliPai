@@ -46,10 +46,10 @@ internal fun resolveDampedDragVelocityItemsPerSecond(
 internal const val HORIZONTAL_DRAG_DOMINANCE_RATIO = 1.25f
 internal const val HORIZONTAL_DRAG_MIN_DISTANCE_PX = 8f
 
-/** 指示器拖拽的目标跟随方式；InstallerX 模式不做飞掷投影或超滚。 */
+/** 指示器拖拽的目标跟随方式；BiliPai 模式不做飞掷投影或超滚。 */
 enum class DampedDragTrackingMode {
     PROJECTED_SNAP,
-    INSTALLER_X_SPRING,
+    BILIPAI_SPRING,
 }
 
 fun shouldEngageHorizontalDrag(
@@ -92,15 +92,14 @@ internal fun resolveDampedDragReleaseTargetIndex(
 }
 
 /**
- * 共享的 KernelSU 指示器拖拽动画状态。
+ * 共享的 BiliPai 指示器拖拽动画状态。
  *
- * 复刻来源：
- * KernelSU manager FloatingBottomBar / DampedDragAnimation / DragGestureInspector，
+ * 实现参考上游 FloatingBottomBar / DampedDragAnimation / DragGestureInspector，
  * commit 778fb38bbf0c43f168b8bbd7d9e369d6fb46754b。
  * 底栏、顶部标签、分段控件、分区侧栏共用此内核，避免各自维护一套速度形变。
  *
  * 默认交互逻辑以 9.0.0 发行版为准（跟手 snapTo + 速度飞掷投影）；
- * 首页底栏可切换 InstallerX 的边界/吸附策略。两种模式都保留 KSU 的按压与速度形变，
+ * 首页底栏可切换 BiliPai 的边界/吸附策略。两种模式都保留 BiliPai 的按压与速度形变，
  * 且拖拽阶段一律逐帧跟手，避免指示器在手指停住时仍落后于已切换的页面。
  */
 class DampedDragAnimationState internal constructor(
@@ -240,11 +239,11 @@ class DampedDragAnimationState internal constructor(
     }
 
     /**
-     * 处理拖拽事件（9.0.0 跟手逻辑 + KSU 压按形变）。
+     * 处理拖拽事件（9.0.0 跟手逻辑 + BiliPai 压按形变）。
      *
      * 使用 snapTo 确保指示器位置完全跟手，
      * 同时通过 desiredValue 记录超滚状态，
-     * 手势速度只用于释放投影；形变速度对齐 KSU，从指示器 value 轨迹平滑估算。
+     * 手势速度只用于释放投影；形变速度对齐 BiliPai，从指示器 value 轨迹平滑估算。
      */
     fun onDrag(
         dragAmountPx: Float,
@@ -266,16 +265,16 @@ class DampedDragAnimationState internal constructor(
         velocityPxPerSecond = gestureVelocityPxPerSecond
 
         when (trackingMode) {
-            DampedDragTrackingMode.INSTALLER_X_SPRING -> {
-                // 首页底栏：保持 InstallerX 的边界与就近吸附策略，但拖拽中的视觉位置
-                // 必须逐帧贴住手指。若此处 animateTo，1000f 弹簧会在手指停住后仍然追赶，
-                // 而导航已按释放目标切页，造成“页面切换、指示器没跟上”的脱节。
+            DampedDragTrackingMode.BILIPAI_SPRING -> {
+                // BiliPai FloatingBottomBar: spring-follow via animateTo (updateValue),
+                // bounded to [0, itemCount-1], with velocity deformation sampling.
                 desiredValue = (desiredValue + dragAmountPx / itemWidthPx)
                     .fastCoerceIn(0f, (itemCount - 1).toFloat())
                 valueJob?.cancel()
                 valueJob = scope.launch {
-                    valueAnimation.snapTo(desiredValue)
-                    updateDeformationVelocity(desiredValue)
+                    valueAnimation.animateTo(desiredValue, valueAnimationSpec) {
+                        updateDeformationVelocity(desiredValue)
+                    }
                 }
             }
 
@@ -315,7 +314,7 @@ class DampedDragAnimationState internal constructor(
         }
     }
 
-    /** 处理拖拽结束：按 trackingMode 选择就近吸附或速度投影，再执行 KSU 落位形变。 */
+    /** 处理拖拽结束：按 trackingMode 选择就近吸附或速度投影，再执行 BiliPai 落位形变。 */
     fun onDragEnd(
         velocityX: Float,
         itemWidthPx: Float,
@@ -328,7 +327,7 @@ class DampedDragAnimationState internal constructor(
         velocityPxPerSecond = velocityX
 
         val releaseTargetIndex = settleIndex?.coerceIn(0, itemCount - 1) ?: when (trackingMode) {
-            DampedDragTrackingMode.INSTALLER_X_SPRING ->
+            DampedDragTrackingMode.BILIPAI_SPRING ->
                 desiredValue.roundToInt().coerceIn(0, itemCount - 1)
             DampedDragTrackingMode.PROJECTED_SNAP -> resolveDampedDragReleaseTargetIndex(
                 currentValue = desiredValue,
@@ -379,7 +378,7 @@ class DampedDragAnimationState internal constructor(
     }
 }
 
-private const val KERNEL_SU_PRESSED_SCALE = 78f / 56f
+private const val BILIPAI_PRESSED_SCALE = 78f / 56f
 
 @Composable
 fun rememberDampedDragAnimationState(
@@ -387,7 +386,7 @@ fun rememberDampedDragAnimationState(
     itemCount: Int,
     onIndexChanged: (Int) -> Unit,
     motionSpec: BottomBarMotionSpec = resolveBottomBarMotionSpec(),
-    pressedScale: Float = KERNEL_SU_PRESSED_SCALE,
+    pressedScale: Float = BILIPAI_PRESSED_SCALE,
     trackingMode: DampedDragTrackingMode = DampedDragTrackingMode.PROJECTED_SNAP,
     notifyIndexChangedOnReleaseStart: Boolean = false,
     holdPressUntilReleaseTargetSettles: Boolean = false

@@ -6,7 +6,7 @@ import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 /**
- * PiliPlus-aligned video filter options and labels for the search result chrome.
+ * BiliPai-aligned video filter options and labels for the search result chrome.
  */
 enum class SearchVideoPubTimeType(val label: String) {
     ALL("不限"),
@@ -27,7 +27,7 @@ data class SearchPubTimeRange(
 )
 
 fun resolveSearchLandingSectionOrder(): List<SearchLandingSection> {
-    // Portrait order in PiliPlus / official search: trending → history → discover.
+    // Portrait order in BiliPai / official search: trending → history → discover.
     return listOf(
         SearchLandingSection.TRENDING,
         SearchLandingSection.HISTORY,
@@ -76,7 +76,7 @@ fun resolveSearchVideoDurationOptions(): List<SearchDuration> {
 }
 
 /**
- * Full zone list aligned with PiliPlus [VideoZoneType].
+ * Full zone list aligned with BiliPai [VideoZoneType].
  */
 fun resolveSearchVideoZoneOptions(): List<SearchVideoZoneOption> {
     return listOf(

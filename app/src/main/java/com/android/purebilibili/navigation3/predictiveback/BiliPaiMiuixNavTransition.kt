@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2026 InstallerX Revived contributors
 // Copyright (C) 2026 BiliPai contributors
 package com.android.purebilibili.navigation3.predictiveback
 

@@ -32,17 +32,19 @@ class BottomPagerStatePersistenceStructureTest {
     }
 
     @Test
-    fun `bottom tab switch copies KernelSU animateScrollBy motion`() {
+    fun `bottom tab switch follows user input scroll mutation`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/MainBottomPagerState.kt")
         val switchNavigationSource = source
             .substringAfter("fun switchToPage(")
             .substringBefore("fun syncPage(")
 
-        // KernelSU MainPagerState.animateToPage
         assertTrue(source.contains("navigationStartPage"))
-        assertTrue(switchNavigationSource.contains("pagerState.animateScrollBy("))
+        assertTrue(switchNavigationSource.contains("pagerState.scroll(MutatePriority.UserInput)"))
+        assertTrue(switchNavigationSource.contains("scrollBy(currentValue - previousValue)"))
         assertTrue(switchNavigationSource.contains("easing = EaseInOut"))
         assertTrue(switchNavigationSource.contains("resolveBottomPagerNavigationDurationMillis("))
+        assertTrue(switchNavigationSource.contains("pagerState.scrollToPage(safeTargetIndex)"))
+        assertFalse(switchNavigationSource.contains("pagerState.animateScrollBy("))
         assertTrue(switchNavigationSource.contains("scrollPixels"))
         // No self-invented absolute seek / predictive progress path.
         assertFalse(source.contains("seekPredictiveReturnToPage"))
@@ -52,20 +54,22 @@ class BottomPagerStatePersistenceStructureTest {
     }
 
     @Test
-    fun `main bottom pager cancels stale switch and reconciles settled page`() {
+    fun `main bottom pager reconciles stale switches`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/MainBottomPagerState.kt")
         val switchNavigationSource = source
             .substringAfter("fun switchToPage(")
             .substringBefore("fun syncPage(")
 
         assertTrue(switchNavigationSource.contains("navJob?.cancel()"))
-        assertTrue(switchNavigationSource.contains("if (navJob == myJob)"))
+        assertTrue(switchNavigationSource.contains("if (navJob == job)"))
         assertTrue(switchNavigationSource.contains("selectedPage = pagerState.currentPage"))
         assertTrue(switchNavigationSource.contains("navigationStartPage = pagerState.currentPage"))
+        assertFalse(switchNavigationSource.contains("withContext(NonCancellable)"))
+        assertFalse(switchNavigationSource.contains("settleLatestNavigation"))
     }
 
     @Test
-    fun `tab back handler wires KernelSU onBackCompleted to switchToPage home`() {
+    fun `tab back handler wires BiliPai onBackCompleted to switchToPage home`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt")
 
         assertTrue(source.contains("MainHostTabBackHandler("))

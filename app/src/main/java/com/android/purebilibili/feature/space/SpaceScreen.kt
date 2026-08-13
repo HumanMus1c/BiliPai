@@ -2009,7 +2009,7 @@ private fun SpaceContent(
     }
 
         // [重构] 吸顶主 tab overlay：header 完全滚出后淡入显示，覆盖在内容上方
-        // （PiliPlus TabBar pinned 语义；grid 无跨列 stickyHeader，故用浮层实现）
+        // （BiliPai TabBar pinned 语义；grid 无跨列 stickyHeader，故用浮层实现）
         val tabPinned = gridState.firstVisibleItemIndex > 0
         AnimatedVisibility(
             visible = tabPinned,
@@ -2067,7 +2067,7 @@ private fun SpaceHeader(
         colorScheme = colorScheme
     )
 
-    // PiliPlus 式布局：
+    // BiliPai 式布局：
     // - hero 背景 156dp
     // - 头像 80dp 左下，底部 32dp 伸出背景；stats 独占头像右侧
     // - 名字 + 等级 + 私信/关注同一行垂直居中对齐；名字可收缩，按钮固定在行尾

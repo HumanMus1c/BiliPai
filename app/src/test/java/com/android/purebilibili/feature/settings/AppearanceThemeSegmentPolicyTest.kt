@@ -82,7 +82,7 @@ class AppearanceThemeSegmentPolicyTest {
     }
 
     @Test
-    fun `color preset option labels should expose KernelSU compatible names`() {
+    fun `color preset option labels should expose BiliPai compatible names`() {
         val styleOptions = resolveColorStyleOptions()
         val specOptions = resolveColorSpecOptions()
 

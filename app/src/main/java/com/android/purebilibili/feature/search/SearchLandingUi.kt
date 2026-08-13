@@ -74,7 +74,7 @@ internal fun resolveSearchKeywordSectionColumns(
     requestedColumns: Int,
     showTrendingAction: Boolean
 ): Int {
-    // PiliPlus / official search use a fixed 2-column keyword grid for both
+    // BiliPai / official search use a fixed 2-column keyword grid for both
     // trending and discover sections.
     return 2
 }
@@ -95,7 +95,7 @@ internal data class SearchDiscoverOriginalCellColors(
 
 /**
  * Discover chips stay neutral (surfaceVariant), not brand/theme primary —
- * matches official search / PiliPlus “搜索发现” look under all presets.
+ * matches official search / BiliPai “搜索发现” look under all presets.
  */
 internal fun resolveSearchDiscoverOriginalCellColors(
     colorScheme: androidx.compose.material3.ColorScheme

@@ -124,7 +124,7 @@ internal fun SettingsPageScaffold(
     }
     val pageContainerColor = AppSurfaceTokens.groupedListContainer()
 
-    // InstallerX：设置页用不透明 grouped 底色，避免全局壁纸半透明与多页叠色闪烁。
+    // BiliPai：设置页用不透明 grouped 底色，避免全局壁纸半透明与多页叠色闪烁。
     CompositionLocalProvider(
         LocalGlobalWallpaperBackdropVisible provides false,
         LocalAppPreferenceIconTreatment provides AppPreferenceIconTreatment.FILLED,

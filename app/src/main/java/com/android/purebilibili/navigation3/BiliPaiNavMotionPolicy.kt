@@ -111,18 +111,27 @@ internal fun resolveBiliPaiBackGestureDecision(
 
 internal fun shouldBindVideoDetailBackPreviewPlayer(
     currentKey: BiliPaiNavKey?,
-    previewKey: BiliPaiNavKey?
+    previewKey: BiliPaiNavKey?,
 ): Boolean {
-    return previewKey is BiliPaiNavKey.VideoDetail && currentKey !is BiliPaiNavKey.VideoDetail
+    if (previewKey !is BiliPaiNavKey.VideoDetail) return false
+    if (currentKey !is BiliPaiNavKey.VideoDetail) return true
+    // Keep the exact related parent surface attached but its playback session suspended while the
+    // child is on top. This preserves the parent's last decoded frame for return without double
+    // playback; activating the session remains a separate committed-return decision below.
+    return isRelatedVideoDetailReturn(currentKey, previewKey)
 }
 
 internal fun shouldActivateVideoDetailPlaybackSession(
     currentKey: BiliPaiNavKey?,
     detailKey: BiliPaiNavKey.VideoDetail,
-    isImmediateBackPreview: Boolean
+    isImmediateBackPreview: Boolean,
+    activateBackPreviewPlayback: Boolean = false,
 ): Boolean {
     return currentKey == detailKey ||
-        (isImmediateBackPreview && currentKey !is BiliPaiNavKey.VideoDetail)
+        (
+            isImmediateBackPreview &&
+                (currentKey !is BiliPaiNavKey.VideoDetail || activateBackPreviewPlayback)
+        )
 }
 
 internal fun shouldRecoverVideoPlayerAfterBackCancellation(

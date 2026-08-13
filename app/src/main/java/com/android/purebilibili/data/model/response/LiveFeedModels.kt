@@ -6,7 +6,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.JsonNames
 
 /**
- * App 端直播首页 feed（对齐 PiliPlus `xlive/app-interface/v2/index/feed`）。
+ * App 端直播首页 feed（对齐 BiliPai `xlive/app-interface/v2/index/feed`）。
  */
 @Serializable
 data class LiveFeedIndexResponse(

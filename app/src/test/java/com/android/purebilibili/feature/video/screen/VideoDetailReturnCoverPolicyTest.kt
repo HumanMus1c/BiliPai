@@ -11,6 +11,34 @@ import java.io.File
 class VideoDetailReturnCoverPolicyTest {
 
     @Test
+    fun nestedDetailOnlyConsumesMiuixTransitionFromItsOwnSourceEntry() {
+        assertTrue(
+            isVideoDetailEntryActiveMiuixTransitionSource(
+                entrySourceRoute = "video/BV_PARENT",
+                activeSourceRoute = "video/BV_PARENT",
+            )
+        )
+        assertTrue(
+            isVideoDetailEntryActiveMiuixTransitionSource(
+                entrySourceRoute = "video/BV_PARENT?title=parent",
+                activeSourceRoute = "video/BV_PARENT?from=related",
+            )
+        )
+        assertFalse(
+            isVideoDetailEntryActiveMiuixTransitionSource(
+                entrySourceRoute = "home",
+                activeSourceRoute = "video/BV_PARENT",
+            )
+        )
+        assertFalse(
+            isVideoDetailEntryActiveMiuixTransitionSource(
+                entrySourceRoute = null,
+                activeSourceRoute = "video/BV_PARENT",
+            )
+        )
+    }
+
+    @Test
     fun flyingReturnSourceCardChromeMustDrawBecauseOverlayCoversList() {
         assertTrue(shouldDrawFlyingReturnSourceCardChrome())
     }

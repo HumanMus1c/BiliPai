@@ -109,7 +109,7 @@ class MusicPlayerContentStructureTest {
         assertTrue(source.contains("rememberMiuixLayerBackdrop()"))
         assertTrue(source.contains(".miuixLayerBackdrop(musicBackdrop)"))
         assertTrue(source.contains("BottomBarMatchedReusableLiquidDock("))
-        assertTrue(!source.contains("kernelSuMiuixFloatingDockSurface("))
+        assertTrue(!source.contains("biliPaiMiuixFloatingDockSurface("))
         assertTrue(!source.contains("liquidGlassBackground("))
         assertTrue(!source.contains("forceLiquidChrome = true"))
         assertTrue(!source.contains("containerColorOverride"))

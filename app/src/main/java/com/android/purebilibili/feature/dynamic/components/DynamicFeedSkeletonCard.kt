@@ -38,7 +38,7 @@ internal const val DYNAMIC_FEED_SKELETON_ITEM_COUNT = 6
 private const val DYNAMIC_SKELETON_PULSE_DURATION_MILLIS = 900
 
 /**
- * 动态 feed 首屏骨架卡（shimmer 脉冲），对齐 PiliPlus 的 DynamicCardSkeleton：
+ * 动态 feed 首屏骨架卡（shimmer 脉冲），对齐 BiliPai 的 DynamicCardSkeleton：
  * 头像 + 双行文字 + 正文条 + 封面块 + 底部操作占位。
  */
 @Composable

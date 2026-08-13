@@ -18,5 +18,5 @@ internal object HomeVisualPalette {
     val BottomBarIce = Color(0xFFDFF5FF)
     val SearchFieldDark = Color(0xFFE1E8E5)
     val SearchFieldLight = Color(0xFFEAF2EF)
-    val KernelSuDarkSurface = Color(0xFF242424)
+    val BiliPaiDarkSurface = Color(0xFF242424)
 }

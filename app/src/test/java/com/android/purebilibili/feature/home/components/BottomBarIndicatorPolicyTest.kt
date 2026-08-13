@@ -553,19 +553,27 @@ class BottomBarIndicatorPolicyTest {
             )
         )
 
-        val source = listOf(
+        val host = listOf(
             java.io.File("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt"),
             java.io.File("src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
         ).first { it.exists() }.readText()
-        val rendererSource = source
-            .substringAfter("private fun KernelSuAlignedBottomBar(")
-            .substringBefore("@Composable\nprivate fun KernelSuBottomBarShell(")
+        val floating = listOf(
+            java.io.File("app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt"),
+            java.io.File("src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt")
+        ).first { it.exists() }.readText()
+        val rendererSource = host
+            .substringAfter("private fun BiliPaiFloatingBottomBar(")
+            .substringBefore("internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(")
 
-        // 渲染器统一走 effectiveGlassEnabled：运行时低模糊预算要能整体关掉液态玻璃层。
-        assertTrue(rendererSource.contains("glassEnabled = effectiveGlassEnabled"))
-        assertTrue(rendererSource.contains("val glassLayersAlwaysOn = effectiveGlassEnabled"))
-        assertTrue(rendererSource.contains("indicatorEffectsEnabled = indicatorEffectsEnabled"))
-        assertTrue(rendererSource.contains("blurEnabled = shellBlurEnabled"))
+        // 运行时低模糊预算 → effectiveGlassEnabled=false → FloatingBottomBarMode.None/Blur，关掉液态玻璃。
+        assertTrue(rendererSource.contains("val effectiveGlassEnabled = shouldRenderBottomBarLiquidGlassEffects("))
+        assertTrue(
+            rendererSource.contains(
+                "effectiveGlassEnabled && miuixBackdrop != null -> FloatingBottomBarMode.LiquidGlass"
+            )
+        )
+        assertTrue(floating.contains("isLiquidGlassMode = mode == FloatingBottomBarMode.LiquidGlass"))
+        assertTrue(floating.contains("FloatingBottomBarPressedScale: Float = 78f / 56f"))
     }
 
     @Test
@@ -579,21 +587,16 @@ class BottomBarIndicatorPolicyTest {
             )
         )
 
-        val source = listOf(
-            java.io.File("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt"),
-            java.io.File("src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+        val floating = listOf(
+            java.io.File("app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt"),
+            java.io.File("src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt")
         ).first { it.exists() }.readText()
-        val captureSource = source
-            .substringAfter("if (shouldRenderIndicatorContentCapture && miuixBackdrop != null) {")
-            .substringBefore("KernelSuMiuixBottomBarIndicatorLayer(")
 
-        assertTrue(captureSource.contains("if (shouldUseBottomBarCaptureLens(effectiveGlassEnabled))"))
-        assertTrue(
-            captureSource.contains(
-                "miuixBlur(AppSpacingTokens.ExtraSmall.toPx(), AppSpacingTokens.ExtraSmall.toPx())"
-            )
-        )
-        assertTrue(captureSource.contains("miuixLens("))
+        // Blur mode uses pure blur without lens/vibrancy; LiquidGlass uses vibrancy+blur+lens.
+        assertTrue(floating.contains("isBlurMode = mode == FloatingBottomBarMode.Blur"))
+        assertTrue(floating.contains("blur(25.dp.toPx(), 25.dp.toPx())"))
+        assertTrue(floating.contains("vibrancy()"))
+        assertTrue(floating.contains("blur(4.dp.toPx(), 4.dp.toPx())"))
     }
 
     @Test
@@ -628,35 +631,33 @@ class BottomBarIndicatorPolicyTest {
     }
 
     @Test
-    fun `bottom bar uses InstallerX drag scale target with KernelSU velocity constants`() {
+    fun `bottom bar uses BiliPai drag scale target with BiliPai velocity constants`() {
         val source = listOf(
             java.io.File("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt"),
             java.io.File("src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
         ).first { it.exists() }.readText()
 
         assertTrue(source.contains("private const val BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET = 78f / 56f"))
-        assertTrue(source.contains("private const val KSU_INDICATOR_VELOCITY_NORMALIZATION_DIVISOR = 10f"))
-        assertTrue(source.contains("private const val KSU_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER = 0.75f"))
-        assertTrue(source.contains("private const val KSU_INDICATOR_VELOCITY_SCALE_Y_MULTIPLIER = 0.25f"))
-        assertTrue(source.contains("private const val KSU_INDICATOR_VELOCITY_CLAMP = 0.2f"))
+        assertTrue(source.contains("private const val BILIPAI_INDICATOR_VELOCITY_NORMALIZATION_DIVISOR = 10f"))
+        assertTrue(source.contains("private const val BILIPAI_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER = 0.75f"))
+        assertTrue(source.contains("private const val BILIPAI_INDICATOR_VELOCITY_SCALE_Y_MULTIPLIER = 0.25f"))
+        assertTrue(source.contains("private const val BILIPAI_INDICATOR_VELOCITY_CLAMP = 0.2f"))
     }
 
     @Test
     fun `indicator lens is driven by press progress while motion remains for capture`() {
-        val source = listOf(
-            java.io.File("app/src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt"),
-            java.io.File("src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
+        val floating = listOf(
+            java.io.File("app/src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt"),
+            java.io.File("src/main/java/com/android/purebilibili/feature/home/components/FloatingBottomBar.kt")
         ).first { it.exists() }.readText()
-        val rendererSource = source
-            .substringAfter("private fun KernelSuAlignedBottomBar(")
-            .substringBefore("@Composable\nprivate fun KernelSuBottomBarShell(")
-        val lensSource = rendererSource
-            .substringAfter("val indicatorLensSpec = resolveBottomBarBackdropPresetIndicatorLens(")
-            .substringBefore(")")
 
-        assertTrue(lensSource.contains("progress = effectivePressProgress"))
-        assertTrue(rendererSource.contains("val effectiveIndicatorEffectProgress = maxOf("))
-        assertTrue(rendererSource.contains("indicatorProgress = effectiveIndicatorEffectProgress"))
+        // BiliPai: indicator lens height/amount scale with pressProgress.
+        assertTrue(floating.contains("val progress = dampedDragState.pressProgress"))
+        assertTrue(floating.contains("refractionHeight = 10.dp.toPx() * progress"))
+        assertTrue(floating.contains("refractionAmount = 14.dp.toPx() * progress"))
+        assertTrue(floating.contains("pillHighlight.copy(alpha = dampedDragState.pressProgress)"))
+        assertTrue(floating.contains("depthEffect = true"))
+        assertTrue(floating.contains("chromaticAberration = 0.5f"))
     }
 
     @Test
@@ -733,7 +734,7 @@ class BottomBarIndicatorPolicyTest {
     }
 
     @Test
-    fun `indicator velocity deformation follows KernelSU constants without changing drag scale target`() {
+    fun `indicator velocity deformation follows BiliPai constants without changing drag scale target`() {
         val baseScale = 78f / 56f
         val transform = resolveBottomBarIndicatorLayerTransform(
             motionProgress = 1f,
@@ -748,14 +749,14 @@ class BottomBarIndicatorPolicyTest {
     }
 
     @Test
-    fun `shared indicator drag scale uses KernelSU separate axis springs`() {
+    fun `shared indicator drag scale uses BiliPai separate axis springs`() {
         val source = listOf(
             java.io.File("../design-system/src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
             java.io.File("design-system/src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
             java.io.File("src/main/java/com/android/purebilibili/core/ui/animation/DampedDragAnimation.kt"),
         ).first { it.exists() }.readText()
 
-        assertTrue(source.contains("private const val KERNEL_SU_PRESSED_SCALE = 78f / 56f"))
+        assertTrue(source.contains("private const val BILIPAI_PRESSED_SCALE = 78f / 56f"))
         assertTrue(source.contains("private val scaleXAnimationSpec = spring(0.6f, 250f, 0.001f)"))
         assertTrue(source.contains("private val scaleYAnimationSpec = spring(0.7f, 250f, 0.001f)"))
         assertTrue(source.contains("scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec)"))

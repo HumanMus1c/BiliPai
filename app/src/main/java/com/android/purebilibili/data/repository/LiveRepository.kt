@@ -428,7 +428,7 @@ object LiveRepository {
     }
 
     /**
-     * PiliPlus 同款 App 直播首页 feed。
+     * BiliPai 同款 App 直播首页 feed。
      * page=1 时解析关注模块 + 分区入口 + small_card；后续页仅追加 small_card。
      */
     suspend fun getLiveFeedHome(
@@ -451,7 +451,7 @@ object LiveRepository {
     }
 
     /**
-     * PiliPlus 同款二级分区列表（含 new_tags 排序 chip）。
+     * BiliPai 同款二级分区列表（含 new_tags 排序 chip）。
      * 失败时回退 web second/getList。
      */
     suspend fun getLiveSecondHome(

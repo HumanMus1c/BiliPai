@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2026 InstallerX Revived contributors
 package com.android.purebilibili.navigation3.predictiveback
 
 import androidx.compose.ui.unit.Density
@@ -261,4 +260,3 @@ private fun crossActivityYShift(
     val maxShift = ((height - height * scale) / 2f - marginPx).coerceAtLeast(0f)
     return maxShift * damped * (if (rawDelta < 0f) -1f else 1f)
 }
-

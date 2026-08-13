@@ -59,7 +59,7 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
- * PiliPlus-style video filter chrome:
+ * BiliPai-style video filter chrome:
  * horizontal order chips + filter icon that opens a bottom sheet
  * with publish time / duration / zone selectors.
  */

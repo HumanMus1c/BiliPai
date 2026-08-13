@@ -11,9 +11,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * 推荐流过滤规则测试(纯函数, 对齐 PiliNara RecommendFilter)。
+ * 推荐流过滤规则测试(纯函数, 对齐 BiliPai RecommendFilter)。
  */
-class PiliNaraFeedFilterPluginTest {
+class BiliPaiFeedFilterPluginTest {
 
     private fun video(
         title: String = "普通视频",
@@ -45,7 +45,7 @@ class PiliNaraFeedFilterPluginTest {
         applyHot: Boolean = false,
         applyRank: Boolean = false,
         applySearch: Boolean = false
-    ): PiliNaraFeedFilterConfig = PiliNaraFeedFilterConfig(
+    ): BiliPaiFeedFilterConfig = BiliPaiFeedFilterConfig(
         minDurationForRcmd = minDuration,
         minPlayForRcmd = minPlay,
         minLikeRatioForRecommend = minLikeRatio,
@@ -60,16 +60,16 @@ class PiliNaraFeedFilterPluginTest {
     )
 
     private fun show(
-        cfg: PiliNaraFeedFilterConfig,
+        cfg: BiliPaiFeedFilterConfig,
         item: VideoItem,
         kind: FeedKind = FeedKind.HOME_RECOMMEND
     ): Boolean = shouldShowFeedItem(
         config = cfg,
         item = item,
         feedKind = kind,
-        rcmdRegExp = PiliNaraFeedFilterPlugin.parseBanWordToRegex(cfg.banWordForRecommend)
+        rcmdRegExp = BiliPaiFeedFilterPlugin.parseBanWordToRegex(cfg.banWordForRecommend)
             ?.let { Regex(it, RegexOption.IGNORE_CASE) },
-        zoneRegExp = PiliNaraFeedFilterPlugin.parseBanWordToRegex(cfg.banWordForZone)
+        zoneRegExp = BiliPaiFeedFilterPlugin.parseBanWordToRegex(cfg.banWordForZone)
             ?.let { Regex(it, RegexOption.IGNORE_CASE) }
     )
 
@@ -197,30 +197,30 @@ class PiliNaraFeedFilterPluginTest {
 
     @Test
     fun `parseBanWordToRegex joins lines with pipe`() {
-        assertEquals("广告|震惊", PiliNaraFeedFilterPlugin.parseBanWordToRegex("广告\n震惊"))
-        assertEquals("(a|b)|c", PiliNaraFeedFilterPlugin.parseBanWordToRegex("a|b\nc"))
-        assertEquals(null, PiliNaraFeedFilterPlugin.parseBanWordToRegex(""))
-        assertEquals(null, PiliNaraFeedFilterPlugin.parseBanWordToRegex("\n  \n"))
+        assertEquals("广告|震惊", BiliPaiFeedFilterPlugin.parseBanWordToRegex("广告\n震惊"))
+        assertEquals("(a|b)|c", BiliPaiFeedFilterPlugin.parseBanWordToRegex("a|b\nc"))
+        assertEquals(null, BiliPaiFeedFilterPlugin.parseBanWordToRegex(""))
+        assertEquals(null, BiliPaiFeedFilterPlugin.parseBanWordToRegex("\n  \n"))
     }
 
     @Test
     fun `parseUidMap parses plain and named uids`() {
-        val map = PiliNaraFeedFilterPlugin.parseUidMap("123456\n某某UP (789012)")
+        val map = BiliPaiFeedFilterPlugin.parseUidMap("123456\n某某UP (789012)")
         assertEquals(setOf(123456L, 789012L), map.keys)
     }
 
     @Test
     fun `parseUidMap ignores empty lines`() {
-        assertTrue(PiliNaraFeedFilterPlugin.parseUidMap("\n\n").isEmpty())
+        assertTrue(BiliPaiFeedFilterPlugin.parseUidMap("\n\n").isEmpty())
     }
 
     @Test
     fun `settings use native single choice preference instead of inline segments`() {
         val source = listOf(
-            File("app/src/main/java/com/android/purebilibili/feature/plugin/PiliNaraFeedFilterPlugin.kt"),
-            File("src/main/java/com/android/purebilibili/feature/plugin/PiliNaraFeedFilterPlugin.kt"),
+            File("app/src/main/java/com/android/purebilibili/feature/plugin/BiliPaiFeedFilterPlugin.kt"),
+            File("src/main/java/com/android/purebilibili/feature/plugin/BiliPaiFeedFilterPlugin.kt"),
         ).firstOrNull(File::exists)?.readText()
-            ?: error("Cannot locate PiliNaraFeedFilterPlugin.kt")
+            ?: error("Cannot locate BiliPaiFeedFilterPlugin.kt")
 
         assertTrue(source.contains("AppSingleChoicePreference("))
         assertFalse(source.contains("AppNativeSegmentedControl("))

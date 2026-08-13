@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2026 InstallerX Revived contributors
 package com.android.purebilibili.navigation3.predictiveback
 
 import androidx.compose.animation.core.CubicBezierEasing
@@ -126,4 +125,3 @@ private fun gesturePivotY(gesture: NavGesture?, height: Float): Float =
     } else {
         0.5f
     }
-

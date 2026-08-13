@@ -138,7 +138,7 @@ fun ActionButton(
 
             if (actionText != null) {
                 Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
-                //  计数变化动画（对齐 PiliPlus AnimatedSwitcher + ScaleTransition）
+                //  计数变化动画（对齐 BiliPai AnimatedSwitcher + ScaleTransition）
                 AnimatedContent(
                     targetState = actionText,
                     transitionSpec = {

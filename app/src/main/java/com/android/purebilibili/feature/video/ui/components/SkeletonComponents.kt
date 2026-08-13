@@ -31,6 +31,7 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.feature.video.ui.VideoDetailShapes
 
 /**
  *  骨架屏组件 - iOS 风格加载占位
@@ -267,7 +268,7 @@ private fun RelatedVideoItemSkeleton(
     val coverHeight = coverWidth / coverAspectRatio.coerceAtLeast(1f)
     Row(
         modifier = modifier
-            .clip(AppShapes.container(ContainerLevel.Card))
+            .clip(VideoDetailShapes.contentCard())
             .background(MaterialTheme.colorScheme.surface)
             .padding(8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -277,7 +278,7 @@ private fun RelatedVideoItemSkeleton(
             modifier = Modifier
                 .width(coverWidth)
                 .height(coverHeight),
-            shape = AppShapes.container(ContainerLevel.Field),
+            shape = VideoDetailShapes.media(),
         )
         Column(
             modifier = Modifier

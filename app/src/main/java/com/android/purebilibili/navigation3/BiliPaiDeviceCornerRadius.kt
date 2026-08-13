@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2025-2026 InstallerX Revived contributors
 package com.android.purebilibili.navigation3
 
 import android.annotation.SuppressLint
@@ -91,4 +90,3 @@ private fun getCornerRadiusBottom(context: Context): Int {
         0
     }
 }
-

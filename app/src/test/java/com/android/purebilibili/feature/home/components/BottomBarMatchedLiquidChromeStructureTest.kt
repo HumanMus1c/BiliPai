@@ -25,10 +25,15 @@ class BottomBarMatchedLiquidChromeStructureTest {
         assertTrue(source.contains("    TOP,"))
         assertTrue(source.contains("    BOTTOM"))
         assertTrue(source.contains("resolveBottomBarMaterialScrollAnimationDurationMillis(isScrolling)"))
-        assertTrue(source.contains("KernelSuMiuixBottomBarIndicatorLayer("))
-        assertTrue(source.contains("KernelSuBottomBarIndicatorLayer("))
+        assertTrue(source.contains("BiliPaiMiuixBottomBarIndicatorLayer("))
+        // Kyant legacy indicator path removed — chrome is Miuix-only.
+        assertFalse(source.contains("BiliPaiBottomBarIndicatorLayer("))
+        assertFalse(source.contains("legacyBackdrop"))
+        assertFalse(source.contains("legacyContentBackdrop"))
+        assertFalse(source.contains("biliPaiFloatingDockSurface("))
         assertTrue(source.contains("rememberCombinedBackdrop(localBackdrop, backdrop)"))
         assertTrue(source.contains("bottomBarMatchedCaptureOverflow(captureSafeInset)"))
+        assertTrue(source.contains("biliPaiMiuixFloatingDockSurface("))
     }
 
     @Test
@@ -52,15 +57,15 @@ class BottomBarMatchedLiquidChromeStructureTest {
         }
         assertTrue(bottomBar.contains("BottomBarMatchedLiquidDock("))
         assertTrue(topBar.contains(".bottomBarMatchedLiquidDockSurface("))
-        assertFalse(topBar.contains(".kernelSuFloatingDockSurface("))
-        assertFalse(topBar.contains(".kernelSuMiuixFloatingDockSurface("))
+        assertFalse(topBar.contains(".biliPaiFloatingDockSurface("))
+        assertFalse(topBar.contains(".biliPaiMiuixFloatingDockSurface("))
         assertTrue(segmented.contains("BottomBarMatchedLiquidDock("))
         assertTrue(segmented.contains("drawShellLens = false"))
         assertTrue(sharedChrome.contains("drawShellLens = drawShellLens"))
-        assertFalse(segmented.contains(".kernelSuFloatingDockSurface("))
-        assertFalse(segmented.contains(".kernelSuMiuixFloatingDockSurface("))
-        assertFalse(segmented.contains("KernelSuBottomBarIndicatorLayer("))
-        assertFalse(segmented.contains("KernelSuMiuixBottomBarIndicatorLayer("))
+        assertFalse(segmented.contains(".biliPaiFloatingDockSurface("))
+        assertFalse(segmented.contains(".biliPaiMiuixFloatingDockSurface("))
+        assertFalse(segmented.contains("BiliPaiBottomBarIndicatorLayer("))
+        assertFalse(segmented.contains("BiliPaiMiuixBottomBarIndicatorLayer("))
         assertTrue(segmented.contains("rememberMiuixCombinedBackdrop("))
         assertTrue(segmented.contains(".miuixLayerBackdrop(localPageMiuixBackdrop)"))
     }
@@ -97,14 +102,14 @@ class BottomBarMatchedLiquidChromeStructureTest {
         // 评论底栏外层保留 shell lens 液态玻璃；搜索小胶囊仍关 lens 防虾线。
         assertTrue(bottomInput.contains("drawShellLens = true"))
         assertFalse(bottomInput.contains("BottomBarMatchedLiquidDock("))
-        assertFalse(bottomInput.contains(".kernelSuFloatingDockSurface("))
+        assertFalse(bottomInput.contains(".biliPaiFloatingDockSurface("))
         assertTrue(partition.contains("rememberBottomBarMatchedLiquidChromeState("))
         assertTrue(partition.contains("BottomBarMatchedLiquidIndicator("))
         assertTrue(partition.contains("orientation = BottomBarLiquidOrientation.VERTICAL"))
-        assertFalse(partition.contains("KernelSuBottomBarIndicatorLayer("))
+        assertFalse(partition.contains("BiliPaiBottomBarIndicatorLayer("))
         assertTrue(musicPlayer.contains("BottomBarMatchedReusableLiquidDock("))
         assertFalse(musicPlayer.contains("bottomBarMatchedLiquidDockSurface("))
-        assertFalse(musicPlayer.contains("kernelSuMiuixFloatingDockSurface("))
+        assertFalse(musicPlayer.contains("biliPaiMiuixFloatingDockSurface("))
     }
 
     private fun loadSource(path: String): String {

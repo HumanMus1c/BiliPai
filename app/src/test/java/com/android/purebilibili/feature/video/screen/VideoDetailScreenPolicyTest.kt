@@ -179,7 +179,16 @@ class VideoDetailScreenPolicyTest {
         assertTrue(relatedVideoSource.contains("shouldSwitchCollectionVideoInsideCurrentDetailPage("))
         assertTrue(relatedVideoSource.contains("switchVideoInCurrentDetailPage("))
         assertTrue(relatedVideoSource.contains("onVideoClick(targetBvid, navOptions)"))
-        assertTrue(relatedVideoSource.contains("relatedNavigationScope.launch"))
+        assertTrue(relatedVideoSource.contains("captureVideoDetailParentUiSnapshot("))
+        assertFalse(relatedVideoSource.contains("captureVideoDetailParentFreezeFrame("))
+        assertFalse(relatedVideoSource.contains("withTimeoutOrNull(320L)"))
+        assertFalse(relatedVideoSource.contains("PixelCopy.request("))
+        assertTrue(
+            relatedVideoSource.indexOf("restoreVideoDetailParentUiSnapshot(") <
+                relatedVideoSource.indexOf(
+                    "videoCardDepthBackgroundState.phaseProvider() !="
+                )
+        )
         // 相关推荐 push / 同页切集前必须清掉单例弹幕会话，避免新页绑定时弹幕不显示。
         assertTrue(relatedVideoSource.contains("sharedDanmakuManager.clearForVideoChange()"))
         assertTrue(
@@ -189,7 +198,7 @@ class VideoDetailScreenPolicyTest {
         // Presentation state already changes the player identity. A forced request here races the
         // keyed player effect and can prepare the old player before the new player is attached.
         val switchSource = source.substringAfter("fun switchVideoInCurrentDetailPage")
-            .substringBefore("val relatedNavigationScope")
+            .substringBefore("val navigateToRelatedVideo")
         assertFalse(switchSource.contains("force = true"))
         assertTrue(switchSource.contains("resolveUgcSeasonEpisodeCoverUrl("))
         assertTrue(switchSource.contains("pendingInPageSwitchCoverUrl"))
@@ -278,6 +287,33 @@ class VideoDetailScreenPolicyTest {
         assertFalse(phoneSource.contains("relatedVideoTransitionEnabled"))
         assertFalse(contentSource.contains("relatedVideoTransitionEnabled"))
         assertFalse(relatedCardSource.contains("sharedTransitionEnabled"))
+    }
+
+    @Test
+    fun nestedVideoDetailScopesMiuixChromeAndLandingToTheActiveEntry() {
+        val stateHolderSource = File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailScreenStateHolder.kt"
+        ).readText()
+        val transitionHostSource = File(
+            "src/main/java/com/android/purebilibili/feature/video/screen/VideoDetailTransitionHost.kt"
+        ).readText()
+
+        assertTrue(transitionHostSource.contains("entryOwnsMiuixCardTransition"))
+        assertTrue(
+            transitionHostSource.contains(
+                "activeSourceRoute = transitionBackgroundState.sourceRouteProvider()"
+            )
+        )
+        assertTrue(
+            stateHolderSource.contains(
+                ".sourceChromeSnapshot\n            .takeIf { entryOwnsMiuixCardTransition }"
+            )
+        )
+        assertTrue(
+            stateHolderSource.contains(
+                "entryOwnsMiuixCardTransition &&\n                        shouldDrawFlyingReturnSourceCardChrome()"
+            )
+        )
     }
 
     @Test
