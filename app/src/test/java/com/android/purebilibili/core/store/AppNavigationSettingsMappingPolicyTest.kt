@@ -26,6 +26,7 @@ class AppNavigationSettingsMappingPolicyTest {
             result.orderedVisibleTabIds
         )
         assertEquals(emptyMap(), result.bottomBarItemColors)
+        assertEquals(emptyMap(), result.bottomBarItemLabels)
         assertFalse(result.tabletUseSidebar)
         assertTrue(result.sidebarAccountSwitcherEnabled)
         assertTrue(result.predictiveBackEnabled)
@@ -55,6 +56,8 @@ class AppNavigationSettingsMappingPolicyTest {
             stringPreferencesKey("bottom_bar_order") to "PROFILE,HOME,DYNAMIC,HISTORY",
             stringPreferencesKey("bottom_bar_visible_tabs") to "HOME,PROFILE,HISTORY",
             stringPreferencesKey("bottom_bar_item_colors") to "HOME:2,PROFILE:4,INVALID:x,NO_COLON",
+            stringPreferencesKey("bottom_bar_item_labels") to
+                "home=%E9%A6%96%E9%A1%B5%2C%E6%96%B0,PROFILE=%E8%B4%A6%E5%8F%B7",
             booleanPreferencesKey("tablet_use_sidebar") to true,
             booleanPreferencesKey("sidebar_account_switcher_enabled") to false,
             booleanPreferencesKey("miuix_transition_blur_enabled") to false,
@@ -65,6 +68,7 @@ class AppNavigationSettingsMappingPolicyTest {
         assertEquals(SettingsManager.BottomBarVisibilityMode.SCROLL_HIDE, result.bottomBarVisibilityMode)
         assertEquals(listOf("PROFILE", "HOME", "HISTORY"), result.orderedVisibleTabIds)
         assertEquals(mapOf("HOME" to 2, "PROFILE" to 4, "INVALID" to 0), result.bottomBarItemColors)
+        assertEquals(mapOf("HOME" to "首页,新", "PROFILE" to "账号"), result.bottomBarItemLabels)
         assertTrue(result.tabletUseSidebar)
         assertFalse(result.sidebarAccountSwitcherEnabled)
         assertFalse(result.miuixTransitionBlurEnabled)

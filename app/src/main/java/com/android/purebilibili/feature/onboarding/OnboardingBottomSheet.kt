@@ -32,7 +32,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.platform.LocalUriHandler
@@ -57,6 +56,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
 import com.android.purebilibili.core.theme.opaqueCompositeOver
 import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
@@ -115,31 +115,23 @@ fun OnboardingBottomSheet(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.BottomCenter
         ) {
-            //  iOS 风格毛玻璃效果
-            // 使用多层渐变 + 高透明度模拟真实的毛玻璃质感
-            val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-            
+            val sheetShape = AppShapes.container(ContainerLevel.Sheet)
+            val sheetTopColor = AppSurfaceTokens.cardContainer()
+            val sheetBottomColor = AppSurfaceTokens.groupedListContainer()
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.85f) //  占 85% 屏幕高度
-                    .clip(AppShapes.container(ContainerLevel.Sheet))
-                    //  [新方案] 多层背景模拟毛玻璃
+                    .clip(sheetShape)
                     .background(
                         brush = Brush.verticalGradient(
-                            colors = if (isDark) {
-                                listOf(
-                                    Color(0xFF2C2C2E).copy(alpha = 0.95f),  // 深色主体
-                                    Color(0xFF1C1C1E).copy(alpha = 0.98f)   // 底部更深
-                                )
-                            } else {
-                                listOf(
-                                    Color(0xFFF2F2F7).copy(alpha = 0.95f),  // iOS 浅灰
-                                    Color(0xFFFFFFFF).copy(alpha = 0.98f)   // 底部更白
-                                )
-                            }
+                            colors = listOf(
+                                sheetTopColor,
+                                sheetBottomColor,
+                            )
                         ),
-                        shape = AppShapes.container(ContainerLevel.Sheet)
+                        shape = sheetShape
                     )
                     // 防止点击穿透到遮罩层
                     .clickable(

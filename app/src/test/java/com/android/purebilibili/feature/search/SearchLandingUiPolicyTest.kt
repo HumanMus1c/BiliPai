@@ -10,6 +10,24 @@ import kotlin.test.assertTrue
 class SearchLandingUiPolicyTest {
 
     @Test
+    fun `hot ranking header keeps a persistable visibility toggle`() {
+        assertTrue(shouldShowSearchKeywordSectionVisibilityToggle(hasToggleHandler = true))
+        assertFalse(shouldShowSearchKeywordSectionVisibilityToggle(hasToggleHandler = false))
+        assertEquals("隐藏大家都在搜", resolveSearchKeywordSectionToggleContentDescription(true, "大家都在搜"))
+        assertEquals("显示大家都在搜", resolveSearchKeywordSectionToggleContentDescription(false, "大家都在搜"))
+        val source = java.io.File(
+            "app/src/main/java/com/android/purebilibili/feature/search/SearchLandingUi.kt"
+        ).takeIf { it.exists() } ?: java.io.File(
+            "src/main/java/com/android/purebilibili/feature/search/SearchLandingUi.kt"
+        )
+        val header = source.readText()
+            .substringAfter("private fun SearchKeywordSectionHeader(")
+            .substringBefore("private fun SearchDiscoverOriginalCell(")
+        assertTrue(header.contains("shouldShowSearchKeywordSectionVisibilityToggle("))
+        assertFalse(header.contains("onToggleEnabled != null && useOriginalDiscoverStyle"))
+    }
+
+    @Test
     fun `search discovery section uses original style when trending action is absent`() {
         assertTrue(shouldUseOriginalSearchDiscoverStyle(showTrendingAction = false))
         assertFalse(shouldUseOriginalSearchDiscoverStyle(showTrendingAction = true))

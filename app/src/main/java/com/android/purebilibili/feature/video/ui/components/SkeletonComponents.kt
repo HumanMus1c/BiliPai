@@ -28,6 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO
+import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP
+import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -243,7 +246,7 @@ private fun RelatedVideoGridRowSkeleton() {
     val context = LocalContext.current
     val homeFeedCardStyle by SettingsManager
         .getHomeFeedCardStyle(context)
-        .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.CURRENT)
+        .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.BILIPAI)
     val cardLayout = remember(homeFeedCardStyle) {
         resolveHomeFeedCardLayout(homeFeedCardStyle)
     }
@@ -262,29 +265,26 @@ private fun RelatedVideoGridRowSkeleton() {
 @Composable
 private fun RelatedVideoItemSkeleton(
     modifier: Modifier = Modifier,
-    coverAspectRatio: Float = RELATED_VIDEO_CARD_COVER_ASPECT_RATIO,
+    @Suppress("UNUSED_PARAMETER") coverAspectRatio: Float = RELATED_VIDEO_CARD_COVER_ASPECT_RATIO,
 ) {
-    val coverWidth = 144.dp
-    val coverHeight = coverWidth / coverAspectRatio.coerceAtLeast(1f)
+    val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
     Row(
         modifier = modifier
             .clip(VideoDetailShapes.contentCard())
             .background(MaterialTheme.colorScheme.surface)
             .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP.dp),
+        verticalAlignment = Alignment.Top,
     ) {
         SkeletonBlock(
             modifier = Modifier
                 .width(coverWidth)
-                .height(coverHeight),
+                .aspectRatio(HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO),
             shape = VideoDetailShapes.media(),
         )
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .height(coverHeight),
-            verticalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             SkeletonBox(modifier = Modifier.fillMaxWidth(), height = 16.dp, cornerRadius = 8.dp)
             SkeletonBox(modifier = Modifier.fillMaxWidth(0.82f), height = 16.dp, cornerRadius = 8.dp)

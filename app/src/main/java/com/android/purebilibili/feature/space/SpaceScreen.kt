@@ -124,8 +124,9 @@ import com.android.purebilibili.core.ui.common.copyOnLongPress
 import com.android.purebilibili.core.ui.common.rememberClipboardCopyHandler
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
-import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
+import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO
+import com.android.purebilibili.feature.home.components.cards.HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP
 import com.android.purebilibili.core.ui.transition.VideoCardSourceLayout
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.feedContentTypography
@@ -1428,9 +1429,8 @@ private fun SpaceContent(
                             },
                             onArticleClick = onArticleClick,
                             onDynamicDetailClick = onDynamicDetailClick,
-                            onPrimaryClickOverride = { onSpaceDynamicCommentClick(dynamic) },
                             gifImageLoader = context.imageLoader,
-                            onCommentClick = { onSpaceDynamicCommentClick(dynamic) },
+                            onCommentClick = { onDynamicDetailClick(dynamic.id_str) },
                             onRepostClick = onSpaceDynamicRepostClick,
                             onLikeClick = onSpaceDynamicLikeClick,
                             onDeleteClick = onSpaceDynamicDeleteClick,
@@ -2434,6 +2434,8 @@ private fun SpaceMainTabRow(
                         tabs.getOrNull(index)?.let { onSelect(it.tab) }
                     },
                     itemWidth = 84.dp,
+                    height = spec.heightDp.dp,
+                    indicatorHeight = spec.indicatorHeightDp.dp,
                     labelFontSize = 14.sp,
                     liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled
                 )
@@ -2448,6 +2450,8 @@ private fun SpaceMainTabRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = spec.horizontalPaddingDp.dp),
+                height = spec.heightDp.dp,
+                indicatorHeight = spec.indicatorHeightDp.dp,
                 labelFontSize = 14.sp,
                 liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled
             )
@@ -3549,8 +3553,7 @@ private fun SpaceArchiveListItemRow(
     }
     var cardBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var coverBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    val coverWidth = 160.dp
-    val coverHeight = coverWidth / VIDEO_SHARED_COVER_ASPECT_RATIO
+    val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
     val coverShape = AppShapes.container(ContainerLevel.Card)
     val sharedTransitionReady = sharedTransitionKey != null &&
         sharedTransitionScope != null &&
@@ -3618,7 +3621,7 @@ private fun SpaceArchiveListItemRow(
                     coverBounds = coordinates.boundsInRoot()
                 }
                 .width(coverWidth)
-                .height(coverHeight)
+                .aspectRatio(HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO)
                 .clip(coverShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
@@ -3677,7 +3680,6 @@ private fun SpaceArchiveListItemRow(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .height(coverHeight)
                 .videoCardShellReturnChromeAlpha(
                     enabled = useCardShellSharedBounds,
                     bvid = sharedTransitionKey.orEmpty(),
@@ -3732,7 +3734,9 @@ private fun SpaceArchiveListItemRow(
                     AppText(
                         text = FormatUtils.formatStat(play),
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false,
                     )
                 }
                 Row(
@@ -3749,7 +3753,9 @@ private fun SpaceArchiveListItemRow(
                     AppText(
                         text = FormatUtils.formatStat(secondaryCount),
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false,
                     )
                 }
             }

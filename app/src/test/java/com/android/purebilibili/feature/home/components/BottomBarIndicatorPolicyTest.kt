@@ -637,7 +637,8 @@ class BottomBarIndicatorPolicyTest {
             java.io.File("src/main/java/com/android/purebilibili/feature/home/components/BottomBar.kt")
         ).first { it.exists() }.readText()
 
-        assertTrue(source.contains("private const val BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET = 78f / 56f"))
+        assertTrue(source.contains("internal const val BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET ="))
+        assertTrue(source.contains("BottomBarReferencePressedScale"))
         assertTrue(source.contains("private const val BILIPAI_INDICATOR_VELOCITY_NORMALIZATION_DIVISOR = 10f"))
         assertTrue(source.contains("private const val BILIPAI_INDICATOR_VELOCITY_SCALE_X_MULTIPLIER = 0.75f"))
         assertTrue(source.contains("private const val BILIPAI_INDICATOR_VELOCITY_SCALE_Y_MULTIPLIER = 0.25f"))

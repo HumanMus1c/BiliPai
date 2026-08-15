@@ -5,7 +5,7 @@ import kotlin.math.max
 
 internal const val PERSONAL_LIST_MAX_ITEM_WIDTH_DP = 480f
 internal const val PERSONAL_LIST_BASE_MIN_HEIGHT_DP = 90f
-internal const val PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO = 16f / 9f
+internal const val PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO = 16f / 10f
 internal const val PERSONAL_LIST_POSTER_ASPECT_RATIO = 3f / 4f
 
 /**

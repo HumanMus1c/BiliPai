@@ -26,6 +26,8 @@ import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.adaptive.resolveEffectiveMotionTier
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
+import com.android.purebilibili.core.ui.components.AppBackToTopButton
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.data.repository.VideoRepository
@@ -35,8 +37,10 @@ import com.android.purebilibili.feature.home.components.cards.StoryVideoCard
 import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.core.ui.skeleton.ContentVideoGridSkeletonFixedColumns
 import com.android.purebilibili.core.util.LocalWindowSizeClass
+import com.android.purebilibili.core.util.animateScrollToTop
 import com.android.purebilibili.core.util.resolveReplaceRefreshPage
 import com.android.purebilibili.core.util.responsiveContentWidth
+import com.android.purebilibili.core.util.shouldShowScrollToTop
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -140,13 +144,23 @@ fun CategoryScreen(
     val error by viewModel.error.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val backToTopButtonEnabled = rememberBackToTopButtonEnabled()
+    val hasScrolledAwayFromTop by remember(gridState) {
+        derivedStateOf {
+            shouldShowScrollToTop(
+                firstVisibleItemIndex = gridState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset,
+            )
+        }
+    }
     
     //  [修复] 读取首页设置，保持显示模式一致
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(initialValue = HomeSettings()
     )
     val homeFeedCardStyle by SettingsManager
         .getHomeFeedCardStyle(context)
-        .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.CURRENT)
+        .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.BILIPAI)
     val cardLayout = remember(homeFeedCardStyle) {
         resolveHomeFeedCardLayout(homeFeedCardStyle)
     }
@@ -324,6 +338,18 @@ fun CategoryScreen(
                     }
                 }
             }
+
+            AppBackToTopButton(
+                visible = backToTopButtonEnabled && videos.isNotEmpty() && hasScrolledAwayFromTop,
+                onClick = {
+                    scope.launch {
+                        gridState.animateScrollToTop()
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(20.dp),
+            )
         }
     }
 }

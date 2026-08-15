@@ -513,7 +513,8 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
                     mergedMajor
                 } else {
                     existingMajor
-                }
+                },
+                additional = existing?.additional
             )
         )
     }
@@ -702,7 +703,67 @@ data class DecorateInfo(
 @Serializable
 data class DynamicContentModule(
     val desc: DynamicDesc? = null,
-    val major: DynamicMajor? = null
+    val major: DynamicMajor? = null,
+    val additional: DynamicAdditional? = null
+)
+
+@Serializable
+data class DynamicAdditional(
+    val type: String = "",
+    val ugc: DynamicAdditionalUgc? = null,
+    val reserve: DynamicAdditionalReserve? = null,
+    val goods: DynamicAdditionalGoods? = null,
+    val vote: DynamicAdditionalVote? = null,
+    val match: DynamicAdditionalMatch? = null
+)
+
+@Serializable
+data class DynamicAdditionalUgc(
+    val title: String = "",
+    val cover: String = "",
+    val desc_second: String = "",
+    val jump_url: String = ""
+)
+
+@Serializable
+data class DynamicAdditionalReserve(
+    val title: String = "",
+    val state: Int = 0,
+    val desc1: DynamicAdditionalText? = null,
+    val desc2: DynamicAdditionalText? = null,
+    val desc3: DynamicAdditionalText? = null
+)
+
+@Serializable
+data class DynamicAdditionalGoods(
+    val head_text: String = "",
+    val items: List<DynamicAdditionalGoodsItem> = emptyList()
+)
+
+@Serializable
+data class DynamicAdditionalGoodsItem(
+    val name: String = "",
+    val brief: String = "",
+    val cover: String = "",
+    val jump_url: String = ""
+)
+
+@Serializable
+data class DynamicAdditionalVote(
+    val desc: String = "",
+    val join_num: Int = 0
+)
+
+@Serializable
+data class DynamicAdditionalMatch(
+    val title: String = "",
+    val sub_title: String = "",
+    val jump_url: String = ""
+)
+
+@Serializable
+data class DynamicAdditionalText(
+    val text: String = ""
 )
 
 @Serializable

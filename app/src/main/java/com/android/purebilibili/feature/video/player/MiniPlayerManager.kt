@@ -1045,7 +1045,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
             currentPlayer.clearVideoSurface()
         }
         if (shouldTrimDanmakuCachesOnEnterBackground(shouldDisableVideoTrack = true)) {
-            DanmakuManager.trimCachesForBackgroundIfPresent()
+            com.android.purebilibili.feature.video.danmaku.DanmakuSessionFactory.trimCachesForBackground()
         }
         pendingHeavyBackgroundVideoOptimization = false
         didApplyHeavyBackgroundVideoOptimization = true

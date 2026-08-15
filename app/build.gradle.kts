@@ -118,8 +118,8 @@ android {
         targetSdk = 35  // 保持35以避免Android 16的新运行时行为
         // 版本：语义化 X.Y.Z（MAJOR.MINOR.PATCH）+ versionCode 单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 293
-        versionName = "0.2.3-beta.4"
+        versionCode = 294
+        versionName = "0.2.3-beta.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -361,6 +361,7 @@ dependencies {
     implementation(project(":network-core"))
     implementation(project(":plugin-sdk"))
     implementation(project(":design-system"))
+    implementation(project(":danmaku-engine"))
 
     // --- 1. Compose UI ---
     // Material3 1.5.0-alpha25 is built against Compose 1.12.0-beta01. Use the
@@ -435,11 +436,6 @@ dependencies {
     // --- 3.7 Startup (应用初始化) ---
     implementation("androidx.startup:startup-runtime:1.2.0")
     
-    // --- 3.8 Backdrop (液态玻璃效果) ---
-    // 提供透镜折射、玻璃高光、连续圆角等 iOS/visionOS 风格视觉效果
-    implementation("io.github.kyant0:backdrop:2.0.0")
-
-
     // --- 4. Player (视频播放器 Media3) ---
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-exoplayer-dash:$media3Version")
@@ -451,8 +447,8 @@ dependencies {
     implementation(project(":dolby-ffmpeg-decoder"))
 
     // --- 5. Danmaku (弹幕引擎) ---
-    // 🔥 使用 ByteDance DanmakuRenderEngine - 轻量级高性能弹幕渲染引擎
-    implementation("com.github.bytedance:DanmakuRenderEngine:v0.1.0")
+    // 内部维护的 ByteDance DanmakuRenderEngine 分支；上游已归档。
+    // 对 app 只暴露项目自有的引擎中立接口，便于后续替换渲染后端。
     
     // 注：FFmpegKit 已于 2025 年停止维护，改用 ExoPlayer 直接播放分离音视频
 

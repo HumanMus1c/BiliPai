@@ -70,7 +70,6 @@ import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.android.purebilibili.core.util.Logger
@@ -95,8 +94,8 @@ import com.android.purebilibili.feature.live.components.LiveStreamSourceSheet
 import com.android.purebilibili.feature.live.components.LiveSuperChatSection
 import com.android.purebilibili.feature.live.components.LiveSuperChatFlashOverlay
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.feature.video.player.shouldContinuePlaybackDuringPause
 import com.android.purebilibili.feature.video.state.isPlaybackActiveForLifecycle
 import com.android.purebilibili.feature.video.state.shouldResumeAfterLifecyclePause
@@ -505,30 +504,43 @@ fun LivePlayerScreen(
     DisposableEffect(exoPlayer) {
         val listener = object : Player.Listener {
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                Logger.e(TAG, "ExoPlayer Error: ${error.message}")
-                CrashReporter.markLivePlaybackStage("player_error")
-                CrashReporter.reportLiveError(
-                    roomId = bilibiliRoomId,
-                    errorType = "exo_player_error",
-                    errorMessage = error.message ?: "unknown",
-                    exception = error
-                )
-                val httpResponseCode =
-                    (error.cause as? androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException)
-                        ?.responseCode
+                val httpResponseCode = generateSequence<Throwable>(error) { it.cause }
+                    .filterIsInstance<androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException>()
+                    .firstOrNull()
+                    ?.responseCode
                 when (resolveLivePlaybackErrorRecovery(error.errorCode, httpResponseCode)) {
                     LivePlaybackErrorRecovery.SEEK_TO_LIVE_EDGE -> {
+                        CrashReporter.markLivePlaybackStage("recover_live_edge")
                         Logger.w(TAG, "直播播放落后于可用窗口，回到直播边缘")
                         exoPlayer.seekToDefaultPosition()
                         exoPlayer.prepare()
                         exoPlayer.play()
                     }
-                    LivePlaybackErrorRecovery.TRY_NEXT_SOURCE -> viewModel.tryNextUrl()
-                    LivePlaybackErrorRecovery.NONE -> Unit
+                    LivePlaybackErrorRecovery.TRY_NEXT_SOURCE -> {
+                        CrashReporter.markLivePlaybackStage("recover_next_source")
+                        Logger.w(
+                            TAG,
+                            "直播源播放失败，切换备用线路：code=${httpResponseCode ?: error.errorCode}"
+                        )
+                        viewModel.tryNextUrl()
+                    }
+                    LivePlaybackErrorRecovery.NONE -> {
+                        Logger.e(TAG, "ExoPlayer Error: ${error.message}")
+                        CrashReporter.markLivePlaybackStage("player_error")
+                        CrashReporter.reportLiveError(
+                            roomId = bilibiliRoomId,
+                            errorType = "exo_player_error",
+                            errorMessage = error.message ?: "unknown",
+                            exception = error
+                        )
+                    }
                 }
             }
             override fun onIsPlayingChanged(playing: Boolean) {
                 isPlaying = playing
+                if (playing) {
+                    viewModel.onPlaybackStarted()
+                }
                 CrashReporter.markLivePlaybackStage(if (playing) "playing" else "not_playing")
             }
             // 📺 [新增] 直播流结束时自动关闭小窗
@@ -561,14 +573,9 @@ fun LivePlayerScreen(
         if (!playUrl.isNullOrEmpty()) {
             CrashReporter.markLivePlaybackStage("prepare_media_source")
             try {
-                val mediaSource = if (playUrl.contains(".m3u8") || playUrl.contains("hls")) {
-                    HlsMediaSource.Factory(dataSourceFactory).createMediaSource(MediaItem.fromUri(playUrl))
-                } else {
-                    DefaultMediaSourceFactory(dataSourceFactory).createMediaSource(
-                        MediaItem.Builder().setUri(playUrl).setMimeType("video/x-flv").build()
-                    )
-                }
-                exoPlayer.setMediaSource(mediaSource)
+                // 交给已配置的 DefaultMediaSourceFactory 按 URL/响应识别 HLS、fMP4 或 FLV；
+                // 非 m3u8 地址不再被一律强制标记成 FLV。
+                exoPlayer.setMediaItem(MediaItem.fromUri(playUrl))
                 exoPlayer.prepare()
                 miniPlayerManager.updateMediaMetadata(
                     title = liveTitle.ifBlank { "直播中" },
@@ -1839,7 +1846,7 @@ private fun LivePrimaryInteractionPanel(
                 height = segmentedSpec.heightDp.dp,
                 indicatorHeight = segmentedSpec.indicatorHeightDp.dp,
                 labelFontSize = segmentedSpec.labelFontSizeSp.sp,
-                backdrop = selectionBackdrop,
+                miuixBackdrop = selectionBackdrop,
                 isScrollInProgressProvider = { pagerState.isScrollInProgress }
             )
         }

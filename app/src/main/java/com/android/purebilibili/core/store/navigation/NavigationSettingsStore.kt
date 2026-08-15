@@ -13,6 +13,51 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
+internal val bottomBarItemLabelsPreferencesKey = stringPreferencesKey("bottom_bar_item_labels")
+
+private fun normalizeBottomBarLabelItemId(rawId: String): String {
+    val id = rawId.trim()
+    if (id.isBlank()) return ""
+    return when (id.lowercase()) {
+        "home" -> "HOME"
+        "dynamic" -> "DYNAMIC"
+        "story", "shortvideo", "short_video" -> "STORY"
+        "history" -> "HISTORY"
+        "listen_video" -> "LISTEN_VIDEO"
+        "profile", "mine", "my" -> "PROFILE"
+        "favorite", "favourite" -> "FAVORITE"
+        "live" -> "LIVE"
+        "watchlater", "watch_later" -> "WATCHLATER"
+        "settings" -> "SETTINGS"
+        "plugins", "plugin", "plugin_center" -> "PLUGINS"
+        else -> id.uppercase()
+    }
+}
+
+internal fun normalizeBottomBarCustomLabel(rawLabel: String): String = rawLabel
+    .trim()
+    .replace(Regex("\\s+"), " ")
+    .take(12)
+
+internal fun parseBottomBarItemLabels(raw: String): Map<String, String> {
+    if (raw.isBlank()) return emptyMap()
+    return raw.split(',').mapNotNull { entry ->
+        val separator = entry.indexOf('=')
+        if (separator <= 0) return@mapNotNull null
+        val itemId = normalizeBottomBarLabelItemId(entry.substring(0, separator))
+        if (itemId.isBlank()) return@mapNotNull null
+        val decoded = runCatching {
+            java.net.URLDecoder.decode(
+                entry.substring(separator + 1),
+                java.nio.charset.StandardCharsets.UTF_8.name()
+            )
+        }.getOrNull() ?: return@mapNotNull null
+        normalizeBottomBarCustomLabel(decoded)
+            .takeIf(String::isNotBlank)
+            ?.let { itemId to it }
+    }.toMap()
+}
+
 object NavigationSettingsStore {
     private val keyTabletUseSidebar = booleanPreferencesKey("tablet_use_sidebar")
     private val keySidebarAccountSwitcherEnabled =
@@ -49,6 +94,43 @@ object NavigationSettingsStore {
                 )
             }
             .distinctUntilChanged()
+    }
+
+    fun observeBottomBarItemLabels(context: Context): Flow<Map<String, String>> =
+        context.settingsDataStore.data
+            .map { preferences ->
+                parseBottomBarItemLabels(preferences[bottomBarItemLabelsPreferencesKey].orEmpty())
+            }
+            .distinctUntilChanged()
+
+    suspend fun setBottomBarItemLabel(context: Context, itemId: String, label: String) {
+        context.settingsDataStore.edit { preferences ->
+            val labels = parseBottomBarItemLabels(
+                preferences[bottomBarItemLabelsPreferencesKey].orEmpty()
+            ).toMutableMap()
+            val normalizedItemId = normalizeBottomBarLabelItemId(itemId)
+            if (normalizedItemId.isBlank()) return@edit
+            val normalizedLabel = normalizeBottomBarCustomLabel(label)
+            if (normalizedLabel.isBlank()) {
+                labels.remove(normalizedItemId)
+            } else {
+                labels[normalizedItemId] = normalizedLabel
+            }
+            preferences[bottomBarItemLabelsPreferencesKey] = labels.entries
+                .joinToString(",") { (id, value) ->
+                    val encoded = java.net.URLEncoder.encode(
+                        value,
+                        java.nio.charset.StandardCharsets.UTF_8.name()
+                    )
+                    "$id=$encoded"
+                }
+        }
+    }
+
+    suspend fun clearBottomBarItemLabels(context: Context) {
+        context.settingsDataStore.edit { preferences ->
+            preferences.remove(bottomBarItemLabelsPreferencesKey)
+        }
     }
 
     suspend fun ensureListenVideoBottomTabMigration(context: Context) {

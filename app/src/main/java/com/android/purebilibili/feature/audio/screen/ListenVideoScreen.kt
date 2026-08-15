@@ -78,6 +78,8 @@ import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmented
 import com.android.purebilibili.feature.video.player.PlaylistManager
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 internal data class ListenVideoNowPlaying(
     val bvid: String,
@@ -157,6 +159,7 @@ internal fun ListenVideoScreen(
         pageCount = { ListenVideoSection.entries.size }
     )
     val scope = rememberCoroutineScope()
+    val listenBackdrop = rememberLayerBackdrop()
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }
@@ -197,9 +200,8 @@ internal fun ListenVideoScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
-                height = 52.dp,
-                indicatorHeight = 46.dp,
                 preferInlineContentStyle = false,
+                miuixBackdrop = listenBackdrop,
                 indicatorPositionProvider = {
                     pagerState.currentPage + pagerState.currentPageOffsetFraction
                 },
@@ -210,6 +212,7 @@ internal fun ListenVideoScreen(
                 state = pagerState,
                 modifier = Modifier
                     .weight(1f)
+                    .layerBackdrop(listenBackdrop)
             ) { page ->
                 ListenVideoPage(
                     section = ListenVideoSection.entries[page],

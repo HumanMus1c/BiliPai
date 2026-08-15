@@ -3,7 +3,10 @@ package com.android.purebilibili.feature.list
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.ui.AppTopChromePolicy
 internal const val HISTORY_FILTER_LIQUID_DOCK_HEIGHT_DP = 58
-internal const val HISTORY_FILTER_LIQUID_DOCK_INDICATOR_HEIGHT_DP = 54
+internal val HISTORY_FILTER_LIQUID_DOCK_INDICATOR_HEIGHT_DP =
+    com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
+        HISTORY_FILTER_LIQUID_DOCK_HEIGHT_DP.toFloat()
+    )
 internal const val HISTORY_FILTER_LIQUID_DOCK_LABEL_FONT_SIZE_SP = 15
 
 internal data class HistoryFilterTabChromeSpec(

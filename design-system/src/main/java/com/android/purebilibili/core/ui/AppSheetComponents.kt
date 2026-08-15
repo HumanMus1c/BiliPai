@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
-import com.android.purebilibili.core.theme.iOSSystemGray4
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
 
@@ -245,7 +244,7 @@ fun AppBottomSheetDragHandle() {
                 .width(36.dp)
                 .height(5.dp)
                 .clip(RoundedCornerShape(50))
-                .background(iOSSystemGray4.copy(alpha = 0.4f))
+                .background(MaterialTheme.colorScheme.outlineVariant)
         )
     }
 }

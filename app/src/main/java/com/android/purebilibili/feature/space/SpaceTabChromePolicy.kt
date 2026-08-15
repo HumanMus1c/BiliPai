@@ -44,7 +44,9 @@ internal fun resolveSpaceMainTabChromeSpec(
     return SpaceSegmentedTabChromeSpec(
         selectedIndex = selectedIndex,
         heightDp = AppChromeSizeTokens.CompactControlHeightDp,
-        indicatorHeightDp = 30,
+        indicatorHeightDp = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
+            AppChromeSizeTokens.CompactControlHeightDp.toFloat()
+        ),
         horizontalPaddingDp = SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP,
         itemWidthDp = null,
         scrollable = false,
@@ -65,7 +67,9 @@ internal fun resolveSpaceContributionTabChromeSpec(
     return SpaceSegmentedTabChromeSpec(
         selectedIndex = selectedIndex,
         heightDp = AppChromeSizeTokens.CompactControlHeightDp,
-        indicatorHeightDp = 30,
+        indicatorHeightDp = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
+            AppChromeSizeTokens.CompactControlHeightDp.toFloat()
+        ),
         horizontalPaddingDp = SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP,
         itemWidthDp = resolveSpaceContributionTabItemWidthDp(tabs),
         scrollable = scrollable,
@@ -86,7 +90,7 @@ internal fun resolveSpaceContributionToolbarSpec(
     val roomy = widthDp >= SPACE_CONTRIBUTION_TOOLBAR_ROOMY_WIDTH_DP && tabCount <= 2
     return SpaceContributionToolbarSpec(
         tabHeightDp = 40,
-        tabIndicatorHeightDp = 34,
+        tabIndicatorHeightDp = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(40f),
         collapsedTabWidthDp = resolveSpaceContributionCollapsedTabWidthDp(selectedTitle, widthDp),
         expandedTabRailHeightDp = 40,
         horizontalPaddingDp = 12,

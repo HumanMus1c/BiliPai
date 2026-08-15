@@ -70,7 +70,6 @@ import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.Switch as MiuixSwitch
 import top.yukonga.miuix.kmp.preference.SliderPreference as MiuixSliderPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference as MiuixSwitchPreference
 import top.yukonga.miuix.kmp.basic.InputField
@@ -447,35 +446,12 @@ fun AppAdaptiveSwitch(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true
-) {
-    val uiStyle = LocalAppUiStyle.current
-    when (resolveAppAdaptiveSwitchTreatment(uiStyle)) {
-        AppAdaptiveSwitchTreatment.MATERIAL -> {
-            val platformHaptic = LocalHapticFeedback.current
-            val effectiveHaptic = if (LocalAppThemeConfig.current.hapticFeedbackEnabled) {
-                platformHaptic
-            } else {
-                NoOpHapticFeedback
-            }
-            CompositionLocalProvider(LocalHapticFeedback provides effectiveHaptic) {
-                AppSwitch(
-                    checked = checked,
-                    onCheckedChange = onCheckedChange,
-                    enabled = enabled,
-                    modifier = modifier,
-                )
-            }
-        }
-        AppAdaptiveSwitchTreatment.MIUIX -> {
-            MiuixSwitch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                enabled = enabled,
-                modifier = modifier
-            )
-        }
-    }
-}
+) = AppSwitch(
+    checked = checked,
+    onCheckedChange = onCheckedChange,
+    enabled = enabled,
+    modifier = modifier,
+)
 
 @Composable
 fun AdaptivePreferenceSectionTitleRenderer(title: String) {

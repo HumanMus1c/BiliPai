@@ -145,6 +145,9 @@ fun SearchTrendingScreen(
 
 @Composable
 private fun SearchTrendingHero() {
+    val heroPrimary = MaterialTheme.colorScheme.primary
+    val heroPrimaryContainer = MaterialTheme.colorScheme.primaryContainer
+    val heroTertiary = MaterialTheme.colorScheme.tertiary
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -152,9 +155,9 @@ private fun SearchTrendingHero() {
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color(0xFF8AA2FF),
-                        Color(0xFF4B6BFF),
-                        Color(0xFF2C48E8)
+                        heroPrimary,
+                        heroPrimaryContainer,
+                        heroTertiary,
                     )
                 )
             )
@@ -166,7 +169,7 @@ private fun SearchTrendingHero() {
                 center = Offset(x = size.width * 0.18f, y = size.height * 0.46f)
             )
             drawCircle(
-                color = Color(0xFFFF8ED8).copy(alpha = 0.25f),
+                color = heroTertiary.copy(alpha = 0.25f),
                 radius = size.minDimension * 0.20f,
                 center = Offset(x = size.width * 0.88f, y = size.height * 0.82f)
             )
@@ -262,8 +265,8 @@ private fun SearchTrendingRow(
 
                     item.showLiveBadge -> SearchKeywordBadge(
                         text = "直播中",
-                        containerColor = Color(0xFFFF6B97),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
                     )
 
                     !item.subtitle.isNullOrBlank() -> AppText(
@@ -290,7 +293,7 @@ private fun SearchTrendingRank(
         AppIcon(
             imageVector = Icons.Rounded.North,
             contentDescription = null,
-            tint = Color(0xFFD94343),
+            tint = MaterialTheme.colorScheme.error,
             modifier = Modifier.size(20.dp)
         )
         return
@@ -300,9 +303,9 @@ private fun SearchTrendingRank(
     AppText(
         text = rank.toString(),
         color = when (rank) {
-            1 -> Color(0xFFFFA000)
-            2 -> Color(0xFF7BA5E6)
-            3 -> Color(0xFFE39B6B)
+            1 -> MaterialTheme.colorScheme.tertiary
+            2 -> MaterialTheme.colorScheme.secondary
+            3 -> MaterialTheme.colorScheme.primary
             else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
         },
         style = MaterialTheme.typography.titleLarge.copy(

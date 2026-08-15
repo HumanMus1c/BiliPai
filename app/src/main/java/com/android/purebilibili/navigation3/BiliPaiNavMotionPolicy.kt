@@ -130,7 +130,8 @@ internal fun shouldActivateVideoDetailPlaybackSession(
     return currentKey == detailKey ||
         (
             isImmediateBackPreview &&
-                (currentKey !is BiliPaiNavKey.VideoDetail || activateBackPreviewPlayback)
+                currentKey is BiliPaiNavKey.VideoDetail &&
+                activateBackPreviewPlayback
         )
 }
 

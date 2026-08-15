@@ -37,6 +37,47 @@ class BiliPaiNavKeyMappingPolicyTest {
     }
 
     @Test
+    fun `removed navigation state keys evict popped detail sessions only`() {
+        val first = BiliPaiNavKey.VideoDetail(
+            bvid = "BV1first",
+            cid = 1L,
+            coverUrl = "",
+            openId = 101L,
+        )
+        val second = BiliPaiNavKey.VideoDetail(
+            bvid = "BV1second",
+            cid = 2L,
+            coverUrl = "",
+            openId = 102L,
+        )
+
+        assertEquals(
+            setOf(resolveNavigation3SaveableStateKey(second)),
+            resolveRemovedNavigation3SaveableStateKeys(
+                currentStack = listOf(BiliPaiNavKey.MainHost, first, second),
+                replacementStack = listOf(BiliPaiNavKey.MainHost, first),
+            ),
+        )
+    }
+
+    @Test
+    fun `navigation state eviction keeps a key retained elsewhere in replacement stack`() {
+        val duplicateSearchStack = listOf(
+            BiliPaiNavKey.MainHost,
+            BiliPaiNavKey.Search,
+            BiliPaiNavKey.Search,
+        )
+
+        assertEquals(
+            emptySet(),
+            resolveRemovedNavigation3SaveableStateKeys(
+                currentStack = duplicateSearchStack,
+                replacementStack = duplicateSearchStack.dropLast(1),
+            ),
+        )
+    }
+
+    @Test
     fun topLevelRoutes_mapToNavigation3Keys() {
         assertEquals(BiliPaiNavKey.MainHost, legacyRouteToBiliPaiNavKey("main_host"))
         assertEquals(BiliPaiNavKey.Home, legacyRouteToBiliPaiNavKey(ScreenRoutes.Home.route))

@@ -926,6 +926,9 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
 
     private val _subReplyState = MutableStateFlow(SubReplyUiState())
     val subReplyState: StateFlow<SubReplyUiState> = _subReplyState.asStateFlow()
+
+    private val _commentReplyTarget = MutableStateFlow<DynamicCommentComposerTarget?>(null)
+    internal val commentReplyTarget: StateFlow<DynamicCommentComposerTarget?> = _commentReplyTarget.asStateFlow()
     
     // [新增] 动态评论总数 (从评论接口获取实时数据)
     private val _commentTotalCount = MutableStateFlow(0)
@@ -997,6 +1000,7 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
         _selectedCommentTarget.value = null
         _comments.value = emptyList()
         _subReplyState.value = SubReplyUiState()
+        _commentReplyTarget.value = null
         _commentsLoadingMore.value = false
         commentNextPage = 1
         commentsEnd = true
@@ -1423,6 +1427,14 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
     /**
      *  发表评论
      */
+    fun startCommentReply(reply: com.android.purebilibili.data.model.response.ReplyItem) {
+        _commentReplyTarget.value = resolveDynamicCommentReplyTarget(reply)
+    }
+
+    fun clearCommentReplyTarget() {
+        _commentReplyTarget.value = null
+    }
+
     fun postComment(dynamicId: String, message: String, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch {
             try {
@@ -1442,20 +1454,68 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     onResult(false, "无法确定评论参数")
                     return@launch
                 }
+                val replyTarget = _commentReplyTarget.value
                 val response = CommentRepository.addCommentForSubject(
                     oid = target.oid,
                     type = target.type,
-                    message = message
+                    message = message,
+                    root = replyTarget?.rootRpid ?: 0L,
+                    parent = replyTarget?.parentRpid ?: 0L
                 )
                 if (response.isSuccess) {
+                    _commentReplyTarget.value = null
                     onResult(true, "评论成功")
-                    // 刷新评论列表
                     loadComments(dynamicId)
                 } else {
                     onResult(false, response.exceptionOrNull()?.message ?: "评论失败")
                 }
             } catch (e: Exception) {
                 onResult(false, e.message ?: "网络错误")
+            }
+        }
+    }
+
+    fun likeComment(rpid: Long, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        if (rpid <= 0L) return
+        val current = _comments.value.firstOrNull { it.rpid == rpid }
+            ?: _comments.value.firstNotNullOfOrNull { parent ->
+                parent.replies.orEmpty().firstOrNull { it.rpid == rpid }
+            }
+            ?: _subReplyState.value.items.firstOrNull { it.rpid == rpid }
+            ?: _subReplyState.value.rootReply?.takeIf { it.rpid == rpid }
+        if (current == null) return
+        val toLiked = !isDynamicCommentLiked(current)
+        val target = _selectedCommentTarget.value
+        if (target == null) {
+            onResult(false, "无法确定评论参数")
+            return
+        }
+        _comments.value = applyDynamicCommentLikeInList(_comments.value, rpid, toLiked)
+        val subState = _subReplyState.value
+        _subReplyState.value = subState.copy(
+            rootReply = subState.rootReply?.let { root ->
+                if (root.rpid == rpid) applyDynamicCommentLike(root, toLiked) else root
+            },
+            items = applyDynamicCommentLikeInList(subState.items, rpid, toLiked).toImmutableList()
+        )
+        viewModelScope.launch {
+            CommentRepository.likeCommentForSubject(
+                oid = target.oid,
+                type = target.type,
+                rpid = rpid,
+                like = toLiked
+            ).onFailure { error ->
+                _comments.value = applyDynamicCommentLikeInList(_comments.value, rpid, !toLiked)
+                val rollback = _subReplyState.value
+                _subReplyState.value = rollback.copy(
+                    rootReply = rollback.rootReply?.let { root ->
+                        if (root.rpid == rpid) applyDynamicCommentLike(root, !toLiked) else root
+                    },
+                    items = applyDynamicCommentLikeInList(rollback.items, rpid, !toLiked).toImmutableList()
+                )
+                onResult(false, error.message ?: "操作失败")
+            }.onSuccess {
+                onResult(true, if (toLiked) "已点赞" else "已取消")
             }
         }
     }
@@ -1668,6 +1728,72 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
             is DynamicManageAction.SetVisibility -> setDynamicVisibility(action, onResult)
             is DynamicManageAction.SetReplySubject -> modifyReplySubject(action, onResult)
             is DynamicManageAction.TempBlock -> tempBlockDynamic(action.dynamicId, onResult)
+            is DynamicManageAction.Report -> Unit
+            is DynamicManageAction.Edit -> Unit
+        }
+    }
+
+    fun reportDynamic(
+        action: DynamicManageAction.Report,
+        reasonType: Int,
+        reasonDesc: String?,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val csrf = TokenManager.csrfCache
+                if (csrf.isNullOrEmpty()) {
+                    onResult(false, "请先登录")
+                    return@launch
+                }
+                if (action.dynamicId.isBlank() || action.authorMid <= 0L) {
+                    onResult(false, "无法举报该动态")
+                    return@launch
+                }
+                val response = NetworkModule.dynamicApi.reportDynamic(
+                    csrf = csrf,
+                    accusedUid = action.authorMid,
+                    dynamicId = action.dynamicId,
+                    reasonType = reasonType,
+                    reasonDesc = if (reasonType == 0) reasonDesc else null
+                )
+                if (response.code == 0) {
+                    onResult(true, "已提交举报")
+                } else {
+                    onResult(false, response.message.ifBlank { "举报失败" })
+                }
+            } catch (e: Exception) {
+                onResult(false, e.message ?: "网络错误")
+            }
+        }
+    }
+
+    fun editDynamic(dynamicId: String, content: String, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val csrf = TokenManager.csrfCache
+                if (csrf.isNullOrEmpty()) {
+                    onResult(false, "请先登录")
+                    return@launch
+                }
+                if (dynamicId.isBlank() || content.isBlank()) {
+                    onResult(false, "内容不能为空")
+                    return@launch
+                }
+                val response = NetworkModule.dynamicApi.editDynamic(
+                    dynamicId = dynamicId,
+                    content = content,
+                    csrf = csrf
+                )
+                if (response.code == 0) {
+                    onResult(true, "已更新动态")
+                    refresh()
+                } else {
+                    onResult(false, response.message.ifBlank { "编辑失败" })
+                }
+            } catch (e: Exception) {
+                onResult(false, e.message ?: "网络错误")
+            }
         }
     }
 

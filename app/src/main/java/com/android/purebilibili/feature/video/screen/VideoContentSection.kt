@@ -28,7 +28,6 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -51,6 +50,7 @@ import com.android.purebilibili.core.ui.common.copyOnLongPress
 import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import com.android.purebilibili.core.util.ShareUtils
 import com.android.purebilibili.core.ui.rememberAppCommentIcon
+import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberAppPlayIcon
 import com.android.purebilibili.core.ui.rememberAppSettingsIcon
@@ -66,11 +66,8 @@ import com.android.purebilibili.core.ui.performance.TrackScrollJank
 import com.android.purebilibili.core.store.DanmakuSettings
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
-import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.backdrops.LayerBackdrop
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
+import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import com.android.purebilibili.data.model.response.RelatedVideo
@@ -144,12 +141,15 @@ internal fun hasVideoContentTabBarIndicatorScaleClearance(
     containerHeightDp: Int,
     indicatorHeightDp: Int
 ): Boolean {
-    val bottomBarScale = 78f / 56f
-    return containerHeightDp >= indicatorHeightDp * bottomBarScale + 2f
+    val geometry = com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorGeometry(
+        dockHeightDp = containerHeightDp.toFloat(),
+        indicatorHeightDp = indicatorHeightDp.toFloat(),
+    )
+    return geometry.pressedHeightDp > containerHeightDp
 }
 
 internal const val VIDEO_CONTENT_LIQUID_DOCK_HEIGHT_DP = 40
-internal const val VIDEO_CONTENT_LIQUID_DOCK_INDICATOR_HEIGHT_DP = 27
+internal const val VIDEO_CONTENT_LIQUID_DOCK_INDICATOR_HEIGHT_DP = 35
 internal const val VIDEO_CONTENT_LIQUID_DOCK_LABEL_FONT_SIZE_SP = 14
 
 internal data class VideoContentTabBarLiquidChromeSpec(
@@ -209,7 +209,7 @@ internal fun resolveVideoContentTabBarLayoutSpec(widthDp: Int): VideoContentTabB
             unselectedTabFontSizeSp = 15,
             indicatorWidthDp = 28,
             segmentedControlHeightDp = 40,
-            segmentedControlIndicatorHeightDp = 27
+            segmentedControlIndicatorHeightDp = 35
         )
     } else {
         VideoContentTabBarLayoutSpec(
@@ -223,7 +223,7 @@ internal fun resolveVideoContentTabBarLayoutSpec(widthDp: Int): VideoContentTabB
             unselectedTabFontSizeSp = 16,
             indicatorWidthDp = 32,
             segmentedControlHeightDp = 40,
-            segmentedControlIndicatorHeightDp = 27
+            segmentedControlIndicatorHeightDp = 35
         )
     }
 }
@@ -699,18 +699,10 @@ fun VideoContentSection(
         (tabBarMaxHeightPx - tabBarCollapsePx).coerceAtLeast(0f).toDp()
     }
     // 采样层只挂在 Tab 页滚动内容上；排序栏/顶栏分段控件必须在捕获区外，避免 drawBackdrop 自引用导致 RenderThread 栈溢出。
-    val videoContentChromeBackdrop = rememberLayerBackdrop()
     val videoContentMiuixBackdrop = rememberMiuixLayerBackdrop()
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .alpha(0f)
-                .miuixLayerBackdrop(videoContentMiuixBackdrop)
-                .background(AppSurfaceTokens.background())
-        )
         // Inline 弹幕设置不是 Dialog，必须在详情内容之后绘制，避免被列表盖住。
         Column(
             modifier = Modifier
@@ -762,7 +754,6 @@ fun VideoContentSection(
                         },
                     isPlayerCollapsed = isPlayerCollapsed,
                     onRestorePlayer = onRestorePlayer,
-                    backdrop = videoContentChromeBackdrop,
                     miuixBackdrop = videoContentMiuixBackdrop,
                     indicatorPositionProvider = {
                         pagerState.currentPage + pagerState.currentPageOffsetFraction
@@ -794,7 +785,7 @@ fun VideoContentSection(
                     0 -> VideoIntroTab(
                         listState = introListState,
                         modifier = Modifier,
-                        chromeBackdrop = videoContentChromeBackdrop,
+                        chromeBackdrop = videoContentMiuixBackdrop,
                         info = info,
                         relatedVideos = relatedVideos,
                         currentPageIndex = currentPageIndex,
@@ -884,7 +875,7 @@ fun VideoContentSection(
                         onToggleTopComment = onToggleTopComment,
                         showIdentityDecorations = showIdentityDecorations,
                         lightweightCommentRendering = lightweightCommentRendering,
-                        chromeBackdrop = videoContentChromeBackdrop,
+                        chromeBackdrop = videoContentMiuixBackdrop,
                     )
                 }
             }
@@ -1021,7 +1012,7 @@ private fun VideoIntroTab(
             .fillMaxSize()
             .then(
                 if (chromeBackdrop != null) {
-                    Modifier.layerBackdrop(chromeBackdrop)
+                    Modifier.miuixLayerBackdrop(chromeBackdrop)
                 } else {
                     Modifier
                 }
@@ -1213,7 +1204,7 @@ internal fun VideoCommentTab(
                     .fillMaxSize()
                     .then(
                         if (chromeBackdrop != null) {
-                            Modifier.layerBackdrop(chromeBackdrop)
+                            Modifier.miuixLayerBackdrop(chromeBackdrop)
                         } else {
                             Modifier
                         }
@@ -1310,7 +1301,7 @@ internal fun VideoCommentTab(
             }
 
             androidx.compose.animation.AnimatedVisibility(
-                visible = shouldShowBackToTop,
+                visible = rememberBackToTopButtonEnabled() && shouldShowBackToTop,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(
@@ -1698,7 +1689,7 @@ private fun VideoDetailDanmakuSettingsPanel(
         showBlockRuleEditor = true,
         showSmartOcclusionSection = false,
         blockRulesRaw = localBlockRulesRaw,
-        smartOcclusion = false,
+        smartOcclusion = danmakuSettings.smartOcclusion,
         onOpacityChange = {
             localOpacity = it
             scope.launch { SettingsManager.setDanmakuOpacity(context, it, danmakuScope) }
@@ -1780,7 +1771,6 @@ private fun VideoContentTabBar(
     modifier: Modifier = Modifier,
     isPlayerCollapsed: Boolean = false,
     onRestorePlayer: () -> Unit = {},
-    backdrop: Backdrop? = null,
     miuixBackdrop: MiuixBackdrop? = null,
     indicatorPositionProvider: (() -> Float)? = null,
     isScrollInProgressProvider: () -> Boolean = { false },
@@ -1798,12 +1788,12 @@ private fun VideoContentTabBar(
     }
     val liquidChromeSpec = remember(
         homeSettings.androidNativeLiquidGlassEnabled,
-        backdrop,
+        miuixBackdrop,
         layoutSpec
     ) {
         resolveVideoContentTabBarLiquidChromeSpec(
             androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
-            hasBackdrop = backdrop != null,
+            hasBackdrop = miuixBackdrop != null,
             layoutSpec = layoutSpec,
         )
     }
@@ -1838,7 +1828,6 @@ private fun VideoContentTabBar(
                 height = liquidChromeSpec.segmentedControlHeightDp.dp,
                 indicatorHeight = liquidChromeSpec.segmentedControlIndicatorHeightDp.dp,
                 labelFontSize = liquidChromeSpec.labelFontSizeSp.sp,
-                backdrop = backdrop,
                 miuixBackdrop = miuixBackdrop,
                 forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
                 liquidGlassEffectsEnabled = liquidChromeSpec.liquidGlassEffectsEnabled,
@@ -1854,7 +1843,6 @@ private fun VideoContentTabBar(
                     sortMode = sortMode,
                     onSortModeChange = onSortModeChange,
                     modifier = Modifier.padding(end = 8.dp),
-                    backdrop = backdrop,
                     miuixBackdrop = miuixBackdrop,
                 )
             } else {

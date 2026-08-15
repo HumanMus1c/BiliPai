@@ -345,9 +345,8 @@ enum class TopTabIndicatorStyle {
     MATERIAL
 }
 
-// Bottom-bar capsule is 56dp; top dock is shorter, so rest height sits near dock fill
-// while drag scale (88/56) still slightly overflows the chrome like the bottom bar.
-internal const val CompactTopTabIndicatorHeightDp = 30f
+// Compact top docks scale the 56/64 rest fill from the 64dp home bottom bar.
+internal const val CompactTopTabIndicatorHeightDp = 35f
 internal const val CompactTopTabIndicatorCornerDp = 9f
 
 data class TopTabVisualTuning(

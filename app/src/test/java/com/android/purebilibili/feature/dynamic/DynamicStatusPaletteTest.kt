@@ -6,7 +6,9 @@ import kotlin.test.assertEquals
 
 class DynamicStatusPaletteTest {
     @Test
-    fun likedColor_isAStableDynamicStatusRole() {
-        assertEquals(Color(0xFFFF6B81), DynamicStatusPalette.Liked)
+    fun likedColor_followsThemeTertiary() {
+        val tertiary = Color(0xFF6750A4)
+        val scheme = androidx.compose.material3.lightColorScheme(tertiary = tertiary)
+        assertEquals(tertiary, resolveDynamicLikedColor(scheme))
     }
 }

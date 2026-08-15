@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppBackToTopButton
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -26,9 +27,11 @@ import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -45,12 +48,16 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
+import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
 import com.android.purebilibili.core.util.LocalWindowSizeClass
+import com.android.purebilibili.core.util.animateScrollToTop
 import com.android.purebilibili.core.util.responsiveContentWidth
+import com.android.purebilibili.core.util.shouldShowScrollToTop
 import com.android.purebilibili.data.model.response.LiveAreaChild
 import com.android.purebilibili.data.model.response.LiveRoom
 import com.android.purebilibili.data.repository.LiveRepository
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 
 @Composable
 fun LiveAreaDetailScreen(
@@ -71,6 +78,16 @@ fun LiveAreaDetailScreen(
     var totalCount by remember { mutableIntStateOf(0) }
     var isLoadingMore by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
+    val scope = rememberCoroutineScope()
+    val backToTopButtonEnabled = rememberBackToTopButtonEnabled()
+    val hasScrolledAwayFromTop by remember(gridState) {
+        derivedStateOf {
+            shouldShowScrollToTop(
+                firstVisibleItemIndex = gridState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset,
+            )
+        }
+    }
     val topChromePolicy = rememberAppTopChromePolicy()
     val visualSpec = remember(topChromePolicy.tabPresentation) {
         resolveLiveVisualSpec(topChromePolicy.tabPresentation)
@@ -170,33 +187,34 @@ fun LiveAreaDetailScreen(
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            AppText(
-                text = roomSummary,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
-                    .fillMaxWidth()
-                    .padding(
+            Column(modifier = Modifier.fillMaxSize()) {
+                AppText(
+                    text = roomSummary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = metrics.safeSpaceDp.dp,
+                            vertical = AppSpacingTokens.Small,
+                        ),
+                )
+                LazyRow(
+                    modifier = Modifier
+                        .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(
                         horizontal = metrics.safeSpaceDp.dp,
-                        vertical = AppSpacingTokens.Small,
+                        vertical = AppSpacingTokens.ExtraSmall,
                     ),
-            )
-            LazyRow(
-                modifier = Modifier
-                    .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
-                    .fillMaxWidth(),
-                contentPadding = PaddingValues(
-                    horizontal = metrics.safeSpaceDp.dp,
-                    vertical = AppSpacingTokens.ExtraSmall,
-                ),
-                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-            ) {
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                ) {
                 item {
                     LiveSortChip(
                         text = "最热",
@@ -224,8 +242,8 @@ fun LiveAreaDetailScreen(
                         },
                     )
                 }
-            }
-            when {
+                }
+                when {
                 isLoading -> ContentVideoGridSkeletonFixedColumns(
                     columns = gridColumns,
                     modifier = Modifier.weight(1f),
@@ -274,7 +292,23 @@ fun LiveAreaDetailScreen(
                         }
                     }
                 }
+                }
             }
+
+            AppBackToTopButton(
+                visible = backToTopButtonEnabled && rooms.isNotEmpty() && hasScrolledAwayFromTop,
+                onClick = {
+                    scope.launch {
+                        gridState.animateScrollToTop()
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = AppSpacingTokens.Large,
+                        bottom = LocalBottomBarContentPadding.current + AppSpacingTokens.Medium,
+                    ),
+            )
         }
     }
 }

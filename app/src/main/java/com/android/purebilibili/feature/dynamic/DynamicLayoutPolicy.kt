@@ -30,7 +30,7 @@ internal fun resolveDynamicTopBarHorizontalPadding(): Dp = 14.dp
 
 internal fun resolveDynamicTopBarTabEndPadding(): Dp = 20.dp
 
-internal fun resolveDynamicTopBarHeightDp(): Int = 52
+internal fun resolveDynamicTopBarHeightDp(): Int = 50
 
 internal fun resolveDynamicSidebarReturnHeaderHeightDp(): Int = resolveDynamicTopBarHeightDp()
 
@@ -47,12 +47,15 @@ internal data class DynamicTopBarLiquidTabSpec(
 )
 
 internal fun resolveDynamicTopBarLiquidTabSpec(): DynamicTopBarLiquidTabSpec {
+    val heightDp = resolveDynamicTopBarHeightDp()
     return DynamicTopBarLiquidTabSpec(
         topPaddingDp = 0,
         bottomPaddingDp = 0,
-        heightDp = resolveDynamicTopBarHeightDp(),
-        indicatorHeightDp = 3,
-        labelFontSizeSp = 14
+        heightDp = heightDp,
+        indicatorHeightDp = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
+            heightDp.toFloat()
+        ),
+        labelFontSizeSp = 13
     )
 }
 

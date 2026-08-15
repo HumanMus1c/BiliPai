@@ -5,6 +5,7 @@ import com.android.purebilibili.core.ui.components.AppText
 import android.app.Activity
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.net.Uri
 import android.provider.Settings
@@ -29,6 +30,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -50,6 +52,9 @@ import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
+import com.android.purebilibili.core.store.DanmakuSettings
+import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.store.resolveDanmakuSettingsScope
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.feature.video.player.MiniPlayerManager
 import com.android.purebilibili.feature.video.danmaku.configureAsPassiveDanmakuOverlay
@@ -59,7 +64,7 @@ import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayCont
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelIcon
 import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
-import com.bytedance.danmaku.render.engine.DanmakuView
+import com.android.purebilibili.danmaku.engine.DanmakuRenderView
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FastForward
 import androidx.compose.material.icons.outlined.Fullscreen
@@ -98,7 +103,6 @@ fun OfflineVideoPlayerScreen(
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
     val miniPlayerManager = remember(context) { MiniPlayerManager.getInstance(context) }
-    val danmakuManager = rememberDanmakuManager()
     val playerChromeProfile = rememberAppPlayerChromeProfile()
     val backIcon = rememberAppBackIcon()
     val commentIcon = rememberAppCommentIcon()
@@ -109,6 +113,16 @@ fun OfflineVideoPlayerScreen(
     
     val tasks by DownloadManager.tasks.collectAsStateWithLifecycle()
     var currentTaskId by remember(taskId) { mutableStateOf(taskId) }
+    val danmakuManager = rememberDanmakuManager("offline:$currentTaskId")
+    val configuration = LocalConfiguration.current
+    val danmakuSettingsScope = remember(configuration.orientation) {
+        resolveDanmakuSettingsScope(
+            isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        )
+    }
+    val danmakuSettings by SettingsManager
+        .getDanmakuSettings(context, danmakuSettingsScope)
+        .collectAsStateWithLifecycle(initialValue = DanmakuSettings())
     val task = tasks[currentTaskId]
     
     // === 状态管理 ===
@@ -148,6 +162,13 @@ fun OfflineVideoPlayerScreen(
     var longPressSpeedVisible by remember { mutableStateOf(false) }
     val longPressSpeed = 2.0f
     var danmakuEnabled by remember(currentTaskId) { mutableStateOf(true) }
+
+    LaunchedEffect(danmakuManager, danmakuSettings) {
+        danmakuManager.updateSettings(settings = danmakuSettings)
+    }
+    LaunchedEffect(currentTaskId, danmakuSettings.enabled) {
+        danmakuEnabled = danmakuSettings.enabled
+    }
     
     // 双击跳转秒数
     val seekForwardSeconds = 10
@@ -205,24 +226,25 @@ fun OfflineVideoPlayerScreen(
     val offlineMiniPlayerPayload = remember(task) {
         resolveOfflineMiniPlayerPayload(task)
     }
-    val localDanmakuSegments by produceState<List<ByteArray>>(
-        initialValue = emptyList(),
-        key1 = task.localDanmakuSegmentPaths
+    val localDanmakuSource by produceState(
+        initialValue = LocalDanmakuSource(),
+        key1 = task.localDanmakuSegmentPaths,
+        key2 = task.localDanmakuMetadataPath
     ) {
         value = if (task.localDanmakuSegmentPaths.isEmpty()) {
-            emptyList()
+            LocalDanmakuSource()
         } else {
             withContext(Dispatchers.IO) {
-                DownloadDanmakuAssetService.readLocalSegments(task)
+                DownloadDanmakuAssetService.readLocalSource(task)
             }
         }
     }
     val danmakuAvailable = shouldShowOfflineDanmakuControl(
-        localSegmentCount = localDanmakuSegments.size,
+        localSegmentCount = localDanmakuSource.totalFileCount,
         isAudioOnly = task.isAudioOnly
     )
     val showDanmakuLayer = shouldShowOfflineDanmakuLayer(
-        localSegmentCount = localDanmakuSegments.size,
+        localSegmentCount = localDanmakuSource.totalFileCount,
         isAudioOnly = task.isAudioOnly,
         danmakuEnabled = danmakuEnabled
     )
@@ -346,7 +368,7 @@ fun OfflineVideoPlayerScreen(
         danmakuManager.attachPlayer(player)
         onDispose {
             persistCurrentPlaybackPosition(task, player)
-            danmakuManager.detachView()
+            danmakuManager.detachPlayer(player)
             if (miniPlayerManager.isPlayerManaged(player)) {
                 miniPlayerManager.dismiss()
             } else {
@@ -361,9 +383,13 @@ fun OfflineVideoPlayerScreen(
         }
     }
 
-    LaunchedEffect(danmakuManager, task.id, localDanmakuSegments) {
-        if (localDanmakuSegments.isNotEmpty()) {
-            danmakuManager.loadLocalDanmaku(task.cid, localDanmakuSegments)
+    LaunchedEffect(danmakuManager, task.id, localDanmakuSource) {
+        if (localDanmakuSource.totalFileCount > 0) {
+            danmakuManager.loadLocalDanmaku(
+                cid = task.cid,
+                standardSegmentPaths = localDanmakuSource.standardSegmentPaths,
+                specialSegmentPaths = localDanmakuSource.specialSegmentPaths
+            )
         }
     }
 
@@ -619,7 +645,7 @@ fun OfflineVideoPlayerScreen(
         if (danmakuAvailable) {
             AndroidView(
                 factory = { ctx ->
-                    DanmakuView(ctx).apply {
+                    DanmakuRenderView(ctx).apply {
                         setBackgroundColor(android.graphics.Color.TRANSPARENT)
                         configureAsPassiveDanmakuOverlay()
                         danmakuManager.attachView(this)
@@ -639,6 +665,7 @@ fun OfflineVideoPlayerScreen(
                         }
                     }
                 },
+                onRelease = { view -> danmakuManager.detachView(view) },
                 modifier = Modifier.fillMaxSize()
             )
         }

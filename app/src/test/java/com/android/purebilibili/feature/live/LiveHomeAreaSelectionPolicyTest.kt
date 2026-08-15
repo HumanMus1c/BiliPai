@@ -47,6 +47,16 @@ class LiveHomeAreaSelectionPolicyTest {
     }
 
     @Test
+    fun followedChipSitsBetweenRecommendAndAreaTabs() {
+        assertEquals(0, LIVE_HOME_RECOMMEND_INDEX)
+        assertEquals(1, LIVE_HOME_FOLLOWED_INDEX)
+        assertEquals(true, isLiveHomeFollowedTab(1))
+        assertEquals(false, isLiveHomeFollowedTab(0))
+        assertEquals(0, resolveLiveHomeAreaListIndex(2))
+        assertEquals(2, resolveLiveHomeSelectedIndexForArea(0))
+    }
+
+    @Test
     fun legacyParentIdInAreaIdQueriesTheParentArea() {
         assertEquals(
             LiveAreaRoomQuery(parentAreaId = 2, areaId = 0),

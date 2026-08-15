@@ -57,6 +57,7 @@ import com.android.purebilibili.core.util.CrashReporter
 import com.android.purebilibili.core.util.EasterEggs
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.LogCollector
+import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.core.ui.AdaptiveScaffold
 import com.android.purebilibili.core.ui.AdaptiveTopAppBar
 import com.android.purebilibili.core.ui.AppShapes
@@ -130,6 +131,9 @@ fun SettingsScreen(
         .collectAsStateWithLifecycle(initialValue = DEFAULT_CRASH_TRACKING_ENABLED)
     val analyticsEnabled by SettingsManager.getAnalyticsEnabled(context)
         .collectAsStateWithLifecycle(initialValue = DEFAULT_ANALYTICS_ENABLED)
+    val enhancedDiagnosticLoggingEnabled by SettingsManager
+        .getEnhancedDiagnosticLoggingEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val easterEggEnabled by SettingsManager.getEasterEggEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val customDownloadPath by SettingsManager.getDownloadPath(context).collectAsStateWithLifecycle(initialValue = null)
     val downloadExportTreeUri by SettingsManager.getDownloadExportTreeUri(context).collectAsStateWithLifecycle(initialValue = null)
@@ -317,6 +321,12 @@ fun SettingsScreen(
         scope.launch {
             SettingsManager.setAnalyticsEnabled(context, enabled)
             AnalyticsHelper.setEnabled(enabled)
+        }
+    }
+    val onEnhancedDiagnosticLoggingChange: (Boolean) -> Unit = { enabled ->
+        scope.launch {
+            SettingsManager.setEnhancedDiagnosticLoggingEnabled(context, enabled)
+            Logger.configureEnhancedDiagnosticLogging(context, enabled)
         }
     }
     val onEasterEggChange: (Boolean) -> Unit = { enabled ->
@@ -1019,6 +1029,7 @@ fun SettingsScreen(
                     onPrivacyContentAuthenticationChange = onPrivacyContentAuthenticationChange,
                     onCrashTrackingChange = onCrashTrackingChange,
                     onAnalyticsChange = onAnalyticsChange,
+                    onEnhancedDiagnosticLoggingChange = onEnhancedDiagnosticLoggingChange,
                     onEasterEggChange = onEasterEggChange,
                     onAutoCheckUpdateChange = onAutoCheckUpdateChange,
                     onAppUpdateChannelChange = onAppUpdateChannelChange,
@@ -1028,6 +1039,7 @@ fun SettingsScreen(
                     cacheSize = state.cacheSize,
                     crashTrackingEnabled = crashTrackingEnabled,
                     analyticsEnabled = analyticsEnabled,
+                    enhancedDiagnosticLoggingEnabled = enhancedDiagnosticLoggingEnabled,
                     pluginCount = PluginManager.getEnabledCount(),
                     versionName = com.android.purebilibili.BuildConfig.VERSION_NAME,
                     appIcon = state.appIcon,
@@ -1172,6 +1184,7 @@ private fun MobileSettingsNavLayout(
     onPrivacyContentAuthenticationChange: (Boolean) -> Unit,
     onCrashTrackingChange: (Boolean) -> Unit,
     onAnalyticsChange: (Boolean) -> Unit,
+    onEnhancedDiagnosticLoggingChange: (Boolean) -> Unit,
     onEasterEggChange: (Boolean) -> Unit,
     onAutoCheckUpdateChange: (Boolean) -> Unit,
     onAppUpdateChannelChange: (SettingsManager.AppUpdateChannel) -> Unit,
@@ -1182,6 +1195,7 @@ private fun MobileSettingsNavLayout(
     cacheSize: String,
     crashTrackingEnabled: Boolean,
     analyticsEnabled: Boolean,
+    enhancedDiagnosticLoggingEnabled: Boolean,
     pluginCount: Int,
     versionName: String,
     appIcon: String,
@@ -1266,6 +1280,7 @@ private fun MobileSettingsNavLayout(
         onPrivacyContentAuthenticationChange = onPrivacyContentAuthenticationChange,
         onCrashTrackingChange = onCrashTrackingChange,
         onAnalyticsChange = onAnalyticsChange,
+        onEnhancedDiagnosticLoggingChange = onEnhancedDiagnosticLoggingChange,
         onEasterEggChange = onEasterEggChange,
         onAutoCheckUpdateChange = onAutoCheckUpdateChange,
         onAppUpdateChannelChange = onAppUpdateChannelChange,
@@ -1283,6 +1298,7 @@ private fun MobileSettingsNavLayout(
         privacyContentAuthenticationEnabled = privacyContentAuthenticationEnabled,
         crashTrackingEnabled = crashTrackingEnabled,
         analyticsEnabled = analyticsEnabled,
+        enhancedDiagnosticLoggingEnabled = enhancedDiagnosticLoggingEnabled,
         pluginCount = pluginCount,
         customDownloadPath = customDownloadPath,
         customImageSavePath = customImageSavePath,

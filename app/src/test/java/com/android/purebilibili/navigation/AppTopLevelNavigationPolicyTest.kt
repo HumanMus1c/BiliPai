@@ -55,12 +55,35 @@ class AppTopLevelNavigationPolicyTest {
     }
 
     @Test
+    fun liveAndWatchLaterBottomBarTaps_alsoUseReselectScrollToTop() {
+        assertEquals(
+            BottomBarSelectionAction.RESELECT,
+            resolveBottomBarSelectionAction(
+                currentItem = BottomNavItem.LIVE,
+                tappedItem = BottomNavItem.LIVE
+            )
+        )
+        assertTrue(shouldScrollToTopOnBottomBarReselect(BottomNavItem.LIVE))
+        assertTrue(shouldScrollToTopOnBottomBarReselect(BottomNavItem.WATCHLATER))
+        assertTrue(shouldScrollToTopOnBottomBarReselect(BottomNavItem.HOME))
+        assertFalse(shouldScrollToTopOnBottomBarReselect(BottomNavItem.STORY))
+        assertFalse(shouldScrollToTopOnBottomBarReselect(BottomNavItem.SETTINGS))
+    }
+
+    @Test
     fun matchingHistoryBottomBarTap_alsoUsesReselectAction() {
         assertEquals(
             BottomBarSelectionAction.RESELECT,
             resolveBottomBarSelectionAction(
                 currentItem = BottomNavItem.HISTORY,
                 tappedItem = BottomNavItem.HISTORY
+            )
+        )
+        assertEquals(
+            BottomBarSelectionAction.RESELECT,
+            resolveBottomBarSelectionAction(
+                currentItem = BottomNavItem.PROFILE,
+                tappedItem = BottomNavItem.PROFILE
             )
         )
     }

@@ -1,0 +1,67 @@
+package com.android.purebilibili.feature.dynamic.components
+
+import com.android.purebilibili.data.model.response.DynamicAdditional
+import com.android.purebilibili.data.model.response.DynamicAdditionalGoods
+import com.android.purebilibili.data.model.response.DynamicAdditionalGoodsItem
+import com.android.purebilibili.data.model.response.DynamicAdditionalReserve
+import com.android.purebilibili.data.model.response.DynamicAdditionalText
+import com.android.purebilibili.data.model.response.DynamicAdditionalUgc
+import com.android.purebilibili.data.model.response.DynamicAdditionalVote
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+
+class DynamicAdditionalCardPolicyTest {
+
+    @Test
+    fun ugcAdditionalMapsToVideoCard() {
+        val card = resolveDynamicAdditionalCard(
+            DynamicAdditional(
+                type = "ADDITIONAL_TYPE_UGC",
+                ugc = DynamicAdditionalUgc(
+                    title = "投稿标题",
+                    cover = "https://i0.hdslb.com/a.jpg",
+                    desc_second = "1.2万播放",
+                    jump_url = "https://b23.tv/av1"
+                )
+            )
+        )
+        assertEquals("投稿标题", card?.title)
+        assertEquals("投稿", card?.kindLabel)
+        assertEquals("https://b23.tv/av1", card?.jumpUrl)
+    }
+
+    @Test
+    fun voteAndGoodsAdditionalMapToReadableCards() {
+        val vote = resolveDynamicAdditionalCard(
+            DynamicAdditional(
+                type = "ADDITIONAL_TYPE_VOTE",
+                vote = DynamicAdditionalVote(desc = "今晚吃什么", join_num = 12)
+            )
+        )
+        val goods = resolveDynamicAdditionalCard(
+            DynamicAdditional(
+                type = "ADDITIONAL_TYPE_GOODS",
+                goods = DynamicAdditionalGoods(
+                    items = listOf(
+                        DynamicAdditionalGoodsItem(name = "周边", brief = "现货", cover = "c", jump_url = "u")
+                    )
+                )
+            )
+        )
+        val reserve = resolveDynamicAdditionalCard(
+            DynamicAdditional(
+                type = "ADDITIONAL_TYPE_RESERVE",
+                reserve = DynamicAdditionalReserve(
+                    title = "直播预约",
+                    desc1 = DynamicAdditionalText("今晚 8 点")
+                )
+            )
+        )
+        assertEquals("投票", vote?.kindLabel)
+        assertEquals("12 人参与", vote?.subtitle)
+        assertEquals("商品", goods?.kindLabel)
+        assertEquals("预约", reserve?.kindLabel)
+        assertNull(resolveDynamicAdditionalCard(null))
+    }
+}

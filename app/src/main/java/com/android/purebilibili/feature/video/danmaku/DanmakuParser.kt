@@ -3,11 +3,11 @@ package com.android.purebilibili.feature.video.danmaku
 
 import android.util.Log
 import android.util.Xml
-import com.bytedance.danmaku.render.engine.data.DanmakuData
-import com.bytedance.danmaku.render.engine.render.draw.text.TextData
-import com.bytedance.danmaku.render.engine.utils.LAYER_TYPE_SCROLL
-import com.bytedance.danmaku.render.engine.utils.LAYER_TYPE_TOP_CENTER
-import com.bytedance.danmaku.render.engine.utils.LAYER_TYPE_BOTTOM_CENTER
+import com.android.purebilibili.danmaku.engine.DANMAKU_LAYER_BOTTOM
+import com.android.purebilibili.danmaku.engine.DANMAKU_LAYER_REVERSE
+import com.android.purebilibili.danmaku.engine.DANMAKU_LAYER_SCROLL
+import com.android.purebilibili.danmaku.engine.DANMAKU_LAYER_TOP
+import com.android.purebilibili.danmaku.engine.DanmakuItem
 import org.xmlpull.v1.XmlPullParser
 import java.io.ByteArrayInputStream
 
@@ -29,7 +29,7 @@ object DanmakuParser {
      * @return ParsedDanmaku (标准弹幕 + 高级弹幕)
      */
     fun parseProtobuf(segments: List<ByteArray>): ParsedDanmaku {
-        val standardList = mutableListOf<DanmakuData>()
+        val standardList = mutableListOf<DanmakuItem>()
         val advancedList = mutableListOf<AdvancedDanmakuData>()
         
         if (segments.isEmpty()) {
@@ -96,7 +96,7 @@ object DanmakuParser {
     /**
      * 从 Protobuf DanmakuElem 创建 TextData
      */
-    private fun createTextDataFromProto(elem: DanmakuProto.DanmakuElem): TextData? {
+    private fun createTextDataFromProto(elem: DanmakuProto.DanmakuElem): DanmakuItem? {
         if (elem.content.isEmpty()) return null
         
         // Mode 8/9 代码弹幕目前暂不支持
@@ -116,10 +116,12 @@ object DanmakuParser {
             this.showAtTime = elem.progress.toLong()
             this.layerType = layerType
             this.textColor = colorWithAlpha
+            this.textSizeScale = resolveBilibiliDanmakuFontScale(elem.fontsize.toFloat())
             
             // 填充 Bilibili 特有属性
             this.weight = elem.weight
             this.pool = elem.pool
+            this.attr = elem.attr
             this.likeCount = elem.like
             this.isVipGradualColor = elem.colorful == DanmakuProto.DmColorfulTypeVipGradualColor
             this.duplicateCount = elem.count
@@ -136,7 +138,7 @@ object DanmakuParser {
      * @return ParsedDanmaku (标准弹幕 + 高级弹幕)
      */
     fun parse(rawData: ByteArray): ParsedDanmaku {
-        val standardList = mutableListOf<DanmakuData>()
+        val standardList = mutableListOf<DanmakuItem>()
         val advancedList = mutableListOf<AdvancedDanmakuData>()
         
         try {
@@ -396,7 +398,7 @@ object DanmakuParser {
     /**
      * 从属性字符串创建 TextData
      */
-    private fun createTextData(pAttr: String, content: String): TextData? {
+    private fun createTextData(pAttr: String, content: String): DanmakuItem? {
         try {
             val parts = pAttr.split(",")
             if (parts.size < 4) return null
@@ -424,7 +426,7 @@ object DanmakuParser {
                 this.showAtTime = timeMs
                 this.layerType = layerType
                 this.textColor = (colorInt.toInt() or 0xFF000000.toInt())
-                this.textSize = fontSize
+                this.textSizeScale = resolveBilibiliDanmakuFontScale(fontSize)
             }
         } catch (e: Exception) {
             return null
@@ -435,9 +437,10 @@ object DanmakuParser {
      * 映射 Bilibili 弹幕类型到 DanmakuRenderEngine LayerType
      */
     private fun mapLayerType(biliType: Int): Int = when (biliType) {
-        1, 2, 3, 6 -> LAYER_TYPE_SCROLL    // 滚动弹幕
-        4 -> LAYER_TYPE_BOTTOM_CENTER      // 底部固定
-        5 -> LAYER_TYPE_TOP_CENTER         // 顶部固定
-        else -> LAYER_TYPE_SCROLL
+        1, 2, 3 -> DANMAKU_LAYER_SCROLL
+        4 -> DANMAKU_LAYER_BOTTOM
+        5 -> DANMAKU_LAYER_TOP
+        6 -> DANMAKU_LAYER_REVERSE
+        else -> DANMAKU_LAYER_SCROLL
     }
 }

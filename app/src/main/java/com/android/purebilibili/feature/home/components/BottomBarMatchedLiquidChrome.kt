@@ -120,8 +120,8 @@ internal fun rememberBottomBarMatchedLiquidChromeState(
     orientation: BottomBarLiquidOrientation = BottomBarLiquidOrientation.HORIZONTAL,
     isScrollInProgressProvider: () -> Boolean = { false },
     notifyIndexChangedOnReleaseStart: Boolean = false,
-    pressedScale: Float = 78f / 56f,
-    trackingMode: DampedDragTrackingMode = DampedDragTrackingMode.PROJECTED_SNAP,
+    pressedScale: Float = FloatingBottomBarPressedScale,
+    trackingMode: DampedDragTrackingMode = DampedDragTrackingMode.BILIPAI_SPRING,
 ): BottomBarMatchedLiquidChromeState {
     val motionSpec = remember { resolveSegmentedControlMotionSpec() }
     val dragState = rememberDampedDragAnimationState(
@@ -226,7 +226,7 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
         label = "bottomBarMatchedMaterialScrollProgress"
     )
     val materialScrollProgress = materialScrollProgressOverride ?: animatedScrollProgress
-    // Miuix-only: no Kyant fallback. Null backdrop degrades inside biliPaiMiuixFloatingDockSurface.
+    // Miuix-only: no legacy fallback. Null backdrop degrades inside biliPaiMiuixFloatingDockSurface.
     biliPaiMiuixFloatingDockSurface(
         shape = shape,
         backdrop = backdrop,
@@ -382,12 +382,14 @@ internal fun BoxScope.BottomBarMatchedLiquidIndicator(
     isDragging: Boolean,
     indicatorLayerScaleProgress: Float,
     indicatorLayerScaleTransform: BottomBarIndicatorLayerTransform? = null,
+    dragScaleTarget: Float = BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET,
     bottomBarMotionSpec: BottomBarMotionSpec,
     isDarkTheme: Boolean,
     indicatorSettleReboundTransform: BottomBarClickPulseTransform =
         BottomBarClickPulseTransform(scaleX = 1f),
     orientation: BottomBarLiquidOrientation = BottomBarLiquidOrientation.HORIZONTAL,
-    indicatorAlignment: Alignment = Alignment.CenterStart
+    indicatorAlignment: Alignment = Alignment.CenterStart,
+    interactionModifier: Modifier = Modifier
 ) {
     // Miuix-only indicator path. Null backdrop degrades to solid surface inside the layer.
     BiliPaiMiuixBottomBarIndicatorLayer(
@@ -413,10 +415,12 @@ internal fun BoxScope.BottomBarMatchedLiquidIndicator(
         isDragging = isDragging,
         indicatorLayerScaleProgress = indicatorLayerScaleProgress,
         indicatorLayerScaleTransform = indicatorLayerScaleTransform,
+        dragScaleTarget = dragScaleTarget,
         bottomBarMotionSpec = bottomBarMotionSpec,
         isDarkTheme = isDarkTheme,
         swapMotionAxes = orientation == BottomBarLiquidOrientation.VERTICAL,
-        indicatorAlignment = indicatorAlignment
+        indicatorAlignment = indicatorAlignment,
+        interactionModifier = interactionModifier
     )
 }
 
@@ -427,6 +431,7 @@ internal fun BottomBarMatchedDockVisibility(
     modifier: Modifier = Modifier,
     enterFadeDurationMillis: Int = 255,
     exitFadeDurationMillis: Int = 160,
+    animateScale: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val direction = if (edge == BottomBarMatchedDockEdge.BOTTOM) 1 else -1
@@ -435,27 +440,35 @@ internal fun BottomBarMatchedDockVisibility(
     } else {
         TransformOrigin(0.5f, 0f)
     }
+    val enterTransition = slideInVertically(
+        animationSpec = softLandingSpring(),
+        initialOffsetY = { height -> direction * height }
+    ) + fadeIn(animationSpec = emphasizedEnterTween(enterFadeDurationMillis))
+    val exitTransition = slideOutVertically(
+        animationSpec = emphasizedExitTween(exitFadeDurationMillis),
+        targetOffsetY = { height -> direction * height }
+    ) + fadeOut(animationSpec = emphasizedExitTween(exitFadeDurationMillis))
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = slideInVertically(
-            animationSpec = softLandingSpring(),
-            initialOffsetY = { height -> direction * height }
-        ) + fadeIn(animationSpec = emphasizedEnterTween(enterFadeDurationMillis)) +
-            scaleIn(
+        enter = if (animateScale) {
+            enterTransition + scaleIn(
                 animationSpec = softLandingSpring(),
                 initialScale = 0.96f,
                 transformOrigin = transformOrigin
-            ),
-        exit = slideOutVertically(
-            animationSpec = emphasizedExitTween(exitFadeDurationMillis),
-            targetOffsetY = { height -> direction * height }
-        ) + fadeOut(animationSpec = emphasizedExitTween(exitFadeDurationMillis)) +
-            scaleOut(
+            )
+        } else {
+            enterTransition
+        },
+        exit = if (animateScale) {
+            exitTransition + scaleOut(
                 animationSpec = emphasizedExitTween(exitFadeDurationMillis),
                 targetScale = 0.92f,
                 transformOrigin = transformOrigin
-            ),
+            )
+        } else {
+            exitTransition
+        },
         content = { content() }
     )
 }
@@ -467,6 +480,7 @@ internal fun BottomBarMatchedDockVisibility(
     modifier: Modifier = Modifier,
     enterFadeDurationMillis: Int = 255,
     exitFadeDurationMillis: Int = 160,
+    animateScale: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val direction = if (edge == BottomBarMatchedDockEdge.BOTTOM) 1 else -1
@@ -475,27 +489,35 @@ internal fun BottomBarMatchedDockVisibility(
     } else {
         TransformOrigin(0.5f, 0f)
     }
+    val enterTransition = slideInVertically(
+        animationSpec = softLandingSpring(),
+        initialOffsetY = { height -> direction * height }
+    ) + fadeIn(animationSpec = emphasizedEnterTween(enterFadeDurationMillis))
+    val exitTransition = slideOutVertically(
+        animationSpec = emphasizedExitTween(exitFadeDurationMillis),
+        targetOffsetY = { height -> direction * height }
+    ) + fadeOut(animationSpec = emphasizedExitTween(exitFadeDurationMillis))
     AnimatedVisibility(
         visibleState = visibleState,
         modifier = modifier,
-        enter = slideInVertically(
-            animationSpec = softLandingSpring(),
-            initialOffsetY = { height -> direction * height }
-        ) + fadeIn(animationSpec = emphasizedEnterTween(enterFadeDurationMillis)) +
-            scaleIn(
+        enter = if (animateScale) {
+            enterTransition + scaleIn(
                 animationSpec = softLandingSpring(),
                 initialScale = 0.96f,
                 transformOrigin = transformOrigin
-            ),
-        exit = slideOutVertically(
-            animationSpec = emphasizedExitTween(exitFadeDurationMillis),
-            targetOffsetY = { height -> direction * height }
-        ) + fadeOut(animationSpec = emphasizedExitTween(exitFadeDurationMillis)) +
-            scaleOut(
+            )
+        } else {
+            enterTransition
+        },
+        exit = if (animateScale) {
+            exitTransition + scaleOut(
                 animationSpec = emphasizedExitTween(exitFadeDurationMillis),
                 targetScale = 0.92f,
                 transformOrigin = transformOrigin
-            ),
+            )
+        } else {
+            exitTransition
+        },
         content = { content() }
     )
 }

@@ -3,11 +3,10 @@ package com.android.purebilibili.feature.partition
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
+import android.os.Build
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
-import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,7 +21,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.alpha
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Animation
 import androidx.compose.material.icons.filled.Checkroom
@@ -68,13 +66,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.util.fastCoerceIn
+import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -96,7 +100,6 @@ import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.skeleton.ContentMediaListSkeleton
 import com.android.purebilibili.core.util.resolveReplaceRefreshPage
-import com.android.purebilibili.core.ui.animation.DampedDragAnimationState
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.util.responsiveContentWidth
@@ -118,9 +121,14 @@ import com.android.purebilibili.feature.home.resolveHomeFeedCardLayout
 import com.android.purebilibili.feature.home.components.BottomBarIndicatorLayerTransform
 import com.android.purebilibili.feature.home.components.BottomBarLiquidOrientation
 import com.android.purebilibili.feature.home.components.BottomBarMatchedLiquidIndicator
+import com.android.purebilibili.feature.home.components.FloatingBottomBarPressedScale
 import com.android.purebilibili.feature.home.components.bottomBarMatchedCaptureOverflow
-import com.android.purebilibili.feature.home.components.rememberBottomBarMatchedLiquidChromeState
+import com.android.purebilibili.feature.home.components.miuix.DampedDragAnimation
+import com.android.purebilibili.feature.home.components.miuix.InteractiveHighlight
+import com.android.purebilibili.feature.home.components.liquid.rememberCombinedBackdrop
+import com.android.purebilibili.feature.home.components.resolveAndroidNativeExportTintColor
 import com.android.purebilibili.feature.home.components.resolveAndroidNativeIdleIndicatorSurfaceColor
+import com.android.purebilibili.feature.home.components.resolveSharedLiquidExportMonochromeColor
 import com.android.purebilibili.feature.home.components.resolveBottomBarBackdropPresetIndicatorLens
 import com.android.purebilibili.feature.home.components.resolveBottomBarCaptureSafeInsetDp
 import com.android.purebilibili.feature.home.components.resolveBottomBarBackdropPresetProgress
@@ -132,6 +140,8 @@ import com.android.purebilibili.feature.home.components.rememberBottomBarIndicat
 import com.android.purebilibili.feature.home.components.normalizeTopTabLabelMode
 import com.android.purebilibili.feature.home.components.resolveSegmentedControlMotionProgress
 import com.android.purebilibili.feature.home.components.resolveSegmentedControlMotionSpec
+import com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorGeometry
+import com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorHeightDp
 import com.android.purebilibili.feature.home.components.shouldShowTopTabIcon
 import com.android.purebilibili.feature.home.components.shouldShowTopTabText
 import top.yukonga.miuix.kmp.blur.layerBackdrop
@@ -141,6 +151,8 @@ import dev.chrisbanes.haze.hazeSource
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -192,6 +204,8 @@ private val partitionTabs = listOf(
 ) + allPartitions
 
 private val PartitionSideRailItemHeight = 48.dp
+private val PartitionSideRailIndicatorHeight =
+    resolveMatchedLiquidIndicatorHeightDp(PartitionSideRailItemHeight.value).dp
 private val PartitionSideRailItemSpacing = 4.dp
 private val PartitionVideoListMaxPush = 20.dp
 
@@ -450,6 +464,7 @@ fun PartitionContent(
     hazeState: HazeState? = null,
     onVideoClick: (VideoItem) -> Unit = {},
     onBangumiClick: (Int) -> Unit = {},
+    scrollToTopRequestId: Int = 0,
     viewModel: PartitionFeedViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -461,6 +476,12 @@ fun PartitionContent(
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    LaunchedEffect(scrollToTopRequestId) {
+        if (scrollToTopRequestId <= 0) return@LaunchedEffect
+        if (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0) {
+            listState.animateScrollToItem(0)
+        }
+    }
     val layoutDirection = LocalLayoutDirection.current
     val startPadding = contentPadding.calculateStartPadding(layoutDirection)
     val endPadding = contentPadding.calculateEndPadding(layoutDirection)
@@ -573,28 +594,122 @@ private fun PartitionSideRail(
     val listState = rememberLazyListState()
     val selectedIndex = partitions.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
     val density = LocalDensity.current
+    val animationScope = rememberCoroutineScope()
     val motionSpec = remember { resolveSegmentedControlMotionSpec() }
     val resolvedLabelMode = resolvePartitionSideRailLabelMode(labelMode)
     val showIcon = shouldShowPartitionSideRailIcon(resolvedLabelMode)
     val showText = shouldShowPartitionSideRailText(resolvedLabelMode)
-    val matchedChromeState = rememberBottomBarMatchedLiquidChromeState(
-        initialIndex = selectedIndex,
-        itemCount = partitions.size,
-        orientation = BottomBarLiquidOrientation.VERTICAL,
-        isScrollInProgressProvider = { listState.isScrollInProgress },
-        onIndexChanged = { index ->
-            partitions.getOrNull(index)?.let(onPartitionSelected)
-        }
-    )
-    val dragState = matchedChromeState.dragState
-    LaunchedEffect(selectedIndex) {
-        dragState.updateIndex(selectedIndex)
+    val indicatorGeometry = remember {
+        resolveMatchedLiquidIndicatorGeometry(
+            dockHeightDp = PartitionSideRailItemHeight.value,
+            indicatorHeightDp = PartitionSideRailIndicatorHeight.value,
+        )
     }
+    val itemCount = partitions.size.coerceAtLeast(1)
+    val maxTabIndex = (itemCount - 1).coerceAtLeast(0)
+    val onSelectedLatest by rememberUpdatedState(onPartitionSelected)
+    val partitionsLatest by rememberUpdatedState(partitions)
+    var currentIndex by remember { mutableIntStateOf(selectedIndex) }
+    val offsetAnimation = remember { Animatable(0f) }
+    val holder = remember { PartitionSideRailDragHolder() }
+
+    val dampedDragAnimation = remember(animationScope, itemCount, density) {
+        DampedDragAnimation(
+            animationScope = animationScope,
+            initialValue = selectedIndex.toFloat(),
+            valueRange = 0f..maxTabIndex.toFloat(),
+            visibilityThreshold = 0.001f,
+            initialScale = 1f,
+            pressedScale = FloatingBottomBarPressedScale,
+            canDrag = { offset ->
+                val animation = holder.instance ?: return@DampedDragAnimation true
+                if (holder.itemSlotHeightPx <= 0f) return@DampedDragAnimation false
+                val indicatorY = resolvePartitionSideRailIndicatorOffsetPx(
+                    indicatorPosition = animation.value,
+                    firstVisibleItemIndex = holder.firstVisibleItemIndex,
+                    firstVisibleItemScrollOffsetPx = holder.firstVisibleItemScrollOffsetPx,
+                    contentTopPaddingPx = holder.contentTopPaddingPx,
+                    itemSlotHeightPx = holder.itemSlotHeightPx,
+                )
+                val globalTouchY = indicatorY + offset.y
+                globalTouchY in 0f..holder.totalHeightPx
+            },
+            onDragStarted = {},
+            onDragStopped = {
+                val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, maxTabIndex)
+                currentIndex = targetIndex
+                animateToValue(targetIndex.toFloat())
+                animationScope.launch {
+                    offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
+                }
+            },
+            onDrag = { _, dragAmount ->
+                if (holder.itemSlotHeightPx > 0f) {
+                    updateValue(
+                        (targetValue + dragAmount.y / holder.itemSlotHeightPx)
+                            .fastCoerceIn(0f, maxTabIndex.toFloat())
+                    )
+                    animationScope.launch {
+                        offsetAnimation.snapTo(offsetAnimation.value + dragAmount.y)
+                    }
+                }
+            },
+        ).also { holder.instance = it }
+    }
+
+    LaunchedEffect(selectedIndex) {
+        currentIndex = selectedIndex
+    }
+    LaunchedEffect(dampedDragAnimation) {
+        snapshotFlow { currentIndex }
+            .drop(1)
+            .collectLatest { index ->
+                dampedDragAnimation.animateToValue(index.toFloat())
+                partitionsLatest.getOrNull(index)?.let(onSelectedLatest)
+            }
+    }
+
+    val interactiveHighlight =
+        if (liquidGlassIndicatorEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            remember(animationScope) {
+                InteractiveHighlight(
+                    animationScope = animationScope,
+                    position = { size, _ ->
+                        val animation = holder.instance
+                        val itemSlotHeightPx = holder.itemSlotHeightPx
+                        val itemHeightPx = holder.itemHeightPx
+                        if (animation == null || itemSlotHeightPx <= 0f) {
+                            Offset(size.width / 2f, size.height / 2f)
+                        } else {
+                            resolvePartitionSideRailInteractiveHighlightPosition(
+                                railWidthPx = size.width,
+                                indicatorOffsetPx = resolvePartitionSideRailIndicatorOffsetPx(
+                                    indicatorPosition = animation.value,
+                                    firstVisibleItemIndex = holder.firstVisibleItemIndex,
+                                    firstVisibleItemScrollOffsetPx = holder.firstVisibleItemScrollOffsetPx,
+                                    contentTopPaddingPx = holder.contentTopPaddingPx,
+                                    itemSlotHeightPx = itemSlotHeightPx,
+                                ),
+                                itemHeightPx = itemHeightPx,
+                            )
+                        }
+                    },
+                )
+            }
+        } else {
+            null
+        }
 
     BoxWithConstraints(modifier = modifier.fillMaxHeight()) {
         val itemHeightPx = with(density) { PartitionSideRailItemHeight.toPx() }
         val itemSlotHeightPx = with(density) { (PartitionSideRailItemHeight + PartitionSideRailItemSpacing).toPx() }
         val contentTopPaddingPx = with(density) { contentPadding.calculateTopPadding().toPx() }
+        holder.itemSlotHeightPx = itemSlotHeightPx
+        holder.itemHeightPx = itemHeightPx
+        holder.totalHeightPx = with(density) { maxHeight.toPx() }
+        holder.contentTopPaddingPx = contentTopPaddingPx
+        holder.firstVisibleItemIndex = listState.firstVisibleItemIndex
+        holder.firstVisibleItemScrollOffsetPx = listState.firstVisibleItemScrollOffset
         val indicatorHorizontalPadding = resolvePartitionSideRailIndicatorHorizontalPadding(
             contentPadding = contentPadding,
             layoutDirection = LocalLayoutDirection.current
@@ -602,7 +717,7 @@ private fun PartitionSideRail(
         val maxVideoPushPx = with(density) { PartitionVideoListMaxPush.toPx() }
         val currentIndicatorOffsetPxProvider = {
             resolvePartitionSideRailIndicatorOffsetPx(
-                indicatorPosition = dragState.value,
+                indicatorPosition = dampedDragAnimation.value,
                 firstVisibleItemIndex = listState.firstVisibleItemIndex,
                 firstVisibleItemScrollOffsetPx = listState.firstVisibleItemScrollOffset,
                 contentTopPaddingPx = contentTopPaddingPx,
@@ -616,13 +731,25 @@ private fun PartitionSideRail(
             indicatorWidthDp = indicatorWidth.value,
             refractionHeightDp = fullIndicatorLensSpec.refractionHeightDp,
             refractionAmountDp = fullIndicatorLensSpec.refractionAmountDp,
-            panelOffsetDp = 0f
+            panelOffsetDp = 0f,
+            dragScaleTarget = indicatorGeometry.pressedScale,
         ).dp
         val railPageBackdrop = rememberLayerBackdrop()
+        val railContentBackdrop = rememberLayerBackdrop()
+        val combinedBackdrop = rememberCombinedBackdrop(railPageBackdrop, railContentBackdrop)
+        val isDarkTheme = isSystemInDarkTheme()
+        val exportTintColor = resolveAndroidNativeExportTintColor(
+            themeColor = MaterialTheme.colorScheme.primary,
+            darkTheme = isDarkTheme,
+        )
+        val exportMonochromeColor = resolveSharedLiquidExportMonochromeColor(darkTheme = isDarkTheme)
+        val railListScrollOffsetPxProvider = {
+            listState.firstVisibleItemIndex * itemSlotHeightPx +
+                listState.firstVisibleItemScrollOffset.toFloat()
+        }
 
-        // The vertical indicator renders above the visible labels, so it only needs a stable page
-        // sample. Sampling the scrolling LazyColumn becomes invalid while the long-press layer is
-        // translated and scaled. The overflow keeps the 88/56 drag scale and lens inside capture.
+        // Sibling page sample plus a hidden export column, same topology as the home dock.
+        // The overflow keeps the 88/56 drag scale and lens inside capture.
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -632,31 +759,52 @@ private fun PartitionSideRail(
                 .background(AppSurfaceTokens.background())
         )
 
-        PartitionSideRailMovingIndicator(
-            dragState = dragState,
-            itemSlotHeightPx = itemSlotHeightPx,
-            indicatorOffsetPxProvider = currentIndicatorOffsetPxProvider,
-            indicatorWidth = indicatorWidth,
-            liquidGlassIndicatorEnabled = liquidGlassIndicatorEnabled,
-            liquidGlassPreset = liquidGlassPreset,
-            backdrop = railPageBackdrop,
-            maxVideoPushPx = maxVideoPushPx,
-            horizontalPadding = indicatorHorizontalPadding,
-            onVideoListPushChanged = onVideoListPushChanged,
-            modifier = Modifier.matchParentSize()
-        )
+        if (liquidGlassIndicatorEnabled) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clearAndSetSemantics {}
+                    .alpha(0f)
+                    .zIndex(0f)
+                    .layerBackdrop(railContentBackdrop)
+                    .graphicsLayer {
+                        translationY = contentTopPaddingPx - railListScrollOffsetPxProvider()
+                    }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = indicatorHorizontalPadding.start,
+                            end = indicatorHorizontalPadding.end,
+                        ),
+                    verticalArrangement = Arrangement.spacedBy(PartitionSideRailItemSpacing),
+                ) {
+                    partitions.forEach { partition ->
+                        PartitionSideRailItem(
+                            partition = partition,
+                            selected = true,
+                            selectionProgress = 1f,
+                            showIcon = showIcon,
+                            showText = showText,
+                            iconFamily = iconFamily,
+                            onClick = {},
+                            interactive = false,
+                            contentColorOverride = exportMonochromeColor,
+                            modifier = Modifier.graphicsLayer(
+                                colorFilter = ColorFilter.tint(exportTintColor)
+                            ),
+                        )
+                    }
+                }
+            }
+        }
 
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .partitionSideRailIndicatorLongPressDrag(
-                    dragState = dragState,
-                    itemHeightPx = itemHeightPx,
-                    itemSlotHeightPx = itemSlotHeightPx,
-                    currentIndicatorTopPx = currentIndicatorOffsetPxProvider,
-                    itemCount = partitions.size
-                ),
+                .zIndex(if (liquidGlassIndicatorEnabled) 0f else 2f),
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(PartitionSideRailItemSpacing)
         ) {
@@ -669,42 +817,80 @@ private fun PartitionSideRail(
                     selected = partition.id == selectedId,
                     selectionProgress = resolvePartitionSideRailItemSelectionProgress(
                         itemIndex = index,
-                        indicatorPosition = dragState.value
+                        indicatorPosition = dampedDragAnimation.value
                     ),
                     showIcon = showIcon,
                     showText = showText,
                     iconFamily = iconFamily,
+                    forceUnselectedColor = liquidGlassIndicatorEnabled,
                     onClick = { onPartitionSelected(partition) }
                 )
             }
         }
+
+        PartitionSideRailMovingIndicator(
+            dragAnimation = dampedDragAnimation,
+            dragOffsetPx = offsetAnimation.value,
+            itemSlotHeightPx = itemSlotHeightPx,
+            itemHeightPx = itemHeightPx,
+            indicatorHeight = PartitionSideRailIndicatorHeight,
+            dragScaleTarget = FloatingBottomBarPressedScale,
+            indicatorOffsetPxProvider = currentIndicatorOffsetPxProvider,
+            indicatorWidth = indicatorWidth,
+            liquidGlassIndicatorEnabled = liquidGlassIndicatorEnabled,
+            liquidGlassPreset = liquidGlassPreset,
+            contentBackdrop = combinedBackdrop,
+            backdrop = railPageBackdrop,
+            maxVideoPushPx = maxVideoPushPx,
+            horizontalPadding = indicatorHorizontalPadding,
+            onVideoListPushChanged = onVideoListPushChanged,
+            interactionModifier = Modifier
+                .then(interactiveHighlight?.gestureModifier ?: Modifier)
+                .then(dampedDragAnimation.modifier)
+                .clickable(
+                    interactionSource = null,
+                    indication = null,
+                    role = Role.Tab,
+                    onClick = {
+                        partitions.getOrNull(selectedIndex)?.let(onPartitionSelected)
+                    },
+                )
+                .clearAndSetSemantics {},
+            highlightModifier = interactiveHighlight?.modifier ?: Modifier,
+            modifier = Modifier.matchParentSize()
+        )
     }
 }
 
 @Composable
 private fun PartitionSideRailMovingIndicator(
-    dragState: DampedDragAnimationState,
+    dragAnimation: DampedDragAnimation,
+    dragOffsetPx: Float,
     itemSlotHeightPx: Float,
+    itemHeightPx: Float,
+    indicatorHeight: androidx.compose.ui.unit.Dp,
+    dragScaleTarget: Float,
     indicatorOffsetPxProvider: () -> Float,
     indicatorWidth: androidx.compose.ui.unit.Dp,
     liquidGlassIndicatorEnabled: Boolean,
     liquidGlassPreset: BottomBarLiquidGlassPreset,
+    contentBackdrop: top.yukonga.miuix.kmp.blur.Backdrop,
     backdrop: top.yukonga.miuix.kmp.blur.Backdrop,
     maxVideoPushPx: Float,
     horizontalPadding: PartitionSideRailIndicatorHorizontalPadding,
     onVideoListPushChanged: (Float) -> Unit,
+    interactionModifier: Modifier = Modifier,
+    highlightModifier: Modifier = Modifier,
     modifier: Modifier = Modifier
 ) {
     val shape = resolveSharedBottomBarCapsuleShape()
     val isDarkTheme = isSystemInDarkTheme()
     val motionSpec = remember { resolveSegmentedControlMotionSpec() }
-    val pressProgress by remember {
-        derivedStateOf { dragState.pressProgress }
-    }
+    val pressProgress = dragAnimation.pressProgress
     val refractionMotionProfile = resolveBottomBarRefractionMotionProfile(
-        position = dragState.value,
-        velocity = dragState.velocityPxPerSecond,
-        isDragging = dragState.isDragging,
+        position = dragAnimation.value,
+        velocity = dragAnimation.velocity,
+        isDragging = dragAnimation.isDragging,
         motionSpec = motionSpec
     )
     val motionProgress = resolveSegmentedControlMotionProgress(
@@ -714,7 +900,7 @@ private fun PartitionSideRailMovingIndicator(
     )
     val videoListPushPx = resolvePartitionVideoListPushPx(
         pressProgress = pressProgress,
-        dragOffsetPx = dragState.dragOffset,
+        dragOffsetPx = dragOffsetPx,
         itemSlotHeightPx = itemSlotHeightPx,
         maxPushPx = maxVideoPushPx
     )
@@ -722,40 +908,44 @@ private fun PartitionSideRailMovingIndicator(
         onVideoListPushChanged(videoListPushPx)
     }
     val indicatorDragScaleProgress = rememberBottomBarIndicatorDragScaleProgress(
-        isDragging = dragState.isDragging
+        isDragging = dragAnimation.isDragging
     )
     val indicatorLayerScaleProgress = maxOf(indicatorDragScaleProgress, pressProgress)
-    // Align with home bottom bar indicator: press-driven lens + no compound scale transform.
     val indicatorLensSpec = resolveBottomBarBackdropPresetIndicatorLens(
         progress = pressProgress
     )
 
-    Box(modifier = modifier) {
+    Box(modifier = modifier.then(highlightModifier)) {
         val density = LocalDensity.current
+        val indicatorHeightPx = with(density) { indicatorHeight.toPx() }
+        val centeredIndicatorOffsetPx = indicatorOffsetPxProvider() +
+            ((itemHeightPx - indicatorHeightPx) / 2f).coerceAtLeast(0f)
         BottomBarMatchedLiquidIndicator(
             visible = true,
             dockContentAlpha = 1f,
             indicatorTranslationXPx = with(density) { horizontalPadding.start.toPx() },
-            indicatorTranslationYPx = indicatorOffsetPxProvider(),
+            indicatorTranslationYPx = centeredIndicatorOffsetPx,
             indicatorPanelOffsetPx = 0f,
             indicatorWidth = indicatorWidth,
-            indicatorHeight = PartitionSideRailItemHeight,
+            indicatorHeight = indicatorHeight,
             shellShape = shape,
             liquidGlassPreset = liquidGlassPreset,
-            contentBackdrop = backdrop,
+            contentBackdrop = contentBackdrop,
             backdrop = backdrop,
             indicatorLensSpec = indicatorLensSpec,
             effectivePressProgress = pressProgress,
             indicatorIdleSurfaceColor = resolveAndroidNativeIdleIndicatorSurfaceColor(darkTheme = isDarkTheme),
             glassEnabled = liquidGlassIndicatorEnabled,
             motionProgress = motionProgress,
-            velocityItemsPerSecond = dragState.deformationVelocityItemsPerSecond,
-            isDragging = dragState.isDragging,
+            velocityItemsPerSecond = dragAnimation.velocity,
+            isDragging = dragAnimation.isDragging,
             indicatorLayerScaleProgress = indicatorLayerScaleProgress,
+            dragScaleTarget = dragScaleTarget,
             bottomBarMotionSpec = motionSpec,
             isDarkTheme = isDarkTheme,
             orientation = BottomBarLiquidOrientation.VERTICAL,
-            indicatorAlignment = Alignment.TopStart
+            indicatorAlignment = Alignment.TopStart,
+            interactionModifier = interactionModifier,
         )
     }
 }
@@ -768,7 +958,11 @@ private fun PartitionSideRailItem(
     showIcon: Boolean,
     showText: Boolean,
     iconFamily: AppSemanticIconFamily,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    interactive: Boolean = true,
+    forceUnselectedColor: Boolean = false,
+    contentColorOverride: Color? = null,
+    modifier: Modifier = Modifier,
 ) {
     val selectedColor = MaterialTheme.colorScheme.primary
     val unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -776,14 +970,20 @@ private fun PartitionSideRailItem(
     val pressed by interactionSource.collectIsPressedAsState()
     val clampedSelectionProgress = selectionProgress.coerceIn(0f, 1f)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(PartitionSideRailItemHeight)
             .clip(resolveSharedBottomBarCapsuleShape())
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
+            .then(
+                if (interactive) {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick
+                    )
+                } else {
+                    Modifier
+                }
             )
     ) {
         Column(
@@ -793,7 +993,8 @@ private fun PartitionSideRailItem(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            val contentColor = when {
+            val contentColor = contentColorOverride ?: when {
+                forceUnselectedColor -> unselectedColor
                 clampedSelectionProgress > 0f -> lerp(
                     unselectedColor,
                     selectedColor,
@@ -847,6 +1048,15 @@ internal fun shouldStartPartitionSideRailIndicatorDrag(
     return pointerY in indicatorTopPx..(indicatorTopPx + indicatorHeightPx)
 }
 
+internal fun resolvePartitionSideRailInteractiveHighlightPosition(
+    railWidthPx: Float,
+    indicatorOffsetPx: Float,
+    itemHeightPx: Float,
+): Offset = Offset(
+    x = railWidthPx / 2f,
+    y = indicatorOffsetPx + itemHeightPx / 2f,
+)
+
 internal fun resolvePartitionSideRailIndicatorOffsetPx(
     indicatorPosition: Float,
     firstVisibleItemIndex: Int,
@@ -883,53 +1093,14 @@ internal fun resolvePartitionVideoListPushPx(
     return maxPushPx * EaseOut.transform(progress)
 }
 
-private fun Modifier.partitionSideRailIndicatorLongPressDrag(
-    dragState: DampedDragAnimationState,
-    itemHeightPx: Float,
-    itemSlotHeightPx: Float,
-    currentIndicatorTopPx: () -> Float,
-    itemCount: Int
-): Modifier = pointerInput(dragState, itemHeightPx, itemSlotHeightPx, itemCount) {
-    val velocityTracker = VelocityTracker()
-    awaitPointerEventScope {
-        while (true) {
-            val down = awaitFirstDown(requireUnconsumed = false)
-            if (!shouldStartPartitionSideRailIndicatorDrag(
-                    pointerY = down.position.y,
-                    indicatorTopPx = currentIndicatorTopPx(),
-                    indicatorHeightPx = itemHeightPx
-                )
-            ) {
-                continue
-            }
-
-            val longPress = awaitLongPressOrCancellation(down.id) ?: continue
-            longPress.consume()
-            velocityTracker.resetTracking()
-            velocityTracker.addPosition(longPress.uptimeMillis, longPress.position)
-            dragState.onDrag(0f, itemSlotHeightPx)
-
-            var isCancelled = false
-            try {
-                verticalDrag(longPress.id) { change ->
-                    change.consume()
-                    velocityTracker.addPosition(change.uptimeMillis, change.position)
-                    val dragAmount = change.position.y - change.previousPosition.y
-                    val velocityY = velocityTracker.calculateVelocity().y
-                    dragState.onDrag(dragAmount, itemSlotHeightPx, velocityY)
-                }
-            } catch (e: Exception) {
-                isCancelled = true
-            }
-
-            val velocityY = if (isCancelled) 0f else velocityTracker.calculateVelocity().y
-            dragState.onDragEnd(
-                velocityX = velocityY,
-                itemWidthPx = itemSlotHeightPx,
-                notifyIndexChanged = true
-            )
-        }
-    }
+private class PartitionSideRailDragHolder {
+    var instance: DampedDragAnimation? = null
+    var itemSlotHeightPx: Float = 0f
+    var itemHeightPx: Float = 0f
+    var totalHeightPx: Float = 0f
+    var contentTopPaddingPx: Float = 0f
+    var firstVisibleItemIndex: Int = 0
+    var firstVisibleItemScrollOffsetPx: Int = 0
 }
 
 @Composable
@@ -943,7 +1114,7 @@ private fun PartitionVideoList(
     val context = LocalContext.current
     val homeFeedCardStyle by SettingsManager
         .getHomeFeedCardStyle(context)
-        .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.CURRENT)
+        .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.BILIPAI)
     val cardLayout = remember(homeFeedCardStyle) {
         resolveHomeFeedCardLayout(homeFeedCardStyle)
     }
@@ -991,6 +1162,7 @@ private fun PartitionVideoList(
                         sourceRoute = sharedElementSourceRoute,
                         coverAspectRatio = cardLayout.coverAspectRatio,
                         transitionEnabled = sharedTransitionEnabled,
+                        showUpBadge = false,
                         modifier = Modifier.fillMaxWidth(),
                         onClick = { onVideoClick(video) },
                     )

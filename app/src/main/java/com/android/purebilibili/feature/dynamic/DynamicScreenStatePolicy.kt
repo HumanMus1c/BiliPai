@@ -118,11 +118,50 @@ internal fun shouldCollapseDynamicTopBar(
     )
 }
 
+internal const val DYNAMIC_UP_PANEL_ALL_UID = -1L
+
+internal fun resolveDynamicUpPanelUsers(
+    users: List<SidebarUser>,
+    selfUid: Long,
+    selfFace: String = ""
+): List<SidebarUser> {
+    val selfItem = selfUid.takeIf { it > 0L }?.let { uid ->
+        SidebarUser(
+            uid = uid,
+            name = "我",
+            face = selfFace
+        )
+    }
+    val rest = users.filterNot { user ->
+        user.uid == DYNAMIC_UP_PANEL_ALL_UID || (selfUid > 0L && user.uid == selfUid)
+    }
+    return listOfNotNull(selfItem) + rest
+}
+
+internal fun isDynamicUpPanelAllShortcut(uid: Long?): Boolean {
+    return uid == DYNAMIC_UP_PANEL_ALL_UID
+}
+
+internal fun isDynamicUpPanelShortcut(uid: Long, selfUid: Long): Boolean {
+    return uid == DYNAMIC_UP_PANEL_ALL_UID || (selfUid > 0L && uid == selfUid)
+}
+
+internal fun isDynamicUpPanelItemSelected(
+    selectedUserId: Long?,
+    itemUid: Long
+): Boolean {
+    return if (itemUid == DYNAMIC_UP_PANEL_ALL_UID) {
+        selectedUserId == null
+    } else {
+        selectedUserId == itemUid
+    }
+}
+
 internal fun resolveDynamicSelectedUserIdAfterClick(
     selectedUserId: Long?,
     clickedUserId: Long?
 ): Long? {
-    if (clickedUserId == null) return null
+    if (clickedUserId == null || isDynamicUpPanelAllShortcut(clickedUserId)) return null
     return if (selectedUserId == clickedUserId) null else clickedUserId
 }
 

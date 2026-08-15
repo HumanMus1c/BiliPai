@@ -1,5 +1,7 @@
 package com.android.purebilibili.core.ui.components
 
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import androidx.compose.foundation.BorderStroke
@@ -94,8 +96,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorProducer
@@ -120,6 +126,15 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
+import top.yukonga.miuix.kmp.basic.Slider as MiuixSlider
+import top.yukonga.miuix.kmp.basic.Switch as MiuixSwitch
+import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults as MiuixTextFieldDefaults
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+private object AppPrimitiveNoOpHapticFeedback : HapticFeedback {
+    override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) = Unit
+}
 
 @Composable
 fun AppSurface(
@@ -595,6 +610,8 @@ fun AppOutlinedTextField(
     textStyle: TextStyle = androidx.compose.material3.LocalTextStyle.current,
     label: @Composable (() -> Unit)? = null,
     placeholder: @Composable (() -> Unit)? = null,
+    labelText: String? = null,
+    placeholderText: String? = null,
     leadingIcon: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
     prefix: @Composable (() -> Unit)? = null,
@@ -610,31 +627,70 @@ fun AppOutlinedTextField(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     shape: Shape = OutlinedTextFieldDefaults.shape,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
-) = OutlinedTextField(
-    value = value,
-    onValueChange = onValueChange,
-    modifier = modifier,
-    enabled = enabled,
-    readOnly = readOnly,
-    textStyle = textStyle,
-    label = label,
-    placeholder = placeholder,
-    leadingIcon = leadingIcon,
-    trailingIcon = trailingIcon,
-    prefix = prefix,
-    suffix = suffix,
-    supportingText = supportingText,
-    isError = isError,
-    visualTransformation = visualTransformation,
-    keyboardOptions = keyboardOptions,
-    keyboardActions = keyboardActions,
-    singleLine = singleLine,
-    maxLines = maxLines,
-    minLines = minLines,
-    interactionSource = interactionSource,
-    shape = shape,
-    colors = colors,
-)
+) {
+    if (
+        shouldUseMiuixOutlinedTextField(
+            uiStyle = LocalAppUiStyle.current,
+            hasPrefix = prefix != null,
+            hasSuffix = suffix != null,
+        )
+    ) {
+        val resolvedLabel = labelText ?: placeholderText.orEmpty()
+        MiuixTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = modifier,
+            label = resolvedLabel,
+            useLabelAsPlaceholder = labelText == null && !placeholderText.isNullOrEmpty(),
+            enabled = enabled,
+            readOnly = readOnly,
+            textStyle = textStyle,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            leadingIcon = leadingIcon,
+            trailingIcon = trailingIcon,
+            singleLine = singleLine,
+            maxLines = maxLines,
+            minLines = minLines,
+            visualTransformation = visualTransformation,
+            interactionSource = interactionSource,
+            colors = MiuixTextFieldDefaults.textFieldColors(
+                borderColor = if (isError) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MiuixTheme.colorScheme.primary
+                },
+            ),
+        )
+        supportingText?.invoke()
+        return
+    }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        enabled = enabled,
+        readOnly = readOnly,
+        textStyle = textStyle,
+        label = label,
+        placeholder = placeholder,
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
+        prefix = prefix,
+        suffix = suffix,
+        supportingText = supportingText,
+        isError = isError,
+        visualTransformation = visualTransformation,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        singleLine = singleLine,
+        maxLines = maxLines,
+        minLines = minLines,
+        interactionSource = interactionSource,
+        shape = shape,
+        colors = colors,
+    )
+}
 
 @Composable
 fun AppDropdownMenu(
@@ -803,30 +859,50 @@ fun AppSwitch(
     colors: SwitchColors = SwitchDefaults.colors(),
     interactionSource: MutableInteractionSource? = null,
     showThumbIcon: Boolean = true,
-) = Switch(
-    checked = checked,
-    onCheckedChange = onCheckedChange,
-    modifier = modifier,
-    thumbContent = thumbContent ?: if (showThumbIcon) {
-        {
-            Icon(
-                imageVector = if (checked) Icons.Filled.Check else Icons.Filled.Close,
-                contentDescription = null,
-                tint = if (checked) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
-                },
-                modifier = Modifier.size(SwitchDefaults.IconSize),
-            )
+) {
+    when (resolveAppAdaptiveSwitchTreatment(LocalAppUiStyle.current)) {
+        AppAdaptiveSwitchTreatment.MIUIX -> {
+            val platformHaptic = LocalHapticFeedback.current
+            val effectiveHaptic = if (LocalAppThemeConfig.current.hapticFeedbackEnabled) {
+                platformHaptic
+            } else {
+                AppPrimitiveNoOpHapticFeedback
+            }
+            CompositionLocalProvider(LocalHapticFeedback provides effectiveHaptic) {
+                MiuixSwitch(
+                    checked = checked,
+                    onCheckedChange = onCheckedChange,
+                    enabled = enabled,
+                    modifier = modifier,
+                )
+            }
         }
-    } else {
-        null
-    },
-    enabled = enabled,
-    colors = colors,
-    interactionSource = interactionSource,
-)
+        AppAdaptiveSwitchTreatment.MATERIAL -> Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = modifier,
+            thumbContent = thumbContent ?: if (showThumbIcon) {
+                {
+                    Icon(
+                        imageVector = if (checked) Icons.Filled.Check else Icons.Filled.Close,
+                        contentDescription = null,
+                        tint = if (checked) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        },
+                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                    )
+                }
+            } else {
+                null
+            },
+            enabled = enabled,
+            colors = colors,
+            interactionSource = interactionSource,
+        )
+    }
+}
 
 @Composable
 fun AppRadioButton(
@@ -856,17 +932,30 @@ fun AppSlider(
     onValueChangeFinished: (() -> Unit)? = null,
     colors: SliderColors = SliderDefaults.colors(),
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-) = Slider(
-    value = value,
-    onValueChange = onValueChange,
-    modifier = modifier,
-    enabled = enabled,
-    valueRange = valueRange,
-    steps = steps,
-    onValueChangeFinished = onValueChangeFinished,
-    colors = colors,
-    interactionSource = interactionSource,
-)
+) {
+    when (resolveAppSliderRenderer(LocalAppUiStyle.current)) {
+        AppPrimitiveRenderer.MIUIX -> MiuixSlider(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = modifier,
+            enabled = enabled,
+            valueRange = valueRange,
+            steps = steps,
+            onValueChangeFinished = onValueChangeFinished,
+        )
+        AppPrimitiveRenderer.MATERIAL -> Slider(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = modifier,
+            enabled = enabled,
+            valueRange = valueRange,
+            steps = steps,
+            onValueChangeFinished = onValueChangeFinished,
+            colors = colors,
+            interactionSource = interactionSource,
+        )
+    }
+}
 
 @Composable
 fun AppOutlinedButton(

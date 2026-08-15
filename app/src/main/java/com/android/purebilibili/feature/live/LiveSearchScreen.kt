@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Search
 import com.android.purebilibili.core.ui.components.AppButton
+import com.android.purebilibili.core.ui.components.AppBackToTopButton
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +37,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -59,8 +63,11 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
+import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
 import com.android.purebilibili.core.util.LocalWindowSizeClass
+import com.android.purebilibili.core.util.animateScrollToTop
 import com.android.purebilibili.core.util.responsiveContentWidth
+import com.android.purebilibili.core.util.shouldShowScrollToTop
 import com.android.purebilibili.data.model.response.LiveRoomSearchItem
 import com.android.purebilibili.data.model.response.SearchUpItem
 import com.android.purebilibili.data.repository.SearchLiveOrder
@@ -75,6 +82,9 @@ fun LiveSearchScreen(
 ) {
     val keyboard = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
+    val backToTopButtonEnabled = rememberBackToTopButtonEnabled()
+    val liveGridState = rememberLazyGridState()
+    val userListState = rememberLazyListState()
     val topChromePolicy = rememberAppTopChromePolicy()
     val visualSpec = remember(topChromePolicy.tabPresentation) {
         resolveLiveVisualSpec(topChromePolicy.tabPresentation)
@@ -106,6 +116,21 @@ fun LiveSearchScreen(
     var error by remember { mutableStateOf<String?>(null) }
     val liveResults = remember { mutableStateListOf<LiveRoomSearchItem>() }
     val userResults = remember { mutableStateListOf<SearchUpItem>() }
+    val hasScrolledAwayFromTop by remember(selectedTab, liveGridState, userListState) {
+        derivedStateOf {
+            if (selectedTab == 0) {
+                shouldShowScrollToTop(
+                    firstVisibleItemIndex = liveGridState.firstVisibleItemIndex,
+                    firstVisibleItemScrollOffset = liveGridState.firstVisibleItemScrollOffset,
+                )
+            } else {
+                shouldShowScrollToTop(
+                    firstVisibleItemIndex = userListState.firstVisibleItemIndex,
+                    firstVisibleItemScrollOffset = userListState.firstVisibleItemScrollOffset,
+                )
+            }
+        }
+    }
 
     suspend fun submit() {
         val normalized = query.trim()
@@ -125,6 +150,8 @@ fun LiveSearchScreen(
         userHasMore = false
         liveNextPage = 1
         userNextPage = 1
+        liveGridState.scrollToItem(0)
+        userListState.scrollToItem(0)
         SearchRepository.searchLive(normalized, 1, SearchLiveOrder.ONLINE)
             .onSuccess { (rooms, pageInfo) ->
                 liveResults.addAll(rooms.distinctBy { it.roomid })
@@ -187,60 +214,61 @@ fun LiveSearchScreen(
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            Row(
-                modifier = Modifier
-                    .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = metrics.safeSpaceDp.dp,
-                        vertical = AppSpacingTokens.Small,
-                    ),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-            ) {
-                AppOutlinedTextField(
-                    value = query,
-                    onValueChange = {
-                        query = it
-                        if (it.isBlank()) {
-                            hasSubmitted = false
-                            error = null
-                            liveResults.clear()
-                            userResults.clear()
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    placeholder = { AppText("搜索房间或主播") },
-                    trailingIcon = {
-                        AppIcon(imageVector = Icons.Outlined.Search, contentDescription = null)
-                    },
-                    shape = AppShapes.borderedContainer(ContainerLevel.Field),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { scope.launch { submit() } }),
-                )
-                AppIconButton(
-                    onClick = { scope.launch { submit() } },
-                    enabled = query.isNotBlank(),
-                    modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge),
-                ) {
-                    AppIcon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = "搜索",
-                    )
-                }
-            }
-
-            if (!hasSubmitted) {
-                LiveSearchState("输入关键词后搜索直播间或主播")
-            } else {
-                // BiliPai TabBar 同款：原生 chip 分发（MD3 FilterChip / Miuix·iOS 胶囊）
+            Column(modifier = Modifier.fillMaxSize()) {
                 Row(
+                    modifier = Modifier
+                        .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = metrics.safeSpaceDp.dp,
+                            vertical = AppSpacingTokens.Small,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                ) {
+                    AppOutlinedTextField(
+                        value = query,
+                        onValueChange = {
+                            query = it
+                            if (it.isBlank()) {
+                                hasSubmitted = false
+                                error = null
+                                liveResults.clear()
+                                userResults.clear()
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        placeholder = { AppText("搜索房间或主播") },
+                        trailingIcon = {
+                            AppIcon(imageVector = Icons.Outlined.Search, contentDescription = null)
+                        },
+                        shape = AppShapes.borderedContainer(ContainerLevel.Field),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { scope.launch { submit() } }),
+                    )
+                    AppIconButton(
+                        onClick = { scope.launch { submit() } },
+                        enabled = query.isNotBlank(),
+                        modifier = Modifier.size(AppSpacingTokens.TripleExtraLarge),
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = "搜索",
+                        )
+                    }
+                }
+
+                if (!hasSubmitted) {
+                    LiveSearchState("输入关键词后搜索直播间或主播")
+                } else {
+                    // BiliPai TabBar 同款：原生 chip 分发（MD3 FilterChip / Miuix·iOS 胶囊）
+                    Row(
                     modifier = Modifier
                         .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
                         .fillMaxWidth()
@@ -269,8 +297,8 @@ fun LiveSearchScreen(
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
                     )
-                }
-                when {
+                    }
+                    when {
                     isLoading -> if (selectedTab == 0) {
                         ContentVideoGridSkeletonFixedColumns(
                             columns = gridColumns,
@@ -296,6 +324,7 @@ fun LiveSearchScreen(
                     error != null -> LiveSearchState(error.orEmpty())
                     selectedTab == 0 -> LazyVerticalGrid(
                         columns = GridCells.Fixed(gridColumns),
+                        state = liveGridState,
                         modifier = Modifier
                             .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
                             .fillMaxSize(),
@@ -327,6 +356,7 @@ fun LiveSearchScreen(
                         }
                     }
                     else -> LazyColumn(
+                        state = userListState,
                         modifier = Modifier
                             .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
                             .fillMaxSize(),
@@ -353,8 +383,28 @@ fun LiveSearchScreen(
                             }
                         }
                     }
+                    }
                 }
             }
+
+            AppBackToTopButton(
+                visible = backToTopButtonEnabled && hasSubmitted && !isLoading && hasScrolledAwayFromTop,
+                onClick = {
+                    scope.launch {
+                        if (selectedTab == 0) {
+                            liveGridState.animateScrollToTop()
+                        } else {
+                            userListState.animateScrollToTop()
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = AppSpacingTokens.Large,
+                        bottom = LocalBottomBarContentPadding.current + AppSpacingTokens.Medium,
+                    ),
+            )
         }
     }
 }

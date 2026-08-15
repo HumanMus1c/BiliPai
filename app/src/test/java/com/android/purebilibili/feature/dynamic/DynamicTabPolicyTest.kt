@@ -85,4 +85,25 @@ class DynamicTabPolicyTest {
         assertTrue(isDynamicUserTabVisible(resolveDynamicVisibleTabs(defaultDynamicTabVisibleIds)))
         assertFalse(isDynamicUserTabVisible(resolveDynamicVisibleTabs(setOf("all", "video", "pgc", "article"))))
     }
+
+    @Test
+    fun `dynamic top tabs expose the expected count and labels`() {
+        assertEquals(5, allDynamicTabSpecs.size)
+        assertEquals(
+            listOf("全部", "投稿", "番剧", "专栏", "UP"),
+            allDynamicTabSpecs.map { it.title }
+        )
+    }
+
+    @Test
+    fun `reselecting the current dynamic tab scrolls to top instead of switching`() {
+        assertEquals(
+            DynamicTabReselectAction.SCROLL_TO_TOP,
+            resolveDynamicTabReselectAction(currentVisibleIndex = 2, tappedVisibleIndex = 2)
+        )
+        assertEquals(
+            DynamicTabReselectAction.SWITCH_TAB,
+            resolveDynamicTabReselectAction(currentVisibleIndex = 1, tappedVisibleIndex = 3)
+        )
+    }
 }

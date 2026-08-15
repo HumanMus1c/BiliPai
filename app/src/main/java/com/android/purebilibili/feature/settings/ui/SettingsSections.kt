@@ -235,6 +235,7 @@ internal data class SettingsRootCategoryActions(
     val onPrivacyContentAuthenticationChange: (Boolean) -> Unit,
     val onCrashTrackingChange: (Boolean) -> Unit,
     val onAnalyticsChange: (Boolean) -> Unit,
+    val onEnhancedDiagnosticLoggingChange: (Boolean) -> Unit,
     val onEasterEggChange: (Boolean) -> Unit,
     val onAutoCheckUpdateChange: (Boolean) -> Unit,
     val onAppUpdateChannelChange: (com.android.purebilibili.core.store.SettingsManager.AppUpdateChannel) -> Unit,
@@ -253,6 +254,7 @@ internal data class SettingsRootCategoryState(
     val privacyContentAuthenticationEnabled: Boolean,
     val crashTrackingEnabled: Boolean,
     val analyticsEnabled: Boolean,
+    val enhancedDiagnosticLoggingEnabled: Boolean,
     val pluginCount: Int,
     val customDownloadPath: String?,
     val customImageSavePath: String?,
@@ -1013,8 +1015,11 @@ internal fun SettingsRootCategoryContent(
                         DiagnosticsSection(
                             crashTrackingEnabled = state.crashTrackingEnabled,
                             analyticsEnabled = state.analyticsEnabled,
+                            enhancedDiagnosticLoggingEnabled = state.enhancedDiagnosticLoggingEnabled,
                             onCrashTrackingChange = actions.onCrashTrackingChange,
                             onAnalyticsChange = actions.onAnalyticsChange,
+                            onEnhancedDiagnosticLoggingChange =
+                                actions.onEnhancedDiagnosticLoggingChange,
                             onExportLogsClick = actions.onExportLogsClick,
                         )
                         SettingsAdaptiveDivider()
@@ -1614,17 +1619,20 @@ private fun PluginCenterSection(
 private fun DiagnosticsSection(
     crashTrackingEnabled: Boolean,
     analyticsEnabled: Boolean,
+    enhancedDiagnosticLoggingEnabled: Boolean,
     onCrashTrackingChange: (Boolean) -> Unit,
     onAnalyticsChange: (Boolean) -> Unit,
+    onEnhancedDiagnosticLoggingChange: (Boolean) -> Unit,
     onExportLogsClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    val siblingTints = remember { resolveSettingsSiblingIconTints(5, paletteOffset = 5) }
+    val siblingTints = remember { resolveSettingsSiblingIconTints(6, paletteOffset = 5) }
     val exportLogsVisual = rememberSettingsEntryVisual(SettingsSearchTarget.EXPORT_LOGS)
     val proxySettings by NetworkProxyStore.settings.collectAsStateWithLifecycle(
         initialValue = NetworkProxyStore.getSync(context)
     )
     var showProxyDialog by remember { mutableStateOf(false) }
+    var showEnhancedDiagnosticConsent by remember { mutableStateOf(false) }
 
     SettingsCardGroup {
         SettingSwitchItem(
@@ -1646,6 +1654,22 @@ private fun DiagnosticsSection(
         )
         SettingsAdaptiveDivider()
         SettingSwitchItem(
+            icon = Icons.Outlined.BugReport,
+            title = "增强诊断日志",
+            subtitle = if (enhancedDiagnosticLoggingEnabled) {
+                "正在采集脱敏后的详细运行信息；关闭会立即清除"
+            } else {
+                "默认关闭；主动开启后记录更多排障信息，不含凭据与观看内容"
+            },
+            checked = enhancedDiagnosticLoggingEnabled,
+            onCheckedChange = { enabled ->
+                if (enabled) showEnhancedDiagnosticConsent = true
+                else onEnhancedDiagnosticLoggingChange(false)
+            },
+            iconTint = siblingTints[2],
+        )
+        SettingsAdaptiveDivider()
+        SettingSwitchItem(
             icon = Icons.Outlined.Lan,
             title = "HTTP 代理",
             subtitle = formatAppHttpProxySummary(proxySettings) +
@@ -1658,7 +1682,7 @@ private fun DiagnosticsSection(
                     NetworkProxyStore.save(context, proxySettings.copy(enabled = enabled))
                 }
             },
-            iconTint = siblingTints[2],
+            iconTint = siblingTints[3],
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
@@ -1667,16 +1691,16 @@ private fun DiagnosticsSection(
             value = formatAppHttpProxyEndpoint(proxySettings),
             subtitle = "host:port，如 127.0.0.1:7890",
             onClick = { showProxyDialog = true },
-            iconTint = siblingTints[3],
+            iconTint = siblingTints[4],
         )
         SettingsAdaptiveDivider()
         SettingClickableItem(
             icon = exportLogsVisual.icon,
             iconPainter = exportLogsVisual.iconResId?.let { painterResource(id = it) },
             title = "导出日志",
-            value = "播放器诊断与问题反馈",
+            value = "导出前统一脱敏，仅由你主动分享",
             onClick = onExportLogsClick,
-            iconTint = siblingTints[4],
+            iconTint = siblingTints[5],
         )
     }
 
@@ -1687,6 +1711,35 @@ private fun DiagnosticsSection(
             onConfirm = { next ->
                 NetworkProxyStore.save(context, next)
                 showProxyDialog = false
+            },
+        )
+    }
+
+    if (showEnhancedDiagnosticConsent) {
+        AppAlertDialog(
+            onDismissRequest = { showEnhancedDiagnosticConsent = false },
+            title = { AppText("开启增强诊断日志？", fontWeight = FontWeight.Bold) },
+            text = {
+                AppText(
+                    text = "将记录应用版本、设备与系统环境、请求结果、播放器状态和错误堆栈。" +
+                        "账号凭据、用户标识、视频标识、搜索词和用户输入会在写入前脱敏。" +
+                        "日志仅保存在应用私有目录（最多 256KB），不会自动上传；关闭后会立即清除。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            confirmButton = {
+                AppDialogAction(
+                    onClick = {
+                        showEnhancedDiagnosticConsent = false
+                        onEnhancedDiagnosticLoggingChange(true)
+                    }
+                ) { AppText("同意并开启") }
+            },
+            dismissButton = {
+                AppDialogAction(onClick = { showEnhancedDiagnosticConsent = false }) {
+                    AppText("取消")
+                }
             },
         )
     }
@@ -1797,9 +1850,11 @@ private fun NetworkProxyEditDialog(
 fun DeveloperSection(
     crashTrackingEnabled: Boolean,
     analyticsEnabled: Boolean,
+    enhancedDiagnosticLoggingEnabled: Boolean,
     pluginCount: Int,
     onCrashTrackingChange: (Boolean) -> Unit,
     onAnalyticsChange: (Boolean) -> Unit,
+    onEnhancedDiagnosticLoggingChange: (Boolean) -> Unit,
     onPluginsClick: () -> Unit,
     onExportLogsClick: () -> Unit
 ) {
@@ -1809,8 +1864,10 @@ fun DeveloperSection(
         DiagnosticsSection(
             crashTrackingEnabled = crashTrackingEnabled,
             analyticsEnabled = analyticsEnabled,
+            enhancedDiagnosticLoggingEnabled = enhancedDiagnosticLoggingEnabled,
             onCrashTrackingChange = onCrashTrackingChange,
             onAnalyticsChange = onAnalyticsChange,
+            onEnhancedDiagnosticLoggingChange = onEnhancedDiagnosticLoggingChange,
             onExportLogsClick = onExportLogsClick,
         )
         SettingsCardGroup {

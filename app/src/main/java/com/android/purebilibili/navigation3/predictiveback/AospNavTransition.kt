@@ -6,7 +6,6 @@ import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.nav.transition.NavGesture
 import top.yukonga.miuix.kmp.nav.transition.NavMotion
 import top.yukonga.miuix.kmp.nav.transition.NavRole
-import top.yukonga.miuix.kmp.nav.transition.NavSettle
 import top.yukonga.miuix.kmp.nav.transition.NavSettlePhase
 import top.yukonga.miuix.kmp.nav.transition.NavSettleSpec
 import top.yukonga.miuix.kmp.nav.transition.NavSwipeEdge
@@ -14,15 +13,10 @@ import top.yukonga.miuix.kmp.nav.transition.NavTransition
 import top.yukonga.miuix.kmp.nav.transition.navDirectionalTransition
 import top.yukonga.miuix.kmp.nav.transition.navGraphicsTransition
 import kotlin.math.abs
-import kotlin.math.exp
 import kotlin.math.min
-import kotlin.math.sin
-import kotlin.math.sqrt
 
-private const val BOUNCE_STIFFNESS = 200f
-private const val BOUNCE_DAMPING = 0.75f
-private const val BOUNCE_MAX_KICK = 1000f
-private const val BOUNCE_MIN_KICK = 120f
+internal const val AOSP_PREDICTIVE_COMMIT_DURATION_MILLIS = 220
+private const val AOSP_PREDICTIVE_FADE_DURATION_MILLIS = 90f
 private const val OPEN_FADE_START = 0.12f
 private const val OPEN_FADE_SPAN = 0.71f
 private const val CLOSE_FADE_START = 0.21f
@@ -92,7 +86,10 @@ private val ClassicActivityClose: NavTransition = navGraphicsTransition(
 private val CrossActivityPredictive: NavTransition = navGraphicsTransition(
     opaqueDepth = 1f,
     motion = NavMotion(
-        commit = NavSettleSpec.Tween(durationMillis = 450, easing = FastOutExtraSlowIn),
+        commit = NavSettleSpec.Tween(
+            durationMillis = AOSP_PREDICTIVE_COMMIT_DURATION_MILLIS,
+            easing = FastOutExtraSlowIn,
+        ),
         cancel = NavSettleSpec.Spring(stiffness = 1500f),
     ),
     scrim = { scope ->
@@ -100,7 +97,8 @@ private val CrossActivityPredictive: NavTransition = navGraphicsTransition(
         val gesture = scope.gesture
         when {
             settle?.phase == NavSettlePhase.Commit ->
-                (1f - settle.elapsedMillis / 450f).coerceIn(0f, 1f)
+                (1f - settle.elapsedMillis / AOSP_PREDICTIVE_COMMIT_DURATION_MILLIS.toFloat())
+                    .coerceIn(0f, 1f)
 
             gesture != null ->
                 (scope.relativeDepth.coerceIn(0f, 1f) /
@@ -117,7 +115,6 @@ private val CrossActivityPredictive: NavTransition = navGraphicsTransition(
     val widthPx = scope.layoutSize.width.toFloat()
     val heightPx = scope.layoutSize.height.toFloat()
     val driftPx = with(scope.density) { CrossActivityDrift.toPx() }
-    val bounce = bounceScale(settle, gesture)
     val hugMax = (
         widthPx * (1f - CROSS_ACTIVITY_MIN_SCALE) / 2f -
             with(scope.density) { CrossActivityEdgeMargin.toPx() }
@@ -132,11 +129,12 @@ private val CrossActivityPredictive: NavTransition = navGraphicsTransition(
             val committedScale =
                 CROSS_ACTIVITY_MIN_SCALE + (1f - CROSS_ACTIVITY_MIN_SCALE) * releaseEasedProgress
             val grown = committedScale + (1f - committedScale) * post
-            scaleX = snapScaleToPixelExtent(grown * bounce, widthPx)
+            scaleX = snapScaleToPixelExtent(grown, widthPx)
             scaleY = scaleX
             var tx = if (hugs) (1f - releaseEasedProgress) * hugMax else 0f
             tx += post * driftPx
-            alpha = (1f - 5f * (settle.elapsedMillis / 450f)).coerceAtLeast(0f)
+            alpha = (1f - settle.elapsedMillis / AOSP_PREDICTIVE_FADE_DURATION_MILLIS)
+                .coerceAtLeast(0f)
             translationX = snapTranslationToPixelEdge(tx, scaleX, widthPx)
             translationY = snapTranslationToPixelEdge(
                 translation = crossActivityYShift(
@@ -153,7 +151,7 @@ private val CrossActivityPredictive: NavTransition = navGraphicsTransition(
             scaleX = snapScaleToPixelExtent(
                 scale = (
                     CROSS_ACTIVITY_MIN_SCALE + (1f - CROSS_ACTIVITY_MIN_SCALE) * easedProgress
-                    ) * bounce,
+                    ),
                 extent = widthPx,
             )
             scaleY = scaleX
@@ -202,7 +200,7 @@ private val CrossActivityPredictive: NavTransition = navGraphicsTransition(
             val liveScale =
                 CROSS_ACTIVITY_MIN_SCALE + (1f - CROSS_ACTIVITY_MIN_SCALE) * (1f - eased)
             scaleX = snapScaleToPixelExtent(
-                (liveScale + (1f - liveScale) * post) * bounce,
+                liveScale + (1f - liveScale) * post,
                 widthPx,
             )
             scaleY = scaleX
@@ -226,21 +224,6 @@ internal val AospNavTransition: NavTransition = navDirectionalTransition(
     pop = ClassicActivityClose,
     predictivePop = CrossActivityPredictive,
 )
-
-private fun bounceScale(settle: NavSettle?, gesture: NavGesture?): Float {
-    if (settle == null || settle.phase != NavSettlePhase.Commit || gesture == null) return 1f
-    val factor = if (gesture.swipeEdge != NavSwipeEdge.None) 2f else 1f
-    val floorKick = if (gesture.progress < 0.1f) BOUNCE_MIN_KICK else 0f
-    val kick = (abs(settle.releaseVelocity) * 100f * (1f - CROSS_ACTIVITY_MIN_SCALE) * factor)
-        .coerceIn(floorKick, BOUNCE_MAX_KICK)
-    if (kick <= 0f) return 1f
-    val omega = sqrt(BOUNCE_STIFFNESS)
-    val omegaD = omega * sqrt(1f - BOUNCE_DAMPING * BOUNCE_DAMPING)
-    val t = settle.elapsedMillis / 1000f
-    val overlay =
-        -(kick / omegaD) * exp(-BOUNCE_DAMPING * omega * t) * sin(omegaD * t)
-    return ((100f + overlay) / 100f).coerceAtMost(1f)
-}
 
 private fun shapedTopProgress(progress: Float, gesture: NavGesture?): Float =
     if (gesture == null) progress else 1f - BackGestureEasing.transform((1f - progress).coerceIn(0f, 1f))

@@ -9,23 +9,49 @@ import kotlin.test.assertTrue
 class LoggerPersistencePolicyTest {
 
     @Test
-    fun verboseRuntimeLogsRequireDebugBuildAndExplicitOptIn() {
+    fun verboseRuntimeLogsAllowDebugBuildOrExplicitReleaseOptIn() {
         assertFalse(
             shouldEnableVerboseRuntimeLogs(
                 isDebugBuild = false,
-                verboseDebugLogsEnabled = true
+                verboseDebugLogsEnabled = true,
+                enhancedDiagnosticLoggingEnabled = false,
             )
         )
         assertFalse(
             shouldEnableVerboseRuntimeLogs(
                 isDebugBuild = true,
-                verboseDebugLogsEnabled = false
+                verboseDebugLogsEnabled = false,
+                enhancedDiagnosticLoggingEnabled = false,
             )
         )
         assertTrue(
             shouldEnableVerboseRuntimeLogs(
                 isDebugBuild = true,
-                verboseDebugLogsEnabled = true
+                verboseDebugLogsEnabled = true,
+                enhancedDiagnosticLoggingEnabled = false,
+            )
+        )
+        assertTrue(
+            shouldEnableVerboseRuntimeLogs(
+                isDebugBuild = false,
+                verboseDebugLogsEnabled = false,
+                enhancedDiagnosticLoggingEnabled = true,
+            )
+        )
+    }
+
+    @Test
+    fun verboseLogcatOutputRemainsDebugOnly() {
+        assertTrue(
+            shouldEmitVerboseLogcat(
+                isDebugBuild = true,
+                verboseDebugLogsEnabled = true,
+            )
+        )
+        assertFalse(
+            shouldEmitVerboseLogcat(
+                isDebugBuild = false,
+                verboseDebugLogsEnabled = true,
             )
         )
     }
@@ -107,10 +133,6 @@ class LoggerPersistencePolicyTest {
             resolveCrashSnapshotMarkerFile(baseDir)
         )
         assertEquals(
-            "Download/BiliPai/logs/last_crash_log.txt",
-            resolveCrashSnapshotExportRelativePath()
-        )
-        assertEquals(
             "player_diagnostic_20260329_155725.txt",
             resolvePlayerDiagnosticExportFileName(1_774_771_045_000L)
         )
@@ -172,6 +194,42 @@ class LoggerPersistencePolicyTest {
         assertTrue(content.contains("Player exploded"))
         assertTrue(content.contains("before crash"))
         assertTrue(content.contains("boom soon"))
+    }
+
+    @Test
+    fun sensitiveValuesAreRemovedBeforeLogsAreStoredOrExported() {
+        val sanitized = sanitizeLogMessage(
+            "SESSDATA=secret access_token=token123 mid=123456 " +
+                "content=private-message keyword=private-search BV1AB411c7mD " +
+                "Authorization: Bearer super-secret"
+        )
+
+        assertFalse(sanitized.contains("secret"))
+        assertFalse(sanitized.contains("token123"))
+        assertFalse(sanitized.contains("123456"))
+        assertFalse(sanitized.contains("private-message"))
+        assertFalse(sanitized.contains("private-search"))
+        assertFalse(sanitized.contains("BV1AB411c7mD"))
+        assertTrue(sanitized.contains("content=***"))
+    }
+
+    @Test
+    fun crashSnapshotSanitizesThrowableTextToo() {
+        val content = buildCrashSnapshotContent(
+            throwable = IllegalStateException("access_token=secret-token mid=123456"),
+            entries = emptyList(),
+            exportedAtMillis = 1_741_334_802_000L,
+            appVersionName = "6.9.0",
+            versionCode = 103,
+            manufacturer = "nubia",
+            model = "NX769J",
+            androidRelease = "16",
+            apiLevel = 36,
+        )
+
+        assertFalse(content.contains("secret-token"))
+        assertFalse(content.contains("123456"))
+        assertTrue(content.contains("access_token=***"))
     }
 
     @Test

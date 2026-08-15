@@ -1809,6 +1809,26 @@ interface DynamicApi {
     ): SimpleApiResponse
 
     //  动态可见范围（公开 / 仅自己）
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("x/dynamic/feed/dynamic_report/add")
+    suspend fun reportDynamic(
+        @Query("csrf") csrf: String,
+        @retrofit2.http.Field("accused_uid") accusedUid: Long,
+        @retrofit2.http.Field("dynamic_id") dynamicId: String,
+        @retrofit2.http.Field("reason_type") reasonType: Int,
+        @retrofit2.http.Field("reason_desc") reasonDesc: String? = null
+    ): SimpleApiResponse
+
+    @retrofit2.http.Multipart
+    @retrofit2.http.POST("https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/modify")
+    suspend fun editDynamic(
+        @retrofit2.http.Part("dynamic_id") dynamicId: String,
+        @retrofit2.http.Part("type") type: Int = 4,
+        @retrofit2.http.Part("rid") rid: Int = 0,
+        @retrofit2.http.Part("content") content: String,
+        @retrofit2.http.Part("csrf") csrf: String
+    ): DynamicCreateResponse
+
     @retrofit2.http.POST("x/dynamic/feed/dyn/private_pub_setting")
     suspend fun setDynamicVisibility(
         @Query("csrf") csrf: String,

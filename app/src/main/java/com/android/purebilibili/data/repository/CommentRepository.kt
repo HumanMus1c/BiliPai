@@ -877,7 +877,16 @@ object CommentRepository {
     /**
      * [新增] 点赞评论
      */
-    suspend fun likeComment(aid: Long, rpid: Long, like: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun likeComment(aid: Long, rpid: Long, like: Boolean): Result<Unit> {
+        return likeCommentForSubject(oid = aid, type = 1, rpid = rpid, like = like)
+    }
+
+    suspend fun likeCommentForSubject(
+        oid: Long,
+        type: Int,
+        rpid: Long,
+        like: Boolean
+    ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
             if (csrf.isNullOrEmpty()) {
@@ -885,8 +894,8 @@ object CommentRepository {
             }
             
             val response = api.likeReply(
-                oid = aid,
-                type = 1,
+                oid = oid,
+                type = type,
                 rpid = rpid,
                 action = if (like) 1 else 0,
                 csrf = csrf

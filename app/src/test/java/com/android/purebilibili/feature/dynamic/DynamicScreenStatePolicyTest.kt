@@ -273,6 +273,49 @@ class DynamicScreenStatePolicyTest {
     }
 
     @Test
+    fun `up panel prepends self shortcut without all-dynamics entry`() {
+        val users = listOf(
+            SidebarUser(uid = 11L, name = "A", face = "a"),
+            SidebarUser(uid = 22L, name = "me", face = "old-me"),
+            SidebarUser(uid = DYNAMIC_UP_PANEL_ALL_UID, name = "全部动态", face = "")
+        )
+        val panel = resolveDynamicUpPanelUsers(
+            users = users,
+            selfUid = 22L,
+            selfFace = "new-me"
+        )
+
+        assertEquals(listOf(22L, 11L), panel.map { it.uid })
+        assertEquals(listOf("我", "A"), panel.map { it.name })
+        assertEquals("new-me", panel[0].face)
+        assertTrue(isDynamicUpPanelAllShortcut(-1L))
+        assertTrue(isDynamicUpPanelShortcut(-1L, selfUid = 22L))
+        assertTrue(isDynamicUpPanelShortcut(22L, selfUid = 22L))
+        assertFalse(isDynamicUpPanelShortcut(11L, selfUid = 22L))
+        assertTrue(isDynamicUpPanelItemSelected(selectedUserId = null, itemUid = -1L))
+        assertTrue(isDynamicUpPanelItemSelected(selectedUserId = 11L, itemUid = 11L))
+        assertFalse(isDynamicUpPanelItemSelected(selectedUserId = 11L, itemUid = -1L))
+    }
+
+    @Test
+    fun `clicking the all shortcut clears the selected user`() {
+        assertNull(
+            resolveDynamicSelectedUserIdAfterClick(
+                selectedUserId = 10001L,
+                clickedUserId = DYNAMIC_UP_PANEL_ALL_UID
+            )
+        )
+        assertEquals(
+            0,
+            resolveDynamicTabAfterUserSelection(
+                selectedUserId = 10001L,
+                clickedUserId = DYNAMIC_UP_PANEL_ALL_UID,
+                currentTab = 4
+            )
+        )
+    }
+
+    @Test
     fun `followed user list reset should trigger only for fresh prepended refresh while viewing all`() {
         assertTrue(
             shouldResetFollowedUserListToTopOnRefresh(
@@ -465,7 +508,7 @@ class DynamicScreenStatePolicyTest {
     }
 
     @Test
-    fun `dynamic request type aligns with pili plus tab mapping`() {
+    fun `dynamic request type aligns with visible tab mapping`() {
         assertEquals("all", resolveDynamicFeedRequestType(selectedTab = 0))
         assertEquals("video", resolveDynamicFeedRequestType(selectedTab = 1))
         assertEquals("pgc", resolveDynamicFeedRequestType(selectedTab = 2))

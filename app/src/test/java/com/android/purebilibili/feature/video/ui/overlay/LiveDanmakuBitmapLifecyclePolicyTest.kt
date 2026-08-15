@@ -23,4 +23,13 @@ class LiveDanmakuBitmapLifecyclePolicyTest {
             )
         )
     }
+
+    @Test
+    fun `trimmed live danmaku bitmaps can be manually recycled`() {
+        assertTrue(
+            shouldManuallyRecycleLiveDanmakuBitmap(
+                ownership = LiveDanmakuBitmapOwnership.RELEASED_FROM_ENGINE
+            )
+        )
+    }
 }

@@ -159,7 +159,7 @@ class VideoContentTabBarPolicyTest {
         assertEquals(12, spec.containerHorizontalPaddingDp)
         assertEquals(12, spec.tabHorizontalPaddingDp)
         assertEquals(40, spec.segmentedControlHeightDp)
-        assertEquals(27, spec.segmentedControlIndicatorHeightDp)
+        assertEquals(35, spec.segmentedControlIndicatorHeightDp)
         assertTrue(
             hasVideoContentTabBarIndicatorScaleClearance(
                 containerHeightDp = spec.segmentedControlHeightDp,
@@ -257,15 +257,14 @@ class VideoContentTabBarPolicyTest {
             "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt"
         )
 
-        assertTrue(source.contains("val videoContentChromeBackdrop = rememberLayerBackdrop()"))
         assertTrue(source.contains("val videoContentMiuixBackdrop = rememberMiuixLayerBackdrop()"))
-        assertTrue(source.contains(".miuixLayerBackdrop(videoContentMiuixBackdrop)"))
-        assertTrue(source.contains(".alpha(0f)"))
+        assertTrue(source.contains("val videoContentMiuixBackdrop = rememberMiuixLayerBackdrop()"))
+        assertFalse(source.contains(".alpha(0f)"))
         assertTrue(source.contains("sortMode = sortMode"))
         assertTrue(source.contains("onSortModeChange = onSortModeChange"))
-        assertTrue(source.contains("backdrop = videoContentChromeBackdrop"))
         assertTrue(source.contains("miuixBackdrop = videoContentMiuixBackdrop"))
-        assertTrue(source.contains("Modifier.layerBackdrop(chromeBackdrop)"))
+        assertTrue(source.contains("miuixBackdrop = videoContentMiuixBackdrop"))
+        assertTrue(source.contains("Modifier.miuixLayerBackdrop(chromeBackdrop)"))
         assertTrue(source.contains("Column(modifier = modifier.fillMaxSize())"))
         assertTrue(
             source.contains(
@@ -284,6 +283,7 @@ class VideoContentTabBarPolicyTest {
             pagerBlock.contains("layerBackdrop"),
             "Pager must not capture backdrop; segmented controls inside would self-sample and overflow RenderThread stack on MIUI"
         )
+        assertTrue(source.contains("hasBackdrop = miuixBackdrop != null"))
         assertTrue(source.contains("forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled"))
         assertTrue(source.contains("liquidGlassEffectsEnabled = liquidChromeSpec.liquidGlassEffectsEnabled"))
     }

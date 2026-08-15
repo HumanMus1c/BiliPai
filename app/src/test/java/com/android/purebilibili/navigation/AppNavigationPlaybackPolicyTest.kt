@@ -14,6 +14,28 @@ class AppNavigationPlaybackPolicyTest {
     }
 
     @Test
+    fun relatedDetailDisablesInternalSharedTransition() {
+        assertFalse(
+            shouldEnableVideoDetailSharedTransition(
+                cardTransitionEnabled = true,
+                sourceRoute = "video/BV_PARENT",
+            )
+        )
+        assertTrue(
+            shouldEnableVideoDetailSharedTransition(
+                cardTransitionEnabled = true,
+                sourceRoute = ScreenRoutes.Home.route,
+            )
+        )
+        assertFalse(
+            shouldEnableVideoDetailSharedTransition(
+                cardTransitionEnabled = false,
+                sourceRoute = ScreenRoutes.Home.route,
+            )
+        )
+    }
+
+    @Test
     fun leavingVideoToHome_shouldStopPlaybackEagerly() {
         assertTrue(
             shouldStopPlaybackEagerlyOnVideoRouteExit(

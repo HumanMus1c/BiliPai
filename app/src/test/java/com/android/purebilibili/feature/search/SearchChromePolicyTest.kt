@@ -6,6 +6,7 @@ import com.android.purebilibili.core.theme.UiPreset
 import com.android.purebilibili.core.theme.resolveUiStyle
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.resolveAppTopChromePolicy
+import com.android.purebilibili.feature.home.components.resolveHomeTopSearchContainerShape
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -63,6 +64,15 @@ class SearchChromePolicyTest {
         assertTrue(spec.useFilledSearchAction)
         assertEquals(ContainerLevel.Card, spec.suggestionShapeLevel)
         assertEquals(ContainerLevel.Chip, spec.chipShapeLevel)
+    }
+
+    @Test
+    fun `search input shape follows home top search tokens`() {
+        val md3 = resolveAppTopChromePolicy(resolveUiStyle(UiPreset.MD3, AndroidNativeVariant.MATERIAL3))
+        val miuix = resolveAppTopChromePolicy(resolveUiStyle(UiPreset.MD3, AndroidNativeVariant.MIUIX))
+
+        assertEquals(resolveHomeTopSearchContainerShape(md3), resolveSearchInputShape(md3))
+        assertEquals(resolveHomeTopSearchContainerShape(miuix), resolveSearchInputShape(miuix))
     }
 
     @Test

@@ -107,4 +107,44 @@ class DynamicCommentStructureTest {
         assertTrue(commentItem.contains("onUserClick(memberMid)"))
         assertTrue(commentItem.contains("onUserClick(mid)"))
     }
+
+    @Test
+    fun `dynamic comments expose like reply and thread tap interactions`() {
+        val sheetSource = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCommentSheet.kt"
+        ).readText()
+        val viewModelSource = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/DynamicViewModel.kt"
+        ).readText()
+        val commentItem = sheetSource
+            .substringAfter("private fun CommentItem(")
+            .substringBefore("private fun formatTime(")
+
+        assertTrue(sheetSource.contains("resolveDynamicCommentCountLabel("))
+        assertTrue(sheetSource.contains("resolveDynamicCommentEmptyLabel()"))
+        assertTrue(commentItem.contains("shouldOpenDynamicCommentThreadOnTap(reply)"))
+        assertTrue(commentItem.contains("onReply(reply)"))
+        assertTrue(commentItem.contains("onLike(reply)"))
+        assertTrue(viewModelSource.contains("fun likeComment(rpid: Long"))
+        assertTrue(viewModelSource.contains("fun startCommentReply("))
+        assertTrue(viewModelSource.contains("root = replyTarget?.rootRpid ?: 0L"))
+    }
+
+    @Test
+    fun `feed and space comment buttons open dynamic detail`() {
+        val screenSource = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/DynamicScreen.kt"
+        ).readText()
+        val spaceSource = File(
+            "src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt"
+        ).readText()
+        val topicSource = File(
+            "src/main/java/com/android/purebilibili/feature/search/TopicDetailScreen.kt"
+        ).readText()
+
+        assertTrue(screenSource.contains("onCommentClick = onDynamicDetailClick"))
+        assertTrue(!screenSource.contains("onCommentClick = { viewModel.openCommentSheet(it) }"))
+        assertTrue(spaceSource.contains("onCommentClick = { onDynamicDetailClick(dynamic.id_str) }"))
+        assertTrue(topicSource.contains("onCommentClick = onDynamicDetailClick"))
+    }
 }

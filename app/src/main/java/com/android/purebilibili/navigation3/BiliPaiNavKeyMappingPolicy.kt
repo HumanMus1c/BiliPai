@@ -24,6 +24,17 @@ internal fun resolveNavigation3SaveableStateKey(key: BiliPaiNavKey): String {
     }
 }
 
+internal fun resolveRemovedNavigation3SaveableStateKeys(
+    currentStack: List<BiliPaiNavKey>,
+    replacementStack: List<BiliPaiNavKey>,
+): Set<String> {
+    val retainedStateKeys = replacementStack
+        .mapTo(mutableSetOf(), ::resolveNavigation3SaveableStateKey)
+    return currentStack
+        .mapTo(linkedSetOf(), ::resolveNavigation3SaveableStateKey)
+        .filterTo(linkedSetOf()) { it !in retainedStateKeys }
+}
+
 internal fun BiliPaiNavKey.toLegacyRoute(): String {
     return when (this) {
         BiliPaiNavKey.MainHost -> "main_host"

@@ -235,7 +235,9 @@ internal fun resolveLiveInteractionSegmentedControlSpec(
         horizontalPaddingDp = compactChrome.chipHorizontalPaddingDp,
         verticalPaddingDp = compactChrome.standardGapDp,
         heightDp = compactChrome.primaryHeightDp,
-        indicatorHeightDp = compactChrome.compactChipHeightDp,
+        indicatorHeightDp = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
+            compactChrome.primaryHeightDp.toFloat()
+        ),
         labelFontSizeSp = 14
     )
 }

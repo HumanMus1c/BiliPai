@@ -43,8 +43,6 @@ import com.android.purebilibili.core.util.animateEnter
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.core.util.rememberHapticFeedback
-import com.android.purebilibili.core.theme.LocalCornerRadiusScale
-import com.android.purebilibili.core.theme.iOSCornerRadius
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.util.HapticType
@@ -107,11 +105,10 @@ fun GlassVideoCard(
     val contentTypography = feedContentTypography()
     
     // [新增] 获取圆角缩放比例
-    val cornerRadiusScale = LocalCornerRadiusScale.current
-    val cardCornerRadius = iOSCornerRadius.ExtraLarge * cornerRadiusScale  // AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall * scale
-    val coverCornerRadius = iOSCornerRadius.Large * cornerRadiusScale + AppSpacingTokens.Micro  // AppSpacingTokens.Large * scale
-    val tagCornerRadius = iOSCornerRadius.Small * cornerRadiusScale  // AppSpacingTokens.Small + AppSpacingTokens.Micro * scale
-    val smallTagRadius = iOSCornerRadius.ExtraSmall * cornerRadiusScale  // AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro * scale
+    val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Sheet)
+    val coverCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Dialog) + AppSpacingTokens.Micro
+    val tagCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Field)
+    val smallTagRadius = AppShapes.containerCornerDp(ContainerLevel.Chip)
     val durationBadgeStyle = remember { resolveVideoCardDurationBadgeVisualStyle() }
     val durationText = remember(video.duration) { FormatUtils.formatDuration(video.duration) }
     val durationBadgeMinWidth = remember(durationText, durationBadgeStyle) {

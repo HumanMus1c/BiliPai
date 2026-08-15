@@ -206,7 +206,6 @@ class HomeChromeLiquidSurfaceStructureTest {
                 topBarSource.contains("resolveSharedLiquidExportMonochromeColor(") &&
                 topBarSource.contains("resolveTopTabIndicatorBackdropPolicy(") &&
                 !topBarSource.contains("topTabIndicatorDrag(") &&
-                !topBarSource.contains("import com.kyant") &&
                 topBarSource.contains("topTabListScrollOffsetPx") &&
                 topBarSource.contains("One shared shift for export") &&
                 topBarSource.contains("indicatorPanelOffsetPx = 0f") &&

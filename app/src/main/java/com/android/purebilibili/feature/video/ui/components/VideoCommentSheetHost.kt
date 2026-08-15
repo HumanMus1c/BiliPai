@@ -33,7 +33,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.skeleton.CommentListSkeleton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -47,8 +47,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.store.SettingsManager
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.onSizeChanged
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
+import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
 import com.android.purebilibili.core.ui.rememberAppBottomSheetMotion
 import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import com.android.purebilibili.core.ui.InteractiveOverlayProgressVisual
@@ -116,6 +117,14 @@ internal fun resolveVideoCommentSheetHostContent(
         mainSheetVisible -> VideoCommentSheetHostContent.MAIN_LIST
         else -> VideoCommentSheetHostContent.HIDDEN
     }
+}
+
+internal fun shouldResetVideoCommentMainListAfterTransition(
+    previousContent: VideoCommentSheetHostContent,
+    currentContent: VideoCommentSheetHostContent,
+): Boolean {
+    return previousContent == VideoCommentSheetHostContent.THREAD_DETAIL &&
+        currentContent == VideoCommentSheetHostContent.MAIN_LIST
 }
 
 internal fun resolveVideoCommentSheetHostHeightFraction(
@@ -338,6 +347,8 @@ fun VideoCommentSheetHost(
         mainSheetVisible = mainSheetVisible,
         subReplyVisible = subReplyState.visible
     )
+    var previousHostContent by remember { mutableStateOf(hostContent) }
+    var mainListScrollToTopRequest by remember { mutableIntStateOf(0) }
     val hostVisible = hostContent != VideoCommentSheetHostContent.HIDDEN
     val scrimAlpha = maxScrimAlphaOverride
         ?: resolveVideoCommentSheetHostScrimAlpha(mainSheetVisible = mainSheetVisible)
@@ -395,6 +406,18 @@ fun VideoCommentSheetHost(
 
     SideEffect {
         onMainSheetVisibilityProgressChange(mainSheetVisibilityProgress)
+    }
+
+    LaunchedEffect(hostContent) {
+        if (
+            shouldResetVideoCommentMainListAfterTransition(
+                previousContent = previousHostContent,
+                currentContent = hostContent,
+            )
+        ) {
+            mainListScrollToTopRequest += 1
+        }
+        previousHostContent = hostContent
     }
 
     LaunchedEffect(isDismissDragSettling, sheetDragOffsetPx, mainSheetMeasuredHeightPx, hostContent) {
@@ -704,6 +727,7 @@ fun VideoCommentSheetHost(
                                     maxTimestampMs = maxTimestampMs,
                                     onImagePreview = previewCallback,
                                     onBackToTop = onBackToTop,
+                                    scrollToTopRequest = mainListScrollToTopRequest,
                                 )
                             }
 
@@ -768,6 +792,7 @@ internal fun VideoCommentMainList(
     maxTimestampMs: Long?,
     onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
     onBackToTop: () -> Unit = {},
+    scrollToTopRequest: Int = 0,
 ) {
     val state by viewModel.commentState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -775,6 +800,7 @@ internal fun VideoCommentMainList(
     val appearance = rememberVideoCommentAppearance()
     val commentChromeBackdrop = rememberLayerBackdrop()
     val listState = rememberLazyListState()
+    val latestOnBackToTop by rememberUpdatedState(onBackToTop)
     val shouldShowBackToTop by remember(listState) {
         androidx.compose.runtime.derivedStateOf {
             shouldShowVideoCommentBackToTop(
@@ -782,6 +808,12 @@ internal fun VideoCommentMainList(
                 firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset
             )
         }
+    }
+
+    LaunchedEffect(scrollToTopRequest) {
+        if (scrollToTopRequest <= 0) return@LaunchedEffect
+        listState.scrollToItem(0)
+        latestOnBackToTop()
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -794,7 +826,7 @@ internal fun VideoCommentMainList(
                     SettingsManager.setCommentDefaultSortMode(context, mode.apiMode)
                 }
             },
-            backdrop = commentChromeBackdrop
+            miuixBackdrop = commentChromeBackdrop
         )
 
         CommentFraudDetectingBanner(isDetecting = state.isDetectingFraud)
@@ -882,7 +914,7 @@ internal fun VideoCommentMainList(
                 }
 
                 VideoCommentBackToTopButton(
-                    visible = shouldShowBackToTop,
+                    visible = rememberBackToTopButtonEnabled() && shouldShowBackToTop,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(end = 20.dp, bottom = 20.dp),
@@ -932,7 +964,7 @@ private fun LoadingFooter() {
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        AppCircularProgressIndicator(strokeWidth = 2.dp)
+        AdaptiveLoadingIndicator(strokeWidth = 2.dp)
     }
 }
 

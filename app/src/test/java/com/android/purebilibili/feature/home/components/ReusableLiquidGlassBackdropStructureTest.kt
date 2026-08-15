@@ -2,9 +2,31 @@ package com.android.purebilibili.feature.home.components
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ReusableLiquidGlassBackdropStructureTest {
+
+    @Test
+    fun `production liquid glass uses only miuix backdrop`() {
+        val projectRoot = listOf(File("."), File(".."))
+            .first { File(it, "app/src/main").exists() }
+        val productionSources = listOf(
+            File(projectRoot, "app/src/main"),
+            File(projectRoot, "design-system/src/main"),
+        )
+        val legacyVendor = "ky" + "ant"
+        val legacyPackage = listOf("com", legacyVendor, "backdrop").joinToString(".")
+        val legacySources = productionSources
+            .flatMap { root -> root.walkTopDown().filter(File::isFile).toList() }
+            .filter { source -> source.extension == "kt" && legacyPackage in source.readText() }
+
+        assertTrue(legacySources.isEmpty(), "Legacy backdrop remains in: $legacySources")
+        val legacyCoordinate = listOf("io.github.${legacyVendor}0", "backdrop").joinToString(":")
+        assertFalse(
+            File(projectRoot, "app/build.gradle.kts").readText().contains(legacyCoordinate)
+        )
+    }
 
     @Test
     fun `audio library keeps pager outside segmented control and synchronizes indicator`() {
@@ -30,22 +52,17 @@ class ReusableLiquidGlassBackdropStructureTest {
         )
 
         assertTrue(source.contains("val selectionBackdrop = rememberLayerBackdrop()"))
-        assertTrue(source.contains("backdrop = selectionBackdrop"))
+        assertTrue(source.contains("miuixBackdrop = selectionBackdrop"))
         assertTrue(source.contains(".layerBackdrop(selectionBackdrop)"))
     }
 
     @Test
-    fun `live area and player tabs receive sibling content backdrops`() {
-        val areaSource = loadSource(
-            "app/src/main/java/com/android/purebilibili/feature/live/LiveAreaScreen.kt"
-        )
+    fun `live player tabs receive a sibling content backdrop`() {
         val playerSource = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/live/LivePlayerScreen.kt"
         )
 
-        assertTrue(areaSource.contains("backdrop = selectionBackdrop"))
-        assertTrue(areaSource.contains(".layerBackdrop(selectionBackdrop)"))
-        assertTrue(playerSource.contains("backdrop = selectionBackdrop"))
+        assertTrue(playerSource.contains("miuixBackdrop = selectionBackdrop"))
         assertTrue(playerSource.contains(".layerBackdrop(selectionBackdrop)"))
     }
 

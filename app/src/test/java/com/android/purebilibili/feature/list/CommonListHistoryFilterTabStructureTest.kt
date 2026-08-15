@@ -26,7 +26,7 @@ class CommonListHistoryFilterTabStructureTest {
             "开启全局液态玻璃时应复用底栏 dock 分段控件"
         )
         assertTrue(
-            historyFilterSection.contains("backdrop = commonListChromeBackdrop"),
+            historyFilterSection.contains("miuixBackdrop = commonListChromeBackdrop"),
             "液态 dock 必须绑定与顶栏一致的 backdrop 源"
         )
         assertTrue(

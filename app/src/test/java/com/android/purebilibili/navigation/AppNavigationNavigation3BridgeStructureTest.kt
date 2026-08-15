@@ -175,6 +175,7 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertFalse(videoDetailBranch.contains("!shouldUseNativeVideoBackgroundReturnEffect(videoKey)"))
         assertTrue(videoDetailBranch.contains("transitionEnabled = shouldEnableVideoDetailSharedTransition("))
         assertTrue(videoDetailBranch.contains("shouldEnableVideoDetailSharedTransition("))
+        assertTrue(videoDetailBranch.contains("sourceRoute = videoKey.sourceRoute"))
         assertFalse(videoDetailBranch.contains("nativeVideoBackPreviewVideoKey == videoKey.bvid"))
         assertFalse(videoDetailBranch.contains("hideVideoDetailForNativeBackPreview"))
         assertFalse(source.contains("previewNativeVideoBackProgress("))
@@ -493,6 +494,23 @@ class AppNavigationNavigation3BridgeStructureTest {
         assertFalse(source.contains("bottomBarVideoCardLaunchFeedback"))
         assertFalse(source.contains("videoCardLaunchFeedback"))
         assertFalse(source.contains("shouldPlayBottomBarVideoCardLaunchFeedback"))
+    }
+
+    @Test
+    fun profileAndHistoryBottomBarReselectScrollToTop() {
+        val source = appNavigationSource()
+        assertTrue(source.contains("val historyScrollChannel"))
+        assertTrue(source.contains("val profileScrollChannel"))
+        assertTrue(source.contains("val liveScrollChannel"))
+        assertTrue(source.contains("val watchLaterScrollChannel"))
+        assertTrue(source.contains("BottomNavItem.HISTORY -> historyScrollChannel.trySend(Unit)"))
+        assertTrue(source.contains("BottomNavItem.PROFILE -> profileScrollChannel.trySend(Unit)"))
+        assertTrue(source.contains("BottomNavItem.LIVE -> liveScrollChannel.trySend(Unit)"))
+        assertTrue(source.contains("BottomNavItem.WATCHLATER -> watchLaterScrollChannel.trySend(Unit)"))
+        assertTrue(source.contains("scrollToTopChannel = historyScrollChannel"))
+        assertTrue(source.contains("scrollToTopChannel = profileScrollChannel"))
+        assertTrue(source.contains("scrollToTopChannel = liveScrollChannel"))
+        assertTrue(source.contains("scrollToTopChannel = watchLaterScrollChannel"))
     }
 
     private fun appNavigationSource(): String {

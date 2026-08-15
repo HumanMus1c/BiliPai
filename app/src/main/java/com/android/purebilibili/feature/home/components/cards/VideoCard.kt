@@ -70,7 +70,6 @@ import com.android.purebilibili.core.ui.LocalWallpaperHazeState
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.theme.LocalCornerRadiusScale
-import com.android.purebilibili.core.theme.iOSCornerRadius
 import com.android.purebilibili.core.util.HapticType
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
@@ -83,12 +82,12 @@ import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.feedContentTypography
-import com.android.purebilibili.feature.home.LocalHomeLayerBackdrop
+import com.android.purebilibili.feature.home.LocalHomeMiuixBackdrop
 import com.android.purebilibili.feature.home.HomeCoverRequestSpec
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
+import com.android.purebilibili.feature.home.components.liquid.lens
+import com.android.purebilibili.feature.home.components.liquid.vibrancy
+import top.yukonga.miuix.kmp.blur.blur
+import top.yukonga.miuix.kmp.blur.drawBackdrop
 import com.android.purebilibili.core.ui.ContainerLevel
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -488,7 +487,7 @@ internal fun ElegantVideoCard(
     coverRequestSpec: HomeCoverRequestSpec? = null,
     glassEnabled: Boolean = true,
     blurEnabled: Boolean = true,
-    compactStatsOnCover: Boolean = true, // 播放量/评论数是否贴在封面底部
+    compactStatsOnCover: Boolean = false, // 播放/弹幕默认位于信息区
     showCoverGlassBadges: Boolean = false,
     showInfoGlassBadges: Boolean = false,
     badgeEffectMode: HomeCardBadgeEffectMode = HomeCardBadgeEffectMode.OFF,
@@ -526,7 +525,7 @@ internal fun ElegantVideoCard(
     //  [HIG] 动态圆角 - 8dp 紧凑圆角（比 12dp 更锐利，减小卡片视觉质量）
     val cornerRadiusScale = LocalCornerRadiusScale.current
     val cardCornerRadius = AppSpacingTokens.Small * cornerRadiusScale
-    val smallCornerRadius = iOSCornerRadius.Tiny * cornerRadiusScale  // AppSpacingTokens.ExtraSmall * scale
+    val smallCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Tag)
     val durationBadgeStyle = remember { resolveVideoCardDurationBadgeVisualStyle() }
     val cardTexts = remember(video.duration, video.stat.view, video.stat.reply, video.stat.danmaku, video.progress) {
         val durationText = FormatUtils.formatDuration(video.duration)
@@ -559,7 +558,7 @@ internal fun ElegantVideoCard(
     val showDurationOutside = homeDurationStyle == HomeDurationStyle.OUTSIDE_COVER
     val inlinePillBaseColor = AppSurfaceTokens.cardContainer()
     val wallpaperHazeState = LocalWallpaperHazeState.current
-    val homeLayerBackdrop = LocalHomeLayerBackdrop.current
+    val homeMiuixBackdrop = LocalHomeMiuixBackdrop.current
     val badgeEffectVisual = remember(badgeEffectMode, wallpaperHazeState != null) {
         resolveHomeCardBadgeEffectVisual(
             mode = badgeEffectMode,
@@ -586,7 +585,7 @@ internal fun ElegantVideoCard(
         isDataSaverActive,
         infoGlassMode,
         wallpaperHazeState != null,
-        homeLayerBackdrop != null,
+        homeMiuixBackdrop != null,
         blurEnabled
     ) {
         resolveHomeCardInfoSurfaceAppearance(
@@ -596,7 +595,7 @@ internal fun ElegantVideoCard(
             isDataSaverActive = isDataSaverActive,
             infoGlassMode = infoGlassMode,
             hasWallpaperHazeState = wallpaperHazeState != null,
-            hasLayerBackdrop = homeLayerBackdrop != null,
+            hasLayerBackdrop = homeMiuixBackdrop != null,
             blurEnabled = blurEnabled
         )
     }
@@ -1303,19 +1302,21 @@ internal fun ElegantVideoCard(
             } else {
                 Modifier
             }
-            // LayerBackdrop liquid glass — independent of Haze, samples home feed layer.
+            // Miuix liquid glass — independent of Haze, samples the home feed layer.
             val liquidModifier = if (
-                infoSurfaceAppearance.useRealtimeLiquidGlass && homeLayerBackdrop != null
+                infoSurfaceAppearance.useRealtimeLiquidGlass && homeMiuixBackdrop != null
             ) {
                 Modifier.drawBackdrop(
-                    backdrop = homeLayerBackdrop,
+                    backdrop = homeMiuixBackdrop,
                     shape = { infoSurfaceShape },
                     effects = {
                         vibrancy()
-                        blur((AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro).toPx())
+                        val blurRadius = (AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro).toPx()
+                        blur(blurRadius, blurRadius)
                         lens(
                             refractionHeight = AppSpacingTokens.Small.toPx(),
-                            refractionAmount = (AppSpacingTokens.Medium + AppSpacingTokens.Micro).toPx()
+                            refractionAmount = (AppSpacingTokens.Medium + AppSpacingTokens.Micro).toPx(),
+                            depthEffect = true,
                         )
                     }
                 )
@@ -1423,85 +1424,19 @@ internal fun ElegantVideoCard(
         )
 
         val resolvedUpBadgeVisibility = com.android.purebilibili.core.ui.LocalUpBadgeVisibility.current
-        VideoCardOwnerMetadata(
-            video = video,
-            isFollowing = isFollowing,
-            showUpBadge = showUpBadge ?: resolvedUpBadgeVisibility.showBadges,
-            showUpAvatar = showUpAvatar ?: resolvedUpBadgeVisibility.showAvatars,
-            upFollowerCount = upFollowerCount,
-            upVideoCount = upVideoCount,
-            infoBadgeStyle = badgeStylePolicy.infoStyle,
-            inlinePillColors = inlinePillColors,
-            metadataColors = metadataColors,
-            onUpClick = onUpClick,
-            modifier = resolveVideoCardMetadataRowModifier()
-        )
-
-        // 时长已移入统计行（闹钟图标），日期行独占整行，发布日期不再被挤压省略。
-        VideoCardDurationPublishRow(
-            durationText = "",
-            publishTimeText = publishTimeRowText,
-            emphasizePublishTime = emphasizePublishTime,
-            publishTimeColor = metadataColors.publishTimeColor,
-            topSpacing = if (compactMetadata) {
-                AppSpacingTokens.ExtraSmall
-            } else {
-                AppSpacingTokens.Small - AppSpacingTokens.Micro
-            }
-        )
-
         if (scrollLitePolicy.showSecondaryStatsRow) {
             Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro))
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro)
+                horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_STAT_ROW_SPACING_DP.dp)
             ) {
-                val viewsRowModifier = Modifier.wrapContentSize()
-                Box(modifier = viewsRowModifier) {
-                    HomeVideoBadgePill(
-                        style = badgeStylePolicy.infoStyle,
-                        useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
-                        shape = AppShapes.container(ContainerLevel.Pill),
-                        containerColor = inlinePillColors.containerColor,
-                        borderColor = inlinePillColors.borderColor
-                    ) {
-                        AppIcon(
-                            imageVector = Icons.Outlined.PlayCircle,
-                            contentDescription = null,
-                            modifier = Modifier.size(AppSpacingTokens.Medium),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        AppText(
-                            text = primaryStatText,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
-                        )
-                    }
-                }
-
-                if (secondaryStatText != null) {
-                    val danmakuModifier = Modifier.wrapContentSize()
-                    HomeVideoBadgePill(
-                        modifier = danmakuModifier,
-                        style = badgeStylePolicy.infoStyle,
-                        useRealtimeHaze = badgeEffectVisual.useRealtimeHaze,
-                        shape = AppShapes.container(ContainerLevel.Pill),
-                        containerColor = inlinePillColors.containerColor,
-                        borderColor = inlinePillColors.borderColor
-                    ) {
-                        AppIcon(
-                            imageVector = Icons.Outlined.ChatBubbleOutline,
-                            contentDescription = null,
-                            modifier = Modifier.size(AppSpacingTokens.Medium),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        AppText(
-                            text = secondaryStatText,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium)
-                        )
-                    }
-                }
+                HorizontalVideoStatRow(
+                    playText = primaryStatText,
+                    danmakuText = secondaryStatText.orEmpty(),
+                    playIcon = Icons.Outlined.PlayCircle,
+                    danmakuIcon = Icons.Outlined.ChatBubbleOutline,
+                )
 
                 if (onlineCount.isNotEmpty()) {
                     HomeVideoBadgePill(
@@ -1552,7 +1487,47 @@ internal fun ElegantVideoCard(
                         )
                     }
                 }
+
+                if (publishTimeRowText.isNotBlank()) {
+                    Spacer(modifier = Modifier.weight(1f))
+                    AppText(
+                        text = publishTimeRowText,
+                        color = metadataColors.publishTimeColor,
+                        style = contentTypography.statistic,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip,
+                    )
+                }
             }
+        }
+
+        VideoCardOwnerMetadata(
+            video = video,
+            isFollowing = isFollowing,
+            showUpBadge = showUpBadge ?: resolvedUpBadgeVisibility.showBadges,
+            showUpAvatar = showUpAvatar ?: resolvedUpBadgeVisibility.showAvatars,
+            upFollowerCount = upFollowerCount,
+            upVideoCount = upVideoCount,
+            infoBadgeStyle = badgeStylePolicy.infoStyle,
+            inlinePillColors = inlinePillColors,
+            metadataColors = metadataColors,
+            onUpClick = onUpClick,
+            modifier = resolveVideoCardMetadataRowModifier()
+        )
+
+        if (!scrollLitePolicy.showSecondaryStatsRow) {
+            VideoCardDurationPublishRow(
+                durationText = "",
+                publishTimeText = publishTimeRowText,
+                emphasizePublishTime = emphasizePublishTime,
+                publishTimeColor = metadataColors.publishTimeColor,
+                topSpacing = if (compactMetadata) {
+                    AppSpacingTokens.ExtraSmall
+                } else {
+                    AppSpacingTokens.Small - AppSpacingTokens.Micro
+                }
+            )
         }
         }
         }

@@ -229,17 +229,24 @@ class TopTabLayoutPolicyTest {
             )
         )
         listOf(0, 1, 2).forEach { labelMode ->
+            val visibleSlots = resolveMd3TopTabLayoutVisibleSlots(
+                categoryCount = 5,
+                labelMode = labelMode,
+                showPartitionAction = false,
+                containerWidthDp = 360f
+            )
             val itemWidth = resolveMd3TopTabItemWidthDp(
                 containerWidthDp = 360f,
-                visibleSlots = resolveMd3TopTabLayoutVisibleSlots(
-                    categoryCount = 5,
-                    labelMode = labelMode,
-                    showPartitionAction = false
-                )
+                visibleSlots = visibleSlots,
+                labelMode = labelMode
             )
             assertTrue(
-                "five tabs must fit within 360dp for labelMode=$labelMode, got ${itemWidth * 5f}",
-                itemWidth * 5f <= 360f + 0.001f
+                "visible tabs must fit within 360dp for labelMode=$labelMode, got ${itemWidth * visibleSlots}",
+                itemWidth * visibleSlots <= 360f + 0.001f
+            )
+            assertTrue(
+                "item width must keep complete chrome for labelMode=$labelMode",
+                itemWidth + 0.001f >= resolveMd3TopTabMinItemWidthDp(labelMode)
             )
         }
     }
@@ -375,37 +382,49 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
+    fun `wrap and floating docks inset the last capsule from the stadium end cap`() {
+        assertEquals(6f, resolveTopTabDockEndInsetDp(wrapContent = true, isFloatingStyle = true), 0.001f)
+        assertEquals(6f, resolveTopTabDockEndInsetDp(wrapContent = false, isFloatingStyle = true), 0.001f)
+        assertEquals(0f, resolveTopTabDockEndInsetDp(wrapContent = false, isFloatingStyle = false), 0.001f)
+    }
+
+    @Test
     fun `wrap dock width follows preferred item width times tab count`() {
-        // Icon + text floating: 84 × 5 = 420, fits in 440 → wrap to 420
+        val endInset = resolveTopTabDockEndInsetDp(wrapContent = true, isFloatingStyle = true)
+        assertEquals(6f, endInset, 0.001f)
+        // Icon + text floating: 84 × 5 + 6 × 2 = 432, fits in 440
         assertEquals(84f, resolveTopTabWrapItemWidthDp(labelMode = 0, isFloatingStyle = true), 0.001f)
         assertEquals(
-            420f,
+            432f,
             resolveTopTabDockWrapWidthDp(
                 itemWidthDp = 84f,
                 categoryCount = 5,
-                maxWidthDp = 440f
+                maxWidthDp = 440f,
+                contentPaddingHorizontalDp = endInset
             ),
             0.001f
         )
-        // Icon only: 56 × 5 = 280
+        // Icon only: 56 × 5 + 12 = 292
         assertEquals(56f, resolveTopTabWrapItemWidthDp(labelMode = 1, isFloatingStyle = true), 0.001f)
         assertEquals(
-            280f,
+            292f,
             resolveTopTabDockWrapWidthDp(
                 itemWidthDp = 56f,
                 categoryCount = 5,
-                maxWidthDp = 440f
+                maxWidthDp = 440f,
+                contentPaddingHorizontalDp = endInset
             ),
             0.001f
         )
-        // Text only: 72 × 5 = 360
+        // Text only: 72 × 5 + 12 = 372
         assertEquals(72f, resolveTopTabWrapItemWidthDp(labelMode = 2, isFloatingStyle = true), 0.001f)
         assertEquals(
-            360f,
+            372f,
             resolveTopTabDockWrapWidthDp(
                 itemWidthDp = 72f,
                 categoryCount = 5,
-                maxWidthDp = 440f
+                maxWidthDp = 440f,
+                contentPaddingHorizontalDp = endInset
             ),
             0.001f
         )
@@ -435,7 +454,11 @@ class TopTabLayoutPolicyTest {
                     val dockWidth = resolveTopTabDockWrapWidthDp(
                         itemWidthDp = itemWidth,
                         categoryCount = categoryCount,
-                        maxWidthDp = containerWidth
+                        maxWidthDp = containerWidth,
+                        contentPaddingHorizontalDp = resolveTopTabDockEndInsetDp(
+                            wrapContent = true,
+                            isFloatingStyle = true
+                        )
                     )
                     val leadingSpace = (containerWidth - dockWidth) / 2f
                     val trailingSpace = containerWidth - dockWidth - leadingSpace
@@ -515,6 +538,44 @@ class TopTabLayoutPolicyTest {
         assertEquals(5f, resolveTopTabContentVerticalPaddingDp(labelMode = 0), 0.001f)
         assertEquals(5f, resolveTopTabContentVerticalPaddingDp(labelMode = 1), 0.001f)
         assertEquals(5f, resolveTopTabContentVerticalPaddingDp(labelMode = 2), 0.001f)
+    }
+
+    @Test
+    fun `narrow phones keep complete labels by reducing visible slots per mode`() {
+        assertEquals(
+            4,
+            resolveMd3TopTabLayoutVisibleSlots(
+                categoryCount = 5,
+                labelMode = 0,
+                showPartitionAction = false,
+                containerWidthDp = 320f
+            )
+        )
+        assertEquals(
+            5,
+            resolveMd3TopTabLayoutVisibleSlots(
+                categoryCount = 5,
+                labelMode = 1,
+                showPartitionAction = false,
+                containerWidthDp = 320f
+            )
+        )
+        assertEquals(
+            5,
+            resolveMd3TopTabLayoutVisibleSlots(
+                categoryCount = 5,
+                labelMode = 2,
+                showPartitionAction = false,
+                containerWidthDp = 320f
+            )
+        )
+        val iconTextWidth = resolveMd3TopTabItemWidthDp(
+            containerWidthDp = 320f,
+            visibleSlots = 4,
+            labelMode = 0
+        )
+        assertTrue(iconTextWidth >= resolveMd3TopTabMinItemWidthDp(0))
+        assertTrue(iconTextWidth * 4f <= 320f + 0.001f)
     }
 
     @Test

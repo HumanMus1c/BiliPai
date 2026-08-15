@@ -4,6 +4,7 @@ package com.android.purebilibili.data.repository
 import com.android.purebilibili.core.store.normalizeDanmakuDisplayArea
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.data.model.response.DanmakuThumbupStatsItem
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -100,6 +101,11 @@ data class DanmakuCacheStats(
     val rawEntryCount: Int,
     val segmentEntryCount: Int,
     val totalBytes: Long
+)
+
+private data class DanmakuSegmentCacheKey(
+    val cid: Long,
+    val segmentIndex: Int
 )
 
 internal fun resolveDanmakuThumbupState(
@@ -240,8 +246,9 @@ object DanmakuRepository {
     private var danmakuCacheBytes = 0L
     
     // Protobuf 弹幕分段缓存
-    private val danmakuSegmentCache = LinkedHashMap<Long, List<ByteArray>>(5, 0.75f, true)
-    private const val MAX_SEGMENT_CACHE_COUNT = 3
+    private val danmakuSegmentCache =
+        LinkedHashMap<DanmakuSegmentCacheKey, ByteArray>(12, 0.75f, true)
+    private const val MAX_SEGMENT_CACHE_COUNT = 12
     private const val MAX_SEGMENT_CACHE_BYTES = 12L * 1024 * 1024
     private const val MAX_SEGMENT_PARALLELISM = 3
     private var danmakuSegmentCacheBytes = 0L
@@ -364,6 +371,8 @@ object DanmakuRepository {
             }
             
             result
+        } catch (e: CancellationException) {
+             throw e
         } catch (e: Exception) {
             android.util.Log.e("DanmakuRepo", " getDanmakuRawData failed: ${e.message}")
             e.printStackTrace()
@@ -386,6 +395,8 @@ object DanmakuRepository {
              } else {
                  null
              }
+        } catch (e: CancellationException) {
+             throw e
         } catch (e: Exception) {
              android.util.Log.e("DanmakuRepo", " getDanmakuView failed: ${e.message}")
              null
@@ -400,20 +411,56 @@ object DanmakuRepository {
      * @param metadataSegmentCount 弹幕元数据返回的总分段数（可选）
      * @return 所有分段的 Protobuf 数据列表
      */
+    suspend fun getDanmakuSegment(
+        cid: Long,
+        segmentIndex: Int
+    ): ByteArray? = withContext(Dispatchers.IO) {
+        require(segmentIndex >= 1) { "segmentIndex must be one-based" }
+        val cacheKey = DanmakuSegmentCacheKey(cid, segmentIndex)
+        synchronized(danmakuSegmentCache) {
+            danmakuSegmentCache[cacheKey]?.let { return@withContext it }
+        }
+
+        val bytes = try {
+            api.getDanmakuSeg(oid = cid, segmentIndex = segmentIndex).bytes()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("DanmakuRepo", "Segment $segmentIndex failed: ${e.message}")
+            return@withContext null
+        }
+        if (bytes.isEmpty()) return@withContext null
+
+        val entrySize = bytes.size.toLong()
+        if (entrySize <= MAX_SEGMENT_CACHE_BYTES) {
+            synchronized(danmakuSegmentCache) {
+                danmakuSegmentCache.remove(cacheKey)?.let { removed ->
+                    danmakuSegmentCacheBytes -= removed.size.toLong()
+                }
+                val iterator = danmakuSegmentCache.entries.iterator()
+                while (
+                    iterator.hasNext() &&
+                    (danmakuSegmentCache.size >= MAX_SEGMENT_CACHE_COUNT ||
+                        danmakuSegmentCacheBytes + entrySize > MAX_SEGMENT_CACHE_BYTES)
+                ) {
+                    val eldest = iterator.next()
+                    danmakuSegmentCacheBytes -= eldest.value.size.toLong()
+                    iterator.remove()
+                }
+                danmakuSegmentCache[cacheKey] = bytes
+                danmakuSegmentCacheBytes += entrySize
+            }
+        }
+        bytes
+    }
+
+    /** Full-video loading is retained only for offline asset export. Playback uses single segments. */
     suspend fun getDanmakuSegments(
         cid: Long,
         durationMs: Long,
         metadataSegmentCount: Int? = null
     ): List<ByteArray> = withContext(Dispatchers.IO) {
         com.android.purebilibili.core.util.Logger.d("DanmakuRepo", "🎯 getDanmakuSegments: cid=$cid, duration=${durationMs}ms")
-        
-        // 检查缓存
-        synchronized(danmakuSegmentCache) {
-            danmakuSegmentCache[cid]?.let {
-                com.android.purebilibili.core.util.Logger.d("DanmakuRepo", " Protobuf danmaku cache hit: cid=$cid, segments=${it.size}")
-                return@withContext it
-            }
-        }
         
         // 计算所需分段数（优先 duration，其次 metadata，最后安全默认值）
         val segmentCount = resolveDanmakuSegmentCount(durationMs, metadataSegmentCount)
@@ -432,15 +479,16 @@ object DanmakuRepository {
                 async {
                     semaphore.withPermit {
                         try {
-                            val response = api.getDanmakuSeg(oid = cid, segmentIndex = index)
-                            val bytes = response.bytes()
-                            if (bytes.isNotEmpty()) {
+                            val bytes = getDanmakuSegment(cid, index)
+                            if (bytes != null) {
                                 com.android.purebilibili.core.util.Logger.d("DanmakuRepo", " Segment $index: ${bytes.size} bytes")
                                 SegmentResult(index, bytes)
                             } else {
                                 com.android.purebilibili.core.util.Logger.d("DanmakuRepo", " Segment $index is empty")
                                 null
                             }
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             android.util.Log.w("DanmakuRepo", " Segment $index failed: ${e.message}")
                             null
@@ -457,33 +505,6 @@ object DanmakuRepository {
         
         com.android.purebilibili.core.util.Logger.d("DanmakuRepo", " Got ${results.size}/$segmentCount segments for cid=$cid")
         
-        // 缓存结果（限制条目数与字节数）
-        if (results.isNotEmpty()) {
-            val entrySize = results.sumOf { it.size.toLong() }
-            if (entrySize <= MAX_SEGMENT_CACHE_BYTES) {
-                synchronized(danmakuSegmentCache) {
-                    danmakuSegmentCache.remove(cid)?.let { removed ->
-                        danmakuSegmentCacheBytes -= removed.sumOf { it.size.toLong() }
-                    }
-                    
-                    val iterator = danmakuSegmentCache.entries.iterator()
-                    while (iterator.hasNext() &&
-                        (danmakuSegmentCache.size >= MAX_SEGMENT_CACHE_COUNT ||
-                            danmakuSegmentCacheBytes + entrySize > MAX_SEGMENT_CACHE_BYTES)
-                    ) {
-                        val eldest = iterator.next()
-                        danmakuSegmentCacheBytes -= eldest.value.sumOf { it.size.toLong() }
-                        iterator.remove()
-                    }
-                    
-                    danmakuSegmentCache[cid] = results.toList()
-                    danmakuSegmentCacheBytes += entrySize
-                }
-            } else {
-                com.android.purebilibili.core.util.Logger.d("DanmakuRepo", " Segments too large to cache: size=$entrySize")
-            }
-        }
-        
         results.toList()
     }
 
@@ -495,10 +516,25 @@ object DanmakuRepository {
             }
             try {
                 api.getDanmakuSpecialDm(url).bytes().takeIf { it.isNotEmpty() }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 android.util.Log.w("DanmakuRepo", " Special danmaku fetch failed: ${e.message}")
                 null
             }
+        }
+    }
+
+    suspend fun getWebMask(url: String): ByteArray? = withContext(Dispatchers.IO) {
+        if (url.isBlank()) return@withContext null
+        val resolvedUrl = if (url.startsWith("//")) "https:$url" else url
+        try {
+            api.getDanmakuSpecialDm(resolvedUrl).bytes().takeIf { it.isNotEmpty() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("DanmakuRepo", "Webmask fetch failed: ${e.message}")
+            null
         }
     }
     
@@ -965,9 +1001,11 @@ object DanmakuRepository {
         } else {
             Result.failure(Exception("未找到有效的 WebSocket 地址"))
         }
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
-            android.util.Log.e("DanmakuRepo", "❌ Start live danmaku failed: ${e.message}", e)
-            Result.failure(e)
+        android.util.Log.e("DanmakuRepo", "❌ Start live danmaku failed: ${e.message}", e)
+        Result.failure(e)
         }
     }
 }

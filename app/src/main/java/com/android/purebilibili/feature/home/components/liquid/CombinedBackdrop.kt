@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.Density
 import top.yukonga.miuix.kmp.blur.Backdrop
 
 /**
- * Mirrors BiliPai / Kyant CombinedBackdrop: page backdrop first, then tinted tabs
+ * BiliPai combined sampling: page backdrop first, then tinted tabs
  * capture, as a single sampling source for the liquid indicator.
  */
 @Stable

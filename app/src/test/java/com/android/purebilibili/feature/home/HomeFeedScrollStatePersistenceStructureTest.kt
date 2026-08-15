@@ -19,6 +19,27 @@ class HomeFeedScrollStatePersistenceStructureTest {
     }
 
     @Test
+    fun `bottom bar reselect scrolls the latest visible home category`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
+        val scrollCollectorSource = source
+            .substringAfter("// [新增] 监听全局回顶事件")
+            .substringBefore("val homeTopTabSettings")
+
+        assertTrue(
+            scrollCollectorSource.contains(
+                "latestHomeScrollCategory by rememberUpdatedState(currentCategory)"
+            )
+        )
+        assertTrue(
+            scrollCollectorSource.contains(
+                "latestHomeScrollPopularSubCategory by rememberUpdatedState(popularSubCategory)"
+            )
+        )
+        assertTrue(scrollCollectorSource.contains("val activeCategory = latestHomeScrollCategory"))
+        assertTrue(scrollCollectorSource.contains("gridStates[activeCategory]"))
+    }
+
+    @Test
     fun `video navigation freezes feed anchor before shared transition starts`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
         val clickSource = source

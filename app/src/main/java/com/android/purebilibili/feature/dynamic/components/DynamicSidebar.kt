@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 //  Material Icons
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
@@ -41,6 +43,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,12 +51,16 @@ import coil.compose.AsyncImage
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.rememberAppChevronDownIcon
+import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberAppVisibilityOffIcon
 import com.android.purebilibili.core.ui.rememberAppVisibilityOnIcon
 import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperProtectiveColor
 import com.android.purebilibili.core.ui.blur.BlurStyles
 import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
+import com.android.purebilibili.feature.dynamic.isDynamicUpPanelItemSelected
+import com.android.purebilibili.feature.dynamic.isDynamicUpPanelShortcut
 import com.android.purebilibili.feature.dynamic.resolveDynamicSidebarWidth
 import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.ui.blur.unifiedBlur
@@ -109,6 +116,7 @@ internal fun resolveDynamicSidebarReturnHeaderColor(
 fun DynamicSidebar(
     users: List<SidebarUser>,
     selectedUserId: Long?,
+    selfUid: Long = 0L,
     isExpanded: Boolean,
     userListState: androidx.compose.foundation.lazy.LazyListState,
     onUserClick: (Long?) -> Unit,
@@ -145,6 +153,23 @@ fun DynamicSidebar(
         backgroundAlpha = backgroundAlpha,
         globalWallpaperVisible = globalWallpaperVisible
     )
+    val liveUsers = remember(users, selfUid) {
+        users.filter { it.isLive && !isDynamicUpPanelShortcut(it.uid, selfUid) }
+    }
+    val shortcutUsers = remember(users, selfUid) {
+        users.filter { isDynamicUpPanelShortcut(it.uid, selfUid) }
+    }
+    val restUsers = remember(users, selfUid) {
+        users.filter { !it.isLive && !isDynamicUpPanelShortcut(it.uid, selfUid) }
+    }
+    var showLiveUsers by remember { mutableStateOf(true) }
+    val visibleUsers = remember(liveUsers, shortcutUsers, restUsers, showLiveUsers) {
+        buildList {
+            if (showLiveUsers) addAll(liveUsers)
+            addAll(shortcutUsers)
+            addAll(restUsers)
+        }
+    }
     
     // 侧边栏容器 - Glassmorphism 升级版
     Box(
@@ -202,16 +227,56 @@ fun DynamicSidebar(
                     }
                 }
 
-                // 关注的UP主列表 - 带瀑布入场动画
-                itemsIndexed(users, key = { _, u -> "sidebar_${u.uid}" }) { index, user ->
+                if (liveUsers.isNotEmpty()) {
+                    item(key = "live_fold") {
+                        AppTextButton(
+                            onClick = { showLiveUsers = !showLiveUsers },
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(
+                                horizontal = AppSpacingTokens.None,
+                                vertical = AppSpacingTokens.ExtraSmall,
+                            ),
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                AppText(
+                                    text = "Live(${liveUsers.size})",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    autoSize = TextAutoSize.StepBased(
+                                        minFontSize = 8.sp,
+                                        maxFontSize = MaterialTheme.typography.labelSmall.fontSize,
+                                        stepSize = 0.5.sp,
+                                    ),
+                                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                )
+                                AppIcon(
+                                    imageVector = if (showLiveUsers) rememberAppChevronUpIcon() else rememberAppChevronDownIcon(),
+                                    contentDescription = if (showLiveUsers) "收起直播" else "展开直播",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(AppSpacingTokens.Medium)
+                                )
+                            }
+                        }
+                    }
+                }
+                itemsIndexed(visibleUsers, key = { _, u -> "sidebar_${u.uid}" }) { index, user ->
                     CascadeSidebarItem(
                         index = index,
                         content = {
+                            val isShortcut = isDynamicUpPanelShortcut(user.uid, selfUid)
                             SidebarUserItem(
                                 user = user,
-                                isSelected = selectedUserId == user.uid,
+                                isSelected = isDynamicUpPanelItemSelected(selectedUserId, user.uid),
                                 showLabel = isExpanded,
                                 showUnreadBadge = user.uid in uplistUpdateMids,
+                                allowManageMenu = !isShortcut,
                                 onClick = { onUserClick(user.uid) },
                                 onTogglePin = { onTogglePin(user.uid) },
                                 onToggleHidden = { onToggleHidden(user.uid) }
@@ -358,6 +423,7 @@ fun SidebarUserItem(
     isSelected: Boolean,
     showLabel: Boolean,
     showUnreadBadge: Boolean = false,
+    allowManageMenu: Boolean = true,
     onClick: () -> Unit,
     onTogglePin: () -> Unit,
     onToggleHidden: () -> Unit
@@ -384,7 +450,7 @@ fun SidebarUserItem(
                             onClick = onClick
                         )
                     },
-                    onLongClick = { showMenu = true }
+                    onLongClick = { if (allowManageMenu) showMenu = true }
                 )
                 .padding(vertical = AppSpacingTokens.Small) // 内部间距
                 .alpha(if (user.isHidden) 0.5f else 1f)
@@ -406,10 +472,13 @@ fun SidebarUserItem(
                     modifier = Modifier
                         .size(AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Medium)
                         .then(
-                            if (isSelected) Modifier.border(AppSpacingTokens.Micro, MaterialTheme.colorScheme.primary, CircleShape)
-                            else Modifier.border(AppSpacingTokens.Micro / 2, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), CircleShape)
+                            when {
+                                isSelected -> Modifier.border(AppSpacingTokens.Micro, MaterialTheme.colorScheme.primary, CircleShape)
+                                else -> Modifier.border(AppSpacingTokens.Micro / 2, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), CircleShape)
+                            }
                         )
-                        .padding(AppSpacingTokens.Micro)
+                        .padding(AppSpacingTokens.Micro),
+                    contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
                         model = coil.request.ImageRequest.Builder(LocalContext.current)

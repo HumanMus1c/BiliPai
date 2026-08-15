@@ -1,6 +1,6 @@
 # BiliPai 路线图
 
-最后核对：2026-08-04（当前工作区与构建配置）
+最后核对：2026-08-15（当前工作区与构建配置）
 
 本页描述当前开发方向，不等同于发布承诺。功能是否已经可用以当前源码为准；公开版本与用户可见变更以 `CHANGELOG.md` 和 GitHub Releases 为准。
 
@@ -8,12 +8,12 @@
 
 | 项目 | 当前状态 |
 | --- | --- |
-| 当前构建 | `0.2.0` / `versionCode 284` |
-| 最近完整发布记录 | `v0.2.0`（2026-08-05） |
+| 当前构建 | `0.2.3-beta.5` / `versionCode 294` |
+| 最近完整发布记录 | `v0.2.3-beta.5`（2026-08-15） |
 | Android | minSdk 26、targetSdk 35、compileSdk 37、arm64-v8a |
 | 构建工具 | AGP 9.3.1、Gradle 9.5、Kotlin 2.4、JDK 21 |
 | UI 与导航 | Compose BOM 2026.06.00、Navigation3 runtime/UI 1.2.0-alpha07、NavigationEvent 1.2.0-alpha03 |
-| 主要视觉实现 | Material 3、Miuix 0.9.3、Compose Cupertino、Haze 2、Backdrop |
+| 主要视觉实现 | Material 3、Miuix 0.9.3、Compose Cupertino、Haze 2、Miuix Backdrop / Liquid Glass |
 
 ## 已形成产品基线
 
@@ -33,7 +33,7 @@
 | --- | --- | --- |
 | 视频整卡打开/返回稳定性 | 正在收敛 | 所有卡片入口在播放、未播放、暂停及预测返回完成/取消时无黑底、错卡、跳变、双影或黑帧 |
 | Navigation3 1.2 兼容 | 已完成依赖对齐，待全入口真机回归 | runtime/UI 保持同版；返回目标 Scene 始终存在；普通返回与预测返回一致 |
-| 转场稳态性能 | 正在收敛 | 详情稳态不再更新转场模糊、Backdrop 或来源快照；120Hz 真机达到既定帧预算 |
+| 转场稳态性能 | 正在收敛 | 详情稳态不再更新转场模糊、Miuix Backdrop 或来源快照；120Hz 真机达到既定帧预算 |
 | AGP 9 单元测试链路 | 待修复 | `:app:testDebugUnitTest` 恢复识别 `kotlin.test.Test`，定向与全量策略测试可运行 |
 | Release 候选验证 | 待上述项目完成 | dev/release 候选通过启动、播放、返回、下载、插件、平板和隐私权限清单 |
 

@@ -1,18 +1,18 @@
 # 架构说明
 
-最后更新：2026-08-04（按当前工作区与构建配置校对）
+最后更新：2026-08-15（按当前工作区与构建配置校对）
 
 ## 构建与运行基线
 
 | 项目 | 当前值 |
 | --- | --- |
-| 应用版本 | 当前构建与最近完整发布记录 `v0.2.0` / `versionCode 284` |
+| 应用版本 | 当前构建与最近完整发布记录 `v0.2.3-beta.5` / `versionCode 294` |
 | Android | minSdk 26、targetSdk 35、compileSdk 37、arm64-v8a |
 | 工具链 | AGP 9.3.1、Gradle 9.5、Kotlin 2.4、JDK 21 |
 | Compose | BOM 2026.06.00、Material3 1.5.0-alpha25、Lifecycle 2.11.0 |
 | 导航 | Navigation3 runtime/UI 1.2.0-alpha07、NavigationEvent 1.2.0-alpha03 |
 | 媒体 | Media3 1.10.1、DASH/HLS、MediaSession、Texture surface 连续返回 |
-| 视觉 | Miuix 0.9.3、Haze 2.0.0-alpha03、Backdrop 2.0.0、Compose Cupertino |
+| 视觉 | Miuix 0.9.3、Haze 2.0.0-alpha03、Miuix Backdrop / Liquid Glass、Compose Cupertino |
 
 ## Gradle 模块
 
@@ -57,7 +57,7 @@ baselineprofile ──(benchmark target)──> app
 3. `BiliPaiNavDisplayHost` 使用官方 Navigation3 runtime/UI `1.2.0-alpha07` 生成 `SceneState`，统一普通返回与预测返回。
 4. 视频入口创建不可变 `VideoCardTransitionSession`，冻结 bvid、来源 key/route、边界、圆角、方向与封面身份。
 5. 整卡几何只由一个 shell/shared bounds 所有；封面、标题、UP 和统计跟随卡片，不创建竞争的独立 bounds。
-6. 转场时钟负责 Opening、SettledHidden、BackPreview、Returning、Restoring；详情稳态保留返回会话，但停止无收益的模糊、Backdrop 和来源重录。
+6. 转场时钟负责 Opening、SettledHidden、BackPreview、Returning、Restoring；详情稳态保留返回会话，但停止无收益的模糊、Miuix Backdrop 和来源重录。
 
 Miuix `0.9.3` 继续用于组件与视觉，但它的 Nav3 UI 模块编译于 runtime `1.1.4`，因此当前项目不再混用该 NavDisplay；runtime/UI 必须保持官方同版。
 
@@ -83,7 +83,7 @@ Feature UI
 正式 UI 设计合同、三风格边界、组件入口和页面档案见 [UI 设计规范](ui-design/README.md)。本页继续说明技术架构，不重复设计规则。
 
 - `design-system` 提供 MD3、Miuix 与 iOS facade，feature 只消费语义 token 和能力接口。
-- Haze、Miuix blur 与 Backdrop 都受平台能力、运行时视觉预算和转场安全门控约束。
+- Haze、Miuix blur 与 Miuix Backdrop 都受平台能力、运行时视觉预算和转场安全门控约束。
 - 手机使用底栏/单栏为主；平板和折叠屏使用 rail、双栏或影院布局。
 - 液态玻璃复用遵循 sibling/combined backdrop 拓扑，避免控件采样自身造成黑边或 RenderThread 问题。
 

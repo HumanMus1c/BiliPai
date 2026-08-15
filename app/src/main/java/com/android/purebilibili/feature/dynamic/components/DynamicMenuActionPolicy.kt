@@ -11,6 +11,30 @@ sealed interface DynamicManageAction {
     data class SetVisibility(val dynamicId: String, val dynType: Int, val isPrivate: Boolean) : DynamicManageAction
     data class SetReplySubject(val oid: Long, val replyType: Int, val action: Int) : DynamicManageAction
     data class TempBlock(val dynamicId: String) : DynamicManageAction
+    data class Report(val dynamicId: String, val authorMid: Long) : DynamicManageAction
+    data class Edit(val dynamicId: String, val initialText: String) : DynamicManageAction
+}
+
+internal data class DynamicReportReason(
+    val type: Int,
+    val label: String
+)
+
+internal fun resolveDynamicReportReasons(): List<DynamicReportReason> = listOf(
+    DynamicReportReason(4, "垃圾广告"),
+    DynamicReportReason(8, "引战"),
+    DynamicReportReason(1, "色情"),
+    DynamicReportReason(5, "人身攻击"),
+    DynamicReportReason(3, "违法信息"),
+    DynamicReportReason(9, "涉政谣言"),
+    DynamicReportReason(10, "涉社会事件谣言"),
+    DynamicReportReason(12, "虚假不实信息"),
+    DynamicReportReason(13, "违法信息外链"),
+    DynamicReportReason(0, "其他"),
+)
+
+internal fun resolveDynamicEditInitialText(item: DynamicItem): String {
+    return item.modules.module_dynamic?.desc?.text.orEmpty()
 }
 
 // x/v2/reply/subject/modify 的 action 取值

@@ -619,9 +619,9 @@ internal fun VideoDetailScreenStateHolder(
         onSearchKeywordClick(keyword)
     }
 
-    // 与 VideoPlayerSection 共用单例；同页切集/相关推荐 push 前清掉旧弹幕会话，
+    // 与播放器/Overlay 共用当前 bvid Session；同页切集/相关推荐 push 前清掉旧弹幕会话，
     // 避免新页 DanmakuView 绑定时把旧片缓存闪上去或卡在未重放状态。
-    val sharedDanmakuManager = rememberDanmakuManager()
+    val sharedDanmakuManager = rememberDanmakuManager(currentBvid)
 
     fun switchVideoInCurrentDetailPage(
         targetBvid: String,
@@ -1277,6 +1277,10 @@ internal fun VideoDetailScreenStateHolder(
         isExitTransitionInProgress = isExitTransitionInProgress,
         sharedBoundsActive = sharedBoundsActive,
         keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
+        // Nested detail entries keep their own AnimatedVisibility scope. The retained parent can
+        // therefore still report PostExit for one frame after the child is popped; only the entry
+        // whose source route owns the active card session may interpret that as a card return.
+        entryOwnsCardTransition = entryOwnsMiuixCardTransition,
     )
     val forceCoverOnlyForReturn = resolveForceCoverOnlyForReturn(
         forceCoverOnlyOnReturn = forceCoverOnlyOnReturn,
@@ -1285,10 +1289,13 @@ internal fun VideoDetailScreenStateHolder(
     )
     // 离开态：次要内容淡出等。ImmediatePlayback live morph 时不把视觉交给常驻封面。
     // 注意：预测 seek 中 isCardReturnExitInProgress 会为 true，但这不是「已提交」。
-    val isSessionReturningToCard = isReturningFromDetail &&
-        transitionEnabled &&
-        sharedBoundsActive &&
-        !keepLoadedContentForBackPreview
+    val isSessionReturningToCard = shouldConsumeMiuixReturnSessionForVideoDetailEntry(
+        entryOwnsMiuixCardTransition = entryOwnsMiuixCardTransition,
+        isReturningFromDetail = isReturningFromDetail,
+        transitionEnabled = transitionEnabled,
+        sharedBoundsActive = sharedBoundsActive,
+        keepLoadedContentForBackPreview = keepLoadedContentForBackPreview,
+    )
     val useReturningVideoDetailVisualState = shouldUseReturningVideoDetailVisualState(
         forceCoverOnlyForReturn = forceCoverOnlyForReturn,
         isCardReturnExitInProgress = isCardReturnExitInProgress,
@@ -1546,7 +1553,7 @@ internal fun VideoDetailScreenStateHolder(
         }
     }
 
-    val playbackEventState = rememberVideoDetailPlaybackEventState()
+    val playbackEventState = rememberVideoDetailPlaybackEventState(currentBvid)
     VideoDetailPlaybackEventEffects(
         context = context,
         viewModel = viewModel,

@@ -43,7 +43,7 @@ import androidx.media3.common.Player
 import com.android.purebilibili.core.store.DanmakuSettingsScope
 import com.android.purebilibili.core.store.DanmakuPanelWidthMode
 import com.android.purebilibili.core.store.PortraitDanmakuDisplayAreaMode
-import com.android.purebilibili.core.theme.BiliPink
+
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.ui.blur.BlurSurfaceType
 import com.android.purebilibili.core.ui.blur.shouldAllowRuntimeShaderBackedHazeEffect
@@ -2055,6 +2055,7 @@ fun VideoPlayerOverlay(
                 allowSpecial = danmakuAllowSpecial,
                 hideInteractiveCommands = danmakuHideInteractiveCommands,
                 showBlockRuleEditor = true,
+                showSmartOcclusionSection = true,
                 blockRulesRaw = danmakuBlockRulesRaw,
                 smartOcclusion = danmakuSmartOcclusion,
                 fullscreenWidthMode = danmakuFullscreenPanelWidthMode,

@@ -35,13 +35,21 @@ class PartitionScreenStructureTest {
         assertTrue(source.contains("rememberAppChromeLiquidGlassEnabled("))
         assertFalse(source.contains("resolveSharedLiquidGlassChromeEnabled("))
         assertTrue(source.contains("BottomBarMatchedLiquidIndicator("))
+        assertTrue(source.contains("DampedDragAnimation("))
+        assertTrue(source.contains("dampedDragAnimation.modifier"))
+        assertFalse(source.contains("rememberBottomBarMatchedLiquidChromeState("))
         assertTrue(source.contains("liquidGlassIndicatorEnabled = liquidGlassIndicatorEnabled"))
         assertTrue(source.contains("val railPageBackdrop = rememberLayerBackdrop()"))
+        assertTrue(source.contains("val railContentBackdrop = rememberLayerBackdrop()"))
+        assertTrue(source.contains("rememberCombinedBackdrop(railPageBackdrop, railContentBackdrop)"))
         assertTrue(source.contains(".bottomBarMatchedCaptureOverflow(captureSafeInset)"))
         assertTrue(source.contains(".layerBackdrop(railPageBackdrop)"))
-        assertTrue(source.contains("contentBackdrop = backdrop"))
+        assertTrue(source.contains(".layerBackdrop(railContentBackdrop)"))
+        assertTrue(source.contains("contentBackdrop = combinedBackdrop"))
         assertTrue(source.contains("backdrop = railPageBackdrop"))
-        assertFalse(source.contains(".layerBackdrop(railContentBackdrop)"))
+        assertTrue(source.contains("resolveSharedLiquidExportMonochromeColor("))
+        assertTrue(source.contains("ColorFilter.tint(exportTintColor)"))
+        assertTrue(source.contains("forceUnselectedColor = liquidGlassIndicatorEnabled"))
         assertFalse(source.contains("partitionSideRailSweepSelection("))
         assertFalse(source.contains("PartitionVideoRow("))
         assertFalse(source.contains("videoTitleSharedElementKey("))
@@ -66,13 +74,17 @@ class PartitionScreenStructureTest {
     }
 
     @Test
-    fun `side rail leaves vertical drag to lazy list scrolling`() {
+    fun `side rail indicator drag lives on the moving capsule like the home dock`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/partition/PartitionScreen.kt")
 
         assertFalse(source.contains("pointerInput(partitions)"))
-        assertFalse(source.contains("PointerEventPass.Initial"))
-        assertTrue(source.contains("awaitLongPressOrCancellation("))
-        assertTrue(source.contains("verticalDrag("))
+        assertFalse(source.contains("awaitLongPressOrCancellation("))
+        assertFalse(source.contains("verticalDrag("))
+        assertTrue(source.contains("dampedDragAnimation.modifier"))
+        assertTrue(source.contains("interactiveHighlight?.gestureModifier"))
+        assertTrue(source.contains("dragAmount.y / holder.itemSlotHeightPx"))
+        assertTrue(source.contains("resolvePartitionSideRailInteractiveHighlightPosition("))
+        assertTrue(source.contains("animation.value"))
         assertTrue(source.contains("shouldStartPartitionSideRailIndicatorDrag("))
     }
 
@@ -136,12 +148,24 @@ class PartitionScreenStructureTest {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/partition/PartitionScreen.kt")
 
         assertTrue(source.contains("indicatorOffsetPxProvider: () -> Float"))
-        assertTrue(source.contains("indicatorTranslationYPx = indicatorOffsetPxProvider()"))
+        assertTrue(source.contains("indicatorTranslationYPx = centeredIndicatorOffsetPx"))
         assertTrue(source.contains("orientation = BottomBarLiquidOrientation.VERTICAL"))
         assertTrue(source.contains("indicatorAlignment = Alignment.TopStart"))
         assertFalse(source.contains("centerLayerOnIndicatorY"))
         assertFalse(source.contains("translationY = panelOffsetPx"))
         assertFalse(source.contains("val panelOffsetPx"))
+    }
+
+    @Test
+    fun `side rail drag highlight follows the indicator on the vertical axis`() {
+        val highlight = resolvePartitionSideRailInteractiveHighlightPosition(
+            railWidthPx = 80f,
+            indicatorOffsetPx = 120f,
+            itemHeightPx = 48f,
+        )
+
+        assertTrue(highlight.x == 40f)
+        assertTrue(highlight.y == 144f)
     }
 
     @Test
@@ -203,6 +227,7 @@ class PartitionScreenStructureTest {
         assertTrue(listSource.contains("val sharedTransitionEnabled = LocalSharedTransitionEnabled.current"))
         assertTrue(listSource.contains("transitionEnabled = sharedTransitionEnabled"))
         assertTrue(listSource.contains("HomeStyleSingleColumnVideoCard("))
+        assertTrue(listSource.contains("showUpBadge = false"))
         assertFalse(listSource.contains("spring(dampingRatio = 0.8f, stiffness = 200f)"))
         assertFalse(listSource.contains("transitionEnabled = true"))
     }

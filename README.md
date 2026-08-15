@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-0.2.0-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.0" />
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.5-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.5" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -33,7 +33,7 @@
   </a>
 </p>
 
-<sub>README 更新：2026-08-04 · 当前构建版本以 app/build.gradle.kts 为准 · 已发布版本以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
+<sub>README 更新：2026-08-15 · 当前构建版本以 app/build.gradle.kts 为准 · 已发布版本以 <a href="CHANGELOG.md">CHANGELOG.md</a> 为准</sub>
 
 </div>
 
@@ -133,7 +133,7 @@ BiliPai 的界面围绕“内容优先、控制轻量、动效克制”调整。
 | 存储 | Room、DataStore |
 | 媒体 | AndroidX Media3 / ExoPlayer、MediaCodec |
 | 弹幕 | DanmakuRenderEngine、自研弹幕策略与覆盖层 |
-| 视觉 | Haze 2、Backdrop / AndroidLiquidGlass、Miuix |
+| 视觉 | Haze 2、Miuix Backdrop / Liquid Glass |
 | 动画 | Compose Animation / SharedTransition、Lottie、自研 shimmer 与粒子效果 |
 | 图片 | Coil Compose |
 | 后台任务 | WorkManager |
@@ -175,7 +175,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.0-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.0.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
+完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.5-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.5.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
 
 `google-services.json` 是可选项：放入 `app/` 后启用 Firebase Crashlytics / Analytics；缺失时构建脚本会跳过相关能力。
 
@@ -196,13 +196,13 @@ cd BiliPai
 
 ## 最近更新
 
-当前构建为 `0.2.2 / versionCode 287`（语义化 `MAJOR.MINOR.PATCH`）；最新完整发布记录为 `v0.2.1`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前构建为 `0.2.3-beta.5 / versionCode 294`；最新完整发布记录为 `v0.2.3-beta.5`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 版本号恢复 `X.Y.Z`；实时画面转场 / 转场模糊 / 底栏模糊 / 播放器洞察默认关闭。
-- 首页推荐新增 App+Web 合并模式；搜索页重构（热搜/历史/发现、筛选表、对比度与 IME）。
-- 整卡与预测返回：live-surface 开关、HDR 不降画质、落位与 haze 修复；收藏合集返回对齐首页 morph。
-- 听视频浅色可读、操作 sheet 主题色；收藏夹 API 对齐降低风控；直播 LiveList/SC/清晰度表。
-- 平板侧栏默认开、对话框限宽；DLNA SSDP 双网卡发现加固。
+- 全局新增默认开启的一键回顶开关，覆盖搜索、动态、分区、直播、通用列表和评论区。
+- 首页、设置与各业务页面统一 Miuix 液态分段控件和 Backdrop 采样链，移除旧 AndroidLiquidGlass / Backdrop 依赖。
+- 首页内嵌直播与番剧/影视页面，修复标签回顶、抽屉误触、导航状态增长和多层视频详情返回。
+- 动态交互与直播弱网回退继续增强；弹幕正在逐步重构，迁移到中立引擎与按会话管理的渲染链路。
+- 完整 beta.4 → beta.5 说明见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 路线图
 
@@ -239,7 +239,6 @@ BiliPai 依赖并参考了多个优秀开源项目：
 | [Bili Pilot](https://github.com/siwei-yuan/bili-pilot) | 签名 CDN 候选、分片级选线与预缓存设计参考；BiliPai 为独立 Kotlin 实现，未复制其 JavaScript 代码 |
 | [BilibiliSponsorBlock](https://github.com/hanydd/BilibiliSponsorBlock) | 空降助手数据与 API |
 | [Haze](https://github.com/chrisbanes/haze) | 毛玻璃效果 |
-| [AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) | 液态玻璃效果 |
 | [Compose Cupertino](https://github.com/alexzhirkevich/compose-cupertino) | iOS 风格组件 |
 | [Miuix](https://github.com/compose-miuix-ui/miuix) | Miuix 风格组件 |
 | [BiliPai-miuix](https://github.com/Piracola/BiliPai-miuix) | UI 组件 facade / design-system 重构贡献（@piracola） |

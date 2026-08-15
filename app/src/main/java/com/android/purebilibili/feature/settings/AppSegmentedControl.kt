@@ -21,7 +21,6 @@ import com.android.purebilibili.core.ui.rememberAppSegmentedControlPolicy
 import com.android.purebilibili.feature.home.components.BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_HEIGHT_DP
 import com.android.purebilibili.feature.home.components.BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_INDICATOR_HEIGHT_DP
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
-import com.kyant.backdrop.Backdrop
 
 @Composable
 internal fun <T> AppSegmentedControl(
@@ -33,7 +32,6 @@ internal fun <T> AppSegmentedControl(
     height: Dp = BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_HEIGHT_DP.dp,
     indicatorHeight: Dp = BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_INDICATOR_HEIGHT_DP.dp,
     labelFontSize: TextUnit = 14.sp,
-    backdrop: Backdrop? = null,
     tapPressRefractionEnabled: Boolean = true,
     dragSelectionEnabled: Boolean = true,
     containerColorOverride: Color? = null,
@@ -71,7 +69,6 @@ internal fun <T> AppSegmentedControl(
             height = height,
             indicatorHeight = indicatorHeight,
             labelFontSize = labelFontSize,
-            backdrop = backdrop,
             tapPressRefractionEnabled = tapPressRefractionEnabled,
             dragSelectionEnabled = dragSelectionEnabled,
             containerColorOverride = containerColorOverride,
@@ -91,7 +88,6 @@ private fun <T> AppLiquidSegmentedControlHost(
     height: Dp,
     indicatorHeight: Dp,
     labelFontSize: TextUnit,
-    backdrop: Backdrop?,
     tapPressRefractionEnabled: Boolean,
     dragSelectionEnabled: Boolean,
     containerColorOverride: Color?,
@@ -102,7 +98,7 @@ private fun <T> AppLiquidSegmentedControlHost(
     val longestLabelLength = options.maxOfOrNull { it.label.length } ?: 0
     val spec = resolveAppLiquidSegmentedControlSpec(
         itemCount = options.size,
-        hasExternalBackdrop = backdrop != null,
+        hasExternalBackdrop = true,
         longestLabelLength = longestLabelLength,
     )
     val usesDefaultBottomBarSizing =
@@ -129,7 +125,6 @@ private fun <T> AppLiquidSegmentedControlHost(
         height = resolvedHeight,
         indicatorHeight = resolvedIndicatorHeight,
         labelFontSize = resolvedLabelFontSize,
-        backdrop = backdrop,
         forceLiquidChrome = forceLiquidIndicator,
         liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled,
         dragSelectionEnabled = dragSelectionEnabled,

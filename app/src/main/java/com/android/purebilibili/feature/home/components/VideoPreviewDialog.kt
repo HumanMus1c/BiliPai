@@ -1,6 +1,6 @@
 package com.android.purebilibili.feature.home.components
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
-import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
@@ -175,9 +175,9 @@ fun VideoPreviewDialog(
                                 
                                 // Loading Indicator
                                 if (isLoading) {
-                                    AppCircularProgressIndicator(
+                                    AdaptiveLoadingIndicator(
                                         color = MediaContrastPalette.Foreground,
-                                        modifier = Modifier.size(AppSpacingTokens.DoubleExtraLarge - AppSpacingTokens.Micro)
+                                        size = AppSpacingTokens.DoubleExtraLarge - AppSpacingTokens.Micro,
                                     )
                                 }
                             } else {

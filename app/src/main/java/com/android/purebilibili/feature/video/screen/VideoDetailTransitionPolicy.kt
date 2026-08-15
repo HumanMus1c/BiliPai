@@ -63,6 +63,25 @@ internal fun shouldUseReturningVideoDetailVisualState(
 }
 
 /**
+ * A nested video return exposes both entries to the same app-level return-session flag. Only the
+ * outgoing detail whose source route owns the active Miuix card transition may consume that flag;
+ * the parent entry is the return target and must keep its complete body composed.
+ */
+internal fun shouldConsumeMiuixReturnSessionForVideoDetailEntry(
+    entryOwnsMiuixCardTransition: Boolean,
+    isReturningFromDetail: Boolean,
+    transitionEnabled: Boolean,
+    sharedBoundsActive: Boolean,
+    keepLoadedContentForBackPreview: Boolean,
+): Boolean {
+    return entryOwnsMiuixCardTransition &&
+        isReturningFromDetail &&
+        transitionEnabled &&
+        sharedBoundsActive &&
+        !keepLoadedContentForBackPreview
+}
+
+/**
  * 是否已**提交**卡片返回（可与封面做 landing handoff）。
  *
  * 与 [shouldUseReturningVideoDetailVisualState] 不同：
@@ -366,8 +385,10 @@ internal fun shouldTreatVideoDetailCardExitAsReturning(
     isExitTransitionInProgress: Boolean,
     sharedBoundsActive: Boolean,
     keepLoadedContentForBackPreview: Boolean = false,
+    entryOwnsCardTransition: Boolean = true,
 ): Boolean {
-    return isExitTransitionInProgress &&
+    return entryOwnsCardTransition &&
+        isExitTransitionInProgress &&
         sharedBoundsActive &&
         !keepLoadedContentForBackPreview
 }

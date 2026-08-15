@@ -9,6 +9,7 @@ class FeedContentTokenAdoptionTest {
         "CinematicVideoCard.kt",
         "GlassVideoCard.kt",
         "HomeStyleSingleColumnVideoCard.kt",
+        "HorizontalVideoCardStats.kt",
         "StoryVideoCard.kt",
         "VideoCard.kt",
     )
@@ -22,7 +23,14 @@ class FeedContentTokenAdoptionTest {
 
         sources.forEach { (name, source) ->
             assertTrue(source.contains("feedContentTypography("), "$name 未读取共享信息流排版")
-            listOf("title", "author", "statistic", "coverBadge").forEach { role ->
+            val requiredRoles = if (name == "HorizontalVideoCardStats.kt") {
+                listOf("statistic")
+            } else if (name == "HomeStyleSingleColumnVideoCard.kt") {
+                listOf("title", "author", "coverBadge")
+            } else {
+                listOf("title", "author", "statistic", "coverBadge")
+            }
+            requiredRoles.forEach { role ->
                 assertTrue(
                     source.contains("contentTypography.$role"),
                     "$name 没有使用信息流排版角色 $role",
@@ -50,8 +58,9 @@ class FeedContentTokenAdoptionTest {
         ).readText()
 
         assertTrue(tokens.contains("enum class FeedTitleHierarchy"))
-        assertTrue(tokens.contains("MaterialTheme.typography.bodySmall"))
-        assertTrue(tokens.contains("MaterialTheme.typography.titleMedium"))
+        assertTrue(tokens.contains("MaterialTheme.typography.bodyMedium"))
+        assertTrue(tokens.contains("lineHeight = bodyMedium.fontSize * 1.38f"))
+        assertTrue(tokens.contains("letterSpacing = 0.3.sp"))
         assertTrue(!tokens.contains("MaterialTheme.typography.titleLarge"))
         assertTrue(cinematic.contains("feedContentTypography(FeedTitleHierarchy.Prominent)"))
         assertTrue(story.contains("FeedTitleHierarchy.Standard"))

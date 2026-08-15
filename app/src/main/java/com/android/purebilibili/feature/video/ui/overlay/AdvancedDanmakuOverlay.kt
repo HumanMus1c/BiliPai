@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.graphicsLayer
 import com.android.purebilibili.feature.video.danmaku.AdvancedDanmakuData
+import kotlinx.coroutines.isActive
 import kotlin.math.roundToInt
 
 /**
@@ -40,6 +41,9 @@ import kotlin.math.roundToInt
 fun AdvancedDanmakuOverlay(
     danmakuList: List<AdvancedDanmakuData>,
     player: androidx.media3.common.Player,
+    opacity: Float = 1f,
+    fontScale: Float = 1f,
+    fontWeight: Int = 5,
     modifier: Modifier = Modifier
 ) {
     // 使用 produceState 每一帧更新播放进度
@@ -58,15 +62,15 @@ fun AdvancedDanmakuOverlay(
         }
         player.addListener(listener)
         
-        while (true) {
-            if (player.isPlaying) {
-                value = player.currentPosition
+        try {
+            while (isActive) {
+                if (player.isPlaying) {
+                    value = player.currentPosition
+                }
+                // 约 60fps 更新
+                kotlinx.coroutines.delay(16)
             }
-            // 约 60fps 更新
-            kotlinx.coroutines.delay(16)
-        }
-        
-        awaitDispose {
+        } finally {
             player.removeListener(listener)
         }
     }
@@ -92,7 +96,10 @@ fun AdvancedDanmakuOverlay(
                     danmaku = danmaku,
                     currentPosition = currentPosition,
                     maxWidth = maxWidthPx,
-                    maxHeight = maxHeightPx
+                    maxHeight = maxHeightPx,
+                    opacity = opacity,
+                    fontScale = fontScale,
+                    fontWeight = fontWeight
                 )
             }
         }
@@ -104,7 +111,10 @@ private fun RenderSingleAdvancedDanmaku(
     danmaku: AdvancedDanmakuData,
     currentPosition: Long,
     maxWidth: Int,
-    maxHeight: Int
+    maxHeight: Int,
+    opacity: Float,
+    fontScale: Float,
+    fontWeight: Int
 ) {
     // 计算进度 (0.0 ~ 1.0)
     val progress = danmaku.getProgress(currentPosition)
@@ -179,7 +189,7 @@ private fun RenderSingleAdvancedDanmaku(
             // 简化处理：对于 mode 7 和高能弹幕，通常文本较长，我们这里假设其锚点就是左上角，或者我们改用 Alignment
             // 但 AdvancedDanmakuOverlay 使用的是 BoxWithConstraints + absolute offset
             // FIXME: 暂时保持左上角锚点，避免复杂布局变动
-            .alpha(currentAlpha)
+            .alpha(currentAlpha * opacity.coerceIn(0f, 1f))
             .rotate(danmaku.rotateZ)
             .graphicsLayer {
                 scaleX = scale
@@ -190,8 +200,8 @@ private fun RenderSingleAdvancedDanmaku(
         AppText(
             text = displayText,
             color = color,
-            fontSize = danmaku.fontSize.sp,
-            fontWeight = FontWeight.Bold
+            fontSize = (danmaku.fontSize * fontScale.coerceIn(0.3f, 2f)).sp,
+            fontWeight = FontWeight(fontWeight.coerceIn(1, 9) * 100)
         )
     }
 }

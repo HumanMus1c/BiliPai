@@ -170,7 +170,11 @@ internal fun HomeTopTabChrome(
                 resolveTopTabDockWrapWidthDp(
                     itemWidthDp = preferredItem,
                     categoryCount = dockCategoryCount,
-                    maxWidthDp = cappedMaxWidth
+                    maxWidthDp = cappedMaxWidth,
+                    contentPaddingHorizontalDp = resolveTopTabDockEndInsetDp(
+                        wrapContent = true,
+                        isFloatingStyle = isTabFloating
+                    )
                 ).dp
             } else {
                 maxWidth

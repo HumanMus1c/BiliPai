@@ -40,8 +40,8 @@ import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.core.theme.iOSSystemGray
 import com.android.purebilibili.data.model.response.LiveRoom
 import com.android.purebilibili.core.util.iOSTapEffect
-import com.android.purebilibili.core.theme.LocalCornerRadiusScale
-import com.android.purebilibili.core.theme.iOSCornerRadius
+import com.android.purebilibili.core.ui.AppShapes
+import com.android.purebilibili.core.ui.ContainerLevel
 
 /**
  *  iOS 风格直播间卡片
@@ -59,9 +59,8 @@ fun LiveRoomCard(
     val haptic = rememberHapticFeedback()
     
     // [新增] 获取圆角缩放比例
-    val cornerRadiusScale = LocalCornerRadiusScale.current
-    val cardCornerRadius = iOSCornerRadius.Large * cornerRadiusScale  // AppSpacingTokens.Medium + AppSpacingTokens.Micro * scale
-    val tagCornerRadius = iOSCornerRadius.Tiny * cornerRadiusScale   // AppSpacingTokens.ExtraSmall * scale
+    val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Dialog)
+    val tagCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Tag)
     
     // Shared Element Transition Scopes
     val sharedTransitionScope = LocalSharedTransitionScope.current

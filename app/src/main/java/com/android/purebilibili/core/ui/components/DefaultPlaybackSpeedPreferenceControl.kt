@@ -10,11 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -88,14 +84,14 @@ fun DefaultPlaybackSpeedPreferenceControl(
                 if (title != null || subtitle != null) {
                     Column(modifier = Modifier.weight(1f)) {
                         if (title != null) {
-                            Text(
+                            AppText(
                                 text = title,
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         if (subtitle != null) {
-                            Text(
+                            AppText(
                                 text = subtitle,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -107,11 +103,11 @@ fun DefaultPlaybackSpeedPreferenceControl(
                 }
 
                 if (showCurrentValue) {
-                    Surface(
+                    AppSurface(
                         shape = AppShapes.container(ContainerLevel.Pill),
                         color = MaterialTheme.colorScheme.primaryContainer
                     ) {
-                        Text(
+                        AppText(
                             text = formatDefaultPlaybackSpeed(sliderValue),
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontSize = 13.sp,
@@ -127,12 +123,12 @@ fun DefaultPlaybackSpeedPreferenceControl(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AppText(
                 text = formatDefaultPlaybackSpeed(DEFAULT_PLAYBACK_SPEED_MIN),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Slider(
+            AppSlider(
                 value = sliderValue,
                 onValueChange = { sliderValue = normalizeDefaultPlaybackPreferenceSpeed(it) },
                 onValueChangeFinished = { onSpeedChange(sliderValue) },
@@ -142,7 +138,7 @@ fun DefaultPlaybackSpeedPreferenceControl(
                     .weight(1f)
                     .padding(horizontal = 8.dp)
             )
-            Text(
+            AppText(
                 text = formatDefaultPlaybackSpeed(DEFAULT_PLAYBACK_SPEED_MAX),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -155,7 +151,7 @@ fun DefaultPlaybackSpeedPreferenceControl(
         ) {
             DEFAULT_PLAYBACK_SPEED_PRESETS.forEach { preset ->
                 val isSelected = selectedPreset == preset
-                Surface(
+                AppSurface(
                     onClick = {
                         val normalizedPreset = normalizeDefaultPlaybackPreferenceSpeed(preset)
                         sliderValue = normalizedPreset
@@ -173,7 +169,7 @@ fun DefaultPlaybackSpeedPreferenceControl(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.padding(horizontal = 12.dp)
                     ) {
-                        Text(
+                        AppText(
                             text = formatDefaultPlaybackSpeed(preset),
                             fontSize = 13.sp,
                             color = if (isSelected) {

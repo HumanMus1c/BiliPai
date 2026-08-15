@@ -4,8 +4,6 @@ package com.android.purebilibili.feature.dynamic.components
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
-import com.android.purebilibili.core.ui.OpticalContrastPalette
-
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 
 import androidx.compose.foundation.background
@@ -16,7 +14,13 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.components.AppDropdownMenu
+import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,8 +42,30 @@ import dev.chrisbanes.haze.HazeState
 
 //  动态页面布局模式
 enum class DynamicDisplayMode {
-    SIDEBAR,     // 侧边栏模式（默认，UP主列表在左侧）
-    HORIZONTAL   // 横向模式（UP主列表在顶部，类似 Telegram）
+    SIDEBAR,
+    SIDEBAR_RIGHT,
+    HORIZONTAL,
+    DRAWER_LEFT,
+    DRAWER_RIGHT
+}
+
+internal fun DynamicDisplayMode.isHorizontalUserList(): Boolean = this == DynamicDisplayMode.HORIZONTAL
+
+internal fun DynamicDisplayMode.isFixedSidebar(): Boolean =
+    this == DynamicDisplayMode.SIDEBAR || this == DynamicDisplayMode.SIDEBAR_RIGHT
+
+internal fun DynamicDisplayMode.isRightAligned(): Boolean =
+    this == DynamicDisplayMode.SIDEBAR_RIGHT || this == DynamicDisplayMode.DRAWER_RIGHT
+
+internal fun DynamicDisplayMode.isDrawer(): Boolean =
+    this == DynamicDisplayMode.DRAWER_LEFT || this == DynamicDisplayMode.DRAWER_RIGHT
+
+internal fun resolveDynamicDisplayModeLabel(mode: DynamicDisplayMode): String = when (mode) {
+    DynamicDisplayMode.SIDEBAR -> "左侧竖条"
+    DynamicDisplayMode.SIDEBAR_RIGHT -> "右侧竖条"
+    DynamicDisplayMode.HORIZONTAL -> "顶部横条"
+    DynamicDisplayMode.DRAWER_LEFT -> "左侧抽屉"
+    DynamicDisplayMode.DRAWER_RIGHT -> "右侧抽屉"
 }
 
 /**
@@ -56,7 +82,7 @@ fun DynamicTopBarWithTabs(
     onPublishClick: (() -> Unit)? = null,
     hazeState: HazeState? = null,
     indicatorPositionProvider: (() -> Float)? = null,
-    isScrollInProgressProvider: () -> Boolean = { false }
+    isScrollInProgressProvider: () -> Boolean = { false },
 ) {
     val density = LocalDensity.current
     val statusBarHeight = WindowInsets.statusBars.getTop(density).let { with(density) { it.toDp() } }
@@ -68,7 +94,7 @@ fun DynamicTopBarWithTabs(
     val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
     val shouldUseHeaderBlur = shouldUseDynamicTopBarHeaderBlur(
         hasHazeState = hazeState != null,
-        globalWallpaperVisible = globalWallpaperVisible
+        globalWallpaperVisible = globalWallpaperVisible,
     )
     
     //  使用 blurIntensity 对应的背景透明度实现毛玻璃质感
@@ -103,28 +129,42 @@ fun DynamicTopBarWithTabs(
                     onSelected = onTabSelected,
                     modifier = Modifier.weight(1f),
                     height = liquidTabSpec.heightDp.dp,
-                    indicatorHeight = (liquidTabSpec.heightDp - 4).dp,
+                    indicatorHeight = liquidTabSpec.indicatorHeightDp.dp,
                     labelFontSize = liquidTabSpec.labelFontSizeSp.sp,
                     indicatorPositionProvider = indicatorPositionProvider,
-                    isScrollInProgressProvider = isScrollInProgressProvider
+                    isScrollInProgressProvider = isScrollInProgressProvider,
+                    liquidGlassEffectsEnabled = false,
                 )
                 
                 //  布局模式切换按钮
-                AppIconButton(
-                    onClick = {
-                        val newMode = if (displayMode == DynamicDisplayMode.SIDEBAR) 
-                            DynamicDisplayMode.HORIZONTAL else DynamicDisplayMode.SIDEBAR
-                        onDisplayModeChange(newMode)
-                    },
-                    modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)
-                ) {
-                    AppIcon(
-                        imageVector = if (displayMode == DynamicDisplayMode.SIDEBAR)
-                            rememberAppListLayoutIcon() else rememberAppGridLayoutIcon(),
-                        contentDescription = "切换布局模式",
-                        tint = MaterialTheme.colorScheme.onSurface, // 自适应颜色
-                        modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
-                    )
+                var showLayoutMenu by remember { mutableStateOf(false) }
+                Box {
+                    AppIconButton(
+                        onClick = { showLayoutMenu = true },
+                        modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)
+                    ) {
+                        AppIcon(
+                            imageVector = if (displayMode.isHorizontalUserList())
+                                rememberAppGridLayoutIcon() else rememberAppListLayoutIcon(),
+                            contentDescription = "关注列表位置",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
+                        )
+                    }
+                    AppDropdownMenu(
+                        expanded = showLayoutMenu,
+                        onDismissRequest = { showLayoutMenu = false }
+                    ) {
+                        DynamicDisplayMode.entries.forEach { mode ->
+                            AppDropdownMenuItem(
+                                text = { AppText(resolveDynamicDisplayModeLabel(mode)) },
+                                onClick = {
+                                    showLayoutMenu = false
+                                    onDisplayModeChange(mode)
+                                }
+                            )
+                        }
+                    }
                 }
 
                 //  发布动态入口（对齐 BiliPai AppBar actions 的发布按钮）
@@ -163,5 +203,7 @@ internal fun resolveDynamicTopBarHeaderColor(
 
 internal fun shouldUseDynamicTopBarHeaderBlur(
     hasHazeState: Boolean,
-    globalWallpaperVisible: Boolean
-): Boolean = hasHazeState && !globalWallpaperVisible
+    globalWallpaperVisible: Boolean,
+): Boolean {
+    return hasHazeState && !globalWallpaperVisible
+}

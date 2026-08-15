@@ -114,7 +114,7 @@ import com.android.purebilibili.feature.home.policy.resolveBottomBarChromeScroll
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberAppChevronDownIcon
 import com.android.purebilibili.core.ui.resolveGlobalWallpaperChromeColor
-import com.android.purebilibili.core.theme.BiliPink
+
 import com.android.purebilibili.core.ui.rememberAppChromeLiquidGlassEnabled
 import com.android.purebilibili.core.ui.rememberAppTopChromePolicy
 import com.android.purebilibili.core.ui.components.AppSearchField
@@ -125,6 +125,7 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
 import com.android.purebilibili.core.ui.rememberAppFolderIcon
 import com.android.purebilibili.core.ui.rememberAppHeadphonesIcon
 import com.android.purebilibili.core.ui.rememberAppPlayIcon
@@ -154,8 +155,8 @@ import com.android.purebilibili.feature.video.player.PlaylistSession
 import com.android.purebilibili.core.util.resolveScrollToTopPlan
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 internal enum class FavoriteContentMode {
     BASE_LIST,
@@ -475,9 +476,10 @@ fun CommonListScreen(
         }
     }
 
-    // [新增] Pager State (仅当有多个文件夹时使用)
-    // 尽管 compose 会自动处理 rememberKey，但这里用 foldersState.size 作为 key 确保变化时重置
-    val pagerState = rememberPagerState(initialPage = 0) {
+    // 返回收藏页时直接从已选文件夹恢复，避免先创建第 1 页再跨多页补间加载。
+    val pagerState = rememberPagerState(
+        initialPage = selectedFolderIndex.coerceIn(0, foldersState.lastIndex.coerceAtLeast(0))
+    ) {
         if (favoriteViewModel != null && foldersState.size > 1) foldersState.size else 0
     }
 
@@ -942,9 +944,15 @@ fun CommonListScreen(
                         // Personal-list pages use explicit controls for horizontal navigation.
                         // Keeping this pager programmatic avoids competing with predictive back
                         // and with filter/folder controls in the collapsing header.
-                        LaunchedEffect(selectedFolderIndex) {
-                            if (pagerState.currentPage != selectedFolderIndex) {
-                                pagerState.animateScrollToPage(selectedFolderIndex)
+                        LaunchedEffect(selectedFolderIndex, pagerState.pageCount) {
+                            if (pagerState.pageCount > 0) {
+                                val targetPage = selectedFolderIndex.coerceIn(
+                                    minimumValue = 0,
+                                    maximumValue = pagerState.pageCount - 1,
+                                )
+                                if (pagerState.currentPage != targetPage) {
+                                    pagerState.scrollToPage(targetPage)
+                                }
                             }
                         }
 
@@ -952,7 +960,7 @@ fun CommonListScreen(
                             state = pagerState,
                             userScrollEnabled = false,
                             modifier = Modifier.fillMaxSize(),
-                            beyondViewportPageCount = 1 // 预加载
+                            beyondViewportPageCount = 0,
                         ) { page ->
                             // 获取当前页面的状态
                             val folderUiState by favoriteVm.getFolderUiState(page).collectAsStateWithLifecycle()
@@ -1633,7 +1641,7 @@ fun CommonListScreen(
                                     height = historyFilterChrome.heightDp.dp,
                                     indicatorHeight = historyFilterChrome.indicatorHeightDp.dp,
                                     labelFontSize = historyFilterChrome.labelFontSizeSp.sp,
-                                    backdrop = commonListChromeBackdrop,
+                                    miuixBackdrop = commonListChromeBackdrop,
                                     forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
                                     liquidGlassEffectsEnabled = true,
                                     dragSelectionEnabled = historyFilterChrome.dragSelectionEnabled,
@@ -1685,7 +1693,7 @@ fun CommonListScreen(
             }
 
             AnimatedVisibility(
-                visible = shouldShowBackToTop,
+                visible = rememberBackToTopButtonEnabled() && shouldShowBackToTop,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall, bottom = commonListBottomPadding + AppSpacingTokens.Medium),
@@ -2212,11 +2220,11 @@ private fun CommonListContent(
     val isHistoryPersonalList = resolveHistoryItem != null
     val isPersonalList = isHistoryPersonalList || isFavoritePersonalList
     val homeFeedCardStyle = if (isPersonalList) {
-        HomeFeedCardStyle.CURRENT
+        HomeFeedCardStyle.BILIPAI
     } else {
         SettingsManager
             .getHomeFeedCardStyle(context)
-            .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.CURRENT)
+            .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.BILIPAI)
             .value
     }
     val cardLayout = remember(homeFeedCardStyle) {
@@ -2281,6 +2289,9 @@ private fun CommonListContent(
         val filteredItems = androidx.compose.runtime.remember(items, searchQuery) {
             filterCommonListVideosByQuery(items, searchQuery)
         }
+        val renderKeys = androidx.compose.runtime.remember(filteredItems) {
+            resolveCommonListRenderKeys(filteredItems.map(resolveHistoryItemKey))
+        }
         LaunchedEffect(
             searchPaginationFallbackEnabled,
             searchQuery,
@@ -2335,7 +2346,7 @@ private fun CommonListContent(
             ) {
                  itemsIndexed(
                     items = filteredItems,
-                    key = { _, item -> resolveHistoryItemKey(item) },
+                    key = { index, _ -> renderKeys[index] },
                     span = { _, item ->
                         if (item.isCollectionResource) GridItemSpan(columns) else GridItemSpan(1)
                     }

@@ -23,8 +23,8 @@ internal class VideoDetailPlaybackEventState(
 }
 
 @Composable
-internal fun rememberVideoDetailPlaybackEventState(): VideoDetailPlaybackEventState {
-    val danmakuManager = rememberDanmakuManager()
+internal fun rememberVideoDetailPlaybackEventState(playbackIdentity: String): VideoDetailPlaybackEventState {
+    val danmakuManager = rememberDanmakuManager(playbackIdentity)
     return remember(danmakuManager) { VideoDetailPlaybackEventState(danmakuManager) }
 }
 

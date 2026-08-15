@@ -121,14 +121,14 @@ class VideoPlayerDanmakuLoadPolicyTest {
         assertTrue(
             playerSource.contains("onRelease") &&
                 playerSource.contains("danmakuManager.clear()") &&
-                // 相关推荐 push 后旧页 dispose 不得清掉新页已接管的 view；用 releaseViewIfCurrent。
+                // 相关推荐 push 后旧页 dispose 不得清掉新页已接管的 view；按目标 detach。
                 // hide() 经 isEnabled=false 间接触发，不要求源码直写 danmakuManager.hide()。
-                playerSource.contains("danmakuManager.releaseViewIfCurrent(view)"),
+                playerSource.contains("danmakuManager.detachView(view)"),
             "VideoPlayerSection must safely release DanmakuView on dispose."
         )
         assertTrue(
             detailSource.contains("danmakuManager.isEnabled = newValue") ||
-                detailSource.contains("rememberDanmakuManager()"),
+                detailSource.contains("rememberDanmakuManager(success.info.bvid)"),
             "Detail tab danmaku toggle must update the shared DanmakuManager immediately, not only DataStore."
         )
         assertTrue(
@@ -143,9 +143,10 @@ class VideoPlayerDanmakuLoadPolicyTest {
             "Outgoing related-video detail hosts must not bind or load the shared danmaku engine."
         )
         assertTrue(
-            playerSource.contains("danmakuManager.detachPlayerIfCurrent(lifecyclePlayer)") &&
+            playerSource.contains("attachedPlayer?.let { danmakuManager.detachPlayer(it) }") &&
+                !playerSource.contains("ON_RESUME: Re-attaching danmaku player") &&
                 !playerSource.contains("danmakuManager.clearViewReference()"),
-            "An outgoing detail ON_DESTROY must not clear the next page's shared DanmakuView."
+            "Player ownership must be paired by its Compose effect without lifecycle re-registration."
         )
     }
 }

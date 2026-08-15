@@ -1,6 +1,8 @@
 // 文件路径: feature/dynamic/components/DynamicCard.kt
 package com.android.purebilibili.feature.dynamic.components
+import com.android.purebilibili.core.ui.components.AppContentCard
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.AppListItem
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
@@ -37,6 +39,7 @@ import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -567,6 +570,32 @@ fun DynamicCardV2(
                                 onManageAction(DynamicManageAction.TempBlock(item.id_str))
                             }
                         )
+
+                        AppDropdownMenuItem(
+                            text = { AppText("编辑动态", color = MaterialTheme.colorScheme.onSurface) },
+                            onClick = {
+                                showMoreMenu = false
+                                onManageAction(
+                                    DynamicManageAction.Edit(
+                                        dynamicId = item.id_str,
+                                        initialText = resolveDynamicEditInitialText(item)
+                                    )
+                                )
+                            }
+                        )
+
+                        AppDropdownMenuItem(
+                            text = { AppText("举报", color = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                showMoreMenu = false
+                                onManageAction(
+                                    DynamicManageAction.Report(
+                                        dynamicId = item.id_str,
+                                        authorMid = author?.mid ?: 0L
+                                    )
+                                )
+                            }
+                        )
                     }
                 }
             }
@@ -985,6 +1014,18 @@ fun DynamicCardV2(
             Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         }
         
+        resolveDynamicAdditionalCard(content?.additional)?.let { additionalCard ->
+            DynamicAdditionalCard(
+                model = additionalCard,
+                onClick = {
+                    if (additionalCard.jumpUrl.isNotBlank()) {
+                        runCatching { uriHandler.openUri(additionalCard.jumpUrl) }
+                    }
+                }
+            )
+            Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
+        }
+
         //  [修复] 底部操作栏：转发、评论、点赞 - 始终显示
         val statModule = stat ?: DynamicStatModule()  // 使用默认值避免按钮消失
         val actionButtonWeight = resolveDynamicActionButtonSlotWeight()
@@ -1080,6 +1121,60 @@ fun DynamicCardV2(
                 thickness = AppSpacingTokens.Micro * 0.35f
             )
         }
+    }
+}
+
+@Composable
+private fun DynamicAdditionalCard(
+    model: DynamicAdditionalCardModel,
+    onClick: () -> Unit
+) {
+    AppContentCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        contentPadding = PaddingValues(horizontal = AppSpacingTokens.ExtraSmall)
+    ) {
+        AppListItem(
+            overlineContent = {
+                AppText(
+                    text = model.kindLabel,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            },
+            headlineContent = {
+                AppText(
+                    text = model.title,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Medium
+                )
+            },
+            supportingContent = model.subtitle.takeIf { it.isNotBlank() }?.let { subtitle ->
+                {
+                    AppText(
+                        text = subtitle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            leadingContent = if (model.cover.isNotBlank()) {
+                {
+                    AsyncImage(
+                        model = model.cover,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(width = 88.dp, height = 56.dp)
+                            .clip(AppShapes.container(ContainerLevel.Chip)),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            } else {
+                null
+            }
+        )
     }
 }
 

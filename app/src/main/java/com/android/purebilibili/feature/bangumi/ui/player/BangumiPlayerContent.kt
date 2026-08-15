@@ -46,8 +46,8 @@ import com.android.purebilibili.feature.video.ui.components.SubReplySheet
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /**
  * 番剧播放内容区域
@@ -86,9 +86,9 @@ fun BangumiPlayerContent(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 height = 44.dp,
-                indicatorHeight = 30.dp,
+                indicatorHeight = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(44f).dp,
                 labelFontSize = 15.sp,
-                backdrop = selectionBackdrop,
+                miuixBackdrop = selectionBackdrop,
                 tapPressRefractionEnabled = false,
                 isScrollInProgressProvider = { pagerState.isScrollInProgress },
             )

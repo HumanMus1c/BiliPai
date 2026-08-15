@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -33,6 +34,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -91,7 +94,7 @@ data class LiveListUiState(
     val followItems: List<LiveRoomItem> = emptyList(),
     val areaEntries: List<com.android.purebilibili.data.model.response.LiveFeedAreaEntry> = emptyList(),
     val areaList: List<LiveAreaParent> = emptyList(),
-    /** 0 = 推荐；其余对应 [areaEntries] 下标 + 1 */
+    /** 0 = 推荐；1 = 已关注；其余对应 [areaEntries] 下标 + 2 */
     val selectedAreaIndex: Int = 0,
     val selectedParentAreaId: Int = 0,
     val selectedAreaId: Int = 0,
@@ -118,10 +121,12 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val state = _uiState.value
             _uiState.value = state.copy(isLoading = true, error = null, page = 1, hasMore = true)
-            if (state.selectedAreaIndex == 0) {
-                loadRecommendPage(page = 1, append = false)
-            } else {
-                loadAreaPage(page = 1, append = false)
+            when {
+                state.selectedAreaIndex == LIVE_HOME_RECOMMEND_INDEX ->
+                    loadRecommendPage(page = 1, append = false)
+                isLiveHomeFollowedTab(state.selectedAreaIndex) ->
+                    loadFollowedPage(page = 1, append = false)
+                else -> loadAreaPage(page = 1, append = false)
             }
             // 分区详情子标签仍用 web area list 兜底
             if (_uiState.value.areaList.isEmpty()) {
@@ -141,10 +146,12 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val next = state.page + 1
             _uiState.value = state.copy(isLoadingMore = true)
-            if (state.selectedAreaIndex == 0) {
-                loadRecommendPage(page = next, append = true)
-            } else {
-                loadAreaPage(page = next, append = true)
+            when {
+                state.selectedAreaIndex == LIVE_HOME_RECOMMEND_INDEX ->
+                    loadRecommendPage(page = next, append = true)
+                isLiveHomeFollowedTab(state.selectedAreaIndex) ->
+                    loadFollowedPage(page = next, append = true)
+                else -> loadAreaPage(page = next, append = true)
             }
         }
     }
@@ -152,9 +159,9 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
     fun selectHomeArea(index: Int) {
         val state = _uiState.value
         if (index == state.selectedAreaIndex) return
-        if (index <= 0) {
+        if (index <= LIVE_HOME_RECOMMEND_INDEX) {
             _uiState.value = state.copy(
-                selectedAreaIndex = 0,
+                selectedAreaIndex = LIVE_HOME_RECOMMEND_INDEX,
                 selectedParentAreaId = 0,
                 selectedAreaId = 0,
                 selectedSortType = null,
@@ -167,10 +174,25 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
             viewModelScope.launch { loadRecommendPage(page = 1, append = false) }
             return
         }
+        if (isLiveHomeFollowedTab(index)) {
+            _uiState.value = state.copy(
+                selectedAreaIndex = LIVE_HOME_FOLLOWED_INDEX,
+                selectedParentAreaId = 0,
+                selectedAreaId = 0,
+                selectedSortType = null,
+                sortTags = emptyList(),
+                page = 1,
+                hasMore = true,
+                isLoading = true,
+                error = null,
+            )
+            viewModelScope.launch { loadFollowedPage(page = 1, append = false) }
+            return
+        }
         val entry = resolveLiveHomeAreaEntries(
             feedEntries = state.areaEntries,
             areaParents = state.areaList
-        ).getOrNull(index - 1) ?: return
+        ).getOrNull(resolveLiveHomeAreaListIndex(index)) ?: return
         _uiState.value = state.copy(
             selectedAreaIndex = index,
             selectedParentAreaId = entry.parentAreaId,
@@ -187,7 +209,7 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
 
     fun selectSortTag(sortType: String?) {
         val state = _uiState.value
-        if (state.selectedAreaIndex == 0) return
+        if (state.selectedAreaIndex <= LIVE_HOME_FOLLOWED_INDEX) return
         if (state.selectedSortType == sortType) return
         _uiState.value = state.copy(
             selectedSortType = sortType,
@@ -244,6 +266,37 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
                     isLoading = false,
                     isLoadingMore = false,
                     error = if (!append) error.message ?: "加载失败" else _uiState.value.error,
+                )
+            }
+        )
+    }
+
+    private suspend fun loadFollowedPage(page: Int, append: Boolean) {
+        LiveRepository.getFollowedLivePage(page = page).fold(
+            onSuccess = { snapshot ->
+                val mapped = snapshot.items.map { it.toLiveRoomItem() }
+                val current = _uiState.value
+                val mergedRooms = if (append) {
+                    (current.contentItems + mapped).distinctBy { it.roomId }
+                } else {
+                    mapped
+                }
+                _uiState.value = current.copy(
+                    contentItems = mergedRooms,
+                    followItems = if (!append) mapped else current.followItems,
+                    livingCount = if (!append) mapped.size else current.livingCount,
+                    page = page,
+                    hasMore = snapshot.hasMore,
+                    isLoading = false,
+                    isLoadingMore = false,
+                    error = if (mergedRooms.isEmpty() && !append) "暂无关注的直播" else null,
+                )
+            },
+            onFailure = { error ->
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isLoadingMore = false,
+                    error = if (!append) error.message ?: "加载关注直播失败" else _uiState.value.error,
                 )
             }
         )
@@ -320,6 +373,11 @@ fun LiveListScreen(
     onMatchClick: () -> Unit = {},
     /** 底栏主入口时隐藏返回，更接近 BiliPai 主 tab 形态。 */
     showNavigationBack: Boolean = true,
+    /** 首页顶栏独立页：去掉自有顶栏和状态栏垫高，避免和首页搜索/标签叠两层。 */
+    embeddedInHome: Boolean = false,
+    contentTopPadding: androidx.compose.ui.unit.Dp = AppSpacingTokens.None,
+    scrollToTopRequestId: Int = 0,
+    scrollToTopChannel: Channel<Unit>? = null,
     viewModel: LiveListViewModel = viewModel(),
     globalHazeState: HazeState? = null
 ) {
@@ -356,6 +414,25 @@ fun LiveListScreen(
         resolveLiveBiliPaiGridColumns(contentWidth.value.toInt(), windowSizeClass.isTablet)
     }
     val gridBottomPadding = LocalBottomBarContentPadding.current
+    val liveGridState = rememberLazyGridState()
+    suspend fun scrollLiveHomeToTop() {
+        val atTop = liveGridState.firstVisibleItemIndex == 0 &&
+            liveGridState.firstVisibleItemScrollOffset < 50
+        if (!atTop) {
+            liveGridState.animateScrollToItem(0)
+        } else {
+            viewModel.refresh()
+        }
+    }
+    LaunchedEffect(scrollToTopRequestId) {
+        if (scrollToTopRequestId <= 0) return@LaunchedEffect
+        scrollLiveHomeToTop()
+    }
+    LaunchedEffect(scrollToTopChannel) {
+        scrollToTopChannel?.receiveAsFlow()?.collect {
+            scrollLiveHomeToTop()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -366,25 +443,27 @@ fun LiveListScreen(
             modifier = Modifier
                 .responsiveContentWidth(maxWidth = visualSpec.maxContentWidthDp.dp)
                 .fillMaxSize()
-                .statusBarsPadding()
+                .then(if (embeddedInHome) Modifier.padding(top = contentTopPadding) else Modifier.statusBarsPadding())
         ) {
-            LiveListHeader(
-                metrics = metrics,
-                livingCount = state.livingCount,
-                primaryFace = state.followItems.firstOrNull()?.face.orEmpty(),
-                showNavigationBack = showNavigationBack,
-                onBack = onBack,
-                onSearchClick = onSearchClick,
-                onInboxClick = onFollowingClick,
-                onAvatarClick = onAreaListClick
-            )
+            if (!embeddedInHome) {
+                LiveListHeader(
+                    metrics = metrics,
+                    livingCount = state.livingCount,
+                    primaryFace = state.followItems.firstOrNull()?.face.orEmpty(),
+                    showNavigationBack = showNavigationBack,
+                    onBack = onBack,
+                    onSearchClick = onSearchClick,
+                    onInboxClick = onFollowingClick,
+                    onAvatarClick = onAreaListClick
+                )
+            }
             AdaptivePullToRefreshBox(
                 isRefreshing = state.isLoading,
                 onRefresh = viewModel::refresh,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(top = AppSpacingTokens.ExtraSmall),
+                    .padding(top = if (embeddedInHome) AppSpacingTokens.None else AppSpacingTokens.ExtraSmall),
             ) {
                 when {
                     state.isLoading && state.contentItems.isEmpty() && state.followItems.isEmpty() -> {
@@ -398,6 +477,7 @@ fun LiveListScreen(
                     }
                     else -> {
                         LiveHomeContent(
+                            gridState = liveGridState,
                             contentItems = state.contentItems,
                             followItems = state.followItems,
                             areaEntries = state.areaEntries,
@@ -448,6 +528,7 @@ fun LiveListScreen(
 
 @Composable
 private fun LiveHomeContent(
+    gridState: androidx.compose.foundation.lazy.grid.LazyGridState,
     contentItems: List<LiveRoomItem>,
     followItems: List<LiveRoomItem>,
     areaEntries: List<com.android.purebilibili.data.model.response.LiveFeedAreaEntry>,
@@ -477,11 +558,12 @@ private fun LiveHomeContent(
 ) {
     val selectedParent = areaList.firstOrNull { it.id == selectedParentAreaId }
         ?: areaList.firstOrNull {
-            areaEntries.getOrNull((selectedAreaIndex - 1).coerceAtLeast(0))?.parentAreaId == it.id
+            areaEntries.getOrNull(resolveLiveHomeAreaListIndex(selectedAreaIndex).coerceAtLeast(0))?.parentAreaId == it.id
         }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(gridColumns),
+        state = gridState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = metrics.safeSpaceDp.dp,
@@ -492,7 +574,7 @@ private fun LiveHomeContent(
         horizontalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp),
         verticalArrangement = Arrangement.spacedBy(metrics.cardSpaceDp.dp)
     ) {
-        if (followItems.isNotEmpty()) {
+        if (followItems.isNotEmpty() && selectedAreaIndex == LIVE_HOME_RECOMMEND_INDEX) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 LiveFollowHeader(
                     livingCount = livingCount,
@@ -507,22 +589,21 @@ private fun LiveHomeContent(
                 )
             }
         }
-        if (areaEntries.isNotEmpty() || areaList.isNotEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                LiveAreaHomeChipRow(
-                    areaEntries = resolveLiveHomeAreaEntries(
-                        feedEntries = areaEntries,
-                        areaParents = areaList
-                    ),
-                    selectedAreaIndex = selectedAreaIndex,
-                    showFirstFrame = showFirstFrame,
-                    onAreaSelected = onAreaSelected,
-                    onToggleFirstFrame = onToggleFirstFrame,
-                    onAreaListClick = onAreaListClick,
-                    onMatchClick = onMatchClick,
-                )
-            }
-            if (selectedAreaIndex > 0 && sortTags.isNotEmpty()) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            LiveAreaHomeChipRow(
+                areaEntries = resolveLiveHomeAreaEntries(
+                    feedEntries = areaEntries,
+                    areaParents = areaList
+                ),
+                selectedAreaIndex = selectedAreaIndex,
+                showFirstFrame = showFirstFrame,
+                onAreaSelected = onAreaSelected,
+                onToggleFirstFrame = onToggleFirstFrame,
+                onAreaListClick = onAreaListClick,
+                onMatchClick = onMatchClick,
+            )
+        }
+        if (selectedAreaIndex > LIVE_HOME_FOLLOWED_INDEX && sortTags.isNotEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     LiveSortTagChipRow(
                         tags = sortTags,
@@ -531,14 +612,13 @@ private fun LiveHomeContent(
                     )
                 }
             }
-            if (selectedAreaIndex > 0 && !selectedParent?.list.isNullOrEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    LiveAreaChildChipRow(
-                        items = selectedParent.list.orEmpty(),
-                        parentAreaId = selectedParent.id,
-                        onAreaDetailClick = onAreaDetailClick
-                    )
-                }
+        if (selectedAreaIndex > LIVE_HOME_FOLLOWED_INDEX && !selectedParent?.list.isNullOrEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                LiveAreaChildChipRow(
+                    items = selectedParent.list.orEmpty(),
+                    parentAreaId = selectedParent.id,
+                    onAreaDetailClick = onAreaDetailClick
+                )
             }
         }
         when {
@@ -828,16 +908,24 @@ private fun LiveAreaHomeChipRow(
             item(key = "recommend") {
                 LiveHomeSelectableChip(
                     label = "推荐",
-                    selected = selectedAreaIndex == 0,
-                    onClick = { onAreaSelected(0) },
+                    selected = selectedAreaIndex == LIVE_HOME_RECOMMEND_INDEX,
+                    onClick = { onAreaSelected(LIVE_HOME_RECOMMEND_INDEX) },
+                )
+            }
+            item(key = "followed") {
+                LiveHomeSelectableChip(
+                    label = "已关注",
+                    selected = isLiveHomeFollowedTab(selectedAreaIndex),
+                    onClick = { onAreaSelected(LIVE_HOME_FOLLOWED_INDEX) },
                 )
             }
             items(areaEntries.size, key = { index -> "${areaEntries[index].parentAreaId}_${areaEntries[index].areaId}_$index" }) { index ->
                 val entry = areaEntries[index]
+                val chipIndex = resolveLiveHomeSelectedIndexForArea(index)
                 LiveHomeSelectableChip(
                     label = entry.title,
-                    selected = selectedAreaIndex == index + 1,
-                    onClick = { onAreaSelected(index + 1) },
+                    selected = selectedAreaIndex == chipIndex,
+                    onClick = { onAreaSelected(chipIndex) },
                 )
             }
         }

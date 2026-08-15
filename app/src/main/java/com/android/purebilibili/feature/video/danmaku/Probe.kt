@@ -6,13 +6,13 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.Typeface
 import android.text.TextPaint
 import androidx.core.graphics.drawable.toBitmap
-import coil.ImageLoader
+import coil.imageLoader
 import coil.request.ImageRequest
+import com.android.purebilibili.danmaku.engine.DanmakuItem
 import com.android.purebilibili.feature.live.components.DanmakuEmoticonMapper
-import com.bytedance.danmaku.render.engine.data.DanmakuData
-import com.bytedance.danmaku.render.engine.render.draw.bitmap.BitmapData
 import java.util.regex.Pattern
 
 /**
@@ -30,8 +30,9 @@ fun createBitmapDanmaku(
     layerType: Int,
     showAtTime: Long,
     enableEmoticon: Boolean = true,
+    typeface: Typeface = Typeface.DEFAULT,
     onUpdate: () -> Unit
-): BitmapData {
+): DanmakuItem {
     // 1. 解析文本
     val segments = parseSegments(text, enableEmoticon)
     
@@ -39,6 +40,7 @@ fun createBitmapDanmaku(
     val paint = TextPaint().apply {
         this.textSize = textSize
         this.color = textColor
+        this.typeface = typeface
         this.isAntiAlias = true
         setShadowLayer(
             (textSize / 8f).coerceIn(2f, 5f),
@@ -90,11 +92,11 @@ fun createBitmapDanmaku(
         android.util.Log.e("Probe", "❌ Draw content failed: ${e.message}")
     }
     
-    // 5. 创建 BitmapData
-    return BitmapData().apply {
+    // 5. 创建引擎无关的位图弹幕，渲染适配器负责转换底层数据类型。
+    return DanmakuItem().apply {
         this.bitmap = bitmap
-        this.width = widthInt.toFloat()
-        this.height = heightInt.toFloat()
+        this.bitmapWidth = widthInt.toFloat()
+        this.bitmapHeight = heightInt.toFloat()
         this.showAtTime = showAtTime
         this.layerType = layerType
     }
@@ -175,7 +177,7 @@ private fun drawContent(
     var xOffset = 0f
     var emoticonCount = 0
     val maxEmoticonPerDanmaku = 2
-    val imageLoader = ImageLoader(context)
+    val imageLoader = context.imageLoader
     
     segments.forEach { seg ->
         if (seg.isEmoticon) {
@@ -207,10 +209,7 @@ private fun drawContent(
                         val top = centerY - iconSize / 2f
                         val dstRect = Rect(startX.toInt(), top.toInt(), (startX + iconSize).toInt(), (top + iconSize).toInt())
                         asyncCanvas.drawBitmap(loadedBitmap, null, dstRect, null)
-                        if (!loadedBitmap.isRecycled) {
-                            loadedBitmap.recycle()
-                        }
-                        
+
                         // 通知 UI 刷新
                         onUpdate()
                     }

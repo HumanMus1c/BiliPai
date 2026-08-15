@@ -48,7 +48,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.android.purebilibili.core.theme.BiliPink
+
 import com.android.purebilibili.core.ui.rememberAppCoinIcon
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.HapticType
@@ -145,7 +145,7 @@ fun PortraitInteractionBar(
             icon = if (isLiked) Icons.Rounded.ThumbUp else Icons.Outlined.ThumbUp,
             countText = if (likeCount > 0) FormatUtils.formatStat(likeCount.toLong()) else "点赞",
             isActive = isLiked,
-            activeColor = BiliPink,
+            activeColor = MaterialTheme.colorScheme.primary,
             layoutPolicy = layoutPolicy,
             progress = tripleProgress,
             onClick = onLikeClick,
@@ -177,7 +177,7 @@ fun PortraitInteractionBar(
                 else -> "投币"
             },
             isActive = isCoined,
-            activeColor = BiliPink,
+            activeColor = MaterialTheme.colorScheme.primary,
             layoutPolicy = layoutPolicy,
             onClick = onCoinClick
         )
@@ -196,7 +196,7 @@ fun PortraitInteractionBar(
             icon = if (isFavorited) Icons.Rounded.Star else Icons.Rounded.StarBorder,
             countText = if (favoriteCount > 0) FormatUtils.formatStat(favoriteCount.toLong()) else "收藏",
             isActive = isFavorited,
-            activeColor = BiliPink,
+            activeColor = MaterialTheme.colorScheme.primary,
             layoutPolicy = layoutPolicy,
             onClick = onFavoriteClick
         )
@@ -220,7 +220,7 @@ private fun InteractionButton(
     icon: ImageVector,
     countText: String,
     isActive: Boolean,
-    activeColor: Color = BiliPink,
+    activeColor: Color = MaterialTheme.colorScheme.primary,
     layoutPolicy: PortraitInteractionBarLayoutPolicy,
     progress: Float = 0f,
     onClick: () -> Unit,

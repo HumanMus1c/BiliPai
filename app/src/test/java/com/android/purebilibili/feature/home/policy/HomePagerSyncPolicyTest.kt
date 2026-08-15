@@ -82,7 +82,7 @@ class HomePagerSyncPolicyTest {
     }
 
     @Test
-    fun pagerSettledAction_opensLiveList_whenSettledCategoryIsLive() {
+    fun pagerSettledAction_switchesToLive_whenSettledCategoryIsLive() {
         val action = resolveHomePagerSettledAction(
             isTopLevelActive = true,
             hasSyncedPagerWithState = true,
@@ -92,18 +92,18 @@ class HomePagerSyncPolicyTest {
             settledCategory = HomeCategory.LIVE
         )
 
-        assertEquals(HomePagerSettledAction.OPEN_LIVE_LIST, action)
+        assertEquals(HomePagerSettledAction.SWITCH_CATEGORY, action)
     }
 
     @Test
-    fun homeTopLiveCategory_isNotDisplayedInline_routesToLiveList() {
-        assertFalse(shouldDisplayHomeTopCategoryInline(HomeCategory.LIVE))
-        assertFalse(shouldDisplayHomeTopCategoryInline(HomeCategory.ANIME))
+    fun homeTopLiveAndAnimeCategories_displayInlineIndependentPages() {
+        assertTrue(shouldDisplayHomeTopCategoryInline(HomeCategory.LIVE))
+        assertTrue(shouldDisplayHomeTopCategoryInline(HomeCategory.ANIME))
         assertTrue(shouldDisplayHomeTopCategoryInline(HomeCategory.RECOMMEND))
     }
 
     @Test
-    fun pagerSettledAction_opensBangumi_whenSettledCategoryIsAnime() {
+    fun pagerSettledAction_switchesToAnime_whenSettledCategoryIsAnime() {
         val action = resolveHomePagerSettledAction(
             isTopLevelActive = true,
             hasSyncedPagerWithState = true,
@@ -113,7 +113,7 @@ class HomePagerSyncPolicyTest {
             settledCategory = HomeCategory.ANIME
         )
 
-        assertEquals(HomePagerSettledAction.OPEN_BANGUMI, action)
+        assertEquals(HomePagerSettledAction.SWITCH_CATEGORY, action)
     }
 
     @Test

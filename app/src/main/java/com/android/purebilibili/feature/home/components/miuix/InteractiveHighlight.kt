@@ -37,6 +37,15 @@ class InteractiveHighlight(
     private var startPosition = Offset.Zero
     val offset: Offset get() = positionAnimation.value - startPosition
 
+    fun setPressed(pressed: Boolean) {
+        animationScope.launch {
+            pressProgressAnimation.animateTo(
+                if (pressed) 1f else 0f,
+                pressProgressAnimationSpec,
+            )
+        }
+    }
+
     @Language("AGSL")
     private val shader =
         RuntimeShader(

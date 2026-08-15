@@ -60,8 +60,6 @@ dependencyResolutionManagement {
                 }
             }
         }
-        // 🔥 ByteDance DanmakuRenderEngine 仓库
-        maven { url = uri("https://artifact.bytedance.com/repository/releases/") }
         // Cling Repo
         maven { 
             url = uri("http://4thline.org/m2") 
@@ -78,5 +76,6 @@ include(":network-core")
 include(":plugin-sdk")
 include(":design-system")
 include(":dolby-ffmpeg-decoder")
+include(":danmaku-engine")
 
  

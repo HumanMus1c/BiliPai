@@ -1,12 +1,34 @@
 package com.android.purebilibili.feature.home
 
 /**
- * 首页顶栏「直播」与底栏「直播」统一入口：
- * 顶栏点直播时不再停留在首页内嵌直播分类，而是打开底栏同一套直播首页（LiveList）。
+ * 首页顶栏「直播 / 追番」作为首页 Pager 里的独立页停留，
+ * 不再切走底栏或打开二级导航。底栏直播入口仍走 LiveList 全屏页。
  */
-fun shouldOpenLiveListFromHomeTopTab(category: HomeCategory): Boolean =
+fun shouldOpenLiveListFromHomeTopTab(category: HomeCategory): Boolean = false
+
+fun shouldOpenBangumiFromHomeTopTab(category: HomeCategory): Boolean = false
+
+fun shouldEmbedLivePageInHomeTopTab(category: HomeCategory): Boolean =
     category == HomeCategory.LIVE
 
-/** 首页顶栏「追番」使用番剧独立页，而不是首页 Pager 内的普通分类内容。 */
-fun shouldOpenBangumiFromHomeTopTab(category: HomeCategory): Boolean =
+fun shouldEmbedBangumiPageInHomeTopTab(category: HomeCategory): Boolean =
     category == HomeCategory.ANIME
+
+enum class HomeTopTabScrollTarget {
+    FEED,
+    LIVE,
+    BANGUMI,
+    PARTITION,
+}
+
+fun resolveHomeTopTabScrollTarget(entry: HomeTopTabEntry?): HomeTopTabScrollTarget {
+    return when (entry) {
+        HomeTopTabEntry.Partition -> HomeTopTabScrollTarget.PARTITION
+        is HomeTopTabEntry.Category -> when {
+            shouldEmbedLivePageInHomeTopTab(entry.category) -> HomeTopTabScrollTarget.LIVE
+            shouldEmbedBangumiPageInHomeTopTab(entry.category) -> HomeTopTabScrollTarget.BANGUMI
+            else -> HomeTopTabScrollTarget.FEED
+        }
+        null -> HomeTopTabScrollTarget.FEED
+    }
+}

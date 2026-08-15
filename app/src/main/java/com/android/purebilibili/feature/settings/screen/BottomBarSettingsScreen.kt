@@ -257,6 +257,8 @@ fun BottomBarSettingsContent(
     
     //  [新增] 读取项目颜色配置
     val itemColors by SettingsManager.getBottomBarItemColors(context).collectAsStateWithLifecycle(initialValue = emptyMap())
+    val itemLabels by SettingsManager.getBottomBarItemLabels(context)
+        .collectAsStateWithLifecycle(initialValue = emptyMap())
     
     // 保存配置
     fun saveConfig() {
@@ -701,7 +703,8 @@ fun BottomBarSettingsContent(
                 Box(modifier = Modifier.entrance()) {
                     BottomBarPreview(
                         tabs = localOrder.filter { it in localVisibleTabs }
-                            .mapNotNull { id -> allBottomBarTabs.find { it.id == id } },
+                            .mapNotNull { id -> allBottomBarTabs.find { it.id == id } }
+                            .map { tab -> tab.copy(label = itemLabels[tab.id] ?: tab.label) },
                         onMove = { from, to -> onOrderChanged(from, to) },
                         onDragEnd = { saveConfig() }
                     )
@@ -727,6 +730,7 @@ fun BottomBarSettingsContent(
                             }
                             BottomBarTabItem(
                                 tab = tab,
+                                customLabel = itemLabels[tab.id].orEmpty(),
                                 isVisible = tab.id in localVisibleTabs,
                                 colorIndex = itemColors[tab.id] ?: BottomBarColors.getDefaultColorIndex(tab.id),
                                 canToggle = if (tab.id in localVisibleTabs) {
@@ -750,6 +754,11 @@ fun BottomBarSettingsContent(
                                 },
                                 onColorChange = { newColorIndex ->
                                     saveItemColor(tab.id, newColorIndex)
+                                },
+                                onLabelChange = { label ->
+                                    scope.launch {
+                                        SettingsManager.setBottomBarItemLabel(context, tab.id, label)
+                                    }
                                 }
                             )
                         }
@@ -788,6 +797,7 @@ fun BottomBarSettingsContent(
                                     SettingsManager.setHomeHeaderBlurMode(context, HomeHeaderBlurMode.FOLLOW_PRESET)
                                     // 重置为设备类型默认：平板开侧栏，手机开底栏
                                     SettingsManager.setTabletUseSidebar(context, isTabletDevice)
+                                    SettingsManager.clearBottomBarItemLabels(context)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -934,11 +944,13 @@ private fun BottomBarPreview(
 @Composable
 private fun BottomBarTabItem(
     tab: BottomBarTabConfig,
+    customLabel: String,
     isVisible: Boolean,
     colorIndex: Int,
     canToggle: Boolean,
     onToggle: (Boolean) -> Unit,
-    onColorChange: (Int) -> Unit
+    onColorChange: (Int) -> Unit,
+    onLabelChange: (String) -> Unit,
 ) {
     //  MD3(MATERIAL3)主题下可用项目图标跟随主题色,不再使用多彩色板;
     //  颜色选择弹窗仅对保留多彩色的预设开放。
@@ -958,6 +970,9 @@ private fun BottomBarTabItem(
     
     //  颜色选择弹窗状态
     var showColorPicker by remember { mutableStateOf(false) }
+    var showLabelEditor by remember { mutableStateOf(false) }
+    var labelDraft by remember(customLabel) { mutableStateOf(customLabel) }
+    val displayLabel = customLabel.ifBlank { tab.label }
     
     Row(
         modifier = Modifier
@@ -985,14 +1000,26 @@ private fun BottomBarTabItem(
         Spacer(modifier = Modifier.width(14.dp))
         
         // 名称
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable {
+                    labelDraft = customLabel
+                    showLabelEditor = true
+                }
+                .padding(vertical = 4.dp)
+        ) {
             AppText(
-                text = tab.label,
+                text = displayLabel,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
             AppText(
-                text = "点击图标更换颜色",
+                text = if (customLabel.isBlank()) {
+                    "点击名称自定义文字；点击图标更换颜色"
+                } else {
+                    "默认：${tab.label}；点击名称修改"
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1003,6 +1030,45 @@ private fun BottomBarTabItem(
             checked = isVisible,
             onCheckedChange = { newValue -> if (canToggle) onToggle(newValue) },
             enabled = canToggle
+        )
+    }
+
+    if (showLabelEditor) {
+        com.android.purebilibili.core.ui.AppAlertDialog(
+            onDismissRequest = { showLabelEditor = false },
+            title = { AppText("自定义${tab.label}文字") },
+            text = {
+                AppTextField(
+                    value = labelDraft,
+                    onValueChange = { labelDraft = it.take(12) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = "底栏文字",
+                    placeholder = tab.label,
+                    supportingText = {
+                        AppText("最多 12 个字符；留空使用默认文字")
+                    },
+                )
+            },
+            confirmButton = {
+                AppTextButton(
+                    onClick = {
+                        onLabelChange(labelDraft)
+                        showLabelEditor = false
+                    }
+                ) {
+                    AppText("保存")
+                }
+            },
+            dismissButton = {
+                AppTextButton(
+                    onClick = {
+                        onLabelChange("")
+                        showLabelEditor = false
+                    }
+                ) {
+                    AppText("恢复默认")
+                }
+            },
         )
     }
     

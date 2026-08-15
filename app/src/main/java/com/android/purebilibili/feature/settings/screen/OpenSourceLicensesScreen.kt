@@ -195,12 +195,6 @@ val openSourceLibraries = listOf(
         description = "Compose Cupertino 组件与图标"
     ),
     OpenSourceLibrary(
-        name = "Backdrop",
-        license = "Apache 2.0",
-        url = "https://github.com/Kyant0/AndroidLiquidGlass",
-        description = "液态玻璃/背景折射效果依赖"
-    ),
-    OpenSourceLibrary(
         name = "BBPlayer",
         license = "MIT",
         url = "https://github.com/bbplayer-app/BBPlayer",

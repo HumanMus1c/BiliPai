@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.rememberAppSegmentedControlPolicy
+import com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp
 import com.android.purebilibili.core.ui.renderer.material3.AppMaterial3SegmentedControl
 import com.android.purebilibili.core.ui.renderer.material3.AppMaterial3TabRow
 import com.android.purebilibili.core.ui.renderer.miuix.AppMiuixSegmentedControl
@@ -91,7 +92,7 @@ fun resolveAppLiquidSegmentedControlSpec(
     return AppLiquidSegmentedControlSpec(
         itemWidthDp = if (itemCount >= 4) 56 else 66,
         heightDp = liquidControlHeightDp,
-        indicatorHeightDp = 30,
+        indicatorHeightDp = roundMatchedLiquidIndicatorHeightDp(liquidControlHeightDp.toFloat()),
         labelFontSizeSp = resolveAppSegmentedLabelFontSizeSp(
             optionCount = itemCount,
             longestLabelLength = longestLabelLength,

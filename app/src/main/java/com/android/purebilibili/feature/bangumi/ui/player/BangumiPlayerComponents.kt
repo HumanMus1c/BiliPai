@@ -62,6 +62,7 @@ import com.android.purebilibili.feature.anime4k.isAnime4KGles3Available
 import com.android.purebilibili.feature.anime4k.resolveInitialVideoEnhancementEnabled
 import com.android.purebilibili.feature.anime4k.resolveAnime4KOutputDecision
 import com.android.purebilibili.feature.video.danmaku.DanmakuManager
+import com.android.purebilibili.danmaku.engine.DanmakuRenderView
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.video.ui.components.AnimatedGesturePercentText
@@ -568,7 +569,7 @@ fun BangumiPlayerView(
         if (danmakuEnabled) {
             AndroidView(
                 factory = { ctx ->
-                    com.bytedance.danmaku.render.engine.DanmakuView(ctx).apply {
+                    DanmakuRenderView(ctx).apply {
                         setBackgroundColor(android.graphics.Color.TRANSPARENT)
                         android.util.Log.w("BangumiPlayer", "🎯 DanmakuView factory: creating new view")
                         danmakuManager.attachView(this)
@@ -584,6 +585,7 @@ fun BangumiPlayerView(
                         }
                     }
                 },
+                onRelease = { view -> danmakuManager.detachView(view) },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(top = danmakuTopInset)

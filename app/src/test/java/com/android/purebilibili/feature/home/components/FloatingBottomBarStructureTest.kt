@@ -149,6 +149,17 @@ class FloatingBottomBarStructureTest {
     }
 
     @Test
+    fun `selected indicator forwards taps without replacing drag handling`() {
+        val source = loadFloatingBottomBarSource()
+        val indicatorSource = source.substringAfter("if (tabWidthPx > 0f)")
+
+        assertTrue(source.contains("onReselected: () -> Unit = {}"))
+        assertTrue(indicatorSource.contains(".then(dampedDragAnimation.modifier)"))
+        assertTrue(indicatorSource.contains("onClick = onReselected"))
+        assertTrue(indicatorSource.contains(".clearAndSetSemantics {}"))
+    }
+
+    @Test
     fun `caller width constrains dock before intrinsic measurement`() {
         val source = loadFloatingBottomBarSource()
         val body = source.substringAfter("fun FloatingBottomBar(")

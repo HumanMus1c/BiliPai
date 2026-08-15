@@ -64,6 +64,28 @@ class VideoCommentSheetHostPolicyTest {
     }
 
     @Test
+    fun `returning from thread detail resets main comment list to top`() {
+        assertTrue(
+            shouldResetVideoCommentMainListAfterTransition(
+                previousContent = VideoCommentSheetHostContent.THREAD_DETAIL,
+                currentContent = VideoCommentSheetHostContent.MAIN_LIST,
+            )
+        )
+        assertFalse(
+            shouldResetVideoCommentMainListAfterTransition(
+                previousContent = VideoCommentSheetHostContent.HIDDEN,
+                currentContent = VideoCommentSheetHostContent.MAIN_LIST,
+            )
+        )
+        assertFalse(
+            shouldResetVideoCommentMainListAfterTransition(
+                previousContent = VideoCommentSheetHostContent.MAIN_LIST,
+                currentContent = VideoCommentSheetHostContent.MAIN_LIST,
+            )
+        )
+    }
+
+    @Test
     fun `main comment sheet should keep drawer height and scrim`() {
         assertEquals(
             0.60f,

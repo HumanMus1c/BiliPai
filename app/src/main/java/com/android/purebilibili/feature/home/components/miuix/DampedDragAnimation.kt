@@ -5,6 +5,9 @@ package com.android.purebilibili.feature.home.components.miuix
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -28,7 +31,7 @@ class DampedDragAnimation(
     val valueRange: ClosedRange<Float>,
     val visibilityThreshold: Float,
     val initialScale: Float,
-    val pressedScale: Float,
+    pressedScale: Float,
     val canDrag: (Offset) -> Boolean = { true },
     val onDragStarted: DampedDragAnimation.(position: Offset) -> Unit,
     val onDragStopped: DampedDragAnimation.() -> Unit,
@@ -72,17 +75,25 @@ class DampedDragAnimation(
     val scaleY: Float get() = scaleYAnimation.value
     val velocity: Float get() = velocityAnimation.value
 
+    var isDragging by mutableStateOf(false)
+        private set
+
+    var pressedScale: Float = pressedScale
+
     val modifier: Modifier = Modifier.pointerInput(Unit) {
         inspectDragGestures(
             onDragStart = { down ->
+                isDragging = true
                 onDragStarted(down.position)
                 press()
             },
             onDragEnd = {
+                isDragging = false
                 onDragStopped()
                 release()
             },
             onDragCancel = {
+                isDragging = false
                 onDragStopped()
                 release()
             }
@@ -94,6 +105,9 @@ class DampedDragAnimation(
             val wasInside = canDrag(previousPosition)
 
             if (isInside && wasInside) {
+                if (dragAmount != Offset.Zero) {
+                    change.consume()
+                }
                 onDrag(size, dragAmount)
             }
         }
@@ -121,6 +135,12 @@ class DampedDragAnimation(
             launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
             launch { scaleYAnimation.animateTo(initialScale, scaleYAnimationSpec) }
         }
+    }
+
+    fun snapTo(value: Float) {
+        val next = value.coerceIn(valueRange)
+        requestedValue = next
+        animationScope.launch { valueAnimation.snapTo(next) }
     }
 
     fun updateValue(value: Float) {

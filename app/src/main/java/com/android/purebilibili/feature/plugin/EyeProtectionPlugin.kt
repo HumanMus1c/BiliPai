@@ -395,7 +395,7 @@ class EyeProtectionPlugin : Plugin {
                 onCheckedChange = { enabled ->
                     updateConfig(uiConfig.copy(forceEnabled = enabled))
                 },
-                iconTint = Color(0xFFFFB74D)
+                iconTint = MaterialTheme.colorScheme.tertiary
             )
 
             AppHorizontalDivider(
@@ -411,7 +411,7 @@ class EyeProtectionPlugin : Plugin {
                 onCheckedChange = { enabled ->
                     updateConfig(uiConfig.copy(nightModeEnabled = enabled))
                 },
-                iconTint = Color(0xFF7E57C2)
+                iconTint = MaterialTheme.colorScheme.primary
             )
 
             if (uiConfig.nightModeEnabled) {
@@ -455,7 +455,7 @@ class EyeProtectionPlugin : Plugin {
                 onCheckedChange = { enabled ->
                     updateConfig(uiConfig.copy(usageReminderEnabled = enabled), refreshVisual = false)
                 },
-                iconTint = Color(0xFF42A5F5)
+                iconTint = MaterialTheme.colorScheme.secondary
             )
 
             if (uiConfig.usageReminderEnabled) {
@@ -469,7 +469,7 @@ class EyeProtectionPlugin : Plugin {
                     onCheckedChange = { enabled ->
                         updateConfig(uiConfig.copy(remindOnlyDuringNight = enabled), refreshVisual = false)
                     },
-                    iconTint = Color(0xFF5C6BC0)
+                    iconTint = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))

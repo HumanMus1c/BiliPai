@@ -8,14 +8,12 @@ import kotlin.test.assertTrue
 class BiliPaiVideoSourcePolicyTest {
 
     @Test
-    fun partitionAndRelatedShareTheRecordedCardMorphGate() {
+    fun relatedDetailUsesDefaultMiuixNavigationWhileListCardsUseCardMorph() {
         assertTrue(isRelatedVideoCardMorphSourceRoute("video/BV_PARENT"))
         assertFalse(isRelatedVideoCardMorphSourceRoute("partition"))
         assertFalse(isRelatedVideoCardMorphSourceRoute("home?category=1"))
-        // 分区横卡与相关推荐横卡都已记录整卡几何，走同一套 Miuix 整卡 morph。
         listOf(
             "partition",
-            "video/BV_PARENT",
             "home",
             "home?category=1",
             "search",
@@ -35,6 +33,15 @@ class BiliPaiVideoSourcePolicyTest {
                 "Expected card morph for source=$sourceRoute",
             )
         }
+        assertFalse(
+            shouldUseMiuixVideoCardMorph(
+                cardTransitionEnabled = true,
+                reduceMotion = false,
+                sourceRoute = "video/BV_PARENT",
+                hasUsableSourceBounds = true,
+            ),
+            "相关推荐应回退到默认 Miuix 页面导航",
+        )
         assertFalse(
             shouldUseMiuixVideoCardMorph(
                 cardTransitionEnabled = true,
@@ -72,7 +79,7 @@ class BiliPaiVideoSourcePolicyTest {
     }
 
     @Test
-    fun relatedVideoNavigationUsesExplicitVideoSourceRouteForDetailToDetailSharedElement() {
+    fun relatedVideoNavigationUsesExplicitParentDetailSourceRoute() {
         val source = resolveBiliPaiVideoSource(
             bvid = "BV2",
             explicitSourceRoute = "video/BV1",

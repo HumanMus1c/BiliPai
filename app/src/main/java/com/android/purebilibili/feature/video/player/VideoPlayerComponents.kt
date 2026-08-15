@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.android.purebilibili.core.theme.BiliPink
+
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.bouncyClickable
@@ -228,7 +228,7 @@ fun UpInfoSection(
         // 关注按钮
         AppSurface(
             onClick = onFollowClick,
-            color = if (isFollowing) MaterialTheme.colorScheme.surfaceVariant else BiliPink,
+            color = if (isFollowing) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
             shape = AppShapes.container(ContainerLevel.Card),
             modifier = Modifier.height(32.dp)
         ) {
@@ -288,7 +288,7 @@ fun ActionButtonsRow(
             icon = if (isLiked) likeFilledIcon else likeIcon,
             text = FormatUtils.formatStat(info.stat.like.toLong()),
             isActive = isLiked,
-            activeColor = BiliPink,
+            activeColor = MaterialTheme.colorScheme.primary,
             onClick = onLikeClick
         )
 

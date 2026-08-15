@@ -30,7 +30,7 @@ class CommentSortFilterBarPolicyTest {
 
         assertEquals(66, spec.itemWidthDp)
         assertEquals(40, spec.heightDp)
-        assertEquals(27, spec.indicatorHeightDp)
+        assertEquals(35, spec.indicatorHeightDp)
         assertTrue(
             hasCommentSortIndicatorScaleClearance(
                 containerHeightDp = spec.heightDp,
@@ -55,11 +55,9 @@ class CommentSortFilterBarPolicyTest {
             "app/src/main/java/com/android/purebilibili/feature/video/ui/components/CommentSortFilterBar.kt"
         )
 
-        assertTrue(source.contains("backdrop: Backdrop? = null"))
-        assertTrue(source.contains("backdrop = backdrop"))
         assertTrue(source.contains("miuixBackdrop = miuixBackdrop"))
         assertTrue(source.contains("forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled"))
-        assertTrue(source.contains("liquidGlassEffectsEnabled = backdrop != null"))
+        assertTrue(source.contains("liquidGlassEffectsEnabled = true"))
         assertTrue(source.contains("MiuixBackdrop"))
     }
 

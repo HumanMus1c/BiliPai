@@ -195,7 +195,7 @@ class BottomBarMiuixPolicyTest {
         assertTrue(renderer.contains("indicatorHeight = BOTTOM_BAR_INDICATOR_DOCK_BAND_HEIGHT_DP.dp"))
         assertTrue(
             floating.contains("FloatingBottomBarPressedScale: Float = 78f / 56f") ||
-                host.contains("BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET = 78f / 56f")
+                host.contains("BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET =")
         )
     }
 

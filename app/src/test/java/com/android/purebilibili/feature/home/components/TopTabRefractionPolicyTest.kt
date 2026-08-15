@@ -51,7 +51,6 @@ class TopTabRefractionPolicyTest {
         assertTrue(source.contains("scaleY = indicatorScaleY"))
         assertTrue(source.contains("val topTabLensProgress = topTabIndicatorLayerScaleProgress"))
         assertFalse(source.contains(".bottomBarMatchedCaptureOverflow("))
-        assertFalse(source.contains("import com.kyant"))
         assertTrue(source.contains("resolveBottomBarDarkTheme(AppSurfaceTokens.background())"))
         assertFalse(source.contains("indicatorHeight = 4.dp"))
     }

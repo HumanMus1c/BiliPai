@@ -53,3 +53,21 @@ internal fun resolveCommonListPaginationSnapshot(
         )
     }
 }
+
+/** Lazy layouts require unique keys; all-folder search can legitimately return one video more than once. */
+internal fun resolveCommonListRenderKeys(itemKeys: List<String>): List<String> {
+    val normalizedKeys = itemKeys.mapIndexed { index, key ->
+        key.ifBlank { "common-list-item-$index" }
+    }
+    val totals = normalizedKeys.groupingBy { it }.eachCount()
+    val seen = mutableMapOf<String, Int>()
+    return normalizedKeys.map { key ->
+        if (totals.getValue(key) == 1) {
+            key
+        } else {
+            val occurrence = seen.getOrDefault(key, 0)
+            seen[key] = occurrence + 1
+            "$key#$occurrence"
+        }
+    }
+}

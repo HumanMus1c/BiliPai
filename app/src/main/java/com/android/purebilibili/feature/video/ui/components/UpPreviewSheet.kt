@@ -27,7 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +71,7 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.Owner
 import com.android.purebilibili.data.model.response.RelatedVideo
 import com.android.purebilibili.data.model.response.SpaceVideoItem
+import com.android.purebilibili.feature.common.resolveIndexedVideoLazyKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
@@ -397,7 +398,16 @@ fun UpPreviewSheet(
                             }
                         }
                         else -> {
-                            items(videos, key = { it.bvid }) { item ->
+                            itemsIndexed(
+                                items = videos,
+                                key = { index, item ->
+                                    resolveIndexedVideoLazyKey(
+                                        namespace = "up_preview_video",
+                                        index = index,
+                                        bvid = item.bvid,
+                                    )
+                                },
+                            ) { _, item ->
                                 UpPreviewVideoCard(
                                     item = item,
                                     colors = colors,

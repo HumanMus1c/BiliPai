@@ -130,6 +130,7 @@ fun TopicDetailScreen(
                                 onUserClick = onUserClick,
                                 onLiveClick = onLiveClick,
                                 onDynamicDetailClick = onDynamicDetailClick,
+                                onCommentClick = onDynamicDetailClick,
                                 gifImageLoader = context.imageLoader
                             )
                             if (index == state.items.size - 3 && state.hasMore && !state.isLoadingMore) {

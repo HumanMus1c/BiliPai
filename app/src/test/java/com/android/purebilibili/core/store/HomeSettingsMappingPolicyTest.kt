@@ -59,8 +59,8 @@ class HomeSettingsMappingPolicyTest {
             result.videoSharedTransitionCustomDurationMillis
         )
         assertFalse(result.smartVisualGuardEnabled)
-        assertTrue(result.compactVideoStatsOnCover)
-        assertEquals(HomeFeedCardStyle.CURRENT, result.homeFeedCardStyle)
+        assertFalse(result.compactVideoStatsOnCover)
+        assertEquals(HomeFeedCardStyle.BILIPAI, result.homeFeedCardStyle)
         assertEquals(HomeDurationStyle.OUTSIDE_COVER, result.homeDurationStyle)
         assertEquals(HomeWallpaperEffectMode.SOFT_BLUR, result.homeWallpaperEffectMode)
         assertEquals(HomeWallpaperEffectScope.HOME_ONLY, result.homeWallpaperEffectScope)
@@ -423,7 +423,7 @@ class HomeSettingsMappingPolicyTest {
         )
 
         assertEquals(HomeDurationStyle.OVERLAY_TEXT_ONLY, explicit.homeDurationStyle)
-        assertEquals(HomeFeedCardStyle.CURRENT, explicit.homeFeedCardStyle)
+        assertEquals(HomeFeedCardStyle.BILIPAI, explicit.homeFeedCardStyle)
     }
 
     @Test

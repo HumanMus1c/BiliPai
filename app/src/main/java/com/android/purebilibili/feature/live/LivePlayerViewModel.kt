@@ -135,6 +135,7 @@ sealed interface LivePlayerEvent {
 class LivePlayerViewModel : ViewModel() {
     companion object {
         private const val MAX_PLAYBACK_RELOAD_ATTEMPTS = 1
+        private const val MAX_ACTIVE_SUPER_CHAT_ITEMS = 100
     }
     
     private val _uiState = MutableStateFlow<LivePlayerState>(LivePlayerState.Loading)
@@ -167,6 +168,8 @@ class LivePlayerViewModel : ViewModel() {
     val shieldInfo = _shieldInfo.asStateFlow()
     
     private var danmakuClient: com.android.purebilibili.core.network.socket.LiveDanmakuClient? = null
+    private var liveStreamLoadJob: Job? = null
+    private var danmakuConnectJob: Job? = null
     private var danmakuCollectJob: Job? = null
     private var liveHeartbeatJob: Job? = null
     
@@ -186,6 +189,7 @@ class LivePlayerViewModel : ViewModel() {
      * 加载直播流和直播间详情
      */
     fun loadLiveStream(roomId: Long, qn: Int = 10000) {
+        resetPlaybackReloadBudget()
         loadLiveStreamInternal(
             roomId = roomId,
             qn = qn,
@@ -207,7 +211,8 @@ class LivePlayerViewModel : ViewModel() {
         currentRequestedQuality = qn
         CrashReporter.markLivePlaybackStage("load_stream_request")
         
-        viewModelScope.launch {
+        liveStreamLoadJob?.cancel()
+        liveStreamLoadJob = viewModelScope.launch {
             if (showLoading) {
                 _uiState.value = LivePlayerState.Loading
                 CrashReporter.markLivePlaybackStage("load_stream_loading")
@@ -490,8 +495,10 @@ class LivePlayerViewModel : ViewModel() {
         val currentState = _uiState.value as? LivePlayerState.Success ?: return
         android.util.Log.d("LivePlayer", "🔴 changeQuality called: qn=$qn")
         currentRequestedQuality = qn
+        resetPlaybackReloadBudget()
         
-        viewModelScope.launch {
+        liveStreamLoadJob?.cancel()
+        liveStreamLoadJob = viewModelScope.launch {
             val result = LiveRepository.getLivePlayUrlWithQuality(
                 roomId = currentRoomId,
                 qn = qn,
@@ -557,6 +564,7 @@ class LivePlayerViewModel : ViewModel() {
     fun toggleAudioOnly() {
         val currentState = _uiState.value as? LivePlayerState.Success ?: return
         currentAudioOnly = !currentAudioOnly
+        resetPlaybackReloadBudget()
         _uiState.value = currentState.copy(isAudioOnly = currentAudioOnly)
         loadLiveStreamInternal(
             roomId = currentRoomId,
@@ -655,6 +663,7 @@ class LivePlayerViewModel : ViewModel() {
         val url = candidate.urls.getOrNull(urlIndex) ?: return
         activeCandidateIndex = candidateIndex
         activeUrlIndex = urlIndex
+        resetPlaybackReloadBudget()
         android.util.Log.d("LivePlayer", " Manual switch source (candidate=$candidateIndex, url=$urlIndex): ${url.take(80)}...")
         CrashReporter.markLivePlaybackStage("manual_switch_source_${candidateIndex}_${urlIndex}")
         _uiState.value = currentState.copy(
@@ -690,7 +699,6 @@ class LivePlayerViewModel : ViewModel() {
             resolvedPlayback = resolved
             activeCandidateIndex = 0
             activeUrlIndex = 0
-            remainingReloadAttempts = MAX_PLAYBACK_RELOAD_ATTEMPTS
             _uiState.value = LivePlayerState.Success(
                 playUrl = primaryUrl,
                 allPlayUrls = resolved.candidates.first().urls,
@@ -712,7 +720,6 @@ class LivePlayerViewModel : ViewModel() {
         resolvedPlayback = null
         activeCandidateIndex = 0
         activeUrlIndex = 0
-        remainingReloadAttempts = MAX_PLAYBACK_RELOAD_ATTEMPTS
 
         val allUrls = data.durl?.mapNotNull { it.url } ?: emptyList()
         val url = allUrls.firstOrNull() ?: extractPlayUrl(data) ?: return false
@@ -788,6 +795,7 @@ class LivePlayerViewModel : ViewModel() {
      * 重试
      */
     fun retry() {
+        resetPlaybackReloadBudget()
         loadLiveStreamInternal(
             roomId = currentRoomId,
             qn = currentRequestedQuality,
@@ -802,14 +810,19 @@ class LivePlayerViewModel : ViewModel() {
      */
     private fun startLiveDanmaku(roomId: Long) {
         // 先断开旧连接
+        danmakuConnectJob?.cancel()
         danmakuCollectJob?.cancel()
         danmakuClient?.disconnect()
         danmakuClient = null
         
-        viewModelScope.launch {
+        danmakuConnectJob = viewModelScope.launch {
             preloadLiveRoomMessages(roomId)
             val result = DanmakuRepository.startLiveDanmaku(viewModelScope, roomId)
             result.onSuccess { client ->
+                if (!isActive) {
+                    client.disconnect()
+                    return@onSuccess
+                }
                 danmakuClient = client
                 CrashReporter.markLivePlaybackStage("danmaku_connected")
                 
@@ -868,7 +881,7 @@ class LivePlayerViewModel : ViewModel() {
             }
         }
         if (prefetchedSuperChats.isNotEmpty()) {
-            _superChatItems.value = prefetchedSuperChats
+            _superChatItems.value = prefetchedSuperChats.take(MAX_ACTIVE_SUPER_CHAT_ITEMS)
         }
     }
     
@@ -1191,8 +1204,10 @@ class LivePlayerViewModel : ViewModel() {
             is LiveRealtimeAction.UpdateRoomTitle -> updateRoomTitle(action.title)
             is LiveRealtimeAction.EmitChat -> emitLiveChatItem(action.item)
             is LiveRealtimeAction.EmitSuperChat -> {
-                _superChatItems.value = listOf(action.item) + _superChatItems.value
-                    .filterNot { it.superChatId > 0L && it.superChatId == action.id }
+                _superChatItems.value = (
+                    listOf(action.item) + _superChatItems.value
+                        .filterNot { it.superChatId > 0L && it.superChatId == action.id }
+                ).take(MAX_ACTIVE_SUPER_CHAT_ITEMS)
                 emitLiveChatItem(action.item)
                 _superChatFlashFlow.tryEmit(action.item)
             }
@@ -1307,9 +1322,23 @@ class LivePlayerViewModel : ViewModel() {
             }
         }
     }
+
+    /**
+     * 播放器真正开始输出后才恢复自动刷新额度，避免一批持续 403 的新地址
+     * 在“刷新地址 -> 再次失败”之间无限重置恢复次数。
+     */
+    fun onPlaybackStarted() {
+        resetPlaybackReloadBudget()
+    }
+
+    private fun resetPlaybackReloadBudget() {
+        remainingReloadAttempts = MAX_PLAYBACK_RELOAD_ATTEMPTS
+    }
     
     override fun onCleared() {
         super.onCleared()
+        liveStreamLoadJob?.cancel()
+        danmakuConnectJob?.cancel()
         danmakuCollectJob?.cancel()
         liveHeartbeatJob?.cancel()
         danmakuClient?.disconnect()

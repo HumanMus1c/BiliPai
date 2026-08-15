@@ -17,6 +17,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.OpticalContrastPalette
 
 import android.os.Build
+import android.os.SystemClock
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.graphics.luminance
@@ -131,7 +132,7 @@ import com.android.purebilibili.core.theme.iOSRed
 import com.android.purebilibili.core.theme.BottomBarColors  // 统一底栏颜色配置
 import com.android.purebilibili.core.theme.BottomBarColorPalette  // 调色板
 import com.android.purebilibili.core.theme.LocalCornerRadiusScale
-import com.android.purebilibili.core.theme.iOSCornerRadius
+
 import kotlinx.coroutines.launch  //  延迟导航
 import com.android.purebilibili.feature.home.LocalHomeScrollOffset
 import com.android.purebilibili.feature.home.HomeVisualPalette
@@ -322,7 +323,10 @@ enum class BottomNavItem(
 }
 
 @Composable
-internal fun resolveBottomNavItemLabel(item: BottomNavItem): String = stringResource(item.labelRes)
+internal fun resolveBottomNavItemLabel(
+    item: BottomNavItem,
+    customLabels: Map<String, String> = emptyMap(),
+): String = customLabels[item.name]?.takeIf(String::isNotBlank) ?: stringResource(item.labelRes)
 
 @Composable
 internal fun resolveBottomNavItemContentDescription(item: BottomNavItem): String =
@@ -1323,17 +1327,19 @@ internal data class BottomBarIndicatorVisualPolicy(
 )
 
 internal const val BOTTOM_BAR_REFRACTION_IDLE_HOLD_MS = 96L
-private const val BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET = 78f / 56f
+internal const val BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET =
+    com.android.purebilibili.core.ui.BottomBarReferencePressedScale
 
 internal fun resolveBottomBarCaptureSafeInsetDp(
     indicatorWidthDp: Float,
     refractionHeightDp: Float,
     refractionAmountDp: Float,
-    panelOffsetDp: Float
+    panelOffsetDp: Float,
+    dragScaleTarget: Float = BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET
 ): Float {
     val scaleOverflowDp = (
         indicatorWidthDp.coerceAtLeast(0f) *
-            (BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET - 1f) /
+            (dragScaleTarget.coerceAtLeast(1f) - 1f) /
             2f
         )
     return scaleOverflowDp +
@@ -1532,13 +1538,14 @@ internal fun resolveBottomBarIndicatorLayerTransform(
     isDragging: Boolean = true,
     dragScaleProgress: Float = if (isDragging) 1f else 0f,
     dragScaleTransform: BottomBarIndicatorLayerTransform? = null,
+    dragScaleTarget: Float = BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET,
     motionSpec: com.android.purebilibili.core.ui.motion.BottomBarMotionSpec = resolveBottomBarMotionSpec()
 ): BottomBarIndicatorLayerTransform {
     val clampedProgress = motionProgress.coerceIn(0f, 1f)
     val clampedDragScaleProgress = dragScaleProgress.coerceIn(0f, 1f)
     val baseScale = lerp(
         start = 1f,
-        stop = BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET,
+        stop = dragScaleTarget.coerceAtLeast(1f),
         fraction = clampedDragScaleProgress
     )
     val baseScaleX = dragScaleTransform?.scaleX ?: baseScale
@@ -2044,6 +2051,7 @@ fun FrostedBottomBar(
         BottomNavItem.PROFILE
     ),
     itemColorIndices: Map<String, Int> = emptyMap(),
+    itemLabels: Map<String, String> = emptyMap(),
     dynamicUnreadCount: Int = 0,
     onToggleSidebar: (() -> Unit)? = null,
     miuixBackdrop: MiuixLayerBackdrop? = null,
@@ -2054,14 +2062,32 @@ fun FrostedBottomBar(
     uiSkinDecoration: BottomBarUiSkinDecoration? = null
 ) {
     val isTablet = com.android.purebilibili.core.util.LocalWindowSizeClass.current.isTablet
+    var lastHomeClickMs by remember { mutableLongStateOf(0L) }
+    val resolvedItemClick: (BottomNavItem) -> Unit = { item ->
+        val nowMs = SystemClock.elapsedRealtime()
+        when (
+            resolveHomeSideBarClickAction(
+                item = item,
+                nowMs = nowMs,
+                lastHomeClickMs = lastHomeClickMs,
+            )
+        ) {
+            HomeSideBarClickAction.HOME_DOUBLE_TAP -> onHomeDoubleTap()
+            HomeSideBarClickAction.NAVIGATE -> onItemClick(item)
+        }
+        if (item == BottomNavItem.HOME) {
+            lastHomeClickMs = nowMs
+        }
+    }
     AppBottomNavigationHost(
         androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
         materialContent = { policy ->
             MaterialBottomBar(
                 currentItem = currentItem,
-                onItemClick = onItemClick,
+                onItemClick = resolvedItemClick,
                 modifier = modifier,
                 visibleItems = visibleItems,
+                itemLabels = itemLabels,
                 onToggleSidebar = onToggleSidebar,
                 dynamicUnreadCount = dynamicUnreadCount,
                 isFloating = isFloating,
@@ -2084,9 +2110,10 @@ fun FrostedBottomBar(
         platformContent = { policy ->
             MiuixBottomBar(
                 currentItem = currentItem,
-                onItemClick = onItemClick,
+                onItemClick = resolvedItemClick,
                 modifier = modifier,
                 visibleItems = visibleItems,
+                itemLabels = itemLabels,
                 onToggleSidebar = onToggleSidebar,
                 dynamicUnreadCount = dynamicUnreadCount,
                 isFloating = isFloating,
@@ -2117,6 +2144,7 @@ private fun MaterialBottomBar(
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
     visibleItems: List<BottomNavItem>,
+    itemLabels: Map<String, String>,
     onToggleSidebar: (() -> Unit)?,
     dynamicUnreadCount: Int,
     isFloating: Boolean,
@@ -2201,6 +2229,7 @@ private fun MaterialBottomBar(
             onItemClick = onItemClick,
             modifier = modifier,
             visibleItems = bottomBarVisibleItems,
+            itemLabels = itemLabels,
             onToggleSidebar = onToggleSidebar,
             dynamicUnreadCount = dynamicUnreadCount,
             isTablet = isTablet,
@@ -2257,7 +2286,7 @@ private fun MaterialBottomBar(
                 modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
             ) {
                 bottomBarVisibleItems.forEach { item ->
-                    val itemLabel = resolveBottomNavItemLabel(item)
+                    val itemLabel = resolveBottomNavItemLabel(item, itemLabels)
                     val itemContentDescription = resolveBottomNavItemContentDescription(item)
                     val skinIconPath = uiSkinDecoration?.iconPathFor(item, selected = currentItem == item)
                     AppNavigationBarItem(
@@ -2368,6 +2397,7 @@ private fun MiuixBottomBar(
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
     visibleItems: List<BottomNavItem>,
+    itemLabels: Map<String, String>,
     onToggleSidebar: (() -> Unit)?,
     dynamicUnreadCount: Int,
     isFloating: Boolean,
@@ -2448,6 +2478,7 @@ private fun MiuixBottomBar(
             onItemClick = onItemClick,
             modifier = modifier,
             visibleItems = bottomBarVisibleItems,
+            itemLabels = itemLabels,
             onToggleSidebar = onToggleSidebar,
             dynamicUnreadCount = dynamicUnreadCount,
             isTablet = isTablet,
@@ -2524,7 +2555,7 @@ private fun MiuixBottomBar(
             )
 
             bottomBarVisibleItems.forEach { item ->
-                val itemLabel = resolveBottomNavItemLabel(item)
+                val itemLabel = resolveBottomNavItemLabel(item, itemLabels)
                 val skinIconPath = uiSkinDecoration?.iconPathFor(item, selected = currentItem == item)
                 val reminderBadgeText = formatBottomBarDynamicReminderBadge(
                     if (shouldShowBottomBarDynamicReminderBadge(item, dynamicUnreadCount)) {
@@ -2757,6 +2788,7 @@ private fun BiliPaiFloatingBottomBar(
     onItemClick: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier,
     visibleItems: List<BottomNavItem>,
+    itemLabels: Map<String, String> = emptyMap(),
     itemColorIndices: Map<String, Int> = emptyMap(),
     dynamicUnreadCount: Int = 0,
     onToggleSidebar: (() -> Unit)?,
@@ -3013,6 +3045,9 @@ private fun BiliPaiFloatingBottomBar(
                     }
                 }
             }
+            val floatingOnReselected = remember(selectedIndexForBarState, handleSelectedState) {
+                { handleSelectedState.value(selectedIndexForBarState.value) }
+            }
 
             Row(
                 modifier = Modifier
@@ -3037,6 +3072,7 @@ private fun BiliPaiFloatingBottomBar(
                         FloatingBottomBar(
                             selectedIndex = floatingSelectedIndex,
                             onSelected = floatingOnSelected,
+                            onReselected = floatingOnReselected,
                             backdrop = miuixBackdrop,
                             tabsCount = totalItems,
                             modifier = Modifier
@@ -3050,7 +3086,7 @@ private fun BiliPaiFloatingBottomBar(
                             indicatorHeight = BOTTOM_BAR_INDICATOR_DOCK_BAND_HEIGHT_DP.dp
                         ) {
                             visibleItems.forEachIndexed { index, item ->
-                                val label = resolveBottomNavItemLabel(item)
+                                val label = resolveBottomNavItemLabel(item, itemLabels)
                                 val selected = index == selectedIndexForBar ||
                                     LocalFloatingBottomBarActiveContent.current
                                 val skinIconPath = uiSkinDecoration?.iconPathFor(
@@ -3356,10 +3392,12 @@ internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(
     isDragging: Boolean,
     indicatorLayerScaleProgress: Float,
     indicatorLayerScaleTransform: BottomBarIndicatorLayerTransform? = null,
+    dragScaleTarget: Float = BOTTOM_BAR_INDICATOR_DRAG_SCALE_TARGET,
     bottomBarMotionSpec: com.android.purebilibili.core.ui.motion.BottomBarMotionSpec,
     isDarkTheme: Boolean,
     swapMotionAxes: Boolean = false,
-    indicatorAlignment: Alignment = Alignment.CenterStart
+    indicatorAlignment: Alignment = Alignment.CenterStart,
+    interactionModifier: Modifier = Modifier
 ) {
     if (!visible) return
     val rawIndicatorLayerTransform = if (indicatorEffectsEnabled) {
@@ -3369,6 +3407,7 @@ internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(
             isDragging = isDragging,
             dragScaleProgress = indicatorLayerScaleProgress,
             dragScaleTransform = indicatorLayerScaleTransform,
+            dragScaleTarget = dragScaleTarget,
             motionSpec = bottomBarMotionSpec
         )
     } else {
@@ -3382,7 +3421,10 @@ internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(
     } else {
         rawIndicatorLayerTransform
     }
-    val pillHighlight = rememberGravityRotatedHighlight(iosIndicatorSpecular, extraDegrees = 90f)
+    val pillHighlight = rememberGravityRotatedHighlight(
+        iosIndicatorSpecular,
+        extraDegrees = if (swapMotionAxes) 0f else 90f,
+    )
     val indicatorBackdrop = if (!glassEnabled) {
         null
     } else if (shouldUseBottomBarCombinedIndicatorBackdrop(liquidGlassPreset)) {
@@ -3405,6 +3447,7 @@ internal fun BoxScope.BiliPaiMiuixBottomBarIndicatorLayer(
             .height(indicatorHeight)
             .align(indicatorAlignment)
             .zIndex(2f)
+            .then(interactionModifier)
             .run {
                 if (indicatorBackdrop != null) {
                     miuixDrawBackdrop(

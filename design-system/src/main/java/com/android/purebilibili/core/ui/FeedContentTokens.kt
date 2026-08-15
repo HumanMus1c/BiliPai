@@ -28,19 +28,28 @@ enum class FeedTitleHierarchy {
 fun feedContentTypography(
     titleHierarchy: FeedTitleHierarchy = FeedTitleHierarchy.Compact,
 ): FeedContentTypography {
+    val bodyMedium = MaterialTheme.typography.bodyMedium
     val titleStyle = when (titleHierarchy) {
-        // 紧凑卡片标题降一档：12sp 中粗，同宽能容纳更多字符，减少窄卡省略。
+        // 紧凑卡片：正文默认字号、行高 1.38、最多两行。
         FeedTitleHierarchy.Compact ->
-            MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
+            bodyMedium.copy(lineHeight = bodyMedium.fontSize * 1.38f)
+        // 横向卡片：bodyMedium、行高 1.42、字距 0.3。
         FeedTitleHierarchy.Standard ->
-            MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            bodyMedium.copy(
+                lineHeight = bodyMedium.fontSize * 1.42f,
+                letterSpacing = 0.3.sp,
+            )
         FeedTitleHierarchy.Prominent ->
-            MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            bodyMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                lineHeight = bodyMedium.fontSize * 1.38f,
+            )
     }
+    val author = MaterialTheme.typography.labelMedium
     return FeedContentTypography(
         title = titleStyle,
-        author = MaterialTheme.typography.labelMedium,
-        statistic = MaterialTheme.typography.labelSmall,
+        author = author.copy(lineHeight = author.fontSize * 1.5f),
+        statistic = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
         coverBadge = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
     )
 }

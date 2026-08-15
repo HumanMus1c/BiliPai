@@ -147,7 +147,7 @@ internal fun HomeCategoryPageContent(
     smartVisualGuardEnabled: Boolean = false,
     isDataSaverActive: Boolean,
     preferLowQualityCover: Boolean = false,
-    compactStatsOnCover: Boolean = true,
+    compactStatsOnCover: Boolean = false,
     showCoverGlassBadges: Boolean = false,
     showInfoGlassBadges: Boolean = false,
     badgeEffectMode: com.android.purebilibili.core.store.HomeCardBadgeEffectMode =
@@ -159,7 +159,7 @@ internal fun HomeCategoryPageContent(
     showUpBadges: Boolean = true,
     showUpAvatars: Boolean = true,
     homeDurationStyle: HomeDurationStyle = HomeDurationStyle.OUTSIDE_COVER,
-    homeFeedCardStyle: HomeFeedCardStyle = HomeFeedCardStyle.CURRENT,
+    homeFeedCardStyle: HomeFeedCardStyle = HomeFeedCardStyle.BILIPAI,
     homeHeroCarouselEnabled: Boolean = true,
     homeHeroCarouselAutoplayEnabled: Boolean = false,
     onGetPreviewUrl: suspend (String, Long) -> String? = { _, _ -> null },
@@ -555,7 +555,9 @@ private fun PopularSubCategorySegmentedControl(
         },
         modifier = modifier,
         height = AppSpacingTokens.TripleExtraLarge,
-        indicatorHeight = AppSpacingTokens.TripleExtraLarge - AppSpacingTokens.Micro,
+        indicatorHeight = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
+            AppSpacingTokens.TripleExtraLarge.value
+        ).dp,
         labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
         containerHorizontalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
         containerVerticalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
@@ -587,7 +589,9 @@ private fun TodayWatchModeSegmentedControl(
         modifier = modifier,
         enabled = enabled,
         height = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small + AppSpacingTokens.Micro,
-        indicatorHeight = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Micro,
+        indicatorHeight = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
+            (AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small + AppSpacingTokens.Micro).value
+        ).dp,
         labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
         containerHorizontalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
         containerVerticalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,

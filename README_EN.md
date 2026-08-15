@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-08-05 · Current build: 0.2.0 · Latest documented release: v0.2.0</sub>
+  <sub>Last updated: 2026-08-15 · Current build: 0.2.3-beta.5 · Latest documented release: v0.2.3-beta.5</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-0.2.0-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.5-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -408,7 +408,7 @@ BiliPai/
 | Category | Technology | Description |
 |-----|-----|-----|
 | **Animation** | Compose Animation / SharedTransition + Lottie | Card morphs, predictive back and vector motion |
-| **Blur** | Haze 2 + Backdrop + Miuix blur | Frosted and liquid-glass surfaces with fallbacks |
+| **Blur** | Haze 2 + Miuix Backdrop / Liquid Glass | Frosted and liquid-glass surfaces with fallbacks |
 | **Theming** | Material 3 + Miuix + iOS preset | Dynamic color, dark mode and adaptive components |
 
 ---
@@ -446,14 +446,14 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Current source build (v0.2.2 · 2026-08-09)
+### Current source build (v0.2.3-beta.5 · 2026-08-15)
 
-- Current source build: `0.2.2` / `versionCode 287` (semantic `MAJOR.MINOR.PATCH`; no date-based names).
-- Defaults off: live-surface morph, transition blur, bottom-bar blur, player insight.
-- Home App+Web merged recommendation feed; search UI rebuild (trending/history/discover, filters, contrast/IME).
-- Card/predictive-back: live-surface switch without HDR wash; favorite-collection return matches home morph.
-- Listen-mode readable sheets/theme tokens; favorite API risk-control alignment; live LiveList/SC/quality chips.
-- Tablet default sidebar + dialog width caps; DLNA SSDP discovery hardened on dual-network devices.
+- Current source build: `0.2.3-beta.5` / `versionCode 294`.
+- A default-on global back-to-top control now covers search, dynamic feeds, categories, live pages, common lists, and comments.
+- Home, settings, and feature tabs share Miuix liquid segmented controls and the Miuix Backdrop sampling path; the legacy AndroidLiquidGlass / Backdrop dependency is removed.
+- Live and bangumi/series pages are embedded in Home; tab reselection, drawer gestures, saved navigation state, and nested video returns are hardened.
+- Dynamic and live reliability continues to improve. Danmaku is being progressively refactored behind a neutral engine and playback-scoped sessions.
+- See [CHANGELOG.md](CHANGELOG.md) for the complete beta.4 → beta.5 notes.
 - Official Telegram: channel [@bilipai666](https://t.me/bilipai666), group [@bilipai888](https://t.me/bilipai888/1).
 
 ---
@@ -466,7 +466,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.0-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.0.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
+The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.5-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.5.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
 
 ---
 
@@ -492,7 +492,6 @@ Issues and Pull Requests are welcome!
 | [BilibiliSponsorBlock](https://github.com/hanydd/BilibiliSponsorBlock) | Sponsor skip segment data and API reference |
 | [DanmakuRenderEngine](https://github.com/bytedance/DanmakuRenderEngine) | High-performance danmaku rendering engine |
 | [Miuix](https://github.com/compose-miuix-ui/miuix) | Miuix-style Compose Multiplatform components |
-| [AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) | Liquid glass visual effect reference |
 | [Haze](https://github.com/chrisbanes/haze) | Blur and frosted-glass effects |
 | [Compose Cupertino](https://github.com/alexzhirkevich/compose-cupertino) | Cupertino-style Compose UI components |
 

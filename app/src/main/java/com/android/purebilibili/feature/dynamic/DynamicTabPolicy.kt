@@ -94,3 +94,19 @@ internal fun resolveDynamicPagerIndicatorPosition(
     return (currentPage + currentPageOffsetFraction)
         .coerceIn(0f, (pageCount - 1).toFloat())
 }
+
+internal enum class DynamicTabReselectAction {
+    SWITCH_TAB,
+    SCROLL_TO_TOP
+}
+
+internal fun resolveDynamicTabReselectAction(
+    currentVisibleIndex: Int,
+    tappedVisibleIndex: Int
+): DynamicTabReselectAction {
+    return if (currentVisibleIndex == tappedVisibleIndex) {
+        DynamicTabReselectAction.SCROLL_TO_TOP
+    } else {
+        DynamicTabReselectAction.SWITCH_TAB
+    }
+}

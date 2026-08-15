@@ -27,6 +27,11 @@ class ListenVideoLayoutPolicyTest {
 
         assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(!source.contains("forceLiquidChrome = true"))
-        assertTrue(!source.contains("rememberLayerBackdrop"))
+        assertTrue(source.contains("rememberLayerBackdrop()"))
+        assertTrue(source.contains("miuixBackdrop = listenBackdrop"))
+        assertTrue(source.contains(".layerBackdrop(listenBackdrop)"))
+        assertTrue(!source.contains("height = 52.dp"))
+        assertTrue(!source.contains("indicatorHeight = 46.dp"))
+        assertTrue(!source.contains("indicatorIdleSurfaceColorOverride"))
     }
 }

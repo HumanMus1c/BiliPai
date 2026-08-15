@@ -1,0 +1,29 @@
+package com.android.purebilibili.feature.video.danmaku
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+class DanmakuSegmentWindowPolicyTest {
+    @Test
+    fun `position maps to one-based six-minute segments`() {
+        assertEquals(1, segmentIndexForPosition(0L))
+        assertEquals(1, segmentIndexForPosition(359_999L))
+        assertEquals(2, segmentIndexForPosition(360_000L))
+        assertEquals(10, segmentIndexForPosition(3_599_999L))
+    }
+
+    @Test
+    fun `window keeps previous current and next segments within bounds`() {
+        assertEquals(listOf(1, 2), segmentWindowForPosition(0L, totalSegments = 10))
+        assertEquals(listOf(4, 5, 6), segmentWindowForPosition(4 * 360_000L, totalSegments = 10))
+        assertEquals(listOf(9, 10), segmentWindowForPosition(9 * 360_000L, totalSegments = 10))
+    }
+
+    @Test
+    fun `window replacement only happens after crossing a segment boundary`() {
+        assertFalse(shouldReplaceDanmakuWindow(listOf(1, 2), 120_000L, 10))
+        assertTrue(shouldReplaceDanmakuWindow(listOf(1, 2), 720_000L, 10))
+    }
+}

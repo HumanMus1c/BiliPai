@@ -506,6 +506,7 @@ private fun PasswordLoginContent(
                             riskCode = value
                         }
                     },
+                    labelText = "短信验证码",
                     label = { AppText("短信验证码") },
                     leadingIcon = { AppIcon(Icons.Outlined.Lock, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -561,6 +562,7 @@ private fun PasswordLoginContent(
             AppOutlinedTextField(
                 value = phone,
                 onValueChange = { phone = it.filter(Char::isDigit) },
+                labelText = "手机号 / 账号",
                 label = { AppText("手机号 / 账号") },
                 leadingIcon = { AppIcon(Icons.Outlined.Phone, contentDescription = null) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -570,6 +572,7 @@ private fun PasswordLoginContent(
             AppOutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
+                labelText = "密码",
                 label = { AppText("密码") },
                 leadingIcon = { AppIcon(Icons.Outlined.Lock, contentDescription = null) },
                 trailingIcon = {
@@ -654,6 +657,7 @@ private fun SmsLoginContent(
                     phone = digits
                 }
             },
+            labelText = "手机号",
             label = { AppText("手机号") },
             prefix = { AppText("${selectedRegion.dialingCode} ") },
             leadingIcon = { AppIcon(Icons.Outlined.Phone, contentDescription = null) },
@@ -675,6 +679,7 @@ private fun SmsLoginContent(
             AppOutlinedTextField(
                 value = code,
                 onValueChange = { code = it.filter(Char::isDigit).take(6) },
+                labelText = "短信验证码",
                 label = { AppText("短信验证码") },
                 leadingIcon = { AppIcon(Icons.Outlined.Lock, contentDescription = null) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -752,6 +757,7 @@ private fun PhoneRegionPickerSheet(
             AppOutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
+                labelText = "搜索名称或区号",
                 label = { AppText("搜索名称或区号") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -878,6 +884,7 @@ private fun CookieImportContent(
         AppOutlinedTextField(
             value = cookieHeader,
             onValueChange = { cookieHeader = it },
+            labelText = "Cookie",
             label = { AppText("Cookie") },
             leadingIcon = { AppIcon(Icons.Outlined.ContentPaste, contentDescription = null) },
             minLines = 5,

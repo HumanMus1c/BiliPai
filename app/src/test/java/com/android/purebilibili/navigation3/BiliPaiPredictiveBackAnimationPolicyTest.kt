@@ -2,12 +2,18 @@ package com.android.purebilibili.navigation3
 
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackExitDirection
+import com.android.purebilibili.navigation3.predictiveback.AOSP_PREDICTIVE_COMMIT_DURATION_MILLIS
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BiliPaiPredictiveBackAnimationPolicyTest {
+    @Test
+    fun `aosp predictive release settles without a long post-gesture tail`() {
+        assertTrue(AOSP_PREDICTIVE_COMMIT_DURATION_MILLIS <= 250)
+    }
+
     @Test
     fun `all transition storage values are stable`() {
         assertEquals(
@@ -88,6 +94,28 @@ class BiliPaiPredictiveBackAnimationPolicyTest {
             shouldActivateVideoDetailPlaybackSession(
                 currentKey = child,
                 detailKey = parent,
+                isImmediateBackPreview = true,
+                activateBackPreviewPlayback = true,
+            )
+        )
+    }
+
+    @Test
+    fun `non-video child keeps covered video preview silent`() {
+        val coveredVideo = BiliPaiNavKey.VideoDetail(bvid = "BV_COVERED")
+
+        assertFalse(
+            shouldActivateVideoDetailPlaybackSession(
+                currentKey = BiliPaiNavKey.Search,
+                detailKey = coveredVideo,
+                isImmediateBackPreview = true,
+                activateBackPreviewPlayback = false,
+            )
+        )
+        assertFalse(
+            shouldActivateVideoDetailPlaybackSession(
+                currentKey = BiliPaiNavKey.Search,
+                detailKey = coveredVideo,
                 isImmediateBackPreview = true,
                 activateBackPreviewPlayback = true,
             )

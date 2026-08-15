@@ -68,9 +68,7 @@ import com.android.purebilibili.data.model.response.LiveFavoriteTagEntry
 import com.android.purebilibili.data.model.response.LiveAreaParent
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.data.repository.LiveRepository
-import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+
 import kotlinx.coroutines.launch
 
 @Composable
@@ -101,7 +99,6 @@ fun LiveAreaScreen(
     var reloadKey by remember { mutableIntStateOf(0) }
     val favoriteTags by SettingsManager.getLiveFavoriteTags(context).collectAsStateWithLifecycle(emptyList())
     val pagerState = rememberPagerState(pageCount = { areas.size })
-    val selectionBackdrop = rememberLayerBackdrop()
 
     LaunchedEffect(reloadKey) {
         LiveRepository.getLiveAreaIndex()
@@ -205,7 +202,6 @@ fun LiveAreaScreen(
                     areas = areas,
                     selectedTab = pagerState.currentPage,
                     horizontalPadding = metrics.safeSpaceDp.dp,
-                    backdrop = selectionBackdrop,
                     onTabSelected = { selectedTab = it }
                 )
                 HorizontalPager(
@@ -214,7 +210,6 @@ fun LiveAreaScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .layerBackdrop(selectionBackdrop)
                         .verticalPriorityHorizontalPagerSwipe(
                             state = pagerState,
                             enabled = true,
@@ -278,7 +273,6 @@ private fun LiveAreaParentTabRow(
     areas: List<LiveAreaParent>,
     selectedTab: Int,
     horizontalPadding: androidx.compose.ui.unit.Dp,
-    backdrop: Backdrop?,
     onTabSelected: (Int) -> Unit
 ) {
     if (areas.isEmpty()) return

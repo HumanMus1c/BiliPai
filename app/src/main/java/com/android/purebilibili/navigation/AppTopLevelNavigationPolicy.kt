@@ -59,6 +59,22 @@ internal fun resolveBottomBarSelectionAction(
     }
 }
 
+internal fun shouldScrollToTopOnBottomBarReselect(item: BottomNavItem): Boolean {
+    return when (item) {
+        BottomNavItem.HOME,
+        BottomNavItem.DYNAMIC,
+        BottomNavItem.HISTORY,
+        BottomNavItem.PROFILE,
+        BottomNavItem.FAVORITE,
+        BottomNavItem.LIVE,
+        BottomNavItem.WATCHLATER -> true
+        BottomNavItem.LISTEN_VIDEO,
+        BottomNavItem.SETTINGS,
+        BottomNavItem.PLUGINS,
+        BottomNavItem.STORY -> false
+    }
+}
+
 internal fun resolveAppSystemBackAction(
     isAtMainHostRoot: Boolean,
     currentBottomItem: BottomNavItem,

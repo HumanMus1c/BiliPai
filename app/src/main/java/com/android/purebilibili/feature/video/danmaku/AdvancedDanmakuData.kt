@@ -173,6 +173,6 @@ enum class BasEasing(val transform: (Float) -> Float) {
  * 包含标准引擎弹幕和高级弹幕
  */
 data class ParsedDanmaku(
-    val standardList: List<com.bytedance.danmaku.render.engine.data.DanmakuData>,
+    val standardList: List<com.android.purebilibili.danmaku.engine.DanmakuItem>,
     val advancedList: List<AdvancedDanmakuData>
 )

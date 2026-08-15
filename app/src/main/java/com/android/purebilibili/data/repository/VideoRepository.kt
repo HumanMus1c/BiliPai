@@ -2127,6 +2127,8 @@ object VideoRepository {
             } else {
                 Result.failure(Exception("PlayerInfo error: ${response.code}"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

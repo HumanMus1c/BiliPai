@@ -27,7 +27,9 @@ internal fun resolveLiveHomeCategorySegmentedControlSpec(
     return LiveCategorySegmentedControlSpec(
         itemWidthDp = 82,
         heightDp = compactChrome.primaryHeightDp,
-        indicatorHeightDp = compactChrome.compactChipHeightDp,
+        indicatorHeightDp = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
+            compactChrome.primaryHeightDp.toFloat()
+        ),
         labelFontSizeSp = 14,
         containerHorizontalPaddingDp = 4,
         containerVerticalPaddingDp = 4,
@@ -67,7 +69,9 @@ internal fun resolveLiveAreaParentSegmentedControlSpec(
     return LiveCategorySegmentedControlSpec(
         itemWidthDp = 112,
         heightDp = compactChrome.primaryHeightDp,
-        indicatorHeightDp = compactChrome.compactChipHeightDp,
+        indicatorHeightDp = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
+            compactChrome.primaryHeightDp.toFloat()
+        ),
         labelFontSizeSp = 16,
         containerHorizontalPaddingDp = 4,
         containerVerticalPaddingDp = 4,

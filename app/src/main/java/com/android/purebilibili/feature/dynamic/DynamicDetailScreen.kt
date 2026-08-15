@@ -105,6 +105,7 @@ fun DynamicDetailScreen(
     val commentTotalCount by interactionViewModel.commentTotalCount.collectAsStateWithLifecycle()
     val commentSortMode by interactionViewModel.dynamicCommentSortMode.collectAsStateWithLifecycle()
     val subReplyState by interactionViewModel.subReplyState.collectAsStateWithLifecycle()
+    val commentReplyTarget by interactionViewModel.commentReplyTarget.collectAsStateWithLifecycle()
     var showRepostDialog by remember { mutableStateOf<String?>(null) }
     var forwardCountDelta by remember(dynamicId) { mutableIntStateOf(0) }
     val detailListState = rememberLazyListState()
@@ -252,6 +253,8 @@ fun DynamicDetailScreen(
                         isLoading = commentsLoading,
                         isLoadingMore = commentsLoadingMore,
                         onViewReplies = { reply -> interactionViewModel.openSubReply(reply) },
+                        onReply = { reply -> interactionViewModel.startCommentReply(reply) },
+                        onLike = { reply -> interactionViewModel.likeComment(reply.rpid) },
                         onUserClick = onUserClick,
                         onImagePreview = { images, index, sourceRect, textContent ->
                             previewImages = images
@@ -268,6 +271,8 @@ fun DynamicDetailScreen(
                                     android.widget.Toast.makeText(context, toastMessage, android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             },
+                            replyTargetUname = commentReplyTarget?.uname,
+                            onClearReplyTarget = interactionViewModel::clearCommentReplyTarget,
                         )
                     }
                 }
@@ -317,6 +322,8 @@ fun DynamicDetailScreen(
                     onDismiss = interactionViewModel::closeSubReply,
                     onLoadMore = interactionViewModel::loadMoreSubReplies,
                     onUserClick = onUserClick,
+                    onReplyClick = { reply -> interactionViewModel.startCommentReply(reply) },
+                    onCommentLike = { rpid -> interactionViewModel.likeComment(rpid) },
                 )
 
                 if (showImagePreview && previewImages.isNotEmpty()) {

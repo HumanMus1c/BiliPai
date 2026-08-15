@@ -596,7 +596,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                         persistConfig(config.copy(autoSkip = newValue, categoryBehaviorRaw = config.categoryBehaviorRaw.mapValues { behavior.name }))
                         categorySettings = resolveSponsorBlockCategorySettings(config)
                     },
-                    iconTint = Color(0xFFFF9800),
+                    iconTint = MaterialTheme.colorScheme.tertiary,
                 )
                 SponsorBlockCategorySettingsSection(
                     settings = categorySettings,
@@ -616,7 +616,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                     subtitle = "短于该时长的社区片段不会参与跳过或提示",
                     value = "${config.minimumSegmentDurationSeconds}s",
                     onClick = { showDurationDialog = true },
-                    iconTint = Color(0xFFFF9800),
+                    iconTint = MaterialTheme.colorScheme.tertiary,
                 )
             }
 
@@ -644,7 +644,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                         skipToastEnabled = enabled
                         persistConfig(config.copy(skipToastEnabled = enabled))
                     },
-                    iconTint = Color(0xFF34C759),
+                    iconTint = MaterialTheme.colorScheme.primary,
                 )
                 AppSwitchPreference(
                     icon = Icons.Outlined.Notifications,
@@ -655,7 +655,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                         dailySummaryNotificationEnabled = newValue
                         persistConfig(config.copy(dailySummaryNotificationEnabled = newValue))
                     },
-                    iconTint = Color(0xFF34C759),
+                    iconTint = MaterialTheme.colorScheme.primary,
                 )
                 if (dailySummaryNotificationEnabled) {
                     AppOutlinedTextField(
@@ -675,7 +675,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                     title = "发送测试通知",
                     subtitle = "确认通知权限和展示效果，不写入跳过记录",
                     onClick = { notificationPermission.launchWithPermission { sendTestNotification() } },
-                    iconTint = Color(0xFF34C759),
+                    iconTint = MaterialTheme.colorScheme.primary,
                 )
             }
 
@@ -686,7 +686,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                     subtitle = serverStatus?.message ?: config.serverBaseUrl,
                     value = if (serverStatus?.reachable == true) "正常" else null,
                     onClick = { showServerDialog = true },
-                    iconTint = Color(0xFF2196F3),
+                    iconTint = MaterialTheme.colorScheme.secondary,
                 )
                 AppSwitchPreference(
                     icon = Icons.Outlined.BarChart,
@@ -697,7 +697,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                         communityTrackingEnabled = enabled
                         persistConfig(config.copy(communityTrackingEnabled = enabled))
                     },
-                    iconTint = Color(0xFF5856D6),
+                    iconTint = MaterialTheme.colorScheme.tertiary,
                 )
                 AppSwitchPreference(
                     icon = Icons.Outlined.Send,
@@ -708,7 +708,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                         communityContributionEnabled = enabled
                         persistConfig(config.copy(communityContributionEnabled = enabled))
                     },
-                    iconTint = Color(0xFF5856D6),
+                    iconTint = MaterialTheme.colorScheme.tertiary,
                 )
                 AppPreference(
                     icon = Icons.Outlined.Person,
@@ -724,7 +724,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                                 }
                         }
                     },
-                    iconTint = Color(0xFF5856D6),
+                    iconTint = MaterialTheme.colorScheme.tertiary,
                 )
             }
 
@@ -735,7 +735,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                     subtitle = aboutItem.subtitle,
                     value = aboutItem.value,
                     onClick = { uriHandler.openUri("https://github.com/hanydd/BilibiliSponsorBlock") },
-                    iconTint = Color(0xFF2196F3),
+                    iconTint = MaterialTheme.colorScheme.secondary,
                 )
             }
         }

@@ -19,11 +19,7 @@ class HomePopularSubCategorySegmentedControlStructureTest {
         assertTrue(source.contains("liquidGlassEffectsEnabled = true"))
         assertTrue(source.contains("preferInlineContentStyle = true"))
         assertTrue(source.contains("height = AppSpacingTokens.TripleExtraLarge"))
-        assertTrue(
-            source.contains(
-                "indicatorHeight = AppSpacingTokens.TripleExtraLarge - AppSpacingTokens.Micro"
-            )
-        )
+        assertTrue(source.contains("roundMatchedLiquidIndicatorHeightDp("))
         assertTrue(
             source.contains(
                 ".padding(horizontal = AppSpacingTokens.Small, vertical = AppSpacingTokens.None)"

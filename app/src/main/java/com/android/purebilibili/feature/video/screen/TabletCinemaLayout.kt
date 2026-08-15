@@ -87,8 +87,8 @@ import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.store.SettingsManager
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.core.store.TabletCommentPanelWidthPreset
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_COVER_ASPECT_RATIO
 import com.android.purebilibili.core.ui.transition.resolveVideoSharedTransitionSourceCornerDp
@@ -1251,7 +1251,7 @@ private fun CinemaCommentsPane(
                         SettingsManager.setCommentDefaultSortMode(context, mode.apiMode)
                     }
                 },
-                backdrop = commentChromeBackdrop
+                miuixBackdrop = commentChromeBackdrop
             )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(

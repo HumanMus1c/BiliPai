@@ -5,6 +5,7 @@ import com.android.purebilibili.core.network.AppSignUtils
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.data.model.response.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -95,6 +96,21 @@ data class LiveDanmakuPermission(
 
 private const val DEFAULT_LIVE_HEARTBEAT_INTERVAL_SEC = 60
 private const val DEFAULT_LIVE_DANMAKU_MAX_LENGTH = 40
+
+internal fun hasPlayableLiveUrl(data: LivePlayUrlData): Boolean {
+    if (data.durl.orEmpty().any { it.url.isNotBlank() }) return true
+    return data.playurl_info
+        ?.playurl
+        ?.stream
+        .orEmpty()
+        .any { stream ->
+            stream.format.orEmpty().any { format ->
+                format.codec.orEmpty().any { codec ->
+                    codec.baseUrl.isNotBlank() && codec.url_info.orEmpty().any { it.host.isNotBlank() }
+                }
+            }
+        }
+}
 
 internal fun parseLiveDanmakuHistoryItems(rawJson: String): Result<List<LivePrefetchDanmaku>> {
     val root = liveRepositoryJson.parseToJsonElement(rawJson).jsonObject
@@ -1111,13 +1127,15 @@ object LiveRepository {
                 signedParams = signWithWbi(emptyMap())
             )
 
-            if (resp.code == 0 && resp.data != null) {
+            if (resp.code == 0 && resp.data != null && hasPlayableLiveUrl(resp.data)) {
                 val xliveQualities = resp.data.playurl_info?.playurl?.gQnDesc.orEmpty()
                 if (xliveQualities.isNotEmpty() || !resp.data.quality_description.isNullOrEmpty()) {
                     return@withContext Result.success(resp.data)
                 }
                 val legacyResp = try {
                     api.getLivePlayUrlLegacy(cid = realRoomId, qn = qn)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     android.util.Log.w("LiveRepo", "Legacy API failed: ${e.message}")
                     null
@@ -1135,17 +1153,26 @@ object LiveRepository {
             } else {
                 val legacyResp = try {
                     api.getLivePlayUrlLegacy(cid = realRoomId, qn = qn)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     android.util.Log.w("LiveRepo", "Legacy API failed: ${e.message}")
                     null
                 }
-                if (legacyResp?.code == 0 && legacyResp.data != null) {
+                if (
+                    legacyResp?.code == 0 &&
+                    legacyResp.data != null &&
+                    hasPlayableLiveUrl(legacyResp.data)
+                ) {
                     com.android.purebilibili.core.util.Logger.w("LiveRepo", "🔴 xlive API unavailable, falling back to legacy durl response")
                     Result.success(legacyResp.data)
                 } else {
-                    Result.failure(Exception("获取直播流失败: ${resp.message}"))
+                    val reason = resp.message.ifBlank { "接口未返回可播放地址" }
+                    Result.failure(Exception("获取直播流失败: $reason"))
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("LiveRepo", " getLivePlayUrlWithQuality failed: ${e.message}")
             e.printStackTrace()

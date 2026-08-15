@@ -166,7 +166,7 @@ private const val LIGHT_REF_Y = 0.7f
 private const val GRAVITY_DIR_THRESHOLD_SQ = 0.01f
 
 @Composable
-private fun rememberGravityRotatedHighlight(
+internal fun rememberGravityRotatedHighlight(
     extraDegrees: Float = 0f,
 ): Highlight {
     val base = iosIndicatorSpecular
@@ -250,6 +250,7 @@ fun RowScope.FloatingBottomBarItem(
 fun FloatingBottomBar(
     selectedIndex: () -> Int,
     onSelected: (index: Int) -> Unit,
+    onReselected: () -> Unit = {},
     backdrop: Backdrop?,
     tabsCount: Int,
     modifier: Modifier = Modifier,
@@ -524,6 +525,16 @@ fun FloatingBottomBar(
                         }
                         .then(interactiveHighlight?.gestureModifier ?: Modifier)
                         .then(dampedDragAnimation.modifier)
+                        // The indicator is the topmost hit target over the selected tab. Forward
+                        // taps so reselect and double-tap actions are not swallowed. Compose's
+                        // clickable cancels itself when the same pointer gesture becomes a drag.
+                        .clickable(
+                            interactionSource = null,
+                            indication = null,
+                            role = Role.Tab,
+                            onClick = onReselected,
+                        )
+                        .clearAndSetSemantics {}
                         .drawBackdrop(
                             backdrop = combinedBackdrop,
                             shape = { pillShape },

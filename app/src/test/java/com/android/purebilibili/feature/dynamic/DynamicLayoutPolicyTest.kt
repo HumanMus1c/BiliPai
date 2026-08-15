@@ -8,7 +8,7 @@ import androidx.compose.ui.unit.dp
 class DynamicLayoutPolicyTest {
 
     @Test
-    fun `dynamic feed matches pili plus single-column content width`() {
+    fun `dynamic feed uses the compact single-column content width`() {
         assertEquals(480.dp, resolveDynamicFeedMaxWidth())
     }
 
@@ -37,7 +37,7 @@ class DynamicLayoutPolicyTest {
     }
 
     @Test
-    fun `dynamic cards use flat list spacing like pili plus`() {
+    fun `dynamic cards use flat list spacing`() {
         assertEquals(0.dp, resolveDynamicCardOuterPadding())
         assertEquals(12.dp, resolveDynamicCardContentPadding())
     }
@@ -55,9 +55,9 @@ class DynamicLayoutPolicyTest {
 
         assertEquals(0, spec.topPaddingDp)
         assertEquals(0, spec.bottomPaddingDp)
-        assertEquals(52, spec.heightDp)
-        assertEquals(3, spec.indicatorHeightDp)
-        assertEquals(14, spec.labelFontSizeSp)
+        assertEquals(50, spec.heightDp)
+        assertEquals(44, spec.indicatorHeightDp)
+        assertEquals(13, spec.labelFontSizeSp)
     }
 
     @Test
@@ -70,14 +70,14 @@ class DynamicLayoutPolicyTest {
 
     @Test
     fun `dynamic sidebar return header aligns with top tab row height`() {
-        assertEquals(52, resolveDynamicTopBarHeightDp())
+        assertEquals(50, resolveDynamicTopBarHeightDp())
         assertEquals(resolveDynamicTopBarHeightDp(), resolveDynamicSidebarReturnHeaderHeightDp())
     }
 
     @Test
     fun `dynamic sidebar divider starts below top chrome`() {
         assertEquals(
-            76.dp,
+            74.dp,
             resolveDynamicSidebarDividerTopOffset(topPadding = 24.dp)
         )
     }

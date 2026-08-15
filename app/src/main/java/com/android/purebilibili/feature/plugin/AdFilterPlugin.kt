@@ -499,7 +499,7 @@ class AdFilterPlugin : FeedPlugin {
                     config = config.copy(filterSponsored = newValue)
                     scope.launch { PluginStore.setConfigJson(context, id, Json.encodeToString(config)) }
                 },
-                iconTint = Color(0xFFE91E63)
+                iconTint = MaterialTheme.colorScheme.error
             )
             
             AppHorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(0.5f))
@@ -515,7 +515,7 @@ class AdFilterPlugin : FeedPlugin {
                     config = config.copy(filterClickbait = newValue)
                     scope.launch { PluginStore.setConfigJson(context, id, Json.encodeToString(config)) }
                 },
-                iconTint = Color(0xFFFF9800)
+                iconTint = MaterialTheme.colorScheme.tertiary
             )
             
             AppHorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(0.5f))
@@ -531,7 +531,7 @@ class AdFilterPlugin : FeedPlugin {
                     config = config.copy(filterLowQuality = newValue)
                     scope.launch { PluginStore.setConfigJson(context, id, Json.encodeToString(config)) }
                 },
-                iconTint = Color(0xFF9E9E9E)
+                iconTint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             
             Spacer(modifier = Modifier.height(16.dp))
@@ -547,7 +547,7 @@ class AdFilterPlugin : FeedPlugin {
                 emptyText = "暂无拉黑的UP主",
                 expanded = upListExpanded,
                 icon = Icons.Outlined.Person,
-                itemIconTint = Color(0xFFE91E63),
+                itemIconTint = MaterialTheme.colorScheme.error,
                 addButtonText = "添加UP主拉黑",
                 onExpandedChange = { upListExpanded = it },
                 onAddClick = { showAddUpDialog = true },

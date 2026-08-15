@@ -3,7 +3,7 @@ package com.android.purebilibili.feature.video.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import androidx.compose.runtime.Composable
@@ -97,7 +97,7 @@ internal fun AudioModeMusicPlayer(
                 .background(Color.Black),
             contentAlignment = Alignment.Center
         ) {
-            AppCircularProgressIndicator(color = Color.White)
+            AdaptiveLoadingIndicator(color = Color.White)
         }
         return
     }

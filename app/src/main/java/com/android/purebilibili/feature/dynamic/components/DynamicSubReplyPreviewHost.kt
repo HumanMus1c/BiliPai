@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Rect
+import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.feature.video.ui.components.SubReplySheet
 import com.android.purebilibili.feature.video.viewmodel.SubReplyUiState
 
@@ -16,6 +17,8 @@ fun DynamicSubReplyPreviewHost(
     onDismiss: () -> Unit,
     onLoadMore: () -> Unit,
     onUserClick: (Long) -> Unit,
+    onReplyClick: ((ReplyItem) -> Unit)? = null,
+    onCommentLike: ((Long) -> Unit)? = null,
 ) {
     var showImagePreview by remember { mutableStateOf(false) }
     var previewImages by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -42,6 +45,8 @@ fun DynamicSubReplyPreviewHost(
         onDismiss = onDismiss,
         onLoadMore = onLoadMore,
         onAvatarClick = { mid -> mid.toLongOrNull()?.let(onUserClick) },
+        onReplyClick = onReplyClick,
+        onCommentLike = onCommentLike,
         onImagePreview = { images, index, rect, textContent ->
             previewImages = images
             previewInitialIndex = index

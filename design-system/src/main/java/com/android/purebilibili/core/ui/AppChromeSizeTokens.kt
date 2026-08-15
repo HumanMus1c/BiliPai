@@ -8,9 +8,9 @@ object AppChromeSizeTokens {
     val MinimumTouchTarget = 48.dp
     const val CompactControlHeightDp = 44
     const val CompactControlCornerRadiusDp = 20
-    // Keeps bottom-bar matched segmented indicators clear after their visual scale-up.
+    // Compact liquid docks keep the home bottom-bar rest fill (56/64).
     const val BottomBarMatchedSegmentedControlHeightDp = 40
-    const val BottomBarMatchedSegmentedIndicatorHeightDp = 27
+    const val BottomBarMatchedSegmentedIndicatorHeightDp = 35
 }
 
 /**

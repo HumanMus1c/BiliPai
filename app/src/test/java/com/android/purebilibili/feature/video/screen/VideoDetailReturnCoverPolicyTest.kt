@@ -39,6 +39,57 @@ class VideoDetailReturnCoverPolicyTest {
     }
 
     @Test
+    fun nestedReturnSessionOnlyChangesOutgoingDetailVisualState() {
+        assertTrue(
+            shouldConsumeMiuixReturnSessionForVideoDetailEntry(
+                entryOwnsMiuixCardTransition = true,
+                isReturningFromDetail = true,
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+            )
+        )
+        assertFalse(
+            shouldConsumeMiuixReturnSessionForVideoDetailEntry(
+                entryOwnsMiuixCardTransition = false,
+                isReturningFromDetail = true,
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+            )
+        )
+        assertFalse(
+            shouldConsumeMiuixReturnSessionForVideoDetailEntry(
+                entryOwnsMiuixCardTransition = true,
+                isReturningFromDetail = true,
+                transitionEnabled = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = true,
+            )
+        )
+    }
+
+    @Test
+    fun retainedParentDoesNotConsumeStalePostExitFromNestedReturn() {
+        assertFalse(
+            shouldTreatVideoDetailCardExitAsReturning(
+                isExitTransitionInProgress = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+                entryOwnsCardTransition = false,
+            )
+        )
+        assertTrue(
+            shouldTreatVideoDetailCardExitAsReturning(
+                isExitTransitionInProgress = true,
+                sharedBoundsActive = true,
+                keepLoadedContentForBackPreview = false,
+                entryOwnsCardTransition = true,
+            )
+        )
+    }
+
+    @Test
     fun flyingReturnSourceCardChromeMustDrawBecauseOverlayCoversList() {
         assertTrue(shouldDrawFlyingReturnSourceCardChrome())
     }

@@ -67,6 +67,15 @@ class DynamicMenuActionPolicyTest {
     }
 
     @Test
+    fun reportReasonsCoverSupportedDynamicReportTypes() {
+        val reasons = resolveDynamicReportReasons()
+        assertEquals(10, reasons.size)
+        assertEquals("垃圾广告", reasons.first().label)
+        assertEquals(0, reasons.last().type)
+        assertEquals("其他", reasons.last().label)
+    }
+
+    @Test
     fun dynTypeFallsBackToThreePointParams() {
         val item = DynamicItem(
             modules = DynamicModules(

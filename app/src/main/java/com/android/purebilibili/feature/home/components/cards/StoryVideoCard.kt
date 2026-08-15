@@ -57,8 +57,6 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.theme.BiliPink
 import com.android.purebilibili.core.store.HomeDurationStyle
-import com.android.purebilibili.core.theme.LocalCornerRadiusScale
-import com.android.purebilibili.core.theme.iOSCornerRadius
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.components.UpBadgeName
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
@@ -128,10 +126,9 @@ internal fun StoryVideoCard(
     val haptic = rememberHapticFeedback()
     
     // [新增] 获取圆角缩放比例
-    val cornerRadiusScale = LocalCornerRadiusScale.current
-    val cardCornerRadius = iOSCornerRadius.ExtraLarge * cornerRadiusScale  // AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall * scale
+    val cardCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Sheet)
     val coverShape = RoundedCornerShape(cardCornerRadius)
-    val smallCornerRadius = iOSCornerRadius.Small * cornerRadiusScale - AppSpacingTokens.Micro  // AppSpacingTokens.Small * scale
+    val smallCornerRadius = AppShapes.containerCornerDp(ContainerLevel.Field)
     val durationText = remember(video.duration) { FormatUtils.formatDuration(video.duration) }
     val showDurationOnCover = homeDurationStyle == HomeDurationStyle.OVERLAY_TEXT_ONLY
     val coverOverlayTextStyle = remember {
@@ -429,28 +426,48 @@ internal fun StoryVideoCard(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // 时长已移入统计行（闹钟图标），日期行独占整行。
-        VideoCardDurationPublishRow(
-            durationText = "",
-            publishTimeText = publishTimeRowText,
-            emphasizePublishTime = emphasizePublishTime,
-            publishTimeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-            topSpacing = if (compactMetadata) AppSpacingTokens.ExtraSmall else AppSpacingTokens.Small
-        )
-        
         Spacer(modifier = Modifier.height(if (compactMetadata) AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro else AppSpacingTokens.Small))
         
-        // 作者和统计信息分行：双列卡片中三项统计不能再挤占作者名称的宽度。
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
+            if (scrollLitePolicy.showSecondaryStatsRow && video.stat.view > 0) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_STAT_ROW_SPACING_DP.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    HorizontalVideoStatRow(
+                        playText = FormatUtils.formatStat(video.stat.view.toLong()),
+                        danmakuText = if (video.stat.danmaku > 0) {
+                            FormatUtils.formatStat(video.stat.danmaku.toLong())
+                        } else {
+                            ""
+                        },
+                        playIcon = Icons.Outlined.PlayCircle,
+                        danmakuIcon = Icons.Outlined.ChatBubbleOutline,
+                    )
+                    if (publishTimeRowText.isNotBlank()) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        AppText(
+                            text = publishTimeRowText,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                            style = contentTypography.statistic,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
+            }
+
             val upClickMid = video.owner.mid.takeIf { it > 0L && onUpClick != null }
             val upNameModifier = if (upClickMid != null) {
                 Modifier.fillMaxWidth().clickable { onUpClick?.invoke(upClickMid) }
             } else {
                 Modifier.fillMaxWidth()
             }
-            
+
             UpBadgeName(
                 name = video.owner.name,
                 metaText = resolveUpStatsText(
@@ -480,111 +497,15 @@ internal fun StoryVideoCard(
                 showUpBadge = showUpBadge,
                 modifier = upNameModifier
             )
-            
-            // 数据行 (Play & Danmaku)
-            if (scrollLitePolicy.showSecondaryStatsRow) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro)
-                ) {
-                    // 播放量
-                    if (video.stat.view > 0) {
-                        Box {
-                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
-                            ) {
-                                AppIcon(
-                                    imageVector = Icons.Outlined.PlayCircle,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(AppSpacingTokens.Medium),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                AppText(
-                                    text = FormatUtils.formatStat(video.stat.view.toLong()),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
 
-                    // 弹幕数 (仅当有播放量时显示，保持逻辑一致)
-                    if (video.stat.view > 0 && video.stat.danmaku > 0) {
-                         Box {
-                             Row(
-                                 verticalAlignment = Alignment.CenterVertically,
-                                 horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
-                             ) {
-                                 AppIcon(
-                                     imageVector = Icons.Outlined.ChatBubbleOutline,
-                                     contentDescription = null,
-                                     modifier = Modifier.size(AppSpacingTokens.Medium),
-                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                 )
-                                 AppText(
-                                     text = FormatUtils.formatStat(video.stat.danmaku.toLong()),
-                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                     style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
-                                     maxLines = 1,
-                                     softWrap = false,
-                                     overflow = TextOverflow.Ellipsis
-                                 )
-                             }
-                         }
-                    }
-
-                    if (onlineCount.isNotEmpty()) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
-                        ) {
-                            AppIcon(
-                                imageVector = Icons.Outlined.Visibility,
-                                contentDescription = null,
-                                modifier = Modifier.size(AppSpacingTokens.Medium),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            AppText(
-                                text = onlineCount,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    // 时长随统计行显示（OUTSIDE_COVER）：闹钟图标 + 时长。
-                    if (showDurationOutside && durationText.isNotBlank()) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Micro)
-                        ) {
-                            AppIcon(
-                                imageVector = Icons.Outlined.Alarm,
-                                contentDescription = null,
-                                modifier = Modifier.size(AppSpacingTokens.Medium),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            AppText(
-                                text = durationText,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = contentTypography.statistic.copy(fontWeight = FontWeight.Medium),
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
+            if (!scrollLitePolicy.showSecondaryStatsRow) {
+                VideoCardDurationPublishRow(
+                    durationText = "",
+                    publishTimeText = publishTimeRowText,
+                    emphasizePublishTime = emphasizePublishTime,
+                    publishTimeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                    topSpacing = if (compactMetadata) AppSpacingTokens.ExtraSmall else AppSpacingTokens.Small
+                )
             }
         }
         }

@@ -16,7 +16,6 @@ import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
-import com.kyant.backdrop.Backdrop
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,8 +38,11 @@ internal fun hasCommentSortIndicatorScaleClearance(
     containerHeightDp: Int,
     indicatorHeightDp: Int
 ): Boolean {
-    val bottomBarScale = 78f / 56f
-    return containerHeightDp >= indicatorHeightDp * bottomBarScale + 2f
+    val geometry = com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorGeometry(
+        dockHeightDp = containerHeightDp.toFloat(),
+        indicatorHeightDp = indicatorHeightDp.toFloat(),
+    )
+    return geometry.pressedHeightDp > containerHeightDp
 }
 
 /**
@@ -91,7 +93,6 @@ fun CommentSortHeader(
     sortMode: CommentSortMode,
     onSortModeChange: (CommentSortMode) -> Unit,
     modifier: Modifier = Modifier,
-    backdrop: Backdrop? = null,
     miuixBackdrop: MiuixBackdrop? = null,
 ) {
     FlowRow(
@@ -107,7 +108,6 @@ fun CommentSortHeader(
         CommentSortFilterBar(
             sortMode = sortMode,
             onSortModeChange = onSortModeChange,
-            backdrop = backdrop,
             miuixBackdrop = miuixBackdrop,
         )
     }
@@ -121,7 +121,6 @@ fun CommentSortFilterBar(
     sortMode: CommentSortMode,
     onSortModeChange: (CommentSortMode) -> Unit,
     modifier: Modifier = Modifier,
-    backdrop: Backdrop? = null,
     miuixBackdrop: MiuixBackdrop? = null,
 ) {
     val sortModes = remember { listOf(CommentSortMode.HOT, CommentSortMode.NEWEST) }
@@ -132,7 +131,6 @@ fun CommentSortFilterBar(
             sortModes.getOrNull(index)?.let(onSortModeChange)
         },
         modifier = modifier,
-        backdrop = backdrop,
         miuixBackdrop = miuixBackdrop,
     )
 }
@@ -146,7 +144,6 @@ fun CommentSegmentedControl(
     selectedIndex: Int,
     onScaleChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    backdrop: Backdrop? = null,
     miuixBackdrop: MiuixBackdrop? = null,
 ) {
     val context = LocalContext.current
@@ -165,10 +162,9 @@ fun CommentSegmentedControl(
         indicatorHeight = spec.indicatorHeightDp.dp,
         labelFontSize = 13.sp,
         modifier = modifier,
-        backdrop = backdrop,
         miuixBackdrop = miuixBackdrop,
         forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
-        liquidGlassEffectsEnabled = backdrop != null,
+        liquidGlassEffectsEnabled = true,
         tapPressRefractionEnabled = false
     )
 }

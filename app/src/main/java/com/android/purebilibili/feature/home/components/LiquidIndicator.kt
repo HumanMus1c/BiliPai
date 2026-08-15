@@ -7,7 +7,6 @@ import com.android.purebilibili.core.ui.OpticalContrastPalette
 
 
 
-import android.os.Build
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,16 +29,15 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
-import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.blur
+import com.android.purebilibili.feature.home.components.liquid.lens
 import com.android.purebilibili.core.store.LiquidGlassMode
 import com.android.purebilibili.core.store.LiquidGlassStyle
-import com.android.purebilibili.core.ui.blur.shouldAllowHomeChromeLiquidGlass
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.ui.motion.BottomBarMotionSpec
 import com.android.purebilibili.core.ui.motion.resolveBottomBarMotionSpec
+import top.yukonga.miuix.kmp.blur.Backdrop
+import top.yukonga.miuix.kmp.blur.blur
+import top.yukonga.miuix.kmp.blur.drawBackdrop
 
 /**
  * 🌊 液态玻璃选中指示器
@@ -186,15 +184,14 @@ internal fun LiquidIndicator(
                 .size(indicatorWidth, indicatorHeight)
                 .clip(shape)
                 .run {
-                    if (isLiquidGlassEnabled && backdrop != null && shouldAllowHomeChromeLiquidGlass(Build.VERSION.SDK_INT)) {
+                    if (isLiquidGlassEnabled && backdrop != null) {
                         this.drawBackdrop(
                             backdrop = backdrop,
                             shape = { shape },
                             effects = {
-                                blur(
-                                    styleTuning.idleBlurRadius *
-                                        (0.06f + resolvedTuning.progress * 0.94f)
-                                )
+                                val blurRadius = styleTuning.idleBlurRadius *
+                                    (0.06f + resolvedTuning.progress * 0.94f)
+                                blur(blurRadius, blurRadius)
                                 if (lensProfile.shouldRefract && resolvedTuning.refractionAmount > 0.5f) {
                                     lens(
                                         refractionHeight = lensProfile.refractionHeight *
@@ -204,10 +201,15 @@ internal fun LiquidIndicator(
                                             lensAmountScale.coerceIn(0.1f, 1f) *
                                             blendFloat(1f, 0.18f, resolvedTuning.progress),
                                         depthEffect = styleTuning.depthEffectEnabled,
-                                        chromaticAberration = forceChromaticAberration || (
-                                            styleTuning.allowChromaticAberration &&
-                                                lensProfile.aberrationStrength > 0.01f
-                                            )
+                                        chromaticAberration = if (
+                                            forceChromaticAberration ||
+                                            (styleTuning.allowChromaticAberration &&
+                                                lensProfile.aberrationStrength > 0.01f)
+                                        ) {
+                                            0.5f
+                                        } else {
+                                            0f
+                                        }
                                     )
                                 }
                             },
@@ -322,15 +324,14 @@ fun SimpleLiquidIndicator(
                 .size(indicatorWidth, indicatorHeight)
                 .clip(RoundedCornerShape(cornerRadius))
                 .run {
-                    if (isLiquidGlassEnabled && backdrop != null && shouldAllowHomeChromeLiquidGlass(Build.VERSION.SDK_INT)) {
+                    if (isLiquidGlassEnabled && backdrop != null) {
                         this.drawBackdrop(
                             backdrop = backdrop,
                             shape = { RoundedCornerShape(cornerRadius) },
                             effects = {
-                                blur(
-                                    styleTuning.idleBlurRadius *
-                                        (0.06f + resolvedTuning.progress * 0.94f)
-                                )
+                                val blurRadius = styleTuning.idleBlurRadius *
+                                    (0.06f + resolvedTuning.progress * 0.94f)
+                                blur(blurRadius, blurRadius)
                                 if (lensProfile.shouldRefract && resolvedTuning.refractionAmount > 0.5f) {
                                     lens(
                                         refractionHeight = lensProfile.refractionHeight *
@@ -338,8 +339,14 @@ fun SimpleLiquidIndicator(
                                         refractionAmount = lensProfile.refractionAmount *
                                             blendFloat(1f, 0.18f, resolvedTuning.progress),
                                         depthEffect = styleTuning.depthEffectEnabled,
-                                        chromaticAberration = styleTuning.allowChromaticAberration &&
+                                        chromaticAberration = if (
+                                            styleTuning.allowChromaticAberration &&
                                             lensProfile.aberrationStrength > 0.01f
+                                        ) {
+                                            0.5f
+                                        } else {
+                                            0f
+                                        }
                                     )
                                 }
                             },

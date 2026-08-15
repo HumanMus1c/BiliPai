@@ -40,7 +40,16 @@ import androidx.compose.ui.unit.sp
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.feature.dynamic.DynamicViewModel
+import com.android.purebilibili.feature.dynamic.DynamicStatusPalette
+import com.android.purebilibili.feature.dynamic.canOpenDynamicSubReplies
+import com.android.purebilibili.feature.dynamic.isDynamicCommentLiked
+import com.android.purebilibili.feature.dynamic.resolveDynamicCommentComposerHint
+import com.android.purebilibili.feature.dynamic.resolveDynamicCommentCountLabel
+import com.android.purebilibili.feature.dynamic.resolveDynamicCommentEmptyLabel
+import com.android.purebilibili.feature.dynamic.resolveDynamicCommentLocationLabel
 import com.android.purebilibili.feature.dynamic.resolveDynamicCommentSheetTotalCount
+import com.android.purebilibili.feature.dynamic.resolveDynamicSubReplyCount
+import com.android.purebilibili.feature.dynamic.shouldOpenDynamicCommentThreadOnTap
 import com.android.purebilibili.feature.video.ui.components.CommentPictures
 import com.android.purebilibili.feature.video.ui.components.RichCommentText
 import com.android.purebilibili.feature.video.ui.components.ReplyMemberAvatar
@@ -60,7 +69,10 @@ import kotlinx.coroutines.flow.map
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.rememberAppClearIcon
 import com.android.purebilibili.core.ui.rememberAppCommentIcon
+import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Reply
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import com.android.purebilibili.core.ui.components.AppTextField
@@ -81,6 +93,7 @@ fun DynamicCommentOverlayHost(
     val subReplyState by viewModel.subReplyState.collectAsStateWithLifecycle()
     val liveCommentCount by viewModel.commentTotalCount.collectAsStateWithLifecycle()
     val sortMode by viewModel.dynamicCommentSortMode.collectAsStateWithLifecycle()
+    val replyTarget by viewModel.commentReplyTarget.collectAsStateWithLifecycle()
     val inspectionMode = LocalInspectionMode.current
 
     if (!selectedDynamicId.isNullOrBlank()) {
@@ -113,6 +126,10 @@ fun DynamicCommentOverlayHost(
                 }
             },
             onViewReplies = { reply -> viewModel.openSubReply(reply) },
+            onReply = { reply -> viewModel.startCommentReply(reply) },
+            onLike = { reply -> viewModel.likeComment(reply.rpid) },
+            replyTargetUname = replyTarget?.uname,
+            onClearReplyTarget = { viewModel.clearCommentReplyTarget() },
             onLoadMore = { viewModel.loadMoreComments() },
             onUserClick = onUserClick,
         )
@@ -123,6 +140,8 @@ fun DynamicCommentOverlayHost(
         onDismiss = { viewModel.closeSubReply() },
         onLoadMore = { viewModel.loadMoreSubReplies() },
         onUserClick = onUserClick,
+        onReplyClick = { reply -> viewModel.startCommentReply(reply) },
+        onCommentLike = { rpid -> viewModel.likeComment(rpid) },
     )
 }
 
@@ -141,6 +160,10 @@ fun DynamicCommentSheet(
     onSortModeChange: (CommentSortMode) -> Unit = {},
     onPostComment: (String) -> Unit,
     onViewReplies: (ReplyItem) -> Unit = {},
+    onReply: (ReplyItem) -> Unit = {},
+    onLike: (ReplyItem) -> Unit = {},
+    replyTargetUname: String? = null,
+    onClearReplyTarget: () -> Unit = {},
     onLoadMore: () -> Unit = {},
     onUserClick: (Long) -> Unit,
 ) {
@@ -218,13 +241,11 @@ fun DynamicCommentSheet(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    if (totalCount > 0) {
-                        AppText(
-                            text = "$totalCount 条评论",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = AppSurfaceTokens.onSurfaceVariantActions(),
-                        )
-                    }
+                    AppText(
+                        text = resolveDynamicCommentCountLabel(totalCount),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = AppSurfaceTokens.onSurfaceVariantActions(),
+                    )
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 DynamicCommentSortControl(
@@ -281,7 +302,7 @@ fun DynamicCommentSheet(
                         }
                         Spacer(modifier = Modifier.height(AppSpacingTokens.Large))
                         AppText(
-                            text = "还没有评论",
+                            text = resolveDynamicCommentEmptyLabel(),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -309,6 +330,8 @@ fun DynamicCommentSheet(
                         CommentItem(
                             reply = reply,
                             onViewReplies = onViewReplies,
+                            onReply = onReply,
+                            onLike = onLike,
                             onUserClick = onUserClick,
                             onImagePreview = { images, index, rect, textContent ->
                                 previewImages = images
@@ -341,6 +364,8 @@ fun DynamicCommentSheet(
                     onPostComment(it)
                     commentText = ""
                 },
+                hint = resolveDynamicCommentComposerHint(replyTargetUname),
+                onClearReplyTarget = if (replyTargetUname.isNullOrBlank()) null else onClearReplyTarget,
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(AppSurfaceTokens.surfaceContainer())
@@ -428,7 +453,7 @@ fun DynamicInlineCommentHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AppText(
-            text = "评论 ${if (totalCount > 0) "($totalCount)" else ""}",
+            text = resolveDynamicCommentCountLabel(totalCount),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
@@ -449,6 +474,8 @@ fun LazyListScope.dynamicInlineCommentItems(
     isLoading: Boolean,
     isLoadingMore: Boolean,
     onViewReplies: (ReplyItem) -> Unit,
+    onReply: (ReplyItem) -> Unit = {},
+    onLike: (ReplyItem) -> Unit = {},
     onUserClick: (Long) -> Unit,
     onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
 ) {
@@ -464,7 +491,10 @@ fun LazyListScope.dynamicInlineCommentItems(
                     .padding(vertical = AppSpacingTokens.DoubleExtraLarge),
                 contentAlignment = Alignment.Center,
             ) {
-                AppText("暂无评论", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                AppText(
+                    resolveDynamicCommentEmptyLabel(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
             }
         }
 
@@ -472,6 +502,8 @@ fun LazyListScope.dynamicInlineCommentItems(
             CommentItem(
                 reply = reply,
                 onViewReplies = onViewReplies,
+                onReply = onReply,
+                onLike = onLike,
                 onUserClick = onUserClick,
                 onImagePreview = onImagePreview,
                 modifier = Modifier.padding(horizontal = AppSpacingTokens.Large, vertical = AppSpacingTokens.Small),
@@ -495,6 +527,8 @@ fun LazyListScope.dynamicInlineCommentItems(
 @Composable
 fun DynamicInlineCommentComposer(
     onPostComment: (String) -> Unit,
+    replyTargetUname: String? = null,
+    onClearReplyTarget: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var commentText by remember { mutableStateOf("") }
@@ -505,6 +539,8 @@ fun DynamicInlineCommentComposer(
             onPostComment(it)
             commentText = ""
         },
+        hint = resolveDynamicCommentComposerHint(replyTargetUname),
+        onClearReplyTarget = if (replyTargetUname.isNullOrBlank()) null else onClearReplyTarget,
         modifier = modifier
             .fillMaxWidth()
             .padding(AppSpacingTokens.Large),
@@ -516,6 +552,8 @@ private fun DynamicCommentComposer(
     value: String,
     onValueChange: (String) -> Unit,
     onSubmit: (String) -> Unit,
+    hint: String = resolveDynamicCommentComposerHint(),
+    onClearReplyTarget: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val trimmedComment = value.trim()
@@ -527,9 +565,18 @@ private fun DynamicCommentComposer(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.weight(1f),
-            placeholder = "发一条友善的评论",
+            placeholder = hint,
             singleLine = true,
         )
+        if (onClearReplyTarget != null) {
+            AppIconButton(onClick = onClearReplyTarget) {
+                AppIcon(
+                    rememberAppClearIcon(),
+                    contentDescription = "取消回复",
+                    modifier = Modifier.size(AppSpacingTokens.Large)
+                )
+            }
+        }
         Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
         AppButton(
             onClick = { onSubmit(trimmedComment) },
@@ -550,6 +597,8 @@ private fun DynamicCommentComposer(
 private fun CommentItem(
     reply: ReplyItem,
     onViewReplies: (ReplyItem) -> Unit,
+    onReply: (ReplyItem) -> Unit = {},
+    onLike: (ReplyItem) -> Unit = {},
     onUserClick: (Long) -> Unit,
     onImagePreview: (List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit,
     modifier: Modifier = Modifier,
@@ -578,7 +627,21 @@ private fun CommentItem(
         AppSpacingTokens.None
     }
 
-    Box(modifier = modifier.fillMaxWidth()) {
+    val locationLabel = remember(reply.replyControl?.location) {
+        resolveDynamicCommentLocationLabel(reply.replyControl?.location)
+    }
+    val liked = isDynamicCommentLiked(reply)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (shouldOpenDynamicCommentThreadOnTap(reply)) {
+                    Modifier.clickable { onViewReplies(reply) }
+                } else {
+                    Modifier
+                }
+            )
+    ) {
     Row(modifier = Modifier.fillMaxWidth()) {
         val memberMid = remember(member.mid, reply.mid) {
             member.mid.toLongOrNull()?.takeIf { it > 0L }
@@ -624,6 +687,15 @@ private fun CommentItem(
                     fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
                 )
+                if (locationLabel != null) {
+                    AppText(
+                        text = " • $locationLabel",
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
@@ -659,23 +731,56 @@ private fun CommentItem(
 
             Spacer(modifier = Modifier.height(AppSpacingTokens.Small))
             
-            // 点赞数
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AppIcon(
-                    rememberAppLikeIcon(),
-                    contentDescription = null,
-                    modifier = Modifier.size(AppSpacingTokens.Medium + AppSpacingTokens.Micro),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
-                )
-                Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
-                AppText(
-                    text = "${reply.like}",
-                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onReply(reply) }
+                ) {
+                    AppIcon(
+                        Icons.AutoMirrored.Outlined.Reply,
+                        contentDescription = "回复",
+                        modifier = Modifier.size(AppSpacingTokens.Large),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
+                    )
+                    Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
+                    AppText(
+                        text = "回复",
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onLike(reply) }
+                ) {
+                    AppIcon(
+                        if (liked) rememberAppLikeFilledIcon() else rememberAppLikeIcon(),
+                        contentDescription = if (liked) "已赞" else "点赞",
+                        modifier = Modifier.size(AppSpacingTokens.Medium + AppSpacingTokens.Micro),
+                        tint = if (liked) {
+                            DynamicStatusPalette.liked()
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
+                    AppText(
+                        text = "${reply.like}",
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                        color = if (liked) {
+                            DynamicStatusPalette.liked()
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
+                        }
+                    )
+                }
             }
 
-            if (com.android.purebilibili.feature.dynamic.canOpenDynamicSubReplies(reply)) {
+            if (canOpenDynamicSubReplies(reply)) {
                 if (visibleSubReplies.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(AppSpacingTokens.Small + AppSpacingTokens.Micro))
                     Column(
@@ -749,7 +854,7 @@ private fun CommentItem(
                     contentPadding = PaddingValues(horizontal = AppSpacingTokens.None, vertical = AppSpacingTokens.None)
                 ) {
                     AppText(
-                        text = "查看回复(${com.android.purebilibili.feature.dynamic.resolveDynamicSubReplyCount(reply)})",
+                        text = "查看回复(${resolveDynamicSubReplyCount(reply)})",
                         fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         color = MaterialTheme.colorScheme.primary
                     )

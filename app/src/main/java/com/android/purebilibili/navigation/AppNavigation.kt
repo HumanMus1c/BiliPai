@@ -185,6 +185,7 @@ import com.android.purebilibili.navigation3.pushOrReplaceSettingsCategoryNavKey
 import com.android.purebilibili.navigation3.resolveBiliPaiBackGestureDecision
 import com.android.purebilibili.navigation3.resolveBiliPaiNavCardSourceDirection
 import com.android.purebilibili.navigation3.resolveBiliPaiNavEntryContentRole
+import com.android.purebilibili.navigation3.resolveRemovedNavigation3SaveableStateKeys
 import com.android.purebilibili.navigation3.resolveNavigation3SaveableStateKey
 import com.android.purebilibili.navigation3.resolveBiliPaiNavSourceMetadata
 import com.android.purebilibili.navigation3.shouldBindVideoDetailBackPreviewPlayer
@@ -487,9 +488,19 @@ fun AppNavigation(
         val navigation3BackStack = rememberNavBackStack<BiliPaiNavKey>(
             *initialNavigationBackStack.toTypedArray()
         ) as androidx.compose.runtime.snapshots.SnapshotStateList<BiliPaiNavKey>
+        val navigation3SaveableStateHolder = rememberSaveableStateHolder()
         fun replaceNavigation3BackStack(keys: List<BiliPaiNavKey>) {
+            val replacementStack = keys.ifEmpty { listOf(BiliPaiNavKey.MainHost) }
+            val removedStateKeys = resolveRemovedNavigation3SaveableStateKeys(
+                currentStack = navigation3BackStack,
+                replacementStack = replacementStack,
+            )
             navigation3BackStack.clear()
-            navigation3BackStack.addAll(keys.ifEmpty { listOf(BiliPaiNavKey.MainHost) })
+            navigation3BackStack.addAll(replacementStack)
+            // SaveableStateHolder intentionally retains disposed providers. Media detail keys are
+            // session-scoped, so without explicit eviction every watched video remains in the
+            // Activity saved-state Bundle and eventually causes TransactionTooLargeException.
+            removedStateKeys.forEach(navigation3SaveableStateHolder::removeState)
         }
         val navigation3ProgrammaticBackDispatcher = remember {
             BiliPaiProgrammaticBackDispatcher()
@@ -595,7 +606,6 @@ fun AppNavigation(
             pageCount = { visibleBottomBarItems.size.coerceAtLeast(1) }
         )
         val bottomPagerSaveableStateHolder = rememberSaveableStateHolder()
-        val navigation3SaveableStateHolder = rememberSaveableStateHolder()
         val mainBottomPagerState = rememberMainBottomPagerState(bottomPagerState)
         var bottomPagerContentReady by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) {
@@ -623,6 +633,7 @@ fun AppNavigation(
             )
         }
         val bottomBarItemColors = appNavigationSettings.bottomBarItemColors
+        val bottomBarItemLabels = appNavigationSettings.bottomBarItemLabels
         // 平板侧边栏模式 (替代 WindowSizeClass)
         val windowSizeClass = LocalWindowSizeClass.current
 
@@ -1297,10 +1308,17 @@ fun AppNavigation(
         }
 
         // [新增] 首页回顶事件通道 (Channel based event bus)
-        val homeScrollChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
+        val homeScrollChannel = remember {
+            kotlinx.coroutines.channels.Channel<com.android.purebilibili.feature.home.HomeScrollRequest>(
+                kotlinx.coroutines.channels.Channel.CONFLATED
+            )
+        }
         val dynamicScrollChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
         val historyScrollChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
+        val profileScrollChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
         val favoriteScrollChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
+        val liveScrollChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
+        val watchLaterScrollChannel = remember { kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
         var dynamicUnreadCount by remember { mutableIntStateOf(0) }
         val dynamicUnreadPollingEnabled = visibleBottomBarItems.contains(BottomNavItem.DYNAMIC)
         LaunchedEffect(currentBottomNavItem, dynamicUnreadPollingEnabled) {
@@ -1323,10 +1341,15 @@ fun AppNavigation(
                     requestBottomPagerPageForRoute(item.route)
                 }
                 BottomBarSelectionAction.RESELECT -> when (item) {
-                    BottomNavItem.HOME -> homeScrollChannel.trySend(Unit)
+                    BottomNavItem.HOME -> homeScrollChannel.trySend(
+                        com.android.purebilibili.feature.home.HomeScrollRequest.SCROLL_TO_TOP
+                    )
                     BottomNavItem.DYNAMIC -> dynamicScrollChannel.trySend(Unit)
                     BottomNavItem.HISTORY -> historyScrollChannel.trySend(Unit)
+                    BottomNavItem.PROFILE -> profileScrollChannel.trySend(Unit)
                     BottomNavItem.FAVORITE -> favoriteScrollChannel.trySend(Unit)
+                    BottomNavItem.LIVE -> liveScrollChannel.trySend(Unit)
+                    BottomNavItem.WATCHLATER -> watchLaterScrollChannel.trySend(Unit)
                     else -> Unit
                 }
             }
@@ -1642,10 +1665,15 @@ fun AppNavigation(
                             currentItem = currentBottomNavItem,
                             onItemClick = handleNavItemClick,
                             firstItemModifier = Modifier,
-                            onHomeDoubleTap = { homeScrollChannel.trySend(Unit) },
+                            onHomeDoubleTap = {
+                                homeScrollChannel.trySend(
+                                    com.android.purebilibili.feature.home.HomeScrollRequest.SCROLL_TO_TOP_AND_REFRESH
+                                )
+                            },
                             hazeState = if (isBottomBarBlurEnabled) mainHazeState else null,
                             visibleItems = visibleBottomBarItems,
                             itemColorIndices = bottomBarItemColors,
+                            itemLabels = bottomBarItemLabels,
                             uiSkinDecoration = bottomBarUiSkinDecoration,
                             onToggleSidebar = {
                                 // [Tablet] Toggle sidebar mode
@@ -1954,6 +1982,26 @@ fun AppNavigation(
                                 onFavoriteClick = { pushNavigation3Route(ScreenRoutes.Favorite.route) },
                                 onLikedVideosClick = { pushNavigation3Route(ScreenRoutes.LikedVideos.route) },
                                 onLiveListClick = { pushNavigation3Route(ScreenRoutes.LiveList.route) },
+                                onLiveSearchClick = { pushNavigation3Key(BiliPaiNavKey.LiveSearch) },
+                                onLiveAreaClick = { pushNavigation3Key(BiliPaiNavKey.LiveArea) },
+                                onLiveFollowingClick = { pushNavigation3Key(BiliPaiNavKey.LiveFollowing) },
+                                onLiveAreaDetailClick = { parentAreaId, areaId, title ->
+                                    pushNavigation3Key(
+                                        BiliPaiNavKey.LiveAreaDetail(
+                                            parentAreaId = parentAreaId,
+                                            areaId = areaId,
+                                            title = title
+                                        )
+                                    )
+                                },
+                                onBangumiSeasonClick = { seasonId ->
+                                    pushNavigation3Key(BiliPaiNavKey.BangumiDetail(seasonId = seasonId))
+                                },
+                                onBangumiEpisodeClick = { seasonId, epId ->
+                                    pushNavigation3Key(
+                                        BiliPaiNavKey.BangumiDetail(seasonId = seasonId, epId = epId)
+                                    )
+                                },
                                 onWatchLaterClick = { pushNavigation3Route(ScreenRoutes.WatchLater.route) },
                                 onDownloadClick = { pushNavigation3Route(ScreenRoutes.DownloadList.route) },
                                 onInboxClick = { pushNavigation3Route(ScreenRoutes.Inbox.route) },
@@ -2289,7 +2337,8 @@ fun AppNavigation(
                                     }
                                 },
                                 onBangumiMoreClick = { navigateFromProfile(ScreenRoutes.Bangumi.createRoute(1)) },
-                                deferImmersiveRenderBudget = bottomPagerRenderBudget.deferProfileImmersiveBackground
+                                deferImmersiveRenderBudget = bottomPagerRenderBudget.deferProfileImmersiveBackground,
+                                scrollToTopChannel = profileScrollChannel
                             )
                         }
                         BiliPaiNavEntryContentRole.VIDEO_DETAIL -> {
@@ -2384,7 +2433,8 @@ fun AppNavigation(
                                     navigation3ReturnSession = navigation3ReturnSession.clearReturning()
                                 },
                                 transitionEnabled = shouldEnableVideoDetailSharedTransition(
-                                    cardTransitionEnabled = sharedVideoCardTransitionEnabled
+                                    cardTransitionEnabled = sharedVideoCardTransitionEnabled,
+                                    sourceRoute = videoKey.sourceRoute,
                                 ),
                                 transitionEnterDurationMillis = navMotionSpec.slowFadeDurationMillis,
                                 onBack = {
@@ -2708,7 +2758,8 @@ fun AppNavigation(
                                         )
                                     },
                                     viewModel = watchLaterViewModel,
-                                    globalHazeState = mainHazeState
+                                    globalHazeState = mainHazeState,
+                                    scrollToTopChannel = watchLaterScrollChannel
                                 )
                             }
                         BiliPaiNavEntryContentRole.FOLLOWING -> {
@@ -2739,6 +2790,7 @@ fun AppNavigation(
                                 onBack = { performSystemBackAction() },
                                 // 底栏/顶栏进入的主直播首页：无返回箭头，与 BiliPai 主 tab 一致。
                                 showNavigationBack = false,
+                                scrollToTopChannel = liveScrollChannel,
                                 onLiveClick = { roomId, title, uname ->
                                     pushNavigation3Key(BiliPaiNavKey.Live(roomId = roomId.toString(), title = title, uname = uname))
                                 },
@@ -3438,7 +3490,11 @@ fun AppNavigation(
                                 FrostedBottomBar(
                                     currentItem = currentBottomNavItem,
                                     onItemClick = handleNavItemClick,
-                                    onHomeDoubleTap = { homeScrollChannel.trySend(Unit) },
+                                    onHomeDoubleTap = {
+                                        homeScrollChannel.trySend(
+                                            com.android.purebilibili.feature.home.HomeScrollRequest.SCROLL_TO_TOP_AND_REFRESH
+                                        )
+                                    },
                                     onDynamicDoubleTap = { dynamicScrollChannel.trySend(Unit) },
                                     onSearchClick = { requestSearchFromBottomBar() },
                                     onSearchKeywordSubmit = submitSearchKeywordInNavigation3,
@@ -3448,6 +3504,7 @@ fun AppNavigation(
                                     labelMode = bottomBarLabelMode,
                                     visibleItems = visibleBottomBarItems,
                                     itemColorIndices = bottomBarItemColors,
+                                    itemLabels = bottomBarItemLabels,
                                     dynamicUnreadCount = dynamicUnreadCount,
                                     homeSettings = effectiveHomeSettings,
                                     miuixBackdrop = bottomBarBackdrop,
@@ -3470,7 +3527,11 @@ fun AppNavigation(
                             FrostedBottomBar(
                                 currentItem = currentBottomNavItem,
                                 onItemClick = handleNavItemClick,
-                                onHomeDoubleTap = { homeScrollChannel.trySend(Unit) },
+                                onHomeDoubleTap = {
+                                    homeScrollChannel.trySend(
+                                        com.android.purebilibili.feature.home.HomeScrollRequest.SCROLL_TO_TOP_AND_REFRESH
+                                    )
+                                },
                                 onDynamicDoubleTap = { dynamicScrollChannel.trySend(Unit) },
                                 onSearchClick = { requestSearchFromBottomBar() },
                                 onSearchKeywordSubmit = submitSearchKeywordInNavigation3,
@@ -3480,6 +3541,7 @@ fun AppNavigation(
                                 labelMode = bottomBarLabelMode,
                                 visibleItems = visibleBottomBarItems,
                                 itemColorIndices = bottomBarItemColors,
+                                itemLabels = bottomBarItemLabels,
                                 dynamicUnreadCount = dynamicUnreadCount,
                                 homeSettings = effectiveHomeSettings,
                                 miuixBackdrop = bottomBarBackdrop,

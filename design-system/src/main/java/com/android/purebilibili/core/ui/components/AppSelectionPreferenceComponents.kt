@@ -17,6 +17,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -168,6 +169,15 @@ fun <T> AppSingleChoiceDialog(
     val configuration = LocalConfiguration.current
     val maxDialogHeight = (configuration.screenHeightDp * 0.8f).dp
     val layoutPolicy = remember { resolveAppContentDialogLayoutPolicy(maxWidthDp = 420) }
+    // Dialog 使用独立平台窗口；在进入窗口子组合前固定应用主题色，避免其默认色
+    // 在“系统深色 + 应用手动浅色”时从窗口配置重新跟随系统。
+    val dialogContainerColor = AppSurfaceTokens.cardContainer()
+    val dialogContentColor = MaterialTheme.colorScheme.onSurface
+    val dialogSecondaryContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val dialogRadioButtonColors = RadioButtonDefaults.colors(
+        selectedColor = MaterialTheme.colorScheme.primary,
+        unselectedColor = dialogSecondaryContentColor,
+    )
 
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -180,14 +190,14 @@ fun <T> AppSingleChoiceDialog(
                 .appContentDialogWidth(policy = layoutPolicy, wrapHeight = false)
                 .heightIn(max = maxDialogHeight),
             shape = AppShapes.container(ContainerLevel.Dialog),
-            color = AppSurfaceTokens.cardContainer(),
+            color = dialogContainerColor,
             tonalElevation = 6.dp,
         ) {
             Column(modifier = Modifier.padding(vertical = 12.dp)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = dialogContentColor,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
                 )
                 Column(
@@ -216,20 +226,21 @@ fun <T> AppSingleChoiceDialog(
                                 selected = selected,
                                 onClick = null,
                                 modifier = Modifier.size(48.dp),
+                                colors = dialogRadioButtonColors,
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = option.label,
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = dialogContentColor,
                                 )
                                 option.description?.let { description ->
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = description,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = dialogSecondaryContentColor,
                                     )
                                 }
                             }

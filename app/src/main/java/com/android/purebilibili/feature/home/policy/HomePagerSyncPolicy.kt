@@ -2,8 +2,6 @@ package com.android.purebilibili.feature.home.policy
 
 import com.android.purebilibili.feature.home.HomeCategory
 import com.android.purebilibili.feature.home.HomeTopTabEntry
-import com.android.purebilibili.feature.home.shouldOpenBangumiFromHomeTopTab
-import com.android.purebilibili.feature.home.shouldOpenLiveListFromHomeTopTab
 
 internal enum class HomePagerSettledAction {
     NONE,
@@ -18,13 +16,10 @@ internal fun shouldEnableHomeTopPagerUserScroll(isTopLevelActive: Boolean): Bool
 
 /**
  * 是否在首页 Pager 内渲染该分类内容。
- * 「直播」和「追番」都使用独立页面，不再内嵌在顶栏分页里。
+ * 直播 / 追番也作为独立页留在顶栏分页里，不再切走导航。
  */
 internal fun shouldDisplayHomeTopCategoryInline(category: HomeCategory?): Boolean {
-    if (category == null) return false
-    if (shouldOpenLiveListFromHomeTopTab(category)) return false
-    if (shouldOpenBangumiFromHomeTopTab(category)) return false
-    return true
+    return category != null
 }
 
 internal fun shouldSwitchHomeCategoryFromPager(
@@ -65,8 +60,6 @@ internal fun resolveHomePagerSettledAction(
 
     return when {
         settledCategory == null -> HomePagerSettledAction.NONE
-        shouldOpenLiveListFromHomeTopTab(settledCategory) -> HomePagerSettledAction.OPEN_LIVE_LIST
-        shouldOpenBangumiFromHomeTopTab(settledCategory) -> HomePagerSettledAction.OPEN_BANGUMI
         shouldDisplayHomeTopCategoryInline(settledCategory) -> HomePagerSettledAction.SWITCH_CATEGORY
         else -> HomePagerSettledAction.NONE
     }

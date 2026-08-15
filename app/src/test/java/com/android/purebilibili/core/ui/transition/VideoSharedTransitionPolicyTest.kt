@@ -710,13 +710,9 @@ class VideoSharedTransitionPolicyTest {
         assertTrue(singleColumnCardSource.contains("clipShape = cardShape"))
         assertTrue(singleColumnCardSource.contains("crossfadeSourceContent = true"))
         assertFalse(singleColumnCardSource.contains("followShellMotion = true"))
-        // 迁移后写成 AppSpacingTokens.TripleExtraLarge * 3（48.dp * 3），与 144.dp 等值。
-        assertTrue(
-            singleColumnCardSource.contains("HOME_STYLE_SINGLE_COLUMN_COVER_WIDTH = 144.dp") ||
-                singleColumnCardSource.contains(
-                    "HOME_STYLE_SINGLE_COLUMN_COVER_WIDTH = AppSpacingTokens.TripleExtraLarge * 3"
-                )
-        )
+        assertTrue(singleColumnCardSource.contains("HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP"))
+        assertTrue(singleColumnCardSource.contains("HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO"))
+        assertFalse(singleColumnCardSource.contains(".height(coverHeight)"))
         assertFalse(relatedCardSource.contains("videoCardShellSharedBoundsOrEmpty("))
         assertTrue(relatedCardSource.contains("sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE"))
         assertTrue(relatedCardSource.contains("sourceChromeSnapshot = VideoCardSourceChromeSnapshot("))

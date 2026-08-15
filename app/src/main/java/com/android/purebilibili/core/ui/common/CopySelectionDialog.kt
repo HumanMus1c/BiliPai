@@ -7,14 +7,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppTextButton
 
 @Composable
 fun CopySelectionDialog(
@@ -25,19 +25,19 @@ fun CopySelectionDialog(
     if (text.isBlank()) return
     val context = LocalContext.current
 
-    AlertDialog(
+    AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = title) },
+        title = { AppText(text = title) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
+                AppText(
                     text = "长按并拖拽选择需要复制的内容",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 SelectionContainer {
-                    Text(
+                    AppText(
                         text = text,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier
@@ -49,18 +49,18 @@ fun CopySelectionDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            AppTextButton(
                 onClick = {
                     copyPlainTextToClipboard(context, text, title)
                     onDismiss()
                 }
             ) {
-                Text("复制全部")
+                AppText("复制全部")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("关闭")
+            AppTextButton(onClick = onDismiss) {
+                AppText("关闭")
             }
         }
     )

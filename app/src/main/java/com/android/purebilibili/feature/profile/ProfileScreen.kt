@@ -15,6 +15,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -76,7 +78,7 @@ import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.components.AppPrimaryButton
 import com.android.purebilibili.core.ui.components.AppButton
-import com.android.purebilibili.core.ui.components.AppCircularProgressIndicator
+import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -156,6 +158,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.unit.times
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -263,7 +266,8 @@ fun ProfileScreen(
     onVideoClick: (String) -> Unit = {},  // [新增] 视频点击（三连彩蛋跳转用）
     onBangumiClick: (Long, Long) -> Unit = { _, _ -> },
     onBangumiMoreClick: () -> Unit = {},
-    deferImmersiveRenderBudget: Boolean = false
+    deferImmersiveRenderBudget: Boolean = false,
+    scrollToTopChannel: kotlinx.coroutines.channels.Channel<Unit>? = null
     // [注意] 移除了 globalHazeState - 双 hazeSource 模式与 Haze 库冲突
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -311,6 +315,12 @@ fun ProfileScreen(
     
     // [Blur] Haze State
     val hazeState = rememberRecoverableHazeState()
+    var profileScrollToTopRequestId by remember { mutableIntStateOf(0) }
+    LaunchedEffect(scrollToTopChannel) {
+        scrollToTopChannel?.receiveAsFlow()?.collect {
+            profileScrollToTopRequestId += 1
+        }
+    }
 
     //  设置沉浸式状态栏和导航栏（进入时修改，离开时恢复）
     DisposableEffect(shouldControlSystemBars, lightStatusBars) {
@@ -471,7 +481,8 @@ fun ProfileScreen(
                     hazeState = hazeState,
                     // [New] 传递点击头部去登录的回调 (需修改 MobileProfileContent 支持)
                     onHeaderClick = onGoToLogin,
-                    paddingValues = PaddingValues(0.dp) // 全屏
+                    paddingValues = PaddingValues(0.dp), // 全屏
+                    scrollToTopRequestId = profileScrollToTopRequestId
                 )
             }
 
@@ -674,7 +685,8 @@ fun ProfileScreen(
                         onThemeClick = toggleThemeMode,
                         hazeState = hazeState,
                         paddingValues = padding,
-                        isTablet = windowSizeClass.shouldUseSplitLayout
+                        isTablet = windowSizeClass.shouldUseSplitLayout,
+                        scrollToTopRequestId = profileScrollToTopRequestId
                     )
                 }
             }
@@ -826,7 +838,8 @@ private fun ProfileSpaceContent(
     onThemeClick: () -> Unit,
     hazeState: HazeState?,
     paddingValues: PaddingValues,
-    isTablet: Boolean
+    isTablet: Boolean,
+    scrollToTopRequestId: Int = 0
 ) {
     var showEditDialog by remember { mutableStateOf(false) }
     var showAdjustmentSheet by remember { mutableStateOf(false) }
@@ -940,6 +953,14 @@ private fun ProfileSpaceContent(
         )
     }
     val topBarIconColor = heroChrome.textColor
+    val tabletRailScrollState = rememberScrollState()
+    val tabletFeedListState = rememberLazyListState()
+    val mobileListState = rememberLazyListState()
+    ObserveProfileScrollToTop(
+        requestId = scrollToTopRequestId,
+        listState = if (isTablet) tabletFeedListState else mobileListState,
+        scrollState = if (isTablet) tabletRailScrollState else null
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isTablet) {
@@ -954,7 +975,7 @@ private fun ProfileSpaceContent(
                 Column(
                     modifier = Modifier
                         .widthIn(min = 300.dp, max = 360.dp)
-                        .verticalScroll(rememberScrollState()),
+                        .verticalScroll(tabletRailScrollState),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     ProfileSpaceHeader(
@@ -1000,11 +1021,13 @@ private fun ProfileSpaceContent(
                     onDynamicDeleteClick = onDynamicDeleteClick,
                     contentChrome = contentChrome,
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 48.dp)
+                    contentPadding = PaddingValues(bottom = 48.dp),
+                    listState = tabletFeedListState
                 )
             }
         } else {
             LazyColumn(
+                state = mobileListState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = paddingValues.calculateBottomPadding() + 120.dp)
             ) {
@@ -1119,9 +1142,14 @@ private fun ProfileSpaceFeedColumn(
     onDynamicDeleteClick: (DynamicDeleteAction) -> Unit,
     contentChrome: ProfileContentChrome,
     modifier: Modifier,
-    contentPadding: PaddingValues
+    contentPadding: PaddingValues,
+    listState: LazyListState
 ) {
-    LazyColumn(modifier = modifier.fillMaxHeight(), contentPadding = contentPadding) {
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxHeight(),
+        contentPadding = contentPadding
+    ) {
         item {
             ProfileSpaceTabs(
                 selectedTab = space.selectedTab,
@@ -2199,7 +2227,7 @@ private fun ProfileVideoList(
     when (resolveProfileContributionContentState(loadState, videos.isNotEmpty())) {
         ProfileContributionContentState.LOADING -> {
             Box(modifier = modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                AppCircularProgressIndicator()
+                AdaptiveLoadingIndicator()
             }
             return
         }
@@ -2850,7 +2878,8 @@ fun MobileProfileContent(
     onSettingsClick: () -> Unit,
     hazeState: HazeState? = null,
     onHeaderClick: () -> Unit = {}, // [New] Support header click for guest login
-    paddingValues: PaddingValues = PaddingValues(0.dp)
+    paddingValues: PaddingValues = PaddingValues(0.dp),
+    scrollToTopRequestId: Int = 0
 ) {
     val windowSizeClass = LocalWindowSizeClass.current
     
@@ -2991,9 +3020,15 @@ fun MobileProfileContent(
 
         // YES, remove background here.
         
+    val guestListState = rememberLazyListState()
+    ObserveProfileScrollToTop(
+        requestId = scrollToTopRequestId,
+        listState = guestListState
+    )
     Box(modifier = Modifier.fillMaxSize()) {
             // 📜 滚动内容
             LazyColumn(
+                state = guestListState,
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (hazeState != null) Modifier.hazeSourceCompat(hazeState) else Modifier),
@@ -4645,6 +4680,27 @@ fun ProfileTripleActionEntry(
                         showDialog = true
                     }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ObserveProfileScrollToTop(
+    requestId: Int,
+    listState: LazyListState? = null,
+    scrollState: androidx.compose.foundation.ScrollState? = null
+) {
+    LaunchedEffect(requestId) {
+        if (requestId <= 0) return@LaunchedEffect
+        listState?.let { state ->
+            if (state.firstVisibleItemIndex > 0 || state.firstVisibleItemScrollOffset > 0) {
+                state.animateScrollToItem(0)
+            }
+        }
+        scrollState?.let { state ->
+            if (state.value > 0) {
+                state.animateScrollTo(0)
             }
         }
     }

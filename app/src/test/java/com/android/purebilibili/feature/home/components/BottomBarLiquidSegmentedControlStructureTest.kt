@@ -62,7 +62,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
     @Test
     fun `segmented capture expands past full drag scale lens and panel offset`() {
         assertEquals(
-            92f,
+            72f,
             resolveBottomBarCaptureSafeInsetDp(
                 indicatorWidthDp = 224f,
                 refractionHeightDp = 24f,
@@ -297,68 +297,48 @@ class BottomBarLiquidSegmentedControlStructureTest {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarLiquidSegmentedControl.kt"
         )
+        val floating = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
+        )
         val sharedChrome = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarMatchedLiquidChrome.kt"
         )
 
         assertTrue(source.contains("BottomBarMotionProfile.ANDROID_NATIVE_FLOATING"))
         assertFalse(source.contains("BottomBarMotionProfile.IOS_FLOATING"))
-        assertTrue(source.contains("rememberBottomBarMatchedLiquidChromeState("))
-        assertTrue(source.contains("BottomBarMatchedLiquidDock("))
-        assertTrue(source.contains("BottomBarMatchedLiquidIndicator("))
-        assertTrue(source.contains("drawShellLens = false"))
-        assertTrue(source.contains("resolveSharedLiquidIndicatorPanelOffsetPx("))
-        assertTrue(source.contains("horizontalDragGesture("))
+        assertTrue(source.contains("BottomBarFloatingSegmentedControl("))
+        assertTrue(floating.contains("DampedDragAnimation("))
+        assertTrue(floating.contains("dampedDragAnimation.modifier"))
+        assertTrue(floating.contains("interactiveHighlight?.gestureModifier"))
+        assertTrue(floating.contains("val progressOffset = dampedDragAnimation.value * tabWidthPx"))
+        assertTrue(floating.contains("resolveSegmentedControlIndicatorHeightDp("))
+        assertTrue(floating.contains("resolveMatchedLiquidIndicatorGeometry("))
+        assertTrue(floating.contains("dampedDragAnimation.pressedScale = indicatorGeometry.pressedScale"))
+        assertFalse(floating.contains(".padding(vertical = bloomOverflowDp)"))
+        assertEquals(
+            1,
+            Regex("""\blens\(""").findAll(floating).count(),
+            "Only the moving indicator may refract; a full-shell lens creates center seams"
+        )
+        assertTrue(floating.contains(".layerBackdrop(tabsBackdrop)"))
+        assertTrue(floating.contains("rememberGravityRotatedHighlight(extraDegrees = 90f)"))
+        assertFalse(floating.contains("displayPosition"))
+        assertFalse(floating.contains("BottomBarMatchedLiquidDock("))
+        assertFalse(floating.contains("horizontalDragGesture("))
+        assertFalse(floating.contains("rememberBottomBarMatchedLiquidChromeState("))
+        assertFalse(floating.contains("Invisible hit / drag layer"))
         assertTrue(source.contains("BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_HEIGHT_DP = 58"))
-        assertTrue(source.contains("BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_INDICATOR_HEIGHT_DP = 56"))
-        assertTrue(source.contains("val localPageMiuixBackdrop = rememberMiuixLayerBackdrop()"))
-        assertTrue(source.contains(".miuixLayerBackdrop(localPageMiuixBackdrop)"))
-        assertTrue(source.contains("bottomBarMatchedCaptureOverflow(captureSafeInset)"))
-        assertTrue(source.contains(".background(AppSurfaceTokens.background())"))
-        val hiddenExport = source
-            .substringAfter("// 2) Hidden export capture")
-            .substringBefore("// 3) Capsule on top")
-        assertFalse(hiddenExport.contains("bottomBarMatchedCaptureOverflow("))
-        assertTrue(source.contains("rememberMiuixCombinedBackdrop("))
-        assertTrue(source.contains("shouldDrawSegmentedControlExportCaptureBackdrop("))
-        assertTrue(source.contains("resolveBottomBarBackdropPresetCaptureLens("))
-        assertTrue(source.contains("resolveBottomBarBackdropPresetIndicatorLens("))
-        assertTrue(source.contains("forceUnselectedColor = useGlassColorPath"))
-        assertTrue(source.contains("ColorFilter.tint(exportTintColor)"))
-        assertFalse(source.contains("val indicatorScale = lerp(1f, 78f / 56f, motionProgress)"))
-        assertFalse(source.contains("velocity = dragState.velocity / 10f"))
         assertTrue(source.contains("liquidGlassEffectsEnabled: Boolean = true"))
         assertTrue(source.contains("dragSelectionEnabled: Boolean = true"))
-        assertTrue(source.contains("getHomeSettings("))
-        assertTrue(source.contains("visualPolicy.supportsIndependentLiquidGlass"))
         assertTrue(source.contains("resolveSegmentedControlChromeStyle("))
         assertTrue(source.contains("AndroidNativeUnderlinedSegmentedControl("))
-        assertTrue(source.contains("SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE"))
-        assertTrue(source.contains("onIndicatorPositionChanged?.invoke(indicatorPosition)"))
         assertTrue(source.contains("indicatorPositionProvider: (() -> Float)? = null"))
-        assertTrue(source.contains("resolveSegmentedControlIndicatorPosition("))
-        assertTrue(source.contains("externalPosition = if (dragState.isDragging) null else indicatorPositionProvider?.invoke()"))
         assertTrue(source.contains("val underlineOffsetX = (segmentWidth * indicatorPosition) + ((segmentWidth - underlineWidth) / 2)"))
-        assertTrue(source.contains("if (enabled && itemCount > 1 && dragSelectionEnabled)"))
-        assertTrue(source.contains("onPressChanged = dragState::setPressed"))
-        assertTrue(source.contains("resolveSegmentedControlIndicatorWidthDp("))
-        assertTrue(source.contains("resolveSegmentedControlIndicatorHeightDp("))
-        assertTrue(source.contains("resolveSegmentedControlIndicatorOffsetDp("))
-        assertTrue(source.contains("val indicatorShape = resolveSharedBottomBarCapsuleShape()"))
-        assertTrue(source.contains("val containerShape = indicatorShape"))
-        assertTrue(source.contains("indicatorWidth = indicatorWidth"))
-        assertTrue(source.contains("indicatorHeight = resolvedIndicatorHeight"))
-
+        assertTrue(floating.contains("FloatingBottomBarPressedScale"))
+        assertTrue(floating.contains("rememberCombinedBackdrop(pageBackdrop, tabsBackdrop)"))
+        assertTrue(floating.contains("dampedDragAnimation.modifier"))
         assertTrue(sharedChrome.contains("holdPressUntilReleaseTargetSettles = true"))
-        assertTrue(sharedChrome.contains("resolveBottomBarMaterialScrollAnimationDurationMillis(isScrolling)"))
-        assertTrue(sharedChrome.contains("BiliPaiMiuixBottomBarIndicatorLayer("))
-        assertTrue(sharedChrome.contains("BottomBarLiquidOrientation.VERTICAL"))
-        assertTrue(sharedChrome.contains("swapMotionAxes = orientation == BottomBarLiquidOrientation.VERTICAL"))
-        assertTrue(source.contains("contentBackdrop = combinedMiuixBackdrop"))
-        assertTrue(source.contains("backdrop = pageMiuixBackdrop"))
-        // Kyant legacy capture path removed.
-        assertFalse(source.contains("legacyContentBackdrop = tabsBackdrop"))
-        assertFalse(source.contains("legacyBackdrop = backdrop"))
+        assertFalse(source.contains("BottomBarLiquidIndicatorSurface("))
     }
 
     @Test
@@ -376,6 +356,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertFalse(dynamicTopBar.contains("DynamicCompactTabRow("))
         assertTrue(dynamicScreen.contains("BottomBarMatchedDockVisibility("))
         assertTrue(dynamicScreen.contains("edge = BottomBarMatchedDockEdge.TOP"))
+        assertTrue(dynamicScreen.contains("animateScale = false"))
         assertTrue(dynamicScreen.contains("activeListState?.isScrollInProgress == true"))
         assertTrue(dynamicScreen.contains("pagerState.isScrollInProgress"))
     }
@@ -395,27 +376,26 @@ class BottomBarLiquidSegmentedControlStructureTest {
 
         assertTrue(commonList.contains("val commonListChromeBackdrop = rememberLayerBackdrop()"))
         assertTrue(commonList.contains(".layerBackdrop(commonListChromeBackdrop)"))
-        assertTrue(commonList.contains("backdrop = commonListChromeBackdrop"))
-        assertTrue(videoContent.contains("val videoContentChromeBackdrop = rememberLayerBackdrop()"))
-        assertTrue(videoContent.contains("chromeBackdrop = videoContentChromeBackdrop"))
-        assertTrue(videoContent.contains("backdrop = videoContentChromeBackdrop"))
+        assertTrue(commonList.contains("miuixBackdrop = commonListChromeBackdrop"))
+        assertTrue(videoContent.contains("val videoContentMiuixBackdrop = rememberMiuixLayerBackdrop()"))
+        assertTrue(videoContent.contains("chromeBackdrop = videoContentMiuixBackdrop"))
+        assertTrue(videoContent.contains("miuixBackdrop = videoContentMiuixBackdrop"))
         assertTrue(videoContent.contains("Column(modifier = modifier.fillMaxSize())"))
-        assertTrue(commentSortBar.contains("backdrop = backdrop"))
+        assertTrue(commentSortBar.contains("miuixBackdrop = miuixBackdrop"))
         assertTrue(commentSheetHost.contains("val commentChromeBackdrop = rememberLayerBackdrop()"))
         assertTrue(commentSheetHost.contains(".layerBackdrop(commentChromeBackdrop)"))
-        assertTrue(iosSegmented.contains("backdrop: Backdrop? = null"))
-        assertTrue(iosSegmented.contains("backdrop = backdrop"))
+        assertFalse(iosSegmented.contains("backdrop = backdrop"))
     }
 
     @Test
     fun `segmented control does not attach drag gesture when drag selection is disabled`() {
-        val source = loadSource(
-            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarLiquidSegmentedControl.kt"
+        val floating = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
         )
 
         assertTrue(
-            source.contains("if (enabled && itemCount > 1 && dragSelectionEnabled)"),
-            "Scrollable contribution tabs disable drag selection, so the liquid indicator must not attach a competing horizontal drag gesture"
+            floating.contains("enabled && itemCount > 1 && dragSelectionEnabled"),
+            "Scrollable contribution tabs disable drag selection, so the liquid indicator must not attach a competing drag gesture"
         )
     }
 

@@ -98,6 +98,7 @@ fun FrostedSideBar(
         BottomNavItem.PROFILE
     ),
     itemColorIndices: Map<String, Int> = emptyMap(),
+    itemLabels: Map<String, String> = emptyMap(),
     uiSkinDecoration: BottomBarUiSkinDecoration? = null,
     onToggleSidebar: (() -> Unit)? = null,
     onAccountSwitchClick: (() -> Unit)? = null,
@@ -111,6 +112,7 @@ fun FrostedSideBar(
                 hazeState = hazeState,
                 onHomeDoubleTap = onHomeDoubleTap,
                 visibleItems = visibleItems,
+                itemLabels = itemLabels,
                 uiSkinDecoration = uiSkinDecoration,
                 onToggleSidebar = onToggleSidebar,
                 onAccountSwitchClick = onAccountSwitchClick,
@@ -124,6 +126,7 @@ fun FrostedSideBar(
                 hazeState = hazeState,
                 onHomeDoubleTap = onHomeDoubleTap,
                 visibleItems = visibleItems,
+                itemLabels = itemLabels,
                 uiSkinDecoration = uiSkinDecoration,
                 onToggleSidebar = onToggleSidebar,
                 onAccountSwitchClick = onAccountSwitchClick,
@@ -140,6 +143,7 @@ private fun MiuixSideBar(
     hazeState: HazeState?,
     onHomeDoubleTap: () -> Unit,
     visibleItems: List<BottomNavItem>,
+    itemLabels: Map<String, String>,
     uiSkinDecoration: BottomBarUiSkinDecoration?,
     onToggleSidebar: (() -> Unit)?,
     onAccountSwitchClick: (() -> Unit)?,
@@ -185,7 +189,7 @@ private fun MiuixSideBar(
     ) {
         visibleItems.forEachIndexed { itemIndex, item ->
             val isSelected = item == currentItem
-            val itemLabel = resolveBottomNavItemLabel(item)
+            val itemLabel = resolveBottomNavItemLabel(item, itemLabels)
             val skinIconPath = uiSkinDecoration?.iconPathFor(item, selected = isSelected)
             val itemModifier = if (itemIndex == 0) firstItemModifier else Modifier
             val onItemTap = {
@@ -316,6 +320,7 @@ private fun FrostedSideBarContent(
     hazeState: HazeState?,
     onHomeDoubleTap: () -> Unit,
     visibleItems: List<BottomNavItem>,
+    itemLabels: Map<String, String>,
     uiSkinDecoration: BottomBarUiSkinDecoration?,
     onToggleSidebar: (() -> Unit)?,
     onAccountSwitchClick: (() -> Unit)?,
@@ -385,7 +390,7 @@ private fun FrostedSideBarContent(
         ) {
             visibleItems.forEachIndexed { itemIndex, item ->
                 val isSelected = item == currentItem
-                val itemLabel = resolveBottomNavItemLabel(item)
+                val itemLabel = resolveBottomNavItemLabel(item, itemLabels)
 
                 var isPending by remember { mutableStateOf(false) }
                 var wobbleAngle by remember { mutableFloatStateOf(0f) }

@@ -84,7 +84,7 @@ fun ActionButton(
     //  统一主题颜色 - 根据激活状态调整
     val buttonColor = when {
         !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(0.45f)
-        isLike && isActive -> DynamicStatusPalette.Liked
+        isLike && isActive -> DynamicStatusPalette.liked()
         isLike -> MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
         isForward -> MaterialTheme.colorScheme.primary  // 使用主题色替代硬编码
         isComment -> MaterialTheme.colorScheme.primary

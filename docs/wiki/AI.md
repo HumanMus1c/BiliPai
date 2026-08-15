@@ -1,6 +1,6 @@
 # AI Source Map / AI 事实导航
 
-最后核对：2026-08-04。本文只提供仓库路径与事实优先级，不替代源码检查。
+最后核对：2026-08-15。本文只提供仓库路径与事实优先级，不替代源码检查。
 
 ## 推荐入口
 
@@ -51,7 +51,7 @@
 4. Wiki 与插件开发文档。
 5. `README.md` / `README_EN.md`。
 
-当前 `app/build.gradle.kts` 声明构建 `0.2.0 / versionCode 284`（`MAJOR.MINOR.PATCH`）；`CHANGELOG.md` 最新记录为 `v0.2.0`。公开发布状态仍以 GitHub / Telegram 为准。
+当前 `app/build.gradle.kts` 声明构建 `0.2.3-beta.5 / versionCode 294`；`CHANGELOG.md` 最新记录为 `v0.2.3-beta.5`。公开发布状态仍以 GitHub / Telegram 为准。
 
 当前构建基线为 AGP 9.3.1、Gradle 9.5、Kotlin 2.4、compileSdk 37；Navigation3 runtime/UI 使用官方同版 `1.2.0-alpha07`，Miuix `0.9.3` 继续用于主题与视觉组件，不再提供 NavDisplay 实现。
 

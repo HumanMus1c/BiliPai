@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.home
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class HomeFeedCardStylePolicyTest {
 
@@ -47,15 +48,16 @@ class HomeFeedCardStylePolicyTest {
         assertEquals(8, layout.storyCardHorizontalPaddingDp)
         assertEquals(true, layout.compactMetadata)
         assertEquals("16:10", HomeFeedCardStyle.BILIPAI.label)
+        assertTrue(HomeFeedCardStyle.BILIPAI.subtitle.contains("信息流"))
         assertEquals(2, HomeFeedCardStyle.BILIPAI.value)
         assertEquals(HomeFeedCardStyle.BILIPAI, HomeFeedCardStyle.fromValue(2))
     }
 
     @Test
-    fun singleColumn_usesSixteenByNineForEveryCardStyle() {
+    fun singleColumn_usesSixteenByTenForEveryCardStyle() {
         HomeFeedCardStyle.entries.forEach { style ->
             assertEquals(
-                HOME_FEED_FULL_COVER_ASPECT_RATIO,
+                HOME_FEED_BILIPAI_COVER_ASPECT_RATIO,
                 resolveHomeFeedCoverAspectRatio(style = style, gridColumns = 1),
                 0.0001f,
             )

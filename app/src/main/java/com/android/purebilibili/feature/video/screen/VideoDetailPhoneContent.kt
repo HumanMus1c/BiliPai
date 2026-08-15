@@ -109,7 +109,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
     onShowExternalPlaylistQueueSheet: () -> Unit
 ) {
     val engagementSuccess = success.withEngagementUiState(engagementState)
-    val danmakuManager = rememberDanmakuManager()
+    val danmakuManager = rememberDanmakuManager(success.info.bvid)
     // Android 16 ART 曾拒绝校验 VideoDetailScreen 中捕获过多状态的匿名 Compose lambda。
     // 保持这个成功态为命名边界，避免 R8/Compose 再生成单个超大内容块。
     key(success.info.bvid) {

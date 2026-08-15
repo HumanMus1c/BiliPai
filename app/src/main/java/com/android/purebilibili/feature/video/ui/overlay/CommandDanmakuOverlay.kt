@@ -67,7 +67,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
-import com.android.purebilibili.core.theme.BiliPink
+
 import com.android.purebilibili.core.ui.AppIcons
 import com.android.purebilibili.feature.video.danmaku.CommandDanmakuItem
 import com.android.purebilibili.feature.video.danmaku.CommandDanmakuType
@@ -259,8 +259,8 @@ private fun AttentionCommandCard(
             },
             shape = AppShapes.container(ContainerLevel.Pill),
             colors = ButtonDefaults.buttonColors(
-                containerColor = BiliPink,
-                contentColor = Color.White
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ),
             elevation = null,
             contentPadding = PaddingValues(horizontal = 14.dp),
@@ -344,14 +344,14 @@ private fun CommandTripleActionBurst(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .clip(AppShapes.container(ContainerLevel.Pill))
-                .background(BiliPink.copy(alpha = 0.16f))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
                 .widthIn(min = 118.dp)
                 .padding(horizontal = 10.dp, vertical = 6.dp)
         ) {
             CommandTripleActionIcon(
                 icon = Icons.Rounded.ThumbUp,
                 progress = progress,
-                color = BiliPink
+                color = MaterialTheme.colorScheme.primary
             )
             CommandTripleActionIcon(
                 icon = AppIcons.BiliCoin,
@@ -501,9 +501,9 @@ private fun VoteCommandCard(
                     enabled = !isSubmitted,
                     shape = AppShapes.container(ContainerLevel.Chip),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelected) BiliPink else Color.White.copy(alpha = 0.14f),
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.14f),
                         contentColor = Color.White,
-                        disabledContainerColor = if (isSelected) BiliPink.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.10f),
+                        disabledContainerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.10f),
                         disabledContentColor = Color.White.copy(alpha = 0.85f)
                     ),
                     elevation = null,

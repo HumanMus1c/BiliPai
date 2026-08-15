@@ -116,9 +116,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.DIAGNOSTICS,
         title = "诊断与开发",
-        subtitle = "崩溃追踪、使用情况统计、播放器诊断与导出日志",
+        subtitle = "崩溃追踪、增强诊断日志、播放器诊断与日志导出",
         section = "设置",
-        aliases = listOf("诊断", "开发", "崩溃追踪", "使用情况统计", "播放器诊断日志", "画质降档诊断弹窗", "降档弹窗", "仅提示一次", "仅弹窗一次", "导出日志", "日志")
+        aliases = listOf("诊断", "开发", "崩溃追踪", "使用情况统计", "增强诊断日志", "详细日志", "隐私脱敏", "播放器诊断日志", "画质降档诊断弹窗", "降档弹窗", "仅提示一次", "仅弹窗一次", "导出日志", "日志")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.ABOUT_SUPPORT,
@@ -536,9 +536,9 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.HOME_FEED,
         title = "首页与列表",
-        subtitle = "展示样式、列表顶部栏、首页壁纸效果、推荐流卡片宽度",
+        subtitle = "展示样式、列表顶部栏、一键回顶、首页壁纸效果、推荐流卡片宽度",
         section = "首页设置",
-        aliases = listOf("首页展示", "首页与列表", "展示样式", "列表顶部栏", "历史记录顶部栏", "收藏夹顶部栏", "折叠", "首页壁纸", "首页壁纸效果", "原图壁纸", "壁纸模糊", "强模糊", "推荐流卡片宽度", "首页卡片宽度", "卡片宽度", "统计信息贴封面", "UP主标识", "UP标识", "up主标识", "up标识", "UP主头像", "UP头像", "up主头像", "up头像", "隐藏头像"),
+        aliases = listOf("首页展示", "首页与列表", "展示样式", "列表顶部栏", "历史记录顶部栏", "收藏夹顶部栏", "一键回顶", "回到顶部", "搜索回顶", "评论区回顶", "折叠", "首页壁纸", "首页壁纸效果", "原图壁纸", "壁纸模糊", "强模糊", "推荐流卡片宽度", "首页卡片宽度", "卡片宽度", "统计信息贴封面", "UP主标识", "UP标识", "up主标识", "up标识", "UP主头像", "UP头像", "up主头像", "up头像", "隐藏头像"),
         focusId = SettingsSearchFocusIds.HOME_OVERVIEW
     ),
     SettingsSearchEntry(

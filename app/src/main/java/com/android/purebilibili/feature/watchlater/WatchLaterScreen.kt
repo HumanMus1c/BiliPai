@@ -14,6 +14,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import com.android.purebilibili.core.ui.animation.DissolveAnimationPreset
 import com.android.purebilibili.core.ui.animation.MaybeDissolvableVideoCard
 import com.android.purebilibili.core.ui.animation.jiggleOnDissolve
@@ -626,7 +629,8 @@ fun WatchLaterScreen(
     initialSearchQuery: String = "",
     onOpenSearchDestination: ((String) -> Unit)? = null,
     viewModel: WatchLaterViewModel = viewModel(),
-    globalHazeState: HazeState? = null // [新增]
+    globalHazeState: HazeState? = null, // [新增]
+    scrollToTopChannel: Channel<Unit>? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -645,6 +649,14 @@ fun WatchLaterScreen(
     var pendingManagementAction by rememberSaveable { mutableStateOf<WatchLaterManagementAction?>(null) }
     var searchQuery by rememberSaveable { mutableStateOf(initialSearchQuery) }
     val displayedItems = state.items
+    val gridState = rememberLazyGridState()
+    LaunchedEffect(scrollToTopChannel) {
+        scrollToTopChannel?.receiveAsFlow()?.collect {
+            if (gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0) {
+                gridState.animateScrollToItem(0)
+            }
+        }
+    }
 
     LaunchedEffect(searchQuery) {
         kotlinx.coroutines.delay(350)
@@ -971,6 +983,7 @@ fun WatchLaterScreen(
                 else -> {
                     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                     LazyVerticalGrid(
+                        state = gridState,
                         columns = GridCells.Fixed(resolveWatchLaterColumnCount(maxWidth.value)),
                         contentPadding = PaddingValues(
                             start = AppSpacingTokens.Medium,

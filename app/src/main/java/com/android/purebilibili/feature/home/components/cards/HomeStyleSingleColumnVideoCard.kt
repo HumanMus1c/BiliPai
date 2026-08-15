@@ -10,16 +10,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import com.android.purebilibili.core.ui.components.AppIcon
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
@@ -35,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
@@ -48,11 +44,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
+import com.android.purebilibili.core.ui.FeedTitleHierarchy
 import com.android.purebilibili.core.ui.feedContentTypography
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -76,14 +72,12 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.PlayArrow
 import kotlinx.coroutines.launch
 
-internal val HOME_STYLE_SINGLE_COLUMN_COVER_WIDTH = AppSpacingTokens.TripleExtraLarge * 3
-
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun HomeStyleSingleColumnVideoCard(
     video: VideoItem,
     sourceRoute: String,
-    coverAspectRatio: Float,
+    @Suppress("UNUSED_PARAMETER") coverAspectRatio: Float,
     transitionEnabled: Boolean,
     sharedTransitionEnabled: Boolean = transitionEnabled,
     isFollowing: Boolean = false,
@@ -93,7 +87,7 @@ internal fun HomeStyleSingleColumnVideoCard(
     onMoreClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    val contentTypography = feedContentTypography()
+    val contentTypography = feedContentTypography(FeedTitleHierarchy.Standard)
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenWidthPx = remember(configuration.screenWidthDp, density) {
@@ -181,8 +175,7 @@ internal fun HomeStyleSingleColumnVideoCard(
         }
         Unit
     }
-    val coverHeight = HOME_STYLE_SINGLE_COLUMN_COVER_WIDTH /
-        coverAspectRatio.coerceAtLeast(1f)
+    val coverWidth = HORIZONTAL_VIDEO_CARD_COVER_WIDTH_DP.dp
 
     Row(
         modifier = modifier
@@ -203,13 +196,13 @@ internal fun HomeStyleSingleColumnVideoCard(
             .background(AppSurfaceTokens.cardContainer())
             .clickable(onClick = triggerClick)
             .padding(AppSpacingTokens.Small),
-        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Medium),
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_VIDEO_CARD_COVER_INFO_GAP_DP.dp),
+        verticalAlignment = Alignment.Top,
     ) {
         Box(
             modifier = Modifier
-                .width(HOME_STYLE_SINGLE_COLUMN_COVER_WIDTH)
-                .height(coverHeight)
+                .width(coverWidth)
+                .aspectRatio(HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO)
                 .onGloballyPositioned { coordinates ->
                     coverBounds.value = coordinates.boundsInRoot()
                 }
@@ -240,48 +233,17 @@ internal fun HomeStyleSingleColumnVideoCard(
         }
 
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .height(coverHeight),
-            verticalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
         ) {
-            Row(
+            AppText(
+                text = video.title,
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-            ) {
-                AppText(
-                    text = video.title,
-                    modifier = Modifier.weight(1f),
-                    style = contentTypography.title,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                if (onMoreClick != null) {
-                    val moreHaptic = rememberHapticFeedback()
-                    Box(
-                        modifier = Modifier
-                            .size(AppChromeSizeTokens.MinimumTouchTarget)
-                            .clip(CircleShape)
-                            .semantics { contentDescription = "更多操作" }
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            ) {
-                                moreHaptic(HapticType.LIGHT)
-                                onMoreClick()
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        AppText(
-                            text = "⋮",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = MaterialTheme.typography.titleMedium.fontSize,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
-            }
+                style = contentTypography.title,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
 
             UpBadgeName(
                 name = video.owner.name,
@@ -304,41 +266,38 @@ internal fun HomeStyleSingleColumnVideoCard(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SingleColumnStatItem(
-                    icon = Icons.Filled.PlayArrow,
-                    text = FormatUtils.formatStat(video.stat.view.toLong()),
-                )
-                Spacer(modifier = Modifier.width(AppSpacingTokens.Medium))
-                SingleColumnStatItem(
-                    icon = Icons.Filled.ChatBubble,
-                    text = FormatUtils.formatStat(video.stat.danmaku.toLong()),
+            HorizontalVideoStatRow(
+                playText = FormatUtils.formatStat(video.stat.view.toLong()),
+                danmakuText = FormatUtils.formatStat(video.stat.danmaku.toLong()),
+                playIcon = Icons.Filled.PlayArrow,
+                danmakuIcon = Icons.Filled.ChatBubble,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        if (onMoreClick != null) {
+            val moreHaptic = rememberHapticFeedback()
+            Box(
+                modifier = Modifier
+                    .size(AppChromeSizeTokens.MinimumTouchTarget)
+                    .clip(CircleShape)
+                    .semantics { contentDescription = "更多操作" }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        moreHaptic(HapticType.LIGHT)
+                        onMoreClick()
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                AppText(
+                    text = "⋮",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = MaterialTheme.typography.titleMedium.fontSize,
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun SingleColumnStatItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String,
-) {
-    val contentTypography = feedContentTypography()
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
-    ) {
-        AppIcon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(AppSpacingTokens.Medium + AppSpacingTokens.Micro),
-        )
-        AppText(
-            text = text,
-            style = contentTypography.statistic,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }

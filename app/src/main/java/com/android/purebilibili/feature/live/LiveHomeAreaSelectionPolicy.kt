@@ -9,6 +9,19 @@ import com.android.purebilibili.data.model.response.LiveFeedAreaEntry
  * `room/v1/Area/getList` returns first-level areas. Per its API contract, a first-level
  * area is queried as `parent_area_id=<parent id>` with `area_id=0`.
  */
+internal const val LIVE_HOME_RECOMMEND_INDEX = 0
+internal const val LIVE_HOME_FOLLOWED_INDEX = 1
+internal const val LIVE_HOME_AREA_INDEX_OFFSET = 2
+
+internal fun isLiveHomeFollowedTab(selectedAreaIndex: Int): Boolean =
+    selectedAreaIndex == LIVE_HOME_FOLLOWED_INDEX
+
+internal fun resolveLiveHomeAreaListIndex(selectedAreaIndex: Int): Int =
+    selectedAreaIndex - LIVE_HOME_AREA_INDEX_OFFSET
+
+internal fun resolveLiveHomeSelectedIndexForArea(areaListIndex: Int): Int =
+    areaListIndex + LIVE_HOME_AREA_INDEX_OFFSET
+
 internal fun resolveLiveHomeAreaEntries(
     feedEntries: List<LiveFeedAreaEntry>,
     areaParents: List<LiveAreaParent>

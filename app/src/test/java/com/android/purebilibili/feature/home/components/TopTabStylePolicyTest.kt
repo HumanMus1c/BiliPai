@@ -272,12 +272,12 @@ class TopTabStylePolicyTest {
     fun `ios top tab tuning uses the compact shared top tab footprint`() {
         val tuning = resolveTopTabVisualTuning(AppTopTabPresentation.MOVING_CAPSULE)
 
-        assertEquals(30f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
+        assertEquals(35f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
         assertEquals(9f, tuning.nonFloatingIndicatorCornerDp, 0.001f)
         assertEquals(1.18f, tuning.nonFloatingIndicatorWidthRatio, 0.001f)
         assertEquals(84f, tuning.nonFloatingIndicatorMinWidthDp, 0.001f)
         assertEquals(0f, tuning.nonFloatingIndicatorHorizontalInsetDp, 0.001f)
-        assertEquals(30f, tuning.floatingIndicatorHeightDp, 0.001f)
+        assertEquals(35f, tuning.floatingIndicatorHeightDp, 0.001f)
         assertEquals(15f, tuning.tabTextSizeSp, 0.001f)
         assertEquals(20f, tuning.tabTextLineHeightSp, 0.001f)
         assertEquals(30f, tuning.tabContentMinHeightDp, 0.001f)
@@ -289,9 +289,9 @@ class TopTabStylePolicyTest {
     fun `md3 top tab tuning uses the compact shared top tab shape`() {
         val tuning = resolveTopTabVisualTuning(AppTopTabPresentation.MATERIAL_UNDERLINE)
 
-        assertEquals(30f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
+        assertEquals(35f, tuning.nonFloatingIndicatorHeightDp, 0.001f)
         assertEquals(9f, tuning.nonFloatingIndicatorCornerDp, 0.001f)
-        assertEquals(30f, tuning.floatingIndicatorHeightDp, 0.001f)
+        assertEquals(35f, tuning.floatingIndicatorHeightDp, 0.001f)
         assertEquals(15f, tuning.tabTextSizeSp, 0.001f)
     }
 
