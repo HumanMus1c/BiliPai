@@ -21,7 +21,11 @@ internal data class HistoryFilterTabChromeSpec(
 
 internal fun shouldUseHistoryFilterLiquidDock(
     androidNativeLiquidGlassEnabled: Boolean
-): Boolean = androidNativeLiquidGlassEnabled
+): Boolean {
+    @Suppress("UNUSED_PARAMETER")
+    val ignored = androidNativeLiquidGlassEnabled
+    return false
+}
 
 internal fun resolveHistoryFilterTabItemWidthDp(filterCount: Int): Int {
     return when {

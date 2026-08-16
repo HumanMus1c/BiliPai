@@ -953,7 +953,7 @@ class HomeHeaderVisualPolicyTest {
 
         assertTrue(appearance.isFloating)
         assertTrue(appearance.blurEnabled)
-        assertTrue(appearance.liquidGlassEnabled)
+        assertFalse(appearance.liquidGlassEnabled)
     }
 
     @Test

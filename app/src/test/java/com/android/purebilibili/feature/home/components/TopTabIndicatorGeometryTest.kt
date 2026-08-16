@@ -152,6 +152,11 @@ class TopTabIndicatorGeometryTest {
     }
 
     @Test
+    fun `top dock shell lens matches floating bottom bar full strength`() {
+        assertEquals(1f, TOP_DOCK_SHELL_LENS_INTENSITY, 0.01f)
+    }
+
+    @Test
     fun `top tab dock indicator leaves compact vertical breathing space with outer chrome`() {
         assertEquals(
             2f,

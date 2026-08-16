@@ -43,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppListItem
 import com.android.purebilibili.core.ui.components.AppRadioButton
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.feature.dynamic.components.DynamicPublishComposer
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
@@ -1054,62 +1055,48 @@ fun DynamicScreen(
         )
     }
 
-    //  [新增] 发布动态弹窗（纯文本，对齐 BiliPai 发布入口）
+    //  发布动态：图片 / 投票 / 预约走原生选择器和对话框
     if (showPublishDialog) {
-        var publishContent by remember(editingDynamicId, editingInitialText) {
-            mutableStateOf(editingInitialText)
-        }
         val isEditing = !editingDynamicId.isNullOrBlank()
-        AppAlertDialog(
-            onDismissRequest = {
+        var submitting by remember { mutableStateOf(false) }
+        var publishError by remember { mutableStateOf<String?>(null) }
+        DynamicPublishComposer(
+            initialText = editingInitialText,
+            isEditing = isEditing,
+            submitting = submitting,
+            errorMessage = publishError,
+            onDismiss = {
                 showPublishDialog = false
                 editingDynamicId = null
                 editingInitialText = ""
             },
-            title = { AppText(if (isEditing) "编辑动态" else "发布动态") },
-            text = {
-                AppTextField(
-                    value = publishContent,
-                    onValueChange = { publishContent = it },
-                    placeholder = "说点什么吧…",
-                    singleLine = false,
-                    minLines = 4
-                )
-            },
-            confirmButton = {
-                AppDialogAction(
-                    onClick = {
-                        val editId = editingDynamicId
-                        if (editId.isNullOrBlank()) {
-                            viewModel.publishDynamic(publishContent) { success, msg ->
-                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                if (success) {
-                                    showPublishDialog = false
-                                    editingInitialText = ""
-                                }
-                            }
+            onSubmit = { draft ->
+                val editId = editingDynamicId
+                submitting = true
+                publishError = null
+                if (editId.isNullOrBlank()) {
+                    viewModel.publishDynamic(draft = draft, context = context) { success, msg ->
+                        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                        submitting = false
+                        if (success) {
+                            showPublishDialog = false
+                            editingInitialText = ""
                         } else {
-                            viewModel.editDynamic(editId, publishContent) { success, msg ->
-                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                if (success) {
-                                    showPublishDialog = false
-                                    editingDynamicId = null
-                                    editingInitialText = ""
-                                }
-                            }
+                            publishError = msg
                         }
                     }
-                ) {
-                    AppText(if (isEditing) "保存" else "发布")
-                }
-            },
-            dismissButton = {
-                AppDialogAction(onClick = {
-                    showPublishDialog = false
-                    editingDynamicId = null
-                    editingInitialText = ""
-                }) {
-                    AppText("取消")
+                } else {
+                    viewModel.editDynamic(editId, draft.text) { success, msg ->
+                        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                        submitting = false
+                        if (success) {
+                            showPublishDialog = false
+                            editingDynamicId = null
+                            editingInitialText = ""
+                        } else {
+                            publishError = msg
+                        }
+                    }
                 }
             }
         )

@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.5-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.5" />
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.6-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.6" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -175,7 +175,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.5-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.5.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
+完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.6-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.6.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
 
 `google-services.json` 是可选项：放入 `app/` 后启用 Firebase Crashlytics / Analytics；缺失时构建脚本会跳过相关能力。
 
@@ -196,13 +196,13 @@ cd BiliPai
 
 ## 最近更新
 
-当前构建为 `0.2.3-beta.5 / versionCode 294`；最新完整发布记录为 `v0.2.3-beta.5`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前构建为 `0.2.3-beta.6 / versionCode 295`；最新完整发布记录为 `v0.2.3-beta.6`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 全局新增默认开启的一键回顶开关，覆盖搜索、动态、分区、直播、通用列表和评论区。
-- 首页、设置与各业务页面统一 Miuix 液态分段控件和 Backdrop 采样链，移除旧 AndroidLiquidGlass / Backdrop 依赖。
-- 首页内嵌直播与番剧/影视页面，修复标签回顶、抽屉误触、导航状态增长和多层视频详情返回。
-- 动态交互与直播弱网回退继续增强；弹幕正在逐步重构，迁移到中立引擎与按会话管理的渲染链路。
-- 完整 beta.4 → beta.5 说明见 [CHANGELOG.md](CHANGELOG.md)。
+- 首页搜索框与标签页统一折叠，追番、直播等嵌入页会同步释放顶部占位，不再留下大面积空白。
+- 动态发布新增图片、投票与预约，动态详情补齐原生投票、直播卡片和身份回退。
+- 番剧新增原生长评入口，追番首页的频道、时间表与管理流程继续完善。
+- UP 主空间重组主/二级标签，播放、布局和排序移入右上角菜单，并接入粉丝、关注与私信导航。
+- 完整 beta.5 → beta.6 说明见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 路线图
 

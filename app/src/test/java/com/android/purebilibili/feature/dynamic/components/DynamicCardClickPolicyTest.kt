@@ -37,6 +37,34 @@ class DynamicCardClickPolicyTest {
     }
 
     @Test
+    fun resolveDynamicCardPrimaryAction_opensLiveForLiveMajor() {
+        val item = DynamicItem(
+            id_str = "live-dyn",
+            type = "DYNAMIC_TYPE_LIVE",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    major = DynamicMajor(
+                        live = com.android.purebilibili.data.model.response.LiveMajor(
+                            id = "22759954",
+                            title = "直播标题"
+                        )
+                    )
+                ),
+                module_author = com.android.purebilibili.data.model.response.DynamicAuthorModule(
+                    name = "主播"
+                )
+            )
+        )
+
+        val action = resolveDynamicCardPrimaryAction(item)
+
+        assertTrue(action is DynamicCardPrimaryAction.OpenLive)
+        assertEquals(22759954L, (action as DynamicCardPrimaryAction.OpenLive).roomId)
+        assertEquals("直播标题", action.title)
+        assertEquals("主播", action.uname)
+    }
+
+    @Test
     fun resolveDynamicCardPrimaryAction_opensDynamicDetailWhenNoVideo() {
         val item = DynamicItem(id_str = "  987654321  ")
 

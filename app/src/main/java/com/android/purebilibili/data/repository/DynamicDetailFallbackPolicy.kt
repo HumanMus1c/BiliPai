@@ -23,15 +23,36 @@ internal fun mergeDynamicDetailWithLongerDesc(
     )
 }
 
+internal fun isFoldedDynamicLinkPlaceholder(text: String): Boolean {
+    return text.trim() == "网页链接"
+}
+
 internal fun shouldFallbackForDynamicDetail(item: DynamicItem): Boolean {
     val modules = item.modules
-    val hasDescText = modules.module_dynamic?.desc?.text?.isNotBlank() == true
+    val descText = modules.module_dynamic?.desc?.text.orEmpty()
+    val hasDescText = descText.isNotBlank() && !isFoldedDynamicLinkPlaceholder(descText)
     val hasMajorContent = modules.module_dynamic?.major != null
     val hasOrig = item.orig != null
 
     // 可渲染内容都没有时，说明解析结构可能不兼容，应该走 fallback
     val hasRenderableContent = hasDescText || hasMajorContent || hasOrig
     return !hasRenderableContent
+}
+
+internal fun shouldFetchDynamicDetailByRid(
+    current: DynamicItem?,
+    rid: String
+): Boolean {
+    val cleanedRid = rid.trim()
+    if (cleanedRid.isEmpty()) return false
+    return current == null || shouldFallbackForDynamicDetail(current)
+}
+
+internal fun resolvePreferredDynamicDetailItem(
+    candidates: List<DynamicItem>
+): DynamicItem? {
+    return candidates.firstOrNull { !shouldFallbackForDynamicDetail(it) }
+        ?: candidates.firstOrNull()
 }
 
 internal fun shouldFetchOpusDetailForDynamicDetail(item: DynamicItem): Boolean {

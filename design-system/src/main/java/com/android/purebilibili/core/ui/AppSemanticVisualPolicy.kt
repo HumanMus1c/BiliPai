@@ -165,7 +165,11 @@ fun resolveAppChromeLiquidGlassEnabled(
     supportsIndependentLiquidGlass: Boolean,
     individualEnabled: Boolean,
     androidNativeEnabled: Boolean,
-): Boolean = androidNativeEnabled || (supportsIndependentLiquidGlass && individualEnabled)
+): Boolean {
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredNative = androidNativeEnabled
+    return supportsIndependentLiquidGlass && individualEnabled
+}
 
 @Composable
 fun rememberAppChromeLiquidGlassEnabled(

@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -60,7 +61,11 @@ fun BangumiScreen(
     val selectionActive = state.page == BangumiHubPage.FOLLOW &&
         state.followStates[state.channel to state.followStatus]?.selectedIds?.isNotEmpty() == true
 
+    val showPgcTimeline by SettingsManager.getShowPgcTimeline(context)
+        .collectAsStateWithLifecycle(initialValue = true)
+
     LaunchedEffect(initialType) { viewModel.initialize(initialType) }
+    LaunchedEffect(showPgcTimeline) { viewModel.setShowPgcTimeline(showPgcTimeline) }
     LaunchedEffect(Unit) {
         viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
     }

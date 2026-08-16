@@ -85,6 +85,7 @@ data class BangumiHubUiState(
     val followStatus: BangumiFollowStatus = BangumiFollowStatus.WATCHING,
     val followStates: Map<Pair<BangumiChannel, BangumiFollowStatus>, BangumiFollowManagerState> = emptyMap(),
     val search: BangumiSearchHubState = BangumiSearchHubState(),
+    val showPgcTimeline: Boolean = true,
 )
 
 class BangumiHubViewModel : ViewModel() {
@@ -129,10 +130,22 @@ class BangumiHubViewModel : ViewModel() {
         }
     }
 
+    fun setShowPgcTimeline(enabled: Boolean) {
+        val current = _uiState.value
+        if (current.showPgcTimeline == enabled) return
+        _uiState.update { it.copy(showPgcTimeline = enabled) }
+        if (enabled) {
+            if (current.channel == BangumiChannel.BANGUMI) loadTimeline(reset = true)
+        } else {
+            homeJobs["timeline"]?.cancel()
+            updateHomeState(BangumiChannel.BANGUMI) { it.copy(timeline = BangumiTimelineHubState()) }
+        }
+    }
+
     fun refreshHome(channel: BangumiChannel = _uiState.value.channel) {
         loadHomeRecommendations(channel, reset = true)
         if (_uiState.value.isLoggedIn) loadHomeFollows(channel, reset = true)
-        if (channel == BangumiChannel.BANGUMI) loadTimeline(reset = true)
+        if (channel == BangumiChannel.BANGUMI && _uiState.value.showPgcTimeline) loadTimeline(reset = true)
     }
 
     fun loadMoreHomeRecommendations() {
@@ -143,7 +156,9 @@ class BangumiHubViewModel : ViewModel() {
         loadHomeFollows(_uiState.value.channel, reset = false)
     }
 
-    fun retryTimeline() = loadTimeline(reset = true)
+    fun retryTimeline() {
+        if (_uiState.value.showPgcTimeline) loadTimeline(reset = true)
+    }
 
     fun openIndex() {
         val current = _uiState.value
@@ -527,6 +542,7 @@ class BangumiHubViewModel : ViewModel() {
     }
 
     private fun loadTimeline(reset: Boolean) {
+        if (!_uiState.value.showPgcTimeline) return
         val channel = BangumiChannel.BANGUMI
         val current = homeState(channel).timeline
         if (current.isLoading) return

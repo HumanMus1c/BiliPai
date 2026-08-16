@@ -225,6 +225,10 @@ class BiliPaiNavKeyMappingPolicyTest {
         )
         assertEquals(BiliPaiNavKey.Bangumi(initialType = 2), legacyRouteToBiliPaiNavKey(ScreenRoutes.Bangumi.createRoute(2)))
         assertEquals(
+            BiliPaiNavKey.BangumiReview(mediaId = 88L, title = "点评"),
+            legacyRouteToBiliPaiNavKey(ScreenRoutes.BangumiReview.createRoute(88L, "点评"))
+        )
+        assertEquals(
             BiliPaiNavKey.BangumiPlayer(seasonId = 1L, epId = 2L, resumePositionMs = 3000L),
             legacyRouteToBiliPaiNavKey(ScreenRoutes.BangumiPlayer.createRoute(1L, 2L, 3000L))
         )

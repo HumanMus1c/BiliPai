@@ -106,7 +106,7 @@ import com.android.purebilibili.feature.audio.lyrics.resolveActiveLyricIndex
 import com.android.purebilibili.feature.audio.lyrics.resolveLyricFocusScrollOffsetPx
 import com.android.purebilibili.feature.audio.player.MusicPlayerUiState
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
-import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
+
 import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
 import com.android.purebilibili.feature.video.player.PlayMode
 import com.android.purebilibili.feature.video.ui.components.AudioQualitySelectionMenu
@@ -1145,24 +1145,10 @@ private fun LyricsPrimaryControls(
 ) {
     // Miuix 玻璃高光会描边；iOS 连续圆角的 Generic outline 在该路径会退化成倒角。
     val shape = AppShapes.borderedContainer(ContainerLevel.Floating)
-    BottomBarMatchedReusableLiquidDock(
-        shape = shape,
-        modifier = Modifier.fillMaxWidth(),
-        backdrop = miuixBackdrop,
-        liquidGlassEffectsEnabled = glassEnabled,
-        // 这是歌词页的独立浮动面板，不是贴边整壳底栏；lens 的扩张采样会破坏圆角外轮廓。
-        drawShellLens = false,
-    ) {
-        Column(
+    Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(
-                    if (it) {
-                        Modifier
-                    } else {
-                        Modifier.background(AppSurfaceTokens.cardContainer(), shape)
-                    }
-                )
+                .background(AppSurfaceTokens.cardContainer(), shape)
                 .padding(horizontal = 14.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -1177,7 +1163,6 @@ private fun LyricsPrimaryControls(
                 }
             }
         }
-    }
 }
 
 private fun formatLyricsOffset(offsetMs: Long): String {
@@ -1362,28 +1347,17 @@ private fun GlassIconButton(
     miuixBackdrop: MiuixBackdrop?,
     onClick: () -> Unit
 ) {
-    BottomBarMatchedReusableLiquidDock(
-        shape = CircleShape,
-        modifier = Modifier.size(48.dp),
-        backdrop = miuixBackdrop,
-        liquidGlassEffectsEnabled = glassEnabled
-    ) { glassActive ->
-        // 无玻璃时底是 cardContainer（浅色主题近白），必须用 onSurface，不能死白。
-        val iconTint = if (glassActive) MusicContentColor else MaterialTheme.colorScheme.onSurface
-        AppIconButton(
-            onClick = onClick,
-            modifier = Modifier
-                .matchParentSize()
-                .then(
-                    if (glassActive) {
-                        Modifier
-                    } else {
-                        Modifier.background(AppSurfaceTokens.cardContainer(), CircleShape)
-                    }
-                )
-        ) {
-            AppIcon(icon, contentDescription = description, tint = iconTint)
-        }
+    AppIconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(48.dp)
+            .background(AppSurfaceTokens.cardContainer(), CircleShape)
+    ) {
+        AppIcon(
+            icon,
+            contentDescription = description,
+            tint = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
@@ -1396,30 +1370,19 @@ private fun GlassTextButton(
     modifier: Modifier = Modifier
 ) {
     val shape = AppShapes.container(ContainerLevel.Pill)
-    BottomBarMatchedReusableLiquidDock(
-        shape = shape,
+    Box(
         modifier = modifier
-            .height(48.dp),
-        backdrop = miuixBackdrop,
-        liquidGlassEffectsEnabled = glassEnabled
-    ) { glassActive ->
-        val labelColor = if (glassActive) MusicContentColor else MaterialTheme.colorScheme.onSurface
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .then(
-                    if (glassActive) {
-                        Modifier
-                    } else {
-                        Modifier.background(AppSurfaceTokens.cardContainer(), shape)
-                    }
-                )
-                .clickable(onClick = onClick)
-                .padding(horizontal = 15.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            AppText(label, color = labelColor, style = MaterialTheme.typography.labelMedium)
-        }
+            .height(48.dp)
+            .background(AppSurfaceTokens.cardContainer(), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 15.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        AppText(
+            label,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 }
 

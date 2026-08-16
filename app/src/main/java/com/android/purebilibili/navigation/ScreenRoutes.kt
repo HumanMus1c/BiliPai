@@ -180,6 +180,12 @@ sealed class ScreenRoutes(val route: String) {
             return "bangumi/$seasonId?epId=$epId"
         }
     }
+
+    object BangumiReview : ScreenRoutes("bangumi_review/{mediaId}?title={title}") {
+        fun createRoute(mediaId: Long, title: String = ""): String {
+            return "bangumi_review/$mediaId?title=${android.net.Uri.encode(title)}"
+        }
+    }
     
     //  [新增] 番剧播放页面
     object BangumiPlayer : ScreenRoutes("bangumi/play/{seasonId}/{epId}?resumePositionMs={resumePositionMs}") {

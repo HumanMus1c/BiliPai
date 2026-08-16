@@ -61,7 +61,8 @@ internal enum class BiliPaiNavEntryContentRole {
     DYNAMIC_DETAIL,
     ARTICLE_DETAIL,
     LIVE,
-    BANGUMI_DETAIL
+    BANGUMI_DETAIL,
+    BANGUMI_REVIEW
 }
 
 internal fun resolveBiliPaiNavEntryContentRole(key: BiliPaiNavKey): BiliPaiNavEntryContentRole {
@@ -130,6 +131,7 @@ internal fun resolveBiliPaiNavEntryContentRole(key: BiliPaiNavKey): BiliPaiNavEn
         is BiliPaiNavKey.ArticleDetail -> BiliPaiNavEntryContentRole.ARTICLE_DETAIL
         is BiliPaiNavKey.Live -> BiliPaiNavEntryContentRole.LIVE
         is BiliPaiNavKey.BangumiDetail -> BiliPaiNavEntryContentRole.BANGUMI_DETAIL
+        is BiliPaiNavKey.BangumiReview -> BiliPaiNavEntryContentRole.BANGUMI_REVIEW
         is BiliPaiNavKey.Unknown -> BiliPaiNavEntryContentRole.HOME
     }
 }

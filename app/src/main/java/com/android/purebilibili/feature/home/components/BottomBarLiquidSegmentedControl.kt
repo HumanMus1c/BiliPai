@@ -89,8 +89,13 @@ internal fun resolveSegmentedControlLiquidGlassEnabled(
     androidNativeLiquidGlassEnabled: Boolean
 ): Boolean {
     if (!liquidGlassEffectsEnabled) return false
-    return androidNativeLiquidGlassEnabled ||
-        (supportsIndependentLiquidGlass && storedLiquidGlassEnabled)
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredNative = androidNativeLiquidGlassEnabled
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredStored = storedLiquidGlassEnabled
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredIndependent = supportsIndependentLiquidGlass
+    return false
 }
 
 internal enum class SegmentedControlChromeStyle {
@@ -110,7 +115,9 @@ internal fun resolveSegmentedControlChromeStyle(
     androidNativeLiquidGlassEnabled: Boolean,
     preferInlineContentStyle: Boolean = false
 ): SegmentedControlChromeStyle {
-    return if (prefersNativeChrome && !androidNativeLiquidGlassEnabled) {
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredNative = androidNativeLiquidGlassEnabled
+    return if (prefersNativeChrome) {
         SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE
     } else {
         SegmentedControlChromeStyle.LIQUID_PILL
@@ -309,8 +316,8 @@ fun BottomBarLiquidSegmentedControl(
     height: Dp = BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_HEIGHT_DP.dp,
     indicatorHeight: Dp = BOTTOM_BAR_LIQUID_SEGMENTED_CONTROL_INDICATOR_HEIGHT_DP.dp,
     labelFontSize: TextUnit = TextUnit.Unspecified,
-    containerHorizontalPadding: Dp = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
-    containerVerticalPadding: Dp = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
+    containerHorizontalPadding: Dp = AppSpacingTokens.ExtraSmall,
+    containerVerticalPadding: Dp = AppSpacingTokens.ExtraSmall,
     liquidGlassEffectsEnabled: Boolean = true,
     dragSelectionEnabled: Boolean = true,
     preferInlineContentStyle: Boolean = false,

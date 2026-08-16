@@ -1696,19 +1696,24 @@ interface DynamicApi {
         @Query("web_location") webLocation: String = "333.1365"
     ): DynamicUpdateCountResponse
 
-    //  [新增] 获取单条动态详情（桌面端详情接口）
-    @GET("x/polymer/web-dynamic/desktop/v1/detail")
+    //  与 PiliPlus 对齐：主路径使用 web 详情接口，并补齐 rid/type 与页面参数。
+    @GET("x/polymer/web-dynamic/v1/detail")
     suspend fun getDynamicDetail(
+        @Query("id") id: String? = null,
+        @Query("rid") rid: String? = null,
+        @Query("type") type: Int? = null,
+        @Query("features") features: String = DYNAMIC_DETAIL_FEATURES,
+        @Query("timezone_offset") timezoneOffset: Int = -480,
+        @Query("gaia_source") gaiaSource: String = "Athena",
+        @Query("web_location") webLocation: String = "333.1330"
+    ): DynamicDetailResponse
+
+    //  桌面端详情仅作降级：部分卡片在 web 接口字段更完整，desktop 反而会空内容。
+    @GET("x/polymer/web-dynamic/desktop/v1/detail")
+    suspend fun getDynamicDetailFallback(
         @Query("id") id: String,
         @Query("features") features: String = DYNAMIC_DETAIL_FEATURES,
         @Query("timezone_offset") timezoneOffset: Int = -480
-    ): DynamicDetailResponse
-
-    //  [降级] 旧版详情接口，某些动态类型在 desktop 接口会返回不支持
-    @GET("x/polymer/web-dynamic/v1/detail")
-    suspend fun getDynamicDetailFallback(
-        @Query("id") id: String,
-        @Query("features") features: String = DYNAMIC_DETAIL_FEATURES
     ): DynamicDetailResponse
 
     // 长图文/专栏 opus 详情接口，htmlNewStyle 用于兼容旧专栏正文结构。
@@ -1773,6 +1778,32 @@ interface DynamicApi {
         @retrofit2.http.Body body: DynamicRepostRequest
     ): SimpleApiResponse
 
+    @retrofit2.http.POST("x/dynamic/feed/create/dyn")
+    suspend fun createFeedDynamic(
+        @Query("csrf") csrf: String,
+        @Query("platform") platform: String = "web",
+        @Query("x-bili-device-req-json") deviceRequestJson: String = "{\"platform\":\"web\",\"device\":\"pc\"}",
+        @Query("x-bili-web-req-json") webRequestJson: String = "{\"spm_id\":\"333.999\"}",
+        @retrofit2.http.Body body: DynamicCreateFeedRequest
+    ): DynamicCreateFeedResponse
+
+    @retrofit2.http.POST("x/vote/create")
+    suspend fun createVote(
+        @Query("csrf") csrf: String,
+        @retrofit2.http.Body body: DynamicCreateVoteRequest
+    ): DynamicCreateVoteResponse
+
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("x/new-reserve/up/reserve/create")
+    suspend fun createReserve(
+        @retrofit2.http.Field("type") type: Int = 2,
+        @retrofit2.http.Field("sub_type") subType: Int,
+        @retrofit2.http.Field("from") from: Int = 1,
+        @retrofit2.http.Field("title") title: String,
+        @retrofit2.http.Field("live_plan_start_time") livePlanStartTime: Long,
+        @retrofit2.http.Field("csrf") csrf: String
+    ): DynamicCreateReserveResponse
+
     //  发布纯文本动态（multipart form，type=4 表示纯文本）
     @retrofit2.http.Multipart
     @retrofit2.http.POST("https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/create")
@@ -1807,6 +1838,17 @@ interface DynamicApi {
         @Query("csrf") csrf: String,
         @retrofit2.http.Body body: DynamicTopRequest
     ): SimpleApiResponse
+
+    @GET("x/vote/vote_info")
+    suspend fun getVoteInfo(
+        @Query("vote_id") voteId: Long
+    ): DynamicVoteInfoResponse
+
+    @retrofit2.http.POST("x/vote/do_vote")
+    suspend fun doVote(
+        @Query("csrf") csrf: String,
+        @retrofit2.http.Body body: DynamicDoVoteRequest
+    ): DynamicVoteInfoResponse
 
     //  动态可见范围（公开 / 仅自己）
     @retrofit2.http.FormUrlEncoded
@@ -2059,6 +2101,42 @@ interface BangumiApi {
         @Query("pn") pn: Int = 1,
         @Query("ps") ps: Int = 30
     ): com.android.purebilibili.data.model.response.MyFollowBangumiResponse
+
+    @GET("pgc/review/short/list")
+    suspend fun getBangumiShortReviews(
+        @Query("media_id") mediaId: Long,
+        @Query("ps") pageSize: Int = 20,
+        @Query("sort") sort: Int = 0,
+        @Query("cursor") cursor: String = "",
+        @Query("web_location") webLocation: String = "666.19"
+    ): BangumiReviewListResponse
+
+    @GET("pgc/review/long/list")
+    suspend fun getBangumiLongReviews(
+        @Query("media_id") mediaId: Long,
+        @Query("ps") pageSize: Int = 20,
+        @Query("sort") sort: Int = 0,
+        @Query("cursor") cursor: String = "",
+        @Query("web_location") webLocation: String = "666.19"
+    ): BangumiReviewListResponse
+
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("pgc/review/action/like")
+    suspend fun likeBangumiReview(
+        @retrofit2.http.Field("media_id") mediaId: Long,
+        @retrofit2.http.Field("review_type") reviewType: Int = 2,
+        @retrofit2.http.Field("review_id") reviewId: Long,
+        @retrofit2.http.Field("csrf") csrf: String
+    ): SimpleApiResponse
+
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("pgc/review/short/post")
+    suspend fun postBangumiShortReview(
+        @retrofit2.http.Field("media_id") mediaId: Long,
+        @retrofit2.http.Field("score") score: Int,
+        @retrofit2.http.Field("content") content: String,
+        @retrofit2.http.Field("csrf") csrf: String
+    ): SimpleApiResponse
 }
 
 interface PassportApi {
@@ -2107,6 +2185,7 @@ interface PassportApi {
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("x/passport-login/sms/send")
     suspend fun sendSmsCodeByApp(
+        @retrofit2.http.Header("X-BiliPai-Login-Buvid") loginBuvid: String,
         // Kotlin Map is Map<String, out String> without this; R8 can break FieldMap bodies in release.
         @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
     ): SmsCodeResponse
@@ -2127,6 +2206,7 @@ interface PassportApi {
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("x/passport-login/login/sms")
     suspend fun loginBySmsApp(
+        @retrofit2.http.Header("X-BiliPai-Login-Buvid") loginBuvid: String,
         @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
     ): Response<LoginResponse>
     
@@ -2152,6 +2232,7 @@ interface PassportApi {
     @retrofit2.http.FormUrlEncoded
     @retrofit2.http.POST("x/passport-login/oauth2/login")
     suspend fun loginByPasswordApp(
+        @retrofit2.http.Header("X-BiliPai-Login-Buvid") loginBuvid: String,
         @retrofit2.http.FieldMap params: @JvmSuppressWildcards Map<String, String>
     ): Response<LoginResponse>
 
@@ -2729,6 +2810,7 @@ object NetworkModule {
                 }
 
                 val androidHdLoginAppKeyHeader = resolveAndroidHdLoginAppKeyHeader(url.encodedPath)
+                val loginBuvid = original.header("X-BiliPai-Login-Buvid")
                 //  合并模式 App 半边(匿名 android_hd 取流)同样需要 HD 身份头(UA/app-key/buvid),
                 //  仅当请求带 mobi_app=android_hd 时命中, 不影响原 TV 取流(mobi_app=android)
                 val isHdFeedRequest = url.encodedPath == "/x/v2/feed/index" &&
@@ -2749,7 +2831,8 @@ object NetworkModule {
                 if (androidHdLoginAppKeyHeader != null || isHdFeedRequest) {
                     builder
                         .header("app-key", androidHdLoginAppKeyHeader ?: "android_hd")
-                        .header("buvid", TokenManager.buvid3Cache.orEmpty())
+                        .header("buvid", loginBuvid ?: TokenManager.buvid3Cache.orEmpty())
+                        .removeHeader("X-BiliPai-Login-Buvid")
                         .header("bili-http-engine", "cronet")
                         .header("env", "prod")
                         .header("x-bili-trace-id", "11111111111111111111111111111111:1111111111111111:0:0")

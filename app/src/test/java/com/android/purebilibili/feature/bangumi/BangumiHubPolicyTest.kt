@@ -100,13 +100,13 @@ class BangumiHubPolicyTest {
     @Test
     fun `timeline labels include visible dates and today marker`() {
         assertEquals(
-            "周五 8/8",
+            "8-8 周五",
             resolveBangumiTimelineDayLabel(
                 TimelineDay(date = "2026-08-08", dayOfWeek = 5),
             ),
         )
         assertEquals(
-            "今天 8/10",
+            "8-10 今天",
             resolveBangumiTimelineDayLabel(
                 TimelineDay(date = "2026-08-10", dayOfWeek = 7, isToday = 1),
             ),

@@ -80,8 +80,10 @@ private fun androidLoginDeviceParams(
     "buvid" to buvid,
     "device" to "phone",
     "device_id" to deviceId,
-    "device_name" to "android_hd",
-    "device_platform" to "Android",
+    // Match the desktop PiliPlus Passport profile. These fields are assessed
+    // together with the signed buvid and the Android-HD request headers.
+    "device_name" to "vivo",
+    "device_platform" to "Android14vivo",
     // BiliPai pre-encodes dt before AppSign / form body.
     "dt" to AppSignUtils.percentEncode(encryptedDeviceToken),
     "local_id" to buvid

@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 //  已改用 MaterialTheme.colorScheme.primary
+import com.android.purebilibili.data.model.response.LiveMajor
 import com.android.purebilibili.data.model.response.LiveRcmdMajor
 import com.android.purebilibili.feature.dynamic.model.LiveContentInfo
 import kotlinx.serialization.json.Json
@@ -175,6 +176,77 @@ fun LiveCard(
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun LiveMajorCard(
+    live: LiveMajor,
+    onLiveClick: (roomId: Long, title: String, uname: String) -> Unit = { _, _, _ -> }
+) {
+    val roomId = live.id.trim().toLongOrNull() ?: 0L
+    if (roomId <= 0L) return
+    val title = live.title.ifBlank { "直播间" }
+    val context = LocalContext.current
+    AppCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onLiveClick(roomId, title, "") },
+        shape = AppShapes.container(ContainerLevel.Card),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.DoubleExtraLarge)
+                .padding(AppSpacingTokens.Small),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(AppSpacingTokens.TripleExtraLarge * 2 + AppSpacingTokens.ExtraLarge)
+                    .fillMaxHeight()
+                    .clip(AppShapes.container(ContainerLevel.Chip))
+            ) {
+                if (live.cover.isNotBlank()) {
+                    val url = if (live.cover.startsWith("http://")) {
+                        live.cover.replace("http://", "https://")
+                    } else {
+                        live.cover
+                    }
+                    AsyncImage(
+                        model = coil.request.ImageRequest.Builder(context)
+                            .data(url)
+                            .addHeader("Referer", "https://www.bilibili.com/")
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(AppSpacingTokens.ExtraSmall)
+                        .background(MaterialTheme.colorScheme.primary, AppShapes.container(ContainerLevel.Tag))
+                        .padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Micro)
+                ) {
+                    AppText("直播中", fontSize = MaterialTheme.typography.labelSmall.fontSize, color = MediaContrastPalette.Foreground, fontWeight = FontWeight.Bold)
+                }
+            }
+            Spacer(modifier = Modifier.width(AppSpacingTokens.Small + AppSpacingTokens.Micro))
+            AppText(
+                title,
+                fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }

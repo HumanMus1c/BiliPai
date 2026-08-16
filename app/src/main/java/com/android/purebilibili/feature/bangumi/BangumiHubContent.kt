@@ -8,7 +8,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,8 +49,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,6 +68,7 @@ import com.android.purebilibili.core.ui.components.AppContentStateAction
 import com.android.purebilibili.core.ui.components.AppContentStatePresentation
 import com.android.purebilibili.core.ui.components.AppEmptyState
 import com.android.purebilibili.core.ui.components.AppErrorState
+import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSegmentOption
@@ -156,6 +154,7 @@ internal fun BangumiHubContent(
             state = state.homeStates[state.channel] ?: BangumiHomeState(),
             gridState = activeHomeGrid,
             isLoggedIn = state.isLoggedIn,
+            showPgcTimeline = state.showPgcTimeline,
             onBangumiClick = onBangumiClick,
             onEpisodeClick = onEpisodeClick,
             onRefresh = onRefreshHome,
@@ -219,6 +218,7 @@ private fun BangumiHomeContent(
     state: BangumiHomeState,
     gridState: LazyGridState,
     isLoggedIn: Boolean,
+    showPgcTimeline: Boolean,
     onBangumiClick: (Long) -> Unit,
     onEpisodeClick: (Long, Long) -> Unit,
     onRefresh: () -> Unit,
@@ -245,9 +245,10 @@ private fun BangumiHomeContent(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }, key = "follow_header") {
+                val followLabel = if (channel == BangumiChannel.BANGUMI) "追番" else "追剧"
+                val followCount = state.followTotal.takeIf { it >= 0 }?.let { " $it" }.orEmpty()
                 SectionHeader(
-                    title = if (channel == BangumiChannel.BANGUMI) "最近追番" else "最近追剧",
-                    subtitle = state.followTotal.takeIf { it >= 0 }?.let { "共 $it 部" },
+                    title = "最近$followLabel$followCount",
                     actionLabel = if (isLoggedIn) "查看全部" else null,
                     onAction = onOpenFollow,
                     onRefresh = if (isLoggedIn) onRefresh else null,
@@ -285,10 +286,7 @@ private fun BangumiHomeContent(
                 }
             }
 
-            if (channel == BangumiChannel.BANGUMI) {
-                item(span = { GridItemSpan(maxLineSpan) }, key = "timeline_header") {
-                    SectionHeader(title = "时间表", onRefresh = onRetryTimeline)
-                }
+            if (channel == BangumiChannel.BANGUMI && showPgcTimeline) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "timeline") {
                     TimelineSection(
                         state = state.timeline,
@@ -354,16 +352,26 @@ private fun TimelineSection(
             val today = state.days.indexOfFirst { it.isToday == 1 }.coerceAtLeast(0)
             var selectedDay by remember(state.days) { mutableIntStateOf(today) }
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                BangumiLiquidAwareTabRow(
-                    options = state.days.mapIndexed { index, item ->
-                        AppSegmentOption(index, resolveBangumiTimelineDayLabel(item))
-                    },
-                    selectedValue = selectedDay,
-                    onSelectionChange = { selectedDay = it },
-                    scrollable = true,
-                    minTabWidth = 108.dp,
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AppText(
+                        text = "追番时间表",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(end = 12.dp),
+                    )
+                    BangumiLiquidAwareTabRow(
+                        options = state.days.mapIndexed { index, item ->
+                            AppSegmentOption(index, resolveBangumiTimelineDayLabel(item))
+                        },
+                        selectedValue = selectedDay,
+                        onSelectionChange = { selectedDay = it },
+                        scrollable = true,
+                        minTabWidth = 88.dp,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 AnimatedContent(
                     targetState = selectedDay,
                     transitionSpec = {
@@ -530,10 +538,11 @@ private fun IndexFilterPanel(
                 )
                 group.choices.forEach { choice ->
                     val selected = state.selectedParams[group.field] == choice.keyword
-                    FilterChoiceChip(
-                        label = choice.label,
+                    AppFilterChip(
                         selected = selected,
                         onClick = { onFilterSelected(group, choice) },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        label = { AppText(choice.label, fontSize = 13.sp, maxLines = 1) },
                     )
                 }
             }
@@ -551,29 +560,6 @@ private fun IndexFilterPanel(
                 )
                 AppText(if (state.isExpanded) "收起" else "展开全部筛选")
             }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun FilterChoiceChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    val color = if (selected) AppSurfaceTokens.secondaryContainer() else Color.Transparent
-    // Filter labels use Field corners — less capsule than Pill chrome chips.
-    AppSurface(
-        color = color,
-        contentColor = if (selected) AppSurfaceTokens.onSecondaryContainer() else MaterialTheme.colorScheme.onSurface,
-        shape = AppShapes.container(ContainerLevel.Field),
-        modifier = Modifier
-            .heightIn(min = 48.dp)
-            .combinedClickable(onClick = onClick),
-    ) {
-        Box(modifier = Modifier.padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
-            AppText(label, fontSize = 13.sp, maxLines = 1)
         }
     }
 }
@@ -843,16 +829,23 @@ private fun PosterGridCard(
             cover = item.cover,
             title = item.title,
             badge = item.badge,
-            footer = item.newEp?.indexShow?.ifBlank { item.indexShow }.orEmpty(),
         )
         AppText(
             text = item.title,
-            modifier = Modifier.padding(top = 6.dp),
+            modifier = Modifier.padding(top = 5.dp),
             fontSize = 13.sp,
-            lineHeight = 17.sp,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        item.newEp?.indexShow?.ifBlank { item.indexShow }?.takeIf { it.isNotBlank() }?.let { subtitle ->
+            AppText(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -870,16 +863,23 @@ private fun SearchPosterCard(
             cover = item.cover,
             title = plainSearchTitle(item),
             badge = item.badges?.firstOrNull()?.text.orEmpty(),
-            footer = item.indexShow,
         )
         AppText(
             text = plainSearchTitle(item),
-            modifier = Modifier.padding(top = 6.dp),
+            modifier = Modifier.padding(top = 5.dp),
             fontSize = 13.sp,
-            lineHeight = 17.sp,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        if (item.indexShow.isNotBlank()) {
+            AppText(
+                text = item.indexShow,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -892,9 +892,8 @@ private fun PosterImage(
     cover: String,
     title: String,
     badge: String = "",
-    footer: String = "",
+    bottomBadge: String = "",
 ) {
-    // Media posters use Field-level corners (~10–12dp), not Pill/Floating soft chrome.
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -907,19 +906,14 @@ private fun PosterImage(
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
         )
-        if (footer.isNotBlank()) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .76f))))
-                    .padding(start = 7.dp, end = 7.dp, top = 18.dp, bottom = 6.dp),
-            ) {
-                AppText(footer, color = Color.White, fontSize = 10.sp, maxLines = 1)
-            }
-        }
         if (badge.isNotBlank()) {
-            BangumiBadge(text = badge, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp))
+            BangumiBadge(text = badge, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp))
+        }
+        if (bottomBadge.isNotBlank()) {
+            BangumiBadge(
+                text = bottomBadge,
+                modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+            )
         }
     }
 }
@@ -938,15 +932,23 @@ private fun FollowPosterCard(
             cover = item.cover,
             title = item.title,
             badge = item.badge,
-            footer = item.progress.ifBlank { item.newEp?.indexShow.orEmpty() },
         )
         AppText(
             item.title,
-            modifier = Modifier.padding(top = 6.dp),
-            fontSize = 12.sp,
-            maxLines = 2,
+            modifier = Modifier.padding(top = 5.dp),
+            fontSize = 13.sp,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        item.progress.ifBlank { item.newEp?.indexShow.orEmpty() }.takeIf { it.isNotBlank() }?.let { subtitle ->
+            AppText(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -961,15 +963,25 @@ private fun TimelineEpisodeCard(episode: TimelineEpisode, onClick: () -> Unit) {
         PosterImage(
             cover = episode.cover,
             title = episode.title,
-            footer = listOf(episode.pubTime, episode.pubIndex).filter { it.isNotBlank() }.joinToString(" · "),
+            badge = if (episode.follow == 1) "已追番" else "",
+            bottomBadge = episode.pubTime,
         )
         AppText(
             episode.title,
-            modifier = Modifier.padding(top = 6.dp),
-            fontSize = 12.sp,
-            maxLines = 2,
+            modifier = Modifier.padding(top = 5.dp),
+            fontSize = 13.sp,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        if (episode.pubIndex.isNotBlank()) {
+            AppText(
+                text = episode.pubIndex,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -1000,7 +1012,6 @@ private fun FollowInfoCard(
                     cover = item.cover,
                     title = item.title,
                     badge = item.badge,
-                    footer = item.newEp?.indexShow.orEmpty(),
                 )
                 if (selected) {
                     AppSurface(
@@ -1061,7 +1072,7 @@ private fun SectionHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            AppText(title, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+            AppText(title, style = MaterialTheme.typography.titleMedium)
             subtitle?.let { AppText(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp) }
         }
         onRefresh?.let {

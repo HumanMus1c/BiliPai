@@ -3277,6 +3277,26 @@ fun AppNavigation(
                                             )
                                         )
                                     },
+                                    onMessageClick = { talkerId, userName, _ ->
+                                        pushNavigation3Key(
+                                            BiliPaiNavKey.Chat(
+                                                talkerId = talkerId,
+                                                sessionType = 1,
+                                                userName = userName
+                                            )
+                                        )
+                                    },
+                                    onFollowingClick = { followingMid ->
+                                        pushNavigation3Key(BiliPaiNavKey.Following(followingMid))
+                                    },
+                                    onFansClick = { fansMid ->
+                                        pushNavigation3Key(
+                                            BiliPaiNavKey.Web(
+                                                url = "https://space.bilibili.com/$fansMid/fans/fans",
+                                                title = "粉丝"
+                                            )
+                                        )
+                                    },
                                     sharedTransitionScope = null,
                                     animatedVisibilityScope = null
                                 )
@@ -3416,6 +3436,27 @@ fun AppNavigation(
                                         replaceNavigation3TopWithKey(
                                             BiliPaiNavKey.BangumiDetail(seasonId = newSeasonId)
                                         )
+                                    },
+                                    onReviewsClick = { mediaId, title ->
+                                        if (mediaId > 0L) {
+                                            pushNavigation3Key(
+                                                BiliPaiNavKey.BangumiReview(
+                                                    mediaId = mediaId,
+                                                    title = title
+                                                )
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        BiliPaiNavEntryContentRole.BANGUMI_REVIEW -> {
+                                val reviewKey = key as BiliPaiNavKey.BangumiReview
+                                com.android.purebilibili.feature.bangumi.BangumiReviewScreen(
+                                    mediaId = reviewKey.mediaId,
+                                    title = reviewKey.title,
+                                    onBack = { performSystemBackAction() },
+                                    onOpenWeb = { url, webTitle ->
+                                        pushNavigation3Key(BiliPaiNavKey.Web(url = url, title = webTitle))
                                     }
                                 )
                             }

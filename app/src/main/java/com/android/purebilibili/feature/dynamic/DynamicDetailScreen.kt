@@ -82,12 +82,15 @@ fun DynamicDetailScreen(
     val backLabel = stringResource(R.string.common_back)
     val retryLabel = stringResource(R.string.common_retry)
     val loadFailedMessage = stringResource(R.string.dynamic_detail_load_failed)
+    val seedItem = remember(dynamicId) { DynamicRepository.peekDynamicDetailSeed(dynamicId) }
     val uiState by produceState<DynamicDetailUiState>(
-        initialValue = DynamicDetailUiState.Loading,
+        initialValue = seedItem?.let { DynamicDetailUiState.Success(it) } ?: DynamicDetailUiState.Loading,
         key1 = dynamicId,
         key2 = retryToken
     ) {
-        value = DynamicDetailUiState.Loading
+        if (seedItem == null) {
+            value = DynamicDetailUiState.Loading
+        }
         value = DynamicRepository.getDynamicDetail(dynamicId).fold(
             onSuccess = { item -> DynamicDetailUiState.Success(item) },
             onFailure = { error ->

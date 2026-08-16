@@ -382,20 +382,39 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
-    fun `wrap and floating docks inset the last capsule from the stadium end cap`() {
-        assertEquals(6f, resolveTopTabDockEndInsetDp(wrapContent = true, isFloatingStyle = true), 0.001f)
-        assertEquals(6f, resolveTopTabDockEndInsetDp(wrapContent = false, isFloatingStyle = true), 0.001f)
+    fun `wrap and floating docks use the floating bottom bar end inset`() {
+        assertEquals(4f, resolveTopTabDockEndInsetDp(wrapContent = true, isFloatingStyle = true), 0.001f)
+        assertEquals(4f, resolveTopTabDockEndInsetDp(wrapContent = false, isFloatingStyle = true), 0.001f)
         assertEquals(0f, resolveTopTabDockEndInsetDp(wrapContent = false, isFloatingStyle = false), 0.001f)
+    }
+
+    @Test
+    fun `first and last liquid capsules match the floating bottom bar dock padding`() {
+        val endInset = resolveTopTabDockEndInsetDp(wrapContent = true, isFloatingStyle = true)
+        val indicatorGap = resolveTopTabDockIndicatorHorizontalGapDp(hasOuterChromeSurface = true)
+        // FloatingBottomBar uses 4dp content padding. The 2dp indicator gap is the
+        // remaining slot inset, so the first capsule starts 6dp from the glass edge.
+        assertEquals(4f, endInset, 0.001f)
+        assertEquals(2f, indicatorGap, 0.001f)
+        assertEquals(6f, endInset + indicatorGap, 0.001f)
+        assertEquals(
+            6f,
+            resolveTopTabDockIndicatorOffsetPx(
+                slotTranslationPx = endInset,
+                horizontalGapPx = indicatorGap
+            ),
+            0.001f
+        )
     }
 
     @Test
     fun `wrap dock width follows preferred item width times tab count`() {
         val endInset = resolveTopTabDockEndInsetDp(wrapContent = true, isFloatingStyle = true)
-        assertEquals(6f, endInset, 0.001f)
-        // Icon + text floating: 84 × 5 + 6 × 2 = 432, fits in 440
+        assertEquals(4f, endInset, 0.001f)
+        // Icon + text floating: 84 × 5 + 4 × 2 = 428, fits in 440
         assertEquals(84f, resolveTopTabWrapItemWidthDp(labelMode = 0, isFloatingStyle = true), 0.001f)
         assertEquals(
-            432f,
+            428f,
             resolveTopTabDockWrapWidthDp(
                 itemWidthDp = 84f,
                 categoryCount = 5,
@@ -404,10 +423,10 @@ class TopTabLayoutPolicyTest {
             ),
             0.001f
         )
-        // Icon only: 56 × 5 + 12 = 292
+        // Icon only: 56 × 5 + 8 = 288
         assertEquals(56f, resolveTopTabWrapItemWidthDp(labelMode = 1, isFloatingStyle = true), 0.001f)
         assertEquals(
-            292f,
+            288f,
             resolveTopTabDockWrapWidthDp(
                 itemWidthDp = 56f,
                 categoryCount = 5,
@@ -416,10 +435,10 @@ class TopTabLayoutPolicyTest {
             ),
             0.001f
         )
-        // Text only: 72 × 5 + 12 = 372
+        // Text only: 72 × 5 + 8 = 368
         assertEquals(72f, resolveTopTabWrapItemWidthDp(labelMode = 2, isFloatingStyle = true), 0.001f)
         assertEquals(
-            372f,
+            368f,
             resolveTopTabDockWrapWidthDp(
                 itemWidthDp = 72f,
                 categoryCount = 5,

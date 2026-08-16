@@ -99,6 +99,59 @@ class DynamicDetailFallbackPolicyTest {
     }
 
     @Test
+    fun shouldFallback_returnsTrueForFoldedWebLinkPlaceholder() {
+        val item = DynamicItem(
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(
+                    desc = DynamicDesc(text = "网页链接")
+                )
+            )
+        )
+
+        assertTrue(isFoldedDynamicLinkPlaceholder("网页链接"))
+        assertTrue(shouldFallbackForDynamicDetail(item))
+    }
+
+    @Test
+    fun shouldFetchDynamicDetailByRid_whenCurrentItemIsUnrenderable() {
+        assertTrue(
+            shouldFetchDynamicDetailByRid(
+                current = DynamicItem(modules = DynamicModules()),
+                rid = " 998877 "
+            )
+        )
+        assertFalse(
+            shouldFetchDynamicDetailByRid(
+                current = DynamicItem(
+                    modules = DynamicModules(
+                        module_dynamic = DynamicContentModule(desc = DynamicDesc(text = "正文"))
+                    )
+                ),
+                rid = "998877"
+            )
+        )
+        assertFalse(shouldFetchDynamicDetailByRid(current = null, rid = " "))
+    }
+
+    @Test
+    fun resolvePreferredDynamicDetailItem_prefersRenderableCandidate() {
+        val empty = DynamicItem(id_str = "empty")
+        val renderable = DynamicItem(
+            id_str = "ok",
+            modules = DynamicModules(
+                module_dynamic = DynamicContentModule(desc = DynamicDesc(text = "完整正文"))
+            )
+        )
+
+        assertEquals(
+            "ok",
+            resolvePreferredDynamicDetailItem(listOf(empty, renderable))?.id_str
+        )
+        assertEquals(empty, resolvePreferredDynamicDetailItem(listOf(empty)))
+        assertEquals(null, resolvePreferredDynamicDetailItem(emptyList()))
+    }
+
+    @Test
     fun shouldFetchOpusDetail_returnsFalseForOrdinaryTextDynamic() {
         val item = DynamicItem(
             id_str = "987654321",

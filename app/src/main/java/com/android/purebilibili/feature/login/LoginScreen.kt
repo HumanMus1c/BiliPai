@@ -159,7 +159,6 @@ fun LoginScreen(
                         is CaptchaRequest.Password -> viewModel.loginByPassword(request.phone, request.password)
                         CaptchaRequest.RiskSms -> viewModel.sendRiskSmsCode(validate, seccode, challenge)
                     }
-                    captchaRequest = null
                 },
                 onFailed = { error ->
                     captchaRequest = null

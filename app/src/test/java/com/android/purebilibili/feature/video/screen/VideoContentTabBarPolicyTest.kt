@@ -243,6 +243,8 @@ class VideoContentTabBarPolicyTest {
             .substringBefore("// [新增] 恢复画面按钮")
 
         assertTrue(tabBarBlock.contains("tapPressRefractionEnabled = false"))
+        assertTrue(tabBarBlock.contains("Modifier.wrapContentWidth()"))
+        assertTrue(tabBarBlock.contains("Arrangement.spacedBy(8.dp)"))
         assertTrue(
             tabBarBlock.contains(
                 "externalPagerMotionEffectsEnabled = liquidChromeSpec.reusesLiquidGlassDock"

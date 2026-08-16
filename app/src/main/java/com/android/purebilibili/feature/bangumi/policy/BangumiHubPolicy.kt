@@ -178,19 +178,22 @@ fun mergeBangumiTimelineDays(
 fun resolveBangumiTimelineDayLabel(day: TimelineDay): String {
     val dateLabel = day.date
         .split('-')
-        .takeIf { it.size >= 3 }
+        .takeIf { it.size >= 2 }
         ?.let { parts ->
             val month = parts[parts.lastIndex - 1].trimStart('0').ifBlank { "0" }
             val date = parts.last().trimStart('0').ifBlank { "0" }
-            "$month/$date"
+            "$month-$date"
         }
-        ?: day.date.takeLast(5).replace('-', '/')
-    if (day.isToday == 1) return "今天 $dateLabel"
-    val weekday = day.dayOfWeek
-        .takeIf { it in 1..7 }
-        ?.let { listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")[it - 1] }
-        .orEmpty()
-    return listOf(weekday, dateLabel).filter(String::isNotBlank).joinToString(" ")
+        ?: day.date.takeLast(5)
+    val weekday = if (day.isToday == 1) {
+        "今天"
+    } else {
+        day.dayOfWeek
+            .takeIf { it in 1..7 }
+            ?.let { listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")[it - 1] }
+            .orEmpty()
+    }
+    return listOf(dateLabel, weekday).filter(String::isNotBlank).joinToString(" ")
 }
 
 fun updateBangumiSelection(

@@ -162,14 +162,18 @@ class DynamicApiContractTest {
     }
 
     @Test
-    fun getDynamicDetail_usesDesktopDetailEndpointAndIdQuery() {
+    fun getDynamicDetail_usesWebDetailEndpointAndIdQuery() {
         val method = DynamicApi::class.java.methods.first { it.name == "getDynamicDetail" }
         val get = method.getAnnotation(GET::class.java)
-        assertEquals("x/polymer/web-dynamic/desktop/v1/detail", get?.value)
+        assertEquals("x/polymer/web-dynamic/v1/detail", get?.value)
 
-        val firstParamAnnotations = method.parameterAnnotations[0].toList()
-        val idQuery = firstParamAnnotations.filterIsInstance<Query>().firstOrNull()
-        assertEquals("id", idQuery?.value)
+        val queryNames = method.parameterAnnotations
+            .flatMap { annotations -> annotations.filterIsInstance<Query>().map { it.value } }
+        assertTrue(queryNames.contains("id"))
+        assertTrue(queryNames.contains("rid"))
+        assertTrue(queryNames.contains("type"))
+        assertTrue(queryNames.contains("gaia_source"))
+        assertTrue(queryNames.contains("web_location"))
     }
 
     @Test
@@ -181,10 +185,10 @@ class DynamicApiContractTest {
     }
 
     @Test
-    fun getDynamicDetailFallback_usesLegacyDetailEndpointAndIdQuery() {
+    fun getDynamicDetailFallback_usesDesktopDetailEndpointAndIdQuery() {
         val method = DynamicApi::class.java.methods.first { it.name == "getDynamicDetailFallback" }
         val get = method.getAnnotation(GET::class.java)
-        assertEquals("x/polymer/web-dynamic/v1/detail", get?.value)
+        assertEquals("x/polymer/web-dynamic/desktop/v1/detail", get?.value)
 
         val firstParamAnnotations = method.parameterAnnotations[0].toList()
         val idQuery = firstParamAnnotations.filterIsInstance<Query>().firstOrNull()

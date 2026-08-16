@@ -61,7 +61,7 @@ class HomeSettingsUiPresetPolicyTest {
     }
 
     @Test
-    fun sharedLiquidGlass_globalMasterEnablesAllReusableChrome() {
+    fun sharedLiquidGlass_globalMasterEnablesReusableChrome() {
         assertTrue(
             resolveSharedLiquidGlassChromeEnabled(
                 individualEnabled = false,
@@ -74,6 +74,36 @@ class HomeSettingsUiPresetPolicyTest {
                 individualEnabled = false,
                 uiStyle = AppUiStyle.MIUIX,
                 androidNativeLiquidGlassEnabled = true
+            )
+        )
+        assertTrue(
+            resolveLiquidGlassReuseParticipates(
+                surface = LiquidGlassReuseSurface.HOME_BOTTOM_BAR,
+                androidNativeLiquidGlassEnabled = true,
+            )
+        )
+        assertTrue(
+            resolveLiquidGlassReuseParticipates(
+                surface = LiquidGlassReuseSurface.COMMENT_BOTTOM_BAR,
+                androidNativeLiquidGlassEnabled = true,
+            )
+        )
+        assertTrue(
+            resolveLiquidGlassReuseParticipates(
+                surface = LiquidGlassReuseSurface.HOME_TOP_DOCK,
+                androidNativeLiquidGlassEnabled = true,
+            )
+        )
+        assertTrue(
+            resolveLiquidGlassReuseParticipates(
+                surface = LiquidGlassReuseSurface.HOME_SEARCH,
+                androidNativeLiquidGlassEnabled = true,
+            )
+        )
+        assertFalse(
+            resolveLiquidGlassReuseParticipates(
+                surface = LiquidGlassReuseSurface.HOME_BOTTOM_BAR,
+                androidNativeLiquidGlassEnabled = false,
             )
         )
     }

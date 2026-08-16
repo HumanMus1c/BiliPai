@@ -422,6 +422,14 @@ internal sealed interface BiliPaiNavKey : NavKey {
     }
 
     @Serializable
+    data class BangumiReview(
+        val mediaId: Long,
+        val title: String = ""
+    ) : BiliPaiNavKey {
+        override val routeBase: String = "bangumi_review"
+    }
+
+    @Serializable
     data class Web(
         val url: String,
         val title: String = ""

@@ -506,8 +506,8 @@ private fun TodayWatchPluginModeSegmentedControl(
         height = 42.dp,
         indicatorHeight = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(42f).dp,
         labelFontSize = 14.sp,
-        containerHorizontalPadding = 3.dp,
-        containerVerticalPadding = 3.dp,
+        containerHorizontalPadding = 4.dp,
+        containerVerticalPadding = 4.dp,
         liquidGlassEffectsEnabled = true,
         dragSelectionEnabled = true,
         preferInlineContentStyle = false

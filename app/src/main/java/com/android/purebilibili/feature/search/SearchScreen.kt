@@ -166,7 +166,7 @@ import kotlinx.coroutines.launch
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
-import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
+
 import com.android.purebilibili.feature.home.components.resolveHomeTopSearchContainerShape
 
 internal fun shouldShowSearchHotSection(
@@ -2027,44 +2027,34 @@ fun SearchTopBar(
 
                 val inputShape = resolveSearchInputShape(topChromePolicy)
                 val actionShape = AppShapes.container(chromeSpec.actionShapeLevel)
-                BottomBarMatchedReusableLiquidDock(
-                    shape = inputShape,
+                val containerColor = if (chromeSpec.useFilledSearchAction) {
+                    AppSurfaceTokens.surfaceContainerHigh()
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                }
+                SearchTopBarInputField(
+                    value = textFieldValue,
+                    onValueChange = { next ->
+                        textFieldValue = next
+                        if (next.text != query) {
+                            onQueryChange(next.text)
+                        }
+                    },
+                    onSearch = {
+                        if (canSubmit) onSearch(resolvedSubmitKeyword)
+                    },
+                    placeholder = placeholder,
+                    containerColor = containerColor,
+                    fieldShape = inputShape,
+                    heightDp = chromeSpec.inputHeightDp,
+                    focusRequester = focusRequester,
+                    interactionSource = searchInteractionSource,
                     modifier = Modifier
                         .weight(1f)
-                        .height(chromeSpec.inputHeightDp.dp),
-                    drawShellLens = false,
-                    isScrollInProgressProvider = isScrollInProgressProvider
-                ) { liquidChromeActive ->
-                    val containerColor = if (liquidChromeActive) {
-                        Color.Transparent
-                    } else if (chromeSpec.useFilledSearchAction) {
-                        AppSurfaceTokens.surfaceContainerHigh()
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                    }
-                    SearchTopBarInputField(
-                        value = textFieldValue,
-                        onValueChange = { next ->
-                            textFieldValue = next
-                            if (next.text != query) {
-                                onQueryChange(next.text)
-                            }
-                        },
-                        onSearch = {
-                            if (canSubmit) onSearch(resolvedSubmitKeyword)
-                        },
-                        placeholder = placeholder,
-                        containerColor = containerColor,
-                        fieldShape = inputShape,
-                        heightDp = chromeSpec.inputHeightDp,
-                        focusRequester = focusRequester,
-                        interactionSource = searchInteractionSource,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(chromeSpec.inputHeightDp.dp)
-                            .onFocusChanged { onFocusChanged(it.isFocused) }
-                    )
-                }
+                        .fillMaxWidth()
+                        .height(chromeSpec.inputHeightDp.dp)
+                        .onFocusChanged { onFocusChanged(it.isFocused) }
+                )
 
                 Spacer(modifier = Modifier.width(chromeSpec.horizontalGapDp.dp))
 

@@ -74,6 +74,7 @@ fun BangumiDetailScreen(
     onBack: () -> Unit,
     onEpisodeClick: (Long, BangumiEpisode) -> Unit,  // 点击剧集播放
     onSeasonClick: (Long) -> Unit = {},        //  点击切换季度
+    onReviewsClick: (Long, String) -> Unit = { _, _ -> },
     viewModel: BangumiViewModel = viewModel()
 ) {
     val detailState by viewModel.detailState.collectAsStateWithLifecycle()
@@ -142,7 +143,8 @@ fun BangumiDetailScreen(
                         onSeasonClick = onSeasonClick,
                         onFollowStatusSelect = { status ->
                             viewModel.updateFollowStatus(actionSeasonId, status)
-                        }
+                        },
+                        onReviewsClick = onReviewsClick
                     )
                 } else {
                     MobileBangumiDetailContent(
@@ -152,7 +154,8 @@ fun BangumiDetailScreen(
                         onSeasonClick = onSeasonClick,
                         onFollowStatusSelect = { status ->
                             viewModel.updateFollowStatus(actionSeasonId, status)
-                        }
+                        },
+                        onReviewsClick = onReviewsClick
                     )
                 }
             }
@@ -166,7 +169,8 @@ private fun TabletBangumiDetailContent(
     paddingValues: PaddingValues,
     onEpisodeClick: (BangumiEpisode) -> Unit,
     onSeasonClick: (Long) -> Unit,
-    onFollowStatusSelect: (Int) -> Unit
+    onFollowStatusSelect: (Int) -> Unit,
+    onReviewsClick: (Long, String) -> Unit
 ) {
     // 状态管理
     val isFollowing = isBangumiFollowed(detail.userStatus)
@@ -264,7 +268,10 @@ private fun TabletBangumiDetailContent(
                 
                 // Action Buttons
                 item {
-                    Row(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         // Follow Button
                          AppButton(
                             onClick = {
@@ -288,6 +295,15 @@ private fun TabletBangumiDetailContent(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             AppText(resolveBangumiFollowStatusLabel(detail.userStatus))
+                        }
+                        if (detail.mediaId > 0L) {
+                            AppOutlinedButton(
+                                onClick = { onReviewsClick(detail.mediaId, detail.title) },
+                                modifier = Modifier.weight(1f),
+                                shape = AppShapes.container(ContainerLevel.Chip)
+                            ) {
+                                AppText("点评")
+                            }
                         }
                     }
                 }
@@ -485,7 +501,8 @@ private fun MobileBangumiDetailContent(
     paddingValues: PaddingValues,
     onEpisodeClick: (BangumiEpisode) -> Unit,
     onSeasonClick: (Long) -> Unit,
-    onFollowStatusSelect: (Int) -> Unit
+    onFollowStatusSelect: (Int) -> Unit,
+    onReviewsClick: (Long, String) -> Unit
 ) {
     //  [修复] 使用 detail 本身作为 key，这样当 ViewModel 更新 detail 时，状态会正确同步
     val isFollowing = isBangumiFollowed(detail.userStatus)
@@ -629,7 +646,7 @@ private fun MobileBangumiDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // 追番按钮
                     if (isFollowing) {
@@ -675,6 +692,14 @@ private fun MobileBangumiDetailContent(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             AppText("追番")
+                        }
+                    }
+                    if (detail.mediaId > 0L) {
+                        AppOutlinedButton(
+                            onClick = { onReviewsClick(detail.mediaId, detail.title) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            AppText("点评")
                         }
                     }
                 }

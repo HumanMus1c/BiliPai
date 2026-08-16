@@ -269,9 +269,9 @@ class BottomBarLiquidSegmentedControlStructureTest {
     }
 
     @Test
-    fun `global glass overrides inline segmented control preference`() {
+    fun `global glass does not force liquid pill on native chrome`() {
         assertEquals(
-            SegmentedControlChromeStyle.LIQUID_PILL,
+            SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE,
             resolveSegmentedControlChromeStyle(
                 prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = true,
@@ -281,9 +281,9 @@ class BottomBarLiquidSegmentedControlStructureTest {
     }
 
     @Test
-    fun `android native chrome segmented control keeps liquid pill when global glass is enabled`() {
+    fun `android native chrome segmented control stays underline when global glass is enabled`() {
         assertEquals(
-            SegmentedControlChromeStyle.LIQUID_PILL,
+            SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE,
             resolveSegmentedControlChromeStyle(
                 prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = true,
@@ -307,21 +307,26 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(source.contains("BottomBarMotionProfile.ANDROID_NATIVE_FLOATING"))
         assertFalse(source.contains("BottomBarMotionProfile.IOS_FLOATING"))
         assertTrue(source.contains("BottomBarFloatingSegmentedControl("))
-        assertTrue(floating.contains("DampedDragAnimation("))
-        assertTrue(floating.contains("dampedDragAnimation.modifier"))
-        assertTrue(floating.contains("interactiveHighlight?.gestureModifier"))
-        assertTrue(floating.contains("val progressOffset = dampedDragAnimation.value * tabWidthPx"))
-        assertTrue(floating.contains("resolveSegmentedControlIndicatorHeightDp("))
-        assertTrue(floating.contains("resolveMatchedLiquidIndicatorGeometry("))
-        assertTrue(floating.contains("dampedDragAnimation.pressedScale = indicatorGeometry.pressedScale"))
-        assertFalse(floating.contains(".padding(vertical = bloomOverflowDp)"))
-        assertEquals(
-            1,
-            Regex("""\blens\(""").findAll(floating).count(),
-            "Only the moving indicator may refract; a full-shell lens creates center seams"
+        assertTrue(floating.contains("FloatingBottomBar("))
+        assertTrue(floating.contains("FloatingBottomBarItem("))
+        assertTrue(floating.contains("resolveBiliPaiBottomBarShellColor("))
+        assertTrue(floating.contains("FloatingBottomBarDefaultShellHeight"))
+        assertTrue(floating.contains("FloatingBottomBarIndicatorHeight"))
+        assertTrue(floating.contains("modifier.wrapContentWidth()"))
+        assertTrue(floating.contains("indicatorPositionProvider = indicatorPositionProvider"))
+        assertFalse(floating.contains("DampedDragAnimation("))
+        assertFalse(
+            floating.contains(".drawBackdrop("),
+            "Reuse chrome must not own a drawBackdrop recipe; use FloatingBottomBar"
         )
-        assertTrue(floating.contains(".layerBackdrop(tabsBackdrop)"))
-        assertTrue(floating.contains("rememberGravityRotatedHighlight(extraDegrees = 90f)"))
+        assertFalse(floating.contains("vibrancy()"))
+        assertEquals(
+            0,
+            Regex("""\blens\(""").findAll(floating).count(),
+            "Segmented control must not call lens(); FloatingBottomBar owns the recipe"
+        )
+        assertFalse(floating.contains("biliPaiFloatingDockShell("))
+        assertFalse(floating.contains("BiliPaiFloatingDockIndicator("))
         assertFalse(floating.contains("displayPosition"))
         assertFalse(floating.contains("BottomBarMatchedLiquidDock("))
         assertFalse(floating.contains("horizontalDragGesture("))
@@ -334,9 +339,8 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(source.contains("AndroidNativeUnderlinedSegmentedControl("))
         assertTrue(source.contains("indicatorPositionProvider: (() -> Float)? = null"))
         assertTrue(source.contains("val underlineOffsetX = (segmentWidth * indicatorPosition) + ((segmentWidth - underlineWidth) / 2)"))
-        assertTrue(floating.contains("FloatingBottomBarPressedScale"))
-        assertTrue(floating.contains("rememberCombinedBackdrop(pageBackdrop, tabsBackdrop)"))
-        assertTrue(floating.contains("dampedDragAnimation.modifier"))
+        assertTrue(floating.contains("FloatingBottomBarMode.LiquidGlass"))
+        assertTrue(floating.contains("LocalFloatingBottomBarContentColor.current"))
         assertTrue(sharedChrome.contains("holdPressUntilReleaseTargetSettles = true"))
         assertFalse(source.contains("BottomBarLiquidIndicatorSurface("))
     }

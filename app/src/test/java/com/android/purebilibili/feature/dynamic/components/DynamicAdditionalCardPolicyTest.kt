@@ -36,7 +36,7 @@ class DynamicAdditionalCardPolicyTest {
         val vote = resolveDynamicAdditionalCard(
             DynamicAdditional(
                 type = "ADDITIONAL_TYPE_VOTE",
-                vote = DynamicAdditionalVote(desc = "今晚吃什么", join_num = 12)
+                vote = DynamicAdditionalVote(desc = "今晚吃什么", join_num = 12, vote_id = 88L)
             )
         )
         val goods = resolveDynamicAdditionalCard(
@@ -60,6 +60,7 @@ class DynamicAdditionalCardPolicyTest {
         )
         assertEquals("投票", vote?.kindLabel)
         assertEquals("12 人参与", vote?.subtitle)
+        assertEquals(88L, vote?.voteId)
         assertEquals("商品", goods?.kindLabel)
         assertEquals("预约", reserve?.kindLabel)
         assertNull(resolveDynamicAdditionalCard(null))

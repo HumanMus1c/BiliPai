@@ -67,16 +67,16 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.HOME_FEED,
         title = "首页与推荐",
-        subtitle = "首页展示、推荐流、刷新数量、动态栏位、动态顶栏折叠与首页壁纸",
+        subtitle = "首页展示、推荐流、刷新数量、动态栏位、追番时间表、首页顶栏显示与首页壁纸",
         section = "设置",
-        aliases = listOf("首页", "推荐", "推荐流", "首页展示", "首页壁纸", "壁纸效果", "刷新数量", "动态栏位", "动态顶栏", "动态顶栏下滑折叠")
+        aliases = listOf("首页", "推荐", "推荐流", "首页展示", "首页壁纸", "壁纸效果", "刷新数量", "动态栏位", "动态顶栏", "追番时间表", "展示追番时间表", "首页顶栏收起")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.NAVIGATION,
         title = "导航与标签",
         subtitle = "底栏、顶部标签、平板侧边栏与底栏项目顺序",
         section = "设置",
-        aliases = listOf("导航", "底栏", "底部栏", "顶部标签", "顶部标签页", "首页搜索框", "搜索框折叠", "标签排序", "平板侧边栏", "侧边导航栏", "底栏顺序", "底栏项目", "底栏搜索入口", "搜索入口", "悬浮搜索")
+        aliases = listOf("导航", "底栏", "底部栏", "顶部标签", "顶部标签页", "首页搜索框", "首页顶栏显示", "仅回顶显示", "始终显示", "首页顶栏收起", "顶栏收起", "标签排序", "平板侧边栏", "侧边导航栏", "底栏顺序", "底栏项目", "底栏搜索入口", "搜索入口", "悬浮搜索")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK_QUALITY,
@@ -321,7 +321,8 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
             "顶部标签",
             "顶部标签页",
             "首页搜索框",
-            "搜索框折叠",
+            "首页顶栏收起",
+            "顶栏收起",
             "侧边导航栏",
             "侧边栏",
             "平板导航",
@@ -495,7 +496,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.APPEARANCE,
         title = "安卓原生液态玻璃",
-        subtitle = "全局启用顶部、底栏和评论区控件",
+        subtitle = "仅首页底栏与评论区底栏",
         section = "外观设置",
         aliases = listOf("全局液态玻璃", "评论区液态玻璃", "Android Native 液态玻璃"),
         focusId = SettingsSearchFocusIds.APPEARANCE_THEME
@@ -538,7 +539,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
         title = "首页与列表",
         subtitle = "展示样式、列表顶部栏、一键回顶、首页壁纸效果、推荐流卡片宽度",
         section = "首页设置",
-        aliases = listOf("首页展示", "首页与列表", "展示样式", "列表顶部栏", "历史记录顶部栏", "收藏夹顶部栏", "一键回顶", "回到顶部", "搜索回顶", "评论区回顶", "折叠", "首页壁纸", "首页壁纸效果", "原图壁纸", "壁纸模糊", "强模糊", "推荐流卡片宽度", "首页卡片宽度", "卡片宽度", "统计信息贴封面", "UP主标识", "UP标识", "up主标识", "up标识", "UP主头像", "UP头像", "up主头像", "up头像", "隐藏头像"),
+        aliases = listOf("首页展示", "首页与列表", "展示样式", "列表顶部栏", "历史记录顶部栏", "收藏夹顶部栏", "一键回顶", "回到顶部", "搜索回顶", "评论区回顶", "首页顶栏仅回顶显示", "仅回顶显示", "展示追番时间表", "追番时间表", "首页壁纸", "首页壁纸效果", "原图壁纸", "壁纸模糊", "强模糊", "推荐流卡片宽度", "首页卡片宽度", "卡片宽度", "统计信息贴封面", "UP主标识", "UP标识", "up主标识", "up标识", "UP主头像", "UP头像", "up主头像", "up头像", "隐藏头像"),
         focusId = SettingsSearchFocusIds.HOME_OVERVIEW
     ),
     SettingsSearchEntry(

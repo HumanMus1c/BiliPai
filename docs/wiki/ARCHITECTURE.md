@@ -6,7 +6,7 @@
 
 | 项目 | 当前值 |
 | --- | --- |
-| 应用版本 | 当前构建与最近完整发布记录 `v0.2.3-beta.5` / `versionCode 294` |
+| 应用版本 | 当前构建与最近完整发布记录 `v0.2.3-beta.6` / `versionCode 295` |
 | Android | minSdk 26、targetSdk 35、compileSdk 37、arm64-v8a |
 | 工具链 | AGP 9.3.1、Gradle 9.5、Kotlin 2.4、JDK 21 |
 | Compose | BOM 2026.06.00、Material3 1.5.0-alpha25、Lifecycle 2.11.0 |

@@ -141,13 +141,13 @@ internal fun resolveTopTabDockIndicatorHorizontalGapDp(hasOuterChromeSurface: Bo
     if (hasOuterChromeSurface) 2f else 2f
 
 /**
- * Extra start/end inset so the first and last selected capsules stay inside the
- * stadium end-caps instead of clipping against the dock's rounded corners.
+ * Same 4dp start/end inset as [FloatingBottomBar] so the first and last
+ * selected capsules sit inside the stadium end-caps without empty glass caps.
  */
 internal fun resolveTopTabDockEndInsetDp(
     wrapContent: Boolean,
     isFloatingStyle: Boolean
-): Float = if (wrapContent || isFloatingStyle) 6f else 0f
+): Float = if (wrapContent || isFloatingStyle) 4f else 0f
 
 /**
  * 顶部 Tab 的视觉背景保持 30dp 高；36dp 行高留出上下各 3dp 的呼吸空间。
@@ -811,11 +811,8 @@ internal fun resolveIosTopTabCapsuleContainerColor(
     return baseColor.copy(alpha = 0.28f * selectedAlpha)
 }
 
-/**
- * Soft shell lens for short top docks: keeps scroll-time refraction/vibrancy closer to the
- * moving indicator, while staying below full bottom-bar rim strength that causes 虾线.
- */
-internal const val TOP_DOCK_SHELL_LENS_INTENSITY = 0.55f
+/** Same full-strength shell lens as [FloatingBottomBar] (24dp / 24dp). */
+internal const val TOP_DOCK_SHELL_LENS_INTENSITY = 1f
 
 internal fun Modifier.homeTopBottomBarMatchedSurface(
     renderMode: HomeTopChromeRenderMode,

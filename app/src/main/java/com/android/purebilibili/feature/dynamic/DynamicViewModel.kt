@@ -24,6 +24,7 @@ import com.android.purebilibili.data.model.response.ReplyInteractionData
 import com.android.purebilibili.data.model.response.ReplyItem
 import com.android.purebilibili.data.repository.ActionRepository
 import com.android.purebilibili.data.repository.CommentRepository
+import com.android.purebilibili.data.repository.DynamicCreateRepository
 import com.android.purebilibili.data.repository.DynamicFeedScope
 import com.android.purebilibili.data.repository.DynamicRepository
 import com.android.purebilibili.data.repository.LiveRepository
@@ -1635,8 +1636,19 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
 
     //  [新增] 发布纯文本动态（对齐 BiliPai 动态页发布入口，成功后延迟校验防 shadow-ban）
     fun publishDynamic(content: String, onResult: (Boolean, String) -> Unit) {
-        val trimmed = content.trim()
-        if (trimmed.isEmpty()) {
+        publishDynamic(
+            draft = com.android.purebilibili.data.model.response.DynamicPublishDraft(text = content),
+            context = null,
+            onResult = onResult
+        )
+    }
+
+    fun publishDynamic(
+        draft: com.android.purebilibili.data.model.response.DynamicPublishDraft,
+        context: android.content.Context?,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        if (draft.text.isBlank() && draft.imageUris.isEmpty() && draft.voteId <= 0L && draft.reserveId <= 0L) {
             onResult(false, "内容不能为空")
             return
         }
@@ -1647,29 +1659,34 @@ class DynamicViewModel(application: Application) : AndroidViewModel(application)
                     onResult(false, "请先登录")
                     return@launch
                 }
-                val response = NetworkModule.dynamicApi.createDynamic(
-                    content = trimmed,
-                    csrf = csrf
-                )
-                if (response.code == 0) {
-                    onResult(true, "发布成功")
-                    refresh(selectedTab = _selectedTab.value)
-                    //  防 shadow-ban：延迟后拉详情验证动态真实可见（对齐 BiliPai checkCreatedDyn）
-                    val createdId = response.data?.dynamic_id_str
-                    if (createdId.isNullOrBlank()) return@launch
-                    try {
-                        delay(DYNAMIC_CREATE_ANTIFRAUD_DELAY_MS)
-                        val verify = NetworkModule.dynamicApi.getDynamicDetail(id = createdId)
-                        if (verify.code != 0 || verify.data?.item == null) {
-                            onResult(true, "发布成功，但动态可能暂未生效（可在网页端确认）")
-                        }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        // 发布已成功，后置校验失败不应把发布结果反转为失败。
+                val createdId = if (context != null) {
+                    DynamicCreateRepository.publish(context, draft).getOrElse {
+                        onResult(false, it.message ?: "发布失败")
+                        return@launch
                     }
                 } else {
-                    onResult(false, response.message.ifBlank { "发布失败" })
+                    val response = NetworkModule.dynamicApi.createDynamic(
+                        content = draft.text.trim(),
+                        csrf = csrf
+                    )
+                    if (response.code != 0) {
+                        onResult(false, response.message.ifBlank { "发布失败" })
+                        return@launch
+                    }
+                    response.data?.dynamic_id_str.orEmpty()
+                }
+                onResult(true, "发布成功")
+                refresh(selectedTab = _selectedTab.value)
+                if (createdId.isBlank()) return@launch
+                try {
+                    delay(DYNAMIC_CREATE_ANTIFRAUD_DELAY_MS)
+                    val verify = NetworkModule.dynamicApi.getDynamicDetail(id = createdId)
+                    if (verify.code != 0 || verify.data?.item == null) {
+                        onResult(true, "发布成功，但动态可能暂未生效（可在网页端确认）")
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
                 }
             } catch (e: CancellationException) {
                 throw e

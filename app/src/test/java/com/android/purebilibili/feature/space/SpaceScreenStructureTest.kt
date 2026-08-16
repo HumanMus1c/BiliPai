@@ -8,6 +8,21 @@ import kotlin.test.assertTrue
 class SpaceScreenStructureTest {
 
     @Test
+    fun `space chrome uses native tab rows and piliplus actions`() {
+        val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
+
+        assertTrue(source.contains("AppNativeTabRow("))
+        assertTrue(source.contains("SpaceSecondarySwitchRow("))
+        assertTrue(source.contains("resolveSpacePrimaryTab(selectedMainTab)"))
+        assertTrue(source.contains("showTabRail = false"))
+        assertTrue(source.contains("onFollowingClick"))
+        assertTrue(source.contains("onFansClick"))
+        assertTrue(source.contains("Intent.ACTION_SEND"))
+        assertFalse(source.contains("暂不支持私信"))
+        assertFalse(source.contains("BottomBarLiquidSegmentedControl("))
+    }
+
+    @Test
     fun `contribution videos render as grid cards instead of full width rows`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 
@@ -26,7 +41,7 @@ class SpaceScreenStructureTest {
             .substringAfter("items(\n                            items = state.videos")
             .substringBefore("if (state.isLoadingMore)")
 
-        assertTrue(source.contains("onLayoutModeClick"))
+        assertTrue(source.contains("showContributionVideoMenuActions"))
         assertTrue(source.contains("toggleSpaceContributionVideoLayoutMode"))
         assertTrue(source.contains("resolveSpaceContributionVideoGridSpan("))
         assertTrue(source.contains("resolveSpaceContributionVideoItemKey("))
@@ -50,55 +65,29 @@ class SpaceScreenStructureTest {
     }
 
     @Test
-    fun `contribution screen uses compact toolbar instead of separate tab and action rows`() {
+    fun `contribution video actions live in the top overflow menu`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 
-        assertTrue(source.contains("SpaceContributionToolbar("))
+        assertTrue(source.contains("text = { AppText(\"播放全部\") }"))
+        assertTrue(source.contains("\"切换为双列\""))
+        assertTrue(source.contains("\"切换为单列\""))
+        assertTrue(source.contains("\"排序：${'$'}{resolveSpaceVideoSortCompactLabel"))
+        assertTrue(source.contains("showVideoSortMenu = true"))
+        assertTrue(source.contains("VideoSortOrder.entries.forEach"))
+        assertFalse(source.contains("SpaceContributionToolbar("))
+        assertFalse(source.contains("SpaceContributionVideoToolbarActions("))
         assertFalse(source.contains("SpaceContributionTabRow("))
         assertFalse(source.contains("SpaceContributionVideoActions("))
-        assertTrue(source.contains("resolveSpaceContributionToolbarSpec("))
     }
 
     @Test
-    fun `contribution toolbar long press expands full horizontal tab rail`() {
+    fun `secondary contribution switch keeps the native tab row`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 
-        assertTrue(source.contains("SpaceContributionToolbarDock("))
-        assertTrue(source.contains("SpaceContributionCollapsedTab("))
-        assertTrue(source.contains("SpaceContributionExpandedTabRail("))
-        assertTrue(source.contains("AppSurface("))
-        assertTrue(source.contains("AppShapes.container(ContainerLevel.Pill)"))
-        assertTrue(source.contains(".combinedClickable("))
-        assertTrue(source.contains("onExpand = { expanded = true }"))
-        assertTrue(source.contains("onLongClick = onExpand"))
-        assertTrue(source.contains("horizontalScroll(scrollState)"))
-        assertTrue(source.contains("rememberTextMeasurer()"))
-        assertTrue(source.contains("minimumTouchTargetSize.width"))
-        assertTrue(source.contains("textMeasurer.measure("))
-        assertTrue(source.contains("val tabWidths = remember("))
-        assertTrue(source.contains("tabs.forEachIndexed"))
-        assertTrue(source.contains(".width(tabWidths.getOrElse(index) { minimumTouchTargetWidth })"))
-        assertTrue(source.contains("if (expanded) {"))
-        val expandedBranch = source
-            .substringAfter("if (expanded) {")
-            .substringBefore("if (toolbarSpec.showVideoActions)")
-        assertTrue(expandedBranch.contains("SpaceContributionExpandedTabRail("))
-        assertTrue(expandedBranch.contains("} else {"))
-        assertTrue(expandedBranch.contains("SpaceContributionCollapsedTab("))
-        assertTrue(source.contains("if (toolbarSpec.collapseAfterTabSelection) expanded = false"))
-        assertFalse(source.contains("AnimatedVisibility(visible = expanded)"))
-        assertFalse(
-            source.contains(
-                """
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(toolbarSpec.tabHeightDp.dp)
-                ) {
-                    if (expanded) {
-                """.trimIndent()
-            )
-        )
+        assertTrue(source.contains("AppNativeTabRow("))
+        assertTrue(source.contains("AppFilterChip("))
+        assertFalse(source.contains("BottomBarLiquidSegmentedControl("))
+        assertFalse(source.contains("rememberTextMeasurer()"))
     }
 
     @Test
@@ -125,6 +114,9 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("copyOnLongPress(userInfo.sign, \"UP主简介\")"))
         assertTrue(source.contains("copyOnLongPress(userInfo.mid.toString(), \"UID\")"))
         assertTrue(source.contains("Text(\"复制空间链接\")"))
+        assertTrue(source.contains("Text(\"复制 UID\")"))
+        assertTrue(source.contains("Text(\"分享\")"))
+        assertTrue(source.contains("Text(\"举报\")"))
         assertTrue(source.contains("https://space.bilibili.com/${'$'}mid"))
     }
 
@@ -134,6 +126,8 @@ class SpaceScreenStructureTest {
 
         assertTrue(source.contains("SpaceHeaderRelationActions("))
         assertTrue(source.contains("contentDescription = \"私信\""))
+        assertTrue(source.contains("onMessageClick = onMessageClick"))
+        assertTrue(source.contains("if (!isOwner)"))
         assertTrue(
             source.contains("名字 + 等级 + 私信/关注同一行垂直居中对齐"),
             "relation actions should align on the name/level row"

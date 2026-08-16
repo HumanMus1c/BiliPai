@@ -19,11 +19,7 @@ class HistoryFilterTabChromePolicyTest {
             topChromePolicy = testTopChromePolicy(),
         )
 
-        assertTrue(spec.useLiquidDock)
-        assertEquals(HISTORY_FILTER_LIQUID_DOCK_HEIGHT_DP, spec.heightDp)
-        assertEquals(HISTORY_FILTER_LIQUID_DOCK_INDICATOR_HEIGHT_DP, spec.indicatorHeightDp)
-        assertEquals(HISTORY_FILTER_LIQUID_DOCK_LABEL_FONT_SIZE_SP, spec.labelFontSizeSp)
-        assertEquals(null, spec.itemWidthDp)
+        assertFalse(spec.useLiquidDock)
         assertFalse(spec.dragSelectionEnabled)
     }
 

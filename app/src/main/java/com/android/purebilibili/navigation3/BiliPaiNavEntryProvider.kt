@@ -82,6 +82,7 @@ internal fun NavEntryBuilder.biliPaiNavEntries(
     entry<BiliPaiNavKey.Category>(swipeDismiss = NavSwipeDirection.None, content = content)
     entry<BiliPaiNavKey.Live>(swipeDismiss = NavSwipeDirection.None, content = content)
     entry<BiliPaiNavKey.BangumiDetail>(swipeDismiss = NavSwipeDirection.None, content = content)
+    entry<BiliPaiNavKey.BangumiReview>(swipeDismiss = NavSwipeDirection.None, content = content)
     entry<BiliPaiNavKey.Web>(swipeDismiss = NavSwipeDirection.None, content = content)
     entry<BiliPaiNavKey.Unknown>(swipeDismiss = NavSwipeDirection.None, content = content)
 }

@@ -24,11 +24,22 @@ internal fun resolveGlobalLiquidGlassReuseEnabled(
     androidNativeLiquidGlassEnabled: Boolean
 ): Boolean = androidNativeLiquidGlassEnabled
 
+internal enum class LiquidGlassReuseSurface {
+    HOME_BOTTOM_BAR,
+    COMMENT_BOTTOM_BAR,
+    HOME_TOP_DOCK,
+    HOME_SEARCH,
+}
+
+internal fun resolveLiquidGlassReuseParticipates(
+    surface: LiquidGlassReuseSurface,
+    androidNativeLiquidGlassEnabled: Boolean,
+): Boolean = resolveGlobalLiquidGlassReuseEnabled(androidNativeLiquidGlassEnabled)
+
 /**
  * Effective enablement for any chrome surface that can reuse bottom-bar liquid glass.
  *
- * - Global reuse ON → force enabled (master switch for top dock / search / bottom bar /
- *   segmented controls / comment tabs, etc.)
+ * - Global reuse ON → force enabled (master switch for top dock / search / bottom bar)
  * - Global reuse OFF → keep the legacy per-surface + preset gate
  */
 internal fun resolveSharedLiquidGlassChromeEnabled(

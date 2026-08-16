@@ -12,6 +12,7 @@ import com.android.purebilibili.data.model.response.OpusContentBlock
 import com.android.purebilibili.data.model.response.OpusLinkCard
 import com.android.purebilibili.data.model.response.OpusMajor
 import com.android.purebilibili.data.model.response.UgcSeasonMajor
+import com.android.purebilibili.data.repository.DynamicRepository
 import com.android.purebilibili.feature.dynamic.model.LiveContentInfo
 import kotlinx.serialization.json.Json
 
@@ -216,6 +217,21 @@ internal fun resolveDynamicCardPrimaryAction(item: DynamicItem): DynamicCardPrim
         )?.let { return it }
     }
 
+    major?.subscription_new?.live_rcmd?.let { live ->
+        resolveLivePrimaryAction(
+            liveRcmd = live,
+            fallbackName = target.modules.module_author?.name.orEmpty()
+        )?.let { return it }
+    }
+
+    major?.live?.id?.trim()?.toLongOrNull()?.takeIf { it > 0L }?.let { roomId ->
+        return DynamicCardPrimaryAction.OpenLive(
+            roomId = roomId,
+            title = major.live.title.ifBlank { "直播间" },
+            uname = target.modules.module_author?.name.orEmpty()
+        )
+    }
+
     val dynamicId = target.id_str.trim().takeIf { it.isNotEmpty() }
     if (dynamicId != null) {
         return DynamicCardPrimaryAction.OpenDynamicDetail(dynamicId)
@@ -303,6 +319,9 @@ internal fun dispatchDynamicCardPrimaryClick(
     onUserClick: (Long) -> Unit,
     onLiveClick: (Long, String, String) -> Unit
 ) {
+    if (action is DynamicCardPrimaryAction.OpenDynamicDetail) {
+        DynamicRepository.rememberDynamicDetailSeed(item)
+    }
     if (onPrimaryClickOverride != null) {
         onPrimaryClickOverride(item)
         return

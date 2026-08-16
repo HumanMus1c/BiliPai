@@ -1,10 +1,5 @@
 package com.android.purebilibili.feature.bangumi
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -15,16 +10,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.feature.download.DownloadManager
 import kotlinx.coroutines.launch
@@ -45,17 +39,14 @@ fun HomeBangumiTabPage(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var categoryTabsVisible by remember { mutableStateOf(true) }
+    val showPgcTimeline by SettingsManager.getShowPgcTimeline(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     val channelOptions = remember {
         BangumiChannel.entries.map { AppSegmentOption(it, it.label) }
     }
 
     LaunchedEffect(initialType) { viewModel.initialize(initialType) }
-    LaunchedEffect(scrollToTopRequestId) {
-        if (scrollToTopRequestId > 0) {
-            categoryTabsVisible = true
-        }
-    }
+    LaunchedEffect(showPgcTimeline) { viewModel.setShowPgcTimeline(showPgcTimeline) }
 
     val layoutDirection = LocalLayoutDirection.current
     Column(
@@ -67,20 +58,14 @@ fun HomeBangumiTabPage(
                 end = contentPadding.calculateEndPadding(layoutDirection),
             )
     ) {
-        AnimatedVisibility(
-            visible = categoryTabsVisible,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically(),
-        ) {
-            BangumiLiquidAwareTabRow(
-                options = channelOptions,
-                selectedValue = state.channel,
-                onSelectionChange = viewModel::selectChannel,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-        }
+        BangumiLiquidAwareTabRow(
+            options = channelOptions,
+            selectedValue = state.channel,
+            onSelectionChange = viewModel::selectChannel,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        )
         BangumiHubContent(
             state = state,
             onBangumiClick = onBangumiClick,
@@ -111,9 +96,6 @@ fun HomeBangumiTabPage(
                 scope.launch {
                     DownloadManager.saveImageToGallery(context, url, title)
                 }
-            },
-            onHomeScrollChanged = { firstVisibleIndex, scrollOffset ->
-                categoryTabsVisible = firstVisibleIndex <= 0 && scrollOffset <= 0
             },
             scrollToTopRequestId = scrollToTopRequestId,
             listBottomPadding = contentPadding.calculateBottomPadding(),

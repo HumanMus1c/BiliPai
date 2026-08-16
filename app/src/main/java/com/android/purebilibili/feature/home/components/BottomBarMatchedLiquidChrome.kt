@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.android.purebilibili.core.store.BottomBarLiquidGlassPreset
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.store.resolveGlobalLiquidGlassReuseEnabled
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.adaptive.MotionTier
@@ -263,6 +264,11 @@ internal fun BottomBarMatchedReusableLiquidDock(
     modifier: Modifier = Modifier,
     backdrop: Backdrop? = null,
     liquidGlassEffectsEnabled: Boolean = true,
+    /**
+     * Allowlisted callers only: home search field and comment [BottomInputBar].
+     * Other chrome must leave this false.
+     */
+    reuseEnabled: Boolean = false,
     drawShellLens: Boolean = true,
     shellLensIntensity: Float = 1f,
     isScrollInProgressProvider: () -> Boolean = { false },
@@ -275,11 +281,14 @@ internal fun BottomBarMatchedReusableLiquidDock(
             initialValue = HomeSettings(),
             context = kotlin.coroutines.EmptyCoroutineContext
         )
+    val reuseAllowed = resolveGlobalLiquidGlassReuseEnabled(
+        androidNativeLiquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+    )
     val glassEnabled = resolveAndroidNativeBottomBarGlassEnabled(
-        liquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled,
+        liquidGlassEnabled = reuseEnabled && reuseAllowed,
         blurEnabled = true
     )
-    if (!homeSettings.androidNativeLiquidGlassEnabled || !liquidGlassEffectsEnabled) {
+    if (!reuseEnabled || !reuseAllowed || !liquidGlassEffectsEnabled) {
         Box(modifier = modifier) {
             content(false)
         }

@@ -514,9 +514,11 @@ data class HomeSettings(
     val liquidGlassStrength: Float = 0.52f,
     val liquidGlassProgress: Float = 0.5f,
     val homeHeaderCollapseMode: HomeHeaderCollapseMode = HomeHeaderCollapseMode.BOTH,
+    val homeBarHideType: HomeBarHideType = HomeBarHideType.SYNC,
     val commonListHeaderCollapseMode: CommonListHeaderCollapseMode =
         CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
     val isHeaderCollapseEnabled: Boolean = true,
+    val showPgcTimeline: Boolean = true,
     val gridColumnCount: Int = 0, // [New] 网格列数 (0=自动, 1-6=固定)
     val homeFeedCardWidthPreset: HomeFeedCardWidthPreset = HomeFeedCardWidthPreset.AUTO,
     val homeFeedCardStyle: HomeFeedCardStyle = HomeFeedCardStyle.BILIPAI,
@@ -681,12 +683,29 @@ enum class HomeHeaderCollapseMode(
     val hasAnyCollapse: Boolean
         get() = collapseSearch || collapseTabs
 
+    val hideTopBar: Boolean
+        get() = collapseSearch
+
     companion object {
         fun fromValue(value: Int): HomeHeaderCollapseMode =
             entries.find { it.value == value } ?: BOTH
 
         fun fromLegacyBoolean(value: Boolean): HomeHeaderCollapseMode =
             if (value) BOTH else OFF
+    }
+}
+
+enum class HomeBarHideType(
+    val value: Int,
+    val label: String,
+    val description: String
+) {
+    SYNC(0, "同步", "顶栏高度跟随列表滑动，上滑展开、下滑收起"),
+    INSTANT(1, "即时", "识别滑动方向后，顶栏整段收起或展开");
+
+    companion object {
+        fun fromValue(value: Int): HomeBarHideType =
+            entries.find { it.value == value } ?: SYNC
     }
 }
 
@@ -705,28 +724,26 @@ enum class CommonListHeaderCollapseMode(
     }
 }
 
+internal fun resolveHomeHeaderCollapseModeForTopBarHide(
+    hideTopBar: Boolean
+): HomeHeaderCollapseMode {
+    return if (hideTopBar) HomeHeaderCollapseMode.BOTH else HomeHeaderCollapseMode.OFF
+}
+
+@Suppress("UNUSED_PARAMETER")
 internal fun resolveHomeHeaderCollapseModeForTopTabs(
     currentMode: HomeHeaderCollapseMode,
     collapseTabs: Boolean
 ): HomeHeaderCollapseMode {
-    return when {
-        currentMode.collapseSearch && collapseTabs -> HomeHeaderCollapseMode.BOTH
-        currentMode.collapseSearch -> HomeHeaderCollapseMode.SEARCH_ONLY
-        collapseTabs -> HomeHeaderCollapseMode.TABS_ONLY
-        else -> HomeHeaderCollapseMode.OFF
-    }
+    return resolveHomeHeaderCollapseModeForTopBarHide(currentMode.hideTopBar)
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal fun resolveHomeHeaderCollapseModeForSearch(
     currentMode: HomeHeaderCollapseMode,
     collapseSearch: Boolean
 ): HomeHeaderCollapseMode {
-    return when {
-        collapseSearch && currentMode.collapseTabs -> HomeHeaderCollapseMode.BOTH
-        collapseSearch -> HomeHeaderCollapseMode.SEARCH_ONLY
-        currentMode.collapseTabs -> HomeHeaderCollapseMode.TABS_ONLY
-        else -> HomeHeaderCollapseMode.OFF
-    }
+    return resolveHomeHeaderCollapseModeForTopBarHide(collapseSearch)
 }
 
 internal fun resolveUiPresetPreferenceValue(rawValue: Int?): UiPreset {
@@ -1300,6 +1317,8 @@ object SettingsManager {
     private val KEY_HOME_HEADER_BLUR_MODE = intPreferencesKey("home_header_blur_mode")
     private val KEY_HEADER_COLLAPSE_ENABLED = booleanPreferencesKey("header_collapse_enabled")
     private val KEY_HOME_HEADER_COLLAPSE_MODE = intPreferencesKey("home_header_collapse_mode")
+    private val KEY_HOME_BAR_HIDE_TYPE = intPreferencesKey("home_bar_hide_type")
+    private val KEY_SHOW_PGC_TIMELINE = booleanPreferencesKey("show_pgc_timeline")
     private val KEY_COMMON_LIST_HEADER_COLLAPSE_MODE =
         intPreferencesKey("common_list_header_collapse_mode")
     private val KEY_HOME_TOP_LAYOUT_ORDER = intPreferencesKey("home_top_layout_order")
@@ -1464,11 +1483,15 @@ object SettingsManager {
             liquidGlassStrength = FIXED_LIQUID_GLASS_STRENGTH,
             liquidGlassProgress = FIXED_LIQUID_GLASS_PROGRESS,
             homeHeaderCollapseMode = headerCollapseMode,
+            homeBarHideType = HomeBarHideType.fromValue(
+                preferences[KEY_HOME_BAR_HIDE_TYPE] ?: HomeBarHideType.SYNC.value
+            ),
             commonListHeaderCollapseMode = CommonListHeaderCollapseMode.fromValue(
                 preferences[KEY_COMMON_LIST_HEADER_COLLAPSE_MODE]
                     ?: CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL.value
             ),
             isHeaderCollapseEnabled = headerCollapseMode.hasAnyCollapse,
+            showPgcTimeline = preferences[KEY_SHOW_PGC_TIMELINE] ?: true,
             gridColumnCount = preferences[KEY_GRID_COLUMN_COUNT] ?: 0,
             homeFeedCardWidthPreset = HomeFeedCardWidthPreset.fromValue(
                 preferences[KEY_HOME_FEED_CARD_WIDTH_PRESET] ?: HomeFeedCardWidthPreset.AUTO.value
@@ -3395,7 +3418,7 @@ object SettingsManager {
         }
     }
     
-    //  首页顶部栏自动收缩：兼容旧布尔开关，同时支持搜索行/标签页独立折叠。
+    // 首页顶栏：始终显示，或离开顶部后收起、单击底栏首页回顶后再出现。
     fun getHomeHeaderCollapseMode(context: Context): Flow<HomeHeaderCollapseMode> =
         context.settingsDataStore.data.map { preferences ->
             preferences[KEY_HOME_HEADER_COLLAPSE_MODE]
@@ -3406,9 +3429,34 @@ object SettingsManager {
         }
 
     suspend fun setHomeHeaderCollapseMode(context: Context, mode: HomeHeaderCollapseMode) {
+        val normalized = resolveHomeHeaderCollapseModeForTopBarHide(mode.hideTopBar)
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_HOME_HEADER_COLLAPSE_MODE] = mode.value
-            preferences[KEY_HEADER_COLLAPSE_ENABLED] = mode.hasAnyCollapse
+            preferences[KEY_HOME_HEADER_COLLAPSE_MODE] = normalized.value
+            preferences[KEY_HEADER_COLLAPSE_ENABLED] = normalized.hideTopBar
+        }
+    }
+
+    fun getShowPgcTimeline(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_SHOW_PGC_TIMELINE] ?: true
+        }
+
+    suspend fun setShowPgcTimeline(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_SHOW_PGC_TIMELINE] = value
+        }
+    }
+
+    fun getHomeBarHideType(context: Context): Flow<HomeBarHideType> =
+        context.settingsDataStore.data.map { preferences ->
+            HomeBarHideType.fromValue(
+                preferences[KEY_HOME_BAR_HIDE_TYPE] ?: HomeBarHideType.SYNC.value
+            )
+        }
+
+    suspend fun setHomeBarHideType(context: Context, type: HomeBarHideType) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_HOME_BAR_HIDE_TYPE] = type.value
         }
     }
 
@@ -3421,11 +3469,10 @@ object SettingsManager {
         }
 
     suspend fun setHeaderCollapseEnabled(context: Context, value: Boolean) {
-        context.settingsDataStore.edit { preferences ->
-            preferences[KEY_HEADER_COLLAPSE_ENABLED] = value
-            preferences[KEY_HOME_HEADER_COLLAPSE_MODE] =
-                HomeHeaderCollapseMode.fromLegacyBoolean(value).value
-        }
+        setHomeHeaderCollapseMode(
+            context,
+            resolveHomeHeaderCollapseModeForTopBarHide(value),
+        )
     }
     
     //  [新增] --- 底栏模糊效果 ---
@@ -6894,6 +6941,7 @@ object SettingsManager {
                 SettingsShareSection.NAVIGATION
             ),
             BooleanShareablePreferenceDefinition(KEY_HEADER_COLLAPSE_ENABLED, SettingsShareSection.NAVIGATION),
+            BooleanShareablePreferenceDefinition(KEY_SHOW_PGC_TIMELINE, SettingsShareSection.NAVIGATION),
             BooleanShareablePreferenceDefinition(KEY_TABLET_NAVIGATION_MODE, SettingsShareSection.NAVIGATION),
             BooleanShareablePreferenceDefinition(
                 KEY_SIDEBAR_ACCOUNT_SWITCHER_ENABLED,

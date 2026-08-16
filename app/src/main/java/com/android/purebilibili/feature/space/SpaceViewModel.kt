@@ -1991,13 +1991,7 @@ class SpaceViewModel(
     }
 
     private fun tabIndexToMainTab(index: Int): SpaceMainTab {
-        return when (index) {
-            0 -> SpaceMainTab.HOME
-            1 -> SpaceMainTab.DYNAMIC
-            2 -> SpaceMainTab.CONTRIBUTION
-            3 -> SpaceMainTab.COLLECTIONS
-            else -> SpaceMainTab.HOME
-        }
+        return com.android.purebilibili.feature.space.tabIndexToMainTab(index)
     }
 
     private fun SpaceUiState.Success.markTabLoading(tab: SpaceMainTab): SpaceUiState.Success {

@@ -155,7 +155,7 @@ class HomePerformancePolicyTest {
     }
 
     @Test
-    fun md3Preset_globalLiquidGlassReuseEnablesAllSharedChrome() {
+    fun md3Preset_globalLiquidGlassReuseEnablesHomeDockSearchAndBottomBar() {
         val config = resolveHomePerformanceConfig(
             supportsIndependentLiquidGlass = false,
             headerBlurEnabled = true,

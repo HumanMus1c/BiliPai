@@ -45,6 +45,8 @@ class LoginAppAuthPolicyTest {
         assertEquals("captcha-key", params["captcha_key"])
         assertEquals("123456", params["code"])
         assertEquals("device-id", params["device_id"])
+        assertEquals("vivo", params["device_name"])
+        assertEquals("Android14vivo", params["device_platform"])
         assertEquals(AppSignUtils.percentEncode("encrypted-token"), params["dt"])
         assertEquals("main.my-information.my-login.0.click", params["from_pv"])
         assertEquals(AppSignUtils.percentEncode("bilibili://user_center/mine"), params["from_url"])

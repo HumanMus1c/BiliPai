@@ -12,13 +12,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.util.FormatUtils
-import com.android.purebilibili.core.store.HomeSettings
-import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 internal data class CommentSortSegmentedControlSpec(
     val itemWidthDp: Int,
@@ -146,10 +142,6 @@ fun CommentSegmentedControl(
     modifier: Modifier = Modifier,
     miuixBackdrop: MiuixBackdrop? = null,
 ) {
-    val context = LocalContext.current
-    val homeSettings by SettingsManager
-        .getHomeSettings(context)
-        .collectAsStateWithLifecycle(initialValue = HomeSettings())
     val spec = remember(items.size) {
         resolveCommentSortSegmentedControlSpec(itemCount = items.size)
     }
@@ -163,8 +155,8 @@ fun CommentSegmentedControl(
         labelFontSize = 13.sp,
         modifier = modifier,
         miuixBackdrop = miuixBackdrop,
-        forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
-        liquidGlassEffectsEnabled = true,
+        forceLiquidChrome = false,
+        liquidGlassEffectsEnabled = false,
         tapPressRefractionEnabled = false
     )
 }

@@ -559,8 +559,8 @@ private fun PopularSubCategorySegmentedControl(
             AppSpacingTokens.TripleExtraLarge.value
         ).dp,
         labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
-        containerHorizontalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
-        containerVerticalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
+        containerHorizontalPadding = AppSpacingTokens.ExtraSmall,
+        containerVerticalPadding = AppSpacingTokens.ExtraSmall,
         liquidGlassEffectsEnabled = true,
         dragSelectionEnabled = false,
         preferInlineContentStyle = true
@@ -593,8 +593,8 @@ private fun TodayWatchModeSegmentedControl(
             (AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small + AppSpacingTokens.Micro).value
         ).dp,
         labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
-        containerHorizontalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
-        containerVerticalPadding = AppSpacingTokens.ExtraSmall - AppSpacingTokens.Micro / 2,
+        containerHorizontalPadding = AppSpacingTokens.ExtraSmall,
+        containerVerticalPadding = AppSpacingTokens.ExtraSmall,
         liquidGlassEffectsEnabled = true,
         dragSelectionEnabled = true,
         preferInlineContentStyle = false

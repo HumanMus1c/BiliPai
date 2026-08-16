@@ -68,7 +68,13 @@ data class SmsCodeResponse(
 @Serializable
 data class SmsCodeData(
     @SerialName("captcha_key")
-    val captchaKey: String = ""  // 验证码登录时需要的 key
+    val captchaKey: String = "",  // 验证码登录时需要的 key
+    /**
+     * When a submitted Geetest result has expired, Passport returns a new
+     * challenge here. The client must complete that challenge before retrying.
+     */
+    @SerialName("recaptcha_url")
+    val recaptchaUrl: String = "",
 )
 
 // ========== RSA 密钥相关 ==========

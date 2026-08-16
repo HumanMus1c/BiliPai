@@ -28,6 +28,7 @@ class BiliPaiNavEntryContentPolicyTest {
         assertEquals(BiliPaiNavEntryContentRole.ARTICLE_DETAIL, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.ArticleDetail(1L)))
         assertEquals(BiliPaiNavEntryContentRole.LIVE, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.Live(roomId = "1")))
         assertEquals(BiliPaiNavEntryContentRole.BANGUMI_DETAIL, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.BangumiDetail(1L)))
+        assertEquals(BiliPaiNavEntryContentRole.BANGUMI_REVIEW, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.BangumiReview(1L, "番剧")))
         assertEquals(BiliPaiNavEntryContentRole.LIVE_LIST, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.LiveList))
         assertEquals(BiliPaiNavEntryContentRole.LIVE_SEARCH, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.LiveSearch))
         assertEquals(BiliPaiNavEntryContentRole.LIVE_AREA, resolveBiliPaiNavEntryContentRole(BiliPaiNavKey.LiveArea))

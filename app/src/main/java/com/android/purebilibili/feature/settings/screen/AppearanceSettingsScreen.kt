@@ -429,6 +429,9 @@ fun AppearanceSettingsContent(
             AppSegmentOption(HomeWallpaperEffectScope.GLOBAL, "全局")
         )
     }
+    val showPgcTimeline by SettingsManager
+        .getShowPgcTimeline(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     val homeUpBadgesVisible by SettingsManager
         .getHomeUpBadgesVisible(context)
         .collectAsStateWithLifecycle(initialValue = true)
@@ -539,7 +542,7 @@ fun AppearanceSettingsContent(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.ANDROID_LIQUID_GLASS),
                                 title = "安卓原生液态玻璃",
                                 subtitle = if (isLiquidGlassAvailable) {
-                                    "全局开启后，顶部 Dock、搜索框、底栏、分段控件与评论区统一复用底栏液态玻璃材质"
+                                    "开启后仅首页底栏与评论区底栏使用液态玻璃"
                                 } else {
                                     "当前 Android 版本暂不支持液态玻璃效果"
                                 },
@@ -1506,13 +1509,27 @@ fun AppearanceSettingsContent(
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.HEADER_COLLAPSE),
-                            title = "下滑自动隐藏顶部栏",
-                            subtitle = "首页下滑时自动隐藏顶部栏,回顶时重新显示",
+                            title = "首页顶栏仅回顶显示",
+                            subtitle = "离开顶部后收起搜索框和标签页，单击底栏首页回顶后再出现",
                             checked = state.isHeaderCollapseEnabled,
                             onCheckedChange = { value ->
                                 viewModel.toggleHeaderCollapse(value)
                             },
                             iconTint = com.android.purebilibili.core.theme.iOSTeal
+                        )
+
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_FEED),
+                            title = "展示追番时间表",
+                            subtitle = "番剧页显示最近更新时间表",
+                            checked = showPgcTimeline,
+                            onCheckedChange = { value ->
+                                scope.launch {
+                                    SettingsManager.setShowPgcTimeline(context, value)
+                                }
+                            },
+                            iconTint = com.android.purebilibili.core.theme.iOSPurple
                         )
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))

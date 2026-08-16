@@ -148,8 +148,8 @@ internal fun hasVideoContentTabBarIndicatorScaleClearance(
     return geometry.pressedHeightDp > containerHeightDp
 }
 
-internal const val VIDEO_CONTENT_LIQUID_DOCK_HEIGHT_DP = 40
-internal const val VIDEO_CONTENT_LIQUID_DOCK_INDICATOR_HEIGHT_DP = 35
+internal const val VIDEO_CONTENT_LIQUID_DOCK_HEIGHT_DP = 64
+internal const val VIDEO_CONTENT_LIQUID_DOCK_INDICATOR_HEIGHT_DP = 56
 internal const val VIDEO_CONTENT_LIQUID_DOCK_LABEL_FONT_SIZE_SP = 14
 
 internal data class VideoContentTabBarLiquidChromeSpec(
@@ -164,7 +164,13 @@ internal data class VideoContentTabBarLiquidChromeSpec(
 internal fun shouldReuseVideoContentTabBarLiquidGlassDock(
     androidNativeLiquidGlassEnabled: Boolean,
     hasBackdrop: Boolean,
-): Boolean = androidNativeLiquidGlassEnabled && hasBackdrop
+): Boolean {
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredNative = androidNativeLiquidGlassEnabled
+    @Suppress("UNUSED_PARAMETER")
+    val ignoredBackdrop = hasBackdrop
+    return false
+}
 
 internal fun resolveVideoContentTabBarLiquidChromeSpec(
     androidNativeLiquidGlassEnabled: Boolean,
@@ -1811,20 +1817,24 @@ private fun VideoContentTabBar(
                     }
                 )
                 .padding(horizontal = layoutSpec.containerHorizontalPaddingDp.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (liquidChromeSpec.reusesLiquidGlassDock) {
+                Arrangement.spacedBy(8.dp)
+            } else {
+                Arrangement.Start
+            }
         ) {
             BottomBarLiquidSegmentedControl(
                 items = tabs,
                 selectedIndex = selectedTabIndex,
                 onSelected = onTabSelected,
-                modifier = Modifier
-                    .weight(layoutSpec.tabsRowWeight)
-                    .padding(
-                        start = 0.dp,
-                        top = if (liquidChromeSpec.reusesLiquidGlassDock) 0.dp else 2.dp,
-                        end = 8.dp,
-                        bottom = if (liquidChromeSpec.reusesLiquidGlassDock) 0.dp else 2.dp,
-                    ),
+                modifier = if (liquidChromeSpec.reusesLiquidGlassDock) {
+                    Modifier.wrapContentWidth()
+                } else {
+                    Modifier
+                        .weight(layoutSpec.tabsRowWeight)
+                        .padding(start = 0.dp, top = 2.dp, end = 8.dp, bottom = 2.dp)
+                },
                 height = liquidChromeSpec.segmentedControlHeightDp.dp,
                 indicatorHeight = liquidChromeSpec.segmentedControlIndicatorHeightDp.dp,
                 labelFontSize = liquidChromeSpec.labelFontSizeSp.sp,

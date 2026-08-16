@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -258,6 +259,9 @@ fun FloatingBottomBar(
     colors: FloatingBottomBarColors = FloatingBottomBarDefaults.colors(),
     shellHeight: Dp = FloatingBottomBarDefaultShellHeight,
     indicatorHeight: Dp = FloatingBottomBarIndicatorHeight,
+    indicatorPositionProvider: (() -> Float)? = null,
+    isScrollInProgressProvider: () -> Boolean = { false },
+    dragSelectionEnabled: Boolean = true,
     content: @Composable RowScope.() -> Unit
 ) {
     val isInDark = isSystemInDarkTheme()
@@ -344,6 +348,9 @@ fun FloatingBottomBar(
         ).also { holder.instance = it }
     }
 
+    val indicatorPositionLatest by rememberUpdatedState(indicatorPositionProvider)
+    val isScrollInProgressLatest by rememberUpdatedState(isScrollInProgressProvider)
+
     LaunchedEffect(selectedIndex) {
         snapshotFlow { selectedIndex().coerceIn(0, maxTabIndex) }
             .collectLatest { currentIndex = it }
@@ -355,6 +362,16 @@ fun FloatingBottomBar(
                 dampedDragAnimation.animateToValue(index.toFloat())
                 onSelected(index)
             }
+    }
+    LaunchedEffect(dampedDragAnimation, maxTabIndex) {
+        snapshotFlow {
+            val external = indicatorPositionLatest?.invoke()
+            val scrolling = isScrollInProgressLatest()
+            Triple(external, scrolling, dampedDragAnimation.isDragging)
+        }.collectLatest { (external, scrolling, dragging) ->
+            if (dragging || !scrolling || external == null) return@collectLatest
+            dampedDragAnimation.snapTo(external.coerceIn(0f, maxTabIndex.toFloat()))
+        }
     }
 
     val interactiveHighlight =
@@ -524,7 +541,13 @@ fun FloatingBottomBar(
                             }
                         }
                         .then(interactiveHighlight?.gestureModifier ?: Modifier)
-                        .then(dampedDragAnimation.modifier)
+                        .then(
+                            if (dragSelectionEnabled && safeTabsCount > 1) {
+                                dampedDragAnimation.modifier
+                            } else {
+                                Modifier
+                            }
+                        )
                         // The indicator is the topmost hit target over the selected tab. Forward
                         // taps so reselect and double-tap actions are not swallowed. Compose's
                         // clickable cancels itself when the same pointer gesture becomes a drag.
@@ -592,7 +615,13 @@ fun FloatingBottomBar(
                                 -progressOffset + panelOffset
                             }
                         }
-                        .then(dampedDragAnimation.modifier)
+                        .then(
+                            if (dragSelectionEnabled && safeTabsCount > 1) {
+                                dampedDragAnimation.modifier
+                            } else {
+                                Modifier
+                            }
+                        )
                         .clip(pillShape)
                         .background(colors.indicatorColor.copy(alpha = 0.15f), pillShape)
                         .height(indicatorHeight)

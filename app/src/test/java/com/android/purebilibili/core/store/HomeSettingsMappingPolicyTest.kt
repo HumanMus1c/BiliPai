@@ -32,11 +32,13 @@ class HomeSettingsMappingPolicyTest {
         assertTrue(result.isHeaderBlurEnabled)
         assertEquals(HomeHeaderBlurMode.FOLLOW_PRESET, result.headerBlurMode)
         assertEquals(HomeHeaderCollapseMode.BOTH, result.homeHeaderCollapseMode)
+        assertEquals(HomeBarHideType.SYNC, result.homeBarHideType)
         assertEquals(
             CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
             result.commonListHeaderCollapseMode
         )
         assertTrue(result.isHeaderCollapseEnabled)
+        assertTrue(result.showPgcTimeline)
         assertFalse(result.isBottomBarBlurEnabled)
         assertFalse(result.isTopBarLiquidGlassEnabled)
         assertFalse(result.isHomeSearchLiquidGlassEnabled)
@@ -83,6 +85,7 @@ class HomeSettingsMappingPolicyTest {
             booleanPreferencesKey("header_blur_enabled") to false,
             booleanPreferencesKey("header_collapse_enabled") to false,
             intPreferencesKey("home_header_collapse_mode") to HomeHeaderCollapseMode.TABS_ONLY.value,
+            intPreferencesKey("home_bar_hide_type") to HomeBarHideType.INSTANT.value,
             intPreferencesKey("common_list_header_collapse_mode") to
                 CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY.value,
             booleanPreferencesKey("bottom_bar_blur_enabled") to false,
@@ -124,6 +127,7 @@ class HomeSettingsMappingPolicyTest {
         assertFalse(result.isHeaderBlurEnabled)
         assertEquals(HomeHeaderBlurMode.ALWAYS_OFF, result.headerBlurMode)
         assertEquals(HomeHeaderCollapseMode.TABS_ONLY, result.homeHeaderCollapseMode)
+        assertEquals(HomeBarHideType.INSTANT, result.homeBarHideType)
         assertEquals(
             CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
             result.commonListHeaderCollapseMode
@@ -269,65 +273,38 @@ class HomeSettingsMappingPolicyTest {
     }
 
     @Test
-    fun searchCollapseSelectionPreservesCurrentTopTabBehavior() {
-        assertEquals(
-            HomeHeaderCollapseMode.BOTH,
-            resolveHomeHeaderCollapseModeForSearch(
-                currentMode = HomeHeaderCollapseMode.TABS_ONLY,
-                collapseSearch = true
-            )
+    fun invalidHomeBarHideTypeFallsBackToSync() {
+        val prefs = mutablePreferencesOf(
+            intPreferencesKey("home_bar_hide_type") to 99
         )
-        assertEquals(
-            HomeHeaderCollapseMode.TABS_ONLY,
-            resolveHomeHeaderCollapseModeForSearch(
-                currentMode = HomeHeaderCollapseMode.BOTH,
-                collapseSearch = false
-            )
-        )
-        assertEquals(
-            HomeHeaderCollapseMode.SEARCH_ONLY,
-            resolveHomeHeaderCollapseModeForSearch(
-                currentMode = HomeHeaderCollapseMode.OFF,
-                collapseSearch = true
-            )
-        )
-        assertEquals(
-            HomeHeaderCollapseMode.OFF,
-            resolveHomeHeaderCollapseModeForSearch(
-                currentMode = HomeHeaderCollapseMode.SEARCH_ONLY,
-                collapseSearch = false
-            )
-        )
+
+        val result = mapHomeSettingsFromPreferences(prefs)
+
+        assertEquals(HomeBarHideType.SYNC, result.homeBarHideType)
     }
 
     @Test
-    fun topTabCollapseSelectionPreservesCurrentSearchBehavior() {
+    fun topBarHideSwitchCollapsesSearchAndTabsUntilBackToTop() {
         assertEquals(
             HomeHeaderCollapseMode.BOTH,
-            resolveHomeHeaderCollapseModeForTopTabs(
-                currentMode = HomeHeaderCollapseMode.SEARCH_ONLY,
-                collapseTabs = true
-            )
+            resolveHomeHeaderCollapseModeForTopBarHide(hideTopBar = true)
         )
         assertEquals(
-            HomeHeaderCollapseMode.SEARCH_ONLY,
-            resolveHomeHeaderCollapseModeForTopTabs(
-                currentMode = HomeHeaderCollapseMode.BOTH,
-                collapseTabs = false
-            )
+            HomeHeaderCollapseMode.OFF,
+            resolveHomeHeaderCollapseModeForTopBarHide(hideTopBar = false)
         )
         assertEquals(
-            HomeHeaderCollapseMode.TABS_ONLY,
-            resolveHomeHeaderCollapseModeForTopTabs(
-                currentMode = HomeHeaderCollapseMode.OFF,
-                collapseTabs = true
+            HomeHeaderCollapseMode.BOTH,
+            resolveHomeHeaderCollapseModeForSearch(
+                currentMode = HomeHeaderCollapseMode.TABS_ONLY,
+                collapseSearch = true
             )
         )
         assertEquals(
             HomeHeaderCollapseMode.OFF,
-            resolveHomeHeaderCollapseModeForTopTabs(
-                currentMode = HomeHeaderCollapseMode.TABS_ONLY,
-                collapseTabs = false
+            resolveHomeHeaderCollapseModeForSearch(
+                currentMode = HomeHeaderCollapseMode.BOTH,
+                collapseSearch = false
             )
         )
     }

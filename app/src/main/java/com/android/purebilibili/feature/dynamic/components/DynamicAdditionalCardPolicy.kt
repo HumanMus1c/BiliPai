@@ -7,7 +7,8 @@ internal data class DynamicAdditionalCardModel(
     val subtitle: String,
     val cover: String,
     val jumpUrl: String,
-    val kindLabel: String
+    val kindLabel: String,
+    val voteId: Long = 0L
 )
 
 internal fun resolveDynamicAdditionalCard(additional: DynamicAdditional?): DynamicAdditionalCardModel? {
@@ -42,13 +43,14 @@ internal fun resolveDynamicAdditionalCard(additional: DynamicAdditional?): Dynam
                 kindLabel = "商品"
             )
         }
-        "ADDITIONAL_TYPE_VOTE" -> additional.vote?.takeIf { it.desc.isNotBlank() }?.let {
+        "ADDITIONAL_TYPE_VOTE" -> additional.vote?.takeIf { it.desc.isNotBlank() || it.vote_id > 0L }?.let {
             DynamicAdditionalCardModel(
-                title = it.desc,
+                title = it.desc.ifBlank { "投票" },
                 subtitle = if (it.join_num > 0) "${it.join_num} 人参与" else "投票",
                 cover = "",
                 jumpUrl = "",
-                kindLabel = "投票"
+                kindLabel = "投票",
+                voteId = it.vote_id
             )
         }
         "ADDITIONAL_TYPE_MATCH" -> additional.match?.takeIf { it.title.isNotBlank() }?.let {

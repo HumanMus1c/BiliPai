@@ -254,6 +254,7 @@ private fun FloatingLiquidBottomInputBar(
             shape = shellShape,
             modifier = Modifier.fillMaxWidth(),
             backdrop = backdrop,
+            reuseEnabled = true,
             // 外层整条保留液态玻璃（含 shell lens）；内层提示框不再嵌套 liquid dock。
             drawShellLens = true,
             isScrollInProgressProvider = isScrollInProgressProvider

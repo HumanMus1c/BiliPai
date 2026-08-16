@@ -21,6 +21,29 @@ import kotlinx.coroutines.withContext
 object DynamicRepository {
     private val feedPagination = DynamicFeedPaginationRegistry()
     private val userFeedPagination = DynamicUserPaginationRegistry()
+    private val detailSeeds = object : LinkedHashMap<String, DynamicItem>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, DynamicItem>?): Boolean {
+            return size > 32
+        }
+    }
+    private val detailSeedsLock = Any()
+
+    fun rememberDynamicDetailSeed(item: DynamicItem) {
+        val id = item.id_str.trim()
+        if (id.isEmpty()) return
+        synchronized(detailSeedsLock) {
+            detailSeeds[id] = item
+        }
+        item.orig?.let(::rememberDynamicDetailSeed)
+    }
+
+    fun peekDynamicDetailSeed(dynamicId: String): DynamicItem? {
+        val id = dynamicId.trim()
+        if (id.isEmpty()) return null
+        return synchronized(detailSeedsLock) {
+            detailSeeds[id]
+        }
+    }
     
     /**
      * 获取动态列表
@@ -237,7 +260,8 @@ object DynamicRepository {
     }
 
     /**
-     *  [新增] 获取单条动态详情（桌面端详情接口）
+     * 获取单条动态详情。主路径对齐 PiliPlus 的 web `/v1/detail`，
+     * 再按需降级到 opus、desktop，以及列表卡片缓存。
      */
     suspend fun getDynamicDetail(dynamicId: String): Result<DynamicItem> = withContext(Dispatchers.IO) {
         try {
@@ -246,60 +270,63 @@ object DynamicRepository {
                 return@withContext Result.failure(IllegalArgumentException("dynamicId 不能为空"))
             }
 
-            val desktopResponse = NetworkModule.dynamicApi.getDynamicDetail(id = cleanedId)
-            if (desktopResponse.code == 0) {
-                val item = desktopResponse.data?.item
-                    ?: return@withContext Result.failure(Exception("动态详情为空"))
-                if (shouldFetchOpusDetailForDynamicDetail(item)) {
-                    fetchOpusDetailItem(cleanedId)?.let { return@withContext Result.success(it) }
-                }
-                if (shouldFetchStandardDetailForPlainTextDynamic(item)) {
-                    fetchStandardDetailItem(cleanedId)?.let { standardItem ->
-                        return@withContext Result.success(
-                            mergeDynamicDetailWithLongerDesc(
-                                desktopItem = item,
-                                standardItem = standardItem,
-                            )
-                        )
-                    }
-                }
-                if (!shouldFallbackForDynamicDetail(item)) {
-                    return@withContext Result.success(item)
-                }
+            val seed = peekDynamicDetailSeed(cleanedId)
+            val candidates = mutableListOf<DynamicItem>()
 
-                fetchOpusDetailItem(cleanedId)?.let { return@withContext Result.success(it) }
+            val webItem = fetchWebDetailItem(id = cleanedId)
+            webItem?.let(candidates::add)
 
-                val fallbackResponse = NetworkModule.dynamicApi.getDynamicDetailFallback(id = cleanedId)
-                if (fallbackResponse.code == 0) {
-                    val fallbackItem = fallbackResponse.data?.item
-                    if (fallbackItem != null) {
-                        return@withContext Result.success(fallbackItem)
-                    }
-                }
-                // fallback 失败时保底返回 desktop 结果，避免直接报错
-                return@withContext Result.success(item)
+            if (webItem == null || shouldFetchOpusDetailForDynamicDetail(webItem) || shouldFallbackForDynamicDetail(webItem)) {
+                fetchOpusDetailItem(cleanedId)?.let(candidates::add)
             }
 
-            // desktop 接口失败时先走图文专用接口，再降级到 web 详情接口。
-            fetchOpusDetailItem(cleanedId)?.let { return@withContext Result.success(it) }
-
-            val fallbackResponse = NetworkModule.dynamicApi.getDynamicDetailFallback(id = cleanedId)
-            if (fallbackResponse.code == 0) {
-                val item = fallbackResponse.data?.item
-                    ?: return@withContext Result.failure(Exception("动态详情为空"))
-                return@withContext Result.success(item)
+            val preferredAfterWeb = resolvePreferredDynamicDetailItem(candidates)
+            if (preferredAfterWeb != null &&
+                shouldFetchStandardDetailForPlainTextDynamic(preferredAfterWeb)
+            ) {
+                fetchDesktopDetailItem(cleanedId)?.let { desktopItem ->
+                    candidates += mergeDynamicDetailWithLongerDesc(
+                        desktopItem = preferredAfterWeb,
+                        standardItem = desktopItem,
+                    )
+                }
             }
 
-            Result.failure(
-                Exception(
-                    "API error: ${desktopResponse.message.ifBlank { "desktop=${desktopResponse.code}" }}; " +
-                        "fallback=${fallbackResponse.message.ifBlank { fallbackResponse.code.toString() }}"
-                )
-            )
+            if (preferredAfterWeb == null || shouldFallbackForDynamicDetail(preferredAfterWeb)) {
+                fetchDesktopDetailItem(cleanedId)?.let(candidates::add)
+            }
+
+            val rid = seed?.basic?.rid_str.orEmpty()
+            if (shouldFetchDynamicDetailByRid(resolvePreferredDynamicDetailItem(candidates), rid)) {
+                fetchWebDetailItem(id = null, rid = rid, type = 2)?.let(candidates::add)
+            }
+
+            seed?.let(candidates::add)
+            val resolved = resolvePreferredDynamicDetailItem(candidates)
+            if (resolved != null) {
+                return@withContext Result.success(resolved)
+            }
+
+            Result.failure(Exception("动态详情为空"))
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
         }
+    }
+
+    private suspend fun fetchWebDetailItem(
+        id: String? = null,
+        rid: String? = null,
+        type: Int? = null
+    ): DynamicItem? {
+        return runCatching {
+            val response = NetworkModule.dynamicApi.getDynamicDetail(
+                id = id,
+                rid = rid,
+                type = type
+            )
+            response.data?.item?.takeIf { response.code == 0 }
+        }.getOrNull()
     }
 
     private suspend fun fetchOpusDetailItem(dynamicId: String): DynamicItem? {
@@ -309,7 +336,7 @@ object DynamicRepository {
         }.getOrNull()
     }
 
-    private suspend fun fetchStandardDetailItem(dynamicId: String): DynamicItem? {
+    private suspend fun fetchDesktopDetailItem(dynamicId: String): DynamicItem? {
         return runCatching {
             val response = NetworkModule.dynamicApi.getDynamicDetailFallback(id = dynamicId)
             response.data?.item?.takeIf { response.code == 0 }

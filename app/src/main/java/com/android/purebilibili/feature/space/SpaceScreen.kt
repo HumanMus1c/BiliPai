@@ -15,7 +15,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -89,6 +88,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
@@ -163,7 +163,9 @@ import com.android.purebilibili.feature.dynamic.components.DynamicCardV2
 import com.android.purebilibili.feature.dynamic.components.DynamicCommentOverlayHost
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
-import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import com.android.purebilibili.core.ui.components.AppFilterChip
+import com.android.purebilibili.core.ui.components.AppNativeTabRow
+import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.feature.list.VideoProgressDisplayState
 import com.android.purebilibili.feature.video.controller.PlaybackProgressManager
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
@@ -184,6 +186,9 @@ fun SpaceScreen(
     onDynamicDetailClick: (String) -> Unit = {},
     onArticleClick: (Long, String) -> Unit = { _, _ -> },
     onViewAllClick: (String, Long, Long, String, String) -> Unit = { _, _, _, _, _ -> },
+    onMessageClick: (Long, String, String) -> Unit = { _, _, _ -> },
+    onFollowingClick: (Long) -> Unit = {},
+    onFansClick: (Long) -> Unit = {},
     viewModel: SpaceViewModel = viewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
@@ -210,6 +215,7 @@ fun SpaceScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var showMenu by remember { mutableStateOf(false) }
+    var showVideoSortMenu by remember { mutableStateOf(false) }
     var showBlockConfirmDialog by remember { mutableStateOf(false) }
     var showTopPhotoPreview by remember(mid) { mutableStateOf(false) }
     var showAvatarPreview by remember(mid) { mutableStateOf(false) }
@@ -226,6 +232,34 @@ fun SpaceScreen(
     }
 
     val currentSuccessState = uiState as? SpaceUiState.Success
+    var contributionVideoLayoutMode by rememberSaveable(mid) {
+        mutableStateOf(defaultSpaceContributionVideoLayoutMode())
+    }
+    val showContributionVideoMenuActions = currentSuccessState?.let { state ->
+        state.tabShellState.selectedTab == SpaceMainTab.CONTRIBUTION &&
+            state.selectedSubTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO)
+    } == true
+    val playAllSpaceVideos: () -> Unit = playAll@{
+        val state = currentSuccessState ?: return@playAll
+        val startBvid = resolveSpacePlayAllStartTarget(state.videos) ?: return@playAll
+        val playlist = buildExternalPlaylistFromSpaceVideos(
+            videos = state.videos,
+            clickedBvid = startBvid
+        ) ?: return@playAll
+        com.android.purebilibili.feature.video.player.PlaylistManager.setExternalPlaylist(
+            playlist.playlistItems,
+            playlist.startIndex,
+            source = com.android.purebilibili.feature.video.player.ExternalPlaylistSource.SPACE
+        )
+        val playbackTarget = resolveSpacePlaybackTarget(
+            syncedProgress = state.watchProgressByBvid[startBvid],
+            localPositionMs = videoProgressLookup(startBvid)
+        )
+        com.android.purebilibili.feature.video.player.PlaylistManager
+            .setPlayMode(com.android.purebilibili.feature.video.player.PlayMode.SEQUENTIAL)
+        onPlayAllAudioClick?.invoke(startBvid, playbackTarget.resumePositionMs)
+            ?: onVideoClick(startBvid, playbackTarget.cid, playbackTarget.resumePositionMs)
+    }
     val playedVideoBvid = targetBvid?.trim().orEmpty()
     val playedVideoLocatePromptEnabled by com.android.purebilibili.core.store.SettingsManager
         .getSpacePlayedVideoLocatePromptEnabled(context)
@@ -319,6 +353,67 @@ fun SpaceScreen(
                                 onDismissRequest = { showMenu = false },
                                 modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                             ) {
+                                if (showContributionVideoMenuActions) {
+                                    AppDropdownMenuItem(
+                                        text = { AppText("播放全部") },
+                                        onClick = {
+                                            showMenu = false
+                                            playAllSpaceVideos()
+                                        },
+                                        leadingIcon = {
+                                            AppIcon(
+                                                imageVector = Icons.Outlined.PlayCircleOutline,
+                                                contentDescription = null
+                                            )
+                                        }
+                                    )
+                                    AppDropdownMenuItem(
+                                        text = {
+                                            AppText(
+                                                if (contributionVideoLayoutMode == SpaceContributionVideoLayoutMode.SINGLE_COLUMN) {
+                                                    "切换为双列"
+                                                } else {
+                                                    "切换为单列"
+                                                }
+                                            )
+                                        },
+                                        onClick = {
+                                            showMenu = false
+                                            contributionVideoLayoutMode =
+                                                toggleSpaceContributionVideoLayoutMode(contributionVideoLayoutMode)
+                                        },
+                                        leadingIcon = {
+                                            AppIcon(
+                                                imageVector = if (
+                                                    contributionVideoLayoutMode == SpaceContributionVideoLayoutMode.SINGLE_COLUMN
+                                                ) {
+                                                    Icons.Outlined.GridView
+                                                } else {
+                                                    Icons.Outlined.ViewAgenda
+                                                },
+                                                contentDescription = null
+                                            )
+                                        }
+                                    )
+                                    AppDropdownMenuItem(
+                                        text = {
+                                            AppText(
+                                                "排序：${resolveSpaceVideoSortCompactLabel(currentSuccessState?.sortOrder ?: VideoSortOrder.PUBDATE)}"
+                                            )
+                                        },
+                                        onClick = {
+                                            showMenu = false
+                                            showVideoSortMenu = true
+                                        },
+                                        leadingIcon = {
+                                            AppIcon(
+                                                imageVector = Icons.AutoMirrored.Outlined.Sort,
+                                                contentDescription = null
+                                            )
+                                        }
+                                    )
+                                    AppHorizontalDivider()
+                                }
                                 AppDropdownMenuItem(
                                     text = { AppText("复制空间链接") },
                                     onClick = {
@@ -334,6 +429,57 @@ fun SpaceScreen(
                                             contentDescription = null
                                         )
                                     }
+                                )
+                                AppDropdownMenuItem(
+                                    text = { AppText("复制 UID") },
+                                    onClick = {
+                                        showMenu = false
+                                        copyToClipboard(mid.toString(), "UID")
+                                    },
+                                    leadingIcon = {
+                                        AppIcon(
+                                            imageVector = Icons.Outlined.ContentCopy,
+                                            contentDescription = null
+                                        )
+                                    }
+                                )
+                                AppDropdownMenuItem(
+                                    text = { AppText("分享") },
+                                    onClick = {
+                                        showMenu = false
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, "https://space.bilibili.com/$mid")
+                                        }
+                                        context.startActivity(Intent.createChooser(shareIntent, "分享空间"))
+                                    },
+                                    leadingIcon = {
+                                        AppIcon(
+                                            imageVector = Icons.Outlined.ChatBubbleOutline,
+                                            contentDescription = null
+                                        )
+                                    }
+                                )
+                                AppDropdownMenuItem(
+                                    text = { AppText("举报") },
+                                    onClick = {
+                                        showMenu = false
+                                        onWebClick(
+                                            "https://www.bilibili.com/appeal/?prefid=0&mid=$mid",
+                                            "举报"
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        AppIcon(
+                                            imageVector = Icons.Outlined.VisibilityOff,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    },
+                                    colors = MenuDefaults.itemColors(
+                                        textColor = MaterialTheme.colorScheme.error,
+                                        leadingIconColor = MaterialTheme.colorScheme.error
+                                    )
                                 )
                                 AppDropdownMenuItem(
                                     text = { AppText(if (isBlocked) unblockUserLabel else blockUserLabel) },
@@ -369,6 +515,21 @@ fun SpaceScreen(
                                         }
                                     )
                                 )
+                            }
+                            AppDropdownMenu(
+                                expanded = showVideoSortMenu,
+                                onDismissRequest = { showVideoSortMenu = false },
+                                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                            ) {
+                                VideoSortOrder.entries.forEach { order ->
+                                    AppDropdownMenuItem(
+                                        text = { AppText(order.displayName) },
+                                        onClick = {
+                                            showVideoSortMenu = false
+                                            viewModel.selectSortOrder(order)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -459,7 +620,7 @@ fun SpaceScreen(
                             onMainTabSelected = viewModel::selectMainTab,
                             onContributionTabSelected = viewModel::selectContributionTab,
                             onCategorySelected = viewModel::selectCategory,
-                            onSortOrderSelected = viewModel::selectSortOrder,
+                            contributionVideoLayoutMode = contributionVideoLayoutMode,
                             onLoadMoreVideos = viewModel::loadMoreVideos,
                             onLoadHome = viewModel::loadSpaceHome,
                             onLoadDynamic = { viewModel.loadSpaceDynamic(refresh = true) },
@@ -476,6 +637,12 @@ fun SpaceScreen(
                             onLocateTargetMissing = viewModel::reportPendingLocateBvidMissing,
                             onLocateTargetLoadFailed = viewModel::reportPendingLocateBvidLoadFailed,
                             onFollowClick = viewModel::toggleFollow,
+                            onMessageClick = {
+                                val user = state.userInfo
+                                onMessageClick(user.mid, user.name, user.face)
+                            },
+                            onFollowingClick = { onFollowingClick(state.userInfo.mid) },
+                            onFansClick = { onFansClick(state.userInfo.mid) },
                             onTopPhotoClick = { showTopPhotoPreview = true },
                             onAvatarClick = { showAvatarPreview = true },
                             dynamicCardItems = dynamicCardItems,
@@ -783,7 +950,7 @@ private fun SpaceContent(
     onMainTabSelected: (SpaceMainTab) -> Unit,
     onContributionTabSelected: (String) -> Unit,
     onCategorySelected: (Int) -> Unit,
-    onSortOrderSelected: (VideoSortOrder) -> Unit,
+    contributionVideoLayoutMode: SpaceContributionVideoLayoutMode,
     onLoadMoreVideos: () -> Unit,
     onLoadHome: () -> Unit,
     onLoadDynamic: () -> Unit,
@@ -800,6 +967,9 @@ private fun SpaceContent(
     onLocateTargetMissing: (String) -> Unit,
     onLocateTargetLoadFailed: (String) -> Unit,
     onFollowClick: () -> Unit,
+    onMessageClick: () -> Unit,
+    onFollowingClick: () -> Unit,
+    onFansClick: () -> Unit,
     onTopPhotoClick: () -> Unit,
     onAvatarClick: () -> Unit,
     dynamicCardItems: List<com.android.purebilibili.data.model.response.DynamicItem>,
@@ -842,6 +1012,30 @@ private fun SpaceContent(
             selectedSubTab = state.selectedSubTab
         )
     }
+    val secondarySwitchItems = remember(displayedContributionTabs) {
+        resolveSpaceSecondarySwitchItems(displayedContributionTabs)
+    }
+    val selectedSecondarySwitchId = remember(
+        selectedMainTab,
+        state.selectedContributionTabId,
+    ) {
+        resolveSelectedSpaceSecondarySwitchId(
+            selectedTab = selectedMainTab,
+            selectedContributionTabId = state.selectedContributionTabId,
+        )
+    }
+    val onSecondarySwitchSelected: (String) -> Unit = { id ->
+        val item = secondarySwitchItems.firstOrNull { it.id == id }
+        if (item != null) {
+            when (item.targetTab) {
+                SpaceMainTab.CONTRIBUTION -> {
+                    onMainTabSelected(SpaceMainTab.CONTRIBUTION)
+                    item.contributionTabId?.let(onContributionTabSelected)
+                }
+                else -> onMainTabSelected(item.targetTab)
+            }
+        }
+    }
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val currentSearchScope = remember(selectedMainTab, state.selectedSubTab) {
         resolveSpaceSearchScope(
@@ -864,9 +1058,6 @@ private fun SpaceContent(
     }
     val lazyGridSharedTransitionScope = sharedTransitionScope.takeIf { lazyGridSharedTransitionEnabled }
     val lazyGridAnimatedVisibilityScope = animatedVisibilityScope.takeIf { lazyGridSharedTransitionEnabled }
-    var contributionVideoLayoutMode by rememberSaveable(state.userInfo.mid) {
-        mutableStateOf(defaultSpaceContributionVideoLayoutMode())
-    }
     val shouldLoadMoreVideos by remember(
         gridState,
         selectedMainTab,
@@ -901,27 +1092,6 @@ private fun SpaceContent(
         )
         onVideoClick(bvid, playbackTarget.cid, playbackTarget.resumePositionMs)
     }
-    val playAllSpaceVideos: () -> Unit = playAll@{
-        val startBvid = resolveSpacePlayAllStartTarget(state.videos) ?: return@playAll
-        val playlist = buildExternalPlaylistFromSpaceVideos(
-            videos = state.videos,
-            clickedBvid = startBvid
-        ) ?: return@playAll
-        com.android.purebilibili.feature.video.player.PlaylistManager.setExternalPlaylist(
-            playlist.playlistItems,
-            playlist.startIndex,
-            source = com.android.purebilibili.feature.video.player.ExternalPlaylistSource.SPACE
-        )
-        val playbackTarget = resolveSpacePlaybackTarget(
-            syncedProgress = state.watchProgressByBvid[startBvid],
-            localPositionMs = videoProgressLookup(startBvid)
-        )
-        com.android.purebilibili.feature.video.player.PlaylistManager
-            .setPlayMode(com.android.purebilibili.feature.video.player.PlayMode.SEQUENTIAL)
-        onPlayAllAudioClick?.invoke(startBvid, playbackTarget.resumePositionMs)
-            ?: onVideoClick(startBvid, playbackTarget.cid, playbackTarget.resumePositionMs)
-    }
-
     LaunchedEffect(state.userInfo.mid) {
         onLoadHome()
     }
@@ -958,6 +1128,7 @@ private fun SpaceContent(
         selectedMainTab,
         displayedContributionTabs,
         selectedContributionTab,
+        secondarySwitchItems,
         state.isSearchMode,
         currentSearchScope
     ) {
@@ -965,7 +1136,7 @@ private fun SpaceContent(
             0
         } else {
             2 +
-                (if (displayedContributionTabs.isNotEmpty()) 1 else 0) +
+                (if (shouldShowSpaceSecondarySwitch(selectedMainTab) && secondarySwitchItems.isNotEmpty()) 1 else 0) +
                 (if (shouldShowSpaceSearchEntry(currentSearchScope, state.isSearchMode)) 1 else 0) +
                 (if (state.isSearchMode && currentSearchScope == SpaceSearchScope.VIDEO) 1 else 0)
         }
@@ -1076,12 +1247,31 @@ private fun SpaceContent(
                     upStat = state.headerState.upStat ?: state.upStat,
                     collapseFraction = headerCollapseFraction.value,
                     onFollowClick = onFollowClick,
+                    onMessageClick = onMessageClick,
+                    onFollowingClick = onFollowingClick,
+                    onFansClick = onFansClick,
                     onTopPhotoClick = onTopPhotoClick,
                     onAvatarClick = onAvatarClick,
                     onLiveClick = { url, title -> onWebClick(url, title) },
                     sharedTransitionScope = lazyGridSharedTransitionScope,
                     animatedVisibilityScope = lazyGridAnimatedVisibilityScope
                 )
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                SpaceMainTabRow(
+                    tabs = displayedMainTabs,
+                    selectedTab = resolveSpacePrimaryTab(selectedMainTab),
+                    onSelect = onMainTabSelected,
+                )
+            }
+            if (shouldShowSpaceSecondarySwitch(selectedMainTab) && secondarySwitchItems.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    SpaceSecondarySwitchRow(
+                        items = secondarySwitchItems,
+                        selectedId = selectedSecondarySwitchId,
+                        onSelect = onSecondarySwitchSelected,
+                    )
+                }
             }
 
         when (selectedMainTab) {
@@ -1457,26 +1647,6 @@ private fun SpaceContent(
             }
 
             SpaceMainTab.CONTRIBUTION -> {
-                if (displayedContributionTabs.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        SpaceContributionToolbar(
-                            tabs = displayedContributionTabs,
-                            selectedTabId = state.selectedContributionTabId,
-                            selectedSubTab = state.selectedSubTab,
-                            totalVideos = state.totalVideos,
-                            currentOrder = state.sortOrder,
-                            layoutMode = contributionVideoLayoutMode,
-                            onSelect = onContributionTabSelected,
-                            onPlayAllClick = playAllSpaceVideos,
-                            onOrderClick = onSortOrderSelected,
-                            onLayoutModeClick = {
-                                contributionVideoLayoutMode =
-                                    toggleSpaceContributionVideoLayoutMode(contributionVideoLayoutMode)
-                            }
-                        )
-                    }
-                }
-
                 if (
                     shouldShowSpaceSearchEntry(currentSearchScope, state.isSearchMode) &&
                     selectedContributionTab.subTab in setOf(SpaceSubTab.VIDEO, SpaceSubTab.CHARGING_VIDEO)
@@ -2021,11 +2191,20 @@ private fun SpaceContent(
                 .shadow(elevation = 6.dp, shape = RectangleShape)
                 .background(MaterialTheme.colorScheme.surface)
         ) {
-            SpaceMainTabRow(
-                tabs = displayedMainTabs,
-                selectedTab = selectedMainTab,
-                onSelect = onMainTabSelected
-            )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                SpaceMainTabRow(
+                    tabs = displayedMainTabs,
+                    selectedTab = resolveSpacePrimaryTab(selectedMainTab),
+                    onSelect = onMainTabSelected
+                )
+                if (shouldShowSpaceSecondarySwitch(selectedMainTab) && secondarySwitchItems.isNotEmpty()) {
+                    SpaceSecondarySwitchRow(
+                        items = secondarySwitchItems,
+                        selectedId = selectedSecondarySwitchId,
+                        onSelect = onSecondarySwitchSelected,
+                    )
+                }
+            }
         }
     }
 }
@@ -2038,6 +2217,9 @@ private fun SpaceHeader(
     upStat: UpStatData?,
     collapseFraction: Float,
     onFollowClick: () -> Unit,
+    onMessageClick: () -> Unit,
+    onFollowingClick: () -> Unit,
+    onFansClick: () -> Unit,
     onTopPhotoClick: () -> Unit,
     onAvatarClick: () -> Unit,
     onLiveClick: (String, String) -> Unit,
@@ -2048,6 +2230,8 @@ private fun SpaceHeader(
     val topPhotoUrl = normalizeSpaceTopPhotoUrl(userInfo.topPhoto)
     val avatarPreviewEnabled = userInfo.face.isNotBlank()
     val followLabel = if (userInfo.isFollowed) "已关注" else "关注"
+    val isOwner = userInfo.mid > 0L &&
+        userInfo.mid == com.android.purebilibili.core.store.TokenManager.midCache
     val officialBadge = remember(userInfo.official) {
         resolveOfficialVerifyBadge(
             type = userInfo.official.type,
@@ -2220,7 +2404,12 @@ private fun SpaceHeader(
                         SpaceHeaderStat(
                             label = metric.label,
                             value = metric.value,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            onClick = when (metric.label) {
+                                "粉丝" -> onFansClick
+                                "关注" -> onFollowingClick
+                                else -> null
+                            },
                         )
                         if (index < metrics.lastIndex) {
                             SpaceHeaderMetricDivider()
@@ -2274,19 +2463,15 @@ private fun SpaceHeader(
                         )
                     }
                 }
-                SpaceHeaderRelationActions(
-                    followLabel = followLabel,
-                    isFollowed = userInfo.isFollowed,
-                    followButtonColors = followButtonColors,
-                    onMessageClick = {
-                        android.widget.Toast.makeText(
-                            context,
-                            "暂不支持私信",
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                    },
-                    onFollowClick = onFollowClick
-                )
+                if (!isOwner) {
+                    SpaceHeaderRelationActions(
+                        followLabel = followLabel,
+                        isFollowed = userInfo.isFollowed,
+                        followButtonColors = followButtonColors,
+                        onMessageClick = onMessageClick,
+                        onFollowClick = onFollowClick
+                    )
+                }
             }
 
             if (userInfo.liveRoom?.liveStatus == 1 && userInfo.liveRoom.url.isNotBlank()) {
@@ -2402,6 +2587,32 @@ private fun SpaceSearchEntryChip(
 }
 
 @Composable
+private fun SpaceSecondarySwitchRow(
+    items: List<SpaceSecondarySwitchItem>,
+    selectedId: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        items.forEach { item ->
+            AppFilterChip(
+                selected = item.id == selectedId,
+                onClick = { onSelect(item.id) },
+                modifier = Modifier.heightIn(min = 36.dp),
+                label = { AppText(item.title, fontSize = 13.sp, maxLines = 1) },
+            )
+        }
+    }
+}
+
+@Composable
 private fun SpaceMainTabRow(
     tabs: List<SpaceMainTabItem>,
     selectedTab: SpaceMainTab,
@@ -2410,438 +2621,25 @@ private fun SpaceMainTabRow(
     val spec = remember(tabs, selectedTab) {
         resolveSpaceMainTabChromeSpec(tabs = tabs, selectedTab = selectedTab)
     }
-    val safeSelectedIndex = spec.selectedIndex.coerceIn(0, (tabs.size - 1).coerceAtLeast(0))
-    // [重构] 防截断：tab 较多且大字体/窄屏时均分格子放不下文本，切换为横向滚动模式
-    val fontScale = LocalDensity.current.fontScale
-    val shouldScrollTabs = tabs.size >= 5 && fontScale > 1.15f
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 6.dp, bottom = 2.dp)
     ) {
-        if (shouldScrollTabs) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = spec.horizontalPaddingDp.dp),
-                horizontalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                BottomBarLiquidSegmentedControl(
-                    items = tabs.map { it.title },
-                    selectedIndex = safeSelectedIndex,
-                    onSelected = { index ->
-                        tabs.getOrNull(index)?.let { onSelect(it.tab) }
-                    },
-                    itemWidth = 84.dp,
-                    height = spec.heightDp.dp,
-                    indicatorHeight = spec.indicatorHeightDp.dp,
-                    labelFontSize = 14.sp,
-                    liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled
-                )
-            }
-        } else {
-            BottomBarLiquidSegmentedControl(
-                items = tabs.map { it.title },
-                selectedIndex = safeSelectedIndex,
-                onSelected = { index ->
-                    tabs.getOrNull(index)?.let { onSelect(it.tab) }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spec.horizontalPaddingDp.dp),
-                height = spec.heightDp.dp,
-                indicatorHeight = spec.indicatorHeightDp.dp,
-                labelFontSize = 14.sp,
-                liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled
-            )
-        }
+        AppNativeTabRow(
+            options = tabs.map { AppSegmentOption(it.tab, it.title) },
+            selectedValue = selectedTab,
+            scrollable = spec.scrollable || tabs.size > 4,
+            minTabWidth = 72.dp,
+            onSelectionChange = onSelect,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spec.horizontalPaddingDp.dp),
+        )
         AppHorizontalDivider(
             modifier = Modifier.padding(top = 10.dp),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.36f)
         )
-    }
-}
-
-@Composable
-private fun SpaceContributionToolbar(
-    tabs: List<SpaceContributionTab>,
-    selectedTabId: String,
-    selectedSubTab: SpaceSubTab,
-    totalVideos: Int,
-    currentOrder: VideoSortOrder,
-    layoutMode: SpaceContributionVideoLayoutMode,
-    onSelect: (String) -> Unit,
-    onPlayAllClick: () -> Unit,
-    onOrderClick: (VideoSortOrder) -> Unit,
-    onLayoutModeClick: () -> Unit
-) {
-    // Start expanded so video / 图文 / 音频 categories are immediately visible.
-    var expanded by remember(selectedTabId) { mutableStateOf(true) }
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 5.dp)
-    ) {
-        val selectedTitle = remember(tabs, selectedTabId, selectedSubTab) {
-            tabs.firstOrNull { it.id == selectedTabId }?.title
-                ?: tabs.firstOrNull { it.subTab == selectedSubTab }?.title
-                ?: tabs.firstOrNull()?.title
-                ?: ""
-        }
-        val toolbarSpec = remember(maxWidth, selectedSubTab, tabs.size, selectedTitle) {
-            resolveSpaceContributionToolbarSpec(
-                widthDp = maxWidth.value.toInt(),
-                selectedSubTab = selectedSubTab,
-                tabCount = tabs.size,
-                selectedTitle = selectedTitle
-            )
-        }
-        SpaceContributionToolbarDock(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = toolbarSpec.horizontalPaddingDp.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (expanded) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = toolbarSpec.tabHeightDp.dp)
-                    ) {
-                        SpaceContributionExpandedTabRail(
-                            tabs = tabs,
-                            selectedTabId = selectedTabId,
-                            selectedSubTab = selectedSubTab,
-                            toolbarSpec = toolbarSpec,
-                            onSelect = { tabId ->
-                                onSelect(tabId)
-                                if (toolbarSpec.collapseAfterTabSelection) expanded = false
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                } else {
-                    SpaceContributionCollapsedTab(
-                        title = selectedTitle,
-                        toolbarSpec = toolbarSpec,
-                        onExpand = { expanded = true }
-                    )
-                }
-
-                if (toolbarSpec.showVideoActions) {
-                    SpaceContributionVideoToolbarActions(
-                        totalVideos = totalVideos,
-                        currentOrder = currentOrder,
-                        layoutMode = layoutMode,
-                        spec = toolbarSpec,
-                        onPlayAllClick = onPlayAllClick,
-                        onOrderClick = onOrderClick,
-                        onLayoutModeClick = onLayoutModeClick
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SpaceContributionToolbarDock(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    AppSurface(
-        modifier = modifier,
-        shape = AppShapes.container(ContainerLevel.Pill),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            content = content
-        )
-    }
-}
-
-@Composable
-private fun SpaceContributionCollapsedTab(
-    title: String,
-    toolbarSpec: SpaceContributionToolbarSpec,
-    onExpand: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .width(toolbarSpec.collapsedTabWidthDp.dp)
-            .height(toolbarSpec.tabHeightDp.dp)
-    ) {
-        BottomBarLiquidSegmentedControl(
-            items = listOf(title.ifBlank { "投稿" }),
-            selectedIndex = 0,
-            onSelected = {},
-            modifier = Modifier.matchParentSize(),
-            height = toolbarSpec.tabHeightDp.dp,
-            indicatorHeight = toolbarSpec.tabIndicatorHeightDp.dp,
-            labelFontSize = 13.sp,
-            containerHorizontalPadding = 3.dp,
-            containerVerticalPadding = 3.dp,
-            liquidGlassEffectsEnabled = true,
-            dragSelectionEnabled = false
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .combinedClickable(
-                    onClick = {},
-                    onLongClick = onExpand
-                )
-        )
-    }
-}
-
-@Composable
-private fun SpaceContributionExpandedTabRail(
-    tabs: List<SpaceContributionTab>,
-    selectedTabId: String,
-    selectedSubTab: SpaceSubTab,
-    toolbarSpec: SpaceContributionToolbarSpec,
-    onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val tabSpec = remember(tabs, selectedTabId, selectedSubTab) {
-        resolveSpaceContributionTabChromeSpec(
-            tabs = tabs,
-            selectedTabId = selectedTabId,
-            selectedSubTab = selectedSubTab
-        )
-    }
-    val safeSelectedIndex = tabSpec.selectedIndex.coerceIn(0, (tabs.size - 1).coerceAtLeast(0))
-    val scrollState = rememberScrollState()
-    val density = LocalDensity.current
-    val textMeasurer = rememberTextMeasurer()
-    val labelTextStyle = MaterialTheme.typography.labelMedium.copy(
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Medium
-    )
-    val minimumTouchTargetWidth = LocalViewConfiguration.current.minimumTouchTargetSize.width
-    val labelHorizontalPadding = minimumTouchTargetWidth / 2
-    val containerHorizontalPadding = 3.dp
-
-    BoxWithConstraints(modifier = modifier.heightIn(min = toolbarSpec.expandedTabRailHeightDp.dp)) {
-        val viewportWidth = maxWidth
-        val tabWidths = remember(
-            tabs,
-            textMeasurer,
-            labelTextStyle,
-            density,
-            minimumTouchTargetWidth,
-            labelHorizontalPadding
-        ) {
-            tabs.map { tab ->
-                val textWidth = textMeasurer.measure(
-                    text = AnnotatedString(tab.title),
-                    style = labelTextStyle
-                ).size.width
-                val measuredWidth = with(density) { textWidth.toDp() } + labelHorizontalPadding
-                maxOf(measuredWidth, minimumTouchTargetWidth)
-            }
-        }
-        val expandedContentWidth = tabWidths.fold(containerHorizontalPadding * 2) { width, tabWidth ->
-            width + tabWidth
-        }
-        val shouldScrollTabs = tabSpec.scrollable || expandedContentWidth > viewportWidth
-
-        LaunchedEffect(shouldScrollTabs, safeSelectedIndex, tabWidths, viewportWidth) {
-            if (!shouldScrollTabs) return@LaunchedEffect
-            val target = with(density) {
-                val selectedStartPx = tabWidths
-                    .take(safeSelectedIndex)
-                    .sumOf { it.toPx().toDouble() }
-                    .toFloat()
-                val selectedWidthPx = tabWidths.getOrNull(safeSelectedIndex)?.toPx() ?: 0f
-                (selectedStartPx - (viewportWidth.toPx() - selectedWidthPx) / 2f)
-                    .toInt()
-                    .coerceAtLeast(0)
-            }
-            scrollState.animateScrollTo(target)
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(if (shouldScrollTabs) Modifier.horizontalScroll(scrollState) else Modifier)
-        ) {
-            Row(
-                modifier = Modifier
-                    .width(expandedContentWidth)
-                    .heightIn(min = toolbarSpec.expandedTabRailHeightDp.dp)
-                    .padding(horizontal = containerHorizontalPadding),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                tabs.forEachIndexed { index, tab ->
-                    val selected = index == safeSelectedIndex
-                    Box(
-                        modifier = Modifier
-                            .width(tabWidths.getOrElse(index) { minimumTouchTargetWidth })
-                            .heightIn(min = toolbarSpec.expandedTabRailHeightDp.dp)
-                            .clip(AppShapes.container(ContainerLevel.Pill))
-                            .clickable { onSelect(tab.id) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (selected) {
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .padding(vertical = containerHorizontalPadding)
-                                    .background(
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f),
-                                        shape = AppShapes.container(ContainerLevel.Pill)
-                                    )
-                            )
-                        }
-                        AppText(
-                            text = tab.title,
-                            style = labelTextStyle,
-                            color = if (selected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
-                            },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SpaceContributionVideoToolbarActions(
-    totalVideos: Int,
-    currentOrder: VideoSortOrder,
-    layoutMode: SpaceContributionVideoLayoutMode,
-    spec: SpaceContributionToolbarSpec,
-    onPlayAllClick: () -> Unit,
-    onOrderClick: (VideoSortOrder) -> Unit,
-    onLayoutModeClick: () -> Unit
-) {
-    var menuExpanded by remember { mutableStateOf(false) }
-    val isSingleColumn = layoutMode == SpaceContributionVideoLayoutMode.SINGLE_COLUMN
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        if (spec.showTotalText) {
-            AppText(
-                text = "共${totalVideos}视频",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        if (spec.showPlayAllText) {
-            AppTextButton(
-                onClick = onPlayAllClick,
-                modifier = Modifier.height(40.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp)
-            ) {
-                AppIcon(
-                    imageVector = Icons.Outlined.PlayCircleOutline,
-                    contentDescription = null,
-                    modifier = Modifier.size(17.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                AppText(
-                    text = "播放",
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    softWrap = false
-                )
-            }
-        } else {
-            AppIconButton(
-                onClick = onPlayAllClick,
-                modifier = Modifier.size(40.dp)
-            ) {
-                AppIcon(
-                    imageVector = Icons.Outlined.PlayCircleOutline,
-                    contentDescription = "播放全部",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-
-        AppIconButton(
-            onClick = onLayoutModeClick,
-            modifier = Modifier.size(40.dp)
-        ) {
-            AppIcon(
-                imageVector = if (isSingleColumn) Icons.Outlined.GridView else Icons.Outlined.ViewAgenda,
-                contentDescription = if (isSingleColumn) "切换为双列" else "切换为单列",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Box {
-            if (spec.showSortText) {
-                AppTextButton(
-                    onClick = { menuExpanded = true },
-                    modifier = Modifier.height(40.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp)
-                ) {
-                    AppIcon(
-                        imageVector = Icons.AutoMirrored.Outlined.Sort,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(17.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    AppText(
-                        text = resolveSpaceVideoSortCompactLabel(currentOrder),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
-            } else {
-                AppIconButton(
-                    onClick = { menuExpanded = true },
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    AppIcon(
-                        imageVector = Icons.AutoMirrored.Outlined.Sort,
-                        contentDescription = resolveSpaceVideoSortCompactLabel(currentOrder),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            AppDropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false }
-            ) {
-                VideoSortOrder.entries.forEach { order ->
-                    AppDropdownMenuItem(
-                        text = { AppText(order.displayName) },
-                        onClick = {
-                            menuExpanded = false
-                            onOrderClick(order)
-                        }
-                    )
-                }
-            }
-        }
     }
 }
 
@@ -4265,10 +4063,13 @@ private fun SpaceHeaderRelationActions(
 private fun SpaceHeaderStat(
     label: String,
     value: Long,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AppText(

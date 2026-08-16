@@ -33,6 +33,7 @@ class BottomInputBarStructureTest {
         assertTrue(source.contains("FloatingLiquidBottomInputBar("))
         assertTrue(source.contains("FloatingLiquidBottomInputBarContentRow("))
         assertTrue(source.contains("BottomBarMatchedReusableLiquidDock("))
+        assertTrue(source.contains("reuseEnabled = true"))
         // 外层整条保留液态玻璃；内层提示框实心半透明 + 横向 padding（禁止嵌套 liquid dock）。
         assertTrue(source.contains("drawShellLens = true"))
         assertTrue(source.contains(".padding(horizontal = 12.dp)"))

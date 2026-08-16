@@ -78,8 +78,7 @@ internal fun HomeTopTabChrome(
     drawChromeSurface: Boolean = true,
     useBottomBarMatchedSurface: Boolean = false,
     /**
-     * 顶栏分类 dock 默认开 soft shell lens（[TOP_DOCK_SHELL_LENS_INTENSITY]）：
-     * 保留上下滑动液态折射以贴近指示器，强度低于底栏整壳以避免虾线。
+     * 顶栏分类 dock 与 [FloatingBottomBar] 共用全强度 shell lens。
      * 搜索等小胶囊仍应显式传 false。
      */
     drawMatchedShellLens: Boolean = true,
@@ -259,7 +258,7 @@ internal fun HomeTopTabChrome(
                             .fillMaxSize()
                             .background(tabContentUnderlayColor, tabShape)
                     )
-                    if (isTabFloating) {
+                    if (isTabFloating && tabHighlightColor.alpha > 0f) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()

@@ -49,9 +49,9 @@ internal fun resolveSpaceMainTabChromeSpec(
         ),
         horizontalPaddingDp = SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP,
         itemWidthDp = null,
-        scrollable = false,
-        liquidGlassEffectsEnabled = true,
-        dragSelectionEnabled = true
+        scrollable = tabs.size > 4,
+        liquidGlassEffectsEnabled = false,
+        dragSelectionEnabled = false
     )
 }
 
@@ -73,8 +73,8 @@ internal fun resolveSpaceContributionTabChromeSpec(
         horizontalPaddingDp = SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP,
         itemWidthDp = resolveSpaceContributionTabItemWidthDp(tabs),
         scrollable = scrollable,
-        liquidGlassEffectsEnabled = true,
-        dragSelectionEnabled = !scrollable
+        liquidGlassEffectsEnabled = false,
+        dragSelectionEnabled = false
     )
 }
 

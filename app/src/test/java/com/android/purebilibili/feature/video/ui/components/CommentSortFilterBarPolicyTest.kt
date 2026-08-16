@@ -47,6 +47,7 @@ class CommentSortFilterBarPolicyTest {
 
         assertTrue(source.contains("tapPressRefractionEnabled = false"))
         assertFalse(source.contains("tapPressRefractionEnabled = true"))
+        assertTrue(source.contains("itemWidth = spec.itemWidthDp.dp"))
     }
 
     @Test
@@ -56,8 +57,8 @@ class CommentSortFilterBarPolicyTest {
         )
 
         assertTrue(source.contains("miuixBackdrop = miuixBackdrop"))
-        assertTrue(source.contains("forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled"))
-        assertTrue(source.contains("liquidGlassEffectsEnabled = true"))
+        assertTrue(source.contains("forceLiquidChrome = false"))
+        assertTrue(source.contains("liquidGlassEffectsEnabled = false"))
         assertTrue(source.contains("MiuixBackdrop"))
     }
 

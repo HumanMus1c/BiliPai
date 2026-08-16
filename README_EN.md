@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-08-15 · Current build: 0.2.3-beta.5 · Latest documented release: v0.2.3-beta.5</sub>
+  <sub>Last updated: 2026-08-15 · Current build: 0.2.3-beta.6 · Latest documented release: v0.2.3-beta.6</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.5-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.6-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -446,14 +446,14 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Current source build (v0.2.3-beta.5 · 2026-08-15)
+### Current source build (v0.2.3-beta.6 · 2026-08-15)
 
-- Current source build: `0.2.3-beta.5` / `versionCode 294`.
-- A default-on global back-to-top control now covers search, dynamic feeds, categories, live pages, common lists, and comments.
-- Home, settings, and feature tabs share Miuix liquid segmented controls and the Miuix Backdrop sampling path; the legacy AndroidLiquidGlass / Backdrop dependency is removed.
-- Live and bangumi/series pages are embedded in Home; tab reselection, drawer gestures, saved navigation state, and nested video returns are hardened.
-- Dynamic and live reliability continues to improve. Danmaku is being progressively refactored behind a neutral engine and playback-scoped sessions.
-- See [CHANGELOG.md](CHANGELOG.md) for the complete beta.4 → beta.5 notes.
+- Current source build: `0.2.3-beta.6` / `versionCode 295`.
+- Home search and tabs now collapse together, and embedded bangumi/live pages release the reserved top space instead of leaving a blank area.
+- Dynamic publishing adds images, votes, and reservations; native vote, live-card, and fallback handling are expanded.
+- Bangumi gains native long reviews and a refined hub/timeline flow.
+- UP spaces use a simpler primary/secondary tab hierarchy; play-all, layout, and sorting controls move into the top-right overflow menu.
+- See [CHANGELOG.md](CHANGELOG.md) for the complete beta.5 → beta.6 notes.
 - Official Telegram: channel [@bilipai666](https://t.me/bilipai666), group [@bilipai888](https://t.me/bilipai888/1).
 
 ---
@@ -466,7 +466,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.5-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.5.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
+The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.6-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.6.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
 
 ---
 

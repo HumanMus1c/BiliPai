@@ -751,7 +751,8 @@ data class DynamicAdditionalGoodsItem(
 @Serializable
 data class DynamicAdditionalVote(
     val desc: String = "",
-    val join_num: Int = 0
+    val join_num: Int = 0,
+    val vote_id: Long = 0
 )
 
 @Serializable
@@ -805,9 +806,13 @@ data class DynamicMajor(
     val pgc: ArchiveMajor? = null, // 番剧/影视
     val article: ArticleMajor? = null, // 专栏
     val draw: DrawMajor? = null, // 图片
-    val live_rcmd: LiveRcmdMajor? = null, //  直播
+    val live_rcmd: LiveRcmdMajor? = null, //  直播推荐
+    val live: LiveMajor? = null, // DYNAMIC_TYPE_LIVE
     val opus: OpusMajor? = null, //  [新增] 图文动态 (新版格式)
-    val ugc_season: UgcSeasonMajor? = null // [新增] 合集
+    val ugc_season: UgcSeasonMajor? = null, // [新增] 合集
+    val medialist: MedialistMajor? = null,
+    val courses: CoursesMajor? = null,
+    val subscription_new: SubscriptionNewMajor? = null
 )
 
 //  [新增] 图文动态 (MAJOR_TYPE_OPUS) - B站新版图文格式
@@ -851,6 +856,38 @@ data class OpusPic(
 data class OpusSummary(
     val text: String = "",
     val rich_text_nodes: List<RichTextNode> = emptyList()
+)
+
+@Serializable
+data class LiveMajor(
+    @Serializable(with = FlexibleStringSerializer::class)
+    val id: String = "",
+    val title: String = "",
+    val cover: String = "",
+    val jump_url: String = ""
+)
+
+@Serializable
+data class MedialistMajor(
+    @Serializable(with = FlexibleStringSerializer::class)
+    val id: String = "",
+    val title: String = "",
+    val cover: String = "",
+    val jump_url: String = ""
+)
+
+@Serializable
+data class CoursesMajor(
+    @Serializable(with = FlexibleStringSerializer::class)
+    val id: String = "",
+    val title: String = "",
+    val cover: String = "",
+    val jump_url: String = ""
+)
+
+@Serializable
+data class SubscriptionNewMajor(
+    val live_rcmd: LiveRcmdMajor? = null
 )
 
 //  直播推荐

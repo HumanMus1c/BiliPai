@@ -37,6 +37,8 @@ class BottomBarMatchedLiquidChromeStructureTest {
         assertTrue(source.contains("rememberCombinedBackdrop(localBackdrop, backdrop)"))
         assertTrue(source.contains("bottomBarMatchedCaptureOverflow(captureSafeInset)"))
         assertTrue(source.contains("biliPaiMiuixFloatingDockSurface("))
+        assertTrue(source.contains("reuseEnabled: Boolean = false"))
+        assertTrue(source.contains("if (!reuseEnabled || !reuseAllowed || !liquidGlassEffectsEnabled)"))
     }
 
     @Test
@@ -66,9 +68,9 @@ class BottomBarMatchedLiquidChromeStructureTest {
         assertFalse(topBar.contains(".biliPaiFloatingDockSurface("))
         assertFalse(topBar.contains(".biliPaiMiuixFloatingDockSurface("))
         assertTrue(segmented.contains("BottomBarFloatingSegmentedControl("))
-        assertTrue(floating.contains("dampedDragAnimation.modifier"))
-        assertTrue(floating.contains("interactiveHighlight?.gestureModifier"))
-        assertTrue(floating.contains("val progressOffset = dampedDragAnimation.value * tabWidthPx"))
+        assertTrue(floating.contains("FloatingBottomBar("))
+        assertTrue(floating.contains("FloatingBottomBarItem("))
+        assertFalse(floating.contains(".drawBackdrop("))
         assertTrue(sharedChrome.contains("drawShellLens = drawShellLens"))
         assertFalse(segmented.contains(".biliPaiFloatingDockSurface("))
         assertFalse(segmented.contains(".biliPaiMiuixFloatingDockSurface("))
@@ -102,7 +104,7 @@ class BottomBarMatchedLiquidChromeStructureTest {
         assertTrue(dynamicTopBar.contains("isScrollInProgressProvider = isScrollInProgressProvider"))
         assertTrue(dynamicScreen.contains("BottomBarMatchedDockVisibility("))
         assertTrue(dynamicScreen.contains("edge = BottomBarMatchedDockEdge.TOP"))
-        assertTrue(search.contains("BottomBarMatchedReusableLiquidDock("))
+        assertFalse(search.contains("BottomBarMatchedReusableLiquidDock("))
         assertTrue(search.contains("drawShellLens = false"))
         assertTrue(bottomInput.contains("BottomBarMatchedReusableLiquidDock("))
         // 评论底栏外层保留 shell lens 液态玻璃；搜索小胶囊仍关 lens 防虾线。
@@ -114,7 +116,7 @@ class BottomBarMatchedLiquidChromeStructureTest {
         assertFalse(partition.contains("rememberBottomBarMatchedLiquidChromeState("))
         assertTrue(partition.contains("orientation = BottomBarLiquidOrientation.VERTICAL"))
         assertFalse(partition.contains("BiliPaiBottomBarIndicatorLayer("))
-        assertTrue(musicPlayer.contains("BottomBarMatchedReusableLiquidDock("))
+        assertFalse(musicPlayer.contains("BottomBarMatchedReusableLiquidDock("))
         assertFalse(musicPlayer.contains("bottomBarMatchedLiquidDockSurface("))
         assertFalse(musicPlayer.contains("biliPaiMiuixFloatingDockSurface("))
     }
