@@ -11,7 +11,7 @@ class SpaceScreenStructureTest {
     fun `space chrome uses native tab rows and piliplus actions`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 
-        assertTrue(source.contains("AppNativeTabRow("))
+        assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
         assertTrue(source.contains("SpaceSecondarySwitchRow("))
         assertTrue(source.contains("resolveSpacePrimaryTab(selectedMainTab)"))
         assertTrue(source.contains("showTabRail = false"))
@@ -19,7 +19,7 @@ class SpaceScreenStructureTest {
         assertTrue(source.contains("onFansClick"))
         assertTrue(source.contains("Intent.ACTION_SEND"))
         assertFalse(source.contains("暂不支持私信"))
-        assertFalse(source.contains("BottomBarLiquidSegmentedControl("))
+        assertFalse(source.contains("AppNativeTabRow("))
     }
 
     @Test
@@ -84,9 +84,9 @@ class SpaceScreenStructureTest {
     fun `secondary contribution switch keeps the native tab row`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/space/SpaceScreen.kt")
 
-        assertTrue(source.contains("AppNativeTabRow("))
+        assertTrue(source.contains("SpaceSecondarySwitchRow("))
         assertTrue(source.contains("AppFilterChip("))
-        assertFalse(source.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
         assertFalse(source.contains("rememberTextMeasurer()"))
     }
 

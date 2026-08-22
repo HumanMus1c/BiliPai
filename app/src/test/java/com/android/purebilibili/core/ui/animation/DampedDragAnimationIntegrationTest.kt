@@ -29,7 +29,7 @@ class DampedDragAnimationIntegrationTest {
         assertFalse(movingIndicator.contains(".then(dampedDragAnimation.modifier)"))
         assertFalse(movingIndicator.contains("interactiveHighlight?.gestureModifier"))
         assertTrue(body.contains("canDrag = { position ->"))
-        assertTrue(body.contains("pressedScale = FloatingBottomBarPressedScale"))
+        assertTrue(body.contains("pressedScale = matchedGeometry.pressedScale"))
         assertTrue(dragPort.contains("inspectDragGestures("))
         assertTrue(dragPort.contains("val modifier: Modifier = Modifier.pointerInput(Unit)"))
 

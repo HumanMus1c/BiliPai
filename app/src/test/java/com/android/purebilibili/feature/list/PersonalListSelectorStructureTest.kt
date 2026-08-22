@@ -59,7 +59,7 @@ class PersonalListSelectorStructureTest {
         val profileTabs = profileSource
             .substringAfter("private fun ProfileSpaceTabs(")
             .substringBefore("private fun ProfileSpaceTabBody(")
-        assertTrue(profileTabs.contains("dragSelectionEnabled = false"))
+        assertTrue(profileTabs.contains("dragSelectionEnabled = true"))
     }
 
     private fun loadSource(path: String): String {

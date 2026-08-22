@@ -164,8 +164,8 @@ import com.android.purebilibili.feature.dynamic.components.DynamicCommentOverlay
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
 import com.android.purebilibili.core.ui.components.AppFilterChip
-import com.android.purebilibili.core.ui.components.AppNativeTabRow
-import com.android.purebilibili.core.ui.components.AppSegmentOption
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.feature.list.VideoProgressDisplayState
 import com.android.purebilibili.feature.video.controller.PlaybackProgressManager
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
@@ -2621,24 +2621,29 @@ private fun SpaceMainTabRow(
     val spec = remember(tabs, selectedTab) {
         resolveSpaceMainTabChromeSpec(tabs = tabs, selectedTab = selectedTab)
     }
+    val tabBackdrop = rememberLayerBackdrop()
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 6.dp, bottom = 2.dp)
     ) {
-        AppNativeTabRow(
-            options = tabs.map { AppSegmentOption(it.tab, it.title) },
-            selectedValue = selectedTab,
-            scrollable = spec.scrollable || tabs.size > 4,
-            minTabWidth = 72.dp,
-            onSelectionChange = onSelect,
+        BottomBarLiquidSegmentedControl(
+            items = tabs.map { it.title },
+            selectedIndex = spec.selectedIndex,
+            onSelected = { index ->
+                tabs.getOrNull(index)?.tab?.let(onSelect)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = spec.horizontalPaddingDp.dp),
-        )
-        AppHorizontalDivider(
-            modifier = Modifier.padding(top = 10.dp),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.36f)
+            height = spec.heightDp.dp,
+            indicatorHeight = spec.indicatorHeightDp.dp,
+            labelFontSize = 13.sp,
+            miuixBackdrop = tabBackdrop,
+            forceLiquidChrome = false,
+            liquidGlassEffectsEnabled = spec.liquidGlassEffectsEnabled,
+            tapPressRefractionEnabled = true,
+            dragSelectionEnabled = spec.dragSelectionEnabled,
         )
     }
 }

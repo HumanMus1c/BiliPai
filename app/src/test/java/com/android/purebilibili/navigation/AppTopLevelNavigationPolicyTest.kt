@@ -720,6 +720,32 @@ class AppTopLevelNavigationPolicyTest {
     }
 
     @Test
+    fun bottomPagerAfterReady_doesNotPrecomposeInactiveStoryPlayer() {
+        assertFalse(
+            shouldComposeBottomPagerPage(
+                item = BottomNavItem.STORY,
+                page = 2,
+                currentPage = 0,
+                selectedPage = 0,
+                isNavigating = false,
+                navigationStartPage = 0,
+                contentReady = true
+            )
+        )
+        assertTrue(
+            shouldComposeBottomPagerPage(
+                item = BottomNavItem.STORY,
+                page = 2,
+                currentPage = 0,
+                selectedPage = 2,
+                isNavigating = true,
+                navigationStartPage = 0,
+                contentReady = true
+            )
+        )
+    }
+
+    @Test
     fun bottomPagerRenderBudget_downgradesOnlyWhileNavigating() {
         val navigating = resolveBottomPagerRenderBudget(isNavigating = true)
         val settled = resolveBottomPagerRenderBudget(isNavigating = false)

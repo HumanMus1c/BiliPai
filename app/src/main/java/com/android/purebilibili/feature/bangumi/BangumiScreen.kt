@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.bangumi
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -41,6 +42,8 @@ import com.android.purebilibili.core.ui.rememberAppSearchIcon
 import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.feature.download.DownloadManager
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /** Navigation-compatible state holder for the Bangumi/Cinema hub. */
 @Composable
@@ -124,6 +127,7 @@ fun BangumiScreen(
             }
         },
     ) { contentPadding ->
+        val channelBackdrop = rememberLayerBackdrop()
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -139,9 +143,16 @@ fun BangumiScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
+                    miuixBackdrop = channelBackdrop,
                 )
             }
 
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .layerBackdrop(channelBackdrop),
+            ) {
             BangumiHubContent(
                 state = state,
                 onBangumiClick = onBangumiClick,
@@ -175,6 +186,7 @@ fun BangumiScreen(
                     }
                 },
             )
+            }
         }
     }
 }

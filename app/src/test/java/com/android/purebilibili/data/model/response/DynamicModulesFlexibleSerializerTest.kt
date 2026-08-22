@@ -541,6 +541,78 @@ class DynamicModulesFlexibleSerializerTest {
     }
 
     @Test
+    fun opusDetailModules_keepHeadingAndFormulaParagraphs() {
+        val payload = """
+            {
+              "code": 0,
+              "data": {
+                "item": {
+                  "id_str": "1236527093179744277",
+                  "modules": [
+                    {
+                      "module_type": "MODULE_TYPE_TITLE",
+                      "module_title": { "text": "新翼神龙卡组考卷，已快速公式答题" }
+                    },
+                    {
+                      "module_type": "MODULE_TYPE_CONTENT",
+                      "module_content": {
+                        "paragraphs": [
+                          {
+                            "para_type": 1,
+                            "text": {
+                              "nodes": [
+                                { "word": { "words": "开门见山介绍combo" } }
+                              ]
+                            }
+                          },
+                          {
+                            "para_type": 8,
+                            "heading": {
+                              "nodes": [
+                                { "word": { "words": "新翼神龙卡组考卷，已快速公式答题" } }
+                              ]
+                            }
+                          },
+                          {
+                            "para_type": 2,
+                            "pics": [
+                              { "url": "https://i0.hdslb.com/card.jpg", "width": 800, "height": 600 }
+                            ]
+                          },
+                          {
+                            "para_type": 1,
+                            "text": {
+                              "nodes": [
+                                { "formula": { "latex_content": "ATK=3000" } },
+                                { "word": { "words": " 答题解析" } }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val response = json.decodeFromString<DynamicDetailResponse>(payload)
+        val opus = response.data?.item?.modules?.module_dynamic?.major?.opus
+
+        assertEquals("新翼神龙卡组考卷，已快速公式答题", opus?.title)
+        assertEquals(
+            listOf(
+                OpusContentBlock.Text("开门见山介绍combo"),
+                OpusContentBlock.Text("新翼神龙卡组考卷，已快速公式答题"),
+                OpusContentBlock.Image(OpusPic(url = "https://i0.hdslb.com/card.jpg", width = 800, height = 600)),
+                OpusContentBlock.Text("ATK=3000 答题解析")
+            ),
+            opus?.contentBlocks
+        )
+    }
+
+    @Test
     fun dynamicDetailResponse_parsesNumericTypeAndOrderedOpusLinkCards() {
         val payload = """
             {

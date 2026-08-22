@@ -63,4 +63,16 @@ class DynamicTopBarThemePolicyTest {
         )
     }
 
+    @Test
+    fun `liquid glass dock disables header haze to avoid double frost`() {
+        assertEquals(
+            false,
+            shouldUseDynamicTopBarHeaderBlur(
+                hasHazeState = true,
+                globalWallpaperVisible = false,
+                liquidGlassEnabled = true,
+            )
+        )
+    }
+
 }

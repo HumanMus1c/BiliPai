@@ -1,11 +1,23 @@
 package com.android.purebilibili.feature.video.ui.components
 
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class VideoCommentSheetHostPolicyTest {
+
+    @Test
+    fun `thread detail return keeps the hoisted main comment list state`() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/video/ui/components/VideoCommentSheetHost.kt"
+        ).readText()
+
+        assertTrue(source.contains("val mainCommentListState = rememberLazyListState()"))
+        assertTrue(source.contains("listState = mainCommentListState"))
+        assertFalse(source.contains("mainListScrollToTopRequest"))
+    }
 
     @Test
     fun `host should stay hidden when neither main sheet nor thread detail is visible`() {
@@ -59,28 +71,6 @@ class VideoCommentSheetHostPolicyTest {
             resolveVideoCommentSheetHostContent(
                 mainSheetVisible = false,
                 subReplyVisible = true
-            )
-        )
-    }
-
-    @Test
-    fun `returning from thread detail resets main comment list to top`() {
-        assertTrue(
-            shouldResetVideoCommentMainListAfterTransition(
-                previousContent = VideoCommentSheetHostContent.THREAD_DETAIL,
-                currentContent = VideoCommentSheetHostContent.MAIN_LIST,
-            )
-        )
-        assertFalse(
-            shouldResetVideoCommentMainListAfterTransition(
-                previousContent = VideoCommentSheetHostContent.HIDDEN,
-                currentContent = VideoCommentSheetHostContent.MAIN_LIST,
-            )
-        )
-        assertFalse(
-            shouldResetVideoCommentMainListAfterTransition(
-                previousContent = VideoCommentSheetHostContent.MAIN_LIST,
-                currentContent = VideoCommentSheetHostContent.MAIN_LIST,
             )
         )
     }

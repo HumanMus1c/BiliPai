@@ -105,6 +105,7 @@ import com.android.purebilibili.feature.audio.lyrics.LyricLine
 import com.android.purebilibili.feature.audio.lyrics.resolveActiveLyricIndex
 import com.android.purebilibili.feature.audio.lyrics.resolveLyricFocusScrollOffsetPx
 import com.android.purebilibili.feature.audio.player.MusicPlayerUiState
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 
 import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
@@ -355,7 +356,10 @@ internal fun MusicPlayerContent(
                             modifier = Modifier
                                 .navigationBarsPadding()
                                 .padding(horizontal = 72.dp, vertical = 8.dp),
-                            liquidGlassEffectsEnabled = glassEnabled,
+                            height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+                            indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+                            liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
+                            forceLiquidChrome = liquidGlassEffectsEnabled,
                             preferInlineContentStyle = false,
                             miuixBackdrop = musicBackdrop,
                             isScrollInProgressProvider = { pagerState.isScrollInProgress },
@@ -820,8 +824,11 @@ private fun MusicPlayModeDock(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 2.dp),
+        height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+        indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
         labelFontSize = 13.sp,
         liquidGlassEffectsEnabled = glassEnabled,
+        forceLiquidChrome = glassEnabled,
         preferInlineContentStyle = false,
         miuixBackdrop = miuixBackdrop,
     )

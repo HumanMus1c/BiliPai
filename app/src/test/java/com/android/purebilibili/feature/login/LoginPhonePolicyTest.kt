@@ -69,6 +69,17 @@ class LoginPhonePolicyTest {
     }
 
     @Test
+    fun `app sms cid uses PiliPlus countryId not passport list id`() {
+        val mainland = resolveFallbackPhoneRegions().first { it.countryId == "86" }
+        val us = resolveFallbackPhoneRegions().first { it.name.contains("美国") }
+
+        assertEquals(1, mainland.cid)
+        assertEquals(86, resolveSmsApiCid(mainland))
+        assertEquals(4, us.cid)
+        assertEquals(1, resolveSmsApiCid(us))
+    }
+
+    @Test
     fun `captcha dialog policy keeps usable height on mobile`() {
         val spec = resolveCaptchaDialogLayoutPolicy(
             screenWidthPx = 1080,

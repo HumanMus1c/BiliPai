@@ -117,6 +117,8 @@ data class TodayWatchPlan(
     val upRanks: ImmutableList<TodayUpRank> = persistentListOf(),
     val videoQueue: ImmutableList<VideoItem> = persistentListOf(),
     val explanationByBvid: ImmutableMap<String, String> = persistentMapOf(),
+    val scoreByBvid: ImmutableMap<String, Double> = persistentMapOf(),
+    val confidenceByBvid: ImmutableMap<String, Float> = persistentMapOf(),
     val historySampleCount: Int = 0,
     val nightSignalUsed: Boolean = false,
     val generatedAt: Long = 0L

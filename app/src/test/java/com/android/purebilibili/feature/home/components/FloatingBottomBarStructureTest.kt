@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.home.components
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -28,9 +29,21 @@ class FloatingBottomBarStructureTest {
         assertTrue(source.contains("fun FloatingBottomBar("))
         assertTrue(source.contains("shellHeight: Dp = FloatingBottomBarDefaultShellHeight"))
         assertTrue(source.contains("indicatorHeight: Dp = FloatingBottomBarIndicatorHeight"))
+        assertTrue(source.contains("dragTrackingMode: DampedDragTrackingMode = DampedDragTrackingMode.SPRING"))
         assertTrue(source.contains("FloatingBottomBarDefaultShellHeight: Dp = 64.dp"))
         assertTrue(source.contains("FloatingBottomBarIndicatorHeight: Dp = 56.dp"))
         assertTrue(source.contains("FloatingBottomBarPressedScale: Float = 78f / 56f"))
+    }
+
+    @Test
+    fun `compact segmented controls directly track drag while home keeps spring default`() {
+        val source = loadFloatingBottomBarSource()
+        val segmentedSource = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
+        )
+
+        assertTrue(source.contains("dragTrackingMode: DampedDragTrackingMode = DampedDragTrackingMode.SPRING"))
+        assertTrue(segmentedSource.contains("dragTrackingMode = DampedDragTrackingMode.DIRECT"))
     }
 
     @Test
@@ -41,8 +54,8 @@ class FloatingBottomBarStructureTest {
         assertTrue(body.contains(".dropShadow("))
         assertTrue(body.contains("vibrancy()"))
         assertTrue(body.contains("blur(4.dp.toPx(), 4.dp.toPx())"))
-        assertTrue(body.contains("refractionHeight = 24.dp.toPx()"))
-        assertTrue(body.contains("refractionAmount = 24.dp.toPx()"))
+        assertTrue(body.contains("refractionHeight = shellLensPx"))
+        assertTrue(body.contains("refractionAmount = shellLensPx"))
         assertTrue(body.contains("baseHighlight.copy(alpha = 0.75f)"))
 
         assertTrue(body.contains(".alpha(0f)"))
@@ -52,11 +65,11 @@ class FloatingBottomBarStructureTest {
         assertTrue(body.contains("rememberCombinedBackdrop(backdrop, tabsBackdrop)"))
         assertTrue(body.contains("depthEffect = true"))
         assertTrue(body.contains("chromaticAberration = 0.5f"))
-        assertTrue(body.contains("refractionHeight = 10.dp.toPx() * progress"))
-        assertTrue(body.contains("refractionAmount = 14.dp.toPx() * progress"))
+        assertTrue(body.contains("refractionHeight = indicatorLensHeightPx * progress"))
+        assertTrue(body.contains("refractionAmount = indicatorLensAmountPx * progress"))
         assertTrue(body.contains(".innerShadow(shape = pillShape)"))
         assertTrue(body.contains("InnerShadow("))
-        assertTrue(body.contains("radius = 8.dp * dampedDragAnimation.pressProgress"))
+        assertTrue(body.contains("radius = innerShadowRadius * dampedDragAnimation.pressProgress"))
     }
 
     @Test
@@ -73,15 +86,31 @@ class FloatingBottomBarStructureTest {
 
         assertTrue(source.contains("import com.android.purebilibili.feature.home.components.miuix.DampedDragAnimation"))
         assertTrue(body.contains("DampedDragAnimation("))
-        assertTrue(body.contains("pressedScale = FloatingBottomBarPressedScale"))
+        assertTrue(body.contains("pressedScale = matchedGeometry.pressedScale"))
+        assertTrue(body.contains("floatingDockScaleOverflow("))
+        assertTrue(body.contains("overflow = scaleOverflowDp"))
+        assertTrue(body.contains("shellHeight = shellHeight"))
+        assertTrue(body.contains("dampedDragAnimation.press()"))
+        assertTrue(body.contains("dampedDragAnimation.release()"))
         assertTrue(body.contains("canDrag = { offset ->"))
-        assertTrue(body.contains("onDragStarted = {}"))
+        assertTrue(body.contains("shouldAcceptFloatingDockDragAtWindowX("))
+        assertTrue(body.contains("fittedIndicatorHeight"))
+        assertTrue(body.contains("onDragStarted = {"))
+        assertTrue(body.contains("pagerFollowGate.ownedTargetIndex = null"))
         assertTrue(body.contains("onDragStopped = {"))
         assertTrue(body.contains("updateValue("))
-        assertTrue(body.contains("snapshotFlow { selectedIndex().coerceIn(0, maxTabIndex) }"))
-        assertTrue(body.contains("snapshotFlow { currentIndex }"))
-        assertTrue(body.contains(".drop(1)"))
-        assertTrue(body.contains("onSelected(index)"))
+        assertTrue(body.contains("snapshotFlow { selectedIndexLatest.value().coerceIn(0, maxTabIndex) }"))
+        assertTrue(body.contains("shouldAnimateIndicatorToSelectedIndex("))
+        assertTrue(body.contains("shouldSuppressExternalPagerIndicatorFollow("))
+        assertTrue(body.contains("resolveIndicatorOwnedTargetOnDragStop("))
+        assertTrue(body.contains("isPagerScrolling = scrolling"))
+        assertFalse(body.contains("snapshotFlow { currentIndex }"))
+        assertFalse(body.contains(".drop(1)"))
+        val dragStopBody = body.substringAfter("onDragStopped = {").substringBefore("onDrag = {")
+        assertEquals(1, Regex("animateToValue\\(").findAll(dragStopBody).count())
+        assertTrue(dragStopBody.contains("animatePress = false"))
+        assertTrue(dragStopBody.contains("onSelectedLatest.value(targetIndex)"))
+        assertTrue(dragStopBody.contains("pagerFollowGate.ownedTargetIndex = resolveIndicatorOwnedTargetOnDragStop("))
         assertFalse(baseRow.contains("interactiveHighlight.gestureModifier"))
         assertFalse(baseRow.contains(".then(dampedDragAnimation.modifier)"))
         assertTrue(movingIndicator.contains("interactiveHighlight?.gestureModifier"))
@@ -90,7 +119,7 @@ class FloatingBottomBarStructureTest {
         // Must not fall back to BiliPai self-developed drag stack.
         assertFalse(source.contains("rememberDampedDragAnimationState"))
         assertFalse(source.contains("horizontalDragGesture"))
-        assertFalse(source.contains("DampedDragTrackingMode"))
+        assertTrue(source.contains("DampedDragTrackingMode"))
 
         assertTrue(dragPort.contains("spring(1f, 1000f, visibilityThreshold)"))
         assertTrue(dragPort.contains("spring(0.5f, 300f, visibilityThreshold * 10f)"))
@@ -99,10 +128,20 @@ class FloatingBottomBarStructureTest {
         assertTrue(dragPort.contains("spring(0.7f, 250f, 0.001f)"))
         assertTrue(dragPort.contains("inspectDragGestures("))
         assertTrue(dragPort.contains("val modifier: Modifier = Modifier.pointerInput(Unit)"))
+        assertTrue(dragPort.contains("var gestureAccepted = false"))
+        assertTrue(dragPort.contains("gestureAccepted = canDrag(down.position)"))
+        assertTrue(dragPort.contains("if (!gestureAccepted) return@inspectDragGestures"))
         assertTrue(dragPort.contains("private var requestedValue = initialValue.coerceIn(valueRange)"))
         assertTrue(dragPort.contains("val targetValue: Float get() = requestedValue"))
         assertTrue(dragPort.contains("requestedValue = targetValue"))
+        assertTrue(dragPort.contains("trackingMode == DampedDragTrackingMode.DIRECT"))
+        assertTrue(dragPort.contains("valueAnimation.snapTo(targetValue)"))
+        assertTrue(dragPort.contains("animatePress: Boolean = true"))
+        assertTrue(dragPort.contains("if (animatePress) press()"))
+        assertTrue(dragPort.contains("if (animatePress) release()"))
         assertTrue(dragPort.contains("onDragStopped()"))
+        val dragEndBody = dragPort.substringAfter("onDragEnd = {").substringBefore("onDragCancel = {")
+        assertTrue(dragEndBody.indexOf("onDragStopped()") < dragEndBody.indexOf("isDragging = false"))
         assertFalse(dragPort.contains("onDragCancelled"))
     }
 
@@ -123,9 +162,8 @@ class FloatingBottomBarStructureTest {
         assertTrue(source.contains("4.dp.toPx()"))
         assertTrue(source.contains("InteractiveHighlight("))
         assertTrue(source.contains("Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU"))
-        assertTrue(source.contains("snapshotFlow { currentIndex }"))
-        assertTrue(source.contains(".drop(1)"))
-        assertTrue(source.contains("onSelected(index)"))
+        assertTrue(source.contains("snapshotFlow { selectedIndexLatest.value().coerceIn(0, maxTabIndex) }"))
+        assertTrue(source.contains("onSelectedLatest.value(targetIndex)"))
         assertFalse(source.contains("pendingUserSelectedIndex"))
     }
 
@@ -164,8 +202,41 @@ class FloatingBottomBarStructureTest {
         val source = loadFloatingBottomBarSource()
         val body = source.substringAfter("fun FloatingBottomBar(")
 
-        assertTrue(body.contains("modifier = modifier.width(IntrinsicSize.Min)"))
-        assertFalse(body.contains("Modifier.width(IntrinsicSize.Min).then(modifier)"))
+        assertTrue(body.contains("modifier = modifier,"))
+        assertFalse(body.contains("modifier = modifier.width(IntrinsicSize.Min)"))
+    }
+
+    @Test
+    fun `pager-backed liquid docks share FloatingBottomBar follow gating`() {
+        val video = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt"
+        )
+        val search = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt"
+        )
+        val listen = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/audio/screen/ListenVideoScreen.kt"
+        )
+        val music = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/audio/screen/MusicPlayerContent.kt"
+        )
+        val dynamic = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt"
+        )
+        val floating = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
+        )
+
+        assertTrue(video.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(video.contains("pagerState.currentPage + pagerState.currentPageOffsetFraction"))
+        assertTrue(search.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(search.contains("pagerState.currentPage + pagerState.currentPageOffsetFraction"))
+        assertTrue(listen.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(listen.contains("pagerState.currentPage + pagerState.currentPageOffsetFraction"))
+        assertTrue(music.contains("indicatorPositionProvider = {"))
+        assertTrue(dynamic.contains("indicatorPositionProvider = indicatorPositionProvider"))
+        assertTrue(floating.contains("FloatingBottomBar("))
+        assertTrue(floating.contains("indicatorPositionProvider = indicatorPositionProvider"))
     }
 
     @Test

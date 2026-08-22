@@ -83,6 +83,9 @@ import com.android.purebilibili.core.ui.components.rememberAdaptivePreferenceIco
 import com.android.purebilibili.core.ui.components.rememberAdaptiveSemanticIconTint
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.rememberNotificationPermissionState
+import com.android.purebilibili.core.plugin.resolvePluginListActivityLabel
+import com.android.purebilibili.feature.plugin.EYE_PROTECTION_PLUGIN_ID
+import com.android.purebilibili.feature.plugin.EyeProtectionPlugin
 import com.android.purebilibili.feature.plugin.SPONSOR_BLOCK_PLUGIN_ID
 import com.android.purebilibili.feature.settings.buildUiSkinImagePreviewItems
 import com.android.purebilibili.feature.settings.buildUiSkinPackagePreview
@@ -1959,6 +1962,16 @@ private fun PluginItem(
     val plugin = pluginInfo.plugin
     val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(iconTint)
     val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
+    val eyeActivityFlow = remember(plugin.id) {
+        (plugin as? EyeProtectionPlugin)?.isNightModeActive
+            ?: kotlinx.coroutines.flow.MutableStateFlow(false)
+    }
+    val eyeActive by eyeActivityFlow.collectAsStateWithLifecycle()
+    val activityLabel = resolvePluginListActivityLabel(
+        enabled = pluginInfo.enabled,
+        unavailable = plugin.unavailable,
+        effectActive = plugin.id == EYE_PROTECTION_PLUGIN_ID && eyeActive
+    )
     
     Column {
         // 主行
@@ -2000,6 +2013,20 @@ private fun PluginItem(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (activityLabel != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        AppSurface(
+                            shape = AppShapes.container(ContainerLevel.Tag),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            AppText(
+                                text = activityLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                     //  暂不可用标签
                     if (plugin.unavailable) {
                         val unavailableColors = resolveAccessibleContainerColors(

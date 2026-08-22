@@ -5,6 +5,7 @@ import com.android.purebilibili.core.ui.components.AppText
 import android.app.Activity
 import android.content.Context
 import android.content.pm.ActivityInfo
+import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 import android.content.res.Configuration
 import android.media.AudioManager
 import android.net.Uri
@@ -307,12 +308,12 @@ fun OfflineVideoPlayerScreen(
     fun applyWindowMode(fullscreen: Boolean) {
         val act = getActivity() ?: return
         if (fullscreen) {
-            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            act.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
             val windowInsetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
             windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
             windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         } else {
-            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            act.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
             val windowInsetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
             windowInsetsController.show(WindowInsetsCompat.Type.systemBars())
         }
@@ -375,7 +376,7 @@ fun OfflineVideoPlayerScreen(
                 miniPlayerManager.clearExternalPlayerIfMatches(player)
             }
             player.release()
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            activity?.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED)
             activity?.let { act ->
                 val windowInsetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
                 windowInsetsController.show(WindowInsetsCompat.Type.systemBars())

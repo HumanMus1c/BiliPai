@@ -4,12 +4,12 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.AppSurfaceTokens
-import com.android.purebilibili.core.ui.rememberAppSegmentedControlPolicy
 import com.android.purebilibili.core.ui.skeleton.CommentListColumnSkeleton
 import com.android.purebilibili.core.ui.skeleton.CommentListSkeleton
 
@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppIconButton
@@ -31,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +48,7 @@ import com.android.purebilibili.feature.dynamic.resolveDynamicCommentLocationLab
 import com.android.purebilibili.feature.dynamic.resolveDynamicCommentSheetTotalCount
 import com.android.purebilibili.feature.dynamic.resolveDynamicSubReplyCount
 import com.android.purebilibili.feature.dynamic.shouldOpenDynamicCommentThreadOnTap
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.video.ui.components.CommentPictures
 import com.android.purebilibili.feature.video.ui.components.RichCommentText
 import com.android.purebilibili.feature.video.ui.components.ReplyMemberAvatar
@@ -76,6 +75,9 @@ import androidx.compose.material.icons.automirrored.outlined.Reply
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import com.android.purebilibili.core.ui.components.AppTextField
+import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.nav.gesture.WindowNavigationEventBridge
 
 @Composable
@@ -218,6 +220,7 @@ fun DynamicCommentSheet(
             enabled = true,
             onBackCompleted = onDismiss,
         )
+        val commentChromeBackdrop = rememberLayerBackdrop()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -253,7 +256,8 @@ fun DynamicCommentSheet(
                     selectedIndex = sortModes.indexOf(sortMode).coerceAtLeast(0),
                     onSelected = { index ->
                         sortModes.getOrNull(index)?.let(onSortModeChange)
-                    }
+                    },
+                    miuixBackdrop = commentChromeBackdrop,
                 )
                 AppIconButton(
                     onClick = onDismiss,
@@ -272,14 +276,16 @@ fun DynamicCommentSheet(
                 CommentListSkeleton(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .layerBackdrop(commentChromeBackdrop),
                     contentPadding = PaddingValues(vertical = AppSpacingTokens.Small),
                 )
             } else if (comments.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .layerBackdrop(commentChromeBackdrop),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -319,7 +325,8 @@ fun DynamicCommentSheet(
                     state = listState,
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .layerBackdrop(commentChromeBackdrop),
                     contentPadding = PaddingValues(
                         horizontal = AppSpacingTokens.Large,
                         vertical = AppSpacingTokens.Small,
@@ -383,59 +390,51 @@ private fun DynamicCommentSortControl(
     items: List<String>,
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    miuixBackdrop: MiuixBackdrop? = null,
 ) {
     if (items.isEmpty()) return
-    val policy = rememberAppSegmentedControlPolicy()
-    val controlSpec = remember { resolveDynamicCommentSortControlSpec() }
-    val safeSelectedIndex = selectedIndex.coerceIn(items.indices)
-    Row(
-        modifier = Modifier
-            .width(controlSpec.itemWidthDp.dp * items.size)
-            .height(controlSpec.heightDp.dp)
-            .clip(RoundedCornerShape(policy.pillCornerRadius))
-            .background(AppSurfaceTokens.surfaceContainer())
-            .padding(AppSpacingTokens.Micro),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        items.forEachIndexed { index, label ->
-            val selected = index == safeSelectedIndex
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(policy.pillCornerRadius))
-                    .background(
-                        if (selected) AppSurfaceTokens.secondaryContainer() else Color.Transparent
-                    )
-                    .clickable { onSelected(index) },
-                contentAlignment = Alignment.Center,
-            ) {
-                AppText(
-                    text = label,
-                    color = if (selected) {
-                        AppSurfaceTokens.onSecondaryContainer()
-                    } else {
-                        AppSurfaceTokens.onSurfaceVariantActions()
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
+    val spec = remember(items.size) {
+        resolveDynamicCommentSortControlSpec(itemCount = items.size)
     }
+    BottomBarLiquidSegmentedControl(
+        items = items,
+        selectedIndex = selectedIndex,
+        onSelected = onSelected,
+        itemWidth = spec.itemWidthDp.dp,
+        height = spec.heightDp.dp,
+        indicatorHeight = spec.indicatorHeightDp.dp,
+        labelFontSize = 13.sp,
+        modifier = modifier,
+        miuixBackdrop = miuixBackdrop,
+        forceLiquidChrome = false,
+        liquidGlassEffectsEnabled = true,
+        tapPressRefractionEnabled = true,
+    )
 }
 
-private data class DynamicCommentSortControlSpec(
+internal data class DynamicCommentSortControlSpec(
     val itemWidthDp: Int,
     val heightDp: Int,
+    val indicatorHeightDp: Int,
 )
 
-private fun resolveDynamicCommentSortControlSpec() = DynamicCommentSortControlSpec(
-    itemWidthDp = 58,
-    heightDp = 48,
+internal fun resolveDynamicCommentSortControlSpec(itemCount: Int) = DynamicCommentSortControlSpec(
+    itemWidthDp = if (itemCount >= 4) 56 else 66,
+    heightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp,
+    indicatorHeightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp,
 )
+
+internal fun hasDynamicCommentSortIndicatorScaleClearance(
+    containerHeightDp: Int,
+    indicatorHeightDp: Int,
+): Boolean {
+    val geometry = com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorGeometry(
+        dockHeightDp = containerHeightDp.toFloat(),
+        indicatorHeightDp = indicatorHeightDp.toFloat(),
+    )
+    return geometry.pressedHeightDp > containerHeightDp
+}
 
 /** Inline comments for dynamic detail, rendered by the detail screen's LazyColumn. */
 @Composable
@@ -443,9 +442,12 @@ fun DynamicInlineCommentHeader(
     totalCount: Int,
     sortMode: CommentSortMode,
     onSortModeChange: (CommentSortMode) -> Unit,
+    miuixBackdrop: MiuixBackdrop? = null,
 ) {
     val sortModes = remember { listOf(CommentSortMode.HOT, CommentSortMode.NEWEST) }
     val sortModeLabels = remember(sortModes) { sortModes.map { it.label } }
+    val fallbackBackdrop = rememberLayerBackdrop()
+    val localBackdrop = miuixBackdrop ?: fallbackBackdrop
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -464,6 +466,7 @@ fun DynamicInlineCommentHeader(
             onSelected = { index ->
                 sortModes.getOrNull(index)?.let(onSortModeChange)
             },
+            miuixBackdrop = localBackdrop,
         )
     }
     AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))

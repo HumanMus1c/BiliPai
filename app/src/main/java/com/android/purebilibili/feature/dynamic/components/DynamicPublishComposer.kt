@@ -23,16 +23,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.ContainerLevel
-import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppTextField
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.data.model.response.DynamicCreatedReserve
 import com.android.purebilibili.data.model.response.DynamicCreatedVote
 import com.android.purebilibili.data.model.response.DynamicPublishDraft
@@ -66,10 +70,13 @@ fun DynamicPublishComposer(
         onDismissRequest = onDismiss,
         title = { AppText(if (isEditing) "编辑动态" else "发布动态") },
         text = {
+            val publishChromeBackdrop = rememberLayerBackdrop()
+            val visibilityLabels = remember { listOf("公开", "仅自己可见") }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .layerBackdrop(publishChromeBackdrop),
                 verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
             ) {
                 if (!isEditing) {
@@ -115,10 +122,18 @@ fun DynamicPublishComposer(
                             AppText(reserve?.title?.let { "预约：$it" } ?: "直播预约")
                         }
                     }
-                    AppFilterChip(
-                        selected = privatePublish,
-                        onClick = { privatePublish = !privatePublish },
-                        label = { AppText(if (privatePublish) "仅自己可见" else "公开") }
+                    BottomBarLiquidSegmentedControl(
+                        items = visibilityLabels,
+                        selectedIndex = if (privatePublish) 1 else 0,
+                        onSelected = { index -> privatePublish = index == 1 },
+                        itemWidth = 88.dp,
+                        height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+                        indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+                        labelFontSize = 13.sp,
+                        miuixBackdrop = publishChromeBackdrop,
+                        forceLiquidChrome = false,
+                        liquidGlassEffectsEnabled = true,
+                        tapPressRefractionEnabled = true,
                     )
                 }
                 errorMessage?.let { AppText(it) }

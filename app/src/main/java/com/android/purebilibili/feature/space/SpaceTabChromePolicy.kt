@@ -43,15 +43,13 @@ internal fun resolveSpaceMainTabChromeSpec(
     val selectedIndex = tabs.indexOfFirst { it.tab == selectedTab }.coerceAtLeast(0)
     return SpaceSegmentedTabChromeSpec(
         selectedIndex = selectedIndex,
-        heightDp = AppChromeSizeTokens.CompactControlHeightDp,
-        indicatorHeightDp = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
-            AppChromeSizeTokens.CompactControlHeightDp.toFloat()
-        ),
+        heightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp,
+        indicatorHeightDp = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp,
         horizontalPaddingDp = SPACE_SEGMENTED_TAB_HORIZONTAL_PADDING_DP,
         itemWidthDp = null,
         scrollable = tabs.size > 4,
-        liquidGlassEffectsEnabled = false,
-        dragSelectionEnabled = false
+        liquidGlassEffectsEnabled = true,
+        dragSelectionEnabled = tabs.size in 2..4
     )
 }
 

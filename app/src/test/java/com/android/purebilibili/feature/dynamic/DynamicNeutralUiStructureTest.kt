@@ -74,7 +74,9 @@ class DynamicNeutralUiStructureTest {
         val commentSource = File(sourceRoot, "components/DynamicCommentSheet.kt").readText()
         val topBarSource = File(sourceRoot, "components/DynamicTopBar.kt").readText()
 
-        assertTrue(commentSource.contains("rememberAppSegmentedControlPolicy()"))
+        assertTrue(commentSource.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(commentSource.contains("rememberLayerBackdrop()"))
+        assertTrue(commentSource.contains("miuixBackdrop = commentChromeBackdrop"))
         assertFalse(commentSource.contains("CommentSegmentedControl("))
         assertFalse(commentSource.contains("feature.video.ui.components.CommentSegmentedControl"))
         assertFalse(topBarSource.contains("AndroidNativeUnderlinedSegmentedControl("))

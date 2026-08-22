@@ -29,6 +29,7 @@ class BottomBarMatchedLiquidChromeStructureTest {
         assertTrue(source.contains("    BOTTOM"))
         assertTrue(source.contains("resolveBottomBarMaterialScrollAnimationDurationMillis(isScrolling)"))
         assertTrue(source.contains("BiliPaiMiuixBottomBarIndicatorLayer("))
+        assertTrue(source.contains("liquidGlassTuning = liquidGlassTuning"))
         // Legacy indicator path removed — chrome is Miuix-only.
         assertFalse(source.contains("BiliPaiBottomBarIndicatorLayer("))
         assertFalse(source.contains("legacyBackdrop"))
@@ -72,6 +73,13 @@ class BottomBarMatchedLiquidChromeStructureTest {
         assertTrue(floating.contains("FloatingBottomBarItem("))
         assertFalse(floating.contains(".drawBackdrop("))
         assertTrue(sharedChrome.contains("drawShellLens = drawShellLens"))
+        assertTrue(
+            bottomBar.contains("resolveLiquidGlassIndicatorChromaticAberration(")
+        )
+        assertTrue(
+            floating.contains("resolveLiquidGlassIndicatorChromaticAberration(")
+        )
+        assertFalse(bottomBar.contains("chromaticAberration = 0.5f"))
         assertFalse(segmented.contains(".biliPaiFloatingDockSurface("))
         assertFalse(segmented.contains(".biliPaiMiuixFloatingDockSurface("))
         assertFalse(segmented.contains("BiliPaiBottomBarIndicatorLayer("))

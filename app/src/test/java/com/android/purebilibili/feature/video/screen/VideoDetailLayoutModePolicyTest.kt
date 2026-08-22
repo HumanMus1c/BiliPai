@@ -224,6 +224,26 @@ class VideoDetailLayoutModePolicyTest {
     }
 
     @Test
+    fun floatingWindowFallback_detectsCurrentBoundsSmallerThanMaximum() {
+        assertTrue(
+            isWindowBoundsSmallerThanMaximum(
+                currentWidth = 720,
+                currentHeight = 1280,
+                maximumWidth = 1080,
+                maximumHeight = 2400
+            )
+        )
+        assertFalse(
+            isWindowBoundsSmallerThanMaximum(
+                currentWidth = 1080,
+                currentHeight = 2400,
+                maximumWidth = 1080,
+                maximumHeight = 2400
+            )
+        )
+    }
+
+    @Test
     fun fullscreenModePolicy_allowsManualInWindowFullscreenInsideSystemSmallWindow() {
         assertTrue(
             resolveVideoDetailFullscreenMode(

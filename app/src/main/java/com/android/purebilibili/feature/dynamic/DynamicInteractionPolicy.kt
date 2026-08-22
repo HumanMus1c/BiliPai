@@ -84,6 +84,11 @@ internal fun shouldIncludeDynamicItemInUpTab(item: DynamicItem): Boolean {
 }
 
 internal fun resolveDynamicCommentTarget(item: DynamicItem): DynamicCommentTarget? {
+    // The dynamic API explicitly supplies the reply subject as basic.comment_id_str +
+    // basic.comment_type. Prefer it over display-shape inference (for example OPUS),
+    // because an image dynamic may render as OPUS while still using reply type 11.
+    resolveCommentTargetFromBasic(item.basic)?.let { return it }
+
     val major = item.modules.module_dynamic?.major
     when (major?.type.orEmpty()) {
         "MAJOR_TYPE_OPUS" -> {
@@ -108,29 +113,23 @@ internal fun resolveDynamicCommentTarget(item: DynamicItem): DynamicCommentTarge
         }
     }
 
-    val basic = item.basic
     return when (item.type.trim()) {
         "DYNAMIC_TYPE_AV",
         "DYNAMIC_TYPE_PGC",
         "DYNAMIC_TYPE_PGC_UNION",
         "DYNAMIC_TYPE_UGC_SEASON" -> {
-            val oid = resolveCommentTargetFromBasic(basic)?.takeIf { it.type == 1 }?.oid
-                ?: major?.archive?.aid?.toPositiveLongOrNull()
+            val oid = major?.archive?.aid?.toPositiveLongOrNull()
                 ?: major?.pgc?.aid?.toPositiveLongOrNull()
                 ?: major?.ugc_season?.aid?.takeIf { it > 0L }
                 ?: return null
             DynamicCommentTarget(oid = oid, type = 1)
         }
         "DYNAMIC_TYPE_DRAW" -> {
-            resolveCommentTargetFromBasic(basic)?.let { target ->
-                if (target.type == 11) return target
-            }
             val drawId = major?.draw?.id?.takeIf { it > 0L } ?: return item.id_str.toPositiveLongOrNull()
                 ?.let { DynamicCommentTarget(oid = it, type = 17) }
             DynamicCommentTarget(oid = drawId, type = 11)
         }
         "DYNAMIC_TYPE_FORWARD" -> {
-            resolveCommentTargetFromBasic(basic)?.let { return it }
             val oid = item.id_str.toPositiveLongOrNull() ?: return null
             DynamicCommentTarget(oid = oid, type = 17)
         }
@@ -139,31 +138,20 @@ internal fun resolveDynamicCommentTarget(item: DynamicItem): DynamicCommentTarge
         "DYNAMIC_TYPE_COMMON_SQUARE",
         "DYNAMIC_TYPE_COMMON_VERTICAL" -> {
             val oid = item.id_str.toPositiveLongOrNull()
-                ?: resolveCommentTargetFromBasic(basic)?.oid
                 ?: return null
             DynamicCommentTarget(oid = oid, type = 17)
         }
         "DYNAMIC_TYPE_ARTICLE" -> {
-            resolveCommentTargetFromBasic(basic)?.let { target ->
-                if (target.type == 12) return target
-            }
             return null
         }
         "DYNAMIC_TYPE_MUSIC" -> {
-            resolveCommentTargetFromBasic(basic)?.let { target ->
-                if (target.type == 14) return target
-            }
             return null
         }
         "DYNAMIC_TYPE_MEDIALIST" -> {
-            resolveCommentTargetFromBasic(basic)?.let { target ->
-                if (target.type == 19) return target
-            }
             return null
         }
         else -> {
             val oid = item.id_str.toPositiveLongOrNull()
-                ?: resolveCommentTargetFromBasic(basic)?.oid
                 ?: return null
             DynamicCommentTarget(oid = oid, type = 17)
         }

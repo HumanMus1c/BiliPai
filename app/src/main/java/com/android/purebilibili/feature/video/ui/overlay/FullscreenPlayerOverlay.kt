@@ -81,6 +81,7 @@ import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.Logger
+import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 import com.android.purebilibili.feature.video.ui.gesture.GestureMode
 import com.android.purebilibili.feature.video.ui.gesture.GestureIndicator
 import com.android.purebilibili.feature.video.ui.gesture.rememberPlayerGestureState
@@ -409,7 +410,7 @@ fun FullscreenPlayerOverlay(
         }
 
         // 设置横屏
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        activity.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
         
         //  首次进入时应用沉浸式
         applyImmersiveMode()
@@ -439,8 +440,10 @@ fun FullscreenPlayerOverlay(
             //  移除生命周期观察器
             lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
             
-            activity.requestedOrientation = resolveFullscreenOverlayExitRequestedOrientation(
-                originalRequestedOrientation = originalOrientation
+            activity.applyPlayerRequestedOrientation(
+                resolveFullscreenOverlayExitRequestedOrientation(
+                    originalRequestedOrientation = originalOrientation
+                )
             )
             
             // 恢复系统栏

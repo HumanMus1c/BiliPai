@@ -43,6 +43,15 @@ class HistoryFilterPolicyTest {
     }
 
     @Test
+    fun `history list type uses documented cursor filter values`() {
+        assertEquals(null, resolveHistoryListType(HistoryContentFilter.ALL))
+        assertEquals("archive", resolveHistoryListType(HistoryContentFilter.VIDEO))
+        assertEquals(null, resolveHistoryListType(HistoryContentFilter.PGC))
+        assertEquals("live", resolveHistoryListType(HistoryContentFilter.LIVE))
+        assertEquals("article", resolveHistoryListType(HistoryContentFilter.ARTICLE))
+    }
+
+    @Test
     fun `empty filtered page requests another cursor page when possible`() {
         assertTrue(
             shouldLoadMoreHistoryFilterResults(

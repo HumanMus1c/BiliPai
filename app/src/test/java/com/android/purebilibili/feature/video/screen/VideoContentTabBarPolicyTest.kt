@@ -234,7 +234,7 @@ class VideoContentTabBarPolicyTest {
     }
 
     @Test
-    fun `info comment tab bar disables tap press refraction`() {
+    fun `info comment tab bar keeps bottom-bar press scale during pager motion`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt"
         )
@@ -242,8 +242,8 @@ class VideoContentTabBarPolicyTest {
             .substringAfter("fun VideoContentTabBar(")
             .substringBefore("// [新增] 恢复画面按钮")
 
-        assertTrue(tabBarBlock.contains("tapPressRefractionEnabled = false"))
-        assertTrue(tabBarBlock.contains("Modifier.wrapContentWidth()"))
+        assertTrue(tabBarBlock.contains("tapPressRefractionEnabled = true"))
+        assertTrue(tabBarBlock.contains("itemWidth = liquidChromeSpec.itemWidthDp?.dp"))
         assertTrue(tabBarBlock.contains("Arrangement.spacedBy(8.dp)"))
         assertTrue(
             tabBarBlock.contains(
@@ -254,23 +254,25 @@ class VideoContentTabBarPolicyTest {
     }
 
     @Test
-    fun `video content section wires chrome backdrop into tab and comment segmented controls`() {
+    fun `video content section records a full size sibling backdrop for segmented controls`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt"
         )
 
         assertTrue(source.contains("val videoContentMiuixBackdrop = rememberMiuixLayerBackdrop()"))
-        assertTrue(source.contains("val videoContentMiuixBackdrop = rememberMiuixLayerBackdrop()"))
         assertFalse(source.contains(".alpha(0f)"))
         assertTrue(source.contains("sortMode = sortMode"))
         assertTrue(source.contains("onSortModeChange = onSortModeChange"))
         assertTrue(source.contains("miuixBackdrop = videoContentMiuixBackdrop"))
-        assertTrue(source.contains("miuixBackdrop = videoContentMiuixBackdrop"))
-        assertTrue(source.contains("Modifier.miuixLayerBackdrop(chromeBackdrop)"))
+        assertTrue(source.contains(".miuixLayerBackdrop(videoContentMiuixBackdrop)"))
+        assertTrue(source.contains(".background(MaterialTheme.colorScheme.surface)"))
+        assertTrue(source.contains(".padding(top = tabBarVisibleHeightDp)"))
+        assertFalse(source.contains("Modifier.miuixLayerBackdrop(chromeBackdrop)"))
+        assertFalse(source.contains("chromeBackdrop: LayerBackdrop?"))
         assertTrue(source.contains("Column(modifier = modifier.fillMaxSize())"))
         assertTrue(
             source.contains(
-                "采样层只挂在 Tab 页滚动内容上；排序栏/顶栏分段控件必须在捕获区外"
+                "one full-size content source, with liquid docks rendered as"
             )
         )
         val commentTabSource = source.substringAfter("internal fun VideoCommentTab(")
@@ -378,6 +380,38 @@ class VideoContentTabBarPolicyTest {
         assertTrue(contentSource.contains("onCommentClick = { onTabSelected(1) }"))
         assertTrue(actionSource.contains("text = \"评论 \${FormatUtils.formatStat(info.stat.reply.toLong())}\""))
         assertTrue(actionSource.contains("onClick = onCommentClick"))
+    }
+
+    @Test
+    fun `video content tab bar reuses dock at scene size when global glass and backdrop are on`() {
+        val layoutSpec = resolveVideoContentTabBarLayoutSpec(widthDp = 393)
+        val spec = resolveVideoContentTabBarLiquidChromeSpec(
+            androidNativeLiquidGlassEnabled = true,
+            hasBackdrop = true,
+            layoutSpec = layoutSpec,
+        )
+
+        assertTrue(spec.reusesLiquidGlassDock)
+        assertTrue(spec.liquidGlassEffectsEnabled)
+        assertEquals(layoutSpec.segmentedControlHeightDp, spec.segmentedControlHeightDp)
+        assertEquals(layoutSpec.segmentedControlIndicatorHeightDp, spec.segmentedControlIndicatorHeightDp)
+        assertEquals(70, spec.itemWidthDp)
+        assertEquals(70, resolveVideoContentTabBarDockItemWidthDp(labelFontSizeSp = 15))
+        assertEquals(72, resolveVideoContentTabBarDockItemWidthDp(labelFontSizeSp = 16))
+        assertEquals(66, resolveVideoContentTabBarDockItemWidthDp(labelFontSizeSp = 13))
+        assertFalse(
+            shouldReuseVideoContentTabBarLiquidGlassDock(
+                androidNativeLiquidGlassEnabled = true,
+                hasBackdrop = false,
+            )
+        )
+        assertNull(
+            resolveVideoContentTabBarLiquidChromeSpec(
+                androidNativeLiquidGlassEnabled = false,
+                hasBackdrop = true,
+                layoutSpec = layoutSpec,
+            ).itemWidthDp
+        )
     }
 
     private fun loadSource(path: String): String {

@@ -127,6 +127,7 @@ fun PortraitFullscreenOverlay(
     showControls: Boolean = true,
     commentExpansionProgress: Float = 0f,
     videoshotData: VideoshotData? = null,
+    videoAspectRatio: Float? = null,
     isPlaybackRecovering: Boolean = false,
     
     // 回调
@@ -302,7 +303,8 @@ fun PortraitFullscreenOverlay(
                         onSeekDragStart = onSeekDragStart,
                         onSeekDragUpdate = onSeekDragUpdate,
                         onSeekDragCancel = onSeekDragCancel,
-                        videoshotData = videoshotData
+                        videoshotData = videoshotData,
+                        videoAspectRatio = videoAspectRatio
                     )
                     
                     // 底部输入栏占位 (Input Bar Spacer)

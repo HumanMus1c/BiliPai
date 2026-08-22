@@ -298,6 +298,10 @@ fun CommonListScreen(
         }
     }
 
+    LaunchedEffect(historyViewModel, historyContentFilter) {
+        historyViewModel?.setHistoryListType(resolveHistoryListType(historyContentFilter))
+    }
+
     LaunchedEffect(
         historyViewModel,
         historyContentFilter,

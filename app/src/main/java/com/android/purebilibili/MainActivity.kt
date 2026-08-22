@@ -3,6 +3,9 @@ package com.android.purebilibili
 
 import android.animation.ValueAnimator
 import android.app.PictureInPictureParams
+import android.app.HandoffActivityData
+import android.app.HandoffActivityDataRequestInfo
+import android.app.HandoffActivityParams
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -89,6 +92,7 @@ import com.android.purebilibili.core.util.BilibiliNavigationTargetParser
 import com.android.purebilibili.core.util.WindowWidthSizeClass
 import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.feature.plugin.EyeProtectionOverlay
+import com.android.purebilibili.feature.plugin.PluginEffectHintHost
 import com.android.purebilibili.feature.settings.AppUpdateAutoCheckGate
 import com.android.purebilibili.feature.settings.AppUpdateCheckResult
 import com.android.purebilibili.feature.settings.AppUpdateChecker
@@ -143,6 +147,9 @@ import com.android.purebilibili.feature.privacy.PrivacyAuthenticationReason
 import com.android.purebilibili.feature.privacy.PrivacyAuthenticationRequest
 import com.android.purebilibili.feature.privacy.PrivacyAuthenticationResult
 import com.android.purebilibili.feature.video.player.MiniPlayerManager
+import com.android.purebilibili.feature.video.handoff.PlaybackHandoffCodec
+import com.android.purebilibili.feature.video.handoff.PlaybackHandoffPayload
+import com.android.purebilibili.feature.video.handoff.PlaybackHandoffRegistry
 import com.android.purebilibili.feature.video.player.buildPipPlaybackRemoteActions
 import com.android.purebilibili.feature.video.ui.overlay.FullscreenPlayerOverlay
 import com.android.purebilibili.feature.video.ui.overlay.MiniPlayerOverlay
@@ -801,8 +808,57 @@ open class MainActivity : AppCompatActivity() {
     private var systemInDarkThemeSnapshot by mutableStateOf(false)
     private var runtimeJankStats: JankStats? = null
     private val runtimeVisualGuardSession = Any()
+    private var android17HandoffEnabled = false
 
     var windowMetrics: WindowMetrics? by mutableStateOf(null)
+
+    private fun currentPlaybackHandoffPayload(): PlaybackHandoffPayload? {
+        PlaybackHandoffRegistry.currentBangumiPayload()?.let { return it }
+        if (!isInVideoDetail && !isInAudioModeRoute) return null
+        if (!::miniPlayerManager.isInitialized || miniPlayerManager.isLiveMode) return null
+        if (!miniPlayerManager.isActive) return null
+        val bvid = miniPlayerManager.currentBvid?.trim().orEmpty()
+        val cid = miniPlayerManager.currentCid
+        if (bvid.isBlank() || cid <= 0L) return null
+        val durationMs = miniPlayerManager.duration.coerceAtLeast(0L)
+        val positionMs = miniPlayerManager.player?.currentPosition
+            ?.coerceAtLeast(0L)
+            ?.let { position -> if (durationMs > 0L) position.coerceAtMost(durationMs) else position }
+            ?: miniPlayerManager.currentPosition.coerceAtLeast(0L)
+        return PlaybackHandoffPayload.V1.Video(
+            bvid = bvid,
+            cid = cid,
+            resumePositionMs = positionMs,
+            startAudio = isInAudioModeRoute
+        )
+    }
+
+    private fun refreshAndroid17HandoffAvailability() {
+        if (Build.VERSION.SDK_INT < 37) return
+        val shouldEnable = currentPlaybackHandoffPayload() != null
+        if (android17HandoffEnabled == shouldEnable) return
+        val params = if (shouldEnable) {
+            HandoffActivityParams.Builder()
+                .setAllowHandoffWithoutPackageInstalled(true)
+                .build()
+        } else {
+            null
+        }
+        setHandoffEnabled(shouldEnable, params)
+        android17HandoffEnabled = shouldEnable
+    }
+
+    @RequiresApi(37)
+    override fun onHandoffActivityDataRequested(
+        handoffRequestInfo: HandoffActivityDataRequestInfo
+    ): HandoffActivityData {
+        val payload = currentPlaybackHandoffPayload()
+        return if (payload != null) {
+            PlaybackHandoffCodec.toPlatformData(payload, componentName)
+        } else {
+            HandoffActivityData.createWebHandoff(Uri.parse("https://www.bilibili.com"))
+        }
+    }
 
     private fun authenticatePrivacyAccess(
         request: PrivacyAuthenticationRequest,
@@ -908,6 +964,9 @@ open class MainActivity : AppCompatActivity() {
         
         // 初始化小窗管理器
         miniPlayerManager = MiniPlayerManager.getInstance(this)
+        PlaybackHandoffRegistry.setAvailabilityListener {
+            window.decorView.post { refreshAndroid17HandoffAvailability() }
+        }
         refreshSystemThemeSnapshot(reason = "create")
         
         //  🚀 [启动优化] 保持 Splash 直到数据加载完成或超时
@@ -1409,6 +1468,15 @@ open class MainActivity : AppCompatActivity() {
                                     setPictureInPictureParams(pipParams)
                                 }
                             }
+                            LaunchedEffect(
+                                isInVideoDetail,
+                                isInAudioModeRoute,
+                                miniPlayerManager.currentBvid,
+                                miniPlayerManager.currentCid,
+                                miniPlayerManager.isLiveMode
+                            ) {
+                                refreshAndroid17HandoffAvailability()
+                            }
                             AppNavigation(
                                 miniPlayerManager = miniPlayerManager,
                                 isInPipMode = isPipRenderingActive,
@@ -1438,18 +1506,22 @@ open class MainActivity : AppCompatActivity() {
                                 },
                                 onVideoDetailEnter = {
                                     isInVideoDetail = true
+                                    refreshAndroid17HandoffAvailability()
                                     Logger.d(TAG, " 进入视频详情页")
                                 },
                                 onVideoDetailExit = {
                                     isInVideoDetail = false
+                                    refreshAndroid17HandoffAvailability()
                                     Logger.d(TAG, "🔙 退出视频详情页")
                                 },
                                 onAudioModeEnter = {
                                     isInAudioModeRoute = true
+                                    refreshAndroid17HandoffAvailability()
                                     Logger.d(TAG, "🎧 进入听视频页")
                                 },
                                 onAudioModeExit = {
                                     isInAudioModeRoute = false
+                                    refreshAndroid17HandoffAvailability()
                                     Logger.d(TAG, "🎧 退出听视频页")
                                 },
                                 onPrivacyAuthenticationRequired = ::authenticatePrivacyAccess,
@@ -1542,7 +1614,13 @@ open class MainActivity : AppCompatActivity() {
                     }
                     
                     //  护眼模式覆盖层（最顶层，应用于所有内容）
-                    EyeProtectionOverlay()
+                    EyeProtectionOverlay(
+                        playbackActive = isInVideoDetail ||
+                            showFullscreen ||
+                            miniPlayerManager.isPlaying ||
+                            isPipRenderingActive
+                    )
+                    PluginEffectHintHost()
                     
                     // [New] Custom Splash Wallpaper Overlay
                     val readCustomSplashPrefs = remember { shouldReadCustomSplashPreferences() }
@@ -2034,6 +2112,7 @@ open class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        refreshAndroid17HandoffAvailability()
         refreshSystemThemeSnapshot(reason = "resume")
         miniPlayerManager.clearUserLeaveHint()
         miniPlayerManager.clearPlaybackRoutePipState()
@@ -2184,6 +2263,12 @@ open class MainActivity : AppCompatActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent == null) return
 
+        PlaybackHandoffCodec.fromIntent(intent)?.let { payload ->
+            pendingNavigationRoute = PlaybackHandoffCodec.toRoute(payload)
+            Logger.d(TAG, "🔄 Received Android 17 playback handoff")
+            return
+        }
+
         intent.getStringExtra(EXTRA_PENDING_NAVIGATION_ROUTE)
             ?.takeIf { it.isNotBlank() }
             ?.let { route ->
@@ -2295,6 +2380,11 @@ open class MainActivity : AppCompatActivity() {
     }
     
     override fun onDestroy() {
+        PlaybackHandoffRegistry.setAvailabilityListener(null)
+        if (Build.VERSION.SDK_INT >= 37 && android17HandoffEnabled) {
+            setHandoffEnabled(false, null)
+            android17HandoffEnabled = false
+        }
         runtimeJankStats?.isTrackingEnabled = false
         runtimeJankStats = null
         super.onDestroy()

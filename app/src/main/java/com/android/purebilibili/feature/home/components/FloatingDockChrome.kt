@@ -104,7 +104,7 @@ internal fun rememberBiliPaiGravityHighlight(
 
 /**
  * Outer floating dock shell — BiliPai FloatingBottomBar base layer:
- * dropShadow + vibrancy + blur(4) + lens(24,24) + gravity highlight.
+ * dropShadow + tuning-driven vibrancy / blur / lens + gravity highlight.
  */
 @Composable
 internal fun Modifier.biliPaiFloatingDockShell(
@@ -116,6 +116,7 @@ internal fun Modifier.biliPaiFloatingDockShell(
     enabled: Boolean = true,
     drawLens: Boolean = true,
     lensIntensity: Float = 1f,
+    liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
 ): Modifier {
     if (!enabled || backdrop == null) {
         return this
@@ -124,7 +125,8 @@ internal fun Modifier.biliPaiFloatingDockShell(
     }
     val isDark = isSystemInDarkTheme()
     val baseHighlight = rememberBiliPaiGravityHighlight(extraDegrees = -45f)
-    val surfaceColor = containerColor.copy(alpha = 0.4f)
+    val surfaceColor = containerColor.copy(alpha = liquidGlassTuning.surfaceAlpha)
+    val readabilityScrimColor = if (isDark) Color.Black else Color.White
     val resolvedLensIntensity = lensIntensity.coerceIn(0f, 1f)
     return this
         .graphicsLayer { translationX = panelOffsetPx }
@@ -140,12 +142,17 @@ internal fun Modifier.biliPaiFloatingDockShell(
             backdrop = backdrop,
             shape = { shape },
             effects = {
-                vibrancy()
-                blur(4.dp.toPx(), 4.dp.toPx())
+                vibrancy(liquidGlassTuning.saturation)
+                blur(
+                    liquidGlassTuning.backdropBlurRadius.dp.toPx(),
+                    liquidGlassTuning.backdropBlurRadius.dp.toPx()
+                )
                 if (drawLens && resolvedLensIntensity > 0f) {
                     lens(
-                        refractionHeight = 24.dp.toPx() * resolvedLensIntensity,
-                        refractionAmount = 24.dp.toPx() * resolvedLensIntensity,
+                        refractionHeight = liquidGlassTuning.refractionHeight.dp.toPx() * resolvedLensIntensity,
+                        refractionAmount = liquidGlassTuning.refractionAmount.dp.toPx() * resolvedLensIntensity,
+                        depthEffect = liquidGlassTuning.depthEffectEnabled,
+                        chromaticAberration = liquidGlassTuning.chromaticAberrationAmount,
                     )
                 }
             },
@@ -160,13 +167,22 @@ internal fun Modifier.biliPaiFloatingDockShell(
                 scaleX = s
                 scaleY = s
             },
-            onDrawSurface = { drawRect(surfaceColor) },
+            onDrawSurface = {
+                drawRect(surfaceColor)
+                if (liquidGlassTuning.contentReadabilityScrimAlpha > 0f) {
+                    drawRect(
+                        readabilityScrimColor.copy(
+                            alpha = liquidGlassTuning.contentReadabilityScrimAlpha
+                        )
+                    )
+                }
+            },
         )
 }
 
 /**
  * Hidden capture layer material — same shell glass as BiliPai foreground Row
- * (vibrancy + blur(4) + lens(24,24)). Caller supplies layerBackdrop + alpha(0).
+ * Caller supplies layerBackdrop + alpha(0); material values match the visible shell.
  */
 @Composable
 internal fun Modifier.biliPaiFloatingDockCaptureSurface(
@@ -174,28 +190,45 @@ internal fun Modifier.biliPaiFloatingDockCaptureSurface(
     containerColor: Color,
     panelOffsetPx: Float = 0f,
     shape: Shape = CircleShape,
+    liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
 ): Modifier {
-    val surfaceColor = containerColor.copy(alpha = 0.4f)
+    val isDark = isSystemInDarkTheme()
+    val surfaceColor = containerColor.copy(alpha = liquidGlassTuning.surfaceAlpha)
+    val readabilityScrimColor = if (isDark) Color.Black else Color.White
     return this
         .graphicsLayer { translationX = panelOffsetPx }
         .drawBackdrop(
             backdrop = backdrop,
             shape = { shape },
             effects = {
-                vibrancy()
-                blur(4.dp.toPx(), 4.dp.toPx())
+                vibrancy(liquidGlassTuning.saturation)
+                blur(
+                    liquidGlassTuning.backdropBlurRadius.dp.toPx(),
+                    liquidGlassTuning.backdropBlurRadius.dp.toPx()
+                )
                 lens(
-                    refractionHeight = 24.dp.toPx(),
-                    refractionAmount = 24.dp.toPx(),
+                    refractionHeight = liquidGlassTuning.refractionHeight.dp.toPx(),
+                    refractionAmount = liquidGlassTuning.refractionAmount.dp.toPx(),
+                    depthEffect = liquidGlassTuning.depthEffectEnabled,
+                    chromaticAberration = liquidGlassTuning.chromaticAberrationAmount,
                 )
             },
-            onDrawSurface = { drawRect(surfaceColor) },
+            onDrawSurface = {
+                drawRect(surfaceColor)
+                if (liquidGlassTuning.contentReadabilityScrimAlpha > 0f) {
+                    drawRect(
+                        readabilityScrimColor.copy(
+                            alpha = liquidGlassTuning.contentReadabilityScrimAlpha
+                        )
+                    )
+                }
+            },
         )
 }
 
 /**
  * Moving liquid indicator — BiliPai FloatingBottomBar indicator box:
- * combined backdrop + lens(10·p, 14·p, depth, chromatic 0.5) + velocity stretch + innerShadow.
+ * combined backdrop + tuning-driven lens + velocity stretch + innerShadow.
  */
 @Composable
 internal fun BoxScope.BiliPaiFloatingDockIndicator(
@@ -212,6 +245,7 @@ internal fun BoxScope.BiliPaiFloatingDockIndicator(
     isDark: Boolean,
     shape: Shape = CircleShape,
     alignment: Alignment = Alignment.CenterStart,
+    liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
 ) {
     if (!visible) return
     val pillHighlight = rememberBiliPaiGravityHighlight(extraDegrees = 90f)
@@ -233,10 +267,15 @@ internal fun BoxScope.BiliPaiFloatingDockIndicator(
                             effects = {
                                 val progress = pressProgress
                                 lens(
-                                    refractionHeight = 10.dp.toPx() * progress,
-                                    refractionAmount = 14.dp.toPx() * progress,
-                                    depthEffect = true,
-                                    chromaticAberration = 0.5f,
+                                    refractionHeight = 10.dp.toPx() * progress *
+                                        liquidGlassTuning.indicatorLensBoost *
+                                        liquidGlassTuning.contentDistortionScale,
+                                    refractionAmount = 14.dp.toPx() * progress *
+                                        liquidGlassTuning.indicatorEdgeWarpBoost *
+                                        liquidGlassTuning.contentDistortionScale,
+                                    depthEffect = liquidGlassTuning.depthEffectEnabled,
+                                    chromaticAberration = liquidGlassTuning.chromaticAberrationAmount *
+                                        liquidGlassTuning.indicatorChromaticBoost,
                                 )
                             },
                             highlight = { pillHighlight.copy(alpha = pressProgress) },

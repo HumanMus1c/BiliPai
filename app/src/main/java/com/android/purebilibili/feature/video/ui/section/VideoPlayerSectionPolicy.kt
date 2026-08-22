@@ -506,6 +506,15 @@ internal fun shouldShowDanmakuLayers(
     return true
 }
 
+internal fun shouldPollVideoPlayerProgress(
+    controlsVisible: Boolean,
+    gestureVisible: Boolean,
+    isSliderMoving: Boolean,
+    hasPendingSeek: Boolean
+): Boolean {
+    return controlsVisible || gestureVisible || isSliderMoving || hasPendingSeek
+}
+
 /**
  * Fullscreen is not by itself an orientation. During the transition into or out of the
  * portrait-fullscreen experience both flags can briefly be true, but those frames must keep

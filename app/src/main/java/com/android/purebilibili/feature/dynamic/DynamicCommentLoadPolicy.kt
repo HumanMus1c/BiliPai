@@ -87,6 +87,20 @@ internal fun resolveDynamicMainCommentPageEnd(
     return cursorIsEnd
 }
 
+internal fun shouldLoadMoreDynamicDetailComments(
+    lastVisibleIndex: Int,
+    itemCount: Int,
+    loadedCount: Int,
+    totalCount: Int,
+    isLoading: Boolean,
+    isLoadingMore: Boolean,
+): Boolean {
+    if (isLoading || isLoadingMore) return false
+    if (itemCount <= 0 || lastVisibleIndex < 0) return false
+    if (loadedCount >= totalCount) return false
+    return lastVisibleIndex >= itemCount - 4
+}
+
 internal fun resolveDynamicDetailInteractionModel(
     item: DynamicItem
 ): DynamicDetailInteractionModel {

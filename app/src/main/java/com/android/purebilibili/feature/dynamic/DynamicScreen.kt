@@ -102,6 +102,7 @@ import com.android.purebilibili.core.ui.rememberAppVisibilityOnIcon
 import com.android.purebilibili.feature.dynamic.components.DynamicDisplayMode
 import com.android.purebilibili.feature.dynamic.components.isHorizontalUserList
 import com.android.purebilibili.feature.dynamic.components.isRightAligned
+import com.android.purebilibili.feature.dynamic.components.isDrawer
 import com.android.purebilibili.feature.dynamic.components.resolveDynamicReportReasons
 import com.android.purebilibili.feature.dynamic.components.DynamicCommentSheet
 import com.android.purebilibili.feature.dynamic.components.RepostDialog
@@ -452,7 +453,7 @@ fun DynamicScreen(
     }
 
     // 加载更多
-    val shouldLoadMore by remember {
+    val shouldLoadMore by remember(activeListState, activeLoading, currentHasMore) {
         derivedStateOf {
             val state = activeListState ?: return@derivedStateOf false
             val layoutInfo = state.layoutInfo
@@ -467,7 +468,12 @@ fun DynamicScreen(
     }
 
     //  [修改] 加载更多 - 区分全部动态和用户动态
-    LaunchedEffect(shouldLoadMore, selectedUserId, isSelectedUserTabActive) {
+    LaunchedEffect(
+        shouldLoadMore,
+        selectedUserId,
+        isSelectedUserTabActive,
+        displayedLogicalTab
+    ) {
         if (shouldLoadMore) {
             if (isSelectedUserTabActive) {
                 viewModel.loadMoreUserDynamics()
@@ -615,7 +621,12 @@ fun DynamicScreen(
                                 selfUid = selfUid,
                                 isExpanded = isSidebarExpanded,
                                 userListState = sidebarUserListState,
-                                onUserClick = handleUserSelection,
+                                onUserClick = { userId ->
+                                    handleUserSelection(userId)
+                                    if (targetMode.isDrawer() && isSidebarExpanded) {
+                                        viewModel.toggleSidebar()
+                                    }
+                                },
                                 showHiddenUsers = showHiddenUsers,
                                 hiddenCount = hiddenUserIds.size,
                                 uplistUpdateMids = state.uplistUpdateMids,
@@ -624,7 +635,13 @@ fun DynamicScreen(
                                 onToggleHidden = { viewModel.toggleHiddenUser(it) },
                                 onToggleExpand = { viewModel.toggleSidebar() },
                                 topPadding = statusBarHeight,
-                                onBackClick = onBack
+                                onBackClick = {
+                                    if (targetMode.isDrawer()) {
+                                        viewModel.toggleSidebar()
+                                    } else {
+                                        onBack()
+                                    }
+                                }
                             )
                         }
                         Row(
@@ -632,7 +649,7 @@ fun DynamicScreen(
                                 .fillMaxSize()
                                 .padding(padding)
                         ) {
-                        if (!sidebarOnRight) {
+                        if (!sidebarOnRight && (!targetMode.isDrawer() || isSidebarExpanded)) {
                             UpPanelSidebar()
                         }
 
@@ -787,8 +804,22 @@ fun DynamicScreen(
                                 },
                                 modifier = Modifier.align(Alignment.Center)
                             )
+
+                            if (targetMode.isDrawer() && !isSidebarExpanded) {
+                                AppSmallFloatingActionButton(
+                                    onClick = { viewModel.toggleSidebar() },
+                                    modifier = Modifier
+                                        .align(if (sidebarOnRight) Alignment.CenterEnd else Alignment.CenterStart)
+                                        .padding(8.dp)
+                                ) {
+                                    AppText(
+                                        text = if (sidebarOnRight) "‹" else "›",
+                                        fontSize = 24.sp
+                                    )
+                                }
+                            }
                         }
-                        if (sidebarOnRight) {
+                        if (sidebarOnRight && (!targetMode.isDrawer() || isSidebarExpanded)) {
                             UpPanelSidebar()
                         }
                     }

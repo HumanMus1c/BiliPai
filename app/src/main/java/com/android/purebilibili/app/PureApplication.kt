@@ -216,6 +216,12 @@ class PureApplication : Application(), ImageLoaderFactory, ComponentCallbacks2 {
 
     private fun initTelemetryNow() {
         initCrashlytics()
+        val crashDiagnosticsEnabled = getSharedPreferences("crash_tracking", Context.MODE_PRIVATE)
+            .getBoolean("enabled", DEFAULT_CRASH_TRACKING_ENABLED)
+        com.android.purebilibili.core.performance.Android17Diagnostics.initialize(
+            this,
+            crashDiagnosticsEnabled
+        )
         initAnalytics()
         attachTelemetryListener()
     }

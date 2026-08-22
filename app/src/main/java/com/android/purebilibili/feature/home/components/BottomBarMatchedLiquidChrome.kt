@@ -63,18 +63,28 @@ internal enum class BottomBarMatchedDockEdge {
     BOTTOM
 }
 
-internal fun Modifier.bottomBarMatchedCaptureOverflow(inset: Dp): Modifier = layout { measurable, constraints ->
+internal fun Modifier.bottomBarMatchedCaptureOverflow(inset: Dp): Modifier =
+    bottomBarMatchedCaptureOverflow(
+        horizontalInset = inset,
+        verticalInset = inset,
+    )
+
+internal fun Modifier.bottomBarMatchedCaptureOverflow(
+    horizontalInset: Dp,
+    verticalInset: Dp,
+): Modifier = layout { measurable, constraints ->
     if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
         val placeable = measurable.measure(constraints)
         layout(placeable.width, placeable.height) {
             placeable.placeRelative(0, 0)
         }
     } else {
-        val insetPx = inset.roundToPx().coerceAtLeast(0)
-        val expandedWidth = (constraints.maxWidth.toLong() + insetPx.toLong() * 2L)
+        val horizontalInsetPx = horizontalInset.roundToPx().coerceAtLeast(0)
+        val verticalInsetPx = verticalInset.roundToPx().coerceAtLeast(0)
+        val expandedWidth = (constraints.maxWidth.toLong() + horizontalInsetPx.toLong() * 2L)
             .coerceAtMost(Constraints.Infinity.toLong())
             .toInt()
-        val expandedHeight = (constraints.maxHeight.toLong() + insetPx.toLong() * 2L)
+        val expandedHeight = (constraints.maxHeight.toLong() + verticalInsetPx.toLong() * 2L)
             .coerceAtMost(Constraints.Infinity.toLong())
             .toInt()
         val placeable = measurable.measure(
@@ -84,7 +94,7 @@ internal fun Modifier.bottomBarMatchedCaptureOverflow(inset: Dp): Modifier = lay
             )
         )
         layout(constraints.maxWidth, constraints.maxHeight) {
-            placeable.placeRelative(-insetPx, -insetPx)
+            placeable.placeRelative(-horizontalInsetPx, -verticalInsetPx)
         }
     }
 }
@@ -163,6 +173,7 @@ internal fun BottomBarMatchedLiquidDock(
     isTransitionRunning: Boolean = false,
     forceLowBlurBudget: Boolean = false,
     liquidGlassPreset: BottomBarLiquidGlassPreset = BottomBarLiquidGlassPreset.BILIPAI_TUNED,
+    liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
     isScrollInProgressProvider: () -> Boolean = { false },
     materialScrollProgressOverride: Float? = null,
     materialMotionProgress: Float = 0f,
@@ -187,6 +198,7 @@ internal fun BottomBarMatchedLiquidDock(
                     isTransitionRunning = isTransitionRunning,
                     forceLowBlurBudget = forceLowBlurBudget,
                     liquidGlassPreset = liquidGlassPreset,
+                    liquidGlassTuning = liquidGlassTuning,
                     isScrollInProgressProvider = isScrollInProgressProvider,
                     materialScrollProgressOverride = materialScrollProgressOverride,
                     materialMotionProgress = materialMotionProgress,
@@ -210,6 +222,7 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
     isTransitionRunning: Boolean = false,
     forceLowBlurBudget: Boolean = false,
     liquidGlassPreset: BottomBarLiquidGlassPreset = BottomBarLiquidGlassPreset.BILIPAI_TUNED,
+    liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
     isScrollInProgressProvider: () -> Boolean = { false },
     materialScrollProgressOverride: Float? = null,
     materialMotionProgress: Float = 0f,
@@ -242,6 +255,7 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
         isTransitionRunning = isTransitionRunning,
         forceLowBlurBudget = forceLowBlurBudget,
         liquidGlassPreset = liquidGlassPreset,
+        liquidGlassTuning = liquidGlassTuning,
         isScrolling = isScrolling,
         materialScrollProgress = materialScrollProgress,
         materialMotionProgress = materialMotionProgress,
@@ -307,21 +321,30 @@ internal fun BottomBarMatchedReusableLiquidDock(
         blurEnabled = true,
         darkTheme = isDarkTheme
     )
+    val liquidGlassTuning = remember(
+        homeSettings.liquidGlassProgress,
+        homeSettings.liquidGlassAdvancedSettings,
+    ) {
+        resolveLiquidGlassTuning(
+            homeSettings.liquidGlassProgress,
+            homeSettings.liquidGlassAdvancedSettings,
+        )
+    }
     val containerColor = resolveAndroidNativeFloatingBottomBarContainerColor(
         surfaceColor = AppSurfaceTokens.cardContainer(),
         tuning = tuning,
         glassEnabled = glassEnabled,
         blurEnabled = true,
         blurIntensity = blurIntensity,
-        liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset
+        liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
+        liquidGlassTuning = liquidGlassTuning
     )
     // 小胶囊关闭 shell lens 时不必做 capture overflow，减少边沿采样产生的亮线。
-    val fullCaptureLensSpec = resolveBottomBarBackdropPresetCaptureLens(progress = 1f)
     val captureSafeInset = if (drawShellLens) {
         resolveBottomBarCaptureSafeInsetDp(
             indicatorWidthDp = 0f,
-            refractionHeightDp = fullCaptureLensSpec.refractionHeightDp,
-            refractionAmountDp = fullCaptureLensSpec.refractionAmountDp,
+            refractionHeightDp = liquidGlassTuning.refractionHeight,
+            refractionAmountDp = liquidGlassTuning.refractionAmount,
             panelOffsetDp = 0f
         ).dp
     } else {
@@ -358,6 +381,7 @@ internal fun BottomBarMatchedReusableLiquidDock(
             blurRadius = tuning.shellBlurRadiusDp.dp,
             modifier = Modifier.matchParentSize(),
             liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
+            liquidGlassTuning = liquidGlassTuning,
             isScrollInProgressProvider = isScrollInProgressProvider
         ) {}
         content(true)
@@ -382,6 +406,7 @@ internal fun BoxScope.BottomBarMatchedLiquidIndicator(
     contentBackdrop: Backdrop?,
     backdrop: Backdrop?,
     indicatorLensSpec: BottomBarBackdropPresetLensSpec,
+    liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
     effectivePressProgress: Float,
     indicatorIdleSurfaceColor: Color,
     glassEnabled: Boolean,
@@ -415,6 +440,7 @@ internal fun BoxScope.BottomBarMatchedLiquidIndicator(
         contentBackdrop = contentBackdrop,
         backdrop = backdrop,
         indicatorLensSpec = indicatorLensSpec,
+        liquidGlassTuning = liquidGlassTuning,
         effectivePressProgress = effectivePressProgress,
         indicatorIdleSurfaceColor = indicatorIdleSurfaceColor,
         glassEnabled = glassEnabled,

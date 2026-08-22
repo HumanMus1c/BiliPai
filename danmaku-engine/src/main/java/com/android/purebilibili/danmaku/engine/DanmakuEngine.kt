@@ -22,6 +22,9 @@ interface DanmakuEngine : AutoCloseable {
 
     fun seekTo(positionMs: Long)
 
+    /** Reanchors the playback clock without clearing currently visible danmaku. */
+    fun synchronizeTo(positionMs: Long)
+
     fun start(positionMs: Long = 0L)
 
     fun pause()

@@ -731,8 +731,8 @@ fun DynamicCardV2(
             Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
         }
         
-        //  图片类型动态（支持GIF + 点击预览）
-        content?.major?.draw?.let { draw ->
+        //  图片类型动态（支持GIF + 点击预览）。详情若已拉到完整 opus 正文，不再叠一层九宫格预览。
+        content?.major?.draw?.takeUnless { hasFullOpusDetailContent }?.let { draw ->
             var selectedImageIndex by remember { mutableIntStateOf(-1) }
             var sourceRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
             val drawPreviewText = remember(author?.name, visibleDynamicDesc?.text) {

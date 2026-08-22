@@ -88,6 +88,8 @@ import com.android.purebilibili.data.model.response.TimelineDay
 import com.android.purebilibili.data.model.response.TimelineEpisode
 import com.android.purebilibili.feature.bangumi.ui.list.BangumiBadge
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 internal const val BANGUMI_POSTER_ASPECT_RATIO = 0.75f
 
@@ -584,6 +586,7 @@ private fun BangumiFollowContent(
 ) {
     val selectionMode = state.selectedIds.isNotEmpty()
     var menuItem by remember { mutableStateOf<FollowBangumiItem?>(null) }
+    val followBackdrop = rememberLayerBackdrop()
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             BangumiLiquidAwareTabRow(
@@ -594,11 +597,14 @@ private fun BangumiFollowContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
+                miuixBackdrop = followBackdrop,
             )
             AdaptivePullToRefreshBox(
                 isRefreshing = state.content.isRefreshing,
                 onRefresh = onRefresh,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .layerBackdrop(followBackdrop),
             ) {
                 if (state.content.isLoading && state.content.items.isEmpty()) {
                     BangumiFollowManagerSkeleton()

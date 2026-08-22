@@ -37,6 +37,34 @@ private fun favoriteHttpFailure(
     )
 }
 
+internal data class FavoriteResourceRequestParams(
+    val page: Int,
+    val pageSize: Int,
+    val keyword: String,
+    val order: String,
+    val type: Int,
+    val tid: Int,
+    val platform: String,
+)
+
+internal fun resolveFavoriteResourceRequestParams(
+    pn: Int,
+    ps: Int,
+    keyword: String?,
+    order: String?,
+    type: Int,
+    tid: Int,
+    platform: String,
+): FavoriteResourceRequestParams = FavoriteResourceRequestParams(
+    page = pn.coerceAtLeast(1),
+    pageSize = ps.coerceIn(1, 20),
+    keyword = keyword.orEmpty(),
+    order = order?.takeIf(String::isNotBlank) ?: "mtime",
+    type = type,
+    tid = tid,
+    platform = platform.ifBlank { "web" },
+)
+
 object FavoriteRepository {
     private val api = NetworkModule.api
 
@@ -164,17 +192,24 @@ object FavoriteRepository {
     ): Result<FavoriteResourceData> {
         return withContext(Dispatchers.IO) {
             try {
-                // 文档要求 ps 定义域 1-20；超出会提高风控/请求错误概率
-                val safePs = ps.coerceIn(1, 20)
-                val response = api.getFavoriteList(
-                    mediaId = mediaId,
-                    pn = pn.coerceAtLeast(1),
-                    ps = safePs,
+                val request = resolveFavoriteResourceRequestParams(
+                    pn = pn,
+                    ps = ps,
                     keyword = keyword,
                     order = order,
                     type = type,
                     tid = tid,
-                    platform = platform
+                    platform = platform,
+                )
+                val response = api.getFavoriteList(
+                    mediaId = mediaId,
+                    pn = request.page,
+                    ps = request.pageSize,
+                    keyword = request.keyword,
+                    order = request.order,
+                    type = request.type,
+                    tid = request.tid,
+                    platform = request.platform,
                 )
                 if (response.code == 0 && response.data != null) {
                     Result.success(response.data)

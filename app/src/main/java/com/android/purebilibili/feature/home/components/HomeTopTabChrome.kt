@@ -78,8 +78,7 @@ internal fun HomeTopTabChrome(
     drawChromeSurface: Boolean = true,
     useBottomBarMatchedSurface: Boolean = false,
     /**
-     * 顶栏分类 dock 与 [FloatingBottomBar] 共用全强度 shell lens。
-     * 搜索等小胶囊仍应显式传 false。
+     * 矮 dock 的 shell lens 按高度缩放，避免 24dp 折射在中间对撞成虾线。
      */
     drawMatchedShellLens: Boolean = true,
     matchedShellLensIntensity: Float = TOP_DOCK_SHELL_LENS_INTENSITY,

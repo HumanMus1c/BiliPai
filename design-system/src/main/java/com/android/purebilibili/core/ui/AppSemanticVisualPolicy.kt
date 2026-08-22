@@ -166,8 +166,7 @@ fun resolveAppChromeLiquidGlassEnabled(
     individualEnabled: Boolean,
     androidNativeEnabled: Boolean,
 ): Boolean {
-    @Suppress("UNUSED_PARAMETER")
-    val ignoredNative = androidNativeEnabled
+    if (androidNativeEnabled) return true
     return supportsIndependentLiquidGlass && individualEnabled
 }
 

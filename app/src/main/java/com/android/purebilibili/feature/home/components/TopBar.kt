@@ -137,8 +137,17 @@ internal fun resolveTopTabRowHorizontalPaddingDp(
 
 // Slightly tighter than before so rest capsule nearly fills the dock (bottom-bar feel),
 // while drag scale still overflows the chrome edge.
-internal fun resolveTopTabDockIndicatorHorizontalGapDp(hasOuterChromeSurface: Boolean): Float =
-    if (hasOuterChromeSurface) 2f else 2f
+internal fun resolveTopTabDockIndicatorHorizontalGapDp(
+    hasOuterChromeSurface: Boolean,
+    isLiquidGlassReuseEnabled: Boolean = false
+): Float {
+    val standardGap = if (hasOuterChromeSurface) 2f else 2f
+    return if (isLiquidGlassReuseEnabled) {
+        (standardGap - 1f).coerceAtLeast(1f)
+    } else {
+        standardGap
+    }
+}
 
 /**
  * Same 4dp start/end inset as [FloatingBottomBar] so the first and last
@@ -839,6 +848,8 @@ internal fun Modifier.homeTopBottomBarMatchedSurface(
         blurEnabled = isBlurEnabled || isGlassEnabled,
         darkTheme = isDarkTheme
     )
+    val resolvedLiquidGlassTuning = liquidGlassTuning
+        ?: resolveLiquidGlassTuning(liquidGlassStyle)
     // Same container tint as FloatingBottomBar / bottom dock.
     val containerColor = resolveAndroidNativeFloatingBottomBarContainerColor(
         surfaceColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -846,7 +857,8 @@ internal fun Modifier.homeTopBottomBarMatchedSurface(
         glassEnabled = isGlassEnabled,
         blurEnabled = isBlurEnabled,
         blurIntensity = blurIntensity,
-        liquidGlassPreset = liquidGlassPreset
+        liquidGlassPreset = liquidGlassPreset,
+        liquidGlassTuning = resolvedLiquidGlassTuning
     )
     if (isGlassEnabled && miuixBackdrop != null) {
         // BiliPai outer dock shell (same stack as bottom FloatingBottomBar).
@@ -858,6 +870,7 @@ internal fun Modifier.homeTopBottomBarMatchedSurface(
             enabled = true,
             drawLens = drawShellLens,
             lensIntensity = shellLensIntensity,
+            liquidGlassTuning = resolvedLiquidGlassTuning,
         )
     } else {
         this.bottomBarMatchedLiquidDockSurface(
@@ -874,6 +887,7 @@ internal fun Modifier.homeTopBottomBarMatchedSurface(
             isTransitionRunning = isTransitionRunning,
             forceLowBlurBudget = forceLowBlurBudget,
             liquidGlassPreset = liquidGlassPreset,
+            liquidGlassTuning = resolvedLiquidGlassTuning,
             isScrollInProgressProvider = { isScrolling },
             materialScrollProgressOverride = materialScrollProgress
         )
@@ -916,6 +930,9 @@ private fun LightweightHomeTopTabs(
     forceMaterialUnderline: Boolean = false
 ) {
     val chromePolicy = rememberAppTopChromePolicy()
+    val resolvedLiquidGlassTuning = remember(liquidGlassStyle, liquidGlassTuning) {
+        liquidGlassTuning ?: resolveLiquidGlassTuning(liquidGlassStyle)
+    }
     val haptic = com.android.purebilibili.core.util.rememberHapticFeedback()
     val scrollChannel = com.android.purebilibili.feature.home.LocalHomeScrollChannel.current
     val normalizedLabelMode = normalizeTopTabLabelMode(labelMode)
@@ -1104,7 +1121,8 @@ private fun LightweightHomeTopTabs(
         }
         val md3IndicatorWidth = if (skinPlainStyle) AppSpacingTokens.DoubleExtraLarge - AppSpacingTokens.Micro else AppSpacingTokens.ExtraLarge + AppSpacingTokens.ExtraSmall
         val dockIndicatorHorizontalGap = resolveTopTabDockIndicatorHorizontalGapDp(
-            hasOuterChromeSurface = hasOuterChromeSurface
+            hasOuterChromeSurface = hasOuterChromeSurface,
+            isLiquidGlassReuseEnabled = isLiquidGlassEnabled
         ).dp
         val dockIndicatorVerticalGap = resolveTopTabDockIndicatorVerticalGapDp(
             hasOuterChromeSurface = hasOuterChromeSurface
@@ -1410,6 +1428,7 @@ private fun LightweightHomeTopTabs(
                                             backdrop = miuixBackdrop,
                                             containerColor = topTabIndicatorCaptureSurfaceColor,
                                             shape = resolveSharedBottomBarCapsuleShape(),
+                                            liquidGlassTuning = resolvedLiquidGlassTuning,
                                         )
                                 } else {
                                     // No page backdrop: still record local tint layer for indicator.
@@ -1608,6 +1627,7 @@ private fun LightweightHomeTopTabs(
                             velocity = indicatorVelocity,
                             isDark = isDarkTheme,
                             shape = resolveSharedBottomBarCapsuleShape(),
+                            liquidGlassTuning = resolvedLiquidGlassTuning
                         )
                     }
                     if (shouldUseMd3DockBackedCapsule) {
@@ -1624,6 +1644,7 @@ private fun LightweightHomeTopTabs(
                             velocity = indicatorVelocity,
                             isDark = isDarkTheme,
                             shape = resolveSharedBottomBarCapsuleShape(),
+                            liquidGlassTuning = resolvedLiquidGlassTuning
                         )
                     }
                     if (shouldUseMd3LiquidCapsule) {
@@ -1640,6 +1661,7 @@ private fun LightweightHomeTopTabs(
                             velocity = indicatorVelocity,
                             isDark = isDarkTheme,
                             shape = resolveSharedBottomBarCapsuleShape(),
+                            liquidGlassTuning = resolvedLiquidGlassTuning
                         )
                     }
                 }

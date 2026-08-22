@@ -596,17 +596,6 @@
     </issue>
 
     <issue
-        id="OldTargetApi"
-        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
-        errorLine1="        targetSdk = 35  // 保持35以避免Android 16的新运行时行为"
-        errorLine2="        ~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="28"
-            column="9"/>
-    </issue>
-
-    <issue
         id="SdCardPath"
         message="Do not hardcode &quot;`/data/`&quot;; use `Context.getFilesDir().getPath()` instead"
         errorLine1="        sanitized = sanitized.replace(Regex(&quot;/data/user/\\d+/[^/]+/&quot;), &quot;/data/user/0/***/&quot;)"

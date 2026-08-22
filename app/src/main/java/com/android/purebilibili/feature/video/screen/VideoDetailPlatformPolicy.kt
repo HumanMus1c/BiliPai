@@ -17,7 +17,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.Player
+import androidx.window.layout.WindowMetricsCalculator
 import kotlin.math.abs
+import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 
 internal data class VideoDetailSystemBarsSnapshot(
     val statusBarColor: Int,
@@ -278,6 +280,47 @@ internal fun Context.findActivity(): Activity? {
     return null
 }
 
+internal fun isWindowBoundsSmallerThanMaximum(
+    currentWidth: Int,
+    currentHeight: Int,
+    maximumWidth: Int,
+    maximumHeight: Int,
+    tolerancePx: Int = 4
+): Boolean {
+    if (currentWidth <= 0 || currentHeight <= 0 || maximumWidth <= 0 || maximumHeight <= 0) {
+        return false
+    }
+    return currentWidth + tolerancePx < maximumWidth ||
+        currentHeight + tolerancePx < maximumHeight
+}
+
+/**
+ * 部分 vivo/iQOO 系统悬浮窗不会稳定上报 [Activity.isInMultiWindowMode]。
+ * 此时以当前窗口小于最大可用窗口作为兜底，避免把浮窗误当成普通全屏 Activity，
+ * 继而写入横屏方向请求并触发系统窗口瞬时展开后回弹。
+ */
+internal fun isActivityInMultiWindowOrFloatingMode(activity: Activity): Boolean {
+    // PiP 有独立播放与方向策略，不能仅因窗口边界较小而归入普通悬浮窗。
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity.isInPictureInPictureMode) {
+        return false
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && activity.isInMultiWindowMode) {
+        return true
+    }
+
+    return runCatching {
+        val calculator = WindowMetricsCalculator.getOrCreate()
+        val currentBounds = calculator.computeCurrentWindowMetrics(activity).bounds
+        val maximumBounds = calculator.computeMaximumWindowMetrics(activity).bounds
+        isWindowBoundsSmallerThanMaximum(
+            currentWidth = currentBounds.width(),
+            currentHeight = currentBounds.height(),
+            maximumWidth = maximumBounds.width(),
+            maximumHeight = maximumBounds.height()
+        )
+    }.getOrDefault(false)
+}
+
 internal fun toggleVideoDetailFullscreen(
     activity: Activity?,
     isOrientationDrivenFullscreen: Boolean,
@@ -293,7 +336,7 @@ internal fun toggleVideoDetailFullscreen(
 ) {
     if (activity == null) return
 
-    val isInMultiWindowMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && activity.isInMultiWindowMode
+    val isInMultiWindowMode = isActivityInMultiWindowOrFloatingMode(activity)
     val isInPictureInPictureMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
         activity.isInPictureInPictureMode
     if (shouldUseInWindowFullscreenForSystemMultiWindow(
@@ -321,7 +364,7 @@ internal fun toggleVideoDetailFullscreen(
             isCompactDevice &&
             fullscreenMode == com.android.purebilibili.core.store.FullscreenMode.VERTICAL
         ) {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            activity.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
         }
         return
     }
@@ -329,7 +372,7 @@ internal fun toggleVideoDetailFullscreen(
     if (isLandscape) {
         onUserRequestedFullscreenChange(false)
         onManualPortraitHoldActiveChange(true)
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        activity.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
         return
     }
 
@@ -351,7 +394,7 @@ internal fun toggleVideoDetailFullscreen(
 
     onUserRequestedFullscreenChange(true)
     onManualPortraitHoldActiveChange(false)
-    activity.requestedOrientation = targetOrientation
+    activity.applyPlayerRequestedOrientation(targetOrientation)
 }
 
 internal fun resolveNextPlayerHeightOffset(

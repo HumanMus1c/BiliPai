@@ -1,12 +1,14 @@
 package com.android.purebilibili.feature.video.ui.pager
 
 import android.content.Context
+import android.net.Uri
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.player.PlaybackMediaCache
+import com.android.purebilibili.core.player.buildPlaybackCacheKey
 import com.android.purebilibili.core.util.MediaUtils
 import com.android.purebilibili.data.model.response.DashAudio
 import com.android.purebilibili.data.model.response.DashVideo
@@ -18,6 +20,10 @@ import com.android.purebilibili.feature.plugin.PlaybackCdnPlugin
 import com.android.purebilibili.feature.video.playback.audio.AudioSelectionDecision
 import com.android.purebilibili.feature.video.playback.audio.resolveAudioStreamSelection
 import com.android.purebilibili.feature.video.viewmodel.buildPlaybackAudioUrlCandidates
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlin.math.min
 
 /**
@@ -27,6 +33,8 @@ import kotlin.math.min
 internal const val PORTRAIT_PLAYBACK_TARGET_QUALITY = 64
 internal const val PORTRAIT_SWIPE_PREFETCH_OFFSET_THRESHOLD = 0.25f
 internal const val PORTRAIT_EARLY_PLAYBACK_OFFSET_THRESHOLD = 0.58f
+private const val PORTRAIT_VIDEO_HEAD_PREFETCH_BYTES = 512L * 1024L
+private const val PORTRAIT_AUDIO_HEAD_PREFETCH_BYTES = 128L * 1024L
 
 internal data class PortraitPagePlaybackIdentity(
     val bvid: String,
@@ -134,6 +142,14 @@ internal fun resolvePortraitPagePlaybackIdentity(item: Any): PortraitPagePlaybac
 
         else -> null
     }
+}
+
+internal fun resolvePortraitPageOwnerMid(item: Any): Long {
+    return when (item) {
+        is ViewInfo -> item.owner.mid
+        is RelatedVideo -> item.owner.mid
+        else -> 0L
+    }.takeIf { it > 0L } ?: 0L
 }
 
 /**
@@ -344,6 +360,36 @@ internal fun buildPortraitPlaybackHttpHeaders(): Map<String, String> {
         "Referer" to "https://www.bilibili.com",
         "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
+}
+
+/** Warms only the opening media ranges so the next page can start from disk cache. */
+@UnstableApi
+internal suspend fun prefetchPortraitPlaybackHead(
+    context: Context,
+    streamUrls: PortraitPlaybackStreamUrls
+) {
+    coroutineScope {
+        val upstreamFactory = OkHttpDataSource.Factory(NetworkModule.playbackOkHttpClient)
+            .setDefaultRequestProperties(buildPortraitPlaybackHttpHeaders())
+        buildList {
+            add(streamUrls.videoUrl to PORTRAIT_VIDEO_HEAD_PREFETCH_BYTES)
+            streamUrls.audioUrl?.takeIf { it.isNotBlank() }?.let { audioUrl ->
+                add(audioUrl to PORTRAIT_AUDIO_HEAD_PREFETCH_BYTES)
+            }
+        }.map { (url, length) ->
+            async(Dispatchers.IO) {
+                val uri = Uri.parse(url)
+                PlaybackMediaCache.prefetchRange(
+                    context = context.applicationContext,
+                    upstreamFactory = upstreamFactory,
+                    url = uri,
+                    cacheKey = buildPlaybackCacheKey(uri = uri, explicitKey = null),
+                    position = 0L,
+                    length = length
+                )
+            }
+        }.awaitAll()
+    }
 }
 
 @UnstableApi

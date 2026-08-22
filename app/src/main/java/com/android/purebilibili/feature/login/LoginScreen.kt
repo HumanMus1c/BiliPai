@@ -188,12 +188,12 @@ fun LoginScreen(
         onRefreshQr = viewModel::loadTvQrCode,
         onRequestSms = { phone, countryCid ->
             captchaRequest = CaptchaRequest.Sms(phone = phone, countryCid = countryCid)
-            viewModel.getCaptcha()
+            viewModel.beginSmsCodeRequest(phone = phone, countryCode = countryCid)
         },
         onSubmitSms = viewModel::loginBySms,
         onRequestPassword = { phone, password ->
             captchaRequest = CaptchaRequest.Password(phone, password)
-            viewModel.getCaptcha()
+            viewModel.beginPasswordLogin(phone, password)
         },
         onImportCookie = viewModel::loginByCookie,
         onContinueWithStandardSession = viewModel::continueWithStandardSession,
@@ -469,7 +469,7 @@ private fun PasswordLoginContent(
     onVerifyRiskSms: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var phone by rememberSaveable { mutableStateOf("") }
+    var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var riskCode by rememberSaveable { mutableStateOf("") }
@@ -559,12 +559,12 @@ private fun PasswordLoginContent(
             }
         } else {
             AppOutlinedTextField(
-                value = phone,
-                onValueChange = { phone = it.filter(Char::isDigit) },
-                labelText = "手机号 / 账号",
-                label = { AppText("手机号 / 账号") },
+                value = username,
+                onValueChange = { username = it.filterNot(Char::isWhitespace) },
+                labelText = "邮箱 / 手机号",
+                label = { AppText("邮箱 / 手机号") },
                 leadingIcon = { AppIcon(Icons.Outlined.Phone, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -593,8 +593,8 @@ private fun PasswordLoginContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             AppButton(
-                onClick = { onSubmit(phone, password) },
-                enabled = phone.isNotBlank() && password.isNotBlank() && !isLoading,
+                onClick = { onSubmit(username, password) },
+                enabled = username.isNotBlank() && password.isNotBlank() && !isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 AppText("验证并登录")
@@ -701,7 +701,7 @@ private fun SmsLoginContent(
             }
         } else {
             AppButton(
-                onClick = { onRequestCode(phone, selectedRegion.cid) },
+                onClick = { onRequestCode(phone, resolveSmsApiCid(selectedRegion)) },
                 enabled = phoneEligible && !isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {

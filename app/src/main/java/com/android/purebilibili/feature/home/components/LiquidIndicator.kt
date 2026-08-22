@@ -196,17 +196,21 @@ internal fun LiquidIndicator(
                                     lens(
                                         refractionHeight = lensProfile.refractionHeight *
                                             lensHeightScale.coerceIn(0.1f, 1f) *
-                                            blendFloat(1f, 0.35f, resolvedTuning.progress),
+                                            blendFloat(1f, 0.35f, resolvedTuning.progress) *
+                                            resolvedTuning.contentDistortionScale,
                                         refractionAmount = lensProfile.refractionAmount *
                                             lensAmountScale.coerceIn(0.1f, 1f) *
-                                            blendFloat(1f, 0.18f, resolvedTuning.progress),
+                                            blendFloat(1f, 0.18f, resolvedTuning.progress) *
+                                            resolvedTuning.contentDistortionScale,
                                         depthEffect = styleTuning.depthEffectEnabled,
                                         chromaticAberration = if (
                                             forceChromaticAberration ||
                                             (styleTuning.allowChromaticAberration &&
                                                 lensProfile.aberrationStrength > 0.01f)
                                         ) {
-                                            0.5f
+                                            resolveLiquidGlassIndicatorChromaticAberration(
+                                                resolvedTuning
+                                            )
                                         } else {
                                             0f
                                         }
@@ -335,15 +339,19 @@ fun SimpleLiquidIndicator(
                                 if (lensProfile.shouldRefract && resolvedTuning.refractionAmount > 0.5f) {
                                     lens(
                                         refractionHeight = lensProfile.refractionHeight *
-                                            blendFloat(1f, 0.35f, resolvedTuning.progress),
+                                            blendFloat(1f, 0.35f, resolvedTuning.progress) *
+                                            resolvedTuning.contentDistortionScale,
                                         refractionAmount = lensProfile.refractionAmount *
-                                            blendFloat(1f, 0.18f, resolvedTuning.progress),
+                                            blendFloat(1f, 0.18f, resolvedTuning.progress) *
+                                            resolvedTuning.contentDistortionScale,
                                         depthEffect = styleTuning.depthEffectEnabled,
                                         chromaticAberration = if (
                                             styleTuning.allowChromaticAberration &&
                                             lensProfile.aberrationStrength > 0.01f
                                         ) {
-                                            0.5f
+                                            resolveLiquidGlassIndicatorChromaticAberration(
+                                                resolvedTuning
+                                            )
                                         } else {
                                             0f
                                         }

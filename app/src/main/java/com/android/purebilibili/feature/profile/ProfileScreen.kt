@@ -1715,7 +1715,7 @@ private fun ProfileSpaceTabs(
             indicatorHeight = 40.dp,
             labelFontSize = 16.sp,
             forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
-            dragSelectionEnabled = false,
+            dragSelectionEnabled = true,
             containerColorOverride = contentChrome.surfaceColor,
             selectedTextColorOverride = contentChrome.onSurfaceColor,
             unselectedTextColorOverride = contentChrome.onSurfaceVariantColor,

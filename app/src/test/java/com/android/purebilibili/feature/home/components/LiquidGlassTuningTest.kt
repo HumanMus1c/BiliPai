@@ -1,7 +1,9 @@
 package com.android.purebilibili.feature.home.components
 
 import com.android.purebilibili.core.store.LiquidGlassMode
+import com.android.purebilibili.core.store.LiquidGlassAdvancedPreset
 import com.android.purebilibili.core.store.LiquidGlassStyle
+import com.android.purebilibili.core.store.resolveLiquidGlassAdvancedPreset
 import com.android.purebilibili.core.store.resolveLegacyLiquidGlassProgress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -18,6 +20,7 @@ class LiquidGlassTuningTest {
         assertTrue(clear.backdropBlurRadius < frosted.backdropBlurRadius)
         assertTrue(clear.surfaceAlpha < frosted.surfaceAlpha)
         assertTrue(clear.refractionAmount > frosted.refractionAmount)
+        assertTrue(clear.saturation > frosted.saturation)
     }
 
     @Test
@@ -63,6 +66,44 @@ class LiquidGlassTuningTest {
     }
 
     @Test
+    fun `readability protection only ramps up near the transparent endpoint`() {
+        val readablePreset = resolveLiquidGlassAdvancedPreset(LiquidGlassAdvancedPreset.READABLE)
+        val clear = resolveLiquidGlassTuning(
+            progress = 0f,
+            advancedSettings = readablePreset,
+        )
+        val balanced = resolveLiquidGlassTuning(
+            progress = 0.5f,
+            advancedSettings = readablePreset,
+        )
+
+        assertEquals(1f, clear.contentReadabilityBoost, 0.0001f)
+        assertTrue(clear.contentReadabilityScrimAlpha > 0f)
+        assertEquals(0f, balanced.contentReadabilityBoost, 0.0001f)
+        assertEquals(0f, balanced.contentReadabilityScrimAlpha, 0.0001f)
+    }
+
+    @Test
+    fun `prism preset adds more chromatic separation and distortion than readable preset`() {
+        val readable = resolveLiquidGlassTuning(
+            progress = 0f,
+            advancedSettings = resolveLiquidGlassAdvancedPreset(
+                LiquidGlassAdvancedPreset.READABLE
+            ),
+        )
+        val prism = resolveLiquidGlassTuning(
+            progress = 0f,
+            advancedSettings = resolveLiquidGlassAdvancedPreset(
+                LiquidGlassAdvancedPreset.PRISM
+            ),
+        )
+
+        assertTrue(prism.chromaticAberrationAmount > readable.chromaticAberrationAmount)
+        assertTrue(prism.contentDistortionScale > readable.contentDistortionScale)
+        assertTrue(prism.contentReadabilityBoost > 0f)
+    }
+
+    @Test
     fun `legacy mode and strength map into ordered continuous progress`() {
         val clear = resolveLegacyLiquidGlassProgress(
             mode = LiquidGlassMode.CLEAR,
@@ -91,12 +132,31 @@ class LiquidGlassTuningTest {
         val tuning = resolveLiquidGlassTuning(LiquidGlassStyle.SUKISU)
 
         assertEquals(LiquidGlassMode.BALANCED, tuning.mode)
-        assertEquals(8f, tuning.backdropBlurRadius, 0.0001f)
+        assertEquals(0.5f, tuning.progress, 0.0001f)
+        assertEquals(4f, tuning.backdropBlurRadius, 0.0001f)
         assertEquals(0.40f, tuning.surfaceAlpha, 0.0001f)
+        assertEquals(1.5f, tuning.saturation, 0.0001f)
         assertEquals(24f, tuning.refractionAmount, 0.0001f)
         assertEquals(24f, tuning.refractionHeight, 0.0001f)
         assertEquals(0.28f, tuning.indicatorTintAlpha, 0.0001f)
-        assertFalse(tuning.chromaticAberrationEnabled)
+        assertTrue(tuning.chromaticAberrationEnabled)
+        assertEquals(0.28f, tuning.chromaticAberrationAmount, 0.0001f)
         assertTrue(tuning.depthEffectEnabled)
+    }
+
+    @Test
+    fun `shared indicator chromatic policy is identical at equal tuning`() {
+        val tuning = resolveLiquidGlassTuning(
+            progress = 0.5f,
+            advancedSettings = resolveLiquidGlassAdvancedPreset(
+                LiquidGlassAdvancedPreset.BALANCED
+            ),
+        )
+
+        assertEquals(
+            0.28f,
+            resolveLiquidGlassIndicatorChromaticAberration(tuning),
+            0.0001f,
+        )
     }
 }

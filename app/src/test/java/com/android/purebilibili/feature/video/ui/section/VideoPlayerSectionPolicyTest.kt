@@ -16,6 +16,56 @@ import kotlin.test.assertTrue
 class VideoPlayerSectionPolicyTest {
 
     @Test
+    fun progressPolling_stopsWhenPlayerChromeAndSeekInteractionsAreIdle() {
+        assertFalse(
+            shouldPollVideoPlayerProgress(
+                controlsVisible = false,
+                gestureVisible = false,
+                isSliderMoving = false,
+                hasPendingSeek = false
+            )
+        )
+        assertTrue(
+            shouldPollVideoPlayerProgress(
+                controlsVisible = true,
+                gestureVisible = false,
+                isSliderMoving = false,
+                hasPendingSeek = false
+            )
+        )
+        assertTrue(
+            shouldPollVideoPlayerProgress(
+                controlsVisible = false,
+                gestureVisible = false,
+                isSliderMoving = true,
+                hasPendingSeek = false
+            )
+        )
+        assertTrue(
+            shouldPollVideoPlayerProgress(
+                controlsVisible = false,
+                gestureVisible = false,
+                isSliderMoving = false,
+                hasPendingSeek = true
+            )
+        )
+    }
+
+    @Test
+    fun subtitlePolling_isOwnedByIsolatedOverlayHost() {
+        val source = loadVideoPlayerSectionSource()
+        val subtitleHost = source
+            .substringAfter("private fun BoxScope.VideoSubtitleOverlayHost(")
+            .substringBefore("fun VideoPlayerSection(")
+        val playerSection = source.substringAfter("fun VideoPlayerSection(")
+
+        assertTrue(subtitleHost.contains("val subtitlePositionMs by produceState("))
+        assertFalse(playerSection.contains("val subtitlePositionMs by produceState("))
+        assertFalse(playerSection.contains("DanmakuView check:"))
+        assertFalse(playerSection.contains("Conditions met, creating DanmakuView"))
+    }
+
+    @Test
     fun autoFullscreen_snapshotDoesNotReenterAfterFullscreenPlayerIsRecreated() {
         assertFalse(
             shouldToggleAutoFullscreenForCurrentPlaybackSnapshot(

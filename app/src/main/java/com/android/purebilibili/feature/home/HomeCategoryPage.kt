@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.home
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
 import androidx.compose.material.icons.Icons
@@ -46,6 +47,9 @@ import com.android.purebilibili.core.util.responsiveContentWidth
 import com.android.purebilibili.data.model.response.VideoItem
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import com.android.purebilibili.feature.home.components.HomeHeroCarousel
+import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import com.android.purebilibili.feature.home.components.HomeUiSkinDecoration
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard
 import com.android.purebilibili.feature.home.components.cards.LiveRoomCard
@@ -547,6 +551,7 @@ private fun PopularSubCategorySegmentedControl(
         stringResource(resolvePopularSubCategoryLabelRes(subCategory))
     }
 
+    val popularBackdrop = rememberLayerBackdrop()
     BottomBarLiquidSegmentedControl(
         items = labels,
         selectedIndex = selectedIndex,
@@ -561,7 +566,10 @@ private fun PopularSubCategorySegmentedControl(
         labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
         containerHorizontalPadding = AppSpacingTokens.ExtraSmall,
         containerVerticalPadding = AppSpacingTokens.ExtraSmall,
+        miuixBackdrop = popularBackdrop,
+        forceLiquidChrome = false,
         liquidGlassEffectsEnabled = true,
+        tapPressRefractionEnabled = true,
         dragSelectionEnabled = false,
         preferInlineContentStyle = true
     )
@@ -572,13 +580,16 @@ private fun TodayWatchModeSegmentedControl(
     selectedMode: TodayWatchMode,
     enabled: Boolean,
     onModeChange: (TodayWatchMode) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    miuixBackdrop: MiuixBackdrop? = null,
 ) {
     val modes = TodayWatchMode.entries
     val selectedIndex = modes.indexOf(selectedMode).coerceAtLeast(0)
     val labels = modes.map { mode ->
         stringResource(resolveTodayWatchModeLabelRes(mode))
     }
+    val fallbackBackdrop = rememberLayerBackdrop()
+    val backdrop = miuixBackdrop ?: fallbackBackdrop
 
     BottomBarLiquidSegmentedControl(
         items = labels,
@@ -588,14 +599,15 @@ private fun TodayWatchModeSegmentedControl(
         },
         modifier = modifier,
         enabled = enabled,
-        height = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small + AppSpacingTokens.Micro,
-        indicatorHeight = com.android.purebilibili.core.ui.roundMatchedLiquidIndicatorHeightDp(
-            (AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small + AppSpacingTokens.Micro).value
-        ).dp,
+        height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+        indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
         labelFontSize = MaterialTheme.typography.labelMedium.fontSize,
         containerHorizontalPadding = AppSpacingTokens.ExtraSmall,
         containerVerticalPadding = AppSpacingTokens.ExtraSmall,
+        miuixBackdrop = backdrop,
+        forceLiquidChrome = false,
         liquidGlassEffectsEnabled = true,
+        tapPressRefractionEnabled = true,
         dragSelectionEnabled = true,
         preferInlineContentStyle = false
     )
@@ -618,6 +630,7 @@ private fun TodayWatchPlanCard(
     onUpClick: (Long) -> Unit,
     onVideoClick: (VideoItem) -> Unit
 ) {
+    val todayWatchBackdrop = rememberLayerBackdrop()
     var revealContent by remember(plan?.generatedAt, isLoading, cardConfig.enableWaterfallAnimation) {
         mutableStateOf(!cardConfig.enableWaterfallAnimation)
     }
@@ -646,7 +659,7 @@ private fun TodayWatchPlanCard(
         Column(
             modifier = Modifier.padding(AppSpacingTokens.Medium),
             verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro)
-        ) {
+        ) cardBody@ {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -698,15 +711,22 @@ private fun TodayWatchPlanCard(
                         color = MaterialTheme.colorScheme.error
                     )
                 }
-                return@Column
+                return@cardBody
             }
 
             TodayWatchModeSegmentedControl(
                 selectedMode = selectedMode,
                 enabled = !isLoading,
                 onModeChange = onModeChange,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                miuixBackdrop = todayWatchBackdrop,
             )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .layerBackdrop(todayWatchBackdrop),
+                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small + AppSpacingTokens.Micro)
+            ) {
             AppText(
                 text = "点开后会自动从推荐单移除；想换一批可点右上角“刷新”。",
                 style = MaterialTheme.typography.labelSmall,
@@ -734,7 +754,7 @@ private fun TodayWatchPlanCard(
                 )
             }
 
-            val activePlan = plan ?: return@Column
+            val activePlan = plan ?: return@cardBody
             var revealIndex = 0
 
             if (cardConfig.showReasonHint) {
@@ -888,6 +908,7 @@ private fun TodayWatchPlanCard(
                             }
                         }
                     }
+            }
             }
         }
     }

@@ -67,7 +67,16 @@ data class DynamicDetailResponse(
 
 @Serializable
 data class DynamicDetailData(
-    val item: DynamicItem? = null
+    val item: DynamicItem? = null,
+    val fallback: DynamicOpusFallback? = null
+)
+
+@Serializable
+data class DynamicOpusFallback(
+    @Serializable(with = FlexibleLongSerializer::class)
+    val id: Long = 0,
+    @Serializable(with = FlexibleIntSerializer::class)
+    val type: Int = 0
 )
 
 @Serializable
@@ -212,7 +221,18 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
 
     private fun extractParagraphBlocks(paragraph: JsonObject): List<OpusContentBlock> {
         val blocks = mutableListOf<OpusContentBlock>()
-        extractParagraphText(paragraph)?.let { blocks += OpusContentBlock.Text(it) }
+        extractParagraphHeading(paragraph)?.let { blocks += OpusContentBlock.Text(it) }
+        val listText = extractParagraphList(paragraph)
+        val codeText = extractParagraphCode(paragraph)
+        listText?.let { blocks += OpusContentBlock.Text(it) }
+        codeText?.let { blocks += OpusContentBlock.Text(it) }
+        if (listText == null && codeText == null) {
+            extractParagraphText(paragraph)?.let { text ->
+                if (blocks.none { it is OpusContentBlock.Text && it.text == text }) {
+                    blocks += OpusContentBlock.Text(text)
+                }
+            }
+        }
         extractParagraphPics(paragraph).forEach { pic ->
             blocks += OpusContentBlock.Image(pic)
         }
@@ -220,9 +240,43 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
         return blocks
     }
 
-    private fun extractParagraphText(paragraph: JsonObject): String? {
-        val nodes = paragraph["text"]?.jsonObject?.get("nodes") as? JsonArray ?: return null
-        val text = buildString {
+    private fun extractParagraphHeading(paragraph: JsonObject): String? {
+        val nodes = paragraph["heading"]
+            ?.let { runCatching { it.jsonObject }.getOrNull() }
+            ?.get("nodes")
+        return extractParagraphNodesText(nodes).takeIf { it.isNotBlank() }
+    }
+
+    private fun extractParagraphList(paragraph: JsonObject): String? {
+        val listObject = paragraph["list"]?.let { runCatching { it.jsonObject }.getOrNull() } ?: return null
+        val ordered = listObject["style"]?.jsonPrimitive?.intOrNull == 1
+        val items = listObject["items"]
+            ?.let { runCatching { it.jsonArray }.getOrNull() }
+            .orEmpty()
+            .mapNotNull { item ->
+                val itemObject = item as? JsonObject ?: return@mapNotNull null
+                extractParagraphNodesText(itemObject["nodes"]).takeIf { it.isNotBlank() }
+            }
+        if (items.isEmpty()) return null
+        return items.mapIndexed { index, item ->
+            if (ordered) "${index + 1}. $item" else "• $item"
+        }.joinToString("\n")
+    }
+
+    private fun extractParagraphCode(paragraph: JsonObject): String? {
+        val codeObject = paragraph["code"]?.let { runCatching { it.jsonObject }.getOrNull() } ?: return null
+        return codeObject["content"]?.jsonPrimitive?.contentOrNull
+            ?.replace("&quot;", "\"")
+            ?.replace("&amp;", "&")
+            ?.replace("&lt;", "<")
+            ?.replace("&gt;", ">")
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    private fun extractParagraphNodesText(nodesElement: kotlinx.serialization.json.JsonElement?): String {
+        val nodes = nodesElement as? JsonArray ?: return ""
+        return buildString {
             nodes.forEach { node ->
                 val nodeObject = node as? JsonObject ?: return@forEach
                 val words = nodeObject["word"]
@@ -240,11 +294,21 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
                         ?.get("orig_text")
                         ?.jsonPrimitive
                         ?.contentOrNull
-                    ?: return@forEach
-                append(words)
+                    ?: nodeObject["formula"]
+                        ?.jsonObject
+                        ?.get("latex_content")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                if (!words.isNullOrBlank()) append(words)
             }
         }.trim()
-        return text.takeIf { it.isNotBlank() }
+    }
+
+    private fun extractParagraphText(paragraph: JsonObject): String? {
+        val nodes = paragraph["text"]
+            ?.let { runCatching { it.jsonObject }.getOrNull() }
+            ?.get("nodes")
+        return extractParagraphNodesText(nodes).takeIf { it.isNotBlank() }
     }
 
     private fun extractParagraphPics(paragraph: JsonObject): List<OpusPic> {
@@ -257,6 +321,13 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
         }
         if (results.isEmpty()) {
             parseOpusPic(picObject)?.let(results::add)
+        }
+        if (results.isEmpty()) {
+            val picsAtRoot = paragraph["pics"] as? JsonArray
+            picsAtRoot?.mapNotNullTo(results) { picNode ->
+                val pic = picNode as? JsonObject ?: return@mapNotNullTo null
+                parseOpusPic(pic)
+            }
         }
         paragraph["line"]
             ?.let { runCatching { it.jsonObject }.getOrNull() }
@@ -672,6 +743,7 @@ data class DynamicAuthorModule(
     val name: String = "",
     val face: String = "",
     val pub_time: String = "", // "昨天 18:00"
+    @Serializable(with = FlexibleLongSerializer::class)
     val pub_ts: Long = 0, // 时间戳
     @Serializable(with = FlexibleBooleanSerializer::class)
     val following: Boolean? = null,

@@ -246,7 +246,8 @@ internal fun resolvePortraitRecommendationAppendSeed(
 
 internal fun shufflePortraitRecommendations(
     seed: Int,
-    recommendations: List<RelatedVideo>
+    recommendations: List<RelatedVideo>,
+    precedingOwnerMid: Long = 0L
 ): List<RelatedVideo> {
     val shuffled = recommendations
         .filter { it.bvid.isNotBlank() }
@@ -265,11 +266,12 @@ internal fun shufflePortraitRecommendations(
     val arranged = mutableListOf<RelatedVideo>()
     while (remaining.isNotEmpty()) {
         val last = arranged.lastOrNull()
+        val previousOwnerMid = last?.owner?.mid?.takeIf { it > 0L }
+            ?: precedingOwnerMid.takeIf { arranged.isEmpty() && it > 0L }
         val candidateIndex = remaining.indexOfFirst { candidate ->
-            last == null || (
-                !arePortraitRecommendationsContentSimilar(last, candidate) &&
-                    (last.owner.mid <= 0L || candidate.owner.mid <= 0L || last.owner.mid != candidate.owner.mid)
-                )
+            val candidateOwnerMid = candidate.owner.mid
+            (last == null || !arePortraitRecommendationsContentSimilar(last, candidate)) &&
+                (previousOwnerMid == null || candidateOwnerMid <= 0L || candidateOwnerMid != previousOwnerMid)
         }.takeIf { it >= 0 }
             ?: remaining.indexOfFirst { candidate ->
                 last == null || !arePortraitRecommendationsContentSimilar(last, candidate)

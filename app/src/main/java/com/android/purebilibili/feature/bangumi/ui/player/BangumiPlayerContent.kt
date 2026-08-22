@@ -64,7 +64,7 @@ fun BangumiPlayerContent(
     val followedIcon = rememberAppCheckCircleIcon()
     val followIcon = rememberAppProfileAddIcon()
     var showFollowStatusDialog by remember { mutableStateOf(false) }
-    val tabs = listOf("简介", "评论 ${detail.stat?.reply?.takeIf { it > 0L } ?: ""}".trim())
+    val tabs = listOf("简介", "评论")
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
     val selectionBackdrop = rememberLayerBackdrop()

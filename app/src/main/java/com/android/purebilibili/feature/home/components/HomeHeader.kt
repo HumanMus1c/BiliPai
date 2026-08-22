@@ -1493,11 +1493,11 @@ fun HomeHeader(
     val liquidStyle = homeSettings?.liquidGlassStyle ?: LiquidGlassStyle.CLASSIC
     val bottomBarLiquidGlassPreset = homeSettings?.bottomBarLiquidGlassPreset
         ?: HomeSettings().bottomBarLiquidGlassPreset
-    val liquidGlassTuning = remember(
-        homeSettings?.liquidGlassProgress,
-        liquidStyle
-    ) {
-        resolveLiquidGlassTuning(liquidStyle)
+    val liquidGlassProgress = homeSettings?.liquidGlassProgress ?: 0.5f
+    val liquidGlassAdvancedSettings = homeSettings?.liquidGlassAdvancedSettings
+        ?: HomeSettings().liquidGlassAdvancedSettings
+    val liquidGlassTuning = remember(liquidGlassProgress, liquidGlassAdvancedSettings) {
+        resolveLiquidGlassTuning(liquidGlassProgress, liquidGlassAdvancedSettings)
     }
     val topChromeRenderMode = resolveHomeTopChromeRenderMode(
         materialMode = topChromeMaterialMode,
@@ -1677,7 +1677,7 @@ fun HomeHeader(
         usesNativeContainerTreatment = usesNativeContainerTreatment,
     )
     // 搜索栏液态玻璃必须复用顶部标签 dock 的材质链，避免单独的搜索胶囊渲染分支产生质感偏差。
-    val useBottomBarMatchedTopControls = false
+    val useBottomBarMatchedTopControls = resolveHomeTopSearchLiquidGlassEnabled(homeSettings)
     val localTopChromeRenderMode = resolveHomeTopLocalChromeRenderMode(
         renderMode = topChromeRenderMode,
         usesNativeContainerTreatment = usesNativeContainerTreatment,
@@ -1914,7 +1914,7 @@ fun HomeHeader(
             drawUnifiedTopPanelChrome &&
             currentSearchHeight > AppSpacingTokens.None &&
             searchRevealFraction > 0f
-    val useTopTabBottomBarMatchedDock = false
+    val useTopTabBottomBarMatchedDock = resolveHomeTopChromeLiquidGlassEnabled(homeSettings)
     val drawTopTabDockChrome = drawTopTabOuterChromeSurface || useTopTabBottomBarMatchedDock || useDetachedTopTabDock
     val topTabLabelMode = homeSettings?.topTabLabelMode
         ?: com.android.purebilibili.core.store.SettingsManager.TopTabLabelMode.TEXT_ONLY
@@ -2012,9 +2012,10 @@ fun HomeHeader(
             onTabsCollapsedChange = onTopTabsCollapsedChange,
             drawChromeSurface = drawTopTabDockChrome,
             useBottomBarMatchedSurface = useTopTabBottomBarMatchedDock,
-            // 顶部分类 dock：与 FloatingBottomBar 同一套全强度 shell lens。
             drawMatchedShellLens = useTopTabBottomBarMatchedDock,
-            matchedShellLensIntensity = TOP_DOCK_SHELL_LENS_INTENSITY,
+            matchedShellLensIntensity = resolveCompactDockShellLensIntensity(
+                currentTabHeight.value
+            ),
             // Floating / matched dock: length follows icon+text × tab count (no full-bleed empty glass).
             wrapDockWidth = wrapTopTabDockWidth,
             dockCategoryCount = topCategories.size,
@@ -2283,9 +2284,30 @@ fun HomeHeader(
                                 Box(
                                     modifier = Modifier
                                         .size(resolveHomeTopAvatarInnerSize())
-                                        .clip(edgeButtonShape)
                                         .then(
-                                            if (useUnifiedTopPanel) {
+                                            if (useBottomBarMatchedTopControls) {
+                                                Modifier
+                                            } else {
+                                                Modifier.clip(edgeButtonShape)
+                                            }
+                                        )
+                                        .then(
+                                            if (useBottomBarMatchedTopControls) {
+                                                Modifier.homeTopBottomBarMatchedSurface(
+                                                    renderMode = localTopChromeRenderMode,
+                                                    shape = edgeButtonShape,
+                                                    hazeState = hazeState,
+                                                    miuixBackdrop = miuixBackdrop,
+                                                    liquidGlassStyle = liquidStyle,
+                                                    liquidGlassTuning = liquidGlassTuning,
+                                                    liquidGlassPreset = bottomBarLiquidGlassPreset,
+                                                    motionTier = motionTier,
+                                                    isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
+                                                    forceLowBlurBudget = forceLowBlurBudget,
+                                                    drawShellLens = false,
+                                                    isScrolling = topChromeMotionPolicy.isScrolling
+                                                )
+                                            } else if (useUnifiedTopPanel) {
                                                 if (useUnifiedLiquidChrome) {
                                                     Modifier
                                                         .homeTopChromeSurface(
@@ -2427,9 +2449,10 @@ fun HomeHeader(
                                                     motionTier = motionTier,
                                                     isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
                                                     forceLowBlurBudget = forceLowBlurBudget,
-                                                    // Same FloatingBottomBar shell as the top dock.
                                                     drawShellLens = true,
-                                                    shellLensIntensity = TOP_DOCK_SHELL_LENS_INTENSITY,
+                                                    shellLensIntensity = resolveCompactDockShellLensIntensity(
+                                                        resolveHomeTopSearchPillHeight(topChromePolicy).value
+                                                    ),
                                                     isScrolling = topChromeMotionPolicy.isScrolling
                                                 )
                                             } else {
@@ -2530,42 +2553,45 @@ fun HomeHeader(
                                     modifier = Modifier
                                         .align(Alignment.CenterStart)
                                         .size(topRightActionButtonSize)
-                                        .clip(edgeButtonShape)
                                         .then(
-                                            if (useUnifiedTopPanel) {
-                                                if (useBottomBarMatchedTopControls) {
-                                                    Modifier
-                                                        .homeTopBottomBarMatchedSurface(
-                                                            renderMode = localTopChromeRenderMode,
-                                                            shape = edgeButtonShape,
-                                                            hazeState = hazeState,
-                                                            miuixBackdrop = miuixBackdrop,
-                                                            liquidGlassStyle = liquidStyle,
-                                                            liquidGlassTuning = liquidGlassTuning,
-                                                            liquidGlassPreset = bottomBarLiquidGlassPreset,
-                                                            motionTier = motionTier,
-                                                            isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
-                                                            forceLowBlurBudget = forceLowBlurBudget,
-                                                            drawShellLens = false,
-                                                            isScrolling = topChromeMotionPolicy.isScrolling
+                                            if (useBottomBarMatchedTopControls) {
+                                                Modifier
+                                            } else {
+                                                Modifier.clip(edgeButtonShape)
+                                            }
+                                        )
+                                        .then(
+                                            if (useBottomBarMatchedTopControls) {
+                                                Modifier.homeTopBottomBarMatchedSurface(
+                                                    renderMode = localTopChromeRenderMode,
+                                                    shape = edgeButtonShape,
+                                                    hazeState = hazeState,
+                                                    miuixBackdrop = miuixBackdrop,
+                                                    liquidGlassStyle = liquidStyle,
+                                                    liquidGlassTuning = liquidGlassTuning,
+                                                    liquidGlassPreset = bottomBarLiquidGlassPreset,
+                                                    motionTier = motionTier,
+                                                    isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
+                                                    forceLowBlurBudget = forceLowBlurBudget,
+                                                    drawShellLens = false,
+                                                    isScrolling = topChromeMotionPolicy.isScrolling
+                                                )
+                                            } else if (useUnifiedTopPanel) {
+                                                Modifier
+                                                    .background(
+                                                        resolveHomeTopEdgeControlContainerColor(
+                                                            isLightMode = isLightMode,
+                                                            renderMode = localTopChromeRenderMode
                                                         )
-                                                } else {
-                                                    Modifier
-                                                        .background(
-                                                            resolveHomeTopEdgeControlContainerColor(
-                                                                isLightMode = isLightMode,
-                                                                renderMode = localTopChromeRenderMode
-                                                            )
-                                                        )
-                                                        .border(
-                                                            width = AppSpacingTokens.Micro * 0.4f,
-                                                            color = resolveHomeTopEdgeControlBorderColor(
-                                                                isLightMode = isLightMode,
-                                                                renderMode = localTopChromeRenderMode
-                                                            ),
-                                                            shape = edgeButtonShape
-                                                        )
-                                                }
+                                                    )
+                                                    .border(
+                                                        width = AppSpacingTokens.Micro * 0.4f,
+                                                        color = resolveHomeTopEdgeControlBorderColor(
+                                                            isLightMode = isLightMode,
+                                                            renderMode = localTopChromeRenderMode
+                                                        ),
+                                                        shape = edgeButtonShape
+                                                    )
                                             } else {
                                                 Modifier
                                                     .homeTopChromeSurface(

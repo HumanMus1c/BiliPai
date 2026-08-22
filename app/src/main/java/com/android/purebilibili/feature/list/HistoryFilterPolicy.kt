@@ -12,6 +12,16 @@ internal enum class HistoryContentFilter(val label: String) {
     ARTICLE("专栏")
 }
 
+internal fun resolveHistoryListType(filter: HistoryContentFilter): String? {
+    return when (filter) {
+        HistoryContentFilter.ALL -> null
+        HistoryContentFilter.VIDEO -> "archive"
+        HistoryContentFilter.PGC -> null
+        HistoryContentFilter.LIVE -> "live"
+        HistoryContentFilter.ARTICLE -> "article"
+    }
+}
+
 internal fun filterHistoryItemsByContent(
     items: List<VideoItem>,
     filter: HistoryContentFilter,

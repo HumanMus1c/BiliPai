@@ -88,14 +88,12 @@ internal fun resolveSegmentedControlLiquidGlassEnabled(
     supportsIndependentLiquidGlass: Boolean,
     androidNativeLiquidGlassEnabled: Boolean
 ): Boolean {
-    if (!liquidGlassEffectsEnabled) return false
-    @Suppress("UNUSED_PARAMETER")
-    val ignoredNative = androidNativeLiquidGlassEnabled
     @Suppress("UNUSED_PARAMETER")
     val ignoredStored = storedLiquidGlassEnabled
     @Suppress("UNUSED_PARAMETER")
     val ignoredIndependent = supportsIndependentLiquidGlass
-    return false
+    if (!liquidGlassEffectsEnabled) return false
+    return androidNativeLiquidGlassEnabled
 }
 
 internal enum class SegmentedControlChromeStyle {
@@ -116,11 +114,11 @@ internal fun resolveSegmentedControlChromeStyle(
     preferInlineContentStyle: Boolean = false
 ): SegmentedControlChromeStyle {
     @Suppress("UNUSED_PARAMETER")
-    val ignoredNative = androidNativeLiquidGlassEnabled
-    return if (prefersNativeChrome) {
-        SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE
-    } else {
+    val ignoredInline = preferInlineContentStyle
+    return if (androidNativeLiquidGlassEnabled || !prefersNativeChrome) {
         SegmentedControlChromeStyle.LIQUID_PILL
+    } else {
+        SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE
     }
 }
 

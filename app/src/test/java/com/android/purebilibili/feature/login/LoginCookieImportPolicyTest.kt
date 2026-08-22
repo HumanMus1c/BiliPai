@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.login
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class LoginCookieImportPolicyTest {
 
@@ -49,5 +50,18 @@ class LoginCookieImportPolicyTest {
         requireNotNull(cookies)
         assertEquals("session", cookies.sessData)
         assertEquals("csrf", cookies.csrf)
+    }
+
+    @Test
+    fun `keeps extra cookies for PiliPlus-style import`() {
+        val cookies = parseLoginCookieHeader(
+            "SESSDATA=session; bili_jct=csrf; DedeUserID=42; sid=abc; DedeUserID__ckMd5=md5"
+        )
+
+        requireNotNull(cookies)
+        assertEquals("abc", cookies.values["sid"])
+        assertEquals("md5", cookies.values["DedeUserID__ckMd5"])
+        assertTrue(cookies.toCookieHeader().contains("sid=abc"))
+        assertTrue(cookies.toCookieHeader().contains("DedeUserID__ckMd5=md5"))
     }
 }

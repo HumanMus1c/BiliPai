@@ -8,6 +8,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.android.purebilibili.BuildConfig
+import com.android.purebilibili.core.performance.Android17Diagnostics
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -775,8 +776,21 @@ object LogCollector {
                 // 外部存储不可用，回退到内部缓存
                 Toast.makeText(context, "日志已保存，点击分享发送", Toast.LENGTH_SHORT).show()
             }
-            // 始终从应用缓存分享，兼容 Android 10+ 的分区存储。
-            shareLogFileFromCache(context, shareFile)
+            // 性能 trace 可能较大，始终流式复制且不阻塞 UI 线程。
+            val retainedProfilingArtifacts = Android17Diagnostics.retainedArtifacts(context)
+            if (retainedProfilingArtifacts.isEmpty()) {
+                shareLogFilesFromCache(context, listOf(shareFile))
+            } else {
+                diskWriter.execute {
+                    val profilingArtifacts = Android17Diagnostics.copyRetainedArtifactsTo(
+                        context = context,
+                        targetDirectory = shareCacheDir
+                    )
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        shareLogFilesFromCache(context, listOf(shareFile) + profilingArtifacts)
+                    }
+                }
+            }
             
         } catch (e: Exception) {
             Log.e("LogCollector", "导出日志失败", e)
@@ -885,18 +899,39 @@ object LogCollector {
      * 分享日志文件（从缓存目录）
      */
     private fun shareLogFileFromCache(context: Context, logFile: File) {
+        shareLogFilesFromCache(context, listOf(logFile))
+    }
+
+    private fun shareLogFilesFromCache(context: Context, files: List<File>) {
         try {
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                logFile
-            )
-            
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_STREAM, uri)
+            val validFiles = files.filter(File::isFile)
+            val uris = ArrayList(validFiles.map { file ->
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+            })
+            if (uris.isEmpty()) return
+            val shareIntent = Intent(
+                if (uris.size == 1) Intent.ACTION_SEND else Intent.ACTION_SEND_MULTIPLE
+            ).apply {
+                type = if (uris.size == 1 && validFiles.single().extension == "txt") {
+                    "text/plain"
+                } else {
+                    "application/octet-stream"
+                }
+                if (uris.size == 1) {
+                    putExtra(Intent.EXTRA_STREAM, uris.single())
+                } else {
+                    putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                }
                 putExtra(Intent.EXTRA_SUBJECT, "BiliPai 日志反馈")
-                putExtra(Intent.EXTRA_TEXT, "请查看附件中的日志文件")
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    if (uris.size == 1) "请查看附件中的日志文件"
+                    else "请查看附件中的日志与用户主动导出的性能诊断文件"
+                )
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             

@@ -121,6 +121,79 @@ enum class LiquidGlassMode(val value: Int, val label: String) {
     }
 }
 
+enum class LiquidGlassAdvancedPreset(val value: Int, val label: String) {
+    READABLE(0, "清晰"),
+    BALANCED(1, "均衡"),
+    PRISM(2, "棱镜"),
+    CUSTOM(3, "自定");
+
+    companion object {
+        fun fromValue(value: Int): LiquidGlassAdvancedPreset =
+            entries.find { it.value == value } ?: BALANCED
+    }
+}
+
+data class LiquidGlassAdvancedSettings(
+    val preset: LiquidGlassAdvancedPreset = LiquidGlassAdvancedPreset.BALANCED,
+    val contentReadability: Float = 0.62f,
+    val chromaticAberration: Float = 0.56f,
+    val contentDistortion: Float = 0.45f,
+)
+
+internal fun normalizeLiquidGlassAdvancedValue(value: Float, fallback: Float): Float =
+    if (value.isFinite()) value.coerceIn(0f, 1f) else fallback
+
+internal fun resolveLiquidGlassAdvancedPreset(
+    preset: LiquidGlassAdvancedPreset,
+): LiquidGlassAdvancedSettings = when (preset) {
+    LiquidGlassAdvancedPreset.READABLE -> LiquidGlassAdvancedSettings(
+        preset = preset,
+        contentReadability = 1f,
+        chromaticAberration = 0.08f,
+        contentDistortion = 0.18f,
+    )
+    LiquidGlassAdvancedPreset.BALANCED -> LiquidGlassAdvancedSettings(
+        preset = preset,
+        contentReadability = 0.62f,
+        chromaticAberration = 0.56f,
+        contentDistortion = 0.45f,
+    )
+    LiquidGlassAdvancedPreset.PRISM -> LiquidGlassAdvancedSettings(
+        preset = preset,
+        contentReadability = 0.72f,
+        chromaticAberration = 0.96f,
+        contentDistortion = 0.90f,
+    )
+    LiquidGlassAdvancedPreset.CUSTOM -> LiquidGlassAdvancedSettings(preset = preset)
+}
+
+internal fun resolveLiquidGlassAdvancedSettings(
+    presetValue: Int?,
+    contentReadability: Float?,
+    chromaticAberration: Float?,
+    contentDistortion: Float?,
+): LiquidGlassAdvancedSettings {
+    val preset = presetValue
+        ?.let(LiquidGlassAdvancedPreset::fromValue)
+        ?: LiquidGlassAdvancedPreset.BALANCED
+    val defaults = resolveLiquidGlassAdvancedPreset(preset)
+    if (preset != LiquidGlassAdvancedPreset.CUSTOM) return defaults
+    return defaults.copy(
+        contentReadability = normalizeLiquidGlassAdvancedValue(
+            contentReadability ?: defaults.contentReadability,
+            defaults.contentReadability,
+        ),
+        chromaticAberration = normalizeLiquidGlassAdvancedValue(
+            chromaticAberration ?: defaults.chromaticAberration,
+            defaults.chromaticAberration,
+        ),
+        contentDistortion = normalizeLiquidGlassAdvancedValue(
+            contentDistortion ?: defaults.contentDistortion,
+            defaults.contentDistortion,
+        ),
+    )
+}
+
 internal fun resolveLegacyLiquidGlassMode(style: LiquidGlassStyle): LiquidGlassMode = when (style) {
     LiquidGlassStyle.IOS26 -> LiquidGlassMode.CLEAR
     LiquidGlassStyle.CLASSIC -> LiquidGlassMode.BALANCED
@@ -133,9 +206,11 @@ internal fun resolveDefaultLiquidGlassStrength(mode: LiquidGlassMode): Float = w
     LiquidGlassMode.FROSTED -> 0.62f
 }
 
-internal fun normalizeLiquidGlassStrength(value: Float): Float = value.coerceIn(0f, 1f)
+internal fun normalizeLiquidGlassStrength(value: Float): Float =
+    if (value.isFinite()) value.coerceIn(0f, 1f) else 0.52f
 
-internal fun normalizeLiquidGlassProgress(value: Float): Float = value.coerceIn(0f, 1f)
+internal fun normalizeLiquidGlassProgress(value: Float): Float =
+    if (value.isFinite()) value.coerceIn(0f, 1f) else 0.5f
 
 /** 长按倍速提示整体缩放（0.8×–1.5×，默认 1.0×）。 */
 internal const val LONG_PRESS_SPEED_HINT_SCALE_MIN = 0.8f
@@ -513,6 +588,7 @@ data class HomeSettings(
     val liquidGlassMode: LiquidGlassMode = LiquidGlassMode.BALANCED,
     val liquidGlassStrength: Float = 0.52f,
     val liquidGlassProgress: Float = 0.5f,
+    val liquidGlassAdvancedSettings: LiquidGlassAdvancedSettings = LiquidGlassAdvancedSettings(),
     val homeHeaderCollapseMode: HomeHeaderCollapseMode = HomeHeaderCollapseMode.BOTH,
     val homeBarHideType: HomeBarHideType = HomeBarHideType.SYNC,
     val commonListHeaderCollapseMode: CommonListHeaderCollapseMode =
@@ -1397,11 +1473,19 @@ object SettingsManager {
     private val KEY_CRASH_TRACKING_CONSENT_SHOWN = booleanPreferencesKey("crash_tracking_consent_shown")
     private val KEY_LIQUID_GLASS_MODE = intPreferencesKey("liquid_glass_mode")
     private val KEY_LIQUID_GLASS_STRENGTH = floatPreferencesKey("liquid_glass_strength")
-    private val KEY_LIQUID_GLASS_PROGRESS = floatPreferencesKey("liquid_glass_progress")
-    private val FIXED_LIQUID_GLASS_STYLE = LiquidGlassStyle.SUKISU
-    private val FIXED_LIQUID_GLASS_MODE = LiquidGlassMode.BALANCED
-    private const val FIXED_LIQUID_GLASS_STRENGTH = 0.52f
-    private const val FIXED_LIQUID_GLASS_PROGRESS = 0.5f
+    // V2 intentionally avoids reviving stale values from the removed legacy tuning UI.
+    // Existing installs therefore start from the current BiliPai baseline (0.5f).
+    private val KEY_LIQUID_GLASS_PROGRESS = floatPreferencesKey("liquid_glass_material_progress_v2")
+    private val KEY_LIQUID_GLASS_PREVIEW_IMAGE_URI =
+        stringPreferencesKey("liquid_glass_preview_image_uri")
+    private val KEY_LIQUID_GLASS_ADVANCED_PRESET =
+        intPreferencesKey("liquid_glass_advanced_preset")
+    private val KEY_LIQUID_GLASS_CONTENT_READABILITY =
+        floatPreferencesKey("liquid_glass_content_readability")
+    private val KEY_LIQUID_GLASS_CHROMATIC_ABERRATION =
+        floatPreferencesKey("liquid_glass_chromatic_aberration")
+    private val KEY_LIQUID_GLASS_CONTENT_DISTORTION =
+        floatPreferencesKey("liquid_glass_content_distortion")
     //  [新增] 底栏自定义 - 顺序和可见性
     private val KEY_BOTTOM_BAR_ORDER = stringPreferencesKey("bottom_bar_order")  // 逗号分隔的项目顺序
     private val KEY_BOTTOM_BAR_VISIBLE_TABS = stringPreferencesKey("bottom_bar_visible_tabs")  // 逗号分隔的可见项目
@@ -1447,6 +1531,25 @@ object SettingsManager {
                 preferences[KEY_HEADER_COLLAPSE_ENABLED] ?: true
             )
         val legacyLiquidGlassEnabled = preferences[KEY_LIQUID_GLASS_ENABLED] ?: false
+        val legacyLiquidGlassStyle = LiquidGlassStyle.fromValue(
+            preferences[KEY_LIQUID_GLASS_STYLE] ?: LiquidGlassStyle.SUKISU.value
+        )
+        val liquidGlassMode = preferences[KEY_LIQUID_GLASS_MODE]
+            ?.let(LiquidGlassMode::fromValue)
+            ?: resolveLegacyLiquidGlassMode(legacyLiquidGlassStyle)
+        val liquidGlassStrength = normalizeLiquidGlassStrength(
+            preferences[KEY_LIQUID_GLASS_STRENGTH]
+                ?: resolveDefaultLiquidGlassStrength(liquidGlassMode)
+        )
+        val liquidGlassProgress = normalizeLiquidGlassProgress(
+            preferences[KEY_LIQUID_GLASS_PROGRESS] ?: 0.5f
+        )
+        val liquidGlassAdvancedSettings = resolveLiquidGlassAdvancedSettings(
+            presetValue = preferences[KEY_LIQUID_GLASS_ADVANCED_PRESET],
+            contentReadability = preferences[KEY_LIQUID_GLASS_CONTENT_READABILITY],
+            chromaticAberration = preferences[KEY_LIQUID_GLASS_CHROMATIC_ABERRATION],
+            contentDistortion = preferences[KEY_LIQUID_GLASS_CONTENT_DISTORTION],
+        )
         return HomeSettings(
             displayMode = preferences[KEY_DISPLAY_MODE] ?: 0,
             isBottomBarFloating = preferences[KEY_BOTTOM_BAR_FLOATING] ?: true,
@@ -1478,10 +1581,11 @@ object SettingsManager {
             androidNativeLiquidGlassEnabled =
                 preferences[KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED]
                     ?: false,
-            liquidGlassStyle = FIXED_LIQUID_GLASS_STYLE,
-            liquidGlassMode = FIXED_LIQUID_GLASS_MODE,
-            liquidGlassStrength = FIXED_LIQUID_GLASS_STRENGTH,
-            liquidGlassProgress = FIXED_LIQUID_GLASS_PROGRESS,
+            liquidGlassStyle = legacyLiquidGlassStyle,
+            liquidGlassMode = liquidGlassMode,
+            liquidGlassStrength = liquidGlassStrength,
+            liquidGlassProgress = liquidGlassProgress,
+            liquidGlassAdvancedSettings = liquidGlassAdvancedSettings,
             homeHeaderCollapseMode = headerCollapseMode,
             homeBarHideType = HomeBarHideType.fromValue(
                 preferences[KEY_HOME_BAR_HIDE_TYPE] ?: HomeBarHideType.SYNC.value
@@ -3605,50 +3709,127 @@ object SettingsManager {
     }
     
     fun getLiquidGlassStyle(context: Context): Flow<LiquidGlassStyle> = context.settingsDataStore.data
-        .map { FIXED_LIQUID_GLASS_STYLE }
+        .map { preferences ->
+            LiquidGlassStyle.fromValue(
+                preferences[KEY_LIQUID_GLASS_STYLE] ?: LiquidGlassStyle.SUKISU.value
+            )
+        }
 
     suspend fun setLiquidGlassStyle(context: Context, style: LiquidGlassStyle) {
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_LIQUID_GLASS_STYLE] = FIXED_LIQUID_GLASS_STYLE.value
-            preferences[KEY_LIQUID_GLASS_MODE] = FIXED_LIQUID_GLASS_MODE.value
-            preferences[KEY_LIQUID_GLASS_STRENGTH] = FIXED_LIQUID_GLASS_STRENGTH
-            preferences[KEY_LIQUID_GLASS_PROGRESS] = FIXED_LIQUID_GLASS_PROGRESS
+            val mode = resolveLegacyLiquidGlassMode(style)
+            val strength = resolveDefaultLiquidGlassStrength(mode)
+            preferences[KEY_LIQUID_GLASS_STYLE] = style.value
+            preferences[KEY_LIQUID_GLASS_MODE] = mode.value
+            preferences[KEY_LIQUID_GLASS_STRENGTH] = strength
+            preferences[KEY_LIQUID_GLASS_PROGRESS] = resolveLegacyLiquidGlassProgress(mode, strength)
         }
     }
 
     fun getLiquidGlassMode(context: Context): Flow<LiquidGlassMode> = context.settingsDataStore.data
-        .map { FIXED_LIQUID_GLASS_MODE }
+        .map { preferences ->
+            preferences[KEY_LIQUID_GLASS_MODE]
+                ?.let(LiquidGlassMode::fromValue)
+                ?: resolveLegacyLiquidGlassMode(
+                    LiquidGlassStyle.fromValue(
+                        preferences[KEY_LIQUID_GLASS_STYLE] ?: LiquidGlassStyle.SUKISU.value
+                    )
+                )
+        }
 
     suspend fun setLiquidGlassMode(context: Context, mode: LiquidGlassMode) {
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_LIQUID_GLASS_MODE] = FIXED_LIQUID_GLASS_MODE.value
-            preferences[KEY_LIQUID_GLASS_STRENGTH] = FIXED_LIQUID_GLASS_STRENGTH
-            preferences[KEY_LIQUID_GLASS_PROGRESS] = FIXED_LIQUID_GLASS_PROGRESS
-            preferences[KEY_LIQUID_GLASS_STYLE] = FIXED_LIQUID_GLASS_STYLE.value
+            val strength = normalizeLiquidGlassStrength(
+                preferences[KEY_LIQUID_GLASS_STRENGTH] ?: resolveDefaultLiquidGlassStrength(mode)
+            )
+            val progress = resolveLegacyLiquidGlassProgress(mode, strength)
+            preferences[KEY_LIQUID_GLASS_MODE] = mode.value
+            preferences[KEY_LIQUID_GLASS_STRENGTH] = strength
+            preferences[KEY_LIQUID_GLASS_PROGRESS] = progress
+            preferences[KEY_LIQUID_GLASS_STYLE] = resolveLegacyLiquidGlassStyleFromProgress(progress).value
         }
     }
 
     fun getLiquidGlassStrength(context: Context): Flow<Float> = context.settingsDataStore.data
-        .map { FIXED_LIQUID_GLASS_STRENGTH }
+        .map { preferences ->
+            val mode = preferences[KEY_LIQUID_GLASS_MODE]
+                ?.let(LiquidGlassMode::fromValue)
+                ?: LiquidGlassMode.BALANCED
+            normalizeLiquidGlassStrength(
+                preferences[KEY_LIQUID_GLASS_STRENGTH]
+                    ?: resolveDefaultLiquidGlassStrength(mode)
+            )
+        }
 
     suspend fun setLiquidGlassStrength(context: Context, strength: Float) {
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_LIQUID_GLASS_STRENGTH] = FIXED_LIQUID_GLASS_STRENGTH
-            preferences[KEY_LIQUID_GLASS_PROGRESS] = FIXED_LIQUID_GLASS_PROGRESS
-            preferences[KEY_LIQUID_GLASS_MODE] = FIXED_LIQUID_GLASS_MODE.value
-            preferences[KEY_LIQUID_GLASS_STYLE] = FIXED_LIQUID_GLASS_STYLE.value
+            val normalizedStrength = normalizeLiquidGlassStrength(strength)
+            val mode = preferences[KEY_LIQUID_GLASS_MODE]
+                ?.let(LiquidGlassMode::fromValue)
+                ?: LiquidGlassMode.BALANCED
+            val progress = resolveLegacyLiquidGlassProgress(mode, normalizedStrength)
+            preferences[KEY_LIQUID_GLASS_STRENGTH] = normalizedStrength
+            preferences[KEY_LIQUID_GLASS_PROGRESS] = progress
+            preferences[KEY_LIQUID_GLASS_MODE] = mode.value
+            preferences[KEY_LIQUID_GLASS_STYLE] = resolveLegacyLiquidGlassStyleFromProgress(progress).value
         }
     }
 
     fun getLiquidGlassProgress(context: Context): Flow<Float> = context.settingsDataStore.data
-        .map { FIXED_LIQUID_GLASS_PROGRESS }
+        .map { preferences ->
+            normalizeLiquidGlassProgress(
+                preferences[KEY_LIQUID_GLASS_PROGRESS] ?: 0.5f
+            )
+        }
 
     suspend fun setLiquidGlassProgress(context: Context, progress: Float) {
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_LIQUID_GLASS_PROGRESS] = FIXED_LIQUID_GLASS_PROGRESS
-            preferences[KEY_LIQUID_GLASS_MODE] = FIXED_LIQUID_GLASS_MODE.value
-            preferences[KEY_LIQUID_GLASS_STRENGTH] = FIXED_LIQUID_GLASS_STRENGTH
-            preferences[KEY_LIQUID_GLASS_STYLE] = FIXED_LIQUID_GLASS_STYLE.value
+            val normalizedProgress = normalizeLiquidGlassProgress(progress)
+            preferences[KEY_LIQUID_GLASS_PROGRESS] = normalizedProgress
+            preferences[KEY_LIQUID_GLASS_MODE] = resolveLiquidGlassModeFromProgress(normalizedProgress).value
+            preferences[KEY_LIQUID_GLASS_STRENGTH] = resolveLiquidGlassStrengthFromProgress(normalizedProgress)
+            preferences[KEY_LIQUID_GLASS_STYLE] = resolveLegacyLiquidGlassStyleFromProgress(normalizedProgress).value
+        }
+    }
+
+    fun getLiquidGlassPreviewImageUri(context: Context): Flow<String?> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_LIQUID_GLASS_PREVIEW_IMAGE_URI]?.takeIf(String::isNotBlank)
+        }
+
+    suspend fun setLiquidGlassPreviewImageUri(context: Context, uri: String?) {
+        context.settingsDataStore.edit { preferences ->
+            val normalizedUri = uri?.trim()?.takeIf(String::isNotEmpty)
+            if (normalizedUri == null) {
+                preferences.remove(KEY_LIQUID_GLASS_PREVIEW_IMAGE_URI)
+            } else {
+                preferences[KEY_LIQUID_GLASS_PREVIEW_IMAGE_URI] = normalizedUri
+            }
+        }
+    }
+
+    fun getLiquidGlassAdvancedSettings(context: Context): Flow<LiquidGlassAdvancedSettings> =
+        context.settingsDataStore.data.map { preferences ->
+            resolveLiquidGlassAdvancedSettings(
+                presetValue = preferences[KEY_LIQUID_GLASS_ADVANCED_PRESET],
+                contentReadability = preferences[KEY_LIQUID_GLASS_CONTENT_READABILITY],
+                chromaticAberration = preferences[KEY_LIQUID_GLASS_CHROMATIC_ABERRATION],
+                contentDistortion = preferences[KEY_LIQUID_GLASS_CONTENT_DISTORTION],
+            )
+        }
+
+    suspend fun setLiquidGlassAdvancedSettings(
+        context: Context,
+        settings: LiquidGlassAdvancedSettings,
+    ) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LIQUID_GLASS_ADVANCED_PRESET] = settings.preset.value
+            preferences[KEY_LIQUID_GLASS_CONTENT_READABILITY] =
+                normalizeLiquidGlassAdvancedValue(settings.contentReadability, 0.62f)
+            preferences[KEY_LIQUID_GLASS_CHROMATIC_ABERRATION] =
+                normalizeLiquidGlassAdvancedValue(settings.chromaticAberration, 0.56f)
+            preferences[KEY_LIQUID_GLASS_CONTENT_DISTORTION] =
+                normalizeLiquidGlassAdvancedValue(settings.contentDistortion, 0.45f)
         }
     }
     

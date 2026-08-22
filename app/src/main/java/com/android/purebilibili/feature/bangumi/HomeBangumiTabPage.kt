@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.bangumi
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -22,6 +23,8 @@ import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.feature.download.DownloadManager
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /**
  * 首页顶栏「追番」独立页：留在首页 Pager 内，
@@ -49,6 +52,7 @@ fun HomeBangumiTabPage(
     LaunchedEffect(showPgcTimeline) { viewModel.setShowPgcTimeline(showPgcTimeline) }
 
     val layoutDirection = LocalLayoutDirection.current
+    val channelBackdrop = rememberLayerBackdrop()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -65,7 +69,14 @@ fun HomeBangumiTabPage(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
+            miuixBackdrop = channelBackdrop,
         )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .layerBackdrop(channelBackdrop),
+        ) {
         BangumiHubContent(
             state = state,
             onBangumiClick = onBangumiClick,
@@ -100,5 +111,6 @@ fun HomeBangumiTabPage(
             scrollToTopRequestId = scrollToTopRequestId,
             listBottomPadding = contentPadding.calculateBottomPadding(),
         )
+        }
     }
 }

@@ -67,7 +67,6 @@ import com.android.purebilibili.core.store.DanmakuSettings
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
-import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop as miuixLayerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop as rememberMiuixLayerBackdrop
 import com.android.purebilibili.data.model.response.RelatedVideo
@@ -148,29 +147,27 @@ internal fun hasVideoContentTabBarIndicatorScaleClearance(
     return geometry.pressedHeightDp > containerHeightDp
 }
 
-internal const val VIDEO_CONTENT_LIQUID_DOCK_HEIGHT_DP = 64
-internal const val VIDEO_CONTENT_LIQUID_DOCK_INDICATOR_HEIGHT_DP = 56
-internal const val VIDEO_CONTENT_LIQUID_DOCK_LABEL_FONT_SIZE_SP = 14
 
 internal data class VideoContentTabBarLiquidChromeSpec(
     val reusesLiquidGlassDock: Boolean,
     val segmentedControlHeightDp: Int,
     val segmentedControlIndicatorHeightDp: Int,
     val labelFontSizeSp: Int,
+    val itemWidthDp: Int?,
     val liquidGlassEffectsEnabled: Boolean,
     val useTransparentTabRowBackground: Boolean,
 )
 
+/** Two-character labels (简介/评论) plus dock item padding; matches comment-sort 13sp → 66dp. */
+internal fun resolveVideoContentTabBarDockItemWidthDp(labelFontSizeSp: Int): Int {
+    if (labelFontSizeSp <= 0) return 0
+    return (labelFontSizeSp * 2) + 40
+}
+
 internal fun shouldReuseVideoContentTabBarLiquidGlassDock(
     androidNativeLiquidGlassEnabled: Boolean,
     hasBackdrop: Boolean,
-): Boolean {
-    @Suppress("UNUSED_PARAMETER")
-    val ignoredNative = androidNativeLiquidGlassEnabled
-    @Suppress("UNUSED_PARAMETER")
-    val ignoredBackdrop = hasBackdrop
-    return false
-}
+): Boolean = androidNativeLiquidGlassEnabled && hasBackdrop
 
 internal fun resolveVideoContentTabBarLiquidChromeSpec(
     androidNativeLiquidGlassEnabled: Boolean,
@@ -181,25 +178,20 @@ internal fun resolveVideoContentTabBarLiquidChromeSpec(
         androidNativeLiquidGlassEnabled = androidNativeLiquidGlassEnabled,
         hasBackdrop = hasBackdrop,
     )
-    return if (reusesLiquidGlassDock) {
-        VideoContentTabBarLiquidChromeSpec(
-            reusesLiquidGlassDock = true,
-            segmentedControlHeightDp = VIDEO_CONTENT_LIQUID_DOCK_HEIGHT_DP,
-            segmentedControlIndicatorHeightDp = VIDEO_CONTENT_LIQUID_DOCK_INDICATOR_HEIGHT_DP,
-            labelFontSizeSp = VIDEO_CONTENT_LIQUID_DOCK_LABEL_FONT_SIZE_SP,
-            liquidGlassEffectsEnabled = true,
-            useTransparentTabRowBackground = true,
-        )
-    } else {
-        VideoContentTabBarLiquidChromeSpec(
-            reusesLiquidGlassDock = false,
-            segmentedControlHeightDp = layoutSpec.segmentedControlHeightDp,
-            segmentedControlIndicatorHeightDp = layoutSpec.segmentedControlIndicatorHeightDp,
-            labelFontSizeSp = layoutSpec.unselectedTabFontSizeSp,
-            liquidGlassEffectsEnabled = hasBackdrop,
-            useTransparentTabRowBackground = false,
-        )
-    }
+    val labelFontSizeSp = layoutSpec.unselectedTabFontSizeSp
+    return VideoContentTabBarLiquidChromeSpec(
+        reusesLiquidGlassDock = reusesLiquidGlassDock,
+        segmentedControlHeightDp = layoutSpec.segmentedControlHeightDp,
+        segmentedControlIndicatorHeightDp = layoutSpec.segmentedControlIndicatorHeightDp,
+        labelFontSizeSp = labelFontSizeSp,
+        itemWidthDp = if (reusesLiquidGlassDock) {
+            resolveVideoContentTabBarDockItemWidthDp(labelFontSizeSp)
+        } else {
+            null
+        },
+        liquidGlassEffectsEnabled = reusesLiquidGlassDock,
+        useTransparentTabRowBackground = reusesLiquidGlassDock,
+    )
 }
 
 internal fun resolveVideoContentTabBarLayoutSpec(widthDp: Int): VideoContentTabBarLayoutSpec {
@@ -524,7 +516,7 @@ fun VideoContentSection(
     bottomContentPadding: Dp = if (showInteractionActions) 84.dp else 12.dp
 ) {
     val context = LocalContext.current
-    val tabs = listOf("简介", "评论 $replyCount")
+    val tabs = listOf("简介", "评论")
     val scope = rememberCoroutineScope()
     TrackJankStateFlag(
         stateName = "video_detail:tab_swipe",
@@ -704,69 +696,25 @@ fun VideoContentSection(
     val tabBarVisibleHeightDp = with(density) {
         (tabBarMaxHeightPx - tabBarCollapsePx).coerceAtLeast(0f).toDp()
     }
-    // 采样层只挂在 Tab 页滚动内容上；排序栏/顶栏分段控件必须在捕获区外，避免 drawBackdrop 自引用导致 RenderThread 栈溢出。
+    // Match the home bottom dock: one full-size content source, with liquid docks rendered as
+    // overlay siblings outside that source. A source attached only to the LazyColumns starts
+    // below the tab row, so sampling at the dock's coordinates resolves outside its bounds.
     val videoContentMiuixBackdrop = rememberMiuixLayerBackdrop()
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(tabBarCollapseConnection)
     ) {
-        // Inline 弹幕设置不是 Dialog，必须在详情内容之后绘制，避免被列表盖住。
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .nestedScroll(tabBarCollapseConnection)
+                .miuixLayerBackdrop(videoContentMiuixBackdrop)
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .then(
-                        if (tabBarMaxHeightPx <= 0f) {
-                            // 首帧先按内容测量真实高度，再进入跟手折叠。
-                            Modifier.wrapContentHeight()
-                        } else {
-                            Modifier
-                                .height(tabBarVisibleHeightDp)
-                                .graphicsLayer {
-                                    clip = tabBarCollapseProgress > 0.001f
-                                }
-                        }
-                    ),
-                contentAlignment = Alignment.TopStart,
-            ) {
-                VideoContentTabBar(
-                    tabs = tabs,
-                    selectedTabIndex = pagerState.currentPage,
-                    onTabSelected = onTabSelected,
-                    sortMode = sortMode,
-                    onSortModeChange = onSortModeChange,
-                    onDanmakuSendClick = onDanmakuSendClick,
-                    danmakuEnabled = danmakuEnabled,
-                    onDanmakuToggle = onDanmakuToggle,
-                    onDanmakuSettingsClick = { showDanmakuSettings = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight(unbounded = tabBarMaxHeightPx > 0f)
-                        .onSizeChanged { size ->
-                            val measured = size.height.toFloat()
-                            if (measured > 0f &&
-                                (tabBarMaxHeightPx <= 0f || tabBarCollapsePx <= 0.5f)
-                            ) {
-                                tabBarMaxHeightPx = measured
-                            }
-                        }
-                        .graphicsLayer {
-                            val progress = tabBarCollapseProgress.coerceIn(0f, 1f)
-                            alpha = 1f - progress
-                            translationY = -tabBarMaxHeightPx * progress * 0.35f
-                        },
-                    isPlayerCollapsed = isPlayerCollapsed,
-                    onRestorePlayer = onRestorePlayer,
-                    miuixBackdrop = videoContentMiuixBackdrop,
-                    indicatorPositionProvider = {
-                        pagerState.currentPage + pagerState.currentPageOffsetFraction
-                    },
-                    isScrollInProgressProvider = { pagerState.isScrollInProgress },
-                )
-            }
+                    .matchParentSize()
+                    .background(MaterialTheme.colorScheme.surface)
+            )
 
             HorizontalPager(
                 state = pagerState,
@@ -776,8 +724,8 @@ fun VideoContentSection(
                 ),
                 userScrollEnabled = false,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                    .fillMaxSize()
+                    .padding(top = tabBarVisibleHeightDp)
                     .verticalPriorityHorizontalPagerSwipe(
                         state = pagerState,
                         enabled = shouldEnableVideoContentHorizontalPagerSwipe(
@@ -791,7 +739,6 @@ fun VideoContentSection(
                     0 -> VideoIntroTab(
                         listState = introListState,
                         modifier = Modifier,
-                        chromeBackdrop = videoContentMiuixBackdrop,
                         info = info,
                         relatedVideos = relatedVideos,
                         currentPageIndex = currentPageIndex,
@@ -881,12 +828,65 @@ fun VideoContentSection(
                         onToggleTopComment = onToggleTopComment,
                         showIdentityDecorations = showIdentityDecorations,
                         lightweightCommentRendering = lightweightCommentRendering,
-                        chromeBackdrop = videoContentMiuixBackdrop,
                     )
                 }
             }
         }
 
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (tabBarMaxHeightPx <= 0f) {
+                        // 首帧先按内容测量真实高度，再进入跟手折叠。
+                        Modifier.wrapContentHeight()
+                    } else {
+                        Modifier
+                            .height(tabBarVisibleHeightDp)
+                            .graphicsLayer {
+                                clip = tabBarCollapseProgress > 0.001f
+                            }
+                    }
+                ),
+            contentAlignment = Alignment.TopStart,
+        ) {
+            VideoContentTabBar(
+                tabs = tabs,
+                selectedTabIndex = pagerState.currentPage,
+                onTabSelected = onTabSelected,
+                sortMode = sortMode,
+                onSortModeChange = onSortModeChange,
+                onDanmakuSendClick = onDanmakuSendClick,
+                danmakuEnabled = danmakuEnabled,
+                onDanmakuToggle = onDanmakuToggle,
+                onDanmakuSettingsClick = { showDanmakuSettings = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(unbounded = tabBarMaxHeightPx > 0f)
+                    .onSizeChanged { size ->
+                        val measured = size.height.toFloat()
+                        if (measured > 0f &&
+                            (tabBarMaxHeightPx <= 0f || tabBarCollapsePx <= 0.5f)
+                        ) {
+                            tabBarMaxHeightPx = measured
+                        }
+                    }
+                    .graphicsLayer {
+                        val progress = tabBarCollapseProgress.coerceIn(0f, 1f)
+                        alpha = 1f - progress
+                        translationY = -tabBarMaxHeightPx * progress * 0.35f
+                    },
+                isPlayerCollapsed = isPlayerCollapsed,
+                onRestorePlayer = onRestorePlayer,
+                miuixBackdrop = videoContentMiuixBackdrop,
+                indicatorPositionProvider = {
+                    pagerState.currentPage + pagerState.currentPageOffsetFraction
+                },
+                isScrollInProgressProvider = { pagerState.isScrollInProgress },
+            )
+        }
+
+        // Inline 弹幕设置不是 Dialog，必须在详情内容之后绘制，避免被列表盖住。
         if (showImagePreview && previewImages.isNotEmpty()) {
             ImagePreviewDialog(
                 images = previewImages,
@@ -1004,7 +1004,6 @@ private fun VideoIntroTab(
     showOnlineCount: Boolean = true,
     showInteractionActions: Boolean = true,
     animateVideoDetailLayout: Boolean = true,
-    chromeBackdrop: LayerBackdrop? = null
 ) {
     val hasPages = info.pages.size > 1
     var hiddenRelatedBvids by remember(info.bvid) { mutableStateOf(emptySet<String>()) }
@@ -1014,15 +1013,7 @@ private fun VideoIntroTab(
     val relatedVideoCardLayout = rememberRelatedVideoCardLayout()
     LazyColumn(
         state = listState,
-        modifier = modifier
-            .fillMaxSize()
-            .then(
-                if (chromeBackdrop != null) {
-                    Modifier.miuixLayerBackdrop(chromeBackdrop)
-                } else {
-                    Modifier
-                }
-            ),
+        modifier = modifier.fillMaxSize(),
         contentPadding = contentPadding
     ) {
         // 1. 移入的 Header 区域
@@ -1165,7 +1156,6 @@ internal fun VideoCommentTab(
     onToggleTopComment: (ReplyItem) -> Unit,
     showIdentityDecorations: Boolean,
     lightweightCommentRendering: Boolean,
-    chromeBackdrop: LayerBackdrop? = null,
 ) {
     val commentAppearance = rememberVideoCommentAppearance()
     val scope = rememberCoroutineScope()
@@ -1206,15 +1196,7 @@ internal fun VideoCommentTab(
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(
                 state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (chromeBackdrop != null) {
-                            Modifier.miuixLayerBackdrop(chromeBackdrop)
-                        } else {
-                            Modifier
-                        }
-                    ),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = contentPadding
             ) {
             if (isRepliesLoading && replies.isEmpty()) {
@@ -1829,20 +1811,20 @@ private fun VideoContentTabBar(
                 selectedIndex = selectedTabIndex,
                 onSelected = onTabSelected,
                 modifier = if (liquidChromeSpec.reusesLiquidGlassDock) {
-                    Modifier.wrapContentWidth()
+                    Modifier
                 } else {
                     Modifier
                         .weight(layoutSpec.tabsRowWeight)
                         .padding(start = 0.dp, top = 2.dp, end = 8.dp, bottom = 2.dp)
                 },
+                itemWidth = liquidChromeSpec.itemWidthDp?.dp,
                 height = liquidChromeSpec.segmentedControlHeightDp.dp,
                 indicatorHeight = liquidChromeSpec.segmentedControlIndicatorHeightDp.dp,
                 labelFontSize = liquidChromeSpec.labelFontSizeSp.sp,
                 miuixBackdrop = miuixBackdrop,
                 forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
                 liquidGlassEffectsEnabled = liquidChromeSpec.liquidGlassEffectsEnabled,
-                // Avoid extra press refraction in this compact in-content chrome.
-                tapPressRefractionEnabled = false,
+                tapPressRefractionEnabled = true,
                 indicatorPositionProvider = indicatorPositionProvider,
                 isScrollInProgressProvider = isScrollInProgressProvider,
                 externalPagerMotionEffectsEnabled = liquidChromeSpec.reusesLiquidGlassDock,

@@ -35,6 +35,15 @@ import javax.net.ssl.X509TrustManager
 
 internal const val BANGUMI_PLAY_URL_PATH = "pgc/player/web/v2/playurl"
 internal const val BANGUMI_PLAY_URL_LEGACY_PATH = "pgc/player/web/playurl"
+internal const val FORCE_COOKIE_HEADER = "X-BiliPai-Force-Cookie"
+
+internal fun applyForcedCookieHeader(request: okhttp3.Request): okhttp3.Request {
+    val forcedCookie = request.header(FORCE_COOKIE_HEADER) ?: return request
+    return request.newBuilder()
+        .header("Cookie", forcedCookie)
+        .removeHeader(FORCE_COOKIE_HEADER)
+        .build()
+}
 
 private class AppSessionCookieJar : okhttp3.CookieJar {
     private val cookieLock = Any()
@@ -264,7 +273,8 @@ interface BilibiliApi {
         @Query("ps") ps: Int = 30,
         @Query("max") max: Long? = null,            //  游标: 上一页最后一条的 oid
         @Query("view_at") viewAt: Long? = null,     //  游标: 上一页最后一条的 view_at
-        @Query("business") business: String? = null //  null=省略该参数
+        @Query("business") business: String? = null, //  null=省略该参数
+        @Query("type") type: String? = null         //  all/archive/live/article；null=省略
     ): HistoryResponse
 
     @GET("x/web-interface/history/search")
@@ -274,7 +284,12 @@ interface BilibiliApi {
         @Query("business") business: String = "all",
     ): HistoryResponse
 
-    // [新增] 删除单条历史记录
+    @retrofit2.http.FormUrlEncoded
+    @POST("x/v2/history/report")
+    suspend fun reportHistory(
+        @retrofit2.http.FieldMap fields: Map<String, String>
+    ): SimpleApiResponse
+
     @retrofit2.http.FormUrlEncoded
     @POST("x/v2/history/delete")
     suspend fun deleteHistoryItem(
@@ -348,8 +363,8 @@ interface BilibiliApi {
         @Query("media_id") mediaId: Long,
         @Query("pn") pn: Int = 1,
         @Query("ps") ps: Int = 20,
-        @Query("keyword") keyword: String? = null,
-        @Query("order") order: String? = null,
+        @Query("keyword") keyword: String = "",
+        @Query("order") order: String = "mtime",
         // 文档：type 0=当前收藏夹，1=全部；tid 0=全部分区；ps 定义域 1-20
         @Query("type") type: Int = 0,
         @Query("tid") tid: Int = 0,
@@ -1664,6 +1679,9 @@ private const val DYNAMIC_FEED_FEATURES =
 internal const val DYNAMIC_DETAIL_FEATURES =
     "itemOpusStyle,listOnlyfans,opusBigCover,onlyfansVote,endFooterHidden,decorationCard,onlyfansAssetsV2,ugcDelete,onlyfansQaCard,commentsNewVersion,forwardListHidden,htmlNewStyle"
 
+/** PiliPlus opus/detail uses only htmlNewStyle so old columns return full paragraphs. */
+internal const val OPUS_DETAIL_FEATURES = "htmlNewStyle"
+
 internal const val SPACE_DYNAMIC_FEATURES =
     "itemOpusStyle,listOnlyfans,opusBigCover,commentsNewVersion,onlyfansVote,onlyfansAssetsV2,decorationCard,forwardListHidden,ugcDelete"
 
@@ -1674,7 +1692,6 @@ interface DynamicApi {
         @Query("type") type: String = "all",
         @Query("offset") offset: String = "",
         @Query("update_baseline") updateBaseline: String = "",
-        @Query("page") page: Int = 1,
         @Query("features") features: String = DYNAMIC_FEED_FEATURES,
         @Query("timezone_offset") timezoneOffset: Int = -480,
         @Query("platform") platform: String = "web",
@@ -1716,11 +1733,10 @@ interface DynamicApi {
         @Query("timezone_offset") timezoneOffset: Int = -480
     ): DynamicDetailResponse
 
-    // 长图文/专栏 opus 详情接口，htmlNewStyle 用于兼容旧专栏正文结构。
+    // 长图文/专栏 opus 详情。PiliPlus：WBI + features=htmlNewStyle + timezone_offset。
     @GET("x/polymer/web-dynamic/v1/opus/detail")
     suspend fun getOpusDetail(
-        @Query("id") id: String,
-        @Query("features") features: String = DYNAMIC_DETAIL_FEATURES
+        @QueryMap params: Map<String, String>
     ): DynamicDetailResponse
 
     @GET("https://app.bilibili.com/x/topic/web/details/top")
@@ -2142,7 +2158,7 @@ interface BangumiApi {
 interface PassportApi {
     @GET("https://api.bilibili.com/x/web-interface/nav")
     suspend fun validateCookieSession(
-        @Header("Cookie") cookieHeader: String
+        @Header(FORCE_COOKIE_HEADER) cookieHeader: String
     ): NavResponse
 
     // 二维码登录
@@ -2638,7 +2654,11 @@ object NetworkModule {
             "/x/passport-login/sms/send",
             "/x/passport-login/login/sms",
             "/x/passport-login/oauth2/login",
-            "/x/passport-login/oauth2/access_token" -> "android_hd"
+            "/x/passport-login/oauth2/access_token",
+            "/x/safecenter/user/info",
+            "/x/safecenter/captcha/pre",
+            "/x/safecenter/common/sms/send",
+            "/x/safecenter/login/tel/verify" -> "android_hd"
             else -> null
         }
     }
@@ -2789,9 +2809,9 @@ object NetworkModule {
                     val favoriteMid = url.queryParameter("up_mid")
                         ?: TokenManager.midCache?.takeIf { it > 0L }?.toString()
                     referer = when {
-                        // resource/list 走收藏夹详情页 Referer，贴近网页请求，降低 412 风控
+                        // 新版收藏夹内容页已迁移到 /list/ml...；Referer 与 Origin 必须同源。
                         !mediaId.isNullOrEmpty() ->
-                            "https://www.bilibili.com/medialist/detail/ml$mediaId"
+                            "https://www.bilibili.com/list/ml$mediaId"
                         !favoriteMid.isNullOrEmpty() ->
                             "https://space.bilibili.com/$favoriteMid/favlist"
                         else -> "https://space.bilibili.com/"
@@ -2806,7 +2826,11 @@ object NetworkModule {
                     origin = "https://t.bilibili.com"
                 }
                 if (isFavoriteEndpoint) {
-                    origin = "https://space.bilibili.com"
+                    origin = if (url.queryParameter("media_id").isNullOrEmpty()) {
+                        "https://space.bilibili.com"
+                    } else {
+                        "https://www.bilibili.com"
+                    }
                 }
 
                 val androidHdLoginAppKeyHeader = resolveAndroidHdLoginAppKeyHeader(url.encodedPath)
@@ -2816,6 +2840,7 @@ object NetworkModule {
                 val isHdFeedRequest = url.encodedPath == "/x/v2/feed/index" &&
                     url.queryParameter("mobi_app") == "android_hd"
                 val isAndroidHdLoginEndpoint = androidHdLoginAppKeyHeader != null || isHdFeedRequest
+                val explicitReferer = original.header("Referer")
                 val builder = original.newBuilder()
                     .header(
                         "User-Agent",
@@ -2825,7 +2850,7 @@ object NetworkModule {
                             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
                         }
                     )
-                if (!isAndroidHdLoginEndpoint) {
+                if (!isAndroidHdLoginEndpoint && explicitReferer.isNullOrBlank()) {
                     builder.header("Origin", origin) //  动态 Origin 头
                 }
                 if (androidHdLoginAppKeyHeader != null || isHdFeedRequest) {
@@ -2837,20 +2862,29 @@ object NetworkModule {
                         .header("env", "prod")
                         .header("x-bili-trace-id", "11111111111111111111111111111111:1111111111111111:0:0")
                 }
+                if (androidHdLoginAppKeyHeader != null) {
+                    // Match PiliPlus LoginHttp.headers exactly for Passport App requests.
+                    builder
+                        .header("x-bili-aurora-eid", "")
+                        .header("x-bili-aurora-zone", "")
+                        .header("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
+                }
                 
                 //  [关键修复] WBI 签名接口绝对不能设置 Referer 头，否则会失败
                 // 参考：https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/misc/sign/wbi.md
                 val isWbiEndpoint = url.encodedPath.contains("/wbi/")
-                if (!isWbiEndpoint && !isAndroidHdLoginEndpoint) {
+                if (explicitReferer.isNullOrBlank() &&
+                    !isWbiEndpoint && !isAndroidHdLoginEndpoint
+                ) {
                     builder.header("Referer", referer)
                 }
 
+                val request = builder.build()
                 com.android.purebilibili.core.util.Logger.d(
                     "ApiClient",
-                    " Sending request to ${original.url}, Referer: ${if (isWbiEndpoint || isAndroidHdLoginEndpoint) "OMITTED" else referer}, hasSess=${!TokenManager.sessDataCache.isNullOrEmpty()}, hasCsrf=${!TokenManager.csrfCache.isNullOrEmpty()}"
+                    " Sending request to ${original.url}, Referer: ${request.header("Referer") ?: "OMITTED"}, hasSess=${!TokenManager.sessDataCache.isNullOrEmpty()}, hasCsrf=${!TokenManager.csrfCache.isNullOrEmpty()}"
                 )
 
-                val request = builder.build()
                 try {
                     val response = chain.proceed(request)
                     com.android.purebilibili.core.util.Logger.d(
@@ -2879,6 +2913,11 @@ object NetworkModule {
                     }
                     throw e
                 }
+            }
+            // CookieJar runs after application interceptors and replaces Cookie.
+            // Restore an explicit imported cookie after that, matching PiliPlus.
+            .addNetworkInterceptor { chain ->
+                chain.proceed(applyForcedCookieHeader(chain.request()))
             }
             .build()
     }

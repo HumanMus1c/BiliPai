@@ -97,10 +97,13 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
 import com.android.purebilibili.core.theme.resolveFilledSelectionAccentColors
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
-import com.android.purebilibili.feature.home.components.SimpleLiquidIndicator
-import com.android.purebilibili.feature.home.components.resolveTopTabPagerPosition
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import com.android.purebilibili.core.database.entity.SearchHistory
@@ -365,9 +368,13 @@ internal fun shouldApplyInitialSearchKeyword(
 internal fun shouldResetSearchResultScroll(
     searchSessionId: Long,
     showResults: Boolean,
-    lastResetSessionId: Long
+    lastResetSessionId: Long,
+    isReturningFromVideoDetail: Boolean = false,
 ): Boolean {
-    return showResults && searchSessionId > 0L && searchSessionId != lastResetSessionId
+    return !isReturningFromVideoDetail &&
+        showResults &&
+        searchSessionId > 0L &&
+        searchSessionId != lastResetSessionId
 }
 
 internal fun shouldShowSearchBackToTop(
@@ -618,7 +625,9 @@ fun SearchScreen(
     val resultListState = rememberSaveable(resultStateKey, saver = LazyListState.Saver) {
         LazyListState()
     }
-    var lastResetSearchSessionId by rememberSaveable { mutableLongStateOf(0L) }
+    // A fresh SearchScreen entry starts at the top. Keep this non-saveable so leaving
+    // search and opening it again does not inherit the previous result position.
+    var lastResetSearchSessionId by remember { mutableLongStateOf(0L) }
     val shouldShowBackToTop by remember(
         state.showResults,
         state.isSearching,
@@ -647,9 +656,13 @@ fun SearchScreen(
         if (!shouldResetSearchResultScroll(
                 searchSessionId = state.searchSessionId,
                 showResults = state.showResults,
-                lastResetSessionId = lastResetSearchSessionId
+                lastResetSessionId = lastResetSearchSessionId,
+                isReturningFromVideoDetail = isReturningFromVideoDetail,
             )
         ) {
+            if (isReturningFromVideoDetail && state.showResults && state.searchSessionId > 0L) {
+                lastResetSearchSessionId = state.searchSessionId
+            }
             return@LaunchedEffect
         }
         resultListState.scrollToItem(0)
@@ -685,6 +698,9 @@ fun SearchScreen(
     val homeDurationStyle by SettingsManager
         .getHomeDurationStyle(context)
         .collectAsStateWithLifecycle(initialValue = HomeDurationStyle.OUTSIDE_COVER)
+    val compactVideoStatsOnCover by SettingsManager
+        .getCompactVideoStatsOnCover(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val hotSearchEnabled by SettingsManager.getSearchHotSectionEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val discoverSectionEnabled by SettingsManager.getSearchDiscoverSectionEnabled(context).collectAsStateWithLifecycle(initialValue = true)
     val liquidGlassEnabled by SettingsManager.getLiquidGlassEnabled(context).collectAsStateWithLifecycle(initialValue = true)
@@ -917,6 +933,7 @@ fun SearchScreen(
                     modifier = Modifier
                         .fillMaxSize()
                     ) {
+                            val searchChromeBackdrop = rememberLayerBackdrop()
                             Spacer(modifier = Modifier.height(contentTopPadding + 8.dp))
                             //  搜索彩蛋消息横幅
                             val easterEggMsg = state.easterEggMessage
@@ -959,6 +976,7 @@ fun SearchScreen(
                             SearchResultTypeTabRow(
                                 tabs = searchTabs,
                                 pagerState = searchPagerState,
+                                miuixBackdrop = searchChromeBackdrop,
                                 onTabClick = { page, type ->
                                     if (searchPagerState.currentPage == page && state.searchType == type) {
                                         scrollToTopSearchType = type
@@ -985,6 +1003,7 @@ fun SearchScreen(
                                         currentPubTimeType = state.pubTimeType,
                                         currentPubBegin = state.pubBegin,
                                         currentPubEnd = state.pubEnd,
+                                        miuixBackdrop = searchChromeBackdrop,
                                         onOrderChange = { viewModel.setSearchOrder(it) },
                                         onDurationSelect = { viewModel.setSearchDuration(it) },
                                         onVideoTidChange = { viewModel.setVideoTid(it) },
@@ -1018,6 +1037,7 @@ fun SearchScreen(
                             userScrollEnabled = false,
                             modifier = Modifier
                                 .weight(1f)
+                                .layerBackdrop(searchChromeBackdrop)
                                 .verticalPriorityHorizontalPagerSwipe(
                                     state = searchPagerState,
                                     enabled = true,
@@ -1072,12 +1092,22 @@ fun SearchScreen(
                         ) {
                             LazyListState()
                         }
+                        val activePageGridState = if (targetSearchType == state.searchType) {
+                            resultGridState
+                        } else {
+                            pageGridState
+                        }
+                        val activePageListState = if (targetSearchType == state.searchType) {
+                            resultListState
+                        } else {
+                            pageListState
+                        }
                         LaunchedEffect(scrollToTopRequestId, scrollToTopSearchType, targetSearchType) {
                             if (scrollToTopSearchType == targetSearchType && scrollToTopRequestId > 0) {
                                 if (targetSearchType == SearchType.VIDEO) {
-                                    pageGridState.animateScrollToItem(0)
+                                    activePageGridState.animateScrollToItem(0)
                                 } else {
-                                    pageListState.animateScrollToItem(0)
+                                    activePageListState.animateScrollToItem(0)
                                 }
                             }
                         }
@@ -1136,7 +1166,7 @@ fun SearchScreen(
                                 // 视频搜索结果
                                 LazyVerticalGrid(
                                     columns = GridCells.Adaptive(minSize = searchLayoutPolicy.resultGridMinItemWidthDp.dp),
-                                    state = pageGridState,
+                                    state = activePageGridState,
                                     contentPadding = PaddingValues(
                                         top = 0.dp,
                                         bottom = resultBottomPadding,
@@ -1176,6 +1206,7 @@ fun SearchScreen(
                                             showInfoGlassBadges = videoCardAppearance.showInfoGlassBadges,
                                             coverAspectRatio = cardLayout.coverAspectRatio,
                                             compactMetadata = cardLayout.compactMetadata,
+                                            compactStatsOnCover = compactVideoStatsOnCover,
                                             titleMinLines = 1,
                                             homeDurationStyle = homeDurationStyle,
                                             highlightedTitle = highlightedTitle,
@@ -1283,7 +1314,7 @@ fun SearchScreen(
                                 LazyColumn(
                                     contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    state = pageListState,
+                                    state = activePageListState,
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .then(if (searchHazeEnabled) Modifier.hazeSourceCompat(state = hazeState) else Modifier)
@@ -1363,7 +1394,7 @@ fun SearchScreen(
                                 LazyColumn(
                                     contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    state = pageListState,
+                                    state = activePageListState,
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .then(if (searchHazeEnabled) Modifier.hazeSourceCompat(state = hazeState) else Modifier)
@@ -1446,7 +1477,7 @@ fun SearchScreen(
                                 LazyColumn(
                                     contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    state = pageListState,
+                                    state = activePageListState,
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .then(if (searchHazeEnabled) Modifier.hazeSourceCompat(state = hazeState) else Modifier)
@@ -1525,7 +1556,7 @@ fun SearchScreen(
                                 LazyColumn(
                                     contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    state = pageListState,
+                                    state = activePageListState,
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .then(if (searchHazeEnabled) Modifier.hazeSourceCompat(state = hazeState) else Modifier)
@@ -1579,7 +1610,7 @@ fun SearchScreen(
                                 LazyColumn(
                                     contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    state = pageListState,
+                                    state = activePageListState,
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .then(if (searchHazeEnabled) Modifier.hazeSourceCompat(state = hazeState) else Modifier)
@@ -1656,7 +1687,7 @@ fun SearchScreen(
                                 LazyColumn(
                                     contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    state = pageListState,
+                                    state = activePageListState,
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .then(if (searchHazeEnabled) Modifier.hazeSourceCompat(state = hazeState) else Modifier)
@@ -1699,7 +1730,7 @@ fun SearchScreen(
                                 LazyColumn(
                                     contentPadding = PaddingValues(top = 0.dp, bottom = resultBottomPadding, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    state = pageListState,
+                                    state = activePageListState,
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .then(if (searchHazeEnabled) Modifier.hazeSourceCompat(state = hazeState) else Modifier)
@@ -2449,105 +2480,33 @@ fun SearchHotSection(
 private fun SearchResultTypeTabRow(
     tabs: List<SearchType>,
     pagerState: PagerState,
-    onTabClick: (Int, SearchType) -> Unit
+    onTabClick: (Int, SearchType) -> Unit,
+    miuixBackdrop: MiuixBackdrop? = null,
 ) {
     if (tabs.isEmpty()) return
-    val colorScheme = MaterialTheme.colorScheme
-    val selectionColors = resolveFilledSelectionAccentColors(colorScheme)
-    val unselectedLabelColor = AppSurfaceTokens.onSurfaceVariantSummary()
-    val selectedLabelColor = selectionColors.contentColor
-    val uiStyle = LocalAppUiStyle.current
-    val pillCorner = AppShapes.resolveContainerCornerDp(ContainerLevel.Pill, uiStyle)
-    val density = LocalDensity.current
-    // Equal-width slots like home top tabs so SimpleLiquidIndicator can track by index.
-    val itemWidth = 64.dp
-    val itemWidthPx = with(density) { itemWidth.toPx() }
-    val rowHeight = 40.dp
-    val isScrolling = pagerState.isScrollInProgress
-    val selectedIndex = pagerState.currentPage.coerceIn(0, tabs.lastIndex)
-    // Same formula as home TopBar: live offset while scrolling, settle to current page at rest.
-    val indicatorPosition = resolveTopTabPagerPosition(
-        selectedIndex = selectedIndex,
-        pagerCurrentPage = pagerState.currentPage,
-        pagerTargetPage = pagerState.targetPage,
-        pagerCurrentPageOffsetFraction = pagerState.currentPageOffsetFraction,
-        pagerIsScrolling = isScrolling,
-    )
-    val nearestIndex = indicatorPosition.roundToInt().coerceIn(0, tabs.lastIndex)
-    val scrollState = rememberScrollState()
-
-    // Keep the moving capsule roughly in view while swiping across many types.
-    LaunchedEffect(nearestIndex, itemWidthPx) {
-        val targetPx = (nearestIndex * itemWidthPx - itemWidthPx).coerceAtLeast(0f).roundToInt()
-        if (abs(scrollState.value - targetPx) > itemWidthPx * 0.35f) {
-            scrollState.animateScrollTo(targetPx)
-        }
-    }
-
-    Box(
+    BottomBarLiquidSegmentedControl(
+        items = tabs.map { it.displayName },
+        selectedIndex = pagerState.currentPage.coerceIn(0, tabs.lastIndex),
+        onSelected = { index ->
+            tabs.getOrNull(index)?.let { onTabClick(index, it) }
+        },
         modifier = Modifier
             .fillMaxWidth()
-            .height(rowHeight)
-            .horizontalScroll(scrollState)
-            .padding(horizontal = 8.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .width(itemWidth * tabs.size)
-                .fillMaxHeight(),
-        ) {
-            SimpleLiquidIndicator(
-                position = indicatorPosition,
-                itemWidthPx = itemWidthPx,
-                isDragging = isScrolling,
-                indicatorColor = selectionColors.backgroundColor,
-                indicatorHeight = rowHeight - 8.dp,
-                cornerRadius = pillCorner,
-                widthRatio = 0.92f,
-                minWidth = 48.dp,
-                horizontalInset = 4.dp,
-                // Soft tonal pill: no optical highlight ring outside the capsule.
-                drawHighlightBorder = false,
-                modifier = Modifier.fillMaxSize(),
-            )
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                tabs.forEachIndexed { index, type ->
-                    val selectedStrength = (1f - abs(indicatorPosition - index)).coerceIn(0f, 1f)
-                    val labelColor = androidx.compose.ui.graphics.lerp(
-                        unselectedLabelColor,
-                        selectedLabelColor,
-                        selectedStrength,
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(itemWidth)
-                            .fillMaxHeight()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { onTabClick(index, type) },
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        AppText(
-                            text = type.displayName,
-                            maxLines = 1,
-                            fontWeight = if (selectedStrength > 0.55f) {
-                                FontWeight.SemiBold
-                            } else {
-                                FontWeight.Normal
-                            },
-                            fontSize = 13.sp,
-                            color = labelColor,
-                        )
-                    }
-                }
-            }
-        }
-    }
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+        indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+        labelFontSize = 13.sp,
+        miuixBackdrop = miuixBackdrop,
+        forceLiquidChrome = false,
+        liquidGlassEffectsEnabled = true,
+        tapPressRefractionEnabled = true,
+        dragSelectionEnabled = tabs.size > 1,
+        indicatorPositionProvider = {
+            pagerState.currentPage + pagerState.currentPageOffsetFraction
+        },
+        isScrollInProgressProvider = { pagerState.isScrollInProgress },
+        externalPagerMotionEffectsEnabled = true,
+    )
 }
 
 @Composable

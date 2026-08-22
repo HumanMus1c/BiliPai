@@ -4,7 +4,7 @@
 // the design-system damped-drag state stack used by top tabs / segmented controls.
 //
 // Three layers:
-//   Box(IntrinsicSize.Min)
+//   Box (caller owns width; do not force IntrinsicSize.Min or fillMaxWidth)
 //   ├─ Base Row (unselected)     // dropShadow + drawBackdrop(vibrancy+blur+lens) + shellHeight
 //   ├─ Foreground Row (active)   // alpha=0 + layerBackdrop(tabsBackdrop) + drawBackdrop + indicatorHeight
 //   └─ Moving indicator Box      // combinedBackdrop + lens(depth, chromatic) + innerShadow
@@ -24,13 +24,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredWidth
+import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
@@ -38,10 +39,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -58,6 +59,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
@@ -75,7 +78,9 @@ import com.android.purebilibili.feature.home.components.liquid.innerShadow
 import com.android.purebilibili.feature.home.components.liquid.lens
 import com.android.purebilibili.feature.home.components.liquid.rememberCombinedBackdrop
 import com.android.purebilibili.feature.home.components.liquid.vibrancy
+import com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorGeometry
 import com.android.purebilibili.feature.home.components.miuix.DampedDragAnimation
+import com.android.purebilibili.feature.home.components.miuix.DampedDragTrackingMode
 import com.android.purebilibili.feature.home.components.miuix.InteractiveHighlight
 import kotlin.math.PI
 import kotlin.math.abs
@@ -84,7 +89,6 @@ import kotlin.math.sign
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.blur.Backdrop
 import top.yukonga.miuix.kmp.blur.blur
@@ -202,6 +206,78 @@ internal fun rememberGravityRotatedHighlight(
     }
 }
 
+internal const val EXTERNAL_PAGER_INDICATOR_CATCH_UP_EPSILON = 0.05f
+
+/**
+ * After the indicator is dragged onto a new tab, the host pager still reports the old page
+ * for at least one frame. Keep that drag target so pager-follow cannot snap the pill back.
+ */
+internal fun resolveIndicatorOwnedTargetOnDragStop(
+    targetIndex: Int,
+    selectedIndex: Int,
+    hasExternalPagerPosition: Boolean,
+): Int? {
+    if (!hasExternalPagerPosition) return null
+    if (targetIndex == selectedIndex) return null
+    return targetIndex
+}
+
+/**
+ * Swallow pager-follow (snap + press) for the whole indicator-driven page animation.
+ * Dropping ownership as soon as the pager is close re-enters follow `press()` and the
+ * pill visibly blooms a second time while it is still moving.
+ */
+internal fun shouldSuppressExternalPagerIndicatorFollow(
+    ownedTargetIndex: Int?,
+    previousExternalPosition: Float?,
+    externalPosition: Float?,
+    isPagerScrolling: Boolean,
+    catchUpEpsilon: Float = EXTERNAL_PAGER_INDICATOR_CATCH_UP_EPSILON,
+): Boolean {
+    if (ownedTargetIndex == null) return false
+    val target = ownedTargetIndex.toFloat()
+    if (
+        previousExternalPosition != null &&
+        externalPosition != null &&
+        abs(externalPosition - target) > abs(previousExternalPosition - target) + 0.0001f
+    ) {
+        return false
+    }
+    if (isPagerScrolling) return true
+    if (externalPosition == null) return true
+    return !isExternalPagerCaughtUpToOwnedTarget(
+        ownedTargetIndex = ownedTargetIndex,
+        externalPosition = externalPosition,
+        catchUpEpsilon = catchUpEpsilon,
+    )
+}
+
+internal fun isExternalPagerCaughtUpToOwnedTarget(
+    ownedTargetIndex: Int?,
+    externalPosition: Float?,
+    catchUpEpsilon: Float = EXTERNAL_PAGER_INDICATOR_CATCH_UP_EPSILON,
+): Boolean {
+    if (ownedTargetIndex == null || externalPosition == null) return false
+    return abs(externalPosition - ownedTargetIndex.toFloat()) <= catchUpEpsilon
+}
+
+internal fun shouldAnimateIndicatorToSelectedIndex(
+    isDragging: Boolean,
+    indicatorTarget: Float,
+    selectedIndex: Int,
+    ownedTargetIndex: Int?,
+): Boolean {
+    if (isDragging) return false
+    if (abs(indicatorTarget - selectedIndex.toFloat()) <= 0.001f) return false
+    if (ownedTargetIndex != null && ownedTargetIndex != selectedIndex) return false
+    return true
+}
+
+private class ExternalPagerIndicatorFollowGate {
+    var ownedTargetIndex: Int? = null
+    var previousExternalPosition: Float? = null
+}
+
 @Composable
 fun RowScope.FloatingBottomBarItem(
     onClick: () -> Unit,
@@ -262,22 +338,84 @@ fun FloatingBottomBar(
     indicatorPositionProvider: (() -> Float)? = null,
     isScrollInProgressProvider: () -> Boolean = { false },
     dragSelectionEnabled: Boolean = true,
+    dragTrackingMode: DampedDragTrackingMode = DampedDragTrackingMode.SPRING,
+    liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
     content: @Composable RowScope.() -> Unit
 ) {
     val isInDark = isSystemInDarkTheme()
     val pillShape = remember { CircleShape }
     val isLiquidGlassMode = mode == FloatingBottomBarMode.LiquidGlass
     val isBlurMode = mode == FloatingBottomBarMode.Blur
+    val readabilityScrimColor = if (isInDark) Color.Black else Color.White
     val containerColor =
-        if (isLiquidGlassMode) colors.containerColor.copy(alpha = 0.4f) else colors.containerColor
+        if (isLiquidGlassMode) {
+            colors.containerColor.copy(alpha = liquidGlassTuning.surfaceAlpha)
+        } else {
+            colors.containerColor
+        }
 
     val tabsBackdrop = rememberLayerBackdrop()
     val density = LocalDensity.current
+    val shellLensPx = with(density) { resolveCompactDockLensDp(shellHeight.value).dp.toPx() }
+    val pressBloomPx = with(density) { resolveCompactDockPressBloomDp(shellHeight.value).dp.toPx() }
+    val indicatorLensHeightPx = with(density) {
+        resolveCompactDockIndicatorLensHeightDp(shellHeight.value).dp.toPx()
+    }
+    val indicatorLensAmountPx = with(density) {
+        resolveCompactDockIndicatorLensAmountDp(shellHeight.value).dp.toPx()
+    }
+    val innerShadowRadius = resolveCompactDockInnerShadowRadiusDp(shellHeight.value).dp
+    val tabPressScale = remember(shellHeight) {
+        resolveCompactDockTabPressScale(shellHeight.value)
+    }
+    val scaleOverflowDp = remember(shellHeight, indicatorHeight) {
+        resolveCompactDockScaleOverflowDp(
+            shellHeightDp = shellHeight.value,
+            indicatorHeightDp = indicatorHeight.value,
+        ).dp
+    }
     val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
+    val layoutDirection = LocalLayoutDirection.current
+    val configuration = LocalConfiguration.current
+    val systemGestures = WindowInsets.systemGestures
     val animationScope = rememberCoroutineScope()
 
     var tabWidthPx by remember { mutableFloatStateOf(0f) }
     var totalWidthPx by remember { mutableFloatStateOf(0f) }
+    val fittedIndicatorHeight = resolveFloatingDockIndicatorHeightDp(
+        requestedHeightDp = indicatorHeight.value,
+        tabWidthDp = with(density) { tabWidthPx.toDp().value },
+    ).dp
+    val matchedGeometry = remember(shellHeight, fittedIndicatorHeight) {
+        resolveMatchedLiquidIndicatorGeometry(
+            dockHeightDp = shellHeight.value,
+            indicatorHeightDp = fittedIndicatorHeight.value,
+        )
+    }
+
+    class DockDragHitTest {
+        var dockWindowLeftPx = 0f
+        var screenWidthPx = 0f
+        var leftInsetPx = 0f
+        var rightInsetPx = 0f
+    }
+
+    val dragHitTest = remember { DockDragHitTest() }
+    val fallbackEdgePx = with(density) { FLOATING_DOCK_PREDICTIVE_BACK_EDGE_DP.dp.toPx() }
+    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
+    val leftInsetPx = resolveFloatingDockDragEdgeInsetPx(
+        systemInsetPx = systemGestures.getLeft(density, layoutDirection).toFloat(),
+        fallbackPx = fallbackEdgePx,
+    )
+    val rightInsetPx = resolveFloatingDockDragEdgeInsetPx(
+        systemInsetPx = systemGestures.getRight(density, layoutDirection).toFloat(),
+        fallbackPx = fallbackEdgePx,
+    )
+    SideEffect {
+        dragHitTest.screenWidthPx = screenWidthPx
+        dragHitTest.leftInsetPx = leftInsetPx
+        dragHitTest.rightInsetPx = rightInsetPx
+    }
 
     val offsetAnimation = remember { Animatable(0f) }
     val rubberBandPx = with(density) { 4.dp.toPx() }
@@ -294,9 +432,11 @@ fun FloatingBottomBar(
 
     val safeTabsCount = tabsCount.coerceAtLeast(1)
     val maxTabIndex = (safeTabsCount - 1).coerceAtLeast(0)
-    var currentIndex by remember(selectedIndex) {
-        mutableIntStateOf(selectedIndex().coerceIn(0, maxTabIndex))
-    }
+    val selectedIndexLatest = rememberUpdatedState(selectedIndex)
+    val onSelectedLatest = rememberUpdatedState(onSelected)
+    val indicatorPositionLatest by rememberUpdatedState(indicatorPositionProvider)
+    val isScrollInProgressLatest by rememberUpdatedState(isScrollInProgressProvider)
+    val pagerFollowGate = remember { ExternalPagerIndicatorFollowGate() }
 
     class DampedDragAnimationHolder {
         var instance: DampedDragAnimation? = null
@@ -304,14 +444,22 @@ fun FloatingBottomBar(
 
     val holder = remember { DampedDragAnimationHolder() }
 
-    val dampedDragAnimation = remember(animationScope, safeTabsCount, density, isLtr) {
+    val dampedDragAnimation = remember(
+        animationScope,
+        safeTabsCount,
+        density,
+        isLtr,
+        matchedGeometry.pressedScale,
+        dragTrackingMode,
+    ) {
         DampedDragAnimation(
             animationScope = animationScope,
-            initialValue = selectedIndex().coerceIn(0, maxTabIndex).toFloat(),
+            initialValue = selectedIndexLatest.value().coerceIn(0, maxTabIndex).toFloat(),
             valueRange = 0f..maxTabIndex.toFloat(),
             visibilityThreshold = 0.001f,
             initialScale = 1f,
-            pressedScale = FloatingBottomBarPressedScale,
+            pressedScale = matchedGeometry.pressedScale,
+            trackingMode = dragTrackingMode,
             canDrag = { offset ->
                 val animation = holder.instance ?: return@DampedDragAnimation true
                 if (tabWidthPx == 0f) return@DampedDragAnimation false
@@ -323,13 +471,33 @@ fun FloatingBottomBar(
                 } else {
                     totalWidthPx - padding - tabWidthPx - indicatorX + offset.x
                 }
-                globalTouchX in 0f..totalWidthPx
+                if (globalTouchX !in 0f..totalWidthPx) return@DampedDragAnimation false
+                shouldAcceptFloatingDockDragAtWindowX(
+                    windowX = dragHitTest.dockWindowLeftPx + globalTouchX,
+                    screenWidthPx = dragHitTest.screenWidthPx,
+                    leftInsetPx = dragHitTest.leftInsetPx,
+                    rightInsetPx = dragHitTest.rightInsetPx,
+                )
             },
-            onDragStarted = {},
+            onDragStarted = {
+                pagerFollowGate.ownedTargetIndex = null
+                pagerFollowGate.previousExternalPosition = null
+            },
             onDragStopped = {
                 val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, maxTabIndex)
-                currentIndex = targetIndex
-                animateToValue(targetIndex.toFloat())
+                // The pointer gesture already owns press/release. Only settle the value here so
+                // release is not launched twice and the indicator cannot visibly rebound twice.
+                animateToValue(targetIndex.toFloat(), animatePress = false)
+                val selected = selectedIndexLatest.value().coerceIn(0, maxTabIndex)
+                pagerFollowGate.ownedTargetIndex = resolveIndicatorOwnedTargetOnDragStop(
+                    targetIndex = targetIndex,
+                    selectedIndex = selected,
+                    hasExternalPagerPosition = indicatorPositionLatest != null,
+                )
+                pagerFollowGate.previousExternalPosition = null
+                if (targetIndex != selected) {
+                    onSelectedLatest.value(targetIndex)
+                }
                 animationScope.launch {
                     offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
                 }
@@ -348,29 +516,55 @@ fun FloatingBottomBar(
         ).also { holder.instance = it }
     }
 
-    val indicatorPositionLatest by rememberUpdatedState(indicatorPositionProvider)
-    val isScrollInProgressLatest by rememberUpdatedState(isScrollInProgressProvider)
-
-    LaunchedEffect(selectedIndex) {
-        snapshotFlow { selectedIndex().coerceIn(0, maxTabIndex) }
-            .collectLatest { currentIndex = it }
-    }
-    LaunchedEffect(dampedDragAnimation) {
-        snapshotFlow { currentIndex }
-            .drop(1)
+    LaunchedEffect(dampedDragAnimation, maxTabIndex) {
+        snapshotFlow { selectedIndexLatest.value().coerceIn(0, maxTabIndex) }
             .collectLatest { index ->
-                dampedDragAnimation.animateToValue(index.toFloat())
-                onSelected(index)
+                if (
+                    shouldAnimateIndicatorToSelectedIndex(
+                        isDragging = dampedDragAnimation.isDragging,
+                        indicatorTarget = dampedDragAnimation.targetValue,
+                        selectedIndex = index,
+                        ownedTargetIndex = pagerFollowGate.ownedTargetIndex,
+                    )
+                ) {
+                    dampedDragAnimation.animateToValue(index.toFloat())
+                }
             }
     }
     LaunchedEffect(dampedDragAnimation, maxTabIndex) {
+        var pagerPressed = false
         snapshotFlow {
             val external = indicatorPositionLatest?.invoke()
             val scrolling = isScrollInProgressLatest()
             Triple(external, scrolling, dampedDragAnimation.isDragging)
-        }.collectLatest { (external, scrolling, dragging) ->
-            if (dragging || !scrolling || external == null) return@collectLatest
-            dampedDragAnimation.snapTo(external.coerceIn(0f, maxTabIndex.toFloat()))
+        }.collect { (external, scrolling, dragging) ->
+            if (dragging) {
+                pagerPressed = false
+                return@collect
+            }
+            if (
+                shouldSuppressExternalPagerIndicatorFollow(
+                    ownedTargetIndex = pagerFollowGate.ownedTargetIndex,
+                    previousExternalPosition = pagerFollowGate.previousExternalPosition,
+                    externalPosition = external,
+                    isPagerScrolling = scrolling,
+                )
+            ) {
+                pagerFollowGate.previousExternalPosition = external
+                return@collect
+            }
+            pagerFollowGate.ownedTargetIndex = null
+            pagerFollowGate.previousExternalPosition = external
+            if (scrolling && external != null) {
+                if (!pagerPressed) {
+                    dampedDragAnimation.press()
+                    pagerPressed = true
+                }
+                dampedDragAnimation.snapTo(external.coerceIn(0f, maxTabIndex.toFloat()))
+            } else if (pagerPressed) {
+                pagerPressed = false
+                dampedDragAnimation.release()
+            }
         }
     }
 
@@ -405,7 +599,12 @@ fun FloatingBottomBar(
     }
 
     Box(
-        modifier = modifier.width(IntrinsicSize.Min),
+        modifier = modifier
+            .floatingDockScaleOverflow(
+                overflow = scaleOverflowDp,
+                shellHeight = shellHeight,
+            )
+            .graphicsLayer { clip = false },
         contentAlignment = Alignment.CenterStart
     ) {
         CompositionLocalProvider(LocalFloatingBottomBarContentColor provides colors.contentColor) {
@@ -413,10 +612,14 @@ fun FloatingBottomBar(
                 Modifier
                     .onGloballyPositioned { coords ->
                         totalWidthPx = coords.size.width.toFloat()
+                        dragHitTest.dockWindowLeftPx = coords.positionInWindow().x
                         val contentWidthPx = totalWidthPx - with(density) { 8.dp.toPx() }
                         tabWidthPx = (contentWidthPx / safeTabsCount).coerceAtLeast(0f)
                     }
-                    .graphicsLayer { translationX = panelOffset }
+                    .graphicsLayer {
+                        translationX = panelOffset
+                        clip = false
+                    }
                     .dropShadow(
                         shape = pillShape,
                         shadow = Shadow(
@@ -437,11 +640,18 @@ fun FloatingBottomBar(
                                     backdrop = backdrop,
                                     shape = { pillShape },
                                     effects = {
-                                        vibrancy()
-                                        blur(4.dp.toPx(), 4.dp.toPx())
+                                        vibrancy(liquidGlassTuning.saturation)
+                                        blur(
+                                            liquidGlassTuning.backdropBlurRadius.dp.toPx(),
+                                            liquidGlassTuning.backdropBlurRadius.dp.toPx()
+                                        )
                                         lens(
-                                            refractionHeight = 24.dp.toPx(),
-                                            refractionAmount = 24.dp.toPx(),
+                                            refractionHeight = shellLensPx *
+                                                liquidGlassTuning.refractionHeight / 24f,
+                                            refractionAmount = shellLensPx *
+                                                liquidGlassTuning.refractionAmount / 24f,
+                                            depthEffect = liquidGlassTuning.depthEffectEnabled,
+                                            chromaticAberration = liquidGlassTuning.chromaticAberrationAmount,
                                         )
                                     },
                                     highlight = { baseHighlight.copy(alpha = 0.75f) },
@@ -449,13 +659,22 @@ fun FloatingBottomBar(
                                         val width = size.width.coerceAtLeast(1f)
                                         val s = lerp(
                                             1f,
-                                            1f + 16.dp.toPx() / width,
+                                            1f + pressBloomPx / width,
                                             dampedDragAnimation.pressProgress
                                         )
                                         scaleX = s
                                         scaleY = s
                                     },
-                                    onDrawSurface = { drawRect(containerColor) },
+                                    onDrawSurface = {
+                                        drawRect(containerColor)
+                                        if (liquidGlassTuning.contentReadabilityScrimAlpha > 0f) {
+                                            drawRect(
+                                                readabilityScrimColor.copy(
+                                                    alpha = liquidGlassTuning.contentReadabilityScrimAlpha
+                                                )
+                                            )
+                                        }
+                                    },
                                 )
                             }
                             isBlurMode && backdrop != null -> {
@@ -492,7 +711,7 @@ fun FloatingBottomBar(
         if (isLiquidGlassMode && backdrop != null) {
             CompositionLocalProvider(
                 LocalFloatingBottomBarTabScale provides {
-                    lerp(1f, 1.2f, dampedDragAnimation.pressProgress)
+                    lerp(1f, tabPressScale, dampedDragAnimation.pressProgress)
                 },
                 LocalFloatingBottomBarContentColor provides colors.activeContentColor,
                 LocalFloatingBottomBarActiveContent provides true
@@ -502,22 +721,41 @@ fun FloatingBottomBar(
                         .clearAndSetSemantics {}
                         .alpha(0f)
                         .layerBackdrop(tabsBackdrop)
-                        .graphicsLayer { translationX = panelOffset }
+                        .graphicsLayer {
+                            translationX = panelOffset
+                            clip = false
+                        }
                         .drawBackdrop(
                             backdrop = backdrop,
                             shape = { pillShape },
                             effects = {
-                                vibrancy()
-                                blur(4.dp.toPx(), 4.dp.toPx())
+                                vibrancy(liquidGlassTuning.saturation)
+                                blur(
+                                    liquidGlassTuning.backdropBlurRadius.dp.toPx(),
+                                    liquidGlassTuning.backdropBlurRadius.dp.toPx()
+                                )
                                 lens(
-                                    refractionHeight = 24.dp.toPx(),
-                                    refractionAmount = 24.dp.toPx(),
+                                    refractionHeight = shellLensPx *
+                                        liquidGlassTuning.refractionHeight / 24f,
+                                    refractionAmount = shellLensPx *
+                                        liquidGlassTuning.refractionAmount / 24f,
+                                    depthEffect = liquidGlassTuning.depthEffectEnabled,
+                                    chromaticAberration = liquidGlassTuning.chromaticAberrationAmount,
                                 )
                             },
-                            onDrawSurface = { drawRect(containerColor) },
+                            onDrawSurface = {
+                                drawRect(containerColor)
+                                if (liquidGlassTuning.contentReadabilityScrimAlpha > 0f) {
+                                    drawRect(
+                                        readabilityScrimColor.copy(
+                                            alpha = liquidGlassTuning.contentReadabilityScrimAlpha
+                                        )
+                                    )
+                                }
+                            },
                         )
                         .then(interactiveHighlight?.modifier ?: Modifier)
-                        .height(indicatorHeight)
+                        .height(fittedIndicatorHeight)
                         .padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -539,6 +777,7 @@ fun FloatingBottomBar(
                             } else {
                                 -progressOffset + panelOffset
                             }
+                            clip = false
                         }
                         .then(interactiveHighlight?.gestureModifier ?: Modifier)
                         .then(
@@ -564,10 +803,17 @@ fun FloatingBottomBar(
                             effects = {
                                 val progress = dampedDragAnimation.pressProgress
                                 lens(
-                                    refractionHeight = 10.dp.toPx() * progress,
-                                    refractionAmount = 14.dp.toPx() * progress,
-                                    depthEffect = true,
-                                    chromaticAberration = 0.5f,
+                                    refractionHeight = indicatorLensHeightPx * progress *
+                                        liquidGlassTuning.indicatorLensBoost *
+                                        liquidGlassTuning.contentDistortionScale,
+                                    refractionAmount = indicatorLensAmountPx * progress *
+                                        liquidGlassTuning.indicatorEdgeWarpBoost *
+                                        liquidGlassTuning.contentDistortionScale,
+                                    depthEffect = liquidGlassTuning.depthEffectEnabled,
+                                    chromaticAberration =
+                                        resolveLiquidGlassIndicatorChromaticAberration(
+                                            liquidGlassTuning
+                                        ),
                                 )
                             },
                             highlight = {
@@ -595,12 +841,12 @@ fun FloatingBottomBar(
                         )
                         .innerShadow(shape = pillShape) {
                             InnerShadow(
-                                radius = 8.dp * dampedDragAnimation.pressProgress,
+                                radius = innerShadowRadius * dampedDragAnimation.pressProgress,
                                 color = Color.Black.copy(alpha = 0.15f),
                                 alpha = dampedDragAnimation.pressProgress,
                             )
                         }
-                        .height(indicatorHeight)
+                        .height(fittedIndicatorHeight)
                         .width(tabWidthDp)
                 )
             } else {
@@ -614,6 +860,7 @@ fun FloatingBottomBar(
                             } else {
                                 -progressOffset + panelOffset
                             }
+                            clip = false
                         }
                         .then(
                             if (dragSelectionEnabled && safeTabsCount > 1) {
@@ -624,7 +871,7 @@ fun FloatingBottomBar(
                         )
                         .clip(pillShape)
                         .background(colors.indicatorColor.copy(alpha = 0.15f), pillShape)
-                        .height(indicatorHeight)
+                        .height(fittedIndicatorHeight)
                         .width(tabWidthDp),
                     contentAlignment = Alignment.CenterStart
                 ) {
@@ -641,7 +888,7 @@ fun FloatingBottomBar(
                                         (totalWidthPx - 8.dp.toPx()).toDp()
                                     }
                                 )
-                                .height(indicatorHeight)
+                                .height(fittedIndicatorHeight)
                                 .graphicsLayer {
                                     val progressOffset = dampedDragAnimation.value * tabWidthPx
                                     translationX = if (isLtr) -progressOffset else progressOffset

@@ -1798,6 +1798,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
         }
         _player?.prepare()
         _player?.playWhenReady = true
+        requestForegroundServiceIfNeeded()
 
         // 更新媒体元数据
         updateMediaMetadata(title, owner, cover)
@@ -1835,6 +1836,7 @@ class MiniPlayerManager private constructor(private val context: Context) :
         isActive = true
         isMiniMode = false
         isLeavingByNavigation = false
+        requestForegroundServiceIfNeeded()
 
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
@@ -2034,10 +2036,11 @@ class MiniPlayerManager private constructor(private val context: Context) :
         externalPlayer.addListener(playerListener)
         isActive = true
         isMiniMode = false
-        
+
         // 🎯 [修复] 统一 MediaSession 管理：将外部播放器关联到全局 Session
         // 这样在 Activity 销毁后，后台服务仍能通过此 Session 控制播放
         updateMediaSession(externalPlayer)
+        requestForegroundServiceIfNeeded()
         
         // 同步播放状态
         isPlaying = resolveNotificationIsPlaying(
@@ -2088,8 +2091,9 @@ class MiniPlayerManager private constructor(private val context: Context) :
         externalPlayer.addListener(playerListener)
         isActive = true
         isMiniMode = false
-        
+
         updateMediaSession(externalPlayer)
+        requestForegroundServiceIfNeeded()
         isPlaying = resolveNotificationIsPlaying(
             playerIsPlaying = externalPlayer.isPlaying,
             cachedIsPlaying = isPlaying
@@ -2515,6 +2519,8 @@ class MiniPlayerManager private constructor(private val context: Context) :
                 }
                 Player.STATE_ENDED -> {
                     Logger.d(TAG, "Playback ended")
+                    playbackServiceRequested = false
+                    clearPlaybackNotificationArtifacts()
                 }
             }
         }

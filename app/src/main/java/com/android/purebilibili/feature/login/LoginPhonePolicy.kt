@@ -111,6 +111,16 @@ fun isPhoneEligibleForCaptcha(phoneDigits: String, region: PhoneRegion): Boolean
     return isPhoneDigitsValidForRegion(phoneDigits = phoneDigits, region = region)
 }
 
+/**
+ * App SMS/login `cid` used by PiliPlus `LoginHttp.sendSmsCode`.
+ *
+ * Passport's country list `id` (China = 1) is only for UI grouping.
+ * The Android-HD SMS endpoints expect `country_id` (China = 86).
+ */
+fun resolveSmsApiCid(region: PhoneRegion): Int {
+    return region.countryId.toIntOrNull() ?: region.cid
+}
+
 fun resolveCaptchaDialogLayoutPolicy(
     screenWidthPx: Int,
     screenHeightPx: Int,

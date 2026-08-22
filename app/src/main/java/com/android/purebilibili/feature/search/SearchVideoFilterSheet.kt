@@ -43,8 +43,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.BottomSheetHost
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
@@ -76,7 +79,8 @@ fun SearchVideoFilterBar(
     onVideoTidChange: (Int) -> Unit,
     onPubTimeTypeChange: (SearchVideoPubTimeType) -> Unit,
     onCustomPubTimeRange: (Long, Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    miuixBackdrop: MiuixBackdrop? = null,
 ) {
     var showFilterSheet by remember { mutableStateOf(false) }
     val filterActive = hasActiveSearchVideoFilters(
@@ -85,8 +89,6 @@ fun SearchVideoFilterBar(
         pubTimeType = currentPubTimeType
     )
     val orderOptions = remember { resolveSearchVideoOrderOptions() }
-    val primary = MaterialTheme.colorScheme.primary
-    val outline = MaterialTheme.colorScheme.outline
 
     Row(
         modifier = modifier
@@ -94,26 +96,22 @@ fun SearchVideoFilterBar(
             .padding(start = 8.dp, end = 4.dp, top = 2.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            orderOptions.forEach { order ->
-                val selected = order == currentOrder
-                AppText(
-                    text = resolveSearchOrderChipLabel(order),
-                    modifier = Modifier
-                        .clickable { onOrderChange(order) }
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    color = if (selected) primary else outline,
-                    fontSize = 13.sp,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                )
-            }
-        }
+        BottomBarLiquidSegmentedControl(
+            items = orderOptions.map(::resolveSearchOrderChipLabel),
+            selectedIndex = orderOptions.indexOf(currentOrder).coerceAtLeast(0),
+            onSelected = { index ->
+                orderOptions.getOrNull(index)?.let(onOrderChange)
+            },
+            modifier = Modifier.weight(1f),
+            height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+            indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+            labelFontSize = 13.sp,
+            miuixBackdrop = miuixBackdrop,
+            forceLiquidChrome = false,
+            liquidGlassEffectsEnabled = true,
+            tapPressRefractionEnabled = true,
+            dragSelectionEnabled = orderOptions.size > 1,
+        )
         VerticalDivider(
             modifier = Modifier
                 .height(18.dp)
@@ -141,7 +139,11 @@ fun SearchVideoFilterBar(
             AppIcon(
                 imageVector = Icons.Outlined.FilterList,
                 contentDescription = "筛选",
-                tint = if (filterActive) primary else outline,
+                tint = if (filterActive) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.outline
+                },
                 modifier = Modifier.size(20.dp)
             )
         }

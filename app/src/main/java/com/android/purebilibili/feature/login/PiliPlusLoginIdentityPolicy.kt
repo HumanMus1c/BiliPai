@@ -40,6 +40,16 @@ internal fun createPiliPlusLoginIdentity(
     return PiliPlusLoginIdentity(buvid = buvid, deviceId = deviceId)
 }
 
+internal fun createPiliPlusRandomString(
+    length: Int,
+    random: SecureRandom = SecureRandom(),
+): String {
+    val characters = "0123456789abcdefghijklmnopqrstuvwxyz"
+    return buildString(length) {
+        repeat(length) { append(characters[random.nextInt(characters.length)]) }
+    }
+}
+
 private fun toBcd(value: Int): Int = ((value / 10) shl 4) or (value % 10)
 
 private fun md5Hex(bytes: ByteArray): String = MessageDigest.getInstance("MD5")

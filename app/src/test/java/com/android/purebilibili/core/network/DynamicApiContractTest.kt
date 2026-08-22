@@ -196,14 +196,14 @@ class DynamicApiContractTest {
     }
 
     @Test
-    fun getOpusDetail_usesDocumentedOpusDetailEndpointAndIdQuery() {
+    fun getOpusDetail_usesDocumentedOpusDetailEndpointAndQueryMap() {
         val method = DynamicApi::class.java.methods.first { it.name == "getOpusDetail" }
         val get = method.getAnnotation(GET::class.java)
         assertEquals("x/polymer/web-dynamic/v1/opus/detail", get?.value)
 
         val firstParamAnnotations = method.parameterAnnotations[0].toList()
-        val idQuery = firstParamAnnotations.filterIsInstance<Query>().firstOrNull()
-        assertEquals("id", idQuery?.value)
+        assertTrue(firstParamAnnotations.any { it is QueryMap })
+        assertEquals("htmlNewStyle", OPUS_DETAIL_FEATURES)
     }
 
     @Test

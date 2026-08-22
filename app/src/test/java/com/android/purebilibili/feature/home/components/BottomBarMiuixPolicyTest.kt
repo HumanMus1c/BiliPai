@@ -157,8 +157,8 @@ class BottomBarMiuixPolicyTest {
         assertTrue(floating.contains(".layerBackdrop(tabsBackdrop)"))
         assertTrue(floating.contains("rememberCombinedBackdrop(backdrop, tabsBackdrop)"))
         assertTrue(floating.contains("blur(4.dp.toPx(), 4.dp.toPx())"))
-        assertTrue(floating.contains("refractionHeight = 24.dp.toPx()"))
-        assertTrue(floating.contains("refractionAmount = 24.dp.toPx()"))
+        assertTrue(floating.contains("refractionHeight = shellLensPx"))
+        assertTrue(floating.contains("refractionAmount = shellLensPx"))
         assertTrue(floating.contains("FloatingBottomBarPressedScale: Float = 78f / 56f"))
     }
 

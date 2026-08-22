@@ -2,7 +2,6 @@ package com.android.purebilibili.feature.dynamic.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,15 +11,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.AppSpacingTokens
-import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextField
 import com.android.purebilibili.data.model.response.DynamicCreatedVote
 import com.android.purebilibili.data.repository.DynamicCreateRepository
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 @Composable
 fun DynamicCreateVoteDialog(
@@ -41,8 +45,12 @@ fun DynamicCreateVoteDialog(
         onDismissRequest = onDismiss,
         title = { AppText("发起投票") },
         text = {
+            val voteChromeBackdrop = rememberLayerBackdrop()
+            val choiceLabels = remember { listOf("单选", "多选") }
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .layerBackdrop(voteChromeBackdrop),
                 verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
             ) {
                 AppTextField(value = title, onValueChange = { title = it }, placeholder = "投票标题", singleLine = true)
@@ -50,18 +58,19 @@ fun DynamicCreateVoteDialog(
                 AppTextField(value = optionOne, onValueChange = { optionOne = it }, placeholder = "选项 1", singleLine = true)
                 AppTextField(value = optionTwo, onValueChange = { optionTwo = it }, placeholder = "选项 2", singleLine = true)
                 AppTextField(value = optionThree, onValueChange = { optionThree = it }, placeholder = "选项 3（可选）", singleLine = true)
-                Row(horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
-                    AppFilterChip(
-                        selected = choiceCount == 1,
-                        onClick = { choiceCount = 1 },
-                        label = { AppText("单选") }
-                    )
-                    AppFilterChip(
-                        selected = choiceCount > 1,
-                        onClick = { choiceCount = 2 },
-                        label = { AppText("多选") }
-                    )
-                }
+                BottomBarLiquidSegmentedControl(
+                    items = choiceLabels,
+                    selectedIndex = if (choiceCount == 1) 0 else 1,
+                    onSelected = { index -> choiceCount = if (index == 0) 1 else 2 },
+                    itemWidth = 66.dp,
+                    height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+                    indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+                    labelFontSize = 13.sp,
+                    miuixBackdrop = voteChromeBackdrop,
+                    forceLiquidChrome = false,
+                    liquidGlassEffectsEnabled = true,
+                    tapPressRefractionEnabled = true,
+                )
                 errorMessage?.let { AppText(it) }
             }
         },

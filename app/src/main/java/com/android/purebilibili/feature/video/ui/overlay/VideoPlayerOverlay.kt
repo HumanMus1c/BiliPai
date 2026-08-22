@@ -1053,57 +1053,8 @@ fun VideoPlayerOverlay(
                 if (landscapeCommentPanelOnLeft) 0.dp else landscapeCommentReservedWidth,
         )
 
-    // 📺 按需权限请求（局域网发现：Android 13+ 附近设备；Android 12 仍依赖定位）
-    val dlnaPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val isGranted = permissions.values.any { it }
-        if (!isGranted) {
-            com.android.purebilibili.core.util.Logger.d(
-                "VideoPlayerOverlay",
-                "DLNA/local-network permissions denied; still open cast dialog for guidance"
-            )
-        }
-        // 即使拒绝也打开弹窗：便于用户看到排查说明，并在系统权限页授权后点刷新重试。
-        showCastDialog = true
-    }
-
-    val onCastClickAction = {
-        when {
-            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU -> {
-                val nearbyGranted = androidx.core.content.ContextCompat.checkSelfPermission(
-                    context,
-                    android.Manifest.permission.NEARBY_WIFI_DEVICES
-                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                if (nearbyGranted) {
-                    showCastDialog = true
-                } else {
-                    dlnaPermissionLauncher.launch(arrayOf(android.Manifest.permission.NEARBY_WIFI_DEVICES))
-                }
-            }
-            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S -> {
-                val fineGranted = androidx.core.content.ContextCompat.checkSelfPermission(
-                    context,
-                    android.Manifest.permission.ACCESS_FINE_LOCATION
-                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                val coarseGranted = androidx.core.content.ContextCompat.checkSelfPermission(
-                    context,
-                    android.Manifest.permission.ACCESS_COARSE_LOCATION
-                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                if (fineGranted || coarseGranted) {
-                    showCastDialog = true
-                } else {
-                    dlnaPermissionLauncher.launch(
-                        arrayOf(
-                            android.Manifest.permission.ACCESS_FINE_LOCATION,
-                            android.Manifest.permission.ACCESS_COARSE_LOCATION
-                        )
-                    )
-                }
-            }
-            else -> showCastDialog = true
-        }
-    }
+    // 先打开设备面板；只有用户选择搜索 DLNA 时才请求原始局域网权限。
+    val onCastClickAction = { showCastDialog = true }
 
     val progressState by produceState(
         initialValue = PlayerProgress(),

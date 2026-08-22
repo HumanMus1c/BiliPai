@@ -1,4 +1,9 @@
 package com.android.purebilibili.feature.cast
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
@@ -16,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.plugin.CastPluginApi
+import com.android.purebilibili.core.plugin.CastDiscoveryRequirement
 import com.android.purebilibili.core.plugin.CastPluginRoute
 import com.android.purebilibili.core.plugin.PluginManager
 import kotlinx.coroutines.flow.combine
@@ -25,6 +31,9 @@ import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppListItem
 import com.android.purebilibili.core.ui.components.AppTextButton
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 private data class PluginRouteEntry(
     val plugin: CastPluginApi,
@@ -48,6 +57,38 @@ fun DeviceListDialog(
     }
     val castPlugins = remember(castPluginInfos) {
         castPluginInfos.filter { it.first.enabled }.map { it.second }
+    }
+    val rawLocalNetworkPlugins = remember(castPlugins) {
+        castPlugins.filter { it.discoveryRequirement == CastDiscoveryRequirement.RAW_LOCAL_NETWORK }
+    }
+    var rawLocalNetworkAccessGranted by remember(context) {
+        mutableStateOf(hasRawLocalNetworkAccess(context))
+    }
+    var permissionRequested by remember { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        permissionRequested = true
+        rawLocalNetworkAccessGranted = hasRawLocalNetworkAccess(context)
+        if (rawLocalNetworkAccessGranted) {
+            rawLocalNetworkPlugins.forEach { it.startRouteDiscovery(context) }
+        } else {
+            rawLocalNetworkPlugins.forEach { it.onDiscoveryAccessRevoked() }
+        }
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, rawLocalNetworkPlugins) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val accessNow = hasRawLocalNetworkAccess(context)
+                if (rawLocalNetworkAccessGranted && !accessNow) {
+                    rawLocalNetworkPlugins.forEach { it.onDiscoveryAccessRevoked() }
+                }
+                rawLocalNetworkAccessGranted = accessNow
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val hasDisabledCastPlugins = remember(castPluginInfos) {
         castPluginInfos.any { !it.first.enabled }
@@ -75,8 +116,13 @@ fun DeviceListDialog(
         }.collect { value = it }
     }
 
-    DisposableEffect(castPlugins) {
-        castPlugins.forEach { it.startRouteDiscovery(context) }
+    DisposableEffect(castPlugins, rawLocalNetworkAccessGranted) {
+        castPlugins
+            .filter { plugin ->
+                plugin.discoveryRequirement != CastDiscoveryRequirement.RAW_LOCAL_NETWORK ||
+                    rawLocalNetworkAccessGranted
+            }
+            .forEach { it.startRouteDiscovery(context) }
         onDispose {
             castPlugins.forEach { it.stopRouteDiscovery() }
         }
@@ -93,7 +139,12 @@ fun DeviceListDialog(
                     enabled = !isDiscovering,
                     onClick = {
                         if (!isDiscovering) {
-                            castPlugins.forEach { it.refreshRouteDiscovery(context) }
+                            castPlugins
+                                .filter { plugin ->
+                                    plugin.discoveryRequirement != CastDiscoveryRequirement.RAW_LOCAL_NETWORK ||
+                                        rawLocalNetworkAccessGranted
+                                }
+                                .forEach { it.refreshRouteDiscovery(context) }
                         }
                     }
                 ) {
@@ -113,6 +164,57 @@ fun DeviceListDialog(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+            } else if (
+                !hasDevices &&
+                !rawLocalNetworkAccessGranted &&
+                rawLocalNetworkPlugins.isNotEmpty()
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                ) {
+                    AppText("DLNA 需要本地网络权限", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(6.dp))
+                    AppText(
+                        if (permissionRequested) {
+                            "权限未开启，DLNA 搜索已停止。Google Cast 仍可正常使用。"
+                        } else {
+                            "仅在搜索局域网中的 DLNA 电视时使用，不会上传局域网信息。"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    AppTextButton(
+                        onClick = {
+                            val permissions = localNetworkRuntimePermissions()
+                            if (permissions.isEmpty()) {
+                                rawLocalNetworkAccessGranted = true
+                                rawLocalNetworkPlugins.forEach { it.startRouteDiscovery(context) }
+                            } else {
+                                permissionLauncher.launch(permissions)
+                            }
+                        }
+                    ) {
+                        AppText("允许并搜索 DLNA")
+                    }
+                    if (permissionRequested) {
+                        AppTextButton(
+                            onClick = {
+                                runCatching {
+                                    context.startActivity(
+                                        Intent(
+                                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                            Uri.fromParts("package", context.packageName, null)
+                                        )
+                                    )
+                                }
+                            }
+                        ) {
+                            AppText("前往系统设置")
+                        }
                     }
                 }
             } else if (!hasDevices && !isDiscovering) {
@@ -145,18 +247,38 @@ fun DeviceListDialog(
                     }
                 }
             } else {
-                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
-                    items(pluginRouteEntries, key = { "${it.plugin.id}:${it.route.routeId}" }) { entry ->
-                        val plugin = entry.plugin
-                        val route = entry.route
-                        AppListItem(
-                            headlineContent = { AppText(route.name) },
-                            supportingContent = { AppText(route.description ?: plugin.name) },
-                            leadingContent = { AppIcon(route.icon ?: plugin.icon ?: Icons.Rounded.Cast, null) },
-                            modifier = Modifier
-                                .clickable { onPluginCastDeviceSelected(plugin, route) }
-                                .fillMaxWidth()
-                        )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (!rawLocalNetworkAccessGranted && rawLocalNetworkPlugins.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AppText(
+                                "Google Cast 已可用；授权后可继续搜索 DLNA",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f)
+                            )
+                            AppTextButton(
+                                onClick = { permissionLauncher.launch(localNetworkRuntimePermissions()) }
+                            ) {
+                                AppText("启用 DLNA")
+                            }
+                        }
+                    }
+                    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
+                        items(pluginRouteEntries, key = { "${it.plugin.id}:${it.route.routeId}" }) { entry ->
+                            val plugin = entry.plugin
+                            val route = entry.route
+                            AppListItem(
+                                headlineContent = { AppText(route.name) },
+                                supportingContent = { AppText(route.description ?: plugin.name) },
+                                leadingContent = { AppIcon(route.icon ?: plugin.icon ?: Icons.Rounded.Cast, null) },
+                                modifier = Modifier
+                                    .clickable { onPluginCastDeviceSelected(plugin, route) }
+                                    .fillMaxWidth()
+                            )
+                        }
                     }
                 }
             }

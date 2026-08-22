@@ -100,7 +100,7 @@ class DanmakuSyncPolicyTest {
     }
 
     @Test
-    fun driftGuard_staysIdleOnNormalTickButCorrectsPeriodicHealthChecks() {
+    fun driftGuard_staysIdleOnNormalTickAndUsesNonClearingPeriodicCorrection() {
         assertEquals(
             DanmakuSyncAction.None,
             resolveDanmakuGuardAction(
@@ -113,7 +113,7 @@ class DanmakuSyncPolicyTest {
         )
 
         assertEquals(
-            DanmakuSyncAction.HardResync,
+            DanmakuSyncAction.SoftResync,
             resolveDanmakuGuardAction(
                 videoSpeed = 1.0f,
                 tickCount = 6,

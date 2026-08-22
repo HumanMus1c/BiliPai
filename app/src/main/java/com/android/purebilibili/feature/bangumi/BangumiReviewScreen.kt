@@ -31,13 +31,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.components.AppButton
-import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppListItem
@@ -49,8 +51,11 @@ import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.data.model.response.BangumiReviewItem
 import com.android.purebilibili.data.model.response.BangumiReviewType
 import com.android.purebilibili.data.repository.BangumiReviewRepository
+import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 @Composable
 fun BangumiReviewScreen(
@@ -153,6 +158,9 @@ fun BangumiReviewScreen(
             )
         }
     ) { paddingValues ->
+        val reviewChromeBackdrop = rememberLayerBackdrop()
+        val reviewTypes = remember { BangumiReviewType.entries.toList() }
+        val sortLabels = remember { listOf("默认", "最新") }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -162,31 +170,58 @@ fun BangumiReviewScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small),
-                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)
+                horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                BangumiReviewType.entries.forEach { type ->
-                    AppFilterChip(
-                        selected = reviewType == type,
-                        onClick = { reviewType = type },
-                        label = { AppText(type.label) }
-                    )
-                }
+                BottomBarLiquidSegmentedControl(
+                    items = reviewTypes.map { it.label },
+                    selectedIndex = reviewTypes.indexOf(reviewType).coerceAtLeast(0),
+                    onSelected = { index ->
+                        reviewTypes.getOrNull(index)?.let { reviewType = it }
+                    },
+                    itemWidth = 66.dp,
+                    height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+                    indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+                    labelFontSize = 13.sp,
+                    miuixBackdrop = reviewChromeBackdrop,
+                    forceLiquidChrome = false,
+                    liquidGlassEffectsEnabled = true,
+                    tapPressRefractionEnabled = true,
+                )
                 Spacer(modifier = Modifier.weight(1f))
-                AppFilterChip(
-                    selected = sort == 1,
-                    onClick = { sort = if (sort == 1) 0 else 1 },
-                    label = { AppText(if (sort == 1) "最新" else "默认") }
+                BottomBarLiquidSegmentedControl(
+                    items = sortLabels,
+                    selectedIndex = sort.coerceIn(0, sortLabels.lastIndex),
+                    onSelected = { index -> sort = index },
+                    itemWidth = 66.dp,
+                    height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+                    indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
+                    labelFontSize = 13.sp,
+                    miuixBackdrop = reviewChromeBackdrop,
+                    forceLiquidChrome = false,
+                    liquidGlassEffectsEnabled = true,
+                    tapPressRefractionEnabled = true,
                 )
             }
 
             when {
                 loading && items.isEmpty() -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .layerBackdrop(reviewChromeBackdrop),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         com.android.purebilibili.core.ui.CutePersonLoadingIndicator()
                     }
                 }
                 errorMessage != null && items.isEmpty() -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .layerBackdrop(reviewChromeBackdrop),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             AppText(errorMessage.orEmpty())
                             Spacer(modifier = Modifier.height(AppSpacingTokens.Medium))
@@ -195,14 +230,21 @@ fun BangumiReviewScreen(
                     }
                 }
                 items.isEmpty() -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .layerBackdrop(reviewChromeBackdrop),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         AppText("还没有点评")
                     }
                 }
                 else -> {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .layerBackdrop(reviewChromeBackdrop),
                         contentPadding = PaddingValues(
                             horizontal = AppSpacingTokens.Medium,
                             vertical = AppSpacingTokens.Small

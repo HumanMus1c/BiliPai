@@ -76,6 +76,7 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
     private var historySearchQuery: String = ""
     private var historySearchPage: Int = 1
     private var historySearchGeneration: Long = 0L
+    private var historyListType: String? = null
     
     private val progressManager by lazy {
         com.android.purebilibili.feature.video.controller.PlaybackProgressManager.getInstance(
@@ -145,6 +146,14 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
         val bvid = video.bvid.trim()
         if (bvid.isNotEmpty()) return bvid
         return resolveHistoryRenderKey(video)
+    }
+
+    fun setHistoryListType(type: String?) {
+        val normalized = type?.trim()?.takeIf { it.isNotEmpty() && !it.equals("all", ignoreCase = true) }
+        if (historyListType == normalized) return
+        historyListType = normalized
+        if (historySearchQuery.isNotBlank()) return
+        loadData(showLoading = true)
     }
 
     fun searchHistory(query: String) {
@@ -262,7 +271,8 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
         val result = com.android.purebilibili.data.repository.HistoryRepository.getHistoryList(
             ps = 30,
             max = 0,
-            viewAt = 0
+            viewAt = 0,
+            type = historyListType
         )
         
         val historyResult = result.getOrNull()
@@ -331,7 +341,8 @@ class HistoryViewModel(application: Application) : BaseListViewModel(application
                     ps = 30,
                     max = cursorMax,
                     viewAt = cursorViewAt,
-                    business = cursorBusiness
+                    business = cursorBusiness,
+                    type = historyListType
                 )
                 
                 val historyResult = result.getOrNull()

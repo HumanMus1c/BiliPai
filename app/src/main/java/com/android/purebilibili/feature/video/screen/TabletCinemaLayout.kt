@@ -1059,7 +1059,7 @@ private fun CinemaSideCurtain(
                                     },
                                     text = {
                                         AppText(
-                                            text = "评论 ${if (commentState.replyCount > 0) "(${commentState.replyCount})" else ""}"
+                                            text = "评论"
                                         )
                                     }
                                 )

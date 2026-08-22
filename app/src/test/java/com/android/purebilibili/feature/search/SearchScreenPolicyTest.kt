@@ -37,6 +37,18 @@ class SearchScreenPolicyTest {
     }
 
     @Test
+    fun resetSearchScroll_preservesPositionWhenReturningFromVideoDetail() {
+        assertFalse(
+            shouldResetSearchResultScroll(
+                searchSessionId = 2L,
+                showResults = true,
+                lastResetSessionId = 0L,
+                isReturningFromVideoDetail = true,
+            )
+        )
+    }
+
+    @Test
     fun backToTopButton_onlyShowsAfterResultListScrollsPastThreshold() {
         assertFalse(
             shouldShowSearchBackToTop(
@@ -173,6 +185,15 @@ class SearchScreenPolicyTest {
         assertTrue(source.contains("isQuickReturningFromVideoDetail: Boolean = false"))
         assertTrue(source.contains("isReturningFromVideoDetail = isReturningFromVideoDetail"))
         assertTrue(source.contains("isQuickReturningFromVideoDetail = isQuickReturningFromVideoDetail"))
+    }
+
+    @Test
+    fun videoResultCardsFollowCompactCoverStatsSetting() {
+        val source = File("src/main/java/com/android/purebilibili/feature/search/SearchScreen.kt")
+            .readText()
+
+        assertTrue(source.contains("getCompactVideoStatsOnCover(context)"))
+        assertTrue(source.contains("compactStatsOnCover = compactVideoStatsOnCover"))
     }
 
     @Test
@@ -361,10 +382,10 @@ class SearchScreenPolicyTest {
         // 液态胶囊 Tab（primary 渐变选中态 + 颜色过渡，与液体分段控件同语言，
         // 可横向滚动；不再用静态 surfaceContainerHigh 灰胶囊）。
         assertTrue(searchSource.contains("private fun SearchResultTypeTabRow("))
-        assertTrue(searchSource.contains("horizontalScroll(rememberScrollState())"))
-        assertTrue(searchSource.contains("Brush.horizontalGradient("))
-        assertTrue(searchSource.contains("SolidColor(Color.Transparent)"))
-        assertTrue(searchSource.contains("animateColorAsState("))
+        assertTrue(searchSource.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(searchSource.contains("miuixBackdrop = searchChromeBackdrop"))
+        assertTrue(searchSource.contains(".layerBackdrop(searchChromeBackdrop)"))
+        assertTrue(searchSource.contains("externalPagerMotionEffectsEnabled = true"))
         assertFalse(searchSource.contains("androidx.compose.material3.ScrollableTabRow("))
         assertFalse(searchSource.contains("tabIndicatorOffset("))
         // Top bar uses native BasicTextField + TextFieldValue (not AppSearchField wrapper).

@@ -40,13 +40,12 @@ class CommentSortFilterBarPolicyTest {
     }
 
     @Test
-    fun `sort segmented control disables tap press refraction`() {
+    fun `sort segmented control keeps bottom-bar tap press refraction`() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/video/ui/components/CommentSortFilterBar.kt"
         )
 
-        assertTrue(source.contains("tapPressRefractionEnabled = false"))
-        assertFalse(source.contains("tapPressRefractionEnabled = true"))
+        assertTrue(source.contains("tapPressRefractionEnabled = true"))
         assertTrue(source.contains("itemWidth = spec.itemWidthDp.dp"))
     }
 
@@ -58,7 +57,7 @@ class CommentSortFilterBarPolicyTest {
 
         assertTrue(source.contains("miuixBackdrop = miuixBackdrop"))
         assertTrue(source.contains("forceLiquidChrome = false"))
-        assertTrue(source.contains("liquidGlassEffectsEnabled = false"))
+        assertTrue(source.contains("liquidGlassEffectsEnabled = true"))
         assertTrue(source.contains("MiuixBackdrop"))
     }
 

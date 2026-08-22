@@ -10,7 +10,7 @@ version = "0.1.0-SNAPSHOT"
 
 android {
     namespace = "com.android.purebilibili.plugin.sdk"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26

@@ -289,7 +289,8 @@ class LiveListViewModel(application: Application) : AndroidViewModel(application
                     hasMore = snapshot.hasMore,
                     isLoading = false,
                     isLoadingMore = false,
-                    error = if (mergedRooms.isEmpty() && !append) "暂无关注的直播" else null,
+                    // 空关注列表是正常内容状态，仍需保留顶部分类，方便切回推荐直播。
+                    error = null,
                 )
             },
             onFailure = { error ->
@@ -623,7 +624,14 @@ private fun LiveHomeContent(
         }
         when {
             contentItems.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
-                EmptyState("暂无直播内容", visualSpec)
+                EmptyState(
+                    message = if (isLiveHomeFollowedTab(selectedAreaIndex)) {
+                        "关注的主播暂时都未开播"
+                    } else {
+                        "暂无直播内容"
+                    },
+                    visualSpec = visualSpec
+                )
             }
             else -> {
                 items(contentItems, key = { it.roomId }) { item ->

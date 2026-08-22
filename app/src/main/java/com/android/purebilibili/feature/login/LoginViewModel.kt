@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.UUID
 
 sealed class LoginState {
     object Loading : LoginState()
@@ -250,11 +249,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     private var currentChallenge: String = ""
     private var currentCaptchaKey: String = ""  // 发送短信后返回的 key
     private var currentPhone: String = ""
-    /** passport 国家列表 id，中国大陆 = 1（不是区号 86） */
-    private var currentCountryCode: Int = DEFAULT_PHONE_REGION_CID
+    /** PiliPlus App SMS cid = country_id，中国大陆 = 86 */
+    private var currentCountryCode: Int = 86
     // Passport's Android-HD identity is intentionally separate from the web
     // cookie jar's buvid3; see the equivalent PiliPlus LoginHttp identity.
-    private val appLoginIdentity = createPiliPlusLoginIdentity()
+    private val appLoginIdentity = PiliPlusLoginIdentityStore.get(application)
     private val appLoginDeviceId = appLoginIdentity.deviceId
     private val appLoginBuvid = appLoginIdentity.buvid
 
@@ -331,6 +330,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * 发送短信验证码
      */
+    fun beginSmsCodeRequest(phone: String, countryCode: Int) {
+        clearCaptchaChallenge()
+        currentCaptchaKey = ""
+        sendSmsCode(phone, countryCode)
+    }
+
     fun sendSmsCode(phone: String, countryCode: Int) {
         viewModelScope.launch {
             try {
@@ -338,26 +343,20 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 currentPhone = phone
                 currentCountryCode = countryCode
                 
-                val captchaData = currentCaptchaData ?: run {
-                    _state.value = LoginState.Error("验证参数丢失，请重试")
-                    return@launch
-                }
-                
                 Logger.d("LoginDebug", "发送短信验证码请求")
                 
                 val timestampMillis = System.currentTimeMillis()
+                val loginSessionId = com.android.purebilibili.core.network.AppSignUtils
+                    .createLoginSessionId(appLoginBuvid, timestampMillis)
                 val params = buildAndroidSmsSendParams(
                     phone = phone,
                     countryCode = countryCode,
-                    token = captchaData.token,
+                    token = currentCaptchaData?.token,
                     challenge = currentChallenge,
                     validate = currentValidate,
                     seccode = currentSeccode,
                     buvid = appLoginBuvid,
-                    loginSessionId = com.android.purebilibili.core.network.AppSignUtils.createLoginSessionId(
-                        appLoginBuvid,
-                        timestampMillis
-                    ),
+                    loginSessionId = loginSessionId,
                     timestampSeconds = timestampMillis / 1000
                 )
                 val response = NetworkModule.passportApi.sendSmsCodeByApp(
@@ -366,16 +365,24 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         .signForAndroidHdLogin(params),
                 )
                 
-                if (response.code == 0 && response.data != null) {
-                    currentCaptchaKey = response.data.captchaKey
+                val recaptchaUrl = response.data?.recaptchaUrl.orEmpty()
+                val captchaKey = response.data?.captchaKey.orEmpty()
+                if (response.code == 0 && recaptchaUrl.isBlank() && captchaKey.isNotBlank()) {
+                    currentCaptchaKey = captchaKey
                     Logger.d("LoginDebug", "短信验证码已发送")
                     _state.value = LoginState.SmsSent(currentCaptchaKey)
-                } else if (response.code == CAPTCHA_RETRY_CODE && restartCaptchaFrom(
-                        response.data?.recaptchaUrl.orEmpty()
-                    )
-                ) {
+                } else if (recaptchaUrl.isNotBlank() && restartCaptchaFrom(recaptchaUrl)) {
                     Logger.d("LoginDebug", "短信验证码要求重新完成安全验证")
+                } else if ((response.code == 0 || response.code == CAPTCHA_RETRY_CODE) &&
+                    prepareFallbackSmsCaptcha()
+                ) {
+                    Logger.d("LoginDebug", "短信登录改用备用安全验证")
                 } else {
+                    Logger.w(
+                        "LoginDebug",
+                        "短信发送失败 code=${response.code}, " +
+                            "hasRecaptchaUrl=${recaptchaUrl.isNotBlank()}, hasCaptchaKey=${captchaKey.isNotBlank()}"
+                    )
                     _state.value = LoginState.Error(
                         "短信发送失败(${response.code}): ${response.message} " +
                             "[${com.android.purebilibili.BuildConfig.BUILD_TYPE}/" +
@@ -398,6 +405,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 _state.value = LoginState.Loading
                 Logger.d("LoginDebug", "短信验证码登录请求")
 
+                if (currentCaptchaKey.isBlank()) {
+                    _state.value = LoginState.Error("短信登录会话已失效，请重新获取验证码")
+                    return@launch
+                }
+
                 val keyResponse = NetworkModule.passportApi.getWebKey()
                 val publicKey = keyResponse.data?.key
                 if (keyResponse.code != 0 || publicKey.isNullOrBlank()) {
@@ -405,7 +417,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
                 val encryptedDeviceToken = RsaEncryption.encrypt(
-                    value = UUID.randomUUID().toString().replace("-", "").take(16),
+                    value = createPiliPlusRandomString(16),
                     publicKey = publicKey
                 ) ?: run {
                     _state.value = LoginState.Error("生成登录设备凭据失败")
@@ -451,6 +463,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * 密码登录
      */
+    fun beginPasswordLogin(username: String, password: String) {
+        clearCaptchaChallenge()
+        loginByPassword(username, password)
+    }
+
     fun loginByPassword(phone: String, password: String) {
         viewModelScope.launch {
             try {
@@ -474,24 +491,18 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
                 val encryptedDeviceToken = RsaEncryption.encrypt(
-                    value = UUID.randomUUID().toString().replace("-", "").take(16),
+                    value = createPiliPlusRandomString(16),
                     publicKey = key
                 ) ?: run {
                     _state.value = LoginState.Error("生成登录设备凭据失败")
                     return@launch
                 }
                 
-                // 3. 需要验证码
-                val captchaData = currentCaptchaData ?: run {
-                    _state.value = LoginState.Error("验证参数丢失，请重试")
-                    return@launch
-                }
-                
-                // 4. 登录
+                // 3. 先发起 App 登录；若服务端返回 -105，再按其 URL 完成专属验证并重试。
                 val params = buildAndroidPasswordLoginParams(
                     username = phone,
                     encryptedPassword = encryptedPassword,
-                    token = captchaData.token,
+                    token = currentCaptchaData?.token,
                     challenge = currentChallenge,
                     validate = currentValidate,
                     seccode = currentSeccode,
@@ -753,6 +764,38 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         _state.value = LoginState.CaptchaReady(captchaData)
         return true
     }
+
+    private fun clearCaptchaChallenge() {
+        currentCaptchaData = null
+        currentValidate = ""
+        currentSeccode = ""
+        currentChallenge = ""
+    }
+
+    /** PiliPlus fallback when the SMS response asks for captcha without a usable recaptcha_url. */
+    private suspend fun prepareFallbackSmsCaptcha(): Boolean {
+        val response = runCatching { NetworkModule.passportApi.safeCenterPreCapture() }
+            .getOrNull() ?: return false
+        val data = response.data ?: return false
+        if (response.code != 0 || data.recaptchaToken.isBlank() ||
+            data.geeGt.isBlank() || data.geeChallenge.isBlank()
+        ) {
+            return false
+        }
+        currentCaptchaData = CaptchaData(
+            token = data.recaptchaToken,
+            geetest = com.android.purebilibili.data.model.response.GeetestData(
+                gt = data.geeGt,
+                challenge = data.geeChallenge,
+            ),
+            type = "geetest",
+        )
+        currentValidate = ""
+        currentSeccode = ""
+        currentChallenge = ""
+        _state.value = LoginState.CaptchaReady(requireNotNull(currentCaptchaData))
+        return true
+    }
     
     /**
      * 处理登录返回的 Cookie
@@ -905,10 +948,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
      * 重置手机登录状态
      */
     fun resetPhoneLogin() {
-        currentCaptchaData = null
-        currentValidate = ""
-        currentSeccode = ""
-        currentChallenge = ""
+        clearCaptchaChallenge()
         currentCaptchaKey = ""
         currentPhone = ""
         currentCountryCode = DEFAULT_PHONE_REGION_CID

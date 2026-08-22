@@ -80,6 +80,7 @@ import com.android.purebilibili.core.store.DanmakuSettingsScope
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.resolveDanmakuSettingsScope
 import com.android.purebilibili.core.util.LocalWindowSizeClass
+import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 import com.android.purebilibili.data.model.response.LiveQuality
 import com.android.purebilibili.data.repository.LiveRedPocketInfo
 import com.android.purebilibili.feature.live.components.LandscapeChatOverlay
@@ -696,7 +697,7 @@ fun LivePlayerScreen(
                 Logger.d(TAG, "📺 播放器被小窗持有，保留")
             }
             activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            activity?.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED)
             viewModel.pauseLiveHeartbeat()
         }
     }
@@ -725,9 +726,7 @@ fun LivePlayerScreen(
             ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
 
-        if (activity?.requestedOrientation != requestedOrientation) {
-            activity?.requestedOrientation = requestedOrientation
-        }
+        activity?.applyPlayerRequestedOrientation(requestedOrientation)
     }
 
     // 布局结构

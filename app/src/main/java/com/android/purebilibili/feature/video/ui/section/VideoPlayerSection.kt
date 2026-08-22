@@ -377,6 +377,238 @@ private fun GesturePercentValue(
     }
 }
 
+@Composable
+private fun BoxScope.VideoSubtitleOverlayHost(
+    player: Player,
+    uiState: VideoPlaybackUiState,
+    bvid: String,
+    subtitleFeatureEnabled: Boolean,
+    subtitleOverlayEnabled: Boolean,
+    subtitleDisplayMode: SubtitleDisplayMode,
+    primaryTextSizeSp: Int,
+    secondaryTextSizeSp: Int,
+    initialVerticalOffsetFraction: Float,
+    isInPipMode: Boolean,
+    isAudioOnly: Boolean,
+    suppressSubtitleOverlay: Boolean,
+    isFullscreen: Boolean,
+    controlsVisible: Boolean,
+    endDrawerReservedWidth: Dp,
+    playerViewportSize: IntSize,
+    bottomControlsHeightPx: Int
+) {
+    val keepSubtitleOverlayMounted =
+        uiState is VideoPlaybackUiState.Success &&
+            com.android.purebilibili.feature.video.subtitle.shouldKeepSubtitleOverlayMounted(
+                overlayEnabled = subtitleOverlayEnabled,
+                isInPipMode = isInPipMode,
+                isAudioOnly = isAudioOnly,
+                suppressOverlay = suppressSubtitleOverlay,
+            )
+    if (!keepSubtitleOverlayMounted) return
+
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val settingsScope = rememberCoroutineScope()
+    val subtitlePollingIdentity = remember(uiState) {
+        val success = uiState as? VideoPlaybackUiState.Success
+        com.android.purebilibili.feature.video.subtitle.resolveSubtitlePositionPollingIdentity(
+            bvid = success?.info?.bvid,
+            cid = success?.info?.cid ?: 0L,
+        )
+    }
+    // Keep the fast playback-position read inside this restart scope so the player, video
+    // surface and danmaku hosts are not recomposed on every subtitle tick.
+    val subtitlePositionMs by produceState(
+        initialValue = player.currentPosition.coerceAtLeast(0L),
+        key1 = player,
+        key2 = subtitlePollingIdentity,
+    ) {
+        value = player.currentPosition.coerceAtLeast(0L)
+        while (isActive) {
+            value = player.currentPosition.coerceAtLeast(0L)
+            delay(if (player.isPlaying) 120L else 260L)
+        }
+    }
+    val subtitlePrimaryRawText = remember(
+        uiState,
+        subtitleFeatureEnabled,
+        subtitlePositionMs,
+        subtitleDisplayMode,
+    ) {
+        if (!subtitleFeatureEnabled) return@remember null
+        val success = uiState as? VideoPlaybackUiState.Success ?: return@remember null
+        if (success.subtitleOwnerBvid != success.info.bvid || success.subtitleOwnerCid != success.info.cid) {
+            return@remember null
+        }
+        if (!shouldRenderPrimarySubtitle(subtitleDisplayMode)) return@remember null
+        resolveSubtitleTextAt(success.subtitlePrimaryCues, subtitlePositionMs)
+    }
+    val subtitleSecondaryRawText = remember(
+        uiState,
+        subtitleFeatureEnabled,
+        subtitlePositionMs,
+        subtitleDisplayMode,
+    ) {
+        if (!subtitleFeatureEnabled) return@remember null
+        val success = uiState as? VideoPlaybackUiState.Success ?: return@remember null
+        if (success.subtitleOwnerBvid != success.info.bvid || success.subtitleOwnerCid != success.info.cid) {
+            return@remember null
+        }
+        if (!shouldRenderSecondarySubtitle(subtitleDisplayMode)) return@remember null
+        resolveSubtitleTextAt(success.subtitleSecondaryCues, subtitlePositionMs)
+    }
+
+    var stickyPrimaryText by remember(subtitlePollingIdentity) { mutableStateOf<String?>(null) }
+    var stickySecondaryText by remember(subtitlePollingIdentity) { mutableStateOf<String?>(null) }
+    var primaryBlankSinceMs by remember(subtitlePollingIdentity) { mutableLongStateOf(-1L) }
+    var secondaryBlankSinceMs by remember(subtitlePollingIdentity) { mutableLongStateOf(-1L) }
+    val nowForSticky = subtitlePositionMs
+    val subtitlePrimaryText = remember(
+        subtitlePrimaryRawText,
+        stickyPrimaryText,
+        primaryBlankSinceMs,
+        nowForSticky
+    ) {
+        val blankGap = if (subtitlePrimaryRawText.isNullOrBlank() && primaryBlankSinceMs >= 0L) {
+            (nowForSticky - primaryBlankSinceMs).coerceAtLeast(0L)
+        } else {
+            0L
+        }
+        com.android.purebilibili.feature.video.subtitle.resolveStickySubtitleText(
+            currentText = subtitlePrimaryRawText,
+            previousText = stickyPrimaryText,
+            blankGapMs = blankGap,
+        )
+    }
+    val subtitleSecondaryText = remember(
+        subtitleSecondaryRawText,
+        stickySecondaryText,
+        secondaryBlankSinceMs,
+        nowForSticky
+    ) {
+        val blankGap = if (subtitleSecondaryRawText.isNullOrBlank() && secondaryBlankSinceMs >= 0L) {
+            (nowForSticky - secondaryBlankSinceMs).coerceAtLeast(0L)
+        } else {
+            0L
+        }
+        com.android.purebilibili.feature.video.subtitle.resolveStickySubtitleText(
+            currentText = subtitleSecondaryRawText,
+            previousText = stickySecondaryText,
+            blankGapMs = blankGap,
+        )
+    }
+    SideEffect {
+        if (!subtitlePrimaryRawText.isNullOrBlank()) {
+            stickyPrimaryText = subtitlePrimaryRawText
+            primaryBlankSinceMs = -1L
+        } else if (primaryBlankSinceMs < 0L) {
+            primaryBlankSinceMs = nowForSticky
+        }
+        if (!subtitleSecondaryRawText.isNullOrBlank()) {
+            stickySecondaryText = subtitleSecondaryRawText
+            secondaryBlankSinceMs = -1L
+        } else if (secondaryBlankSinceMs < 0L) {
+            secondaryBlankSinceMs = nowForSticky
+        }
+    }
+
+    var subtitleVerticalOffsetFraction by rememberSaveable(bvid) {
+        mutableFloatStateOf(initialVerticalOffsetFraction)
+    }
+    var isDraggingSubtitleOffset by remember { mutableStateOf(false) }
+    LaunchedEffect(initialVerticalOffsetFraction, bvid) {
+        if (!isDraggingSubtitleOffset) {
+            subtitleVerticalOffsetFraction = initialVerticalOffsetFraction
+        }
+    }
+
+    val navigationBottomInsetPx = WindowInsets.navigationBars.getBottom(density)
+    Column(
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(end = endDrawerReservedWidth)
+            .offset {
+                val viewportHeightPx = playerViewportSize.height
+                    .takeIf { it > 0 }
+                    ?: with(density) { configuration.screenHeightDp.dp.roundToPx() }
+                val subtitleBottomOffsetPx = resolveSubtitleBottomOffsetPx(
+                    isFullscreen = isFullscreen,
+                    controlsVisible = controlsVisible,
+                    navigationInsetPx = navigationBottomInsetPx,
+                    bottomControlsHeightPx = bottomControlsHeightPx,
+                    density = density.density
+                )
+                IntOffset(
+                    x = 0,
+                    y = (viewportHeightPx * subtitleVerticalOffsetFraction).roundToInt() -
+                        subtitleBottomOffsetPx
+                )
+            }
+            .fillMaxWidth(0.9f)
+            .padding(horizontal = 10.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .pointerInput(playerViewportSize.height) {
+                detectDragGestures(
+                    onDragStart = { isDraggingSubtitleOffset = true },
+                    onDragEnd = {
+                        isDraggingSubtitleOffset = false
+                        settingsScope.launch {
+                            SettingsManager.setSubtitleVerticalOffsetFraction(
+                                context,
+                                subtitleVerticalOffsetFraction
+                            )
+                        }
+                    },
+                    onDragCancel = { isDraggingSubtitleOffset = false },
+                    onDrag = { change, dragAmount ->
+                        val screenHeightPx = playerViewportSize.height
+                            .takeIf { it > 0 }
+                            ?.toFloat()
+                            ?: with(density) {
+                                configuration.screenHeightDp.dp.toPx()
+                            }.coerceAtLeast(1f)
+                        subtitleVerticalOffsetFraction = normalizeSubtitleVerticalOffsetFraction(
+                            subtitleVerticalOffsetFraction + dragAmount.y / screenHeightPx
+                        )
+                        change.consume()
+                    }
+                )
+            },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        val subtitleShadow = Shadow(
+            color = Color.Black.copy(alpha = 0.85f),
+            offset = Offset(0f, 1.5f),
+            blurRadius = 6f
+        )
+        val showPrimaryLine = !subtitlePrimaryText.isNullOrBlank()
+        val showSecondaryLine = !subtitleSecondaryText.isNullOrBlank()
+        val secondaryAsPrimaryLine = showSecondaryLine && !showPrimaryLine
+        AppText(
+            text = subtitleSecondaryText.orEmpty(),
+            color = Color.White.copy(alpha = if (showSecondaryLine) 0.88f else 0f),
+            fontSize = if (secondaryAsPrimaryLine) primaryTextSizeSp.sp else secondaryTextSizeSp.sp,
+            fontWeight = if (secondaryAsPrimaryLine) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 2,
+            textAlign = TextAlign.Center,
+            style = LocalTextStyle.current.copy(shadow = subtitleShadow),
+            modifier = Modifier.then(if (showSecondaryLine) Modifier else Modifier.height(0.dp))
+        )
+        AppText(
+            text = subtitlePrimaryText.orEmpty(),
+            color = Color.White.copy(alpha = if (showPrimaryLine) 1f else 0f),
+            fontSize = primaryTextSizeSp.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            textAlign = TextAlign.Center,
+            style = LocalTextStyle.current.copy(shadow = subtitleShadow),
+            modifier = Modifier.then(if (showPrimaryLine) Modifier else Modifier.height(0.dp))
+        )
+    }
+}
+
 // 相关推荐/同页切集后新播放器 duration 就绪等待参数：
 // 最长等待 4s（20 × 200ms），超时按当前可用值加载（仓库层会回退）。
 private const val DANMAKU_DURATION_WAIT_ATTEMPTS = 20
@@ -1235,24 +1467,24 @@ fun VideoPlayerSection(
     // 记录手势起点 X（用于锁定分区，避免拖动过程横向漂移导致误判）
     var dragStartX by remember { mutableFloatStateOf(-1f) }
 
-    var subtitleVerticalOffsetFraction by rememberSaveable(bvid) {
-        mutableFloatStateOf(playerInteractionSettings.subtitleVerticalOffsetFraction)
-    }
-    var isDraggingSubtitleOffset by remember { mutableStateOf(false) }
-
-    LaunchedEffect(playerInteractionSettings.subtitleVerticalOffsetFraction, bvid) {
-        if (!isDraggingSubtitleOffset) {
-            subtitleVerticalOffsetFraction = playerInteractionSettings.subtitleVerticalOffsetFraction
-        }
-    }
-
+    val latestShowControls = rememberUpdatedState(showControls)
+    val latestGestureVisible = rememberUpdatedState(isGestureVisible)
     LaunchedEffect(playerState.player, bvid, currentSeekSessionCid) {
         while (isActive) {
-            sharedSeekSession = syncPlaybackSeekSession(
-                state = sharedSeekSession,
-                playbackPositionMs = playerState.player.currentPosition.coerceAtLeast(0L),
-                hasPlaybackResumedAfterPendingSeek = playerState.player.isPlaying
+            val currentSession = sharedSeekSession
+            val shouldPollProgress = shouldPollVideoPlayerProgress(
+                controlsVisible = latestShowControls.value,
+                gestureVisible = latestGestureVisible.value,
+                isSliderMoving = currentSession.isSliderMoving,
+                hasPendingSeek = currentSession.pendingSeekPositionMs != null
             )
+            if (shouldPollProgress) {
+                sharedSeekSession = syncPlaybackSeekSession(
+                    state = currentSession,
+                    playbackPositionMs = playerState.player.currentPosition.coerceAtLeast(0L),
+                    hasPlaybackResumedAfterPendingSeek = playerState.player.isPlaying
+                )
+            }
             delay(200)
         }
     }
@@ -3698,11 +3930,7 @@ fun VideoPlayerSection(
         pipNoDanmakuEnabled = pipNoDanmakuEnabled,
         hostLifecycleStarted = hostLifecycleStarted
     )
-    Logger.d("VideoPlayerSection") {
-        "DanmakuView check: isInPipMode=$isInPipMode, danmakuEnabled=$danmakuEnabled, pipNoDanmakuEnabled=$pipNoDanmakuEnabled"
-    }
         if (shouldShowDanmakuLayer) {
-            Logger.d("VideoPlayerSection") { "Conditions met, creating DanmakuView" }
             //  计算状态栏高度
             val statusBarHeightPx = remember(context) {
                 val resourceId = context.resources.getIdentifier(
@@ -4032,205 +4260,25 @@ fun VideoPlayerSection(
             )
         }
 
-        val subtitlePollingIdentity = remember(uiState) {
-            val success = uiState as? VideoPlaybackUiState.Success
-            com.android.purebilibili.feature.video.subtitle.resolveSubtitlePositionPollingIdentity(
-                bvid = success?.info?.bvid,
-                cid = success?.info?.cid ?: 0L,
-            )
-        }
-        // 禁止 key=uiState：Success 频繁替换会把 progress 重置为 0 → 字幕疯狂闪。
-        val subtitlePositionMs by produceState(
-            initialValue = playerState.player.currentPosition.coerceAtLeast(0L),
-            key1 = playerState.player,
-            key2 = subtitlePollingIdentity,
-        ) {
-            value = playerState.player.currentPosition.coerceAtLeast(0L)
-            while (isActive) {
-                value = playerState.player.currentPosition.coerceAtLeast(0L)
-                delay(if (playerState.player.isPlaying) 120L else 260L)
-            }
-        }
-        val subtitlePrimaryRawText = remember(
-            uiState,
-            subtitleFeatureEnabled,
-            subtitlePositionMs,
-            subtitleDisplayMode,
-        ) {
-            if (!subtitleFeatureEnabled) return@remember null
-            val success = uiState as? VideoPlaybackUiState.Success ?: return@remember null
-            if (success.subtitleOwnerBvid != success.info.bvid || success.subtitleOwnerCid != success.info.cid) {
-                return@remember null
-            }
-            if (!shouldRenderPrimarySubtitle(subtitleDisplayMode)) return@remember null
-            resolveSubtitleTextAt(success.subtitlePrimaryCues, subtitlePositionMs)
-        }
-        val subtitleSecondaryRawText = remember(
-            uiState,
-            subtitleFeatureEnabled,
-            subtitlePositionMs,
-            subtitleDisplayMode,
-        ) {
-            if (!subtitleFeatureEnabled) return@remember null
-            val success = uiState as? VideoPlaybackUiState.Success ?: return@remember null
-            if (success.subtitleOwnerBvid != success.info.bvid || success.subtitleOwnerCid != success.info.cid) {
-                return@remember null
-            }
-            if (!shouldRenderSecondarySubtitle(subtitleDisplayMode)) return@remember null
-            resolveSubtitleTextAt(success.subtitleSecondaryCues, subtitlePositionMs)
-        }
-        // 句间短空窗 sticky，避免 120ms 轮询在边界 null↔有字 来回切。
-        var stickyPrimaryText by remember(subtitlePollingIdentity) { mutableStateOf<String?>(null) }
-        var stickySecondaryText by remember(subtitlePollingIdentity) { mutableStateOf<String?>(null) }
-        var primaryBlankSinceMs by remember(subtitlePollingIdentity) { mutableLongStateOf(-1L) }
-        var secondaryBlankSinceMs by remember(subtitlePollingIdentity) { mutableLongStateOf(-1L) }
-        val nowForSticky = subtitlePositionMs
-        val subtitlePrimaryText = remember(subtitlePrimaryRawText, stickyPrimaryText, primaryBlankSinceMs, nowForSticky) {
-            val blankGap = if (subtitlePrimaryRawText.isNullOrBlank() && primaryBlankSinceMs >= 0L) {
-                (nowForSticky - primaryBlankSinceMs).coerceAtLeast(0L)
-            } else {
-                0L
-            }
-            com.android.purebilibili.feature.video.subtitle.resolveStickySubtitleText(
-                currentText = subtitlePrimaryRawText,
-                previousText = stickyPrimaryText,
-                blankGapMs = blankGap,
-            )
-        }
-        val subtitleSecondaryText = remember(subtitleSecondaryRawText, stickySecondaryText, secondaryBlankSinceMs, nowForSticky) {
-            val blankGap = if (subtitleSecondaryRawText.isNullOrBlank() && secondaryBlankSinceMs >= 0L) {
-                (nowForSticky - secondaryBlankSinceMs).coerceAtLeast(0L)
-            } else {
-                0L
-            }
-            com.android.purebilibili.feature.video.subtitle.resolveStickySubtitleText(
-                currentText = subtitleSecondaryRawText,
-                previousText = stickySecondaryText,
-                blankGapMs = blankGap,
-            )
-        }
-        SideEffect {
-            if (!subtitlePrimaryRawText.isNullOrBlank()) {
-                stickyPrimaryText = subtitlePrimaryRawText
-                primaryBlankSinceMs = -1L
-            } else if (primaryBlankSinceMs < 0L) {
-                primaryBlankSinceMs = nowForSticky
-            }
-            if (!subtitleSecondaryRawText.isNullOrBlank()) {
-                stickySecondaryText = subtitleSecondaryRawText
-                secondaryBlankSinceMs = -1L
-            } else if (secondaryBlankSinceMs < 0L) {
-                secondaryBlankSinceMs = nowForSticky
-            }
-        }
-        val keepSubtitleOverlayMounted =
-            uiState is VideoPlaybackUiState.Success &&
-                com.android.purebilibili.feature.video.subtitle.shouldKeepSubtitleOverlayMounted(
-                    overlayEnabled = subtitleOverlayEnabled,
-                    isInPipMode = isInPipMode,
-                    isAudioOnly = isAudioOnly,
-                    suppressOverlay = suppressSubtitleOverlay,
-                )
-        if (keepSubtitleOverlayMounted) {
-            val navigationBottomInsetPx = WindowInsets.navigationBars.getBottom(localDensity)
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(end = animatedEndDrawerReservedWidth)
-                    .offset {
-                        val viewportHeightPx = measuredPlayerViewportSize.height
-                            .takeIf { it > 0 }
-                            ?: with(localDensity) { configuration.screenHeightDp.dp.roundToPx() }
-                        val subtitleBottomOffsetPx = resolveSubtitleBottomOffsetPx(
-                            isFullscreen = isFullscreen,
-                            controlsVisible = showControls,
-                            navigationInsetPx = navigationBottomInsetPx,
-                            bottomControlsHeightPx = measuredBottomControlsHeightPx,
-                            density = localDensity.density
-                        )
-                        IntOffset(
-                            x = 0,
-                            y = (viewportHeightPx * subtitleVerticalOffsetFraction).roundToInt() -
-                                subtitleBottomOffsetPx
-                        )
-                    }
-                    .fillMaxWidth(0.9f)
-                    .padding(horizontal = 10.dp)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    // 横屏全屏 / 详情播放器均可拖动字幕纵向位置，松手写入偏好。
-                    .pointerInput(measuredPlayerViewportSize.height) {
-                        detectDragGestures(
-                            onDragStart = {
-                                isDraggingSubtitleOffset = true
-                            },
-                            onDragEnd = {
-                                isDraggingSubtitleOffset = false
-                                settingsScope.launch {
-                                    SettingsManager.setSubtitleVerticalOffsetFraction(
-                                        context,
-                                        subtitleVerticalOffsetFraction
-                                    )
-                                }
-                            },
-                            onDragCancel = {
-                                isDraggingSubtitleOffset = false
-                            },
-                            onDrag = { change, dragAmount ->
-                                val screenHeightPx = measuredPlayerViewportSize.height
-                                    .takeIf { it > 0 }
-                                    ?.toFloat()
-                                    ?: with(localDensity) {
-                                        configuration.screenHeightDp.dp.toPx()
-                                    }.coerceAtLeast(1f)
-                                subtitleVerticalOffsetFraction =
-                                    normalizeSubtitleVerticalOffsetFraction(
-                                        subtitleVerticalOffsetFraction + dragAmount.y / screenHeightPx
-                                    )
-                                change.consume()
-                            }
-                        )
-                    },
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                val subtitleShadow = Shadow(
-                    color = Color.Black.copy(alpha = 0.85f),
-                    offset = Offset(0f, 1.5f),
-                    blurRadius = 6f
-                )
-                val showPrimaryLine = !subtitlePrimaryText.isNullOrBlank()
-                val showSecondaryLine = !subtitleSecondaryText.isNullOrBlank()
-                val secondaryAsPrimaryLine = showSecondaryLine && !showPrimaryLine
-                // 行容器常驻：用空串占位而不是 if 拆装 Text，减少 quantize 边界闪一下。
-                AppText(
-                    text = subtitleSecondaryText.orEmpty(),
-                    color = Color.White.copy(alpha = if (showSecondaryLine) 0.88f else 0f),
-                    fontSize = if (secondaryAsPrimaryLine) {
-                        subtitleTextSizeSpec.primarySp.sp
-                    } else {
-                        subtitleTextSizeSpec.secondarySp.sp
-                    },
-                    fontWeight = if (secondaryAsPrimaryLine) FontWeight.SemiBold else FontWeight.Normal,
-                    maxLines = 2,
-                    textAlign = TextAlign.Center,
-                    style = LocalTextStyle.current.copy(shadow = subtitleShadow),
-                    modifier = Modifier.then(
-                        if (showSecondaryLine) Modifier else Modifier.height(0.dp)
-                    )
-                )
-                AppText(
-                    text = subtitlePrimaryText.orEmpty(),
-                    color = Color.White.copy(alpha = if (showPrimaryLine) 1f else 0f),
-                    fontSize = subtitleTextSizeSpec.primarySp.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    textAlign = TextAlign.Center,
-                    style = LocalTextStyle.current.copy(shadow = subtitleShadow),
-                    modifier = Modifier.then(
-                        if (showPrimaryLine) Modifier else Modifier.height(0.dp)
-                    )
-                )
-            }
-        }
+        VideoSubtitleOverlayHost(
+            player = playerState.player,
+            uiState = uiState,
+            bvid = bvid,
+            subtitleFeatureEnabled = subtitleFeatureEnabled,
+            subtitleOverlayEnabled = subtitleOverlayEnabled,
+            subtitleDisplayMode = subtitleDisplayMode,
+            primaryTextSizeSp = subtitleTextSizeSpec.primarySp,
+            secondaryTextSizeSp = subtitleTextSizeSpec.secondarySp,
+            initialVerticalOffsetFraction = playerInteractionSettings.subtitleVerticalOffsetFraction,
+            isInPipMode = isInPipMode,
+            isAudioOnly = isAudioOnly,
+            suppressSubtitleOverlay = suppressSubtitleOverlay,
+            isFullscreen = isFullscreen,
+            controlsVisible = showControls,
+            endDrawerReservedWidth = animatedEndDrawerReservedWidth,
+            playerViewportSize = measuredPlayerViewportSize,
+            bottomControlsHeightPx = measuredBottomControlsHeightPx
+        )
 
         // 🖼️ [修复] 手势指示器：仅在亮度/音量/Seek 模式显示，避免上滑全屏时误显示亮度图标
         val shouldShowGestureIndicator = isGestureVisible &&

@@ -46,7 +46,7 @@ class DynamicScreenStructureTest {
             "src/main/java/com/android/purebilibili/feature/home/components/BottomBarFloatingSegmentedControl.kt"
         ).readText()
         assertTrue(
-            segmentedControlSource.contains("if (liquidGlassEnabled && miuixBackdrop == null)")
+            segmentedControlSource.contains("if (liquidGlassEnabled && miuixBackdrop != null)")
         )
         assertTrue(!source.contains("text = \"全\""))
         val sidebarSource = File(

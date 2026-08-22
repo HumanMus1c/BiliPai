@@ -79,4 +79,20 @@ class BangumiUiPolicyTest {
         assertEquals(250, window.startIndex)
         assertEquals(256, window.endExclusive)
     }
+
+    @Test
+    fun `episode pages should expose ascending and descending ranges`() {
+        assertEquals(26, resolveBangumiEpisodePageCount(1259, 50))
+        assertEquals("1-50", resolveBangumiEpisodePageLabel(1259, 0, 50, descending = false))
+        assertEquals("1259-1210", resolveBangumiEpisodePageLabel(1259, 0, 50, descending = true))
+        assertEquals("9-1", resolveBangumiEpisodePageLabel(1259, 25, 50, descending = true))
+    }
+
+    @Test
+    fun `episode ordering should reverse without mutating source`() {
+        val source = listOf(1, 2, 3)
+
+        assertEquals(listOf(3, 2, 1), orderBangumiEpisodes(source, descending = true))
+        assertEquals(listOf(1, 2, 3), source)
+    }
 }

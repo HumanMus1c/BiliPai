@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.video.ui.components
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -65,6 +66,85 @@ private data class SeekPreviewBubbleStyle(
     val timeFontSp: Int,
     val deltaFontSp: Int
 )
+
+internal data class CompactSeekPreviewSize(
+    val widthDp: Int,
+    val heightDp: Int
+)
+
+internal data class SeekPreviewSourceCrop(
+    val offsetX: Int,
+    val offsetY: Int,
+    val width: Int,
+    val height: Int
+)
+
+internal fun resolveCompactSeekPreviewSize(
+    sourceWidthPx: Int,
+    sourceHeightPx: Int,
+    screenWidthDp: Int,
+    videoAspectRatio: Float? = null
+): CompactSeekPreviewSize {
+    val safeWidth = sourceWidthPx.coerceAtLeast(1)
+    val safeHeight = sourceHeightPx.coerceAtLeast(1)
+    val sourceAspectRatio = safeWidth.toFloat() / safeHeight.toFloat()
+    val effectiveAspectRatio = videoAspectRatio
+        ?.takeIf { it.isFinite() && it > 0f }
+        ?: sourceAspectRatio
+    val scale = when {
+        screenWidthDp >= 840 -> 1.2f
+        screenWidthDp >= 600 -> 1.1f
+        else -> 1f
+    }
+    val isPortraitVideo = effectiveAspectRatio < 1f
+    val baseWidthDp = if (isPortraitVideo) 120 else 144
+    val widthDp = (baseWidthDp * scale).roundToInt()
+    val minHeightDp = ((if (isPortraitVideo) 144 else 72) * scale).roundToInt()
+    val maxHeightDp = ((if (isPortraitVideo) 224 else 164) * scale).roundToInt()
+    val heightDp = (widthDp / effectiveAspectRatio)
+        .roundToInt()
+        .coerceIn(minHeightDp, maxHeightDp)
+    return CompactSeekPreviewSize(widthDp = widthDp, heightDp = heightDp)
+}
+
+internal fun resolveSeekPreviewSourceCrop(
+    sourceWidthPx: Int,
+    sourceHeightPx: Int,
+    videoAspectRatio: Float?
+): SeekPreviewSourceCrop {
+    val safeWidth = sourceWidthPx.coerceAtLeast(1)
+    val safeHeight = sourceHeightPx.coerceAtLeast(1)
+    val targetAspectRatio = videoAspectRatio
+        ?.takeIf { it.isFinite() && it >= 0.1f && it < 1f }
+        ?: return SeekPreviewSourceCrop(
+            offsetX = 0,
+            offsetY = 0,
+            width = safeWidth,
+            height = safeHeight
+        )
+    val sourceAspectRatio = safeWidth.toFloat() / safeHeight.toFloat()
+    if (sourceAspectRatio > targetAspectRatio) {
+        val cropWidth = (safeHeight * targetAspectRatio)
+            .roundToInt()
+            .coerceIn(1, safeWidth)
+        return SeekPreviewSourceCrop(
+            offsetX = ((safeWidth - cropWidth) / 2f).roundToInt(),
+            offsetY = 0,
+            width = cropWidth,
+            height = safeHeight
+        )
+    }
+
+    val cropHeight = (safeWidth / targetAspectRatio)
+        .roundToInt()
+        .coerceIn(1, safeHeight)
+    return SeekPreviewSourceCrop(
+        offsetX = 0,
+        offsetY = ((safeHeight - cropHeight) / 2f).roundToInt(),
+        width = safeWidth,
+        height = cropHeight
+    )
+}
 
 private fun resolveSeekPreviewBubbleStyle(widthDp: Int): SeekPreviewBubbleStyle {
     return when {
@@ -248,10 +328,92 @@ internal fun SeekPreviewBubble(
     }
 }
 
+/** 竖屏拖动样式：小预览图独立显示，时间位于图片下方。 */
+@Composable
+internal fun CompactSeekPreview(
+    videoshotData: VideoshotData,
+    targetPositionMs: Long,
+    durationMs: Long,
+    videoAspectRatio: Float? = null,
+    modifier: Modifier = Modifier
+) {
+    val configuration = LocalConfiguration.current
+    val previewSize = remember(
+        videoshotData.img_x_size,
+        videoshotData.img_y_size,
+        configuration.screenWidthDp,
+        videoAspectRatio
+    ) {
+        resolveCompactSeekPreviewSize(
+            sourceWidthPx = videoshotData.img_x_size,
+            sourceHeightPx = videoshotData.img_y_size,
+            screenWidthDp = configuration.screenWidthDp,
+            videoAspectRatio = videoAspectRatio
+        )
+    }
+    val previewAnchorPositionMs = remember(videoshotData, targetPositionMs, durationMs) {
+        resolveSeekPreviewAnchorPositionMs(
+            videoshotData = videoshotData,
+            targetPositionMs = targetPositionMs,
+            durationMs = durationMs
+        )
+    }
+    val currentPreviewInfo = remember(videoshotData, previewAnchorPositionMs, durationMs) {
+        videoshotData.getPreviewInfo(previewAnchorPositionMs, durationMs)
+    }
+
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AppSurface(
+            color = Color.Black.copy(alpha = 0.9f),
+            shape = RoundedCornerShape(9.dp),
+            shadowElevation = 8.dp,
+            modifier = Modifier
+                .width(previewSize.widthDp.dp)
+                .height(previewSize.heightDp.dp)
+                .border(1.dp, Color.White.copy(alpha = 0.78f), RoundedCornerShape(9.dp))
+                .clip(RoundedCornerShape(9.dp))
+        ) {
+            SeekPreviewImage(
+                videoshotData = videoshotData,
+                currentPreviewInfo = currentPreviewInfo,
+                videoAspectRatio = videoAspectRatio,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val shadow = Shadow(
+                color = Color.Black.copy(alpha = 0.65f),
+                offset = Offset(0f, 1.2f),
+                blurRadius = 4f
+            )
+            AppText(
+                text = FormatUtils.formatDuration((targetPositionMs / 1000L).toInt()),
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                style = androidx.compose.ui.text.TextStyle(shadow = shadow)
+            )
+            AppText(
+                text = " / ${FormatUtils.formatDuration((durationMs / 1000L).toInt())}",
+                color = Color.White.copy(alpha = 0.62f),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                style = androidx.compose.ui.text.TextStyle(shadow = shadow)
+            )
+        }
+    }
+}
+
 @Composable
 private fun SeekPreviewImage(
     videoshotData: VideoshotData?,
     currentPreviewInfo: Triple<String, Int, Int>?,
+    videoAspectRatio: Float? = null,
     modifier: Modifier = Modifier
 ) {
     if (currentPreviewInfo == null || videoshotData == null) {
@@ -307,12 +469,21 @@ private fun SeekPreviewImage(
                 val expectedHeight = (videoshotData.img_y_size * videoshotData.img_y_len).coerceAtLeast(1)
                 val scaleX = bitmap.width.toFloat() / expectedWidth.toFloat()
                 val scaleY = bitmap.height.toFloat() / expectedHeight.toFloat()
-                val cropOffsetX = (spriteOffsetX * scaleX).roundToInt().coerceAtLeast(0)
-                val cropOffsetY = (spriteOffsetY * scaleY).roundToInt().coerceAtLeast(0)
-                val cropWidth = (videoshotData.img_x_size * scaleX)
+                val sourceCrop = resolveSeekPreviewSourceCrop(
+                    sourceWidthPx = videoshotData.img_x_size,
+                    sourceHeightPx = videoshotData.img_y_size,
+                    videoAspectRatio = videoAspectRatio
+                )
+                val cropOffsetX = ((spriteOffsetX + sourceCrop.offsetX) * scaleX)
+                    .roundToInt()
+                    .coerceAtLeast(0)
+                val cropOffsetY = ((spriteOffsetY + sourceCrop.offsetY) * scaleY)
+                    .roundToInt()
+                    .coerceAtLeast(0)
+                val cropWidth = (sourceCrop.width * scaleX)
                     .roundToInt()
                     .coerceIn(1, (bitmap.width - cropOffsetX).coerceAtLeast(1))
-                val cropHeight = (videoshotData.img_y_size * scaleY)
+                val cropHeight = (sourceCrop.height * scaleY)
                     .roundToInt()
                     .coerceIn(1, (bitmap.height - cropOffsetY).coerceAtLeast(1))
                 val destinationRect = resolveSeekPreviewDestinationRect(

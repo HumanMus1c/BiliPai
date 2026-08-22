@@ -9,11 +9,13 @@ import android.content.res.Configuration
 import android.widget.Toast
 import android.annotation.SuppressLint
 import com.android.purebilibili.core.player.HiResCompatibleRenderersFactory
+import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 import com.android.purebilibili.core.ui.LocalNavigationBackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,6 +35,7 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.feature.video.danmaku.rememberDanmakuManager
 import com.android.purebilibili.feature.video.player.MiniPlayerManager
 import com.android.purebilibili.feature.video.player.PlaylistItem
+import com.android.purebilibili.feature.video.handoff.PlaybackHandoffRegistry
 import com.android.purebilibili.feature.video.ui.components.CoinDialog
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 import com.android.purebilibili.feature.video.viewmodel.VideoCommentViewModel
@@ -89,6 +92,10 @@ fun BangumiPlayerScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isTablet = configuration.smallestScreenWidthDp >= 600
+    var tabletFullscreen by rememberSaveable(seasonId) { mutableStateOf(false) }
+    val isFullscreen = if (isTablet) tabletFullscreen else isLandscape
+    val latestIsLandscape by rememberUpdatedState(isLandscape)
     val statusBarsInsetTop = WindowInsets.statusBars
         .asPaddingValues()
         .calculateTopPadding()
@@ -232,8 +239,8 @@ fun BangumiPlayerScreen(
     
     // 横竖屏复用当前播放身份的 Session，换集时旧 Session 自动释放。
     val danmakuManager = rememberDanmakuManager("bangumi:$seasonId:$currentEpisodeIdForDebug")
-    val activeDanmakuScope = remember(isLandscape) {
-        com.android.purebilibili.core.store.resolveDanmakuSettingsScope(isLandscape)
+    val activeDanmakuScope = remember(isFullscreen) {
+        com.android.purebilibili.core.store.resolveDanmakuSettingsScope(isFullscreen)
     }
     
     // 弹幕开关设置
@@ -323,6 +330,17 @@ fun BangumiPlayerScreen(
         danmakuManager.attachPlayer(exoPlayer)
         onDispose { danmakuManager.detachPlayer(exoPlayer) }
     }
+
+    DisposableEffect(exoPlayer, seasonId, currentEpisodeIdForDebug) {
+        PlaybackHandoffRegistry.publishBangumi(
+            seasonId = seasonId,
+            epId = currentEpisodeIdForDebug,
+            positionProvider = { exoPlayer.currentPosition }
+        )
+        onDispose {
+            PlaybackHandoffRegistry.clearBangumi(seasonId, currentEpisodeIdForDebug)
+        }
+    }
     
     // 清理播放器 +  屏幕常亮管理
     DisposableEffect(Unit) {
@@ -334,8 +352,9 @@ fun BangumiPlayerScreen(
         onDispose {
             exoPlayer.release()
             //  恢复默认方向，避免离开播放器后卡在横屏
-            context.findActivity()?.requestedOrientation = 
+            context.findActivity()?.applyPlayerRequestedOrientation(
                 ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            )
             
             //  [修复] 离开番剧播放页时取消屏幕常亮
             window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -351,16 +370,20 @@ fun BangumiPlayerScreen(
     
     // 辅助函数：切换屏幕方向
     fun toggleOrientation() {
+        if (isTablet) {
+            tabletFullscreen = !tabletFullscreen
+            return
+        }
         val activity = context.findActivity() ?: return
         if (isLandscape) {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            activity.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
         } else {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            activity.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
         }
     }
     
     //  自动检测设备方向变化并解锁旋转
-    DisposableEffect(Unit) {
+    DisposableEffect(context, isTablet) {
         val activity = context.findActivity()
         val orientationEventListener = object : android.view.OrientationEventListener(context) {
             private var lastOrientation = -1
@@ -381,10 +404,10 @@ fun BangumiPlayerScreen(
                     val isDevicePortrait = newOrientation == 0 || newOrientation == 180
                     
                     activity?.let { act ->
-                        if (isLandscape && isDevicePortrait) {
-                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                        } else if (!isLandscape && isDeviceLandscape) {
-                            act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        if (latestIsLandscape && isDevicePortrait) {
+                            act.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+                        } else if (!latestIsLandscape && isDeviceLandscape) {
+                            act.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
                         }
                     }
                 }
@@ -392,7 +415,7 @@ fun BangumiPlayerScreen(
             }
         }
         
-        if (orientationEventListener.canDetectOrientation()) {
+        if (!isTablet && orientationEventListener.canDetectOrientation()) {
             orientationEventListener.enable()
         }
         
@@ -402,7 +425,7 @@ fun BangumiPlayerScreen(
     }
     
     // 拦截系统返回键
-    LocalNavigationBackHandler(enabled = isLandscape) {
+    LocalNavigationBackHandler(enabled = isFullscreen) {
         toggleOrientation()
     }
     
@@ -412,7 +435,7 @@ fun BangumiPlayerScreen(
             val window = (view.context.findActivity())?.window ?: return@SideEffect
             val insetsController = WindowCompat.getInsetsController(window, view)
             
-            if (isLandscape) {
+            if (isFullscreen) {
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = 
                     androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -429,7 +452,7 @@ fun BangumiPlayerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (isLandscape) Color.Black else AppSurfaceTokens.groupedListContainer())
+            .background(if (isFullscreen) Color.Black else AppSurfaceTokens.groupedListContainer())
     ) {
         //  获取清晰度数据
         val bangumiPages = remember(successState) {
@@ -564,7 +587,7 @@ fun BangumiPlayerScreen(
             }
         }
         
-        if (isLandscape) {
+        if (isFullscreen) {
             // 全屏播放
             playerContentView(true)
         } else {

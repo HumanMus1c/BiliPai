@@ -56,7 +56,7 @@ class AppSemanticVisualPolicyTest {
             )
         )
         assertEquals(
-            false,
+            true,
             resolveAppChromeLiquidGlassEnabled(
                 supportsIndependentLiquidGlass = false,
                 individualEnabled = false,

@@ -99,6 +99,7 @@ report.md
 docs/*
 !docs/GOOGLE_CAST_PLUGIN.md
 !docs/DLNA_CAST_PLUGIN.md
+!docs/android17-verification.md
 !docs/images/
 !docs/images/screenshot*.png
 !docs/wiki/

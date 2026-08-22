@@ -1,26 +1,34 @@
 package com.android.purebilibili.feature.home.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.components.AppText
-import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
+import com.android.purebilibili.feature.home.components.miuix.DampedDragTrackingMode
+import com.android.purebilibili.feature.home.components.liquid.rememberCombinedBackdrop
 import top.yukonga.miuix.kmp.blur.Backdrop
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /**
  * Reuse wrapper around [FloatingBottomBar]. No local drawBackdrop / lens / vibrancy.
@@ -53,7 +61,6 @@ internal fun BottomBarFloatingSegmentedControl(
     if (items.isEmpty()) return
 
     val context = LocalContext.current
-    val visualPolicy = rememberAppSemanticVisualPolicy()
     val homeSettings by SettingsManager
         .getHomeSettings(context)
         .collectAsStateWithLifecycle(initialValue = HomeSettings())
@@ -61,9 +68,18 @@ internal fun BottomBarFloatingSegmentedControl(
     val liquidGlassEnabled = resolveSegmentedControlLiquidGlassEnabled(
         storedLiquidGlassEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
         liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
-        supportsIndependentLiquidGlass = visualPolicy.supportsIndependentLiquidGlass,
+        supportsIndependentLiquidGlass = false,
         androidNativeLiquidGlassEnabled = nativeGlassEnabled,
     )
+    val liquidGlassTuning = remember(
+        homeSettings.liquidGlassProgress,
+        homeSettings.liquidGlassAdvancedSettings,
+    ) {
+        resolveLiquidGlassTuning(
+            homeSettings.liquidGlassProgress,
+            homeSettings.liquidGlassAdvancedSettings,
+        )
+    }
     val isDarkTheme = isSystemInDarkTheme()
     val itemCount = items.size
     val maxTabIndex = (itemCount - 1).coerceAtLeast(0)
@@ -78,25 +94,27 @@ internal fun BottomBarFloatingSegmentedControl(
         containerColor = AppSurfaceTokens.cardContainer(),
         liquidGlassEnabled = liquidGlassEnabled,
         darkTheme = isDarkTheme,
+        liquidGlassTuning = liquidGlassTuning,
     )
-    val floatingMode = if (liquidGlassEnabled && miuixBackdrop != null) {
+    // Reused docks cannot assume that a caller-provided backdrop covers the dock's
+    // window coordinates. Keep a local, full-dock source behind the chrome just as
+    // the home dock keeps its content source behind (and outside) the dock itself.
+    val localBackdrop = rememberLayerBackdrop()
+    val effectiveBackdrop = if (liquidGlassEnabled) {
+        if (miuixBackdrop != null) {
+            rememberCombinedBackdrop(localBackdrop, miuixBackdrop)
+        } else {
+            localBackdrop
+        }
+    } else {
+        null
+    }
+    val floatingMode = if (effectiveBackdrop != null) {
         FloatingBottomBarMode.LiquidGlass
     } else {
         FloatingBottomBarMode.None
     }
-    val dockShellHeight = if (liquidGlassEnabled) {
-        FloatingBottomBarDefaultShellHeight
-    } else {
-        height
-    }
-    val dockIndicatorHeight = if (liquidGlassEnabled) {
-        FloatingBottomBarIndicatorHeight
-    } else {
-        indicatorHeight
-    }
-    val dockModifier = if (liquidGlassEnabled) {
-        modifier.wrapContentWidth()
-    } else if (itemWidth != null) {
+    val dockModifier = if (itemWidth != null) {
         modifier.width(itemWidth * itemCount + containerHorizontalPadding * 2)
     } else {
         modifier
@@ -105,50 +123,78 @@ internal fun BottomBarFloatingSegmentedControl(
     val onSelectedState = rememberUpdatedState(onSelected)
     val enabledState = rememberUpdatedState(enabled)
 
-    FloatingBottomBar(
-        selectedIndex = { selectedIndexState.value },
-        onSelected = { index ->
-            if (enabledState.value && index in items.indices) onSelectedState.value(index)
-        },
-        onReselected = {
-            if (enabledState.value) onSelectedState.value(selectedIndexState.value)
-        },
-        backdrop = miuixBackdrop,
-        tabsCount = itemCount,
-        modifier = dockModifier,
-        mode = floatingMode,
-        colors = FloatingBottomBarColors(
-            containerColor = shellColor,
-            indicatorColor = selectedTextColor,
-            contentColor = unselectedTextColor,
-            activeContentColor = selectedTextColor,
-        ),
-        shellHeight = dockShellHeight,
-        indicatorHeight = dockIndicatorHeight,
-        indicatorPositionProvider = indicatorPositionProvider,
-        isScrollInProgressProvider = isScrollInProgressProvider,
-        dragSelectionEnabled = dragSelectionEnabled && enabled && itemCount > 1,
-    ) {
-        items.forEachIndexed { index, label ->
-            FloatingBottomBarItem(
-                onClick = {
-                    if (enabled) onSelected(index)
-                },
-                selected = index == safeSelectedIndex,
-            ) {
-                val contentColor = LocalFloatingBottomBarContentColor.current
-                AppText(
-                    text = label,
-                    color = contentColor,
-                    fontSize = labelFontSize,
-                    fontWeight = if (index == safeSelectedIndex) {
-                        FontWeight.SemiBold
-                    } else {
-                        FontWeight.Medium
+    BoxWithConstraints {
+        val indicatorWidthDp = when {
+            itemWidth != null -> itemWidth.value
+            constraints.hasBoundedWidth ->
+                ((maxWidth.value - 8f).coerceAtLeast(0f) / itemCount)
+            else -> indicatorHeight.value * FLOATING_DOCK_MIN_INDICATOR_ASPECT
+        }
+        val captureInsets = resolveFloatingDockCaptureInsets(
+            shellHeightDp = height.value,
+            requestedIndicatorHeightDp = indicatorHeight.value,
+            indicatorWidthDp = indicatorWidthDp,
+        )
+        if (effectiveBackdrop != null) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .bottomBarMatchedCaptureOverflow(
+                        horizontalInset = captureInsets.horizontalDp.dp,
+                        verticalInset = captureInsets.verticalDp.dp,
+                    )
+                    .alpha(0f)
+                    .layerBackdrop(localBackdrop)
+                    .background(AppSurfaceTokens.background())
+            )
+        }
+        FloatingBottomBar(
+            selectedIndex = { selectedIndexState.value },
+            onSelected = { index ->
+                if (enabledState.value && index in items.indices) onSelectedState.value(index)
+            },
+            onReselected = {
+                if (enabledState.value) onSelectedState.value(selectedIndexState.value)
+            },
+            backdrop = effectiveBackdrop,
+            tabsCount = itemCount,
+            modifier = dockModifier,
+            mode = floatingMode,
+            colors = FloatingBottomBarColors(
+                containerColor = shellColor,
+                indicatorColor = selectedTextColor,
+                contentColor = unselectedTextColor,
+                activeContentColor = selectedTextColor,
+            ),
+            shellHeight = height,
+            indicatorHeight = indicatorHeight,
+            indicatorPositionProvider = indicatorPositionProvider,
+            isScrollInProgressProvider = isScrollInProgressProvider,
+            dragSelectionEnabled = dragSelectionEnabled && enabled && itemCount > 1,
+            dragTrackingMode = DampedDragTrackingMode.DIRECT,
+            liquidGlassTuning = liquidGlassTuning,
+        ) {
+            items.forEachIndexed { index, label ->
+                FloatingBottomBarItem(
+                    onClick = {
+                        if (enabled) onSelected(index)
                     },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                    selected = index == safeSelectedIndex,
+                ) {
+                    val contentColor = LocalFloatingBottomBarContentColor.current
+                    AppText(
+                        text = label,
+                        color = contentColor,
+                        fontSize = labelFontSize,
+                        fontWeight = if (index == safeSelectedIndex) {
+                            FontWeight.SemiBold
+                        } else {
+                            FontWeight.Medium
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

@@ -44,6 +44,12 @@ class RenderEngine(private val mController: DanmakuController) : ITouchDelegate 
     private var mWidth = 0
     private var mHeight = 0
     private var mSaveLayerValue = 0
+    private val mDrawItems = ArrayList<DrawItem<DanmakuData>>()
+    private val mDrawOrderComparator = compareBy<DrawItem<DanmakuData>>(
+        { it.data?.drawOrder },
+        { it.layerZIndex },
+        { it.showTime }
+    )
 
     private var onDrawingDanmakuCount = 0
 
@@ -107,24 +113,19 @@ class RenderEngine(private val mController: DanmakuController) : ITouchDelegate 
                 it.drawBounds(canvas)
             }
         }
-        val drawItems = mutableListOf<DrawItem<DanmakuData>>()
-        drawItems.clear()
+        mDrawItems.clear()
         mRenderLayers.forEach {
-            drawItems.addAll(it.getPreDrawItems())
+            mDrawItems.addAll(it.getPreDrawItems())
         }
 
-        drawItems.sortWith(compareBy(
-            { it.data?.drawOrder },
-            { it.layerZIndex },
-            { it.showTime }
-        ))
+        mDrawItems.sortWith(mDrawOrderComparator)
 
         if (mController.config.mask.enable) {
             @Suppress("DEPRECATION")
             mSaveLayerValue = canvas.saveLayer(0F, 0F, mWidth.toFloat(), mHeight.toFloat(), null, Canvas.ALL_SAVE_FLAG)
         }
 
-        drawItems.forEach {
+        mDrawItems.forEach {
             it.draw(canvas, mController.config)
             if (mController.config.debug.showBounds) {
                 it.drawBounds(canvas)
@@ -134,7 +135,7 @@ class RenderEngine(private val mController: DanmakuController) : ITouchDelegate 
         if (mController.config.mask.enable) {
             canvas.restoreToCount(mSaveLayerValue)
         }
-        drawItems.clear()
+        mDrawItems.clear()
     }
 
     override fun findTouchTarget(event: MotionEvent): ITouchTarget? {

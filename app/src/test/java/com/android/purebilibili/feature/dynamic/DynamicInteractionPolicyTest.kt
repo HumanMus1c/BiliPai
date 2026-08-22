@@ -210,7 +210,7 @@ class DynamicInteractionPolicyTest {
     }
 
     @Test
-    fun `resolve dynamic comment target prefers dynamic id for opus detail even when basic points elsewhere`() {
+    fun `resolve dynamic comment target prefers documented basic fields for opus detail`() {
         val item = DynamicItem(
             id_str = "967717348014293017",
             type = "DYNAMIC_TYPE_DRAW",
@@ -230,11 +230,11 @@ class DynamicInteractionPolicyTest {
 
         val target = resolveDynamicCommentTarget(item)
 
-        assertEquals(DynamicCommentTarget(oid = 967717348014293017L, type = 17), target)
+        assertEquals(DynamicCommentTarget(oid = 326122895L, type = 11), target)
     }
 
     @Test
-    fun `resolve dynamic comment targets keeps desktop dynamic target before legacy basic fallback`() {
+    fun `resolve dynamic comment targets keeps documented basic target before desktop fallback`() {
         val item = DynamicItem(
             id_str = "967717348014293017",
             type = "DYNAMIC_TYPE_DRAW",
@@ -254,8 +254,8 @@ class DynamicInteractionPolicyTest {
 
         assertEquals(
             listOf(
-                DynamicCommentTarget(oid = 967717348014293017L, type = 17),
-                DynamicCommentTarget(oid = 326122895L, type = 11)
+                DynamicCommentTarget(oid = 326122895L, type = 11),
+                DynamicCommentTarget(oid = 967717348014293017L, type = 17)
             ),
             targets
         )

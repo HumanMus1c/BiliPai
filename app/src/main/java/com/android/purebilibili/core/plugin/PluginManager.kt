@@ -147,6 +147,10 @@ object PluginManager {
                 if (enabled) {
                     plugin.onEnable()
                     Logger.d(TAG, " Plugin enabled: ${plugin.name}")
+                    PluginEffectHintBus.tryEmit(
+                        resolvePluginEnabledEffectHint(plugin.id, plugin.name),
+                        cooldownMs = PLUGIN_EFFECT_HINT_ENABLED_COOLDOWN_MS
+                    )
                 } else {
                     plugin.onDisable()
                     Logger.d(TAG, "🔴 Plugin disabled: ${plugin.name}")
@@ -211,8 +215,8 @@ object PluginManager {
     ): List<com.android.purebilibili.data.model.response.VideoItem> {
         val feedPlugins = getEnabledFeedPlugins()
         if (feedPlugins.isEmpty()) return items
-        
-        return items.filter { item ->
+
+        val filtered = items.filter { item ->
             feedPlugins.all { plugin ->
                 try {
                     plugin.shouldShowItem(item, feedKind)
@@ -222,6 +226,17 @@ object PluginManager {
                 }
             }
         }
+        val removedCount = items.size - filtered.size
+        if (removedCount > 0) {
+            PluginEffectHintBus.tryEmit(
+                resolveFeedFilterEffectHint(
+                    removedCount = removedCount,
+                    pluginNames = feedPlugins.map { it.name }
+                ),
+                cooldownMs = PLUGIN_EFFECT_HINT_FEED_COOLDOWN_MS
+            )
+        }
+        return filtered
     }
     
     /**

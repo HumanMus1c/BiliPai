@@ -156,7 +156,7 @@ fun CommentSegmentedControl(
         modifier = modifier,
         miuixBackdrop = miuixBackdrop,
         forceLiquidChrome = false,
-        liquidGlassEffectsEnabled = false,
-        tapPressRefractionEnabled = false
+        liquidGlassEffectsEnabled = true,
+        tapPressRefractionEnabled = true,
     )
 }

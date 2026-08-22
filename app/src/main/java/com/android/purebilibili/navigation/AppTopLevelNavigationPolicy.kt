@@ -226,11 +226,11 @@ internal fun shouldEnableBottomPagerUserScroll(): Boolean = false
  * BiliPai MainScreen composition:
  * `if (isCurrentPage || contentReady) XxxPager(...)`
  *
- * After first-frame ready, every bottom-tab slot stays mounted so
+ * After first-frame ready, lightweight bottom-tab slots stay mounted so
  * [MainBottomPagerState.switchToPage] `animateScrollBy` far jumps
  * (rightmost → home) scroll across real pages instead of empty Boxes.
- * Active work (playback, heavy refresh) still gates on settledPage via
- * `isBottomPagerPageActive` — this only trades memory for solid transition frames.
+ * Story is intentionally excluded while inactive: mounting it creates a real media player and
+ * playback loading session, which is not safe or useful as visual-only pager precomposition.
  *
  * Before ready, only mount start / selected / current to keep cold start light.
  */
@@ -243,10 +243,16 @@ internal fun shouldComposeBottomPagerPage(
     navigationStartPage: Int,
     contentReady: Boolean
 ): Boolean {
+    val isTransitionParticipant = page == currentPage ||
+        page == selectedPage ||
+        page == navigationStartPage
+    if (item == BottomNavItem.STORY) {
+        return isTransitionParticipant
+    }
     if (contentReady) {
         return true
     }
-    return page == currentPage || page == selectedPage || page == navigationStartPage
+    return isTransitionParticipant
 }
 
 internal fun shouldBypassNavigationDebounceForRoute(targetRoute: String): Boolean {

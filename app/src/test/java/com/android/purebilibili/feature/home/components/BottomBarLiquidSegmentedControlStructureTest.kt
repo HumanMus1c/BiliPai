@@ -269,9 +269,9 @@ class BottomBarLiquidSegmentedControlStructureTest {
     }
 
     @Test
-    fun `global glass does not force liquid pill on native chrome`() {
+    fun `global glass uses dock plus indicator on native chrome`() {
         assertEquals(
-            SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE,
+            SegmentedControlChromeStyle.LIQUID_PILL,
             resolveSegmentedControlChromeStyle(
                 prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = true,
@@ -281,13 +281,41 @@ class BottomBarLiquidSegmentedControlStructureTest {
     }
 
     @Test
-    fun `android native chrome segmented control stays underline when global glass is enabled`() {
+    fun `android native chrome segmented control uses liquid pill when global glass is enabled`() {
         assertEquals(
-            SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE,
+            SegmentedControlChromeStyle.LIQUID_PILL,
             resolveSegmentedControlChromeStyle(
                 prefersNativeChrome = true,
                 androidNativeLiquidGlassEnabled = true,
                 preferInlineContentStyle = false
+            )
+        )
+    }
+
+    @Test
+    fun `segmented liquid glass follows the master switch and effect gate`() {
+        assertTrue(
+            resolveSegmentedControlLiquidGlassEnabled(
+                storedLiquidGlassEnabled = false,
+                liquidGlassEffectsEnabled = true,
+                supportsIndependentLiquidGlass = false,
+                androidNativeLiquidGlassEnabled = true
+            )
+        )
+        assertFalse(
+            resolveSegmentedControlLiquidGlassEnabled(
+                storedLiquidGlassEnabled = true,
+                liquidGlassEffectsEnabled = false,
+                supportsIndependentLiquidGlass = true,
+                androidNativeLiquidGlassEnabled = true
+            )
+        )
+        assertFalse(
+            resolveSegmentedControlLiquidGlassEnabled(
+                storedLiquidGlassEnabled = true,
+                liquidGlassEffectsEnabled = true,
+                supportsIndependentLiquidGlass = true,
+                androidNativeLiquidGlassEnabled = false
             )
         )
     }
@@ -310,9 +338,10 @@ class BottomBarLiquidSegmentedControlStructureTest {
         assertTrue(floating.contains("FloatingBottomBar("))
         assertTrue(floating.contains("FloatingBottomBarItem("))
         assertTrue(floating.contains("resolveBiliPaiBottomBarShellColor("))
-        assertTrue(floating.contains("FloatingBottomBarDefaultShellHeight"))
-        assertTrue(floating.contains("FloatingBottomBarIndicatorHeight"))
-        assertTrue(floating.contains("modifier.wrapContentWidth()"))
+        assertTrue(floating.contains("shellHeight = height"))
+        assertTrue(floating.contains("indicatorHeight = indicatorHeight"))
+        assertFalse(floating.contains("FloatingBottomBarDefaultShellHeight"))
+        assertFalse(floating.contains("modifier.wrapContentWidth()"))
         assertTrue(floating.contains("indicatorPositionProvider = indicatorPositionProvider"))
         assertFalse(floating.contains("DampedDragAnimation("))
         assertFalse(
@@ -398,7 +427,7 @@ class BottomBarLiquidSegmentedControlStructureTest {
         )
 
         assertTrue(
-            floating.contains("enabled && itemCount > 1 && dragSelectionEnabled"),
+            floating.contains("dragSelectionEnabled && enabled && itemCount > 1"),
             "Scrollable contribution tabs disable drag selection, so the liquid indicator must not attach a competing drag gesture"
         )
     }
@@ -408,7 +437,11 @@ class BottomBarLiquidSegmentedControlStructureTest {
         val paths = listOf(
             "app/src/main/java/com/android/purebilibili/feature/video/ui/components/CommentSortFilterBar.kt",
             "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt",
-            "app/src/main/java/com/android/purebilibili/feature/live/LivePlayerScreen.kt"
+            "app/src/main/java/com/android/purebilibili/feature/live/LivePlayerScreen.kt",
+            "app/src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCommentSheet.kt",
+            "app/src/main/java/com/android/purebilibili/feature/home/HomeCategoryPage.kt",
+            "app/src/main/java/com/android/purebilibili/feature/plugin/TodayWatchPlugin.kt",
+            "app/src/main/java/com/android/purebilibili/feature/bangumi/BangumiReviewScreen.kt",
         )
 
         paths.forEach { path ->

@@ -180,6 +180,25 @@ private fun TabletBangumiDetailContent(
     var showJumpDialog by remember { mutableStateOf(false) }
     var jumpInputText by remember { mutableStateOf("") }
     var jumpErrorMessage by remember { mutableStateOf<String?>(null) }
+    var episodesDescending by remember(detail.seasonId) { mutableStateOf(false) }
+    var selectedEpisodePage by remember(detail.seasonId, detail.episodes?.size) {
+        mutableIntStateOf(0)
+    }
+    val allEpisodes = detail.episodes.orEmpty()
+    val orderedEpisodes = remember(allEpisodes, episodesDescending) {
+        orderBangumiEpisodes(allEpisodes, episodesDescending)
+    }
+    val episodesPerPage = 50
+    val episodePageCount = resolveBangumiEpisodePageCount(orderedEpisodes.size, episodesPerPage)
+    val displayedEpisodes = remember(orderedEpisodes, selectedEpisodePage) {
+        if (episodePageCount <= 1) {
+            orderedEpisodes
+        } else {
+            val safePage = selectedEpisodePage.coerceIn(0, episodePageCount - 1)
+            val start = safePage * episodesPerPage
+            orderedEpisodes.subList(start, minOf(start + episodesPerPage, orderedEpisodes.size))
+        }
+    }
     
     Row(
         modifier = Modifier
@@ -350,7 +369,7 @@ private fun TabletBangumiDetailContent(
                 modifier = Modifier.fillMaxSize()
             ) {
                  // Header: Episodes Title
-                 if (!detail.episodes.isNullOrEmpty()) {
+                 if (allEpisodes.isNotEmpty()) {
                      item(span = { GridItemSpan(maxLineSpan) }) {
                          Row(
                             modifier = Modifier.fillMaxWidth().padding(bottom=8.dp),
@@ -358,19 +377,52 @@ private fun TabletBangumiDetailContent(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AppText(
-                                text = "选集 (${detail.episodes.size})",
+                                text = "选集 (${allEpisodes.size})",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 20.sp
                             )
-                             AppTextButton(onClick = {
-                                jumpInputText = ""
-                                jumpErrorMessage = null
-                                showJumpDialog = true 
-                            }) { AppText("跳转") }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                AppTextButton(onClick = {
+                                    episodesDescending = !episodesDescending
+                                    selectedEpisodePage = 0
+                                }) { AppText(if (episodesDescending) "倒序" else "正序") }
+                                AppTextButton(onClick = {
+                                    jumpInputText = ""
+                                    jumpErrorMessage = null
+                                    showJumpDialog = true
+                                }) { AppText("跳转") }
+                            }
                         }
                      }
+
+                     if (episodePageCount > 1) {
+                         item(span = { GridItemSpan(maxLineSpan) }) {
+                             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                 items(episodePageCount, key = { it }) { page ->
+                                     val selected = page == selectedEpisodePage
+                                     AppSurface(
+                                         onClick = { selectedEpisodePage = page },
+                                         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                         shape = AppShapes.container(ContainerLevel.Card)
+                                     ) {
+                                         AppText(
+                                             text = resolveBangumiEpisodePageLabel(
+                                                 episodeCount = allEpisodes.size,
+                                                 page = page,
+                                                 episodesPerPage = episodesPerPage,
+                                                 descending = episodesDescending
+                                             ),
+                                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                             fontSize = 12.sp,
+                                             color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                         )
+                                     }
+                                 }
+                             }
+                         }
+                     }
                      
-                     items(detail.episodes, key = { it.id }) { episode ->
+                     items(displayedEpisodes, key = { it.id }) { episode ->
                          EpisodeChip(
                                 episode = episode,
                                 onClick = { onEpisodeClick(episode) }
@@ -518,6 +570,10 @@ private fun MobileBangumiDetailContent(
     var jumpErrorMessage by remember { mutableStateOf<String?>(null) }
     var selectedPreviewPage by remember(detail.seasonId, detail.episodes?.size) {
         mutableIntStateOf(0)
+    }
+    var episodesDescending by remember(detail.seasonId) { mutableStateOf(false) }
+    val orderedEpisodes = remember(detail.episodes, episodesDescending) {
+        orderBangumiEpisodes(detail.episodes.orEmpty(), episodesDescending)
     }
     
     Box(modifier = Modifier.fillMaxSize()) {
@@ -751,21 +807,28 @@ private fun MobileBangumiDetailContent(
                             fontSize = 16.sp
                         )
                         
-                        //  跳转按钮
-                        AppSurface(
-                            onClick = { 
-                                jumpInputText = ""
-                                jumpErrorMessage = null
-                                showJumpDialog = true 
-                            },
-                            color = Color.Transparent
-                        ) {
-                            AppText(
-                                text = "跳转",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AppTextButton(onClick = {
+                                episodesDescending = !episodesDescending
+                                selectedPreviewPage = 0
+                            }) {
+                                AppText(if (episodesDescending) "倒序" else "正序")
+                            }
+                            AppSurface(
+                                onClick = {
+                                    jumpInputText = ""
+                                    jumpErrorMessage = null
+                                    showJumpDialog = true
+                                },
+                                color = Color.Transparent
+                            ) {
+                                AppText(
+                                    text = "跳转",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -782,8 +845,6 @@ private fun MobileBangumiDetailContent(
                             modifier = Modifier.padding(bottom = 8.dp)
                         ) {
                             items(totalPages, key = { it }) { page ->
-                                val start = page * episodesPerPage + 1
-                                val end = minOf((page + 1) * episodesPerPage, detail.episodes.size)
                                 val isCurrentPage = page == selectedPreviewPage
                                 
                                 AppSurface(
@@ -792,7 +853,12 @@ private fun MobileBangumiDetailContent(
                                     shape = AppShapes.container(ContainerLevel.Card)
                                 ) {
                                     AppText(
-                                        text = "$start-$end",
+                                        text = resolveBangumiEpisodePageLabel(
+                                            episodeCount = detail.episodes.size,
+                                            page = page,
+                                            episodesPerPage = episodesPerPage,
+                                            descending = episodesDescending
+                                        ),
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                         fontSize = 12.sp,
                                         color = if (isCurrentPage) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
@@ -812,9 +878,9 @@ private fun MobileBangumiDetailContent(
                             episodesPerPage = 50,
                             previewCount = 6
                         )
-                        detail.episodes.subList(window.startIndex, window.endExclusive)
+                        orderedEpisodes.subList(window.startIndex, window.endExclusive)
                     } else {
-                        detail.episodes.take(6)
+                        orderedEpisodes.take(6)
                     }
                     
                     LazyRow(
@@ -1250,6 +1316,12 @@ private fun EpisodeSelectionSheet(
     onSeasonClick: (Long) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sourceEpisodes = detail.episodes.orEmpty()
+    var episodesDescending by remember(detail.seasonId) { mutableStateOf(false) }
+    var selectedPage by remember(detail.seasonId, sourceEpisodes.size) { mutableIntStateOf(0) }
+    val episodes = remember(sourceEpisodes, episodesDescending) {
+        orderBangumiEpisodes(sourceEpisodes, episodesDescending)
+    }
     
     com.android.purebilibili.core.ui.AppModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1276,13 +1348,21 @@ private fun EpisodeSelectionSheet(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
-                
-                AppIconButton(onClick = onDismiss) {
-                    AppIcon(
-                        Icons.Outlined.Close,
-                        contentDescription = "关闭",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AppTextButton(onClick = {
+                        episodesDescending = !episodesDescending
+                        selectedPage = 0
+                    }) {
+                        AppText(if (episodesDescending) "倒序" else "正序")
+                    }
+                    AppIconButton(onClick = onDismiss) {
+                        AppIcon(
+                            Icons.Outlined.Close,
+                            contentDescription = "关闭",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
             
@@ -1342,22 +1422,16 @@ private fun EpisodeSelectionSheet(
             )
             
             //  分页选择器（超过50集时显示）
-            val episodes = detail.episodes ?: emptyList()
             val episodesPerPage = 50
-            val totalPages = if (episodes.size > episodesPerPage) {
-                (episodes.size + episodesPerPage - 1) / episodesPerPage
-            } else 0
-            var selectedPage by remember { mutableIntStateOf(0) }
+            val totalPages = resolveBangumiEpisodePageCount(episodes.size, episodesPerPage)
             
-            if (totalPages > 0) {
+            if (totalPages > 1) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.padding(bottom = 8.dp)
                 ) {
                     items(totalPages, key = { it }) { page ->
-                        val start = page * episodesPerPage + 1
-                        val end = minOf((page + 1) * episodesPerPage, episodes.size)
                         val isCurrentPage = page == selectedPage
                         
                         AppSurface(
@@ -1366,7 +1440,12 @@ private fun EpisodeSelectionSheet(
                             shape = AppShapes.container(ContainerLevel.Card)
                         ) {
                             AppText(
-                                text = "$start-$end",
+                                text = resolveBangumiEpisodePageLabel(
+                                    episodeCount = episodes.size,
+                                    page = page,
+                                    episodesPerPage = episodesPerPage,
+                                    descending = episodesDescending
+                                ),
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 fontSize = 12.sp,
                                 color = if (isCurrentPage) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
@@ -1377,7 +1456,7 @@ private fun EpisodeSelectionSheet(
             }
             
             //  剧集列表（两列网格布局）
-            val displayEpisodes = if (totalPages > 0) {
+            val displayEpisodes = if (totalPages > 1) {
                 val pageStart = selectedPage * episodesPerPage
                 val pageEnd = minOf(pageStart + episodesPerPage, episodes.size)
                 episodes.subList(pageStart, pageEnd)

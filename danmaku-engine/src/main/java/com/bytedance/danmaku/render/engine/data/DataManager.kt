@@ -98,6 +98,19 @@ class DataManager(controller: DanmakuController) {
         mCurrentIndex = lowerBound(playTime)
     }
 
+    /**
+     * Corrects small clock drift without replaying consumed data or touching render layers.
+     * Large jumps continue to use the explicit seek path.
+     */
+    @UiThread
+    fun synchronizePlayTime(playTime: Long) {
+        val safePlayTime = max(0, playTime)
+        mStartPlayTime = safePlayTime
+        mStartTimestamp = System.currentTimeMillis()
+        mCurrentPlayTime = safePlayTime
+        mCurrentIndex = max(mCurrentIndex, lowerBound(safePlayTime))
+    }
+
     @UiThread
     fun onPlaySpeedChanged() {
         mStartPlayTime = mCurrentPlayTime

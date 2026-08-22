@@ -37,25 +37,25 @@ class DanmakuPlaybackSyncPolicyTest {
     }
 
     @Test
-    fun `force resync should trigger periodically for both normal and non-normal speed`() {
-        assertFalse(shouldForceDanmakuDataResync(1.0f, 3))
-        assertFalse(shouldForceDanmakuDataResync(1.0f, 5))
-        assertTrue(shouldForceDanmakuDataResync(1.0f, 6))
-        assertFalse(shouldForceDanmakuDataResync(1.3f, 1))
-        assertFalse(shouldForceDanmakuDataResync(1.3f, 2))
-        assertTrue(shouldForceDanmakuDataResync(1.3f, 3))
-        assertTrue(shouldForceDanmakuDataResync(0.8f, 6))
+    fun `drift correction should trigger periodically for both normal and non-normal speed`() {
+        assertFalse(shouldScheduleDanmakuDriftCorrection(1.0f, 3))
+        assertFalse(shouldScheduleDanmakuDriftCorrection(1.0f, 5))
+        assertTrue(shouldScheduleDanmakuDriftCorrection(1.0f, 6))
+        assertFalse(shouldScheduleDanmakuDriftCorrection(1.3f, 1))
+        assertFalse(shouldScheduleDanmakuDriftCorrection(1.3f, 2))
+        assertTrue(shouldScheduleDanmakuDriftCorrection(1.3f, 3))
+        assertTrue(shouldScheduleDanmakuDriftCorrection(0.8f, 6))
     }
 
     @Test
-    fun `force resync should be less frequent at high playback speed`() {
-        assertFalse(shouldForceDanmakuDataResync(2.0f, 3))
-        assertFalse(shouldForceDanmakuDataResync(2.0f, 6))
-        assertTrue(shouldForceDanmakuDataResync(2.0f, 9))
+    fun `drift correction should be less frequent at high playback speed`() {
+        assertFalse(shouldScheduleDanmakuDriftCorrection(2.0f, 3))
+        assertFalse(shouldScheduleDanmakuDriftCorrection(2.0f, 6))
+        assertTrue(shouldScheduleDanmakuDriftCorrection(2.0f, 9))
     }
 
     @Test
-    fun `guard action should prefer soft resync at high playback speed`() {
+    fun `periodic guard action should always preserve visible danmaku`() {
         assertEquals(
             DanmakuSyncAction.SoftResync,
             resolveDanmakuGuardAction(
@@ -67,7 +67,7 @@ class DanmakuPlaybackSyncPolicyTest {
             )
         )
         assertEquals(
-            DanmakuSyncAction.HardResync,
+            DanmakuSyncAction.SoftResync,
             resolveDanmakuGuardAction(
                 videoSpeed = 1.3f,
                 tickCount = 3,

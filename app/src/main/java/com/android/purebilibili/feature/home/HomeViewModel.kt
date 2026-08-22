@@ -14,6 +14,7 @@ import com.android.purebilibili.core.plugin.RecommendationPluginApi
 import com.android.purebilibili.core.plugin.RecommendationRequest
 import com.android.purebilibili.core.plugin.RecommendationResult
 import com.android.purebilibili.core.plugin.RecommendationSceneSignals
+import com.android.purebilibili.core.plugin.RecommendationStrategy
 import com.android.purebilibili.feature.plugin.ADFILTER_PLUGIN_ID
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.TodayWatchDislikedVideoSnapshot
@@ -36,6 +37,7 @@ import com.android.purebilibili.feature.message.totalMessageUnreadCount
 import com.android.purebilibili.feature.plugin.EyeProtectionPlugin
 import com.android.purebilibili.feature.plugin.TodayWatchPlugin
 import com.android.purebilibili.feature.plugin.TodayWatchPluginConfig
+import com.android.purebilibili.feature.plugin.TodayWatchCandidatePoolMode
 import com.android.purebilibili.feature.plugin.TodayWatchPluginMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
@@ -211,6 +213,8 @@ private fun RecommendationResult.toTodayWatchPlan(): TodayWatchPlan {
         upRanks = creatorGroup.toTodayUpRanks().toImmutableList(),
         videoQueue = items.map { it.video }.toImmutableList(),
         explanationByBvid = items.associate { it.video.bvid to it.explanation }.toImmutableMap(),
+        scoreByBvid = items.associate { it.video.bvid to it.score }.toImmutableMap(),
+        confidenceByBvid = items.associate { it.video.bvid to it.confidence }.toImmutableMap(),
         historySampleCount = historySampleCount,
         nightSignalUsed = sceneSignals.eyeCareNightActive,
         generatedAt = generatedAt
@@ -224,7 +228,7 @@ private fun RecommendationGroup?.toTodayUpRanks(): List<TodayUpRank> {
             mid = mid,
             name = item.title,
             score = item.score ?: 0.0,
-            watchCount = 1
+            watchCount = item.watchCount ?: 1
         )
     }
 }
@@ -232,6 +236,8 @@ private fun RecommendationGroup?.toTodayUpRanks(): List<TodayUpRank> {
 private data class TodayWatchRuntimeConfig(
     val enabled: Boolean,
     val mode: TodayWatchMode,
+    val recommendationStrategy: RecommendationStrategy,
+    val candidatePoolMode: TodayWatchCandidatePoolMode,
     val upRankLimit: Int,
     val queueBuildLimit: Int,
     val queuePreviewLimit: Int,
@@ -334,6 +340,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var blockedMids: Set<Long> = emptySet()
     private var historySampleCache: List<VideoItem> = emptyList()
     private var historySampleLoadedAtMs: Long = 0L
+    private var historySampleCacheComplete: Boolean = false
+    private var expandedCandidateCache: TodayWatchExpandedCandidateCache? = null
+    private var todayWatchRebuildJob: Job? = null
+    private var todayWatchBuildGeneration: Long = 0L
     private val todayConsumedBvids = mutableSetOf<String>()
     private val todayDislikedBvids = mutableSetOf<String>()
     private val todayDislikedCreatorMids = mutableSetOf<Long>()
@@ -381,6 +391,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                                     )
                                 ) {
                                     rebuildTodayWatchPlan()
+                                } else if (runtime.collapsed) {
+                                    cancelTodayWatchPlanRebuild()
                                 }
                             }
                         }
@@ -396,6 +408,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 ) {
                     rebuildTodayWatchPlan()
+                } else if (runtime.collapsed) {
+                    cancelTodayWatchPlanRebuild()
                 }
             }
         }
@@ -450,6 +464,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         return TodayWatchRuntimeConfig(
             enabled = pluginEnabled,
             mode = config.currentMode.toUiMode(),
+            recommendationStrategy = config.recommendationStrategy,
+            candidatePoolMode = config.candidatePoolMode,
             upRankLimit = config.upRankLimit,
             queueBuildLimit = config.queueBuildLimit,
             queuePreviewLimit = config.queuePreviewLimit,
@@ -485,6 +501,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         )
 
         if (!runtime.enabled && clearWhenDisabled) {
+            cancelTodayWatchPlanRebuild(clearExpandedCache = true)
             nextState = nextState.copy(
                 todayWatchPlan = null,
                 todayWatchLoading = false,
@@ -518,7 +535,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (current.todayWatchCollapsed == collapsed) return
         _uiState.value = current.copy(todayWatchCollapsed = collapsed)
 
-        if (!collapsed) {
+        if (collapsed) {
+            cancelTodayWatchPlanRebuild()
+        } else {
             viewModelScope.launch {
                 val runtime = syncTodayWatchPluginState(clearWhenDisabled = true)
                 if (shouldAutoRebuildTodayWatchPlan(
@@ -546,7 +565,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun rebuildTodayWatchPlan(forceReloadHistory: Boolean = false) {
+    private fun rebuildTodayWatchPlan(forceReloadHistory: Boolean = false) {
+        if (forceReloadHistory) {
+            expandedCandidateCache = null
+        }
+        val generation = ++todayWatchBuildGeneration
+        todayWatchRebuildJob?.cancel()
+        todayWatchRebuildJob = viewModelScope.launch {
+            performTodayWatchPlanRebuild(
+                forceReloadHistory = forceReloadHistory,
+                generation = generation
+            )
+        }
+    }
+
+    private fun cancelTodayWatchPlanRebuild(clearExpandedCache: Boolean = false) {
+        todayWatchBuildGeneration += 1L
+        todayWatchRebuildJob?.cancel()
+        todayWatchRebuildJob = null
+        if (clearExpandedCache) expandedCandidateCache = null
+    }
+
+    private suspend fun performTodayWatchPlanRebuild(
+        forceReloadHistory: Boolean,
+        generation: Long
+    ) {
         val runtime = syncTodayWatchPluginState(clearWhenDisabled = true)
         if (!runtime.enabled) {
             return
@@ -569,6 +612,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             forceReload = forceReloadHistory,
             sampleLimit = runtime.historySampleLimit
         )
+        currentCoroutineContext().ensureActive()
+        if (!shouldApplyTodayWatchBuildResult(generation, todayWatchBuildGeneration)) return
         val creatorSignals = TodayWatchProfileStore.getCreatorSignals(
             context = getApplication(),
             limit = runtime.historySampleLimit / 4
@@ -595,72 +640,152 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val result = recommendationPlugin.buildRecommendations(
-            RecommendationRequest(
-                historyVideos = historySample,
-                candidateVideos = recommendVideos,
-                mode = runtime.mode.toRecommendationMode(),
-                sceneSignals = RecommendationSceneSignals(
-                    eyeCareNightActive = eyeCareNightActive
-                ),
-                groupLimit = runtime.upRankLimit,
-                queueLimit = runtime.queueBuildLimit,
-                creatorSignals = creatorSignals,
-                feedbackSignals = RecommendationFeedbackSignals(
-                    consumedBvids = todayConsumedBvids.toSet(),
-                    dislikedBvids = todayDislikedBvids.toSet(),
-                    dislikedCreatorMids = todayDislikedCreatorMids.toSet(),
-                    dislikedKeywords = todayDislikedKeywords.toSet()
+        fun buildResult(candidates: List<VideoItem>): RecommendationResult {
+            return recommendationPlugin.buildRecommendations(
+                RecommendationRequest(
+                    historyVideos = historySample,
+                    candidateVideos = candidates,
+                    mode = runtime.mode.toRecommendationMode(),
+                    strategy = runtime.recommendationStrategy,
+                    sceneSignals = RecommendationSceneSignals(
+                        eyeCareNightActive = eyeCareNightActive
+                    ),
+                    groupLimit = runtime.upRankLimit,
+                    queueLimit = runtime.queueBuildLimit,
+                    creatorSignals = creatorSignals,
+                    feedbackSignals = RecommendationFeedbackSignals(
+                        consumedBvids = todayConsumedBvids.toSet(),
+                        dislikedBvids = todayDislikedBvids.toSet(),
+                        dislikedCreatorMids = todayDislikedCreatorMids.toSet(),
+                        dislikedKeywords = todayDislikedKeywords.toSet()
+                    )
                 )
             )
-        )
-        val plan = result.toTodayWatchPlan()
+        }
+
+        val localResult = buildResult(recommendVideos)
+        if (!shouldApplyTodayWatchBuildResult(generation, todayWatchBuildGeneration)) return
 
         _uiState.value = _uiState.value.copy(
-            todayWatchPlan = plan,
+            todayWatchPlan = localResult.toTodayWatchPlan(),
             todayWatchMode = runtime.mode,
             todayWatchLoading = false,
             todayWatchError = null
         )
+
+        if (runtime.candidatePoolMode != TodayWatchCandidatePoolMode.EXPANDED) return
+
+        val baseSignature = buildTodayWatchCandidateSignature(recommendVideos)
+        val nowMillis = System.currentTimeMillis()
+        val cached = expandedCandidateCache
+        if (canReuseTodayWatchExpandedCache(cached, baseSignature, nowMillis)) {
+            val mergedCandidates = mergeTodayWatchCandidates(recommendVideos, cached?.candidates.orEmpty())
+            if (mergedCandidates.size > recommendVideos.size &&
+                shouldApplyTodayWatchBuildResult(generation, todayWatchBuildGeneration)
+            ) {
+                _uiState.value = _uiState.value.copy(
+                    todayWatchPlan = buildResult(mergedCandidates).toTodayWatchPlan(),
+                    todayWatchError = null
+                )
+            }
+            return
+        }
+
+        val expandedResult = VideoRepository.getHomeVideos(refreshIdx + 1)
+        currentCoroutineContext().ensureActive()
+        if (!shouldApplyTodayWatchBuildResult(generation, todayWatchBuildGeneration)) return
+
+        expandedResult.onSuccess { rawCandidates ->
+            val expandedCandidates = filterTodayWatchExpandedCandidates(rawCandidates)
+            expandedCandidateCache = TodayWatchExpandedCandidateCache(
+                baseSignature = baseSignature,
+                candidates = expandedCandidates,
+                loadedAtMillis = System.currentTimeMillis()
+            )
+            val mergedCandidates = mergeTodayWatchCandidates(recommendVideos, expandedCandidates)
+            if (mergedCandidates.size > recommendVideos.size &&
+                shouldApplyTodayWatchBuildResult(generation, todayWatchBuildGeneration)
+            ) {
+                _uiState.value = _uiState.value.copy(
+                    todayWatchPlan = buildResult(mergedCandidates).toTodayWatchPlan(),
+                    todayWatchError = null
+                )
+            }
+        }.onFailure { error ->
+            if (error is CancellationException) throw error
+            if (shouldApplyTodayWatchBuildResult(generation, todayWatchBuildGeneration)) {
+                _uiState.value = _uiState.value.copy(
+                    todayWatchError = "扩充候选失败，已使用本地候选"
+                )
+            }
+        }
+    }
+
+    private fun filterTodayWatchExpandedCandidates(videos: List<VideoItem>): List<VideoItem> {
+        val validVideos = videos.filter { it.bvid.isNotBlank() && it.title.isNotBlank() }
+        val blockedFiltered = validVideos.filter { it.owner.mid !in blockedMids }
+        val feedbackFiltered = filterHomeFeedbackVideos(blockedFiltered)
+        val builtinFiltered = PluginManager.filterFeedItems(
+            feedbackFiltered,
+            feedKind = FeedKind.HOME_RECOMMEND
+        )
+        return com.android.purebilibili.core.plugin.json.JsonPluginManager
+            .filterVideos(builtinFiltered)
+            .distinctBy { it.bvid }
     }
 
     private suspend fun loadHistorySample(forceReload: Boolean, sampleLimit: Int): List<VideoItem> {
         val now = System.currentTimeMillis()
+        val normalizedLimit = sampleLimit.coerceIn(20, 120)
         if (!forceReload &&
             historySampleCache.isNotEmpty() &&
+            (historySampleCache.size >= normalizedLimit || historySampleCacheComplete) &&
             now - historySampleLoadedAtMs < HISTORY_SAMPLE_CACHE_TTL_MS
         ) {
-            return historySampleCache.take(sampleLimit.coerceIn(20, 120))
+            return historySampleCache.take(normalizedLimit)
         }
 
-        val firstPage = HistoryRepository.getHistoryList(ps = 50, max = 0, viewAt = 0).getOrNull()
-        if (firstPage == null) {
-            _uiState.value = _uiState.value.copy(
-                todayWatchLoading = false,
-                todayWatchError = "历史记录不可用，已按当前推荐生成"
-            )
-            return emptyList()
-        }
-
-        val merged = firstPage.list.map { it.toVideoItem() }.toMutableList()
-        val cursor = firstPage.cursor
-        if (cursor != null && cursor.max > 0 && merged.size < 80) {
-            val secondPage = HistoryRepository.getHistoryList(
+        val merged = mutableListOf<VideoItem>()
+        var cursorMax = 0L
+        var cursorViewAt = 0L
+        var cursorBusiness = ""
+        var pageCount = 0
+        var reachedEnd = false
+        while (merged.size < normalizedLimit && pageCount < 3) {
+            val page = HistoryRepository.getHistoryList(
                 ps = 50,
-                max = cursor.max,
-                viewAt = cursor.view_at,
-                business = cursor.business
+                max = cursorMax,
+                viewAt = cursorViewAt,
+                business = cursorBusiness
             ).getOrNull()
-            if (secondPage != null) {
-                merged += secondPage.list.map { it.toVideoItem() }
+            if (page == null) {
+                if (pageCount == 0) {
+                    _uiState.value = _uiState.value.copy(
+                        todayWatchLoading = false,
+                        todayWatchError = "历史记录不可用，已按当前推荐生成"
+                    )
+                    return emptyList()
+                }
+                break
             }
+            merged += page.list.map { it.toVideoItem() }
+            pageCount += 1
+            val cursor = page.cursor
+            if (cursor == null || cursor.max <= 0L || page.list.isEmpty()) {
+                reachedEnd = true
+                break
+            }
+            cursorMax = cursor.max
+            cursorViewAt = cursor.view_at
+            cursorBusiness = cursor.business
         }
 
         historySampleCache = merged
             .filter { it.bvid.isNotBlank() }
             .distinctBy { it.bvid }
         historySampleLoadedAtMs = now
-        return historySampleCache.take(sampleLimit.coerceIn(20, 120))
+        historySampleCacheComplete = reachedEnd
+        return historySampleCache.take(normalizedLimit)
     }
 
     private fun getRecommendCandidates(): List<VideoItem> {

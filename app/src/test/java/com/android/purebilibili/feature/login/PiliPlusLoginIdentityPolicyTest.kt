@@ -14,4 +14,9 @@ class PiliPlusLoginIdentityPolicyTest {
         assertEquals(34, identity.deviceId.length)
         assertTrue(identity.deviceId.all { it.isDigit() || it in 'a'..'f' })
     }
+
+    @Test
+    fun `random device token matches PiliPlus alphabet`() {
+        assertTrue(createPiliPlusRandomString(16).matches(Regex("[0-9a-z]{16}")))
+    }
 }

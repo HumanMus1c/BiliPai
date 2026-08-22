@@ -19,10 +19,13 @@ import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.plugin.DanmakuItem
 import com.android.purebilibili.core.plugin.DanmakuPluginApi
 import com.android.purebilibili.core.plugin.DanmakuStyle
+import com.android.purebilibili.core.plugin.PLUGIN_EFFECT_HINT_DANMAKU_COOLDOWN_MS
 import com.android.purebilibili.core.plugin.PluginCapability
 import com.android.purebilibili.core.plugin.PluginCapabilityManifest
+import com.android.purebilibili.core.plugin.PluginEffectHintBus
 import com.android.purebilibili.core.plugin.PluginManager
 import com.android.purebilibili.core.plugin.PluginStore
+import com.android.purebilibili.core.plugin.resolveDanmakuFilterEffectHint
 import com.android.purebilibili.core.util.Logger
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -91,6 +94,13 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
         highlightKeywordsCache = splitKeywords(config.highlightKeywords)
     }
 
+    private fun emitFilterHint() {
+        PluginEffectHintBus.tryEmit(
+            resolveDanmakuFilterEffectHint(id, name),
+            cooldownMs = PLUGIN_EFFECT_HINT_DANMAKU_COOLDOWN_MS
+        )
+    }
+
     private suspend fun persistConfig(context: Context, newConfig: DanmakuEnhanceConfig) {
         config = newConfig
         refreshKeywordCache()
@@ -131,11 +141,13 @@ class DanmakuEnhancePlugin : DanmakuPluginApi {
 
         if (blockedKeywordsCache.any { danmaku.content.contains(it, ignoreCase = true) }) {
             filteredCount++
+            emitFilterHint()
             return null
         }
 
         if (isUserBlocked(danmaku.userId)) {
             filteredCount++
+            emitFilterHint()
             return null
         }
 

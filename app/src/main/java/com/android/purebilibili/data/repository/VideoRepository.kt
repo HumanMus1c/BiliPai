@@ -214,6 +214,8 @@ object VideoRepository {
             val title = info.title.trim()
             if (title.isEmpty()) throw Exception("视频标题为空")
             Result.success(title)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -478,6 +480,8 @@ object VideoRepository {
                     audioLang = audioLang
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -486,26 +490,50 @@ object VideoRepository {
     suspend fun preloadPortraitPlayUrl(
         bvid: String,
         cid: Long,
+        aid: Long = 0L,
         targetQuality: Int = PORTRAIT_PLAYBACK_TARGET_QUALITY
-    ) {
-        if (bvid.isBlank() || cid <= 0L) return
-        withContext(Dispatchers.IO) {
-            if (PlayUrlCache.get(bvid = bvid, cid = cid, requestedQuality = targetQuality) != null) {
+    ): PlayUrlData? {
+        if (bvid.isBlank()) return null
+        return withContext(Dispatchers.IO) {
+            if (cid <= 0L) {
+                val resolved = getPortraitPlaybackDetails(
+                    bvid = bvid,
+                    aid = aid,
+                    requestedCid = 0L,
+                    targetQuality = targetQuality
+                ).getOrNull()?.second
+                if (resolved != null) {
+                    com.android.purebilibili.core.util.Logger.d(
+                        "VideoRepo",
+                        "🚀 Portrait preload resolved cid and playurl: bvid=$bvid"
+                    )
+                }
+                return@withContext resolved
+            }
+            val cachedPlayData = PlayUrlCache.get(
+                bvid = bvid,
+                cid = cid,
+                requestedQuality = targetQuality
+            )
+            if (cachedPlayData != null) {
                 com.android.purebilibili.core.util.Logger.d(
                     "VideoRepo",
                     "🚀 Portrait preload skip (cached): bvid=$bvid"
                 )
-                return@withContext
+                return@withContext cachedPlayData
             }
-            getInitialPlayUrlData(
+            val playData = getInitialPlayUrlData(
                 bvid = bvid,
                 cid = cid,
                 targetQuality = targetQuality
             )
-            com.android.purebilibili.core.util.Logger.d(
-                "VideoRepo",
-                "🚀 Portrait preloaded playurl: bvid=$bvid"
-            )
+            if (playData != null) {
+                com.android.purebilibili.core.util.Logger.d(
+                    "VideoRepo",
+                    "🚀 Portrait preloaded playurl: bvid=$bvid"
+                )
+            }
+            playData
         }
     }
 

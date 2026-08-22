@@ -21,11 +21,7 @@ internal data class HistoryFilterTabChromeSpec(
 
 internal fun shouldUseHistoryFilterLiquidDock(
     androidNativeLiquidGlassEnabled: Boolean
-): Boolean {
-    @Suppress("UNUSED_PARAMETER")
-    val ignored = androidNativeLiquidGlassEnabled
-    return false
-}
+): Boolean = androidNativeLiquidGlassEnabled
 
 internal fun resolveHistoryFilterTabItemWidthDp(filterCount: Int): Int {
     return when {
@@ -53,9 +49,9 @@ internal fun resolveHistoryFilterTabChromeSpec(
             itemWidthDp = null,
             horizontalPaddingDp = 16,
             labelFontSizeSp = HISTORY_FILTER_LIQUID_DOCK_LABEL_FONT_SIZE_SP,
-            // Page-level navigation remains tap-first so the selector never competes
-            // with Android's predictive back gesture at either screen edge.
-            dragSelectionEnabled = false
+            // Drag is allowed in the dock middle; FloatingBottomBar leaves the
+            // system-gesture edge bands for predictive back.
+            dragSelectionEnabled = true
         )
     } else {
         HistoryFilterTabChromeSpec(

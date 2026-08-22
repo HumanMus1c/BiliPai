@@ -135,6 +135,12 @@ class DanmakuController(private var mDanmakuView: View): ConfigChangeListener, I
         }
     }
 
+    /** Reanchors the media clock while preserving the active render lines. */
+    fun synchronizeTo(playTime: Long) {
+        mDataManager.synchronizePlayTime(playTime)
+        mDanmakuView.postInvalidateCompat()
+    }
+
     /**
      * Append data to end of the [DataManager].
      * You need to ensure the chronological order of the data by yourself.

@@ -2,11 +2,13 @@ package com.android.purebilibili.feature.dynamic
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -39,6 +41,7 @@ import coil.imageLoader
 import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppScaffold
 import com.android.purebilibili.core.ui.AppSplitLayout
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.core.util.responsiveContentWidth
@@ -180,28 +183,27 @@ fun DynamicDetailScreen(
                     )
                 }
 
-                LaunchedEffect(
-                    detailListState,
-                    commentListState,
-                    useSplitLayout,
-                    comments.size,
-                    commentTotalCount,
-                    commentsLoading,
-                    commentsLoadingMore,
-                ) {
+                LaunchedEffect(detailListState, commentListState, useSplitLayout) {
                     snapshotFlow {
-                        //  [新增] 分栏时右栏列表负责触底加载，竖屏时主列表负责
+                        // 分栏时右栏列表负责触底加载，竖屏时主列表负责。
+                        // 加载中/条数变化必须在 snapshotFlow 内读取，不能当 LaunchedEffect key，
+                        // 否则 loading footer 插进列表会反复重启 effect，底部评论框跟着闪。
                         val activeState = if (useSplitLayout) commentListState else detailListState
                         val lastVisibleIndex = activeState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
                         val itemCount = activeState.layoutInfo.totalItemsCount
-                        itemCount > 0 && lastVisibleIndex >= itemCount - 4
+                        shouldLoadMoreDynamicDetailComments(
+                            lastVisibleIndex = lastVisibleIndex,
+                            itemCount = itemCount,
+                            loadedCount = comments.size,
+                            totalCount = commentTotalCount,
+                            isLoading = commentsLoading,
+                            isLoadingMore = commentsLoadingMore,
+                        )
                     }
                         .distinctUntilChanged()
                         .filter { it }
                         .collect {
-                            if (comments.size < commentTotalCount && !commentsLoading && !commentsLoadingMore) {
-                                interactionViewModel.loadMoreComments()
-                            }
+                            interactionViewModel.loadMoreComments()
                         }
                 }
 
@@ -267,17 +269,20 @@ fun DynamicDetailScreen(
                             showImagePreview = true
                         },
                     )
-                    item(key = "dynamic_detail_comment_composer") {
-                        DynamicInlineCommentComposer(
-                            onPostComment = { message ->
-                                interactionViewModel.postComment(state.item.id_str, message) { _, toastMessage ->
-                                    android.widget.Toast.makeText(context, toastMessage, android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            replyTargetUname = commentReplyTarget?.uname,
-                            onClearReplyTarget = interactionViewModel::clearCommentReplyTarget,
-                        )
-                    }
+                }
+                val commentComposer: @Composable () -> Unit = {
+                    DynamicInlineCommentComposer(
+                        onPostComment = { message ->
+                            interactionViewModel.postComment(state.item.id_str, message) { _, toastMessage ->
+                                android.widget.Toast.makeText(context, toastMessage, android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        replyTargetUname = commentReplyTarget?.uname,
+                        onClearReplyTarget = interactionViewModel::clearCommentReplyTarget,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(AppSurfaceTokens.surface()),
+                    )
                 }
 
                 if (useSplitLayout) {
@@ -297,26 +302,38 @@ fun DynamicDetailScreen(
                             }
                         },
                         secondaryContent = {
-                            LazyColumn(
-                                state = commentListState,
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
-                            ) {
-                                commentContent()
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                LazyColumn(
+                                    state = commentListState,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    contentPadding = PaddingValues(bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
+                                ) {
+                                    commentContent()
+                                }
+                                commentComposer()
                             }
                         }
                     )
                 } else {
-                    LazyColumn(
-                        state = detailListState,
+                    Column(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(paddingValues)
-                            .responsiveContentWidth(maxWidth = resolveDynamicFeedMaxWidth()),
-                        contentPadding = PaddingValues(bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
+                            .responsiveContentWidth(maxWidth = resolveDynamicFeedMaxWidth())
                     ) {
-                        cardContent()
-                        commentContent()
+                        LazyColumn(
+                            state = detailListState,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentPadding = PaddingValues(bottom = AppSpacingTokens.Large + AppSpacingTokens.ExtraSmall)
+                        ) {
+                            cardContent()
+                            commentContent()
+                        }
+                        commentComposer()
                     }
                 }
 

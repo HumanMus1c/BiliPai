@@ -137,6 +137,12 @@ internal class ByteDanceDanmakuEngine(
         if (!shouldResume) controller.pause()
     }
 
+    override fun synchronizeTo(positionMs: Long) {
+        if (closed) return
+        currentPositionMs = positionMs.coerceAtLeast(0L)
+        controller.synchronizeTo(currentPositionMs)
+    }
+
     override fun start(positionMs: Long) {
         if (closed) return
         currentPositionMs = positionMs.coerceAtLeast(0L)

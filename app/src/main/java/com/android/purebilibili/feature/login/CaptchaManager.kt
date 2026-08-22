@@ -17,6 +17,14 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.android.purebilibili.core.network.NetworkModule
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Request
+import okhttp3.Response
+import org.json.JSONObject
+import java.io.IOException
 import java.security.KeyFactory
 import java.security.spec.X509EncodedKeySpec
 import javax.crypto.Cipher
@@ -33,6 +41,7 @@ class CaptchaManager(private val activity: Activity) {
     
     private var webView: WebView? = null
     private var dialog: Dialog? = null
+    private var geetestConfigCall: Call? = null
     
     /**
      * 初始化并启动极验验证
@@ -91,8 +100,8 @@ class CaptchaManager(private val activity: Activity) {
                 )
             }
             
-            // 加载极验验证 HTML
-            val html = generateGeetestHtml(gt, challenge, isDarkMode)
+            // 先显示加载页，再按 PiliPlus 的流程获取当前 gt 对应的动态配置。
+            val html = generateLoadingHtml(isDarkMode)
             webView?.loadDataWithBaseURL(
                 "https://www.bilibili.com",
                 html,
@@ -126,6 +135,25 @@ class CaptchaManager(private val activity: Activity) {
                         WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
                 )
             }
+
+            loadGeetestConfig(
+                gt = gt,
+                challenge = challenge,
+                onSuccess = { configJson ->
+                    val target = webView ?: return@loadGeetestConfig
+                    target.loadDataWithBaseURL(
+                        "https://www.bilibili.com",
+                        generateGeetestHtml(configJson, isDarkMode),
+                        "text/html",
+                        "UTF-8",
+                        null
+                    )
+                },
+                onFailed = { error ->
+                    dialog?.dismiss()
+                    onFailed(error)
+                }
+            )
             
         } catch (e: Exception) {
             com.android.purebilibili.core.util.Logger.e(TAG, "Failed to start captcha", e)
@@ -136,7 +164,78 @@ class CaptchaManager(private val activity: Activity) {
     /**
      * 生成极验验证 HTML
      */
-    private fun generateGeetestHtml(gt: String, challenge: String, dark: Boolean): String {
+    private fun generateLoadingHtml(dark: Boolean): String {
+        val pageBg = if (dark) "#121620" else "#f5f7fb"
+        val tipColor = if (dark) "#97a1b7" else "#7f889b"
+        return """
+            <!DOCTYPE html>
+            <html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+            <body style="margin:0;background:$pageBg;color:$tipColor;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">
+                <div>正在加载安全验证…</div>
+            </body></html>
+        """.trimIndent()
+    }
+
+    private fun loadGeetestConfig(
+        gt: String,
+        challenge: String,
+        onSuccess: (String) -> Unit,
+        onFailed: (String) -> Unit,
+    ) {
+        val url = "https://api.geetest.com/gettype.php".toHttpUrl().newBuilder()
+            .addQueryParameter("gt", gt)
+            .build()
+        geetestConfigCall?.cancel()
+        geetestConfigCall = NetworkModule.okHttpClient.newCall(Request.Builder().url(url).get().build())
+            .also { call ->
+                call.enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) {
+                        if (call.isCanceled()) return
+                        activity.runOnUiThread {
+                            if (webView != null) onFailed("验证配置加载失败: ${e.message}")
+                        }
+                    }
+
+                    override fun onResponse(call: Call, response: Response) {
+                        val result = runCatching {
+                            response.use {
+                                check(it.isSuccessful) { "HTTP ${it.code}" }
+                                parseGeetestConfig(
+                                    raw = it.body.string(),
+                                    gt = gt,
+                                    challenge = challenge,
+                                )
+                            }
+                        }
+                        activity.runOnUiThread {
+                            if (webView == null || call.isCanceled()) return@runOnUiThread
+                            result.onSuccess(onSuccess).onFailure { error ->
+                                onFailed("验证配置解析失败: ${error.message}")
+                            }
+                        }
+                    }
+                })
+            }
+    }
+
+    private fun parseGeetestConfig(raw: String, gt: String, challenge: String): String {
+        val payload = raw.trim().removePrefix("(").removeSuffix(")")
+        val root = JSONObject(payload)
+        check(root.optString("status") == "success") { root.optString("status", "unknown") }
+        val data = root.optJSONObject("data") ?: error("缺少 data")
+        return data.apply {
+            put("gt", gt)
+            put("challenge", challenge)
+            put("offline", false)
+            put("new_captcha", true)
+            put("product", "bind")
+            put("width", "100%")
+            put("https", true)
+            put("protocol", "https://")
+        }.toString()
+    }
+
+    private fun generateGeetestHtml(configJson: String, dark: Boolean): String {
         val pageBg = if (dark) "#121620" else "#f5f7fb"
         val cardBg = if (dark) "#1b2230" else "#ffffff"
         val panelBg = if (dark) "#111722" else "#f4f7fc"
@@ -224,7 +323,6 @@ class CaptchaManager(private val activity: Activity) {
             margin-top: 10px;
         }
     </style>
-    <script src="https://static.geetest.com/static/js/gt.0.5.0.js"></script>
 </head>
 <body>
     <div class="container">
@@ -234,44 +332,33 @@ class CaptchaManager(private val activity: Activity) {
         </div>
         <div class="tip">点击图片上的文字完成验证</div>
     </div>
-    
+
+    <script src="https://static.geetest.com/static/js/fullpage.0.0.0.js"></script>
     <script>
-        window.initGeetest({
-            gt: "$gt",
-            challenge: "$challenge",
-            offline: false,
-            new_captcha: true,
-            product: "bind",
-            width: "100%"
-        }, function(captchaObj) {
-            captchaObj.appendTo("#captcha-container");
-            
-            captchaObj.onReady(function() {
+        var geetestConfig = $configJson;
+        var captchaObj = window.Geetest(geetestConfig)
+            .onReady(function() {
                 document.querySelector('.loading').style.display = 'none';
                 captchaObj.verify();
-            });
-            
-            captchaObj.onSuccess(function() {
+            })
+            .onSuccess(function() {
                 var result = captchaObj.getValidate();
                 if (result) {
                     window.Android.onCaptchaSuccess(
                         result.geetest_validate,
                         result.geetest_seccode,
-                        result.geetest_challenge || "$challenge"
+                        result.geetest_challenge || geetestConfig.challenge
                     );
                 } else {
                     window.Android.onCaptchaFailed("验证结果为空");
                 }
-            });
-            
-            captchaObj.onError(function(e) {
+            })
+            .onError(function(e) {
                 window.Android.onCaptchaFailed(e.msg || e.error_code || "验证失败");
-            });
-            
-            captchaObj.onClose(function() {
+            })
+            .onClose(function() {
                 window.Android.onCaptchaCancel();
             });
-        });
     </script>
 </body>
 </html>
@@ -292,6 +379,8 @@ class CaptchaManager(private val activity: Activity) {
      * 销毁资源
      */
     fun destroy() {
+        geetestConfigCall?.cancel()
+        geetestConfigCall = null
         dialog?.dismiss()
         webView?.destroy()
         webView = null

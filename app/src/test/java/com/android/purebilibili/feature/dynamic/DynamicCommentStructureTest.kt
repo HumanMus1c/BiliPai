@@ -39,6 +39,22 @@ class DynamicCommentStructureTest {
     }
 
     @Test
+    fun `dynamic detail pins the comment composer outside the scrolling list`() {
+        val source = File("src/main/java/com/android/purebilibili/feature/dynamic/DynamicDetailScreen.kt")
+            .readText()
+        val commentContent = source
+            .substringAfter("val commentContent:")
+            .substringBefore("val commentComposer:")
+
+        assertTrue(source.contains("DynamicInlineCommentComposer("))
+        assertTrue(source.contains("shouldLoadMoreDynamicDetailComments("))
+        assertTrue(source.contains("LaunchedEffect(detailListState, commentListState, useSplitLayout)"))
+        assertTrue(commentContent.contains("dynamicInlineCommentItems("))
+        assertTrue(!commentContent.contains("DynamicInlineCommentComposer("))
+        assertTrue(!source.contains("item(key = \"dynamic_detail_comment_composer\")"))
+    }
+
+    @Test
     fun `dynamic comment reload cancels and ignores the previous request`() {
         val source = File("src/main/java/com/android/purebilibili/feature/dynamic/DynamicViewModel.kt")
             .readText()

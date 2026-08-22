@@ -93,6 +93,54 @@ class DynamicCommentLoadPolicyTest {
     }
 
     @Test
+    fun `detail comments load more only when near end and not already loading`() {
+        assertEquals(
+            true,
+            shouldLoadMoreDynamicDetailComments(
+                lastVisibleIndex = 18,
+                itemCount = 20,
+                loadedCount = 20,
+                totalCount = 138,
+                isLoading = false,
+                isLoadingMore = false,
+            )
+        )
+        assertEquals(
+            false,
+            shouldLoadMoreDynamicDetailComments(
+                lastVisibleIndex = 18,
+                itemCount = 20,
+                loadedCount = 20,
+                totalCount = 138,
+                isLoading = false,
+                isLoadingMore = true,
+            )
+        )
+        assertEquals(
+            false,
+            shouldLoadMoreDynamicDetailComments(
+                lastVisibleIndex = 10,
+                itemCount = 20,
+                loadedCount = 20,
+                totalCount = 138,
+                isLoading = false,
+                isLoadingMore = false,
+            )
+        )
+        assertEquals(
+            false,
+            shouldLoadMoreDynamicDetailComments(
+                lastVisibleIndex = 18,
+                itemCount = 20,
+                loadedCount = 138,
+                totalCount = 138,
+                isLoading = false,
+                isLoadingMore = false,
+            )
+        )
+    }
+
+    @Test
     fun `dynamic main comments end after empty page without larger total`() {
         val isEnd = resolveDynamicMainCommentPageEnd(
             cursorIsEnd = false,

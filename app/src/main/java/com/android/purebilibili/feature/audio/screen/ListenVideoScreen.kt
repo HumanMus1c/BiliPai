@@ -61,10 +61,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.purebilibili.core.store.HomeSettings
+import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.android.purebilibili.feature.audio.library.ListenVideoAlbum
@@ -160,6 +164,10 @@ internal fun ListenVideoScreen(
     )
     val scope = rememberCoroutineScope()
     val listenBackdrop = rememberLayerBackdrop()
+    val context = LocalContext.current
+    val homeSettings by SettingsManager
+        .getHomeSettings(context)
+        .collectAsStateWithLifecycle(initialValue = HomeSettings())
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }
@@ -200,8 +208,12 @@ internal fun ListenVideoScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
+                height = AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp.dp,
+                indicatorHeight = AppChromeSizeTokens.BottomBarMatchedSegmentedIndicatorHeightDp.dp,
                 preferInlineContentStyle = false,
                 miuixBackdrop = listenBackdrop,
+                forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
+                liquidGlassEffectsEnabled = true,
                 indicatorPositionProvider = {
                     pagerState.currentPage + pagerState.currentPageOffsetFraction
                 },

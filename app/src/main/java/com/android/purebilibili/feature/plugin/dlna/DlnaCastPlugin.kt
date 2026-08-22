@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Tv
 import com.android.purebilibili.core.plugin.CastPluginApi
+import com.android.purebilibili.core.plugin.CastDiscoveryRequirement
 import com.android.purebilibili.core.plugin.CastPluginMediaRequest
 import com.android.purebilibili.core.plugin.CastPluginPlaybackState
 import com.android.purebilibili.core.plugin.CastPluginRoute
@@ -11,6 +12,8 @@ import com.android.purebilibili.core.plugin.PluginCapability
 import com.android.purebilibili.core.plugin.PluginCapabilityManifest
 import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.feature.cast.associateNotNullBy
+import com.android.purebilibili.feature.cast.hasRawLocalNetworkAccess
+import com.android.purebilibili.feature.cast.LocalProxyServer
 import com.android.purebilibili.feature.cast.SsdpCastClient
 import com.android.purebilibili.feature.cast.SsdpDiscovery
 import com.android.purebilibili.feature.cast.resolveVisibleSsdpDevices
@@ -33,6 +36,7 @@ class DlnaCastPlugin : CastPluginApi {
     override val description = "通过 DLNA 协议将视频投屏到智能电视等设备"
     override val version = "0.1.1"
     override val author = "BiliPai项目组, Leko (lekoOwO)"
+    override val discoveryRequirement = CastDiscoveryRequirement.RAW_LOCAL_NETWORK
     override val icon = Icons.Rounded.Tv
     override val capabilityManifest = PluginCapabilityManifest(
         pluginId = id,
@@ -66,6 +70,10 @@ class DlnaCastPlugin : CastPluginApi {
 
     override fun startRouteDiscovery(context: Context) {
         val appContext = context.applicationContext
+        if (!hasRawLocalNetworkAccess(appContext)) {
+            onDiscoveryAccessRevoked()
+            return
+        }
 
         startRouteCollector()
         // DeviceListDialog is recreated whenever the user opens another video.
@@ -77,6 +85,10 @@ class DlnaCastPlugin : CastPluginApi {
 
     override fun refreshRouteDiscovery(context: Context) {
         val appContext = context.applicationContext
+        if (!hasRawLocalNetworkAccess(appContext)) {
+            onDiscoveryAccessRevoked()
+            return
+        }
         startRouteCollector()
         refreshSsdpDevices(appContext)
     }
@@ -129,11 +141,25 @@ class DlnaCastPlugin : CastPluginApi {
         _isDiscovering.value = false
     }
 
+    override fun onDiscoveryAccessRevoked() {
+        stopRouteDiscovery()
+        _routes.value = emptyList()
+        _ssdpDevices.value = emptyList()
+        _ssdpProfiles.value = emptyMap()
+        ssdpCache = emptyMap()
+        SsdpCastClient.clearPlaybackSession()
+        LocalProxyServer.stopAndClear()
+    }
+
     override suspend fun cast(
         context: Context,
         route: CastPluginRoute,
         media: CastPluginMediaRequest
     ): Result<Unit> {
+        if (!hasRawLocalNetworkAccess(context)) {
+            onDiscoveryAccessRevoked()
+            return Result.failure(SecurityException("DLNA 需要本地网络权限"))
+        }
         val selection = resolveDlnaRouteSelection(route.routeId, ssdpCache)
         return when (selection) {
             is DlnaRouteSelection.Ssdp -> {
@@ -167,5 +193,6 @@ class DlnaCastPlugin : CastPluginApi {
         _ssdpProfiles.value = emptyMap()
         ssdpCache = emptyMap()
         SsdpCastClient.clearPlaybackSession()
+        LocalProxyServer.stopAndClear()
     }
 }

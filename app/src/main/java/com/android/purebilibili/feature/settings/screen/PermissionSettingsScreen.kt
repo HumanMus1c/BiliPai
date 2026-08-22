@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,6 +46,10 @@ import com.android.purebilibili.core.theme.iOSOrange
 import com.android.purebilibili.core.theme.iOSPurple
 import com.android.purebilibili.core.theme.iOSTeal
 import com.android.purebilibili.feature.settings.SettingsPageScrollHost
+import com.android.purebilibili.feature.cast.hasRawLocalNetworkAccess
+import com.android.purebilibili.feature.cast.localNetworkRuntimePermissions
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 /**
  *  权限管理页面
@@ -151,17 +156,19 @@ fun PermissionSettingsContent(
             ),
             //  DLNA 投屏所需权限
             PermissionInfo(
-                name = "设备发现（DLNA）",
-                permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    Manifest.permission.NEARBY_WIFI_DEVICES
+                name = "本地网络（DLNA）",
+                permission = localNetworkRuntimePermissions().firstOrNull()
+                    ?: "android.permission.ACCESS_LOCAL_NETWORK",
+                description = if (Build.VERSION.SDK_INT >= 37) {
+                    "仅在搜索和连接局域网 DLNA 设备时使用；Google Cast 不需要此权限"
                 } else {
-                    Manifest.permission.ACCESS_FINE_LOCATION
+                    "用于搜索和连接附近的 DLNA 投屏设备"
                 },
-                description = "用于扫描和连接附近的投屏设备（DLNA）",
                 icon = Icons.Outlined.Tv,
                 iconTint = iOSBlue,
                 isNormal = false,
-                alwaysGranted = false
+                alwaysGranted = localNetworkRuntimePermissions().isEmpty(),
+                customCheck = { permissionContext -> hasRawLocalNetworkAccess(permissionContext) }
             ),
              // 📁 存储写入（使用 MediaStore/SAF，不申请所有文件访问）
             PermissionInfo(
@@ -180,7 +187,7 @@ fun PermissionSettingsContent(
     // 检查权限状态
     var permissionStates by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     
-    LaunchedEffect(Unit) {
+    fun refreshPermissionStates() {
         permissionStates = permissions.associate { info ->
             info.permission to if (info.alwaysGranted) {
                 true
@@ -189,6 +196,15 @@ fun PermissionSettingsContent(
                     ?: (ContextCompat.checkSelfPermission(context, info.permission) == PackageManager.PERMISSION_GRANTED)
             }
         }
+    }
+    LaunchedEffect(permissions) { refreshPermissionStates() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, permissions) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refreshPermissionStates()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     Column(
         modifier = modifier

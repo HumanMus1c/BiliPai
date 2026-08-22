@@ -1,10 +1,22 @@
 package com.android.purebilibili.data.repository
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DynamicFeedFetchPolicyTest {
+
+    @Test
+    fun `selected user feed pagination sends documented offset without ineffective page`() {
+        val params = DynamicRepository.buildSelectedUserDynamicFeedParams(
+            hostMid = 123L,
+            offset = "next-offset"
+        )
+
+        assertEquals("next-offset", params["offset"])
+        assertFalse("page" in params)
+    }
 
     @Test
     fun `continue loading when no visible items yet and next page exists`() {

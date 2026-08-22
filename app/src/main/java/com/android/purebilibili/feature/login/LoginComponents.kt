@@ -636,7 +636,7 @@ fun PhoneLoginContent(
                     viewModel.saveCaptchaResult(validate, seccode, challenge)
                     viewModel.sendSmsCode(
                         phone = phoneNumber,
-                        countryCode = selectedRegion.cid
+                        countryCode = resolveSmsApiCid(selectedRegion)
                     )
                 },
                 onFailed = { error ->

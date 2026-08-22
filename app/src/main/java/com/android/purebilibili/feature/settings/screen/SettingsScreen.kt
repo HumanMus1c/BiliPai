@@ -315,6 +315,7 @@ fun SettingsScreen(
         scope.launch {
             SettingsManager.setCrashTrackingEnabled(context, enabled)
             CrashReporter.setEnabled(enabled)
+            com.android.purebilibili.core.performance.Android17Diagnostics.updateEnabled(context, enabled)
         }
     }
     val onAnalyticsChange: (Boolean) -> Unit = { enabled ->
@@ -511,6 +512,7 @@ fun SettingsScreen(
     // Dialogs
     if (showCacheDialog) {
         CacheClearConfirmDialog(
+            breakdown = state.cacheBreakdown,
             selectedCacheSizeSummary = selectedCacheSizeSummary,
             options = cacheClearOptions,
             selectedTargets = selectedCacheClearTargets,

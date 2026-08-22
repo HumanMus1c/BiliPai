@@ -5,6 +5,7 @@ import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 import android.content.res.Configuration
 import android.os.Build
 import android.util.Rational
@@ -207,9 +208,7 @@ fun AudioModeScreen(
         val originalOrientation = activity?.requestedOrientation
             ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         onDispose {
-            if (activity?.requestedOrientation != originalOrientation) {
-                activity?.requestedOrientation = originalOrientation
-            }
+            activity?.applyPlayerRequestedOrientation(originalOrientation)
         }
     }
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(
@@ -300,7 +299,7 @@ fun AudioModeScreen(
         titleOverride = titleOverride,
         liquidGlassEffectsEnabled = liquidPlayModeControlEnabled,
         onToggleOrientation = {
-            activity?.requestedOrientation = resolveAudioModeRequestedOrientation(isLandscape)
+            activity?.applyPlayerRequestedOrientation(resolveAudioModeRequestedOrientation(isLandscape))
         },
         orientationActionLabel = orientationActionLabel
     )

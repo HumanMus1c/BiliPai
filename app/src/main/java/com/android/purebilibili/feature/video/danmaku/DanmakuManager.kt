@@ -567,8 +567,9 @@ class DanmakuManager private constructor(
         val ctrl = controller ?: return
         val safePositionMs = positionMs.coerceAtLeast(0L)
         applyPlaybackSpeedToController(ctrl)
-        ctrl.start(safePositionMs)
+        ctrl.synchronizeTo(safePositionMs)
         if (shouldPlay && config.isEnabled) {
+            ctrl.start(safePositionMs)
             isPlaying = true
         } else {
             ctrl.pause()
@@ -1269,8 +1270,8 @@ class DanmakuManager private constructor(
     }
     
     /**
-     * ⚙️ [漂移修复] 启动定期漂移检测
-     * 根据倍速动态调整检测频率；非 1.0x 周期性强制重建时间轴
+     * ⚙️ [漂移修复] 启动定期漂移检测。
+     * 根据倍速动态调整检测频率，只校正时间锚点，不清空当前渲染层。
      */
     private fun startDriftSync() {
         syncJob?.cancel()

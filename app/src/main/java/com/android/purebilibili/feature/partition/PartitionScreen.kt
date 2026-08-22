@@ -122,6 +122,7 @@ import com.android.purebilibili.feature.home.components.BottomBarIndicatorLayerT
 import com.android.purebilibili.feature.home.components.BottomBarLiquidOrientation
 import com.android.purebilibili.feature.home.components.BottomBarMatchedLiquidIndicator
 import com.android.purebilibili.feature.home.components.FloatingBottomBarPressedScale
+import com.android.purebilibili.feature.home.components.LiquidGlassTuning
 import com.android.purebilibili.feature.home.components.bottomBarMatchedCaptureOverflow
 import com.android.purebilibili.feature.home.components.miuix.DampedDragAnimation
 import com.android.purebilibili.feature.home.components.miuix.InteractiveHighlight
@@ -140,6 +141,7 @@ import com.android.purebilibili.feature.home.components.rememberBottomBarIndicat
 import com.android.purebilibili.feature.home.components.normalizeTopTabLabelMode
 import com.android.purebilibili.feature.home.components.resolveSegmentedControlMotionProgress
 import com.android.purebilibili.feature.home.components.resolveSegmentedControlMotionSpec
+import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
 import com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorGeometry
 import com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorHeightDp
 import com.android.purebilibili.feature.home.components.shouldShowTopTabIcon
@@ -474,6 +476,15 @@ fun PartitionContent(
         individualEnabled = homeSettings.isBottomBarLiquidGlassEnabled,
         androidNativeEnabled = homeSettings.androidNativeLiquidGlassEnabled,
     )
+    val liquidGlassTuning = remember(
+        homeSettings.liquidGlassProgress,
+        homeSettings.liquidGlassAdvancedSettings,
+    ) {
+        resolveLiquidGlassTuning(
+            homeSettings.liquidGlassProgress,
+            homeSettings.liquidGlassAdvancedSettings,
+        )
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     LaunchedEffect(scrollToTopRequestId) {
@@ -540,6 +551,7 @@ fun PartitionContent(
                 ),
                 liquidGlassIndicatorEnabled = liquidGlassIndicatorEnabled,
                 liquidGlassPreset = homeSettings.bottomBarLiquidGlassPreset,
+                liquidGlassTuning = liquidGlassTuning,
                 onVideoListPushChanged = { sideRailVideoPushTargetPx = it },
                 onPartitionSelected = { partition ->
                     val bangumiType = resolvePartitionBangumiType(partition.id)
@@ -588,6 +600,7 @@ private fun PartitionSideRail(
     contentPadding: PaddingValues,
     liquidGlassIndicatorEnabled: Boolean,
     liquidGlassPreset: BottomBarLiquidGlassPreset,
+    liquidGlassTuning: LiquidGlassTuning,
     onVideoListPushChanged: (Float) -> Unit,
     onPartitionSelected: (PartitionCategory) -> Unit
 ) {
@@ -839,6 +852,7 @@ private fun PartitionSideRail(
             indicatorWidth = indicatorWidth,
             liquidGlassIndicatorEnabled = liquidGlassIndicatorEnabled,
             liquidGlassPreset = liquidGlassPreset,
+            liquidGlassTuning = liquidGlassTuning,
             contentBackdrop = combinedBackdrop,
             backdrop = railPageBackdrop,
             maxVideoPushPx = maxVideoPushPx,
@@ -874,6 +888,7 @@ private fun PartitionSideRailMovingIndicator(
     indicatorWidth: androidx.compose.ui.unit.Dp,
     liquidGlassIndicatorEnabled: Boolean,
     liquidGlassPreset: BottomBarLiquidGlassPreset,
+    liquidGlassTuning: LiquidGlassTuning,
     contentBackdrop: top.yukonga.miuix.kmp.blur.Backdrop,
     backdrop: top.yukonga.miuix.kmp.blur.Backdrop,
     maxVideoPushPx: Float,
@@ -933,6 +948,7 @@ private fun PartitionSideRailMovingIndicator(
             contentBackdrop = contentBackdrop,
             backdrop = backdrop,
             indicatorLensSpec = indicatorLensSpec,
+            liquidGlassTuning = liquidGlassTuning,
             effectivePressProgress = pressProgress,
             indicatorIdleSurfaceColor = resolveAndroidNativeIdleIndicatorSurfaceColor(darkTheme = isDarkTheme),
             glassEnabled = liquidGlassIndicatorEnabled,

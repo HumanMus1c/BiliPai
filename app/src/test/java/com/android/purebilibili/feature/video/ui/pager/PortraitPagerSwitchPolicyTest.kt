@@ -647,6 +647,20 @@ class PortraitPagerSwitchPolicyTest {
     }
 
     @Test
+    fun shufflePortraitRecommendations_avoidsSameOwnerAtPreviousListBoundary() {
+        val shuffled = shufflePortraitRecommendations(
+            seed = 1,
+            recommendations = listOf(
+                related(bvid = "BV_SAME", ownerMid = 7L),
+                related(bvid = "BV_OTHER", ownerMid = 8L)
+            ),
+            precedingOwnerMid = 7L
+        )
+
+        assertEquals(8L, shuffled.first().owner.mid)
+    }
+
+    @Test
     fun toRelatedVideoForPortraitRecommendation_mapsVideoItemFields() {
         val related = toRelatedVideoForPortraitRecommendation(
             VideoItem(

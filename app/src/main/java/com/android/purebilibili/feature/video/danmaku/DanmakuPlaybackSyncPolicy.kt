@@ -5,10 +5,9 @@ import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 private const val NORMAL_SYNC_INTERVAL_MS = 3200L
-private const val NORMAL_SPEED_FORCE_RESYNC_INTERVAL_TICKS = 6
-private const val NON_NORMAL_SPEED_FORCE_RESYNC_INTERVAL_TICKS = 3
-private const val HIGH_SPEED_FORCE_RESYNC_INTERVAL_TICKS = 9
-private const val HIGH_SPEED_SOFT_RESYNC_THRESHOLD = 1.75f
+private const val NORMAL_SPEED_CORRECTION_INTERVAL_TICKS = 6
+private const val NON_NORMAL_SPEED_CORRECTION_INTERVAL_TICKS = 3
+private const val HIGH_SPEED_CORRECTION_INTERVAL_TICKS = 9
 private const val EXPLICIT_SEEK_RESYNC_TOLERANCE_MS = 500L
 private const val EXPLICIT_SEEK_RESYNC_WINDOW_MS = 1500L
 private const val MIN_ENGINE_PLAYBACK_SPEED = 0.1f
@@ -54,14 +53,14 @@ internal fun resolveDanmakuDriftSyncIntervalMs(videoSpeed: Float): Long {
     }
 }
 
-internal fun shouldForceDanmakuDataResync(videoSpeed: Float, tickCount: Int): Boolean {
+internal fun shouldScheduleDanmakuDriftCorrection(videoSpeed: Float, tickCount: Int): Boolean {
     if (tickCount <= 0) return false
     val normalizedSpeed = normalizeDanmakuPlaybackSpeed(videoSpeed)
     val isNearNormalSpeed = abs(normalizedSpeed - 1.0f) <= 0.02f
     val interval = when {
-        isNearNormalSpeed -> NORMAL_SPEED_FORCE_RESYNC_INTERVAL_TICKS
-        normalizedSpeed >= HIGH_SPEED_SOFT_RESYNC_THRESHOLD -> HIGH_SPEED_FORCE_RESYNC_INTERVAL_TICKS
-        else -> NON_NORMAL_SPEED_FORCE_RESYNC_INTERVAL_TICKS
+        isNearNormalSpeed -> NORMAL_SPEED_CORRECTION_INTERVAL_TICKS
+        normalizedSpeed >= 1.75f -> HIGH_SPEED_CORRECTION_INTERVAL_TICKS
+        else -> NON_NORMAL_SPEED_CORRECTION_INTERVAL_TICKS
     }
     return tickCount % interval == 0
 }
@@ -190,12 +189,10 @@ internal fun resolveDanmakuGuardAction(
     hasData: Boolean
 ): DanmakuSyncAction {
     if (!danmakuEnabled || !isPlaying || !hasData) return DanmakuSyncAction.None
-    if (!shouldForceDanmakuDataResync(videoSpeed, tickCount)) return DanmakuSyncAction.None
-    return if (normalizeDanmakuPlaybackSpeed(videoSpeed) >= HIGH_SPEED_SOFT_RESYNC_THRESHOLD) {
-        DanmakuSyncAction.SoftResync
-    } else {
-        DanmakuSyncAction.HardResync
-    }
+    if (!shouldScheduleDanmakuDriftCorrection(videoSpeed, tickCount)) return DanmakuSyncAction.None
+    // Periodic health checks must never clear the active render layers. Explicit seeks,
+    // buffering recovery and view replacement still use HardResync at their event boundaries.
+    return DanmakuSyncAction.SoftResync
 }
 
 internal inline fun executeExplicitDanmakuResync(

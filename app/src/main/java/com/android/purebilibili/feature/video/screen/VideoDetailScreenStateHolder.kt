@@ -223,6 +223,7 @@ import com.android.purebilibili.core.ui.blur.shouldAllowRuntimeShaderBackedHazeE
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 import com.android.purebilibili.core.util.CardPositionManager
 import com.android.purebilibili.core.util.FormatUtils
+import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
 import coil.compose.AsyncImage
 import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.feature.video.ui.components.DanmakuContextMenu
@@ -1014,9 +1015,7 @@ internal fun VideoDetailScreenStateHolder(
     var preserveCurrentFrameOnFullscreenChange by remember { mutableStateOf(false) }
     var pendingFullscreenPositionRestoreMs by remember { mutableLongStateOf(-1L) }
     val activity = remember { context.findActivity() }
-    val isActivityInMultiWindowMode = activity?.let { host ->
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && host.isInMultiWindowMode
-    } ?: false
+    val isActivityInMultiWindowMode = activity?.let(::isActivityInMultiWindowOrFloatingMode) ?: false
 
     // 📐 全屏模式逻辑：
     // - 紧凑窗口：横放时自动进入全屏
@@ -1144,8 +1143,7 @@ internal fun VideoDetailScreenStateHolder(
                 userRequestedFullscreen = true
             } else {
                 context.findActivity()?.let { activity ->
-                    val isInMultiWindowMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
-                        activity.isInMultiWindowMode
+                    val isInMultiWindowMode = isActivityInMultiWindowOrFloatingMode(activity)
                     if (!shouldApplyStartFullscreenOrientationRequest(
                             startInFullscreen = startInFullscreen,
                             isOrientationDrivenFullscreen = isOrientationDrivenFullscreen,
@@ -1158,7 +1156,7 @@ internal fun VideoDetailScreenStateHolder(
                         }
                         return@let
                     }
-                    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    activity.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
                 }
             }
         }
@@ -1546,8 +1544,10 @@ internal fun VideoDetailScreenStateHolder(
                 }
 
                 // 恢复进入详情页前的方向请求，避免平板误横屏后退不回去。
-                deferredActivity?.requestedOrientation = resolveVideoDetailExitRequestedOrientation(
-                    originalRequestedOrientation = entryRequestedOrientation
+                deferredActivity?.applyPlayerRequestedOrientation(
+                    resolveVideoDetailExitRequestedOrientation(
+                        originalRequestedOrientation = entryRequestedOrientation
+                    )
                 )
             }
         }
@@ -2027,15 +2027,17 @@ internal fun VideoDetailScreenStateHolder(
             ContinuousPlayerOrientationRequest.Landscape -> {
                 userRequestedFullscreen = true
                 manualPortraitHoldActive = false
-                activity?.requestedOrientation = resolvePhoneFullscreenEnterOrientation(
-                    fullscreenMode = fullscreenMode,
-                    isVerticalVideo = false,
-                ) ?: ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                activity?.applyPlayerRequestedOrientation(
+                    resolvePhoneFullscreenEnterOrientation(
+                        fullscreenMode = fullscreenMode,
+                        isVerticalVideo = false,
+                    ) ?: ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                )
             }
             ContinuousPlayerOrientationRequest.Portrait -> {
                 userRequestedFullscreen = false
                 manualPortraitHoldActive = true
-                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                activity?.applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
             }
         }
     }
@@ -2180,9 +2182,7 @@ internal fun VideoDetailScreenStateHolder(
             preferPortraitForFlatFoldable = isFlatFoldable
         ) ?: return@LaunchedEffect
 
-        if (activity?.requestedOrientation != requestedOrientation) {
-            activity?.requestedOrientation = requestedOrientation
-        }
+        activity?.applyPlayerRequestedOrientation(requestedOrientation)
         com.android.purebilibili.core.util.Logger.d(
             "VideoDetailScreen",
             "🔄 Auto-rotate: enabled=$autoRotateEnabled, hold=$manualPortraitHoldActive, mode=$fullscreenMode, horizontal=$horizontalAdaptationEnabled, requested=$requestedOrientation, fullscreen=$isFullscreenMode, portraitFs=$isPortraitFullscreen, verticalVideo=$isVerticalVideo, isCompactDevice=${windowSizeClass.isCompactDevice}, multiWindow=$isActivityInMultiWindowMode, pip=$isPipMode"
@@ -2264,9 +2264,7 @@ internal fun VideoDetailScreenStateHolder(
                     lastLandscapeAppliedAtMs = lastPhoneAutoRotateLandscapeAppliedAtMs,
                     nowMs = nowMs
                 ) ?: return
-                if (hostActivity.requestedOrientation != targetToApply) {
-                    hostActivity.requestedOrientation = targetToApply
-                }
+                hostActivity.applyPlayerRequestedOrientation(targetToApply)
                 lastPhoneAutoRotateLandscapeAppliedAtMs =
                     if (isLandscapeRequestedOrientation(targetToApply)) nowMs else null
             }
@@ -4456,10 +4454,14 @@ internal fun VideoDetailScreenStateHolder(
                     isOrientationDrivenFullscreen = isOrientationDrivenFullscreen,
                     manualPortraitHoldActive = manualPortraitHoldActive,
                 )
-                if (hostActivity != null && targetOrientation != null) {
+                if (
+                    hostActivity != null &&
+                    targetOrientation != null &&
+                    !isActivityInMultiWindowOrFloatingMode(hostActivity)
+                ) {
                     userRequestedFullscreen = true
                     manualPortraitHoldActive = false
-                    hostActivity.requestedOrientation = targetOrientation
+                    hostActivity.applyPlayerRequestedOrientation(targetOrientation)
                 } else {
                     toggleFullscreen()
                 }

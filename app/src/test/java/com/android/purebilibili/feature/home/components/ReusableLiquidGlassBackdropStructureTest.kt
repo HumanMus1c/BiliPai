@@ -57,6 +57,43 @@ class ReusableLiquidGlassBackdropStructureTest {
     }
 
     @Test
+    fun `today watch mode samples queue content from a sibling layer`() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/home/HomeCategoryPage.kt"
+        )
+
+        assertTrue(source.contains("val todayWatchBackdrop = rememberLayerBackdrop()"))
+        assertTrue(source.contains("miuixBackdrop = todayWatchBackdrop"))
+        assertTrue(source.contains(".layerBackdrop(todayWatchBackdrop)"))
+    }
+
+    @Test
+    fun `bangumi review sort samples list content from a sibling layer`() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/bangumi/BangumiReviewScreen.kt"
+        )
+
+        assertTrue(source.contains("val reviewChromeBackdrop = rememberLayerBackdrop()"))
+        assertTrue(source.contains("miuixBackdrop = reviewChromeBackdrop"))
+        assertTrue(source.contains(".layerBackdrop(reviewChromeBackdrop)"))
+        assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
+        assertTrue(!source.contains("AppFilterChip("))
+    }
+
+    @Test
+    fun `dynamic comment sort samples list content from a sibling layer`() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCommentSheet.kt"
+        )
+
+        assertTrue(source.contains("val commentChromeBackdrop = rememberLayerBackdrop()"))
+        assertTrue(source.contains("miuixBackdrop = commentChromeBackdrop"))
+        assertTrue(source.contains(".layerBackdrop(commentChromeBackdrop)"))
+        assertTrue(source.contains("BottomBarLiquidSegmentedControl("))
+        assertFalse(source.contains("CommentSegmentedControl("))
+    }
+
+    @Test
     fun `live player tabs receive a sibling content backdrop`() {
         val playerSource = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/live/LivePlayerScreen.kt"

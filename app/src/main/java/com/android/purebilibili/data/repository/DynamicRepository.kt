@@ -2,8 +2,11 @@
 package com.android.purebilibili.data.repository
 
 import com.android.purebilibili.core.network.NetworkModule
+import com.android.purebilibili.core.network.OPUS_DETAIL_FEATURES
+import com.android.purebilibili.core.network.WbiUtils
 import com.android.purebilibili.data.model.response.DynamicFeedResponse
 import com.android.purebilibili.data.model.response.DynamicItem
+import com.android.purebilibili.feature.article.shouldFetchArticleFallbackForOpus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -276,8 +279,11 @@ object DynamicRepository {
             val webItem = fetchWebDetailItem(id = cleanedId)
             webItem?.let(candidates::add)
 
+            var opusFallbackCvId: Long? = null
             if (webItem == null || shouldFetchOpusDetailForDynamicDetail(webItem) || shouldFallbackForDynamicDetail(webItem)) {
-                fetchOpusDetailItem(cleanedId)?.let(candidates::add)
+                val opusFetch = fetchOpusDetail(cleanedId)
+                opusFetch.item?.let(candidates::add)
+                opusFallbackCvId = opusFetch.fallbackCvId
             }
 
             val preferredAfterWeb = resolvePreferredDynamicDetailItem(candidates)
@@ -304,7 +310,28 @@ object DynamicRepository {
             seed?.let(candidates::add)
             val resolved = resolvePreferredDynamicDetailItem(candidates)
             if (resolved != null) {
-                return@withContext Result.success(resolved)
+                var merged = mergeRicherOpusDetailContent(resolved, candidates)
+                val opusBlocks = merged.modules.module_dynamic?.major?.opus?.contentBlocks.orEmpty()
+                val cvId = resolveOpusArticleFallbackCvId(
+                    fallbackId = opusFallbackCvId,
+                    commentType = merged.basic?.comment_type ?: 0,
+                    commentIdStr = merged.basic?.comment_id_str.orEmpty()
+                )
+                if (cvId != null && shouldFetchArticleFallbackForOpus(opusBlocks, opusFallbackCvId)) {
+                    ArticleRepository.getArticleDetail(cvId).getOrNull()?.let { article ->
+                        merged = mergeArticleDetailIntoOpus(
+                            base = merged,
+                            title = article.title,
+                            blocks = article.blocks
+                        )
+                    }
+                }
+                return@withContext Result.success(
+                    mergeDynamicDetailInteractionMetadata(
+                        detailItem = merged,
+                        seedItem = seed
+                    )
+                )
             }
 
             Result.failure(Exception("动态详情为空"))
@@ -329,11 +356,46 @@ object DynamicRepository {
         }.getOrNull()
     }
 
-    private suspend fun fetchOpusDetailItem(dynamicId: String): DynamicItem? {
+    private data class OpusDetailFetch(
+        val item: DynamicItem?,
+        val fallbackCvId: Long?
+    )
+
+    private suspend fun fetchOpusDetail(dynamicId: String): OpusDetailFetch {
         return runCatching {
-            val response = NetworkModule.dynamicApi.getOpusDetail(id = dynamicId)
-            response.data?.item?.takeIf { response.code == 0 }
-        }.getOrNull()
+            val response = NetworkModule.dynamicApi.getOpusDetail(
+                signDynamicWbi(
+                    mapOf(
+                        "id" to dynamicId,
+                        "timezone_offset" to "-480",
+                        "features" to OPUS_DETAIL_FEATURES
+                    )
+                )
+            )
+            if (response.code != 0) {
+                return@runCatching OpusDetailFetch(item = null, fallbackCvId = null)
+            }
+            OpusDetailFetch(
+                item = response.data?.item,
+                fallbackCvId = response.data?.fallback?.id?.takeIf { it > 0L }
+            )
+        }.getOrDefault(OpusDetailFetch(item = null, fallbackCvId = null))
+    }
+
+    private suspend fun signDynamicWbi(params: Map<String, String>): Map<String, String> {
+        return try {
+            val navResp = NetworkModule.api.getNavInfo()
+            val wbiImg = navResp.data?.wbi_img
+            val imgKey = wbiImg?.img_url?.substringAfterLast("/")?.substringBefore(".") ?: ""
+            val subKey = wbiImg?.sub_url?.substringAfterLast("/")?.substringBefore(".") ?: ""
+            if (imgKey.isNotEmpty() && subKey.isNotEmpty()) {
+                WbiUtils.sign(params, imgKey, subKey)
+            } else {
+                params
+            }
+        } catch (_: Exception) {
+            params
+        }
     }
 
     private suspend fun fetchDesktopDetailItem(dynamicId: String): DynamicItem? {
@@ -438,14 +500,13 @@ object DynamicRepository {
         }
     }
 
-    private fun buildSelectedUserDynamicFeedParams(
+    internal fun buildSelectedUserDynamicFeedParams(
         hostMid: Long,
         offset: String
     ): Map<String, String> {
         return mapOf(
             "host_mid" to hostMid.toString(),
             "offset" to offset,
-            "page" to "1",
             "features" to "itemOpusStyle,listOnlyfans",
             "timezone_offset" to "-480",
             "platform" to "web",

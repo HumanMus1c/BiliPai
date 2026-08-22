@@ -104,11 +104,9 @@ fun DynamicTopBarWithTabs(
         globalWallpaperVisible = globalWallpaperVisible
     )
 
-    //  [关键修复] 使用透明背景，让主界面的渐变透出来
     Box(
         modifier = modifier
             .fillMaxWidth()
-            // 应用模糊效果
             .then(if (shouldUseHeaderBlur && hazeState != null) Modifier.unifiedBlur(hazeState) else Modifier)
             .background(headerColor)
     ) {
@@ -204,6 +202,7 @@ internal fun resolveDynamicTopBarHeaderColor(
 internal fun shouldUseDynamicTopBarHeaderBlur(
     hasHazeState: Boolean,
     globalWallpaperVisible: Boolean,
+    liquidGlassEnabled: Boolean = false,
 ): Boolean {
-    return hasHazeState && !globalWallpaperVisible
+    return hasHazeState && !globalWallpaperVisible && !liquidGlassEnabled
 }

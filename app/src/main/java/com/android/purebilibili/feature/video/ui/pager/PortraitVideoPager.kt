@@ -201,6 +201,7 @@ import com.android.purebilibili.feature.video.viewmodel.withEngagementUiState
 import com.android.purebilibili.feature.video.viewmodel.resolvePlaybackCompletionRepeatMode
 import com.android.purebilibili.feature.video.viewmodel.resolvePlaybackEndAction
 import com.android.purebilibili.danmaku.engine.DanmakuRenderView
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
@@ -208,6 +209,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
@@ -438,7 +440,7 @@ fun PortraitVideoPager(
     val portraitPlaybackCdnPlugin = remember {
         PluginManager.getEnabledPlugins(PlaybackCdnPlugin::class).firstOrNull()
     }
-    val portraitPrefetchedPlayUrlBvids = remember { mutableSetOf<String>() }
+    val portraitPrefetchedPlayUrlBvids = remember { ConcurrentHashMap.newKeySet<String>() }
     val recommendationShuffleSeed = remember(initialInfo.bvid, initialInfo.aid) {
         resolvePortraitRecommendationShuffleSeed(
             initialBvid = initialInfo.bvid,
@@ -484,7 +486,8 @@ fun PortraitVideoPager(
         if (!seededInitialRecommendations) {
             val seeded = shufflePortraitRecommendations(
                 seed = recommendationShuffleSeed,
-                recommendations = recommendations
+                recommendations = recommendations,
+                precedingOwnerMid = initialInfo.owner.mid
             )
             recommendationItems.clear()
             recommendationItems.addAll(seeded)
@@ -506,7 +509,8 @@ fun PortraitVideoPager(
                 baseSeed = recommendationShuffleSeed,
                 currentBvid = initialInfo.bvid
             ),
-            recommendations = appendItems
+            recommendations = appendItems,
+            precedingOwnerMid = pageItems.lastOrNull()?.let(::resolvePortraitPageOwnerMid) ?: 0L
         )
         recommendationItems.addAll(shuffledAppend)
         pageItems.addAll(shuffledAppend)
@@ -526,7 +530,8 @@ fun PortraitVideoPager(
                         .distinctBy { it.bvid }
                 }
             }
-            .onFailure {
+            .onFailure { error ->
+                if (error is CancellationException) throw error
                 watchLaterVideos = emptyList()
             }
     }
@@ -539,7 +544,19 @@ fun PortraitVideoPager(
         val appendItems = watchLaterVideos.filter { it.bvid !in existingBvids }
         if (appendItems.isNotEmpty()) {
             withContext(Dispatchers.Main.immediate) {
-                pageItems.addAll(appendItems)
+                pageItems.addAll(
+                    shufflePortraitRecommendations(
+                        seed = resolvePortraitRecommendationAppendSeed(
+                            baseSeed = recommendationShuffleSeed,
+                            currentBvid = pageItems.lastOrNull()
+                                ?.let(::resolvePortraitPagePlaybackIdentity)
+                                ?.bvid
+                                .orEmpty()
+                        ),
+                        recommendations = appendItems,
+                        precedingOwnerMid = pageItems.lastOrNull()?.let(::resolvePortraitPageOwnerMid) ?: 0L
+                    )
+                )
             }
         }
     }
@@ -559,7 +576,8 @@ fun PortraitVideoPager(
                 baseSeed = recommendationShuffleSeed,
                 currentBvid = initialInfo.bvid
             ),
-            recommendations = discoveryRecommendations
+            recommendations = discoveryRecommendations,
+            precedingOwnerMid = initialInfo.owner.mid
         )
         val insertion = withContext(Dispatchers.Main.immediate) {
             recommendationFeedCursor = 1
@@ -677,6 +695,7 @@ fun PortraitVideoPager(
         isCurrentStoryTab = isActive,
         isLifecycleResumed = isLifecycleResumed
     )
+    val latestPortraitPlaybackAllowed by rememberUpdatedState(isPortraitPlaybackAllowed)
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -701,6 +720,10 @@ fun PortraitVideoPager(
 
     LaunchedEffect(exoPlayer, isPortraitPlaybackAllowed) {
         if (isPortraitPlaybackAllowed) return@LaunchedEffect
+        // 作废仍在请求播放详情/地址的任务，避免页面失活后旧结果重新开启播放。
+        if (pendingAutoPlayGeneration >= 0) {
+            activeLoadGeneration += 1
+        }
         pendingAutoPlayGeneration = -1
         exoPlayer.playWhenReady = false
         exoPlayer.pause()
@@ -932,7 +955,7 @@ fun PortraitVideoPager(
             )
         }
 
-        if (!isPortraitPlaybackAllowed) {
+        if (!latestPortraitPlaybackAllowed) {
             pendingAutoPlayGeneration = -1
             isLoading = false
             return false
@@ -1103,7 +1126,7 @@ fun PortraitVideoPager(
                         lastLoadedCollectionInfoBvid = info.bvid
                         lastLoadedCollectionInfo = info
 
-                        exoPlayer.playWhenReady = isPortraitPlaybackAllowed
+                        exoPlayer.playWhenReady = latestPortraitPlaybackAllowed
                         exoPlayer.setMediaSource(finalSource)
                         exoPlayer.prepare()
 
@@ -1117,7 +1140,7 @@ fun PortraitVideoPager(
                             }
                         }
 
-                        if (isPortraitPlaybackAllowed) {
+                        if (latestPortraitPlaybackAllowed) {
                             exoPlayer.play()
                         }
                     },
@@ -1134,6 +1157,8 @@ fun PortraitVideoPager(
                         }
                     }
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
                 pendingAutoPlayGeneration = -1
@@ -1151,7 +1176,7 @@ fun PortraitVideoPager(
         return true
     }
 
-    LaunchedEffect(pagerState, pageItems) {
+    LaunchedEffect(pagerState, pageItems, portraitSelectedQuality) {
         snapshotFlow {
             Triple(
                 pagerState.isScrollInProgress,
@@ -1177,15 +1202,24 @@ fun PortraitVideoPager(
                 ?.let(::resolvePortraitPagePlaybackIdentity)
                 ?: return@collect
             if (!portraitPrefetchedPlayUrlBvids.add(identity.bvid)) return@collect
-            if (identity.cid <= 0L) return@collect
 
             launch(Dispatchers.IO) {
                 runCatching {
-                    VideoRepository.preloadPortraitPlayUrl(
+                    val targetQuality = resolvePortraitPlaybackTargetQuality(portraitSelectedQuality)
+                    val playData = VideoRepository.preloadPortraitPlayUrl(
                         bvid = identity.bvid,
                         cid = identity.cid,
-                        targetQuality = resolvePortraitPlaybackTargetQuality(portraitSelectedQuality)
-                    )
+                        aid = identity.aid,
+                        targetQuality = targetQuality
+                    ) ?: error("竖屏预加载未获取到播放地址")
+                    val streamUrls = resolvePortraitPlaybackStreamUrls(
+                        playData = playData,
+                        targetQuality = targetQuality
+                    ) ?: error("竖屏预加载未解析到媒体流")
+                    prefetchPortraitPlaybackHead(context, streamUrls)
+                }.onFailure { error ->
+                    if (error is CancellationException) throw error
+                    portraitPrefetchedPlayUrlBvids.remove(identity.bvid)
                 }
             }
         }
@@ -1283,7 +1317,10 @@ fun PortraitVideoPager(
                                     baseSeed = recommendationShuffleSeed,
                                     currentBvid = bvid
                                 ),
-                                recommendations = homeFeedRecommendations + relatedFallbackRecommendations
+                                recommendations = homeFeedRecommendations + relatedFallbackRecommendations,
+                                precedingOwnerMid = withContext(Dispatchers.Main.immediate) {
+                                    pageItems.lastOrNull()?.let(::resolvePortraitPageOwnerMid) ?: 0L
+                                }
                             )
                             val appendItems = mergePortraitRecommendationAppendItems(
                                 currentBvid = bvid,
@@ -1324,13 +1361,22 @@ fun PortraitVideoPager(
                     )
                     preloadTargets.forEach { target ->
                         if (!portraitPrefetchedPlayUrlBvids.add(target.bvid)) return@forEach
-                        if (target.cid <= 0L) return@forEach
                         runCatching {
-                            VideoRepository.preloadPortraitPlayUrl(
+                            val targetQuality = resolvePortraitPlaybackTargetQuality(portraitSelectedQuality)
+                            val playData = VideoRepository.preloadPortraitPlayUrl(
                                 bvid = target.bvid,
                                 cid = target.cid,
-                                targetQuality = resolvePortraitPlaybackTargetQuality(portraitSelectedQuality)
-                            )
+                                aid = target.aid,
+                                targetQuality = targetQuality
+                            ) ?: error("竖屏预加载未获取到播放地址")
+                            val streamUrls = resolvePortraitPlaybackStreamUrls(
+                                playData = playData,
+                                targetQuality = targetQuality
+                            ) ?: error("竖屏预加载未解析到媒体流")
+                            prefetchPortraitPlaybackHead(context, streamUrls)
+                        }.onFailure { error ->
+                            if (error is CancellationException) throw error
+                            portraitPrefetchedPlayUrlBvids.remove(target.bvid)
                         }
                     }
                 }
@@ -1673,6 +1719,9 @@ private fun VideoPageItem(
     val currentAudioQuality = requestedAudioQuality
     val bvid = if (item is ViewInfo) item.bvid else (item as RelatedVideo).bvid
     val itemAid = if (item is ViewInfo) item.aid else (item as RelatedVideo).aid
+    val currentUiState = viewModel.uiState.collectAsStateWithLifecycle().value
+    val currentSuccess = (currentUiState as? VideoPlaybackUiState.Success)
+        ?.withEngagementUiState(engagementState)
     
     // [修复] 手动监听 ExoPlayer 播放状态，确保 UI 及时更新
     var isPlaying by remember { mutableStateOf(exoPlayer.isPlaying) }
@@ -2620,30 +2669,80 @@ private fun VideoPageItem(
         
         // 滑动进度提示
         if (isSeekGesture && progressState.duration > 0) {
-            val targetTimeText = FormatUtils.formatDuration(seekTargetPosition.toLong())
-            val totalTimeText = FormatUtils.formatDuration(progressState.duration)
-            val deltaMs = (seekTargetPosition - seekStartPosition).toLong()
-            val deltaText = if (deltaMs >= 0) "+${FormatUtils.formatDuration(deltaMs)}" else "-${FormatUtils.formatDuration(-deltaMs)}"
-            
-            Column(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .background(Color.Black.copy(alpha = 0.7f), AppShapes.container(ContainerLevel.Card))
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                AppText(
-                    text = "$targetTimeText / $totalTimeText",
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+            val gestureVideoshotData = currentSuccess?.videoshotData
+            if (gestureVideoshotData != null && gestureVideoshotData.isValid) {
+                val previewConfiguration = androidx.compose.ui.platform.LocalConfiguration.current
+                val gesturePreviewSize = remember(
+                    gestureVideoshotData.img_x_size,
+                    gestureVideoshotData.img_y_size,
+                    previewConfiguration.screenWidthDp
+                ) {
+                    com.android.purebilibili.feature.video.ui.components.resolveCompactSeekPreviewSize(
+                        sourceWidthPx = gestureVideoshotData.img_x_size,
+                        sourceHeightPx = gestureVideoshotData.img_y_size,
+                        screenWidthDp = previewConfiguration.screenWidthDp,
+                        videoAspectRatio = 9f / 16f
+                    )
+                }
+                val previewWidthPx = with(density) { gesturePreviewSize.widthDp.dp.toPx() }
+                val previewProgress = (
+                    seekTargetPosition / progressState.duration.toFloat()
+                ).coerceIn(0f, 1f)
+                val previewOffsetX =
+                    com.android.purebilibili.feature.video.ui.components.resolveSeekPreviewBubbleOffsetPx(
+                        placement = com.android.purebilibili.feature.video.ui.components.SeekPreviewBubblePlacement.Anchored,
+                        offsetX = portraitPageWidthPx * previewProgress,
+                        containerWidth = portraitPageWidthPx.toFloat(),
+                        bubbleWidthPx = previewWidthPx
+                    )
+                val previewBottomOffsetPx = with(density) { 120.dp.roundToPx() }
+                com.android.purebilibili.feature.video.ui.components.CompactSeekPreview(
+                    videoshotData = gestureVideoshotData,
+                    targetPositionMs = seekTargetPosition.toLong(),
+                    durationMs = progressState.duration,
+                    videoAspectRatio = 9f / 16f,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .offset {
+                            androidx.compose.ui.unit.IntOffset(
+                                x = previewOffsetX,
+                                y = -previewBottomOffsetPx
+                            )
+                        }
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                AppText(
-                    text = deltaText,
-                    color = if (deltaMs >= 0) Color(0xFF66FF66) else Color(0xFFFF6666),
-                    fontSize = 14.sp
-                )
+            } else {
+                val targetTimeText = FormatUtils.formatDuration(seekTargetPosition.toLong())
+                val totalTimeText = FormatUtils.formatDuration(progressState.duration)
+                val deltaMs = (seekTargetPosition - seekStartPosition).toLong()
+                val deltaText = if (deltaMs >= 0) {
+                    "+${FormatUtils.formatDuration(deltaMs)}"
+                } else {
+                    "-${FormatUtils.formatDuration(-deltaMs)}"
+                }
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .background(
+                            Color.Black.copy(alpha = 0.7f),
+                            AppShapes.container(ContainerLevel.Card)
+                        )
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    AppText(
+                        text = "$targetTimeText / $totalTimeText",
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    AppText(
+                        text = deltaText,
+                        color = if (deltaMs >= 0) Color(0xFF66FF66) else Color(0xFFFF6666),
+                        fontSize = 14.sp
+                    )
+                }
             }
         }
 
@@ -2830,10 +2929,7 @@ private fun VideoPageItem(
         }
 
         // Overlay & Interaction
-    val currentUiState = viewModel.uiState.collectAsStateWithLifecycle().value
     val isCurrentModelVideo = (currentUiState as? VideoPlaybackUiState.Success)?.info?.bvid == bvid
-    val currentSuccess = (currentUiState as? VideoPlaybackUiState.Success)
-        ?.withEngagementUiState(engagementState)
     var portraitInteractionOverride by remember(bvid) {
         mutableStateOf(PortraitVideoInteractionOverride())
     }
@@ -3049,6 +3145,7 @@ private fun VideoPageItem(
             danmakuEnabled = danmakuEnabled,
             isStatusBarHidden = true,
             videoshotData = currentSuccess?.videoshotData,
+            videoAspectRatio = 9f / 16f,
             isPlaybackRecovering = isCurrentPage && shouldShowPlaybackRecoveryUiAfterSeek(
                 state = seekSession,
                 playWhenReady = exoPlayer.playWhenReady,

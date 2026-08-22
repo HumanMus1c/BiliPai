@@ -177,6 +177,197 @@ class ArticleContentBlockParserTest {
         )
     }
 
+    @Test
+    fun `parseArticleContentBlocks keeps quotes lists and code from opus para types`() {
+        val blocks = parseArticleContentBlocks(
+            structuredParagraphs = listOf(
+                JsonObject(
+                    mapOf(
+                        "para_type" to JsonPrimitive(4),
+                        "text" to JsonObject(
+                            mapOf(
+                                "nodes" to JsonArray(
+                                    listOf(
+                                        JsonObject(
+                                            mapOf(
+                                                "word" to JsonObject(
+                                                    mapOf("words" to JsonPrimitive("an open source pastebin"))
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                ),
+                JsonObject(
+                    mapOf(
+                        "para_type" to JsonPrimitive(5),
+                        "list" to JsonObject(
+                            mapOf(
+                                "style" to JsonPrimitive(1),
+                                "items" to JsonArray(
+                                    listOf(
+                                        JsonObject(
+                                            mapOf(
+                                                "nodes" to JsonArray(
+                                                    listOf(
+                                                        JsonObject(
+                                                            mapOf(
+                                                                "word" to JsonObject(
+                                                                    mapOf("words" to JsonPrimitive("glot-www"))
+                                                                )
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        ),
+                                        JsonObject(
+                                            mapOf(
+                                                "nodes" to JsonArray(
+                                                    listOf(
+                                                        JsonObject(
+                                                            mapOf(
+                                                                "word" to JsonObject(
+                                                                    mapOf("words" to JsonPrimitive("code-runner"))
+                                                                )
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                ),
+                JsonObject(
+                    mapOf(
+                        "para_type" to JsonPrimitive(7),
+                        "code" to JsonObject(
+                            mapOf(
+                                "lang" to JsonPrimitive("language-json"),
+                                "content" to JsonPrimitive("{&quot;stdout&quot;:&quot;42\\n&quot;}")
+                            )
+                        )
+                    )
+                )
+            ),
+            htmlContent = null
+        )
+
+        assertEquals(
+            listOf(
+                ArticleContentBlock.Quote("an open source pastebin"),
+                ArticleContentBlock.ListBlock(
+                    ordered = true,
+                    items = listOf("glot-www", "code-runner")
+                ),
+                ArticleContentBlock.Code(
+                    language = "json",
+                    content = "{\"stdout\":\"42\\n\"}"
+                )
+            ),
+            blocks
+        )
+    }
+
+    @Test
+    fun `parseArticleContentBlocks keeps nested images inside html paragraphs`() {
+        val blocks = parseArticleContentBlocks(
+            structuredParagraphs = emptyList(),
+            htmlContent = """
+                <p>开头文字<img data-src="//i0.hdslb.com/bfs/article/nested.png" width="640" height="360">结尾文字</p>
+            """.trimIndent()
+        )
+
+        assertEquals(
+            listOf(
+                ArticleContentBlock.Paragraph("开头文字"),
+                ArticleContentBlock.Image(
+                    url = "https://i0.hdslb.com/bfs/article/nested.png",
+                    width = 640,
+                    height = 360
+                ),
+                ArticleContentBlock.Paragraph("结尾文字")
+            ),
+            blocks
+        )
+    }
+
+    @Test
+    fun `parseArticleContentBlocks prefers complete html over sparse structured preview`() {
+        val blocks = parseArticleContentBlocks(
+            structuredParagraphs = listOf(
+                paragraph(
+                    imageUrl = "https://i0.hdslb.com/bfs/article/preview.png",
+                    imageWidth = 800,
+                    imageHeight = 600
+                )
+            ),
+            htmlContent = """
+                <p>第一段完整正文</p>
+                <p><img data-src="//i0.hdslb.com/bfs/article/full.png" width="800" height="600" /></p>
+                <p>第二段完整正文</p>
+                <p>第三段完整正文</p>
+            """.trimIndent()
+        )
+
+        assertEquals(
+            listOf(
+                ArticleContentBlock.Paragraph("第一段完整正文"),
+                ArticleContentBlock.Image(
+                    url = "https://i0.hdslb.com/bfs/article/full.png",
+                    width = 800,
+                    height = 600
+                ),
+                ArticleContentBlock.Paragraph("第二段完整正文"),
+                ArticleContentBlock.Paragraph("第三段完整正文")
+            ),
+            blocks
+        )
+    }
+
+    @Test
+    fun `parseArticleContentBlocks reads para type 2 pics at the paragraph root`() {
+        val blocks = parseArticleContentBlocks(
+            structuredParagraphs = listOf(
+                JsonObject(
+                    mapOf(
+                        "para_type" to JsonPrimitive(2),
+                        "pics" to JsonArray(
+                            listOf(
+                                JsonObject(
+                                    mapOf(
+                                        "url" to JsonPrimitive("//i0.hdslb.com/bfs/article/root-pic.png"),
+                                        "width" to JsonPrimitive(800),
+                                        "height" to JsonPrimitive(600)
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            ),
+            htmlContent = null
+        )
+
+        assertEquals(
+            listOf(
+                ArticleContentBlock.Image(
+                    url = "https://i0.hdslb.com/bfs/article/root-pic.png",
+                    width = 800,
+                    height = 600
+                )
+            ),
+            blocks
+        )
+    }
+
     private fun paragraph(
         textWords: List<String> = emptyList(),
         headingWords: List<String> = emptyList(),

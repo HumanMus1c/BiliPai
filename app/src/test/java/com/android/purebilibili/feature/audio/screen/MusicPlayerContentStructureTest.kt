@@ -52,6 +52,7 @@ class MusicPlayerContentStructureTest {
 
         assertTrue(playerPage.contains("MusicPlayModeDock("))
         assertTrue(source.contains("listOf(\"顺序播放\", \"随机播放\", \"单曲循环\", \"列表循环\")"))
+        assertTrue(source.contains("AppChromeSizeTokens.BottomBarMatchedSegmentedControlHeightDp"))
         assertTrue(source.contains("showActions"))
         assertTrue(source.contains("播放器操作"))
         assertTrue(source.contains("onCollectionClick"))

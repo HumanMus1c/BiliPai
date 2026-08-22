@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.plugin.googlecast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cast
 import com.android.purebilibili.core.plugin.CastPluginApi
+import com.android.purebilibili.core.plugin.CastDiscoveryRequirement
 import com.android.purebilibili.plugin.sdk.PluginCapability
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -16,6 +17,7 @@ class GoogleCastPluginTest {
     fun `plugin is CastPluginApi`() {
         val api: CastPluginApi = plugin
         assertEquals(plugin.id, api.id)
+        assertEquals(CastDiscoveryRequirement.NONE, api.discoveryRequirement)
     }
 
     @Test

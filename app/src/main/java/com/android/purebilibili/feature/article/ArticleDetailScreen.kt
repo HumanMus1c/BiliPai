@@ -3,8 +3,11 @@ package com.android.purebilibili.feature.article
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.spring
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -36,11 +39,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppScaffold
+import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionScope
@@ -342,6 +347,45 @@ private fun ArticleDetailContent(
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
+                }
+
+                is ArticleContentBlock.Quote -> {
+                    AppText(
+                        text = block.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 12.dp)
+                    )
+                }
+
+                is ArticleContentBlock.ListBlock -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        block.items.forEachIndexed { itemIndex, item ->
+                            val prefix = if (block.ordered) "${itemIndex + 1}. " else "• "
+                            AppText(
+                                text = prefix + item,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+
+                is ArticleContentBlock.Code -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(AppShapes.container(ContainerLevel.Card))
+                            .background(AppSurfaceTokens.surfaceContainer())
+                            .horizontalScroll(rememberScrollState())
+                            .padding(12.dp)
+                    ) {
+                        AppText(
+                            text = block.content,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
 
                 is ArticleContentBlock.Image -> {

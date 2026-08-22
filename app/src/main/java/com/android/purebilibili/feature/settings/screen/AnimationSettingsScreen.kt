@@ -5,11 +5,9 @@ import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.*
@@ -17,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -28,8 +25,8 @@ import com.android.purebilibili.R
 import com.android.purebilibili.core.theme.*
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import com.android.purebilibili.core.ui.blur.shouldAllowHomeChromeLiquidGlass
-import com.android.purebilibili.core.store.LiquidGlassMode
 import com.android.purebilibili.core.store.AppNavigationSettings
+import com.android.purebilibili.core.store.LiquidGlassAdvancedSettings
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -42,8 +39,6 @@ import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_TRANSITION_CUSTO
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionSpeed
 import com.android.purebilibili.core.ui.transition.normalizeVideoSharedTransitionCustomDurationMillis
 import com.android.purebilibili.core.util.LocalWindowSizeClass
-import com.android.purebilibili.feature.home.components.LiquidGlassTuning
-import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackExitDirection
 import androidx.compose.material.icons.outlined.*
@@ -127,6 +122,14 @@ fun AnimationSettingsContent(
     }
     val isLiquidGlassAvailable = shouldAllowHomeChromeLiquidGlass(Build.VERSION.SDK_INT)
     val bottomBarLiquidGlassEnabled = state.bottomBarLiquidGlassEnabled
+    val liquidGlassPreviewImageUri by SettingsManager
+        .getLiquidGlassPreviewImageUri(context)
+        .collectAsStateWithLifecycle(initialValue = null)
+    val liquidGlassAdvancedSettings by SettingsManager
+        .getLiquidGlassAdvancedSettings(context)
+        .collectAsStateWithLifecycle(
+            initialValue = LiquidGlassAdvancedSettings()
+        )
     val uiEntranceAnimationEnabled by SettingsManager.getUiEntranceAnimationEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
     val appNavigationSettings by SettingsManager.getAppNavigationSettings(context)
@@ -474,24 +477,23 @@ fun AnimationSettingsContent(
                                 iconTint = iOSBlue
                             )
                             androidx.compose.animation.AnimatedVisibility(
-                                visible = bottomBarLiquidGlassEnabled,
+                                visible = state.topBarLiquidGlassEnabled ||
+                                    state.homeSearchLiquidGlassEnabled ||
+                                    bottomBarLiquidGlassEnabled,
                                 enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
                                 exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
                             ) {
                                 Column {
                                     AppPreferenceDivider()
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        AppText(
-                                            "当前使用固定材质策略",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        AppText(
-                                            text = "开启全局液态玻璃后，顶部栏、搜索框、选择控件和底栏会统一使用同一套玻璃效果。",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
+                                    LiquidGlassAdjustmentPanel(
+                                        persistedProgress = state.liquidGlassProgress,
+                                        previewImageUri = liquidGlassPreviewImageUri,
+                                        persistedAdvancedSettings = liquidGlassAdvancedSettings,
+                                        onProgressCommitted = viewModel::setLiquidGlassProgress,
+                                        onPreviewImageChanged = viewModel::setLiquidGlassPreviewImageUri,
+                                        onAdvancedSettingsCommitted =
+                                            viewModel::setLiquidGlassAdvancedSettings,
+                                    )
                                 }
                             }
                             AppPreferenceDivider()

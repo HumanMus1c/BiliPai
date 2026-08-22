@@ -37,9 +37,40 @@ class SettingsMiuixSimplificationStructureTest {
         assertTrue(source.contains("底栏液态玻璃"))
         assertFalse(source.contains("title = \"安卓原生液态玻璃\""))
         assertFalse(source.contains("toggleAndroidNativeLiquidGlass("))
+        assertTrue(source.contains("LiquidGlassAdjustmentPanel("))
         assertTrue(source.contains("转场时模糊背景"))
         assertTrue(source.contains("toggleVideoTransitionRealtimeBlur("))
         assertTrue(source.contains("SettingsPageScaffold("))
+    }
+
+    @Test
+    fun `liquid glass adjustment uses live miuix backdrop and commits on release`() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/settings/LiquidGlassLivePreview.kt"
+        )
+
+        assertTrue(source.contains("rememberLayerBackdrop()"))
+        assertTrue(source.contains(".layerBackdrop(backdrop)"))
+        assertTrue(source.contains(".biliPaiFloatingDockShell("))
+        assertTrue(source.contains("onValueChangeFinished = { onProgressCommitted(previewProgress) }"))
+        assertFalse(source.contains("import androidx.compose.foundation.layout.weight"))
+        assertTrue(source.contains("ActivityResultContracts.OpenDocument()"))
+        assertTrue(source.contains("takePersistableUriPermission("))
+        assertTrue(source.contains("AsyncImage("))
+        assertTrue(source.contains("onPreviewImageChanged(null)"))
+        assertTrue(source.contains("LiquidGlassAdvancedPreset.entries"))
+        assertFalse(source.contains("AppNativeSegmentedControl("))
+        assertTrue(source.contains("contentDescription = \"液态玻璃效果预设\""))
+        assertTrue(source.contains("steps = 2"))
+        assertTrue(source.contains("title = \"内容可读性\""))
+        assertTrue(source.contains("title = \"色散强度\""))
+        assertTrue(source.contains("title = \"文字与图标扭曲\""))
+        assertTrue(source.contains("preset = LiquidGlassAdvancedPreset.CUSTOM"))
+        assertTrue(source.contains("onAdvancedSettingsCommitted(advancedSettings)"))
+        assertTrue(source.contains("detectVerticalDragGestures"))
+        assertTrue(source.contains("previewPanOffsetPx"))
+        assertTrue(source.contains("sliderFollowOffset"))
+        assertTrue(source.contains("translationY = previewPanOffsetPx + sliderFollowOffset"))
     }
 
     @Test
