@@ -740,6 +740,7 @@ object LogCollector {
             }
             
             // 生成日志内容
+            val recentProcessExits = Android17Diagnostics.recentProcessExitSummaries(context)
             val header = buildString {
                 appendLine("========================================")
                 appendLine("BiliPai 应用日志导出")
@@ -750,6 +751,8 @@ object LogCollector {
                 appendLine("Android版本: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")
                 appendLine("日志条数: ${logLines.size}")
                 appendLine("增强诊断: ${if (Logger.areVerboseRuntimeLogsEnabled()) "已开启" else "未开启"}")
+                appendLine("历史进程退出记录: ${if (recentProcessExits.isEmpty()) "系统未提供" else "${recentProcessExits.size} 条"}")
+                recentProcessExits.forEach(::appendLine)
                 appendLine("隐私说明: 凭据、账号标识、内容标识、搜索词和用户输入已脱敏")
                 appendLine("========================================")
                 appendLine()
@@ -762,6 +765,16 @@ object LogCollector {
             val savedPath = saveToExternalDownload(context, fileName, content)
             val shareCacheDir = File(context.cacheDir, LOG_DIRECTORY_NAME).apply { mkdirs() }
             val shareFile = File(shareCacheDir, fileName).apply { writeText(content) }
+            val pendingCrashShareFile = getPendingCrashSnapshotFile()?.let { snapshotFile ->
+                runCatching {
+                    File(shareCacheDir, CRASH_SNAPSHOT_FILE_NAME).also { target ->
+                        snapshotFile.copyTo(target, overwrite = true)
+                    }
+                }.onFailure { error ->
+                    Log.e("LogCollector", "附加崩溃快照失败", error)
+                }.getOrNull()
+            }
+            val baseShareFiles = listOfNotNull(shareFile, pendingCrashShareFile)
             
             if (savedPath != null) {
                 // 保存成功，显示路径并提供分享选项
@@ -779,7 +792,7 @@ object LogCollector {
             // 性能 trace 可能较大，始终流式复制且不阻塞 UI 线程。
             val retainedProfilingArtifacts = Android17Diagnostics.retainedArtifacts(context)
             if (retainedProfilingArtifacts.isEmpty()) {
-                shareLogFilesFromCache(context, listOf(shareFile))
+                shareLogFilesFromCache(context, baseShareFiles)
             } else {
                 diskWriter.execute {
                     val profilingArtifacts = Android17Diagnostics.copyRetainedArtifactsTo(
@@ -787,7 +800,7 @@ object LogCollector {
                         targetDirectory = shareCacheDir
                     )
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        shareLogFilesFromCache(context, listOf(shareFile) + profilingArtifacts)
+                        shareLogFilesFromCache(context, baseShareFiles + profilingArtifacts)
                     }
                 }
             }

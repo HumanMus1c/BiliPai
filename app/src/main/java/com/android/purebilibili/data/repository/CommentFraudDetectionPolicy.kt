@@ -20,6 +20,17 @@ internal fun shouldStartCommentFraudDetection(
     rpid: Long
 ): Boolean = enabled && rpid > 0L
 
+internal fun shouldContinueSubReplyFraudScan(
+    page: Int,
+    pageSize: Int,
+    receivedCount: Int,
+    totalCount: Int,
+    maxPages: Int
+): Boolean {
+    if (page >= maxPages || receivedCount <= 0) return false
+    return if (totalCount > 0) page * pageSize < totalCount else receivedCount >= pageSize
+}
+
 internal fun shouldShowCommentFraudResultDialog(status: CommentFraudStatus): Boolean {
     return status != CommentFraudStatus.NORMAL
 }

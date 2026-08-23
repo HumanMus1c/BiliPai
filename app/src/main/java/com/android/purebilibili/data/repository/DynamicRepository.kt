@@ -4,6 +4,7 @@ package com.android.purebilibili.data.repository
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.network.OPUS_DETAIL_FEATURES
 import com.android.purebilibili.core.network.WbiUtils
+import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.data.model.response.DynamicFeedResponse
 import com.android.purebilibili.data.model.response.DynamicItem
 import com.android.purebilibili.feature.article.shouldFetchArticleFallbackForOpus
@@ -379,7 +380,14 @@ object DynamicRepository {
                 item = response.data?.item,
                 fallbackCvId = response.data?.fallback?.id?.takeIf { it > 0L }
             )
-        }.getOrDefault(OpusDetailFetch(item = null, fallbackCvId = null))
+        }.getOrElse { error ->
+            Logger.w(
+                tag = "DynamicRepository",
+                message = "解析图文动态全文失败: dynamicId=$dynamicId",
+                throwable = error
+            )
+            OpusDetailFetch(item = null, fallbackCvId = null)
+        }
     }
 
     private suspend fun signDynamicWbi(params: Map<String, String>): Map<String, String> {

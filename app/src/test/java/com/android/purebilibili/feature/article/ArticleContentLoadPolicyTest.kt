@@ -84,4 +84,21 @@ class ArticleContentLoadPolicyTest {
         assertNull(buildArticleHistoryReportFields(articleId = 0L, csrf = "token"))
         assertNull(buildArticleHistoryReportFields(articleId = 1L, csrf = " "))
     }
+
+    @Test
+    fun `article summary only renders when body has no readable text`() {
+        assertFalse(
+            shouldShowArticleSummary(
+                summary = "正文开头摘要",
+                blocks = listOf(ArticleContentBlock.Paragraph("正文开头摘要以及后续内容"))
+            )
+        )
+        assertTrue(
+            shouldShowArticleSummary(
+                summary = "图片说明",
+                blocks = listOf(ArticleContentBlock.Image("https://i0.hdslb.com/body.jpg"))
+            )
+        )
+        assertFalse(shouldShowArticleSummary(summary = " ", blocks = emptyList()))
+    }
 }

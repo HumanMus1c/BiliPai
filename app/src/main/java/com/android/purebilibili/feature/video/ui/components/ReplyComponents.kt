@@ -1090,6 +1090,8 @@ fun ReplyItemView(
     onImagePreview: ((List<String>, Int, Rect?, ImagePreviewTextContent?) -> Unit)? = null,
     isLiked: Boolean = item.action == 1,
     onLikeClick: (() -> Unit)? = null,
+    isHated: Boolean = item.action == 2,
+    onHateClick: (() -> Unit)? = null,
     onReplyClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     onDeleteClick: (() -> Unit)? = null,
@@ -1405,7 +1407,7 @@ fun ReplyItemView(
                             // 需要时用评论长按菜单「复制用户名」。
                             AppText(
                                 text = item.member.uname,
-                                fontSize = 13.sp,
+                                fontSize = VideoCommentTypographyTokens.author,
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (item.member.vip?.vipStatus == 1) {
                                     appearance.accentColor
@@ -1446,7 +1448,7 @@ fun ReplyItemView(
 
                         AppText(
                             text = metadataText,
-                            fontSize = 12.sp,
+                            fontSize = VideoCommentTypographyTokens.metadata,
                             lineHeight = 16.sp,
                             color = appearance.secondaryTextColor
                         )
@@ -1463,7 +1465,7 @@ fun ReplyItemView(
                 ) {
                     ReplyMessageText(
                         text = item.content.message,
-                        fontSize = 15.sp,
+                        fontSize = VideoCommentTypographyTokens.body,
                         color = appearance.primaryTextColor,
                         emoteMap = localEmoteMap,
                         content = item.content,
@@ -1538,10 +1540,24 @@ fun ReplyItemView(
                             Spacer(modifier = Modifier.width(4.dp))
                             AppText(
                                 text = FormatUtils.formatStat(displayLikeCount.toLong()),
-                                fontSize = 12.sp,
+                                fontSize = VideoCommentTypographyTokens.actionCount,
                                 color = if (isLiked) appearance.accentColor else appearance.actionTint
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+                    AppIconButton(
+                        onClick = { onHateClick?.invoke() },
+                        enabled = onHateClick != null,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.ThumbDown,
+                            contentDescription = if (isHated) "取消点踩" else "点踩评论",
+                            tint = if (isHated) MaterialTheme.colorScheme.error else appearance.actionTint,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
 
                     // [新增] 删除按钮 (仅显示给本人)
@@ -1661,7 +1677,7 @@ fun ReplyItemView(
                             ) {
                                 ReplyMessageText(
                                     text = subReply.content.message,
-                                    fontSize = 13.sp,
+                                    fontSize = VideoCommentTypographyTokens.subReply,
                                     color = appearance.primaryTextColor.copy(alpha = 0.8f),
                                     emoteMap = subEmoteMap,
                                     content = subReply.content,
@@ -1687,7 +1703,7 @@ fun ReplyItemView(
                         if (showInlineSubReplyToggle) {
                             AppText(
                                 text = resolveInlineSubReplyToggleLabel(expanded = isSubPreviewExpanded),
-                                fontSize = 13.sp,
+                                fontSize = VideoCommentTypographyTokens.subReply,
                                 color = appearance.accentColor,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier
@@ -1706,7 +1722,7 @@ fun ReplyItemView(
                             ) {
                                 AppText(
                                     text = subReplySummaryLabel,
-                                    fontSize = 13.sp,
+                                    fontSize = VideoCommentTypographyTokens.subReply,
                                     color = appearance.accentColor,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -2523,7 +2539,7 @@ private fun ReplyTextAction(
         Spacer(modifier = Modifier.width(3.dp))
         AppText(
             text = label,
-            fontSize = 13.sp,
+            fontSize = VideoCommentTypographyTokens.action,
             color = appearance.actionTint
         )
     }

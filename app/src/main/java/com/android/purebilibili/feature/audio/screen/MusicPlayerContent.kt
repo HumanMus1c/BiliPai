@@ -107,6 +107,12 @@ import com.android.purebilibili.feature.audio.lyrics.resolveLyricFocusScrollOffs
 import com.android.purebilibili.feature.audio.player.MusicPlayerUiState
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import com.android.purebilibili.feature.home.components.LiquidGlassTuning
+import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
+import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
+import com.android.purebilibili.core.store.HomeSettings
+import com.android.purebilibili.core.store.SettingsManager
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 import com.android.purebilibili.feature.video.playback.audio.AudioQualityOption
 import com.android.purebilibili.feature.video.player.PlayMode
@@ -221,6 +227,20 @@ internal fun MusicPlayerContent(
     }
     val effectiveReduceMotion = reduceMotion || systemReduceMotion
     val musicBackdrop = rememberMiuixLayerBackdrop()
+    val homeSettings by SettingsManager
+        .getHomeSettings(context)
+        .collectAsStateWithLifecycle(initialValue = HomeSettings())
+    val liquidGlassTuning = remember(
+        homeSettings.liquidGlassProgress,
+        homeSettings.liquidGlassAdvancedSettings,
+        homeSettings.liquidGlassReadabilityMode,
+    ) {
+        resolveLiquidGlassTuning(
+            progress = homeSettings.liquidGlassProgress,
+            advancedSettings = homeSettings.liquidGlassAdvancedSettings,
+            readabilityMode = homeSettings.liquidGlassReadabilityMode,
+        )
+    }
 
     LaunchedEffect(state.coverUrl) {
         val result = loadMusicArtwork(context.imageLoader, state.coverUrl, context)
@@ -435,6 +455,7 @@ internal fun MusicPlayerContent(
             MusicTopBar(
                 glassEnabled = glassEnabled,
                 miuixBackdrop = musicBackdrop,
+                liquidGlassTuning = liquidGlassTuning,
                 onBack = onBack,
                 onMore = { showActions = true },
                 modifier = Modifier
@@ -1324,6 +1345,7 @@ private fun buildLyricText(
 private fun MusicTopBar(
     glassEnabled: Boolean,
     miuixBackdrop: MiuixBackdrop?,
+    liquidGlassTuning: LiquidGlassTuning,
     onBack: () -> Unit,
     onMore: () -> Unit,
     modifier: Modifier = Modifier
@@ -1334,6 +1356,7 @@ private fun MusicTopBar(
             "返回",
             glassEnabled,
             miuixBackdrop,
+            liquidGlassTuning,
             onBack
         )
         GlassIconButton(
@@ -1341,6 +1364,7 @@ private fun MusicTopBar(
             "更多操作",
             glassEnabled,
             miuixBackdrop,
+            liquidGlassTuning,
             onMore
         )
     }
@@ -1352,13 +1376,21 @@ private fun GlassIconButton(
     description: String,
     glassEnabled: Boolean,
     miuixBackdrop: MiuixBackdrop?,
+    liquidGlassTuning: LiquidGlassTuning,
     onClick: () -> Unit
 ) {
     AppIconButton(
         onClick = onClick,
         modifier = Modifier
             .size(48.dp)
-            .background(AppSurfaceTokens.cardContainer(), CircleShape)
+            .biliPaiFloatingDockShell(
+                backdrop = miuixBackdrop,
+                containerColor = AppSurfaceTokens.cardContainer(),
+                pressProgress = 0f,
+                shape = CircleShape,
+                enabled = glassEnabled,
+                liquidGlassTuning = liquidGlassTuning,
+            )
     ) {
         AppIcon(
             icon,

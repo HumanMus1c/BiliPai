@@ -52,6 +52,7 @@ class HomeSettingsMappingPolicyTest {
         assertEquals(LiquidGlassMode.BALANCED, result.liquidGlassMode)
         assertEquals(0.52f, result.liquidGlassStrength)
         assertEquals(0.5f, result.liquidGlassProgress)
+        assertEquals(LiquidGlassReadabilityMode.STABLE, result.liquidGlassReadabilityMode)
         assertEquals(LiquidGlassAdvancedPreset.BALANCED, result.liquidGlassAdvancedSettings.preset)
         assertEquals(0.62f, result.liquidGlassAdvancedSettings.contentReadability)
         assertEquals(0.56f, result.liquidGlassAdvancedSettings.chromaticAberration)
@@ -104,6 +105,8 @@ class HomeSettingsMappingPolicyTest {
             intPreferencesKey("liquid_glass_style") to LiquidGlassStyle.IOS26.value,
             intPreferencesKey("liquid_glass_advanced_preset") to
                 LiquidGlassAdvancedPreset.CUSTOM.value,
+            intPreferencesKey("liquid_glass_readability_mode") to
+                LiquidGlassReadabilityMode.ADAPTIVE.value,
             floatPreferencesKey("liquid_glass_content_readability") to 0.84f,
             floatPreferencesKey("liquid_glass_chromatic_aberration") to 0.36f,
             floatPreferencesKey("liquid_glass_content_distortion") to 0.71f,
@@ -156,6 +159,7 @@ class HomeSettingsMappingPolicyTest {
         assertEquals(LiquidGlassMode.CLEAR, result.liquidGlassMode)
         assertEquals(0.42f, result.liquidGlassStrength)
         assertEquals(0.5f, result.liquidGlassProgress)
+        assertEquals(LiquidGlassReadabilityMode.ADAPTIVE, result.liquidGlassReadabilityMode)
         assertEquals(LiquidGlassAdvancedPreset.CUSTOM, result.liquidGlassAdvancedSettings.preset)
         assertEquals(0.84f, result.liquidGlassAdvancedSettings.contentReadability)
         assertEquals(0.36f, result.liquidGlassAdvancedSettings.chromaticAberration)
@@ -205,6 +209,17 @@ class HomeSettingsMappingPolicyTest {
         assertEquals(0.62f, result.contentReadability)
         assertEquals(0.56f, result.chromaticAberration)
         assertEquals(0.45f, result.contentDistortion)
+    }
+
+    @Test
+    fun invalidLiquidGlassReadabilityModeFallsBackToStable() {
+        val prefs = mutablePreferencesOf(
+            intPreferencesKey("liquid_glass_readability_mode") to 99,
+        )
+
+        val result = mapHomeSettingsFromPreferences(prefs)
+
+        assertEquals(LiquidGlassReadabilityMode.STABLE, result.liquidGlassReadabilityMode)
     }
 
     @Test

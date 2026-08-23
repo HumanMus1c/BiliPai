@@ -21,6 +21,20 @@ class SettingsSearchPolicyTest {
     }
 
     @Test
+    fun naturalLanguageQueryContainingSettingName_hitsExpectedSetting() {
+        val results = resolveSettingsSearchResults("怎么清除应用缓存释放空间")
+
+        assertEquals(SettingsSearchTarget.CLEAR_CACHE, results.firstOrNull()?.target)
+    }
+
+    @Test
+    fun naturalLanguageQuery_prefersMoreSpecificContainedAlias() {
+        val result = resolveSettingsSearchResults("我想把首页顶栏改成仅回顶显示").firstOrNull()
+
+        assertEquals(SettingsSearchTarget.HOME_FEED, result?.target)
+    }
+
+    @Test
     fun queryByEnglishAlias_isCaseInsensitive() {
         val results = resolveSettingsSearchResults("gItHuB")
 

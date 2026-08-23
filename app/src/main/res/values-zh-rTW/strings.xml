@@ -123,6 +123,8 @@
     <string name="shortcut_search_long">搜尋影片</string>
     <string name="shortcut_dynamic_short">動態</string>
     <string name="shortcut_dynamic_long">查看動態</string>
+    <string name="shortcut_watch_later_short">稍後再看</string>
+    <string name="shortcut_watch_later_long">開啟稍後再看</string>
     <string name="shortcut_favorite_short">收藏</string>
     <string name="shortcut_favorite_long">我的收藏</string>
     <string name="shortcut_history_short">歷史</string>

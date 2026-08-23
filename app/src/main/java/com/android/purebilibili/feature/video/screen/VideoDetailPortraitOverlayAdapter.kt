@@ -100,8 +100,8 @@ internal fun VideoDetailPortraitOverlayAdapter(
             )
         }
     }
-    // Enter: optional fade (disabled for direct-portrait morph so card shell is the only motion).
-    // Exit: always soft scale/slide so manual leave still feels polished.
+    // Enter is direct so swipe-to-fullscreen never cross-fades through the centered inline player.
+    // Exit keeps the soft scale/slide so manual leave still feels polished.
     val portraitExitTransition = remember(motionSpec) {
         val exitSpec = tween<Float>(
             durationMillis = motionSpec.exitDurationMillis,

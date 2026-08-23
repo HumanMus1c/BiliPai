@@ -3,11 +3,13 @@ package com.android.purebilibili.feature.settings
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -19,16 +21,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DynamicFeed
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,29 +46,38 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.android.purebilibili.R
 import com.android.purebilibili.core.store.LiquidGlassAdvancedPreset
 import com.android.purebilibili.core.store.LiquidGlassAdvancedSettings
 import com.android.purebilibili.core.store.LiquidGlassMode
+import com.android.purebilibili.core.store.LiquidGlassReadabilityMode
 import com.android.purebilibili.core.store.resolveLiquidGlassAdvancedPreset
 import com.android.purebilibili.core.ui.components.AppSlider
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
+import com.android.purebilibili.feature.home.components.BottomNavItem
+import com.android.purebilibili.feature.home.components.resolveFloatingDockGeometryScale
 import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
+import com.android.purebilibili.feature.home.components.resolveMaterialBottomBarIcon
+import com.android.purebilibili.feature.home.components.rememberLiquidGlassAdaptiveContentColor
+import com.android.purebilibili.feature.home.components.rememberLiquidGlassAdaptiveReadabilityState
+import com.android.purebilibili.feature.home.components.trackLiquidGlassAdaptiveReadability
 import coil.compose.AsyncImage
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
@@ -74,14 +87,19 @@ internal fun LiquidGlassAdjustmentPanel(
     persistedProgress: Float,
     previewImageUri: String?,
     persistedAdvancedSettings: LiquidGlassAdvancedSettings,
+    persistedReadabilityMode: LiquidGlassReadabilityMode,
+    bottomBarItems: List<BottomNavItem>,
+    bottomBarSearchEnabled: Boolean,
     onProgressCommitted: (Float) -> Unit,
     onPreviewImageChanged: (String?) -> Unit,
     onAdvancedSettingsCommitted: (LiquidGlassAdvancedSettings) -> Unit,
+    onReadabilityModeChanged: (LiquidGlassReadabilityMode) -> Unit,
+    onShareSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val previewImagePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
+        contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         runCatching {
@@ -98,17 +116,18 @@ internal fun LiquidGlassAdjustmentPanel(
     var advancedSettings by remember(persistedAdvancedSettings) {
         mutableStateOf(persistedAdvancedSettings)
     }
-    var customAdvancedSettings by remember(persistedAdvancedSettings) {
-        mutableStateOf(
-            persistedAdvancedSettings.copy(preset = LiquidGlassAdvancedPreset.CUSTOM)
-        )
-    }
     var presetSliderValue by remember(persistedAdvancedSettings) {
-        mutableFloatStateOf(liquidGlassPresetSliderValue(persistedAdvancedSettings.preset))
+        mutableFloatStateOf(liquidGlassPresetSliderValue(persistedAdvancedSettings))
     }
+    var readabilityMode by remember(persistedReadabilityMode) {
+        mutableStateOf(persistedReadabilityMode)
+    }
+    val previewArtworkPagerState = rememberPagerState(
+        pageCount = { LiquidGlassPreviewArtwork.entries.size },
+    )
     var advancedSettingsExpanded by rememberSaveable { mutableStateOf(false) }
-    val tuning = remember(previewProgress, advancedSettings) {
-        resolveLiquidGlassTuning(previewProgress, advancedSettings)
+    val tuning = remember(previewProgress, advancedSettings, readabilityMode) {
+        resolveLiquidGlassTuning(previewProgress, advancedSettings, readabilityMode)
     }
     val modeLabel = when (tuning.mode) {
         LiquidGlassMode.CLEAR -> "通透"
@@ -126,14 +145,14 @@ internal fun LiquidGlassAdjustmentPanel(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 AppText(
                     text = "液态玻璃质感",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                 )
                 AppText(
-                    text = "顶部栏、搜索框、选择控件和底栏统一生效",
+                    text = "底栏遵循 Miuix 上游基准；顶部栏、搜索框和选择控件按高度适配",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -142,15 +161,96 @@ internal fun LiquidGlassAdjustmentPanel(
                 text = "$modeLabel · $percentage%",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                softWrap = false,
             )
         }
 
         LiquidGlassHomeSample(
             progress = previewProgress,
             previewImageUri = previewImageUri,
+            previewArtworkPagerState = previewArtworkPagerState,
             advancedSettings = advancedSettings,
+            readabilityMode = readabilityMode,
+            bottomBarItems = bottomBarItems,
+            bottomBarSearchEnabled = bottomBarSearchEnabled,
             modifier = Modifier.fillMaxWidth(),
         )
+
+        AppText(
+            text = "内容可读性方案",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+        )
+        AppSegmentedControl(
+            options = remember {
+                listOf(
+                    com.android.purebilibili.core.ui.components.AppSegmentOption(
+                        LiquidGlassReadabilityMode.STABLE,
+                        "稳定内容色",
+                    ),
+                    com.android.purebilibili.core.ui.components.AppSegmentOption(
+                        LiquidGlassReadabilityMode.ADAPTIVE,
+                        "自动适配",
+                    ),
+                )
+            },
+            selectedValue = readabilityMode,
+            onSelectionChange = { mode ->
+                readabilityMode = mode
+                onReadabilityModeChanged(mode)
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppText(
+            text = if (readabilityMode == LiquidGlassReadabilityMode.STABLE) {
+                "默认：图标与文字使用稳定主题色，不进行背景采样。"
+            } else {
+                "自动：低频采样玻璃区域，并通过滞回阈值平滑切换内容明暗。"
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        if (previewImageUri == null) {
+            val selectedArtwork = LiquidGlassPreviewArtwork.entries[
+                previewArtworkPagerState.currentPage.coerceIn(
+                    0,
+                    LiquidGlassPreviewArtwork.entries.lastIndex,
+                )
+            ]
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                LiquidGlassPreviewArtwork.entries.forEachIndexed { index, _ ->
+                    val selected = index == previewArtworkPagerState.currentPage
+                    Box(
+                        modifier = Modifier
+                            .width(if (selected) 18.dp else 6.dp)
+                            .height(6.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (selected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.32f)
+                                }
+                            )
+                    )
+                    if (index != LiquidGlassPreviewArtwork.entries.lastIndex) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                AppText(
+                    text = "${selectedArtwork.label} · 左右滑动切换",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -158,7 +258,11 @@ internal fun LiquidGlassAdjustmentPanel(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AppTextButton(
-                onClick = { previewImagePicker.launch(arrayOf("image/*")) },
+                onClick = {
+                    previewImagePicker.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                },
             ) {
                 Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
@@ -174,7 +278,7 @@ internal fun LiquidGlassAdjustmentPanel(
         }
         AppText(
             text = if (previewImageUri == null) {
-                "可在预览图中上下拖动背景；调节滑杆时图片与玻璃效果实时跟随。"
+                "左右滑动切换内置背景，上下拖动查看长图；调节滑杆时图片与玻璃效果实时跟随。"
             } else {
                 "所选图片仅用于本页预览；可上下拖动背景，滑杆效果实时跟随。"
             },
@@ -193,7 +297,11 @@ internal fun LiquidGlassAdjustmentPanel(
                 fontWeight = FontWeight.Medium,
             )
             AppText(
-                text = advancedSettings.preset.label,
+                text = if (advancedSettings.preset == LiquidGlassAdvancedPreset.CUSTOM) {
+                    "自定 · ${(presetSliderValue * 100f).roundToInt()}%"
+                } else {
+                    advancedSettings.preset.label
+                },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -201,29 +309,28 @@ internal fun LiquidGlassAdjustmentPanel(
         AppSlider(
             value = presetSliderValue,
             onValueChange = { value ->
-                val preset = liquidGlassPresetFromSliderValue(value)
-                presetSliderValue = liquidGlassPresetSliderValue(preset)
-                val resolvedSettings = if (preset == LiquidGlassAdvancedPreset.CUSTOM) {
-                    customAdvancedSettings
-                } else {
-                    resolveLiquidGlassAdvancedPreset(preset)
-                }
-                advancedSettings = resolvedSettings
+                presetSliderValue = value.coerceIn(0f, 1f)
+                advancedSettings = resolveLiquidGlassPresetSliderSettings(value)
             },
             onValueChangeFinished = {
                 onAdvancedSettingsCommitted(advancedSettings)
             },
             valueRange = 0f..1f,
-            steps = 2,
             modifier = Modifier
                 .fillMaxWidth()
                 .semantics {
                     contentDescription = "液态玻璃效果预设"
-                    stateDescription = advancedSettings.preset.label
+                    stateDescription = if (
+                        advancedSettings.preset == LiquidGlassAdvancedPreset.CUSTOM
+                    ) {
+                        "自定 ${(presetSliderValue * 100f).roundToInt()}%"
+                    } else {
+                        advancedSettings.preset.label
+                    }
                 },
         )
         Row(modifier = Modifier.fillMaxWidth()) {
-            LiquidGlassAdvancedPreset.entries.forEach { preset ->
+            LIQUID_GLASS_PRESET_SLIDER_ANCHORS.forEach { preset ->
                 AppText(
                     text = preset.label,
                     style = MaterialTheme.typography.labelSmall,
@@ -244,20 +351,30 @@ internal fun LiquidGlassAdjustmentPanel(
         }
         AppText(
             text = when (advancedSettings.preset) {
-                LiquidGlassAdvancedPreset.READABLE -> "清晰：优先保证图标和文字可读性（推荐极度通透）"
-                LiquidGlassAdvancedPreset.BALANCED -> "均衡：保持 BiliPai 默认质感"
+                LiquidGlassAdvancedPreset.READABLE -> "清晰：关闭内容扭曲，优先保证文字和图标正常显示"
+                LiquidGlassAdvancedPreset.BALANCED -> "均衡：采用 Miuix 上游基准质感"
                 LiquidGlassAdvancedPreset.PRISM -> "棱镜：强化色散与内容折射"
                 LiquidGlassAdvancedPreset.CUSTOM -> "自定：使用下方高级参数"
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        AppTextButton(
-            onClick = { advancedSettingsExpanded = !advancedSettingsExpanded },
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Icon(Icons.Outlined.Tune, contentDescription = null)
-            Spacer(modifier = Modifier.width(6.dp))
-            AppText(if (advancedSettingsExpanded) "收起高级参数" else "高级参数")
+            AppTextButton(
+                onClick = { advancedSettingsExpanded = !advancedSettingsExpanded },
+            ) {
+                Icon(Icons.Outlined.Tune, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                AppText(if (advancedSettingsExpanded) "收起高级参数" else "高级参数")
+            }
+            AppTextButton(onClick = onShareSettings) {
+                Icon(Icons.Outlined.Share, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                AppText("一键分享设置")
+            }
         }
         AnimatedVisibility(
             visible = advancedSettingsExpanded,
@@ -275,10 +392,7 @@ internal fun LiquidGlassAdjustmentPanel(
                             contentReadability = value,
                         )
                         advancedSettings = updatedSettings
-                        customAdvancedSettings = updatedSettings
-                        presetSliderValue = liquidGlassPresetSliderValue(
-                            LiquidGlassAdvancedPreset.CUSTOM
-                        )
+                        presetSliderValue = liquidGlassPresetSliderValue(updatedSettings)
                     },
                     onValueChangeFinished = {
                         onAdvancedSettingsCommitted(advancedSettings)
@@ -294,10 +408,7 @@ internal fun LiquidGlassAdjustmentPanel(
                             chromaticAberration = value,
                         )
                         advancedSettings = updatedSettings
-                        customAdvancedSettings = updatedSettings
-                        presetSliderValue = liquidGlassPresetSliderValue(
-                            LiquidGlassAdvancedPreset.CUSTOM
-                        )
+                        presetSliderValue = liquidGlassPresetSliderValue(updatedSettings)
                     },
                     onValueChangeFinished = {
                         onAdvancedSettingsCommitted(advancedSettings)
@@ -305,23 +416,41 @@ internal fun LiquidGlassAdjustmentPanel(
                 )
                 LiquidGlassAdvancedSlider(
                     title = "文字与图标扭曲",
-                    description = "控制选中内容经过移动玻璃指示器时的折射幅度",
+                    description = "调至 0% 可完全关闭折射，让文字和图标正常显示",
                     value = advancedSettings.contentDistortion,
+                    valueText = if (advancedSettings.contentDistortion <= 0.001f) {
+                        "关闭"
+                    } else {
+                        "${(advancedSettings.contentDistortion * 100f).roundToInt()}%"
+                    },
                     onValueChange = { value ->
                         val updatedSettings = advancedSettings.copy(
                             preset = LiquidGlassAdvancedPreset.CUSTOM,
                             contentDistortion = value,
                         )
                         advancedSettings = updatedSettings
-                        customAdvancedSettings = updatedSettings
-                        presetSliderValue = liquidGlassPresetSliderValue(
-                            LiquidGlassAdvancedPreset.CUSTOM
-                        )
+                        presetSliderValue = liquidGlassPresetSliderValue(updatedSettings)
                     },
                     onValueChangeFinished = {
                         onAdvancedSettingsCommitted(advancedSettings)
                     },
                 )
+                AppTextButton(
+                    onClick = {
+                        val updatedSettings = advancedSettings.copy(
+                            preset = LiquidGlassAdvancedPreset.CUSTOM,
+                            contentDistortion = 0f,
+                        )
+                        advancedSettings = updatedSettings
+                        presetSliderValue = liquidGlassPresetSliderValue(updatedSettings)
+                        onAdvancedSettingsCommitted(updatedSettings)
+                    },
+                    enabled = advancedSettings.contentDistortion > 0.001f,
+                ) {
+                    Icon(Icons.Outlined.Restore, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    AppText("完全关闭文字扭曲")
+                }
             }
         }
 
@@ -355,49 +484,174 @@ internal fun LiquidGlassAdjustmentPanel(
         }
 
         AppText(
-            text = "拖动时仅实时更新预览，松手后保存；50% 为原有 BiliPai 默认效果。",
+            text = "拖动时仅实时更新预览，松手后保存；50% 为 Miuix 上游基准效果。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
-internal fun liquidGlassPresetSliderValue(preset: LiquidGlassAdvancedPreset): Float =
-    preset.value.toFloat() /
-        LiquidGlassAdvancedPreset.entries.lastIndex.coerceAtLeast(1).toFloat()
+private const val LIQUID_GLASS_PRESET_BALANCED_POSITION = 0.5f
+private const val LIQUID_GLASS_PRESET_ANCHOR_EPSILON = 0.001f
+private val LIQUID_GLASS_PRESET_SLIDER_ANCHORS = listOf(
+    LiquidGlassAdvancedPreset.READABLE,
+    LiquidGlassAdvancedPreset.BALANCED,
+    LiquidGlassAdvancedPreset.PRISM,
+)
 
-internal fun liquidGlassPresetFromSliderValue(value: Float): LiquidGlassAdvancedPreset {
-    val maxIndex = LiquidGlassAdvancedPreset.entries.lastIndex.coerceAtLeast(0)
-    val index = (value.coerceIn(0f, 1f) * maxIndex).roundToInt().coerceIn(0, maxIndex)
-    return LiquidGlassAdvancedPreset.entries[index]
+internal fun resolveLiquidGlassPresetSliderSettings(
+    value: Float,
+): LiquidGlassAdvancedSettings {
+    val position = value.coerceIn(0f, 1f)
+    val readable = resolveLiquidGlassAdvancedPreset(LiquidGlassAdvancedPreset.READABLE)
+    val balanced = resolveLiquidGlassAdvancedPreset(LiquidGlassAdvancedPreset.BALANCED)
+    val prism = resolveLiquidGlassAdvancedPreset(LiquidGlassAdvancedPreset.PRISM)
+    val (start, end, fraction) = if (position <= LIQUID_GLASS_PRESET_BALANCED_POSITION) {
+        Triple(readable, balanced, position / LIQUID_GLASS_PRESET_BALANCED_POSITION)
+    } else {
+        Triple(
+            balanced,
+            prism,
+            (position - LIQUID_GLASS_PRESET_BALANCED_POSITION) /
+                LIQUID_GLASS_PRESET_BALANCED_POSITION,
+        )
+    }
+    val preset = when {
+        position <= LIQUID_GLASS_PRESET_ANCHOR_EPSILON ->
+            LiquidGlassAdvancedPreset.READABLE
+        abs(position - LIQUID_GLASS_PRESET_BALANCED_POSITION) <=
+            LIQUID_GLASS_PRESET_ANCHOR_EPSILON -> LiquidGlassAdvancedPreset.BALANCED
+        position >= 1f - LIQUID_GLASS_PRESET_ANCHOR_EPSILON ->
+            LiquidGlassAdvancedPreset.PRISM
+        else -> LiquidGlassAdvancedPreset.CUSTOM
+    }
+    return LiquidGlassAdvancedSettings(
+        preset = preset,
+        contentReadability = lerpLiquidGlassPresetValue(
+            start.contentReadability,
+            end.contentReadability,
+            fraction,
+        ),
+        chromaticAberration = lerpLiquidGlassPresetValue(
+            start.chromaticAberration,
+            end.chromaticAberration,
+            fraction,
+        ),
+        contentDistortion = lerpLiquidGlassPresetValue(
+            start.contentDistortion,
+            end.contentDistortion,
+            fraction,
+        ),
+    )
+}
+
+internal fun liquidGlassPresetSliderValue(settings: LiquidGlassAdvancedSettings): Float =
+    when (settings.preset) {
+        LiquidGlassAdvancedPreset.READABLE -> 0f
+        LiquidGlassAdvancedPreset.BALANCED -> LIQUID_GLASS_PRESET_BALANCED_POSITION
+        LiquidGlassAdvancedPreset.PRISM -> 1f
+        LiquidGlassAdvancedPreset.CUSTOM -> {
+            val readableChromatic = resolveLiquidGlassAdvancedPreset(
+                LiquidGlassAdvancedPreset.READABLE
+            ).chromaticAberration
+            val balancedChromatic = resolveLiquidGlassAdvancedPreset(
+                LiquidGlassAdvancedPreset.BALANCED
+            ).chromaticAberration
+            val prismChromatic = resolveLiquidGlassAdvancedPreset(
+                LiquidGlassAdvancedPreset.PRISM
+            ).chromaticAberration
+            if (settings.chromaticAberration <= balancedChromatic) {
+                val fraction = (settings.chromaticAberration - readableChromatic) /
+                    (balancedChromatic - readableChromatic)
+                fraction.coerceIn(0f, 1f) * LIQUID_GLASS_PRESET_BALANCED_POSITION
+            } else {
+                val fraction = (settings.chromaticAberration - balancedChromatic) /
+                    (prismChromatic - balancedChromatic)
+                LIQUID_GLASS_PRESET_BALANCED_POSITION +
+                    fraction.coerceIn(0f, 1f) * LIQUID_GLASS_PRESET_BALANCED_POSITION
+            }
+        }
+    }
+
+private fun lerpLiquidGlassPresetValue(start: Float, end: Float, fraction: Float): Float =
+    start + (end - start) * fraction.coerceIn(0f, 1f)
+
+private enum class LiquidGlassPreviewArtwork(
+    val label: String,
+    val drawableResId: Int,
+) {
+    SKY(
+        label = "蓝天白云",
+        drawableResId = R.drawable.liquid_glass_preview_sky,
+    ),
+    PRISMATIC_GLASS(
+        label = "彩色玻璃",
+        drawableResId = R.drawable.liquid_glass_preview_prismatic,
+    ),
 }
 
 @Composable
 private fun LiquidGlassHomeSample(
     progress: Float,
     previewImageUri: String?,
+    previewArtworkPagerState: PagerState,
     advancedSettings: LiquidGlassAdvancedSettings,
+    readabilityMode: LiquidGlassReadabilityMode,
+    bottomBarItems: List<BottomNavItem>,
+    bottomBarSearchEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val backdrop = rememberLayerBackdrop()
-    val tuning = remember(progress, advancedSettings) {
-        resolveLiquidGlassTuning(progress, advancedSettings)
+    val tuning = remember(progress, advancedSettings, readabilityMode) {
+        resolveLiquidGlassTuning(progress, advancedSettings, readabilityMode)
     }
     val sampleShape = RoundedCornerShape(24.dp)
     val glassColor = MaterialTheme.colorScheme.surfaceContainer
     val contentColor = MaterialTheme.colorScheme.onSurface
+    val adaptiveReadabilityEnabled = readabilityMode == LiquidGlassReadabilityMode.ADAPTIVE
+    val topReadabilityState = rememberLiquidGlassAdaptiveReadabilityState(
+        enabled = adaptiveReadabilityEnabled,
+    )
+    val bottomReadabilityState = rememberLiquidGlassAdaptiveReadabilityState(
+        enabled = adaptiveReadabilityEnabled,
+    )
+    val topContentColor = rememberLiquidGlassAdaptiveContentColor(
+        stableColor = contentColor,
+        state = topReadabilityState,
+        enabled = adaptiveReadabilityEnabled,
+    )
+    val bottomContentColor = rememberLiquidGlassAdaptiveContentColor(
+        stableColor = contentColor,
+        state = bottomReadabilityState,
+        enabled = adaptiveReadabilityEnabled,
+    )
     val density = LocalDensity.current
-    val previewPanLimitPx = remember(density) { with(density) { 40.dp.toPx() } }
-    val sliderFollowRangePx = remember(density) { with(density) { 40.dp.toPx() } }
+    val previewPanLimitPx = remember(density) { with(density) { 280.dp.toPx() } }
+    val sliderFollowRangePx = remember(density) { with(density) { 80.dp.toPx() } }
+    val previewArtwork = LiquidGlassPreviewArtwork.entries[
+        previewArtworkPagerState.currentPage.coerceIn(
+            0,
+            LiquidGlassPreviewArtwork.entries.lastIndex,
+        )
+    ]
     var customImageFailed by remember(previewImageUri) { mutableStateOf(false) }
-    var previewPanOffsetPx by remember(previewImageUri) { mutableFloatStateOf(0f) }
+    var previewPanOffsetPx by remember(previewImageUri, previewArtwork) {
+        mutableFloatStateOf(0f)
+    }
+    val previewBottomBarItems = remember(bottomBarItems) {
+        bottomBarItems.ifEmpty { listOf(BottomNavItem.HOME) }
+    }
+    val previewSelectedBottomBarIndex = remember(previewBottomBarItems) {
+        previewBottomBarItems.indexOf(BottomNavItem.HOME).takeIf { it >= 0 } ?: 0
+    }
+    val previewSearchHeight = 40.dp
 
     Box(
         modifier = modifier
-            .height(224.dp)
+            .height(360.dp)
             .clip(sampleShape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .pointerInput(previewImageUri, previewPanLimitPx) {
+            .pointerInput(previewImageUri, previewArtwork, previewPanLimitPx) {
                 detectVerticalDragGestures { change, dragAmount ->
                     change.consume()
                     previewPanOffsetPx = (previewPanOffsetPx + dragAmount)
@@ -405,8 +659,15 @@ private fun LiquidGlassHomeSample(
                 }
             }
             .semantics {
-                contentDescription = "首页效果预览，可上下拖动图片"
-                stateDescription = "图片位置 ${(previewPanOffsetPx / previewPanLimitPx * 100f).roundToInt()}%"
+                val panPercentage =
+                    (previewPanOffsetPx / previewPanLimitPx * 100f).roundToInt()
+                if (previewImageUri == null || customImageFailed) {
+                    contentDescription = "首页效果预览，可左右切换、上下拖动图片"
+                    stateDescription = "${previewArtwork.label}，图片位置 $panPercentage%"
+                } else {
+                    contentDescription = "首页效果预览，可上下拖动图片"
+                    stateDescription = "相册图片，图片位置 $panPercentage%"
+                }
             },
     ) {
         Box(
@@ -418,10 +679,11 @@ private fun LiquidGlassHomeSample(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .fillMaxWidth()
-                    .height(344.dp)
+                    .requiredHeight(920.dp)
                     .graphicsLayer {
                         val sliderFollowOffset = (progress - 0.5f) * sliderFollowRangePx
-                        translationY = previewPanOffsetPx + sliderFollowOffset
+                        translationY = (previewPanOffsetPx + sliderFollowOffset)
+                            .coerceIn(-previewPanLimitPx, previewPanLimitPx)
                     }
             ) {
                 if (previewImageUri != null && !customImageFailed) {
@@ -438,7 +700,26 @@ private fun LiquidGlassHomeSample(
                             .background(Color.Black.copy(alpha = 0.08f))
                     )
                 } else {
-                    DefaultLiquidGlassPreviewContent()
+                    HorizontalPager(
+                        state = previewArtworkPagerState,
+                        key = { page -> LiquidGlassPreviewArtwork.entries[page].name },
+                        beyondViewportPageCount = 1,
+                        modifier = Modifier.fillMaxSize(),
+                    ) { page ->
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            Image(
+                                painter = painterResource(
+                                    LiquidGlassPreviewArtwork.entries[page].drawableResId
+                                ),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            LiquidGlassOpenSourceAcknowledgements(
+                                modifier = Modifier.align(Alignment.Center),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -448,46 +729,141 @@ private fun LiquidGlassHomeSample(
                 .align(Alignment.TopCenter)
                 .padding(top = 10.dp, start = 12.dp, end = 12.dp)
                 .fillMaxWidth()
-                .height(40.dp)
+                .height(previewSearchHeight)
+                .trackLiquidGlassAdaptiveReadability(
+                    state = topReadabilityState,
+                    enabled = adaptiveReadabilityEnabled,
+                )
                 .biliPaiFloatingDockShell(
                     backdrop = backdrop,
                     containerColor = glassColor,
                     pressProgress = 0f,
                     shape = CircleShape,
+                    drawLens = true,
+                    lensIntensity = resolveFloatingDockGeometryScale(
+                        previewSearchHeight.value
+                    ),
                     liquidGlassTuning = tuning,
                 )
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Outlined.Search, contentDescription = null, tint = contentColor)
+            Icon(Icons.Outlined.Search, contentDescription = null, tint = topContentColor)
             Spacer(modifier = Modifier.width(8.dp))
             AppText(
                 text = "搜索感兴趣的视频",
                 style = MaterialTheme.typography.bodySmall,
-                color = contentColor.copy(alpha = 0.8f),
+                color = topContentColor.copy(alpha = 0.8f),
             )
         }
 
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 10.dp)
-                .height(48.dp)
-                .biliPaiFloatingDockShell(
-                    backdrop = backdrop,
-                    containerColor = glassColor,
-                    pressProgress = 0f,
-                    shape = CircleShape,
-                    liquidGlassTuning = tuning,
-                )
-                .padding(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(26.dp),
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
+                .trackLiquidGlassAdaptiveReadability(
+                    state = bottomReadabilityState,
+                    enabled = adaptiveReadabilityEnabled,
+                ),
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Outlined.Home, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Icon(Icons.Outlined.DynamicFeed, contentDescription = null, tint = contentColor)
-            Icon(Icons.Outlined.Person, contentDescription = null, tint = contentColor)
+            Row(
+                modifier = Modifier
+                    .height(48.dp)
+                    .biliPaiFloatingDockShell(
+                        backdrop = backdrop,
+                        containerColor = glassColor,
+                        pressProgress = 0f,
+                        shape = CircleShape,
+                        liquidGlassTuning = tuning,
+                    )
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(
+                    if (previewBottomBarItems.size <= 3) 22.dp else 12.dp
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                previewBottomBarItems.forEachIndexed { index, item ->
+                    Icon(
+                        imageVector = resolveMaterialBottomBarIcon(
+                            item = item,
+                            selected = index == previewSelectedBottomBarIndex,
+                        ),
+                        contentDescription = item.label,
+                        tint = if (index == previewSelectedBottomBarIndex) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            bottomContentColor
+                        },
+                    )
+                }
+            }
+            if (bottomBarSearchEnabled) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Row(
+                    modifier = Modifier
+                        .width(72.dp)
+                        .height(48.dp)
+                        .biliPaiFloatingDockShell(
+                            backdrop = backdrop,
+                            containerColor = glassColor,
+                            pressProgress = 0f,
+                            shape = CircleShape,
+                            liquidGlassTuning = tuning,
+                        )
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = "底栏搜索",
+                        tint = bottomContentColor,
+                    )
+                    AppText(
+                        text = "搜索",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = bottomContentColor.copy(alpha = 0.8f),
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun LiquidGlassOpenSourceAcknowledgements(
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth(0.82f)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        AppText(
+            text = "感谢开源社区",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+        )
+        AppText(
+            text = "Kotlin · Jetpack Compose · Miuix\n" +
+                "AndroidX Media3 · Coil · kotlinx.serialization",
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White.copy(alpha = 0.92f),
+            textAlign = TextAlign.Center,
+        )
+        AppText(
+            text = "以及每一位开源贡献者",
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White.copy(alpha = 0.76f),
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -496,6 +872,7 @@ private fun LiquidGlassAdvancedSlider(
     title: String,
     description: String,
     value: Float,
+    valueText: String = "${(value * 100f).roundToInt()}%",
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit,
 ) {
@@ -518,7 +895,7 @@ private fun LiquidGlassAdvancedSlider(
                 )
             }
             AppText(
-                text = "${(value * 100f).roundToInt()}%",
+                text = valueText,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -532,65 +909,8 @@ private fun LiquidGlassAdvancedSlider(
                 .fillMaxWidth()
                 .semantics {
                     contentDescription = title
-                    stateDescription = "${(value * 100f).roundToInt()}%"
+                    stateDescription = valueText
                 },
         )
-    }
-}
-
-@Composable
-private fun DefaultLiquidGlassPreviewContent() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        Color(0xFF345B7E),
-                        Color(0xFF9E7B58),
-                        Color(0xFF567D58),
-                    )
-                )
-            )
-            .padding(top = 58.dp, start = 16.dp, end = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        AppText(
-            text = "推荐",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            repeat(2) { index ->
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(104.dp)
-                        .clip(RoundedCornerShape(15.dp))
-                        .background(
-                            if (index == 0) Color(0xFFD6A667) else Color(0xFF7296A8)
-                        )
-                        .padding(10.dp),
-                    verticalArrangement = Arrangement.Bottom,
-                ) {
-                    Spacer(
-                        modifier = Modifier
-                            .width(if (index == 0) 88.dp else 70.dp)
-                            .height(7.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.88f))
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Spacer(
-                        modifier = Modifier
-                            .width(54.dp)
-                            .height(5.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.58f))
-                    )
-                }
-            }
-        }
     }
 }

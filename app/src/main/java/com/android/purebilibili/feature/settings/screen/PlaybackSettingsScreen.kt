@@ -1148,6 +1148,9 @@ private fun PlaybackInteractionSettingsSection(
     val imagePreviewLongPressSaveEnabled by com.android.purebilibili.core.store.SettingsManager
         .getImagePreviewLongPressSaveEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val imagePreview3dPageEnabled by com.android.purebilibili.core.store.SettingsManager
+        .getImagePreview3dPageEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val commentCollapsedReplyPreviewLimit by com.android.purebilibili.core.store.SettingsManager
         .getCommentCollapsedReplyPreviewLimit(context)
         .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.SettingsManager
@@ -1430,11 +1433,11 @@ private fun PlaybackInteractionSettingsSection(
         AppPreferenceDivider()
 	        AppSwitchPreference(
 	            icon = rememberSettingsSemanticIcon(SettingsIconRole.DOWNLOAD_PATH),
-            title = "图片长按保存",
+            title = "图片长按操作",
             subtitle = if (imagePreviewLongPressSaveEnabled) {
-                "查看图片时长按会直接保存到相册"
+                "查看图片时长按可分享、复制链接或保存"
             } else {
-                "关闭后长按图片不再自动保存，仍可点右上角下载"
+                "关闭后不响应图片长按操作"
             },
             checked = imagePreviewLongPressSaveEnabled,
             onCheckedChange = { enabled ->
@@ -1444,6 +1447,24 @@ private fun PlaybackInteractionSettingsSection(
                 }
             },
             iconTint = com.android.purebilibili.core.theme.iOSGreen
+        )
+        AppPreferenceDivider()
+	        AppSwitchPreference(
+	            icon = rememberSettingsSemanticIcon(SettingsIconRole.ANIMATION),
+            title = "图片 3D 翻页",
+            subtitle = if (imagePreview3dPageEnabled) {
+                "普通图片浏览使用轻量透视翻页"
+            } else {
+                "使用与 PiliPlus 一致的平面横滑"
+            },
+            checked = imagePreview3dPageEnabled,
+            onCheckedChange = { enabled ->
+                scope.launch {
+                    com.android.purebilibili.core.store.SettingsManager
+                        .setImagePreview3dPageEnabled(context, enabled)
+                }
+            },
+            iconTint = com.android.purebilibili.core.theme.iOSBlue
         )
     }
 

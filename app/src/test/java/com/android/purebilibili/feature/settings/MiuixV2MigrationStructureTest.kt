@@ -47,9 +47,9 @@ class MiuixV2MigrationStructureTest {
     }
 
     @Test
-    fun buildGradle_pinsMiuixVersionTo093() {
-        val source = loadSource("app/build.gradle.kts")
-        assertTrue(source.contains("val miuixVersion = \"0.9.3\""))
+    fun versionCatalog_pinsMiuixToPublishedUpstreamSnapshot() {
+        val source = loadSource("gradle/libs.versions.toml")
+        assertTrue(source.contains("miuix = \"0.9.4-4f86de92-SNAPSHOT\""))
     }
 
     @Test

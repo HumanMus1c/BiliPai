@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -410,6 +411,7 @@ internal fun VideoInlineSubReplyDetailContent(
     onDissolveStart: (Long) -> Unit,
     onDeleteComment: (Long) -> Unit,
     onCommentLike: (Long) -> Unit,
+    onCommentHate: (Long) -> Unit,
     onReportComment: (Long, Int) -> Unit,
     onUrlClick: (String) -> Unit,
     showIdentityDecorations: Boolean,
@@ -447,8 +449,10 @@ internal fun VideoInlineSubReplyDetailContent(
         onDissolveStart = onDissolveStart,
         onDeleteComment = onDeleteComment,
         onCommentLike = onCommentLike,
+        onCommentHate = onCommentHate,
         onReportComment = onReportComment,
         likedComments = commentState.likedComments,
+        hatedComments = commentState.hatedComments,
         onUrlClick = onUrlClick,
         showIdentityDecorations = showIdentityDecorations,
         onAvatarClick = onAvatarClick,
@@ -482,8 +486,10 @@ internal fun SubReplyDetailContent(
     onDissolveStart: ((Long) -> Unit)? = null,
     onDeleteComment: ((Long) -> Unit)? = null,
     onCommentLike: ((Long) -> Unit)? = null,
+    onCommentHate: ((Long) -> Unit)? = null,
     onReportComment: ((Long, Int) -> Unit)? = null,
     likedComments: Set<Long> = emptySet(),
+    hatedComments: Set<Long> = emptySet(),
     onUrlClick: ((String) -> Unit)? = null,
     showIdentityDecorations: Boolean = true,
     onAvatarClick: ((String) -> Unit)? = null,
@@ -728,7 +734,9 @@ internal fun SubReplyDetailContent(
                                 { onDeleteComment?.invoke(rootReply.rpid) }
                             } else null,
                             onLikeClick = { onCommentLike?.invoke(rootReply.rpid) },
+                            onHateClick = { onCommentHate?.invoke(rootReply.rpid) },
                             isLiked = rootReply.action == 1 || rootReply.rpid in likedComments,
+                            isHated = rootReply.action == 2 || rootReply.rpid in hatedComments,
                             onUrlClick = onUrlClick,
                             maxTimestampMs = maxTimestampMs,
                             onReportClick = onReportComment?.let { report -> { reason -> report(rootReply.rpid, reason) } },
@@ -843,7 +851,9 @@ internal fun SubReplyDetailContent(
                                 null
                             },
                             onLikeClick = { onCommentLike?.invoke(item.rpid) },
+                            onHateClick = { onCommentHate?.invoke(item.rpid) },
                             isLiked = item.action == 1 || item.rpid in likedComments,
+                            isHated = item.action == 2 || item.rpid in hatedComments,
                             onUrlClick = onUrlClick,
                             maxTimestampMs = maxTimestampMs,
                             onReportClick = onReportComment?.let { report -> { reason -> report(item.rpid, reason) } },
@@ -921,7 +931,9 @@ private fun SubReplyDetailItem(
     onReplyClick: () -> Unit,
     onDeleteClick: (() -> Unit)?,
     onLikeClick: (() -> Unit)?,
+    onHateClick: (() -> Unit)?,
     isLiked: Boolean,
+    isHated: Boolean,
     onUrlClick: ((String) -> Unit)?,
     maxTimestampMs: Long?,
     onReportClick: ((Int) -> Unit)?,
@@ -1289,6 +1301,20 @@ private fun SubReplyDetailItem(
                                 color = if (isLiked) appearance.primaryTextColor else appearance.actionTint
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+                    AppIconButton(
+                        onClick = { onHateClick?.invoke() },
+                        enabled = onHateClick != null,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.ThumbDown,
+                            contentDescription = if (isHated) "取消点踩" else "点踩评论",
+                            tint = if (isHated) MaterialTheme.colorScheme.error else appearance.actionTint,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }

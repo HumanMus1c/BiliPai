@@ -1062,6 +1062,19 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
                         shape = { shape },
                         effects = {
                             if (renderGlassEffects) {
+                                val resolvedShellRefractionAmountDp = if (drawShellLens) {
+                                    materialSpec.shellRefractionAmountDp *
+                                        effectiveShellLensIntensity
+                                } else {
+                                    0f
+                                }
+                                padding = maxOf(
+                                    padding,
+                                    resolveFloatingDockEffectPaddingDp(
+                                        refractionAmountDp = resolvedShellRefractionAmountDp,
+                                        pressBloomDp = AppSpacingTokens.Large.value,
+                                    ).dp.toPx(),
+                                )
                                 if (materialSpec.vibrancy) {
                                     miuixVibrancy(liquidGlassTuning.saturation)
                                 }
@@ -1083,7 +1096,6 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
                                             materialSpec.shellRefractionAmountDp *
                                                 effectiveShellLensIntensity
                                             ).dp.toPx(),
-                                        depthEffect = liquidGlassTuning.depthEffectEnabled,
                                         chromaticAberration = materialSpec.shellChromaticAberration
                                     )
                                 }
@@ -2209,10 +2221,12 @@ private fun MaterialBottomBar(
     val liquidGlassTuning = remember(
         homeSettings.liquidGlassProgress,
         homeSettings.liquidGlassAdvancedSettings,
+        homeSettings.liquidGlassReadabilityMode,
     ) {
         resolveLiquidGlassTuning(
             homeSettings.liquidGlassProgress,
             homeSettings.liquidGlassAdvancedSettings,
+            homeSettings.liquidGlassReadabilityMode,
         )
     }
     val androidNativeTuning = resolveAndroidNativeBottomBarTuning(
@@ -2480,10 +2494,12 @@ private fun MiuixBottomBar(
     val liquidGlassTuning = remember(
         homeSettings.liquidGlassProgress,
         homeSettings.liquidGlassAdvancedSettings,
+        homeSettings.liquidGlassReadabilityMode,
     ) {
         resolveLiquidGlassTuning(
             homeSettings.liquidGlassProgress,
             homeSettings.liquidGlassAdvancedSettings,
+            homeSettings.liquidGlassReadabilityMode,
         )
     }
     val tuning = resolveAndroidNativeBottomBarTuning(
@@ -3143,11 +3159,15 @@ private fun BiliPaiFloatingBottomBar(
                         ) {
                             visibleItems.forEachIndexed { index, item ->
                                 val label = resolveBottomNavItemLabel(item, itemLabels)
+                                val routeSelected = currentItem == item
                                 val selected = index == selectedIndexForBar ||
                                     LocalFloatingBottomBarActiveContent.current
                                 val skinIconPath = uiSkinDecoration?.iconPathFor(
                                     item,
-                                    selected = selected
+                                    // The indicator export layer marks every sampled item active
+                                    // while dragging. Asset choice must follow the committed route,
+                                    // otherwise the lens swaps to a different selected illustration.
+                                    selected = routeSelected
                                 )
                                 val reminderBadgeText = formatBottomBarDynamicReminderBadge(
                                     if (shouldShowBottomBarDynamicReminderBadge(

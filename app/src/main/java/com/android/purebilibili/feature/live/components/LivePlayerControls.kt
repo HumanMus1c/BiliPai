@@ -48,9 +48,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.feature.live.resolveLiveVisualSpec
 import com.android.purebilibili.feature.live.LiveStatusPalette
 import com.android.purebilibili.feature.video.ui.gesture.GestureLevelKind
-import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayContent
-import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelIcon
-import com.android.purebilibili.feature.video.ui.gesture.resolveGestureLevelOverlayStyle
+import com.android.purebilibili.feature.video.ui.gesture.GestureLevelOverlayHost
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import android.app.Activity
 import androidx.compose.material.icons.Icons
@@ -221,21 +219,15 @@ fun LivePlayerControls(
     }
     
     // 手势调节状态
-    var gestureIcon by remember { mutableStateOf<androidx.compose.ui.graphics.vector.ImageVector?>(null) }
-    var gestureText by remember { mutableStateOf("") }
     var isGestureVisible by remember { mutableStateOf(false) }
     
     val context = LocalContext.current
     val activity = context as? Activity
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager }
-    val playerChromeProfile = rememberAppPlayerChromeProfile()
     val backIcon = rememberAppBackIcon()
     val commentIcon = rememberAppCommentIcon()
     val playIcon = rememberAppPlayIcon()
     val refreshIcon = rememberAppRefreshIcon()
-    val gestureLevelOverlayStyle = remember(playerChromeProfile.tabPresentation) {
-        resolveGestureLevelOverlayStyle(playerChromeProfile.tabPresentation)
-    }
     var gestureKind by remember { mutableStateOf(GestureLevelKind.Volume) }
     var gesturePercent by remember { mutableFloatStateOf(0f) }
     // [新增] 手势分区：左 1/3 亮度、右 1/3 音量、中间 1/3 上下滑切换全屏
@@ -335,12 +327,6 @@ fun LivePlayerControls(
 
                                             gestureKind = GestureLevelKind.Brightness
                                             gesturePercent = targetBrightness
-                                            gestureIcon = resolveGestureLevelIcon(
-                                                style = gestureLevelOverlayStyle,
-                                                kind = GestureLevelKind.Brightness,
-                                                percent = targetBrightness
-                                            )
-                                            gestureText = "${(targetBrightness * 100).toInt()}%"
                                         }
                                         LiveGestureZone.Volume -> {
                                             // 调节音量 (maxVolume 比如 15)
@@ -364,12 +350,6 @@ fun LivePlayerControls(
                                                 }
                                                 gestureKind = GestureLevelKind.Volume
                                                 gesturePercent = volumePercent
-                                                gestureIcon = resolveGestureLevelIcon(
-                                                    style = gestureLevelOverlayStyle,
-                                                    kind = GestureLevelKind.Volume,
-                                                    percent = volumePercent
-                                                )
-                                                gestureText = "${(newVolInt * 100 / maxVolume)}%"
                                             }
                                         }
                                         LiveGestureZone.FullscreenToggle -> {
@@ -383,39 +363,16 @@ fun LivePlayerControls(
                 }
             )
     ) {
-        // 主题原生音量/亮度反馈
-        if (isGestureVisible) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                GestureLevelOverlayContent(
-                    mode = if (gestureKind == GestureLevelKind.Brightness) {
-                        VideoGestureMode.Brightness
-                    } else {
-                        VideoGestureMode.Volume
-                    },
-                    percent = gesturePercent,
-                    style = gestureLevelOverlayStyle,
-                    modifier = Modifier
-                        .align(
-                            if (playerChromeProfile.effects.usesTonalContainerTreatment) {
-                                if (gestureKind == GestureLevelKind.Volume) {
-                                    Alignment.CenterEnd
-                                } else {
-                                    Alignment.CenterStart
-                                }
-                            } else {
-                                Alignment.Center
-                            }
-                        )
-                        .then(
-                            if (playerChromeProfile.effects.usesTonalContainerTreatment) {
-                                Modifier.padding(horizontal = AppSpacingTokens.ExtraLarge)
-                            } else {
-                                Modifier
-                            }
-                        )
-                )
-            }
-        }
+        // 与普通视频共用同一 Host：亮度贴左边缘，音量贴右边缘。
+        GestureLevelOverlayHost(
+            visible = isGestureVisible,
+            mode = if (gestureKind == GestureLevelKind.Brightness) {
+                VideoGestureMode.Brightness
+            } else {
+                VideoGestureMode.Volume
+            },
+            percent = gesturePercent,
+        )
         
         // 2. 顶部栏 (返回 + 标题)
         AnimatedVisibility(

@@ -107,7 +107,7 @@ fun resolveGestureLevelOverlaySpec(
         GestureLevelOverlayStyle.Ios -> GestureLevelOverlaySpec(
             style = style,
             kind = kind,
-            alignment = Alignment.Center,
+            alignment = if (isVolume) Alignment.CenterEnd else Alignment.CenterStart,
             showLabel = true,
             showPercentText = true,
             verticalRail = false,

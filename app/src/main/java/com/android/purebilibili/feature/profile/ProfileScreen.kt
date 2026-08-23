@@ -66,6 +66,7 @@ import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.size.Scale
+import java.io.File
 import com.android.purebilibili.core.theme.DarkBackground
 import com.android.purebilibili.core.theme.DarkSurface
 import com.android.purebilibili.core.theme.DarkSurfaceVariant
@@ -243,6 +244,16 @@ internal fun shouldShowProfileHistoryService(bottomBarVisibleTabIds: Collection<
     return bottomBarVisibleTabIds.none { it.equals("HISTORY", ignoreCase = true) }
 }
 
+internal fun resolveProfileSkinBackgroundImagePath(
+    useSplitLayout: Boolean,
+    wideImagePath: String?,
+    squaredImagePath: String?,
+): String? {
+    val preferred = if (useSplitLayout) squaredImagePath else wideImagePath
+    val fallback = if (useSplitLayout) wideImagePath else squaredImagePath
+    return preferred?.takeIf { it.isNotBlank() } ?: fallback?.takeIf { it.isNotBlank() }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -266,6 +277,8 @@ fun ProfileScreen(
     onVideoClick: (String) -> Unit = {},  // [新增] 视频点击（三连彩蛋跳转用）
     onBangumiClick: (Long, Long) -> Unit = { _, _ -> },
     onBangumiMoreClick: () -> Unit = {},
+    skinBackgroundImagePath: String? = null,
+    skinSquaredBackgroundImagePath: String? = null,
     deferImmersiveRenderBudget: Boolean = false,
     scrollToTopChannel: kotlinx.coroutines.channels.Channel<Unit>? = null
     // [注意] 移除了 globalHazeState - 双 hazeSource 模式与 Haze 库冲突
@@ -278,6 +291,17 @@ fun ProfileScreen(
     val view = LocalView.current
     var showAccountSwitchDialog by remember { mutableStateOf(false) }
     val windowSizeClass = LocalWindowSizeClass.current
+    val skinProfileBackgroundPath = remember(
+        windowSizeClass.shouldUseSplitLayout,
+        skinBackgroundImagePath,
+        skinSquaredBackgroundImagePath,
+    ) {
+        resolveProfileSkinBackgroundImagePath(
+            useSplitLayout = windowSizeClass.shouldUseSplitLayout,
+            wideImagePath = skinBackgroundImagePath,
+            squaredImagePath = skinSquaredBackgroundImagePath,
+        )
+    }
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val isLoggedOut = state is ProfileUiState.LoggedOut
     val privacyModeEnabled by SettingsManager.getPrivacyModeEnabled(context)
@@ -302,7 +326,8 @@ fun ProfileScreen(
         }
     }
     val isImmersiveMobileProfile = !windowSizeClass.shouldUseSplitLayout &&
-        (state as? ProfileUiState.Success)?.user?.topPhoto?.isNotEmpty() == true
+        (skinProfileBackgroundPath != null ||
+            (state as? ProfileUiState.Success)?.user?.topPhoto?.isNotEmpty() == true)
     val shouldControlSystemBars = isLoggedOut || isImmersiveMobileProfile
     var handledAccountSessionRefreshGeneration by remember(viewModel) {
         mutableIntStateOf(0)
@@ -448,7 +473,7 @@ fun ProfileScreen(
                 follower = 0,
 
                 dynamic = 0,
-                topPhoto = currentUiState.topPhoto // [Modified] Use photo from state
+                topPhoto = skinProfileBackgroundPath ?: currentUiState.topPhoto
             )
             
             
@@ -571,6 +596,11 @@ fun ProfileScreen(
             }
         }
         is ProfileUiState.Success -> {
+            val decoratedUser = remember(currentUiState.user, skinProfileBackgroundPath) {
+                currentUiState.user.copy(
+                    topPhoto = skinProfileBackgroundPath ?: currentUiState.user.topPhoto
+                )
+            }
             val scrollBehavior = if (shouldPinProfileTopBarOnScroll(windowSizeClass.shouldUseSplitLayout)) {
                 TopAppBarDefaults.pinnedScrollBehavior()
             } else {
@@ -641,14 +671,14 @@ fun ProfileScreen(
                 Box(modifier = Modifier.fillMaxSize()) {
                     // [Refactor] Lift background to root
                     ProfileBackground(
-                        user = currentUiState.user,
+                        user = decoratedUser,
                         viewModel = viewModel,
                         deferImmersiveRenderBudget = deferImmersiveRenderBudget
                     )
                     
                     ProfileSpaceContent(
                         viewModel = viewModel,
-                        user = currentUiState.user,
+                        user = decoratedUser,
                         space = currentUiState.space,
                         editableAccount = currentUiState.editableAccount,
                         favoriteFolderShortcuts = favoriteFolderShortcuts,
@@ -719,6 +749,9 @@ private fun BoxScope.ProfileBackground(
             density = density.density
         )
     }
+    val wallpaperModel = remember(user.topPhoto) {
+        File(user.topPhoto).takeIf(File::isAbsolute) ?: user.topPhoto
+    }
     val heroChrome = remember(hasWallpaper, isDarkTheme, colorScheme.onSurface, colorScheme.onSurfaceVariant) {
         resolveProfileHeroChrome(
             hasWallpaper = hasWallpaper,
@@ -752,7 +785,7 @@ private fun BoxScope.ProfileBackground(
         if (shouldRenderProfileImmersiveBackground(hasWallpaper, deferImmersiveRenderBudget)) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(user.topPhoto)
+                    .data(wallpaperModel)
                     .size(wallpaperDecodeSize.first, wallpaperDecodeSize.second)
                     .scale(Scale.FILL)
                     .crossfade(true)

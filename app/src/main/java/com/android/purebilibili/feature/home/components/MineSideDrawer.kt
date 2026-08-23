@@ -20,10 +20,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -57,6 +60,8 @@ import dev.chrisbanes.haze.HazeState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SwapHoriz
 import kotlinx.coroutines.launch
+import java.io.File
+import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 
 /**
  * 首页侧边栏 - 优化版 (带毛玻璃效果)
@@ -80,7 +85,11 @@ fun MineSideDrawer(
     onAccountSwitchClick: (() -> Unit)? = null,
     hazeState: HazeState? = null, // 毛玻璃效果状态
     isBlurEnabled: Boolean = true, // [新增] 模糊开关状态
-    bottomOverlayHeight: Dp = AppSpacingTokens.None
+    bottomOverlayHeight: Dp = AppSpacingTokens.None,
+    miuixBackdrop: MiuixBackdrop? = null,
+    liquidGlassEnabled: Boolean = false,
+    liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
+    skinBackgroundImagePath: String? = null,
 ) {
     val scope = rememberCoroutineScope()
     val configuration = LocalConfiguration.current
@@ -114,7 +123,8 @@ fun MineSideDrawer(
     // 检测深色模式
     val isDark = androidx.compose.foundation.isSystemInDarkTheme()
 
-    val blurActive = hazeState != null && isBlurEnabled
+    val liquidGlassActive = liquidGlassEnabled && miuixBackdrop != null
+    val blurActive = hazeState != null && isBlurEnabled && !liquidGlassActive
     val drawerMotionBudget = resolveDrawerMotionBudget(
         isDrawerTransitionRunning = drawerState.currentValue != drawerState.targetValue
     )
@@ -123,10 +133,11 @@ fun MineSideDrawer(
         blurActive = blurActive,
         budget = drawerMotionBudget
     )
-    val visualPolicy = rememberAppDrawerVisualPolicy(blurEnabled = effectiveBlurActive)
+    val glassVisualActive = effectiveBlurActive || liquidGlassActive
+    val visualPolicy = rememberAppDrawerVisualPolicy(blurEnabled = glassVisualActive)
     val palette = resolveDrawerGlassPalette(
         isDark = isDark,
-        blurEnabled = effectiveBlurActive,
+        blurEnabled = glassVisualActive,
         budget = drawerMotionBudget
     )
     val colorScheme = MaterialTheme.colorScheme
@@ -140,6 +151,7 @@ fun MineSideDrawer(
     val logoutIcon = rememberAppLogoutIcon()
     val chevronForwardIcon = rememberAppChevronForwardIcon()
     val accountSwitchIcon = Icons.Outlined.SwapHoriz
+    val hasSkinBackground = !skinBackgroundImagePath.isNullOrBlank()
 
     // 动态文字颜色
     val activeContentColor = colorScheme.onSurface
@@ -165,26 +177,33 @@ fun MineSideDrawer(
     val itemBorderColor = colorScheme.outlineVariant.copy(alpha = palette.itemBorderAlpha)
     val chevronColor = secondaryContentColor.copy(alpha = if (isDark) 0.92f else 0.84f)
 
+    val drawerShape = RoundedCornerShape(
+        topEnd = layoutPolicy.drawerEdgeRadiusDp.dp,
+        bottomEnd = layoutPolicy.drawerEdgeRadiusDp.dp
+    )
+
     // 使用 Surface 替代 ModalDrawerSheet 以绕过最小宽度限制 (240dp)
     AppSurface(
-        color = drawerBaseColor,
+        color = if (liquidGlassActive) Color.Transparent else drawerBaseColor,
         contentColor = activeContentColor,
-        shape = RoundedCornerShape(
-            topEnd = layoutPolicy.drawerEdgeRadiusDp.dp,
-            bottomEnd = layoutPolicy.drawerEdgeRadiusDp.dp
-        ), // 保持抽屉的右侧圆角
+        shape = drawerShape,
         modifier = Modifier
             .fillMaxHeight()
             .width(drawerWidth)
             .then(
-                if (effectiveBlurActive) {
+                if (liquidGlassActive) {
+                    Modifier.biliPaiFloatingDockShell(
+                        backdrop = miuixBackdrop,
+                        containerColor = colorScheme.surfaceContainer,
+                        pressProgress = 0f,
+                        shape = drawerShape,
+                        liquidGlassTuning = liquidGlassTuning,
+                    )
+                } else if (effectiveBlurActive) {
                     Modifier.unifiedBlur(
                         hazeState = requireNotNull(hazeState),
                         enabled = true,
-                        shape = RoundedCornerShape(
-                            topEnd = layoutPolicy.drawerEdgeRadiusDp.dp,
-                            bottomEnd = layoutPolicy.drawerEdgeRadiusDp.dp
-                        ),
+                        shape = drawerShape,
                         forceLowBudget = forceLowBlurBudget
                     )
                 } else Modifier
@@ -193,24 +212,52 @@ fun MineSideDrawer(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = if (isDark) {
-                            listOf(
-                                colorScheme.onSurface.copy(alpha = 0.05f),
-                                Color.Transparent,
-                                colorScheme.scrim.copy(alpha = 0.08f)
-                            )
-                        } else {
-                            listOf(
-                                colorScheme.onSurface.copy(alpha = 0.18f),
-                                colorScheme.onSurface.copy(alpha = 0.06f),
-                                Color.Transparent
-                            )
-                        }
-                    )
-                )
         ) {
+            if (hasSkinBackground) {
+                AsyncImage(
+                    model = File(requireNotNull(skinBackgroundImagePath)),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .alpha(if (isDark) 0.58f else 0.72f)
+                        .clearAndSetSemantics {}
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = if (hasSkinBackground && isDark) {
+                                listOf(
+                                    colorScheme.surface.copy(alpha = 0.48f),
+                                    colorScheme.surface.copy(alpha = 0.28f),
+                                    colorScheme.scrim.copy(alpha = 0.36f)
+                                )
+                            } else if (hasSkinBackground) {
+                                listOf(
+                                    colorScheme.surface.copy(alpha = 0.30f),
+                                    colorScheme.surface.copy(alpha = 0.18f),
+                                    colorScheme.surface.copy(alpha = 0.34f)
+                                )
+                            } else if (isDark) {
+                                listOf(
+                                    colorScheme.onSurface.copy(alpha = 0.05f),
+                                    Color.Transparent,
+                                    colorScheme.scrim.copy(alpha = 0.08f)
+                                )
+                            } else {
+                                listOf(
+                                    colorScheme.onSurface.copy(alpha = 0.18f),
+                                    colorScheme.onSurface.copy(alpha = 0.06f),
+                                    Color.Transparent
+                                )
+                            }
+                        )
+                    )
+                    .clearAndSetSemantics {}
+            )
             Column(
                 modifier = Modifier
                     .fillMaxSize()

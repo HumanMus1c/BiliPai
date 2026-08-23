@@ -44,6 +44,11 @@ class GestureLevelOverlayPolicyTest {
             kind = GestureLevelKind.Volume,
             percent = 0.5f
         )
+        val iosBrightness = resolveGestureLevelOverlaySpec(
+            style = GestureLevelOverlayStyle.Ios,
+            kind = GestureLevelKind.Brightness,
+            percent = 0.5f
+        )
         val md3Brightness = resolveGestureLevelOverlaySpec(
             style = GestureLevelOverlayStyle.Md3,
             kind = GestureLevelKind.Brightness,
@@ -65,7 +70,8 @@ class GestureLevelOverlayPolicyTest {
         assertTrue(miuixVolume.verticalRail)
         assertEquals(Alignment.CenterEnd, md3.alignment)
         assertEquals(Alignment.CenterStart, md3Brightness.alignment)
-        assertEquals(Alignment.Center, ios.alignment)
+        assertEquals(Alignment.CenterEnd, ios.alignment)
+        assertEquals(Alignment.CenterStart, iosBrightness.alignment)
         assertEquals(Alignment.CenterEnd, miuixVolume.alignment)
         assertEquals(Alignment.CenterStart, miuixBrightness.alignment)
         assertTrue(ios.showLabel)

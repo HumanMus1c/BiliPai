@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.settings.share
 
+import com.android.purebilibili.core.store.SettingsManager
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -113,6 +114,47 @@ class SettingsSharePolicyTest {
                 epochMs = 1_772_888_400_000L
             )
         )
+    }
+
+    @Test
+    fun liquidGlassShareFileName_isDistinctAndImportableJson() {
+        assertEquals(
+            "bilipai-liquid-glass-6.8.2-20260307-130000.json",
+            buildLiquidGlassSettingsShareFileName(
+                appVersion = "6.8.2",
+                epochMs = 1_772_888_400_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun liquidGlassProfile_excludesUnrelatedSettingsAndPreviewImage() {
+        val profile = buildSettingsShareProfile(
+            profileName = LIQUID_GLASS_SETTINGS_SHARE_PROFILE_NAME,
+            appVersion = "6.8.2",
+            exportedAtIso = "2026-03-07T13:00:00Z",
+            rawSettings = mapOf(
+                "liquid_glass_material_progress_v2" to JsonPrimitive(0.25f),
+                "liquid_glass_content_distortion" to JsonPrimitive(0f),
+                "liquid_glass_preview_image_uri" to JsonPrimitive("content://local/image"),
+                "auto_play" to JsonPrimitive(true),
+            ),
+            definitions = SettingsManager
+                .getLiquidGlassShareableSettingsEntryDefinitions(),
+        )
+
+        assertEquals(
+            JsonPrimitive(0.25f),
+            profile.sections.appearance["liquid_glass_material_progress_v2"],
+        )
+        assertEquals(
+            JsonPrimitive(0f),
+            profile.sections.appearance["liquid_glass_content_distortion"],
+        )
+        assertFalse(
+            profile.sections.appearance.containsKey("liquid_glass_preview_image_uri")
+        )
+        assertTrue(profile.sections.playback.isEmpty())
     }
 
     @Test

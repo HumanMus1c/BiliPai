@@ -36,10 +36,12 @@ internal fun parseArticleContentBlocks(
     htmlContent: String?,
     ops: List<JsonObject> = emptyList()
 ): List<ArticleContentBlock> {
-    val structuredBlocks = structuredParagraphs.flatMap(::parseStructuredParagraph)
+    val structuredBlocks = structuredParagraphs
+        .flatMap(::parseStructuredParagraph)
+        .mergeAdjacentListBlocks()
     val contentOps = ops.ifEmpty { parseOpsFromContentJson(htmlContent) }
     val opsBlocks = parseOpsBlocks(contentOps)
-    val htmlBlocks = parseHtmlBlocks(htmlContent)
+    val htmlBlocks = parseHtmlBlocks(htmlContent).mergeAdjacentListBlocks()
     return selectRicherArticleBlocks(structuredBlocks, opsBlocks, htmlBlocks)
 }
 
@@ -62,7 +64,11 @@ private fun parseStructuredParagraph(paragraph: JsonObject): List<ArticleContent
         3 -> extractLineImage(paragraph)
         4 -> extractQuote(paragraph)
         5 -> extractList(paragraph)
+        // opus/detail uses 6 for link cards, while x/article/view type=3 also uses
+        // 6 for legacy list rows carrying format.list_format + text.
         6 -> extractLinkCardText(paragraph)
+            .ifEmpty { extractLegacyFormattedList(paragraph) }
+            .ifEmpty { extractLegacyOrTextBlocks(paragraph) }
         7 -> extractCode(paragraph)
         else -> extractLegacyOrTextBlocks(paragraph)
     }
@@ -103,6 +109,21 @@ private fun extractList(paragraph: JsonObject): List<ArticleContentBlock> {
         }
     if (items.isEmpty()) return emptyList()
     return listOf(ArticleContentBlock.ListBlock(ordered = ordered, items = items))
+}
+
+private fun extractLegacyFormattedList(paragraph: JsonObject): List<ArticleContentBlock> {
+    val format = paragraph["format"]
+        ?.let { runCatching { it.jsonObject }.getOrNull() }
+        ?: return emptyList()
+    val listFormat = format["list_format"]
+        ?.let { runCatching { it.jsonObject }.getOrNull() }
+        ?: return emptyList()
+    val text = extractInlineText(paragraph["text"])
+    if (text.isBlank()) return emptyList()
+
+    val style = listFormat["style"]?.jsonPrimitive?.contentOrNull.orEmpty()
+    val ordered = style == "1" || style.equals("ordered", ignoreCase = true)
+    return listOf(ArticleContentBlock.ListBlock(ordered = ordered, items = listOf(text)))
 }
 
 private fun extractCode(paragraph: JsonObject): List<ArticleContentBlock> {
@@ -318,25 +339,57 @@ private fun parseOpsBlocks(ops: List<JsonObject>): List<ArticleContentBlock> {
     if (ops.isEmpty()) return emptyList()
 
     return buildList {
+        val pendingText = StringBuilder()
+
+        fun flushText(attributes: JsonObject? = null) {
+            val text = pendingText.toString().trim()
+            pendingText.clear()
+            if (text.isBlank()) return
+
+            val header = attributes?.get("header")?.jsonPrimitive?.intOrNull
+            val listStyle = attributes?.get("list")?.jsonPrimitive?.contentOrNull
+            val isQuote = attributes?.get("blockquote")
+                ?.jsonPrimitive
+                ?.contentOrNull
+                ?.equals("true", ignoreCase = true) == true
+            add(
+                when {
+                    header != null && header in 1..6 -> ArticleContentBlock.Heading(text)
+                    isQuote -> ArticleContentBlock.Quote(text)
+                    !listStyle.isNullOrBlank() -> ArticleContentBlock.ListBlock(
+                        ordered = listStyle.equals("ordered", ignoreCase = true),
+                        items = listOf(text)
+                    )
+                    else -> ArticleContentBlock.Paragraph(text)
+                }
+            )
+        }
+
         ops.forEach { op ->
+            val attributes = op["attributes"]
+                ?.let { runCatching { it.jsonObject }.getOrNull() }
             when (val insert = op["insert"]) {
                 is JsonPrimitive -> {
-                    insert.contentOrNull
-                        .orEmpty()
-                        .split('\n')
-                        .map { it.trim() }
-                        .filter { it.isNotBlank() }
-                        .forEach { add(ArticleContentBlock.Paragraph(it)) }
+                    val segments = insert.contentOrNull.orEmpty().split('\n')
+                    segments.forEachIndexed { index, segment ->
+                        pendingText.append(segment)
+                        if (index < segments.lastIndex) {
+                            // Quill stores header/list/blockquote metadata on the newline op.
+                            flushText(attributes)
+                        }
+                    }
                 }
 
                 is JsonObject -> {
+                    flushText()
                     parseOpsImage(insert)?.let(::add)
                 }
 
                 else -> Unit
             }
         }
-    }
+        flushText()
+    }.mergeAdjacentListBlocks()
 }
 
 private fun parseOpsImage(insert: JsonObject): ArticleContentBlock.Image? {
@@ -351,6 +404,7 @@ private fun parseOpsImage(insert: JsonObject): ArticleContentBlock.Image? {
     val cardKeys = listOf(
         "native-image",
         "image-card",
+        "cut-off",
         "article-card",
         "live-card",
         "goods-card",
@@ -360,6 +414,21 @@ private fun parseOpsImage(insert: JsonObject): ArticleContentBlock.Image? {
     )
     return cardKeys.firstNotNullOfOrNull { key ->
         parseImageObject(insert[key]?.let { runCatching { it.jsonObject }.getOrNull() })
+    }
+}
+
+private fun List<ArticleContentBlock>.mergeAdjacentListBlocks(): List<ArticleContentBlock> {
+    if (size < 2) return this
+    return buildList {
+        this@mergeAdjacentListBlocks.forEach { block ->
+            val previous = lastOrNull() as? ArticleContentBlock.ListBlock
+            if (block is ArticleContentBlock.ListBlock && previous?.ordered == block.ordered) {
+                removeAt(lastIndex)
+                add(previous.copy(items = previous.items + block.items))
+            } else {
+                add(block)
+            }
+        }
     }
 }
 

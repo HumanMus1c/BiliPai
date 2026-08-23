@@ -89,6 +89,7 @@ import com.android.purebilibili.feature.home.components.resolveTopTabStyle
 import com.android.purebilibili.feature.home.components.resolveHomeTopChromeMaterialMode
 import com.android.purebilibili.feature.home.components.resolveHomeTopPresetStyle
 import com.android.purebilibili.feature.home.components.resolveHomeTopTabYOffsetDp
+import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
 import com.android.purebilibili.feature.home.policy.BottomBarVisibilityIntent
 import com.android.purebilibili.feature.home.policy.HomeBottomBarScrollState
 import com.android.purebilibili.feature.home.policy.HomeFeedScrollAnchor
@@ -936,6 +937,17 @@ fun HomeScreen(
     // 过渡由用户设置控制；系统“减弱动效”开启时统一关闭。
     val cardTransitionEnabled = homePerformanceConfig.cardTransitionEnabled && !systemReduceMotion
     val isBottomBarLiquidGlassEnabled = homePerformanceConfig.bottomBarLiquidGlassEnabled
+    val homeLiquidGlassTuning = remember(
+        homeSettings.liquidGlassProgress,
+        homeSettings.liquidGlassAdvancedSettings,
+        homeSettings.liquidGlassReadabilityMode,
+    ) {
+        resolveLiquidGlassTuning(
+            progress = homeSettings.liquidGlassProgress,
+            advancedSettings = homeSettings.liquidGlassAdvancedSettings,
+            readabilityMode = homeSettings.liquidGlassReadabilityMode,
+        )
+    }
     val isLiquidGlassEnabled = homePerformanceConfig.isAnyLiquidGlassEnabled
     val isDataSaverActive = homePerformanceConfig.isDataSaverActive
     val preloadAheadCount = homePerformanceConfig.preloadAheadCount
@@ -2015,7 +2027,6 @@ fun HomeScreen(
                                      popularSubCategory = selectedPopularSubCategory,
                                      onPopularSubCategoryChange = onPopularSubCategoryChange,
                                      onTodayWatchVideoClick = onTodayWatchVideoClick,
-                                     uiSkinDecoration = homeUiSkinDecoration,
                                      firstGridItemModifier = Modifier
                                  )
                                  }
@@ -2417,7 +2428,11 @@ fun HomeScreen(
                         onAccountSwitchClick = onAccountSwitchClick,
                         hazeState = hazeState,
                         isBlurEnabled = isHeaderBlurEnabled,
-                        bottomOverlayHeight = drawerBottomOverlayHeight
+                        bottomOverlayHeight = drawerBottomOverlayHeight,
+                        miuixBackdrop = homeMiuixBackdrop,
+                        liquidGlassEnabled = isLiquidGlassEnabled,
+                        liquidGlassTuning = homeLiquidGlassTuning,
+                        skinBackgroundImagePath = homeUiSkinDecoration?.sideBackgroundImagePath,
                     )
                 }
             ) {

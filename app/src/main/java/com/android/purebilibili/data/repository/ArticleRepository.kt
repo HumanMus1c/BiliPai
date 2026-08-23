@@ -100,8 +100,7 @@ object ArticleRepository {
         val resolvedBanner = listOfNotNull(
             bannerUrl.normalizeImageUrl(),
             originImageUrls.firstOrNull()?.normalizeImageUrl(),
-            imageUrls.firstOrNull()?.normalizeImageUrl(),
-            parsedBlocks.filterIsInstance<ArticleContentBlock.Image>().firstOrNull()?.url
+            imageUrls.firstOrNull()?.normalizeImageUrl()
         ).firstOrNull()
 
         return ArticleDetailUiModel(

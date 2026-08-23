@@ -22,7 +22,8 @@ import com.android.purebilibili.core.ui.rememberAppSemanticVisualPolicy
 internal data class SettingsEntryVisual(
     val icon: ImageVector? = null,
     @DrawableRes val iconResId: Int? = null,
-    val iconTint: Color
+    val iconTint: Color,
+    val iconSizeDp: Int = 20,
 )
 
 @Composable
@@ -108,7 +109,11 @@ internal fun resolveSettingsEntryVisual(
                 role = resolveSettingsSearchTargetIconRole(target),
                 iconFamily = policy.effectiveIconFamily,
             ),
-            iconTint = iconTint
+            iconTint = iconTint,
+            iconSizeDp = resolveSettingsSemanticIconSizeDp(
+                role = resolveSettingsSearchTargetIconRole(target),
+                iconFamily = policy.effectiveIconFamily,
+            ),
         )
     }
 }

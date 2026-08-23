@@ -52,6 +52,7 @@ import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmented
 import com.android.purebilibili.feature.video.ui.components.CommentPictures
 import com.android.purebilibili.feature.video.ui.components.RichCommentText
 import com.android.purebilibili.feature.video.ui.components.ReplyMemberAvatar
+import com.android.purebilibili.feature.video.ui.components.VideoCommentTypographyTokens
 import com.android.purebilibili.feature.video.ui.components.FanGroupDecorationBadge
 import com.android.purebilibili.feature.video.ui.components.resolveFanGroupDecorationCardBgs
 import com.android.purebilibili.feature.video.ui.components.resolveFanGroupVisualFromMemberAndSailing
@@ -669,7 +670,7 @@ private fun CommentItem(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppText(
                     text = member.uname,
-                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                    fontSize = VideoCommentTypographyTokens.author,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -687,13 +688,13 @@ private fun CommentItem(
                 Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                 AppText(
                     text = formatTime(reply.ctime),
-                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                    fontSize = VideoCommentTypographyTokens.metadata,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
                 )
                 if (locationLabel != null) {
                     AppText(
                         text = " • $locationLabel",
-                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                        fontSize = VideoCommentTypographyTokens.metadata,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -709,7 +710,7 @@ private fun CommentItem(
             }
             RichCommentText(
                 text = reply.content.message,
-                fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                fontSize = VideoCommentTypographyTokens.body,
                 color = MaterialTheme.colorScheme.onSurface,
                 emoteMap = emoteMap,
                 content = reply.content,
@@ -751,7 +752,7 @@ private fun CommentItem(
                     Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
                     AppText(
                         text = "回复",
-                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                        fontSize = VideoCommentTypographyTokens.action,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
                     )
                 }
@@ -773,7 +774,7 @@ private fun CommentItem(
                     Spacer(modifier = Modifier.width(AppSpacingTokens.ExtraSmall))
                     AppText(
                         text = "${reply.like}",
-                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                        fontSize = VideoCommentTypographyTokens.actionCount,
                         color = if (liked) {
                             DynamicStatusPalette.liked()
                         } else {
@@ -805,7 +806,7 @@ private fun CommentItem(
                                 ) {
                                     AppText(
                                         text = "${subReply.member.uname}:",
-                                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                                        fontSize = VideoCommentTypographyTokens.subReply,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.primary,
                                         maxLines = 1,
@@ -814,7 +815,7 @@ private fun CommentItem(
                                     Box(modifier = Modifier.weight(1f)) {
                                         RichCommentText(
                                             text = subReply.content.message,
-                                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                                            fontSize = VideoCommentTypographyTokens.subReply,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             emoteMap = subEmoteMap,
                                             content = subReply.content,
@@ -842,7 +843,7 @@ private fun CommentItem(
                         if (showInlineToggle) {
                             AppText(
                                 text = resolveInlineSubReplyToggleLabel(expanded = isSubPreviewExpanded),
-                                fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                                fontSize = VideoCommentTypographyTokens.subReply,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.clickable { isSubPreviewExpanded = !isSubPreviewExpanded }
@@ -858,7 +859,7 @@ private fun CommentItem(
                 ) {
                     AppText(
                         text = "查看回复(${resolveDynamicSubReplyCount(reply)})",
-                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                        fontSize = VideoCommentTypographyTokens.subReply,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }

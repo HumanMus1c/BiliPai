@@ -28,32 +28,52 @@ class BottomBarUiSkinDecorationTest {
         assertTrue(trimSource.contains("clipShape?.let { Modifier.clip(it) } ?: Modifier"))
         assertTrue(trimSource.contains(".clearAndSetSemantics {}"))
         assertTrue(trimSource.contains(".drawBehind {"))
-        assertTrue(trimSource.contains("ContentScale.FillBounds"))
+        // trim 改为 FillWidth + 底部对齐，避免 FillBounds 拉伸变形与液态玻璃折射层叠加冲突
+        assertTrue(trimSource.contains("ContentScale.FillWidth"))
+        assertTrue(trimSource.contains("Alignment.BottomCenter"))
     }
 
     @Test
     fun bottomSkinIconSizesMatchScreenshotLevelCharacterAssets() {
-        assertEquals(40.dp, resolveBottomBarSkinDockIconSize())
-        assertEquals(38.dp, resolveBottomBarMiuixSkinDockIconSize())
-        assertEquals(40.dp, resolveBottomBarCompactSkinHomeIconSize())
+        assertEquals(32.dp, resolveBottomBarSkinDockIconSize())
+        assertEquals(32.dp, resolveBottomBarMiuixSkinDockIconSize())
+        assertEquals(32.dp, resolveBottomBarCompactSkinHomeIconSize())
     }
 
     @Test
-    fun bottomSkinDockLayoutKeepsLargeIconsAndLabelVisible() {
+    fun skinIconScalePolicyUsesFitForBalancedAspectAndCropForImbalanced() {
+        val balanced = resolveSkinIconScalePolicy(1.0f)
+        assertEquals(androidx.compose.ui.layout.ContentScale.Fit, balanced.contentScale)
+
+        val nearSquare = resolveSkinIconScalePolicy(1.2f)
+        assertEquals(androidx.compose.ui.layout.ContentScale.Fit, nearSquare.contentScale)
+
+        val wideWithPadding = resolveSkinIconScalePolicy(2.0f)
+        assertEquals(androidx.compose.ui.layout.ContentScale.Crop, wideWithPadding.contentScale)
+
+        val tallWithPadding = resolveSkinIconScalePolicy(0.4f)
+        assertEquals(androidx.compose.ui.layout.ContentScale.Crop, tallWithPadding.contentScale)
+
+        val invalid = resolveSkinIconScalePolicy(-1f)
+        assertEquals(androidx.compose.ui.layout.ContentScale.Fit, invalid.contentScale)
+    }
+
+    @Test
+    fun bottomSkinDockLayoutKeepsHostGeometryAndLabelVisible() {
         val padding = resolveBottomBarSkinDockContentPadding()
 
-        assertEquals(88.dp, resolveBottomBarSkinDockHeight())
+        assertEquals(64.dp, resolveBottomBarSkinDockHeight())
         assertEquals(64.dp, resolveMiuixDockedBottomBarItemHeight(hasUiSkinDecoration = false))
         assertEquals(
             resolveBottomBarSkinDockHeight(),
             resolveMiuixDockedBottomBarItemHeight(hasUiSkinDecoration = true)
         )
-        assertEquals(40.dp, resolveBottomBarSkinDockIconSize())
+        assertEquals(32.dp, resolveBottomBarSkinDockIconSize())
         assertEquals(0.dp, padding.calculateTopPadding())
         assertEquals(0.dp, padding.calculateBottomPadding())
         assertEquals(2.dp, resolveBottomBarSkinIconLabelGap())
-        assertEquals(10.dp, resolveBottomBarSkinDockIconTopPadding())
-        assertEquals(18.dp, resolveBottomBarSkinDockLabelBottomPadding())
+        assertEquals(4.dp, resolveBottomBarSkinDockIconTopPadding())
+        assertEquals(4.dp, resolveBottomBarSkinDockLabelBottomPadding())
         assertEquals(12.sp, resolveBottomBarSkinDockLabelFontSize())
         assertEquals(18.sp, resolveBottomBarSkinDockLabelLineHeight())
     }
@@ -102,6 +122,8 @@ class BottomBarUiSkinDecorationTest {
                         "following_selected" to "assets/tail_icon_selected_dynamic.png",
                         "member" to "assets/tail_icon_shop.png",
                         "member_selected" to "assets/tail_icon_selected_shop.png",
+                        "channel" to "assets/tail_icon_channel.png",
+                        "channel_selected" to "assets/tail_icon_selected_channel.png",
                         "profile" to "assets/tail_icon_myself.png"
                     ),
                     homeChannelIcon = "assets/tail_icon_channel.png",
@@ -140,18 +162,19 @@ class BottomBarUiSkinDecorationTest {
             "/tmp/tail_icon_selected_shop.png",
             decoration?.iconPathFor(BottomNavItem.HISTORY, selected = true)
         )
-        assertEquals("/tmp/tail_icon_myself.png", decoration?.iconPathFor(BottomNavItem.PROFILE))
-        assertEquals("/tmp/tail_icon_channel.png", decoration?.iconPathFor(BottomNavItem.SETTINGS))
+        assertEquals("/tmp/tail_icon_channel.png", decoration?.iconPathFor(BottomNavItem.LISTEN_VIDEO))
         assertEquals(
             "/tmp/tail_icon_selected_channel.png",
-            decoration?.iconPathFor(BottomNavItem.SETTINGS, selected = true)
+            decoration?.iconPathFor(BottomNavItem.LISTEN_VIDEO, selected = true)
         )
+        assertEquals("/tmp/tail_icon_myself.png", decoration?.iconPathFor(BottomNavItem.PROFILE))
+        assertNull(decoration?.iconPathFor(BottomNavItem.SETTINGS))
         assertNull(decoration?.iconPathFor(BottomNavItem.STORY))
         assertNull(decoration?.iconPathFor(BottomNavItem.LIVE))
     }
 
     @Test
-    fun bottomSettingsSkinIconFallsBackWhenChannelAssetMissing() {
+    fun unsupportedBottomDestinationsDoNotBorrowUnrelatedSkinIcons() {
         val installed = InstalledUiSkinPackage(
             manifest = UiSkinManifest(
                 formatVersion = 1,
@@ -186,10 +209,42 @@ class BottomBarUiSkinDecorationTest {
             UiSkinState(enabled = true, activeSkin = installed)
         )
 
-        assertEquals("/tmp/tail_icon_myself.png", decoration?.iconPathFor(BottomNavItem.SETTINGS))
+        assertNull(decoration?.iconPathFor(BottomNavItem.SETTINGS))
+        assertNull(decoration?.iconPathFor(BottomNavItem.LISTEN_VIDEO))
+    }
+
+    @Test
+    fun legacyChannelFieldsStillPopulateListenVideoWithoutReimport() {
+        val installed = InstalledUiSkinPackage(
+            manifest = UiSkinManifest(
+                formatVersion = 1,
+                skinId = "dev.example.legacy-channel",
+                displayName = "旧版频道图标",
+                version = "1.0.0",
+                apiVersion = 1,
+                surfaces = setOf(UiSkinSurface.HOME_BOTTOM_BAR),
+                assets = UiSkinAssets(
+                    homeChannelIcon = "assets/tail_icon_channel.png",
+                    homeChannelSelectedIcon = "assets/tail_icon_selected_channel.png"
+                )
+            ),
+            packageSha256 = "sha",
+            packagePath = "/tmp/legacy-channel.bpskin",
+            installedAtMillis = 42L,
+            assetFiles = mapOf(
+                "assets/tail_icon_channel.png" to "/tmp/tail_icon_channel.png",
+                "assets/tail_icon_selected_channel.png" to "/tmp/tail_icon_selected_channel.png"
+            )
+        )
+
+        val decoration = resolveBottomBarUiSkinDecoration(
+            UiSkinState(enabled = true, activeSkin = installed)
+        )
+
+        assertEquals("/tmp/tail_icon_channel.png", decoration?.iconPathFor(BottomNavItem.LISTEN_VIDEO))
         assertEquals(
-            "/tmp/tail_icon_selected_myself.png",
-            decoration?.iconPathFor(BottomNavItem.SETTINGS, selected = true)
+            "/tmp/tail_icon_selected_channel.png",
+            decoration?.iconPathFor(BottomNavItem.LISTEN_VIDEO, selected = true)
         )
     }
 
@@ -309,12 +364,8 @@ class BottomBarUiSkinDecorationTest {
         assertEquals("/tmp/side_bg.jpg", decoration?.sideBackgroundImagePath)
         assertEquals("/tmp/head_myself_bg.jpg", decoration?.profileBackgroundImagePath)
         assertEquals("/tmp/head_myself_squared_bg.jpg", decoration?.profileSquaredBackgroundImagePath)
-        assertEquals("/tmp/tail_icon_main.png", decoration?.topTabIconPathFor("RECOMMEND"))
-        assertEquals("/tmp/tail_icon_selected_main.png", decoration?.topTabIconPathFor("RECOMMEND", selected = true))
-        assertEquals("/tmp/tail_icon_dynamic.png", decoration?.topTabIconPathFor("FOLLOW"))
-        assertEquals("/tmp/tail_icon_channel.png", decoration?.topTabIconPathFor("POPULAR"))
-        assertEquals("/tmp/tail_icon_channel.png", decoration?.topTabPartitionIconPath())
-        assertEquals("/tmp/tail_icon_selected_channel.png", decoration?.topTabPartitionIconPath(selected = true))
+        assertTrue(decoration?.topTabSkinIconPaths?.isEmpty() == true)
+        assertNull(decoration?.topTabPartitionIconPath())
     }
 
     @Test

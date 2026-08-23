@@ -321,7 +321,7 @@ private fun ArticleDetailContent(
                         }
                     }
                 }
-                if (article.summary.isNotBlank() && article.blocks.none { it is ArticleContentBlock.Paragraph && it.text == article.summary }) {
+                if (shouldShowArticleSummary(article.summary, article.blocks)) {
                     AppText(
                         text = article.summary,
                         style = MaterialTheme.typography.bodyMedium,

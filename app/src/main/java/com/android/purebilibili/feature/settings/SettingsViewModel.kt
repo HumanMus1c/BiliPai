@@ -14,6 +14,8 @@ import com.android.purebilibili.core.store.BottomBarSearchLayoutMode
 import com.android.purebilibili.core.store.HomeFeedCardWidthPreset
 import com.android.purebilibili.core.store.LiquidGlassMode
 import com.android.purebilibili.core.store.LiquidGlassAdvancedSettings
+import com.android.purebilibili.core.store.LiquidGlassReadabilityMode
+import com.android.purebilibili.core.store.home.LiquidGlassSettingsStore
 import com.android.purebilibili.core.store.allManagedAppIconLauncherAliases
 import com.android.purebilibili.core.store.resolveDefaultLiquidGlassStrength
 import com.android.purebilibili.core.store.resolveLegacyLiquidGlassProgress
@@ -1126,6 +1128,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setLiquidGlassAdvancedSettings(settings: LiquidGlassAdvancedSettings) {
         viewModelScope.launch {
             SettingsManager.setLiquidGlassAdvancedSettings(context, settings)
+        }
+    }
+
+    fun setLiquidGlassReadabilityMode(mode: LiquidGlassReadabilityMode) {
+        viewModelScope.launch {
+            LiquidGlassSettingsStore.setReadabilityMode(context, mode)
         }
     }
 

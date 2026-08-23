@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +41,7 @@ import com.android.purebilibili.feature.settings.SettingsRootCategory
 import com.android.purebilibili.feature.settings.canonicalSettingsRootCategory
 import com.android.purebilibili.feature.settings.rememberSettingsEntryVisual
 import com.android.purebilibili.feature.settings.resolveSettingsRootCategoryOrder
+import com.android.purebilibili.feature.settings.resolveSettingsSiblingIconTints
 import com.android.purebilibili.feature.settings.resolveSettingsTabletLayoutPolicy
 import com.android.purebilibili.feature.settings.resolveSettingsVisualSpec
 
@@ -58,6 +59,9 @@ fun SettingsTabletShell(
         resolveSettingsTabletLayoutPolicy(widthDp = configuration.screenWidthDp)
     }
     val categories = remember { resolveSettingsRootCategoryOrder() }
+    val categoryIconTints = remember(categories.size) {
+        resolveSettingsSiblingIconTints(categories.size)
+    }
     AppSplitLayout(
         modifier = modifier.fillMaxSize(),
         primaryRatio = layoutPolicy.primaryRatio,
@@ -91,9 +95,11 @@ fun SettingsTabletShell(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    items(categories) { category ->
+                    itemsIndexed(categories) { index, category ->
                         val visual = rememberSettingsEntryVisual(category.searchTarget)
-                        val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(visual.iconTint)
+                        val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(
+                            categoryIconTints[index]
+                        )
                         val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
                         val selected = selectedCategory?.let(::canonicalSettingsRootCategory) == category
                         AppNavigationDrawerItem(
@@ -123,7 +129,7 @@ fun SettingsTabletShell(
                                             imageVector = visual.icon,
                                             contentDescription = null,
                                             tint = iconContentColor,
-                                            modifier = Modifier.size(resolveSettingsVisualSpec().categoryIconSize),
+                                            modifier = Modifier.size(visual.iconSizeDp.dp),
                                         )
                                     }
                                 }

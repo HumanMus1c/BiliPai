@@ -158,6 +158,7 @@ fun VideoSettingsPanel(
     
     // 视频控制
     onReload: () -> Unit,
+    onDanmakuSettingsClick: () -> Unit = {},
     
     // 画质 - 内联选择
     currentQualityLabel: String,
@@ -349,6 +350,15 @@ fun VideoSettingsPanel(
                         onReload()
                         onDismiss()
                     }
+                )
+                SettingsDivider()
+            }
+
+            item {
+                SettingsItem(
+                    icon = settingsIcon,
+                    title = "弹幕设置",
+                    onClick = onDanmakuSettingsClick,
                 )
                 SettingsDivider()
             }

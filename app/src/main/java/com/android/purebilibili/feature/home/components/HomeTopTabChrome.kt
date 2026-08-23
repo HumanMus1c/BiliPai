@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.Alignment
@@ -29,6 +30,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -43,6 +46,8 @@ import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import dev.chrisbanes.haze.HazeState
+import coil.compose.AsyncImage
+import java.io.File
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 
 @Composable
@@ -95,6 +100,7 @@ internal fun HomeTopTabChrome(
      * aligned with the search row. [Dp.Infinity] keeps legacy full-bleed docks.
      */
     maxDockWidth: Dp = Dp.Infinity,
+    skinBackgroundImagePath: String? = null,
     content: @Composable () -> Unit
 ) {
     val density = LocalDensity.current
@@ -273,6 +279,18 @@ internal fun HomeTopTabChrome(
                                 )
                         )
                     }
+                }
+                if (!skinBackgroundImagePath.isNullOrBlank()) {
+                    AsyncImage(
+                        model = File(skinBackgroundImagePath),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillBounds,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(tabShape)
+                            .alpha(0.56f)
+                            .clearAndSetSemantics {}
+                    )
                 }
             }
 

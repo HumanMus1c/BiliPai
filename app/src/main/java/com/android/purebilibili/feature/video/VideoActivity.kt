@@ -124,6 +124,9 @@ class VideoActivity : ComponentActivity() {
             val hapticFeedbackEnabled by SettingsManager
                 .getHapticFeedbackEnabled(this@VideoActivity)
                 .collectAsStateWithLifecycle(initialValue = true)
+            val globalTextTapCopyEnabled by SettingsManager
+                .getGlobalTextTapCopyEnabled(this@VideoActivity)
+                .collectAsStateWithLifecycle(initialValue = false)
             val uiEntranceAnimationEnabled by SettingsManager
                 .getUiEntranceAnimationEnabled(this@VideoActivity)
                 .collectAsStateWithLifecycle(initialValue = true)
@@ -133,12 +136,14 @@ class VideoActivity : ComponentActivity() {
             val appThemeConfig = remember(
                 blurIntensity,
                 hapticFeedbackEnabled,
+                globalTextTapCopyEnabled,
                 uiEntranceAnimationEnabled,
                 runtimeVisualGuardEnabled,
             ) {
                 AppThemeConfig(
                     blurIntensity = blurIntensity,
                     hapticFeedbackEnabled = hapticFeedbackEnabled,
+                    globalTextTapCopyEnabled = globalTextTapCopyEnabled,
                     uiEntranceAnimationEnabled = uiEntranceAnimationEnabled,
                     runtimeVisualGuardEnabled = runtimeVisualGuardEnabled,
                 )

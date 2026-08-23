@@ -33,6 +33,8 @@ fun SubReplySheet(
     // [新增] 点赞
     onCommentLike: ((Long) -> Unit)? = null,
     likedComments: Set<Long> = emptySet(),
+    onCommentHate: ((Long) -> Unit)? = null,
+    hatedComments: Set<Long> = emptySet(),
     onUrlClick: ((String) -> Unit)? = null,
     showIdentityDecorations: Boolean = true,
     onAvatarClick: ((String) -> Unit)? = null
@@ -71,6 +73,8 @@ fun SubReplySheet(
                 onDeleteComment = onDeleteComment,
                 onCommentLike = onCommentLike,
                 likedComments = likedComments,
+                onCommentHate = onCommentHate,
+                hatedComments = hatedComments,
                 onUrlClick = onUrlClick,
                 showIdentityDecorations = showIdentityDecorations,
                 onAvatarClick = onAvatarClick,

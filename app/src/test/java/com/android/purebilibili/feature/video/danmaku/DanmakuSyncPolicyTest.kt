@@ -9,9 +9,9 @@ import kotlin.test.assertTrue
 class DanmakuSyncPolicyTest {
 
     @Test
-    fun isPlayingChange_resumesWithHardResyncWhenDataReady() {
+    fun isPlayingChange_resumesWithoutClearingLoadedTimeline() {
         assertEquals(
-            DanmakuSyncAction.HardResync,
+            DanmakuSyncAction.SoftResync,
             resolveDanmakuActionForIsPlayingChange(
                 isPlayerPlaying = true,
                 danmakuEnabled = true,

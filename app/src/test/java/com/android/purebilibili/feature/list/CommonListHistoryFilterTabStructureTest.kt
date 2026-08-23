@@ -7,6 +7,35 @@ import kotlin.test.assertTrue
 
 class CommonListHistoryFilterTabStructureTest {
     @Test
+    fun historySearch_reusesMatchingLiquidDockAsSeparateRow() {
+        val source = loadSource("src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt")
+        val searchSection = source
+            .substringAfter("val searchPlaceholder = when")
+            .substringBefore("if (favoriteViewModel != null)")
+
+        assertTrue(
+            searchSection.contains("historyViewModel != null && historyFilterChrome.useLiquidDock"),
+            "历史搜索 Dock 必须同时受历史页范围和全局复用开关约束"
+        )
+        assertTrue(
+            searchSection.contains("BottomBarMatchedLiquidDock("),
+            "历史搜索应复用与标签相同的底栏材质 Dock"
+        )
+        assertTrue(
+            searchSection.contains("shape = CircleShape"),
+            "搜索 Dock 与标签 Dock 必须使用相同的胶囊圆角"
+        )
+        assertTrue(
+            searchSection.contains("height(historyFilterChrome.heightDp.dp)"),
+            "搜索与标签两条 Dock 必须保持相同高度"
+        )
+        assertTrue(
+            searchSection.contains("primaryGridState.isScrollInProgress"),
+            "搜索 Dock 的材质动态应跟随历史列表滚动"
+        )
+    }
+
+    @Test
     fun historyFilterRow_centersTabsAndUsesLiquidDockWhenGlobalGlassEnabled() {
         val source = loadSource("src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt")
         val historyFilterSection = source

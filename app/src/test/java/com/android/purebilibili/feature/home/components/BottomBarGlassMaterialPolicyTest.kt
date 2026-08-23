@@ -2,6 +2,7 @@ package com.android.purebilibili.feature.home.components
 
 import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.store.BottomBarLiquidGlassPreset
+import com.android.purebilibili.core.store.LiquidGlassAdvancedSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -79,6 +80,29 @@ class BottomBarGlassMaterialPolicyTest {
         assertEquals(1f, spec.highlightWidthScale)
         assertEquals(1f, spec.shadowAlphaScale)
         assertEquals(null, spec.innerRimGlow)
+    }
+
+    @Test
+    fun `zero content distortion disables shell refraction for every preset`() {
+        val noDistortionTuning = resolveLiquidGlassTuning(
+            progress = 0f,
+            advancedSettings = LiquidGlassAdvancedSettings(contentDistortion = 0f),
+        )
+
+        BottomBarLiquidGlassPreset.entries.forEach { preset ->
+            val spec = resolveBottomBarGlassMaterialSpec(
+                preset = preset,
+                isDarkTheme = false,
+                isScrolling = false,
+                glassEnabled = true,
+                motionProgress = 0f,
+                pressProgress = 0f,
+                liquidGlassTuning = noDistortionTuning,
+            )
+
+            assertEquals(0f, spec.shellRefractionHeightDp)
+            assertEquals(0f, spec.shellRefractionAmountDp)
+        }
     }
 
     @Test

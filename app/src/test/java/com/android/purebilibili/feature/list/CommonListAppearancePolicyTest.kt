@@ -14,6 +14,57 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class CommonListAppearancePolicyTest {
+    @Test
+    fun historyLiquidReuse_usesTransparentFloatingHeaderChrome() {
+        assertTrue(
+            shouldUseFloatingCommonListHeaderChrome(
+                isHistoryPage = true,
+                globalLiquidGlassReuseEnabled = true,
+            )
+        )
+        assertFalse(
+            shouldUseFloatingCommonListHeaderChrome(
+                isHistoryPage = true,
+                globalLiquidGlassReuseEnabled = false,
+            )
+        )
+        assertFalse(
+            shouldUseFloatingCommonListHeaderChrome(
+                isHistoryPage = false,
+                globalLiquidGlassReuseEnabled = true,
+            )
+        )
+    }
+
+    @Test
+    fun historyHeaderCollapse_canMoveBothFloatingDocksOffscreen() {
+        assertEquals(
+            180f,
+            resolveCommonListHeaderMaxCollapsePx(
+                headerHeightPx = 320,
+                pinnedDockHeightPx = 92,
+                topInsetPx = 48f,
+                retainPinnedDock = true,
+            ),
+        )
+        assertEquals(
+            320f,
+            resolveCommonListHeaderMaxCollapsePx(
+                headerHeightPx = 320,
+                pinnedDockHeightPx = 92,
+                topInsetPx = 48f,
+                retainPinnedDock = false,
+            ),
+        )
+
+        val source = listOf(
+            File("app/src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt"),
+            File("src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt")
+        ).first { it.exists() }.readText()
+        assertTrue(source.contains("retainPinnedDock = false"))
+        assertFalse(source.contains("historyPinnedDockHeightPx"))
+    }
+
 
     @Test
     fun commonListGridWidth_preservesPhoneDensityAndTabletReadability() {

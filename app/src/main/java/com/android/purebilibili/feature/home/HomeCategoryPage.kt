@@ -26,11 +26,9 @@ import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.*
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.purebilibili.core.store.HomeDurationStyle
@@ -50,14 +48,12 @@ import com.android.purebilibili.feature.home.components.HomeHeroCarousel
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import com.android.purebilibili.feature.home.components.HomeUiSkinDecoration
 import com.android.purebilibili.feature.home.components.cards.ElegantVideoCard
 import com.android.purebilibili.feature.home.components.cards.LiveRoomCard
 import com.android.purebilibili.feature.home.components.cards.StoryVideoCard
 
 import androidx.compose.ui.Alignment
 import coil.compose.AsyncImage
-import java.io.File
 import kotlinx.coroutines.yield
 import androidx.compose.runtime.snapshots.Snapshot
 
@@ -111,14 +107,6 @@ internal fun shouldRequestHomeCategoryLoadMore(
         lastVisibleItemIndex >= totalItems - 4 &&
         !isLoading &&
         hasMore
-}
-
-internal fun resolveHomeFeedSkinAtmosphereImagePath(
-    decoration: HomeUiSkinDecoration?
-): String? {
-    return decoration?.sideBackgroundImagePath
-        ?: decoration?.profileSquaredBackgroundImagePath
-        ?: decoration?.profileBackgroundImagePath
 }
 
 @Composable
@@ -195,7 +183,6 @@ internal fun HomeCategoryPageContent(
         )
     },
     firstGridItemModifier: Modifier = Modifier,
-    uiSkinDecoration: HomeUiSkinDecoration? = null,
     modifier: Modifier = Modifier,
 ) {
     val sourceRoute = remember(category) {
@@ -233,19 +220,7 @@ internal fun HomeCategoryPageContent(
         if (shouldLoadMore) onLoadMore()
     }
 
-    val feedAtmosphereImagePath = resolveHomeFeedSkinAtmosphereImagePath(uiSkinDecoration)
     Box(modifier = modifier) {
-        if (!feedAtmosphereImagePath.isNullOrBlank()) {
-            AsyncImage(
-                model = File(feedAtmosphereImagePath),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .matchParentSize()
-                    .alpha(0.16f)
-                    .clearAndSetSemantics {}
-            )
-        }
         CompositionLocalProvider(
             LocalVideoCardSharedElementSourceRoute provides sourceRoute
         ) {

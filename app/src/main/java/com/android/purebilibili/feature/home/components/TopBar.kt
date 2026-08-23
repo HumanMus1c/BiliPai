@@ -45,6 +45,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -93,6 +96,7 @@ import com.android.purebilibili.feature.home.HomeCategory
 import com.android.purebilibili.feature.home.resolveHomeTopCategories
 import com.android.purebilibili.core.store.BottomBarLiquidGlassPreset
 import com.android.purebilibili.core.store.LiquidGlassStyle
+import com.android.purebilibili.core.store.LiquidGlassReadabilityMode
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -111,10 +115,13 @@ import androidx.compose.ui.semantics.semantics
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sign
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.foundation.combinedClickable // [Added]
 import java.io.File
 
 private const val IOS_TOP_TAB_CONTENT_PADDING_DP = 2f
+private const val TOP_TAB_INDICATOR_SETTLE_TIMEOUT_MILLIS = 1_500L
 
 // 指示器拖动释放后允许 spring 飞掷动画 settle 的兜底时长；
 // 超过此时长仍未收到 onSettled 回调则强制解除 engaged，避免位置竞争。
@@ -933,6 +940,16 @@ private fun LightweightHomeTopTabs(
     val resolvedLiquidGlassTuning = remember(liquidGlassStyle, liquidGlassTuning) {
         liquidGlassTuning ?: resolveLiquidGlassTuning(liquidGlassStyle)
     }
+    val adaptiveReadabilityEnabled = isLiquidGlassEnabled &&
+        resolvedLiquidGlassTuning.readabilityMode == LiquidGlassReadabilityMode.ADAPTIVE
+    val adaptiveReadabilityState = rememberLiquidGlassAdaptiveReadabilityState(
+        enabled = adaptiveReadabilityEnabled,
+    )
+    val adaptiveTopTabContentColor = rememberLiquidGlassAdaptiveContentColor(
+        stableColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        state = adaptiveReadabilityState,
+        enabled = adaptiveReadabilityEnabled,
+    )
     val haptic = com.android.purebilibili.core.util.rememberHapticFeedback()
     val scrollChannel = com.android.purebilibili.feature.home.LocalHomeScrollChannel.current
     val normalizedLabelMode = normalizeTopTabLabelMode(labelMode)
@@ -1144,8 +1161,56 @@ private fun LightweightHomeTopTabs(
         val rowScrollStartPadding = with(density) { (-rowScrollOffsetPx).toDp() }
         HomeTopTabMotionLayer {
         val pagerIsScrolling = pagerScrollingProvider()
-        val currentPosition = currentPositionProvider()
-        val selectedContentPosition = selectedContentPositionProvider()
+        var topTabIndicatorDirectDragActive by remember(pagerState) {
+            mutableStateOf(false)
+        }
+        var topTabIndicatorDirectDragPosition by remember(pagerState, categories.size) {
+            mutableFloatStateOf(selectedIndex.toFloat())
+        }
+        var topTabIndicatorSettlingTarget by remember(pagerState, categories.size) {
+            mutableStateOf<Int?>(null)
+        }
+        val selectedIndexLatest = rememberUpdatedState(selectedIndex)
+        val onCategorySelectedLatest = rememberUpdatedState(onCategorySelected)
+        val indicatorDragItemWidthPx = with(density) { itemWidth.toPx() }
+        val indicatorDraggableState = rememberDraggableState { dragAmountPx ->
+            if (!topTabIndicatorDirectDragActive || indicatorDragItemWidthPx <= 0f) {
+                return@rememberDraggableState
+            }
+            topTabIndicatorDirectDragPosition = (
+                topTabIndicatorDirectDragPosition + dragAmountPx / indicatorDragItemWidthPx
+            ).coerceIn(0f, categories.lastIndex.coerceAtLeast(0).toFloat())
+        }
+        LaunchedEffect(pagerState, topTabIndicatorSettlingTarget, categories.size) {
+            val activePager = pagerState ?: return@LaunchedEffect
+            val target = topTabIndicatorSettlingTarget ?: return@LaunchedEffect
+            withTimeoutOrNull(TOP_TAB_INDICATOR_SETTLE_TIMEOUT_MILLIS) {
+                snapshotFlow {
+                    Triple(
+                        activePager.currentPage,
+                        activePager.currentPageOffsetFraction,
+                        activePager.isScrollInProgress,
+                    )
+                }.first { (page, offset, scrolling) ->
+                    !scrolling && page == target && abs(offset) < 0.001f
+                }
+            }
+            topTabIndicatorSettlingTarget = null
+        }
+        val currentPositionFromPager = currentPositionProvider()
+        val selectedContentPositionFromPager = selectedContentPositionProvider()
+        val topTabIndicatorOwnsPosition = topTabIndicatorDirectDragActive ||
+            topTabIndicatorSettlingTarget != null
+        val currentPosition = if (topTabIndicatorOwnsPosition) {
+            topTabIndicatorDirectDragPosition
+        } else {
+            currentPositionFromPager
+        }
+        val selectedContentPosition = if (topTabIndicatorOwnsPosition) {
+            topTabIndicatorDirectDragPosition
+        } else {
+            selectedContentPositionFromPager
+        }
         val topTabIndicatorPosition = currentPosition
         val topTabContentPosition = if (effectivePresentation == AppTopTabPresentation.MOVING_CAPSULE) {
             selectedContentPosition
@@ -1153,7 +1218,8 @@ private fun LightweightHomeTopTabs(
             currentPosition
         }
         val iosCapsulePosition = selectedContentPosition
-        val indicatorIsInteracting = pagerIsDragging || pagerIsScrolling
+        val indicatorIsInteracting = pagerIsDragging || pagerIsScrolling ||
+            topTabIndicatorDirectDragActive
         val topTabShouldStretchIndicator = shouldDeformTopTabIndicator(
             position = topTabIndicatorPosition,
             isInMotion = indicatorIsInteracting
@@ -1292,10 +1358,13 @@ private fun LightweightHomeTopTabs(
         )
         val topTabVisibleContentZIndex = if (useTopTabGlassColorPath) 0f else 2f
         val topTabThemeColor = MaterialTheme.colorScheme.primary
-        val topTabExportTintColor = resolveAndroidNativeExportTintColor(
+        val stableTopTabExportTintColor = resolveAndroidNativeExportTintColor(
             themeColor = topTabThemeColor,
             darkTheme = isDarkTheme
         )
+        // Adaptive readability only changes neutral, unselected content. The moving
+        // indicator keeps the app theme tint so enabling adaptation cannot erase it.
+        val topTabExportTintColor = stableTopTabExportTintColor
         val topTabExportMonochromeColor = resolveSharedLiquidExportMonochromeColor(
             darkTheme = isDarkTheme
         )
@@ -1332,13 +1401,14 @@ private fun LightweightHomeTopTabs(
                         } else {
                             IOS_TOP_TAB_CONTENT_PADDING_DP.dp.toPx()
                         },
-                        followPagerPosition = pagerIsDragging || pagerIsScrolling
+                        followPagerPosition = pagerIsDragging || pagerIsScrolling ||
+                            topTabIndicatorOwnsPosition
                     )
                 }
             }
         }
         val shouldAnimateIosCapsule = shouldAnimateIosTopTabCapsule(
-            pagerIsDragging = pagerIsDragging,
+            pagerIsDragging = pagerIsDragging || topTabIndicatorOwnsPosition,
             pagerIsScrolling = pagerIsScrolling
         )
         val animatedIosCapsuleTranslationXPx by animateFloatAsState(
@@ -1370,7 +1440,11 @@ private fun LightweightHomeTopTabs(
                     } else {
                         0f
                     }
-                },
+                }
+                .trackLiquidGlassAdaptiveReadability(
+                    state = adaptiveReadabilityState,
+                    enabled = adaptiveReadabilityEnabled,
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -1539,6 +1613,8 @@ private fun LightweightHomeTopTabs(
                             } else {
                                 TopTabLiquidColorMode.NORMAL
                             },
+                            adaptiveContentColorOverride = adaptiveTopTabContentColor
+                                .takeIf { adaptiveReadabilityEnabled },
                             modifier = measuredItemModifier,
                             onClick = {
                                 performHomeTopBarTap(haptic = haptic, onClick = {
@@ -1572,6 +1648,33 @@ private fun LightweightHomeTopTabs(
                 val indicatorGestureVisible = shouldUseMovingIosCapsule ||
                     shouldUseMd3DockBackedCapsule ||
                     shouldUseMd3LiquidCapsule
+                val indicatorDragModifier = if (pagerState != null && categories.size > 1) {
+                    Modifier.draggable(
+                        state = indicatorDraggableState,
+                        orientation = Orientation.Horizontal,
+                        onDragStarted = {
+                            topTabIndicatorSettlingTarget = null
+                            topTabIndicatorDirectDragPosition = currentPositionProvider()
+                                .coerceIn(0f, categories.lastIndex.toFloat())
+                            topTabIndicatorDirectDragActive = true
+                        },
+                        onDragStopped = {
+                            val targetIndex = resolveTopTabIndicatorDragTargetIndex(
+                                position = topTabIndicatorDirectDragPosition,
+                                itemCount = categories.size,
+                            )
+                            topTabIndicatorDirectDragPosition = targetIndex.toFloat()
+                            topTabIndicatorDirectDragActive = false
+                            if (targetIndex != selectedIndexLatest.value) {
+                                haptic(HapticType.SELECTION)
+                                topTabIndicatorSettlingTarget = targetIndex
+                                onCategorySelectedLatest.value(targetIndex)
+                            }
+                        },
+                    )
+                } else {
+                    Modifier
+                }
                 val indicatorGestureModifier = Modifier
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -1666,7 +1769,7 @@ private fun LightweightHomeTopTabs(
                     }
                 }
                 if (indicatorGestureVisible) {
-                    // 透明层只保留点击回顶；横向拖动交由屏幕 Pager 统一处理。
+                    // 透明层同时承接点击回顶与胶囊直拖；普通页面区域仍由 Pager 接管侧滑。
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
@@ -1678,6 +1781,7 @@ private fun LightweightHomeTopTabs(
                             .height(dockIndicatorHeight)
                             .zIndex(3f)
                             .then(indicatorGestureModifier)
+                            .then(indicatorDragModifier)
                     )
                 }
                 } // stable export + visible content with indicator-only motion
@@ -1791,6 +1895,7 @@ private fun LightweightTopTabItem(
     useClickIndication: Boolean = true,
     colorMode: TopTabLiquidColorMode = TopTabLiquidColorMode.NORMAL,
     exportMonochromeColor: Color = OpticalContrastPalette.Highlight,
+    adaptiveContentColorOverride: Color? = null,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -1832,9 +1937,9 @@ private fun LightweightTopTabItem(
     }
     val contentColor = when (colorMode) {
         TopTabLiquidColorMode.GLASS_EXPORT -> exportMonochromeColor
-        TopTabLiquidColorMode.GLASS_VISIBLE -> unselectedColor
+        TopTabLiquidColorMode.GLASS_VISIBLE -> adaptiveContentColorOverride ?: unselectedColor
         TopTabLiquidColorMode.NORMAL -> androidx.compose.ui.graphics.lerp(
-            unselectedColor,
+            adaptiveContentColorOverride ?: unselectedColor,
             selectedColor,
             selectionFraction
         )
@@ -2085,6 +2190,14 @@ internal fun resolveTopTabPagerVelocityItemsPerSecond(
     val elapsedSeconds = elapsedNanos / 1_000_000_000f
     if (elapsedSeconds <= 0f) return 0f
     return ((currentPosition - previousPosition) / elapsedSeconds).coerceIn(-12f, 12f)
+}
+
+internal fun resolveTopTabIndicatorDragTargetIndex(
+    position: Float,
+    itemCount: Int,
+): Int {
+    if (itemCount <= 0) return 0
+    return position.roundToInt().coerceIn(0, itemCount - 1)
 }
 
 internal fun resolveTopTabIndicatorLayerVelocityItemsPerSecond(

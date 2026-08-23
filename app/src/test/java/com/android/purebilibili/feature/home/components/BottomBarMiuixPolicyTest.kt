@@ -156,9 +156,10 @@ class BottomBarMiuixPolicyTest {
         assertTrue(floating.contains("val tabsBackdrop = rememberLayerBackdrop()"))
         assertTrue(floating.contains(".layerBackdrop(tabsBackdrop)"))
         assertTrue(floating.contains("rememberCombinedBackdrop(backdrop, tabsBackdrop)"))
-        assertTrue(floating.contains("blur(4.dp.toPx(), 4.dp.toPx())"))
-        assertTrue(floating.contains("refractionHeight = shellLensPx"))
-        assertTrue(floating.contains("refractionAmount = shellLensPx"))
+        assertTrue(floating.contains("liquidGlassTuning.backdropBlurRadius.dp.toPx()"))
+        assertTrue(floating.contains("padding = maxOf("))
+        assertTrue(floating.contains("refractionHeight = shellRefractionHeightPx"))
+        assertTrue(floating.contains("refractionAmount = shellRefractionAmountPx"))
         assertTrue(floating.contains("FloatingBottomBarPressedScale: Float = 78f / 56f"))
     }
 
@@ -174,7 +175,7 @@ class BottomBarMiuixPolicyTest {
                 RegexOption.MULTILINE
             ).containsMatchIn(floating)
         )
-        assertTrue(floating.contains("chromaticAberration = 0.5f"))
+        assertTrue(floating.contains("resolveLiquidGlassIndicatorChromaticAberration("))
         assertTrue(floating.contains("depthEffect = true"))
     }
 

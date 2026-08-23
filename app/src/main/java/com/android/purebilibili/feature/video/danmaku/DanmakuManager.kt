@@ -545,10 +545,13 @@ class DanmakuManager private constructor(
         if (invalidateView) {
             ctrl.invalidate()
         }
+        if (config.isEnabled) {
+            // A new episode can finish loading after its enable/view effects already ran.
+            // Restore visibility at data commit time so the user never has to toggle again.
+            danmakuView?.visibility = android.view.View.VISIBLE
+        }
         if (shouldPlay && config.isEnabled) {
             isPlaying = true
-            // hide() 可能把 view 设为 GONE；数据就绪后若开关仍开则恢复可见。
-            danmakuView?.visibility = android.view.View.VISIBLE
         } else {
             ctrl.pause()
             isPlaying = false
@@ -1396,7 +1399,8 @@ class DanmakuManager private constructor(
                         Log.w(TAG, " Danmaku HARD RESYNC at ${position}ms with frame sync")
                     }
                     DanmakuSyncAction.PauseOnly -> {
-                        // seek 后若经历缓冲或短暂停止，恢复时必须重新启动渲染引擎，不能抑制硬同步。
+                        // 暂停保留当前渲染层，普通恢复走 soft resync；若这是 seek/缓冲链路，
+                        // 对应的 discontinuity / STATE_READY 事件仍会执行 hard resync。
                         lastExplicitSeekStartedPlayback =
                             resolveExplicitSeekStartedPlaybackAfterSyncAction(
                                 explicitSeekStartedPlayback = lastExplicitSeekStartedPlayback,
@@ -1412,7 +1416,19 @@ class DanmakuManager private constructor(
                             Log.w(TAG, " Player playing but danmaku data not loaded/enabled yet, will sync after load")
                         }
                     }
-                    DanmakuSyncAction.SoftResync -> Unit
+                    DanmakuSyncAction.SoftResync -> {
+                        val position = exoPlayer.currentPosition.coerceAtLeast(0L)
+                        softResyncDanmakuTimeline(
+                            positionMs = position,
+                            shouldPlay = true,
+                            reason = "is_playing_resume"
+                        )
+                        isPlaying = true
+                        wasBufferingWhilePlaying = false
+                        clearExplicitSeekResyncMarker()
+                        startDriftSync()
+                        Log.w(TAG, " Danmaku SOFT RESUME at ${position}ms")
+                    }
                 }
             }
             
@@ -1826,9 +1842,13 @@ class DanmakuManager private constructor(
                 isPlaying = false
                 return@withContext
             }
+            val currentPositionMs = resolveDanmakuDataReadyPositionMs(
+                currentPlayerPositionMs = player?.currentPosition,
+                requestedPositionMs = positionMs,
+            )
             resyncDanmakuTimeline(
                 list = cachedDanmakuList.orEmpty(),
-                positionMs = positionMs,
+                positionMs = currentPositionMs,
                 shouldPlay = shouldStartDanmakuOnDataReady(
                     isPlaying = player?.isPlaying == true,
                     playWhenReady = player?.playWhenReady == true
@@ -2011,7 +2031,7 @@ class DanmakuManager private constructor(
         // 引擎可能停在 paused 且没有新的 isPlaying 事件恢复（该事件已在数据加载完成前
         // 被 None 分支吃掉），只能靠手动重开弹幕开关触发 show() 才恢复。
         // 改为「数据就绪即装填时间线」，shouldPlay 仍按实际播放状态决定 start/pause；
-        // 之后 onIsPlayingChanged(true) 会走 HardResync 完成最终启动。
+        // 之后 onIsPlayingChanged(true) 会走 SoftResync 完成最终时钟校准。
         cachedDanmakuList?.takeIf { it.isNotEmpty() }?.let { list ->
             resyncDanmakuTimeline(
                 list = list,

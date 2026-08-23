@@ -260,7 +260,7 @@ class UiSkinPackageReaderTest {
         assertEquals("#6bb4ff", preview.manifest.colors.bottomBarTrimTint)
         assertEquals("#4e536a", preview.manifest.colors.topAtmosphereTint)
         assertEquals("#ffffff", preview.manifest.colors.searchCapsuleTint)
-        assertEquals("KimmyXYC/bilibili-skin", preview.manifest.styleSourceName)
+        assertEquals("Rovniced/bilibili-skin", preview.manifest.styleSourceName)
         assertEquals(false, preview.manifest.communityShareable)
         assertEquals(true, preview.manifest.containsOfficialAssets)
         assertTrue(preview.manifest.licenseNote.orEmpty().contains("本地"))
@@ -359,6 +359,20 @@ class UiSkinPackageReaderTest {
     }
 
     @Test
+    fun bilibiliSkinDirectGb18030JsonPreservesChineseThemeName() {
+        val packageBytes = skinPackage("tail_bg.png" to pngBytes())
+        val input = officialUserEquipJson().toByteArray(java.nio.charset.Charset.forName("GB18030"))
+
+        val importPackage = UiSkinImportPackageResolver.resolve(
+            inputBytes = input,
+            remotePackageFetcher = { packageBytes }
+        ).getOrThrow()
+        val preview = UiSkinPackageReader.preview(importPackage.packageBytes).getOrThrow()
+
+        assertEquals("官方个性主题", preview.manifest.displayName)
+    }
+
+    @Test
     fun bilibiliSkinDirectNestedJson_downloadsPackageUrlAndConverts() {
         val packageBytes = skinPackage(
             "tail_bg.png" to pngBytes(),
@@ -442,6 +456,11 @@ class UiSkinPackageReaderTest {
         assertEquals("assets/head_myself_squared_bg.jpg", preview.manifest.assets.homeProfileSquaredBackground)
         assertEquals("assets/tail_icon_main.png", preview.manifest.assets.bottomBarIcons["home"])
         assertEquals("assets/tail_icon_selected_main.png", preview.manifest.assets.bottomBarIcons["home_selected"])
+        assertEquals("assets/tail_icon_channel.png", preview.manifest.assets.bottomBarIcons["channel"])
+        assertEquals(
+            "assets/tail_icon_selected_channel.png",
+            preview.manifest.assets.bottomBarIcons["channel_selected"]
+        )
         assertEquals("assets/tail_icon_channel.png", preview.manifest.assets.homeChannelIcon)
         assertEquals("assets/tail_icon_selected_channel.png", preview.manifest.assets.homeChannelSelectedIcon)
         assertEquals(null, preview.manifest.assets.bottomBarIcons["story"])

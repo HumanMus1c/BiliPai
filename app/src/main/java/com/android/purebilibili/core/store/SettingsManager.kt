@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -21,6 +22,7 @@ import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_TRANSITION_CUSTO
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionSpeed
 import com.android.purebilibili.core.ui.transition.normalizeVideoSharedTransitionCustomDurationMillis
 import com.android.purebilibili.core.store.home.HomeSettingsStore
+import com.android.purebilibili.core.store.home.liquidGlassReadabilityModePreferencesKey
 import com.android.purebilibili.core.store.navigation.NavigationSettingsStore
 import com.android.purebilibili.core.store.navigation.bottomBarItemLabelsPreferencesKey
 import com.android.purebilibili.core.store.navigation.parseBottomBarItemLabels
@@ -150,7 +152,7 @@ internal fun resolveLiquidGlassAdvancedPreset(
         preset = preset,
         contentReadability = 1f,
         chromaticAberration = 0.08f,
-        contentDistortion = 0.18f,
+        contentDistortion = 0f,
     )
     LiquidGlassAdvancedPreset.BALANCED -> LiquidGlassAdvancedSettings(
         preset = preset,
@@ -588,6 +590,8 @@ data class HomeSettings(
     val liquidGlassMode: LiquidGlassMode = LiquidGlassMode.BALANCED,
     val liquidGlassStrength: Float = 0.52f,
     val liquidGlassProgress: Float = 0.5f,
+    val liquidGlassReadabilityMode: LiquidGlassReadabilityMode =
+        LiquidGlassReadabilityMode.STABLE,
     val liquidGlassAdvancedSettings: LiquidGlassAdvancedSettings = LiquidGlassAdvancedSettings(),
     val homeHeaderCollapseMode: HomeHeaderCollapseMode = HomeHeaderCollapseMode.BOTH,
     val homeBarHideType: HomeBarHideType = HomeBarHideType.SYNC,
@@ -1246,6 +1250,12 @@ internal fun encodeCollectionSortPreferences(
 }
 
 object SettingsManager {
+    const val DEFAULT_AUTO_CACHE_CLEAR_THRESHOLD_GB = 5
+    enum class AutoCacheClearInterval(val days: Int, val label: String) {
+        NEVER(0, "从不"),
+        WEEKLY(7, "每周"),
+        MONTHLY(30, "每月")
+    }
     // 键定义
     private val KEY_AUTO_PLAY = booleanPreferencesKey("auto_play")
     private val KEY_PLAYBACK_COMPLETION_BEHAVIOR = intPreferencesKey("playback_completion_behavior")
@@ -1275,6 +1285,8 @@ object SettingsManager {
     private val KEY_BG_PLAY = booleanPreferencesKey("bg_play")
     //  [新增] 触感反馈 (默认开启)
     private val KEY_HAPTIC_FEEDBACK_ENABLED = booleanPreferencesKey("haptic_feedback_enabled")
+    private val KEY_GLOBAL_TEXT_TAP_COPY_ENABLED =
+        booleanPreferencesKey("global_text_tap_copy_enabled")
     //  [新增] 手势灵敏度和主题色
     private val KEY_GESTURE_SENSITIVITY = floatPreferencesKey("gesture_sensitivity")
     private val KEY_SLIDE_VOLUME_BRIGHTNESS_ENABLED = booleanPreferencesKey("slide_volume_brightness_enabled")
@@ -1496,10 +1508,15 @@ object SettingsManager {
     private val KEY_COMMENT_DEFAULT_SORT_MODE = intPreferencesKey("comment_default_sort_mode")
     private val KEY_COMMENT_FRAUD_DETECTION_ENABLED =
         booleanPreferencesKey("comment_fraud_detection_enabled")
+    private val KEY_AUTO_CACHE_CLEAR_INTERVAL = intPreferencesKey("auto_cache_clear_interval_days")
+    private val KEY_AUTO_CACHE_CLEAR_THRESHOLD_GB = intPreferencesKey("auto_cache_clear_threshold_gb")
+    private val KEY_LAST_AUTO_CACHE_CLEAR_AT = longPreferencesKey("last_auto_cache_clear_at")
     private val KEY_COMMENT_MEMBER_DECORATIONS_ENABLED =
         booleanPreferencesKey("comment_member_decorations_enabled")
     private val KEY_IMAGE_PREVIEW_LONG_PRESS_SAVE_ENABLED =
         booleanPreferencesKey("image_preview_long_press_save_enabled")
+    private val KEY_IMAGE_PREVIEW_3D_PAGE_ENABLED =
+        booleanPreferencesKey("image_preview_3d_page_enabled")
     //  [新增] 离开播放页后停止播放（优先于小窗/画中画模式）
     private val KEY_STOP_PLAYBACK_ON_EXIT = booleanPreferencesKey("stop_playback_on_exit")
     private val KEY_BACKGROUND_PLAYBACK_ENABLED = booleanPreferencesKey("background_playback_enabled")
@@ -1544,6 +1561,10 @@ object SettingsManager {
         val liquidGlassProgress = normalizeLiquidGlassProgress(
             preferences[KEY_LIQUID_GLASS_PROGRESS] ?: 0.5f
         )
+        val liquidGlassReadabilityMode = LiquidGlassReadabilityMode.fromValue(
+            preferences[liquidGlassReadabilityModePreferencesKey]
+                ?: LiquidGlassReadabilityMode.STABLE.value
+        )
         val liquidGlassAdvancedSettings = resolveLiquidGlassAdvancedSettings(
             presetValue = preferences[KEY_LIQUID_GLASS_ADVANCED_PRESET],
             contentReadability = preferences[KEY_LIQUID_GLASS_CONTENT_READABILITY],
@@ -1585,6 +1606,7 @@ object SettingsManager {
             liquidGlassMode = liquidGlassMode,
             liquidGlassStrength = liquidGlassStrength,
             liquidGlassProgress = liquidGlassProgress,
+            liquidGlassReadabilityMode = liquidGlassReadabilityMode,
             liquidGlassAdvancedSettings = liquidGlassAdvancedSettings,
             homeHeaderCollapseMode = headerCollapseMode,
             homeBarHideType = HomeBarHideType.fromValue(
@@ -2440,6 +2462,15 @@ object SettingsManager {
         // 优先读取缓存
         return context.getSharedPreferences("haptic_cache", Context.MODE_PRIVATE)
             .getBoolean("enabled", true)
+    }
+
+    fun getGlobalTextTapCopyEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_GLOBAL_TEXT_TAP_COPY_ENABLED] ?: false }
+
+    suspend fun setGlobalTextTapCopyEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_GLOBAL_TEXT_TAP_COPY_ENABLED] = value
+        }
     }
 
     //  [新增] --- 手势灵敏度 (0.5 ~ 2.0, 默认 1.0) ---
@@ -3832,7 +3863,7 @@ object SettingsManager {
                 normalizeLiquidGlassAdvancedValue(settings.contentDistortion, 0.45f)
         }
     }
-    
+
     //  [修复] --- 模糊强度 (THIN, THICK, APPLE_DOCK) ---
     fun getBlurIntensity(context: Context): Flow<BlurIntensity> = context.settingsDataStore.data
         .map { preferences ->
@@ -5413,6 +5444,39 @@ object SettingsManager {
         }
     }
 
+    fun getAutoCacheClearInterval(context: Context): Flow<AutoCacheClearInterval> =
+        context.settingsDataStore.data.map { preferences ->
+            val days = preferences[KEY_AUTO_CACHE_CLEAR_INTERVAL] ?: AutoCacheClearInterval.NEVER.days
+            AutoCacheClearInterval.entries.firstOrNull { it.days == days } ?: AutoCacheClearInterval.NEVER
+        }
+
+    suspend fun setAutoCacheClearInterval(context: Context, interval: AutoCacheClearInterval) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_AUTO_CACHE_CLEAR_INTERVAL] = interval.days
+        }
+    }
+
+    fun getAutoCacheClearThresholdGb(context: Context): Flow<Int> =
+        context.settingsDataStore.data.map { preferences ->
+            (preferences[KEY_AUTO_CACHE_CLEAR_THRESHOLD_GB]
+                ?: DEFAULT_AUTO_CACHE_CLEAR_THRESHOLD_GB).coerceIn(1, 20)
+        }
+
+    suspend fun setAutoCacheClearThresholdGb(context: Context, thresholdGb: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_AUTO_CACHE_CLEAR_THRESHOLD_GB] = thresholdGb.coerceIn(1, 20)
+        }
+    }
+
+    suspend fun getLastAutoCacheClearAt(context: Context): Long =
+        context.settingsDataStore.data.first()[KEY_LAST_AUTO_CACHE_CLEAR_AT] ?: 0L
+
+    suspend fun setLastAutoCacheClearAt(context: Context, timestamp: Long) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_LAST_AUTO_CACHE_CLEAR_AT] = timestamp.coerceAtLeast(0L)
+        }
+    }
+
     fun getCommentMemberDecorationsEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data
             .map { preferences -> preferences[KEY_COMMENT_MEMBER_DECORATIONS_ENABLED] ?: false }
@@ -5430,6 +5494,16 @@ object SettingsManager {
     suspend fun setImagePreviewLongPressSaveEnabled(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_IMAGE_PREVIEW_LONG_PRESS_SAVE_ENABLED] = enabled
+        }
+    }
+
+    fun getImagePreview3dPageEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data
+            .map { preferences -> preferences[KEY_IMAGE_PREVIEW_3D_PAGE_ENABLED] ?: false }
+
+    suspend fun setImagePreview3dPageEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_IMAGE_PREVIEW_3D_PAGE_ENABLED] = enabled
         }
     }
     
@@ -6937,6 +7011,14 @@ object SettingsManager {
             StringShareablePreferenceDefinition(KEY_DYNAMIC_TAB_VISIBLE_TABS, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HEADER_BLUR_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_BOTTOM_BAR_BLUR_ENABLED, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(
+                KEY_TOP_BAR_LIQUID_GLASS_ENABLED,
+                SettingsShareSection.APPEARANCE,
+            ),
+            BooleanShareablePreferenceDefinition(
+                KEY_HOME_SEARCH_LIQUID_GLASS_ENABLED,
+                SettingsShareSection.APPEARANCE,
+            ),
             BooleanShareablePreferenceDefinition(KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_BOTTOM_BAR_SEARCH_LAYOUT_MODE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(
@@ -6945,6 +7027,35 @@ object SettingsManager {
             ),
             BooleanShareablePreferenceDefinition(KEY_LIQUID_GLASS_ENABLED, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_LIQUID_GLASS_STYLE, SettingsShareSection.APPEARANCE),
+            IntShareablePreferenceDefinition(KEY_LIQUID_GLASS_MODE, SettingsShareSection.APPEARANCE),
+            FloatShareablePreferenceDefinition(
+                KEY_LIQUID_GLASS_STRENGTH,
+                SettingsShareSection.APPEARANCE,
+            ),
+            FloatShareablePreferenceDefinition(
+                KEY_LIQUID_GLASS_PROGRESS,
+                SettingsShareSection.APPEARANCE,
+            ),
+            IntShareablePreferenceDefinition(
+                KEY_LIQUID_GLASS_ADVANCED_PRESET,
+                SettingsShareSection.APPEARANCE,
+            ),
+            IntShareablePreferenceDefinition(
+                liquidGlassReadabilityModePreferencesKey,
+                SettingsShareSection.APPEARANCE,
+            ),
+            FloatShareablePreferenceDefinition(
+                KEY_LIQUID_GLASS_CONTENT_READABILITY,
+                SettingsShareSection.APPEARANCE,
+            ),
+            FloatShareablePreferenceDefinition(
+                KEY_LIQUID_GLASS_CHROMATIC_ABERRATION,
+                SettingsShareSection.APPEARANCE,
+            ),
+            FloatShareablePreferenceDefinition(
+                KEY_LIQUID_GLASS_CONTENT_DISTORTION,
+                SettingsShareSection.APPEARANCE,
+            ),
             StringShareablePreferenceDefinition(KEY_BLUR_INTENSITY, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_DISPLAY_MODE, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_GRID_COLUMN_COUNT, SettingsShareSection.APPEARANCE),
@@ -6993,6 +7104,7 @@ object SettingsManager {
             BooleanShareablePreferenceDefinition(KEY_COMMENT_FRAUD_DETECTION_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_COMMENT_MEMBER_DECORATIONS_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_IMAGE_PREVIEW_LONG_PRESS_SAVE_ENABLED, SettingsShareSection.PLAYBACK),
+            BooleanShareablePreferenceDefinition(KEY_IMAGE_PREVIEW_3D_PAGE_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_STOP_PLAYBACK_ON_EXIT, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_BACKGROUND_PLAYBACK_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_AUDIO_FOCUS_ENABLED, SettingsShareSection.PLAYBACK),
@@ -7035,6 +7147,10 @@ object SettingsManager {
             IntShareablePreferenceDefinition(KEY_COMMENT_COLLAPSED_REPLY_PREVIEW_LIMIT, SettingsShareSection.PLAYBACK),
 
             BooleanShareablePreferenceDefinition(KEY_HAPTIC_FEEDBACK_ENABLED, SettingsShareSection.GESTURE),
+            BooleanShareablePreferenceDefinition(
+                KEY_GLOBAL_TEXT_TAP_COPY_ENABLED,
+                SettingsShareSection.GESTURE,
+            ),
             FloatShareablePreferenceDefinition(KEY_GESTURE_SENSITIVITY, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_SLIDE_VOLUME_BRIGHTNESS_ENABLED, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_SET_SYSTEM_BRIGHTNESS, SettingsShareSection.GESTURE),
@@ -7151,6 +7267,31 @@ object SettingsManager {
         return shareableSettingDefinitions.map { it.entryDefinition }
     }
 
+    private val liquidGlassShareableStorageKeys: Set<String> by lazy {
+        setOf(
+            KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED.name,
+            KEY_LIQUID_GLASS_ENABLED.name,
+            KEY_TOP_BAR_LIQUID_GLASS_ENABLED.name,
+            KEY_HOME_SEARCH_LIQUID_GLASS_ENABLED.name,
+            KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED.name,
+            KEY_LIQUID_GLASS_STYLE.name,
+            KEY_LIQUID_GLASS_MODE.name,
+            KEY_LIQUID_GLASS_STRENGTH.name,
+            KEY_LIQUID_GLASS_PROGRESS.name,
+            KEY_LIQUID_GLASS_ADVANCED_PRESET.name,
+            liquidGlassReadabilityModePreferencesKey.name,
+            KEY_LIQUID_GLASS_CONTENT_READABILITY.name,
+            KEY_LIQUID_GLASS_CHROMATIC_ABERRATION.name,
+            KEY_LIQUID_GLASS_CONTENT_DISTORTION.name,
+        )
+    }
+
+    fun getLiquidGlassShareableSettingsEntryDefinitions(): List<SettingsShareEntryDefinition> {
+        return getShareableSettingsEntryDefinitions().filter { definition ->
+            definition.storageKey in liquidGlassShareableStorageKeys
+        }
+    }
+
     suspend fun exportShareableSettingsSnapshot(context: Context): Map<String, JsonElement> {
         val preferences = context.settingsDataStore.data.first()
         return linkedMapOf<String, JsonElement>().apply {
@@ -7160,6 +7301,62 @@ object SettingsManager {
                 }
             }
         }
+    }
+
+    suspend fun exportLiquidGlassShareableSettingsSnapshot(
+        context: Context,
+    ): Map<String, JsonElement> {
+        val preferences = context.settingsDataStore.data.first()
+        val legacyEnabled = preferences[KEY_LIQUID_GLASS_ENABLED] ?: false
+        val topBarEnabled = preferences[KEY_TOP_BAR_LIQUID_GLASS_ENABLED] ?: false
+        val homeSearchEnabled = preferences[KEY_HOME_SEARCH_LIQUID_GLASS_ENABLED]
+            ?: topBarEnabled
+        val bottomBarEnabled = preferences[KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED]
+            ?: legacyEnabled
+        val progress = normalizeLiquidGlassProgress(
+            preferences[KEY_LIQUID_GLASS_PROGRESS] ?: 0.5f
+        )
+        val advancedSettings = resolveLiquidGlassAdvancedSettings(
+            presetValue = preferences[KEY_LIQUID_GLASS_ADVANCED_PRESET],
+            contentReadability = preferences[KEY_LIQUID_GLASS_CONTENT_READABILITY],
+            chromaticAberration = preferences[KEY_LIQUID_GLASS_CHROMATIC_ABERRATION],
+            contentDistortion = preferences[KEY_LIQUID_GLASS_CONTENT_DISTORTION],
+        )
+        return linkedMapOf(
+            KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED.name to JsonPrimitive(
+                preferences[KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED] ?: false
+            ),
+            KEY_LIQUID_GLASS_ENABLED.name to JsonPrimitive(bottomBarEnabled),
+            KEY_TOP_BAR_LIQUID_GLASS_ENABLED.name to JsonPrimitive(topBarEnabled),
+            KEY_HOME_SEARCH_LIQUID_GLASS_ENABLED.name to JsonPrimitive(homeSearchEnabled),
+            KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED.name to JsonPrimitive(bottomBarEnabled),
+            KEY_LIQUID_GLASS_STYLE.name to JsonPrimitive(
+                resolveLegacyLiquidGlassStyleFromProgress(progress).value
+            ),
+            KEY_LIQUID_GLASS_MODE.name to JsonPrimitive(
+                resolveLiquidGlassModeFromProgress(progress).value
+            ),
+            KEY_LIQUID_GLASS_STRENGTH.name to JsonPrimitive(
+                resolveLiquidGlassStrengthFromProgress(progress)
+            ),
+            KEY_LIQUID_GLASS_PROGRESS.name to JsonPrimitive(progress),
+            KEY_LIQUID_GLASS_ADVANCED_PRESET.name to JsonPrimitive(
+                advancedSettings.preset.value
+            ),
+            liquidGlassReadabilityModePreferencesKey.name to JsonPrimitive(
+                preferences[liquidGlassReadabilityModePreferencesKey]
+                    ?: LiquidGlassReadabilityMode.STABLE.value
+            ),
+            KEY_LIQUID_GLASS_CONTENT_READABILITY.name to JsonPrimitive(
+                advancedSettings.contentReadability
+            ),
+            KEY_LIQUID_GLASS_CHROMATIC_ABERRATION.name to JsonPrimitive(
+                advancedSettings.chromaticAberration
+            ),
+            KEY_LIQUID_GLASS_CONTENT_DISTORTION.name to JsonPrimitive(
+                advancedSettings.contentDistortion
+            ),
+        )
     }
 
     suspend fun applyShareableSettingsSnapshot(

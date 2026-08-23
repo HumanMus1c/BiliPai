@@ -6,6 +6,7 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -75,7 +76,7 @@ fun SplashWallpaperPickerSheet(
     val initialSplashTabletBias by viewModel.getSplashAlignment(true).collectAsStateWithLifecycle(initialValue = 0f
         )
     val customWallpaperPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
             runCatching {
@@ -90,7 +91,9 @@ fun SplashWallpaperPickerSheet(
         }
     }
     val openCustomWallpaperPicker = {
-        customWallpaperPickerLauncher.launch(arrayOf("image/*"))
+        customWallpaperPickerLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
     }
     val titleText = when (target) {
         WallpaperPickerTarget.SPLASH -> "选择开屏壁纸"

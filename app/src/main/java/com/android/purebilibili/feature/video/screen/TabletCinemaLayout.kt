@@ -1234,6 +1234,7 @@ private fun CinemaCommentsPane(
             onDissolveStart = commentActions.startSubDissolve,
             onDeleteComment = commentActions.deleteSubComment,
             onCommentLike = commentActions.likeComment,
+            onCommentHate = commentActions.hateComment,
             onReportComment = commentActions.reportComment,
             onUrlClick = openCommentUrl,
             showIdentityDecorations = showIdentityDecorations,
@@ -1251,7 +1252,6 @@ private fun CinemaCommentsPane(
                         SettingsManager.setCommentDefaultSortMode(context, mode.apiMode)
                     }
                 },
-                miuixBackdrop = commentChromeBackdrop
             )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(
@@ -1306,7 +1306,9 @@ private fun CinemaCommentsPane(
                         showImagePreview = true
                     },
                     onLikeClick = { commentActions.likeComment(reply.rpid) },
+                    onHateClick = { commentActions.hateComment(reply.rpid) },
                     isLiked = reply.action == 1 || reply.rpid in commentState.likedComments,
+                    isHated = reply.action == 2 || reply.rpid in commentState.hatedComments,
                     onReplyClick = { playbackActions.replyTo(reply) },
                     onReportClick = { reason -> commentActions.reportComment(reply.rpid, reason) },
                     canToggleTop = shouldShowReplyTopAction(

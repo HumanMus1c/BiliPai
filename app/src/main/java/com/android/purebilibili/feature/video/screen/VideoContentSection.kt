@@ -53,7 +53,6 @@ import com.android.purebilibili.core.ui.rememberAppCommentIcon
 import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberAppPlayIcon
-import com.android.purebilibili.core.ui.rememberAppSettingsIcon
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.AppTopTabPresentation
@@ -61,9 +60,10 @@ import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
+import com.android.purebilibili.core.ui.components.AppTab
 import com.android.purebilibili.core.ui.performance.TrackJankStateFlag
 import com.android.purebilibili.core.ui.performance.TrackScrollJank
-import com.android.purebilibili.core.store.DanmakuSettings
 import com.android.purebilibili.core.store.HomeSettings
 import com.android.purebilibili.core.store.SettingsManager
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
@@ -83,7 +83,6 @@ import com.android.purebilibili.feature.video.ui.section.resolveDisplayBgmList
 import com.android.purebilibili.feature.video.ui.section.shouldShowAiSummaryEntry
 import com.android.purebilibili.feature.video.ui.section.resolveVideoDetailMotionBudget
 import com.android.purebilibili.feature.video.ui.section.shouldAnimateVideoDetailLayout
-import com.android.purebilibili.feature.video.ui.components.DanmakuSettingsPanel
 import com.android.purebilibili.feature.video.ui.components.RelatedVideoGridRow
 import com.android.purebilibili.feature.video.ui.components.chunkRelatedVideosForHomeStyleGrid
 import com.android.purebilibili.feature.video.ui.components.filterRelatedVideosByHiddenBvids
@@ -92,6 +91,7 @@ import com.android.purebilibili.feature.video.ui.components.CollectionRow
 import com.android.purebilibili.feature.video.ui.components.CollectionSheet
 import com.android.purebilibili.feature.video.ui.components.PagesSelector
 import com.android.purebilibili.feature.video.ui.components.CommentListHeader
+import com.android.purebilibili.feature.video.ui.components.CommentSortHeader
 import com.android.purebilibili.feature.video.ui.components.CommentSortFilterBar
 import com.android.purebilibili.feature.video.ui.components.ReplyItemView
 import com.android.purebilibili.feature.video.ui.components.rememberVideoCommentAppearance
@@ -238,9 +238,6 @@ internal data class VideoContentTabBarDanmakuActionLayoutPolicy(
     val sendLabel: String,
     val secondaryControlHeightDp: Int,
     val secondaryControlCornerRadiusDp: Int,
-    val settingsButtonSizeDp: Int,
-    val settingsIconSizeDp: Int,
-    val settingsLeadingPaddingDp: Int
 )
 
 internal fun resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp: Int): VideoContentTabBarDanmakuActionLayoutPolicy {
@@ -257,9 +254,6 @@ internal fun resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp: Int): V
             sendLabel = "发弹幕",
             secondaryControlHeightDp = 40,
             secondaryControlCornerRadiusDp = AppChromeSizeTokens.CompactControlCornerRadiusDp,
-            settingsButtonSizeDp = 40,
-            settingsIconSizeDp = 18,
-            settingsLeadingPaddingDp = 4
         )
     } else {
         VideoContentTabBarDanmakuActionLayoutPolicy(
@@ -274,9 +268,6 @@ internal fun resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp: Int): V
             sendLabel = "发弹幕",
             secondaryControlHeightDp = 40,
             secondaryControlCornerRadiusDp = AppChromeSizeTokens.CompactControlCornerRadiusDp,
-            settingsButtonSizeDp = 40,
-            settingsIconSizeDp = 18,
-            settingsLeadingPaddingDp = 6
         )
     }
 }
@@ -469,8 +460,10 @@ fun VideoContentSection(
     onDissolveStart: (Long) -> Unit = {},
     // [新增] 点赞回调
     onCommentLike: (Long) -> Unit = {},
+    onCommentHate: (Long) -> Unit = {},
     // [新增] 已点赞的评论 ID 集合
     likedComments: Set<Long> = emptySet(),
+    hatedComments: Set<Long> = emptySet(),
     onCommentUrlClick: (String) -> Unit = {},
     onDescriptionUrlClick: ((String) -> Unit)? = null,
     onSearchKeywordClick: (String) -> Unit = {},
@@ -516,6 +509,9 @@ fun VideoContentSection(
     bottomContentPadding: Dp = if (showInteractionActions) 84.dp else 12.dp
 ) {
     val context = LocalContext.current
+    val homeSettings by SettingsManager
+        .getHomeSettings(context)
+        .collectAsStateWithLifecycle(initialValue = HomeSettings())
     val tabs = listOf("简介", "评论")
     val scope = rememberCoroutineScope()
     TrackJankStateFlag(
@@ -564,7 +560,6 @@ fun VideoContentSection(
     
     // 合集展开状态
     var showCollectionSheet by remember { mutableStateOf(false) }
-    var showDanmakuSettings by remember { mutableStateOf(false) }
     var confirmDeleteNote by remember { mutableStateOf(false) }
     val onShareVideoNote: (VideoNoteEditorDocument, Boolean) -> Unit = { document, isDraft ->
         ShareUtils.shareText(
@@ -822,12 +817,18 @@ fun VideoContentSection(
                         onDeleteComment = onDeleteComment,
                         onDissolveStart = onDissolveStart,
                         onCommentLike = onCommentLike,
+                        onCommentHate = onCommentHate,
                         likedComments = likedComments,
+                        hatedComments = hatedComments,
                         onCommentUrlClick = onCommentUrlClick,
                         onReportComment = onReportComment,
                         onToggleTopComment = onToggleTopComment,
                         showIdentityDecorations = showIdentityDecorations,
                         lightweightCommentRendering = lightweightCommentRendering,
+                        sortMode = sortMode,
+                        onSortModeChange = onSortModeChange,
+                        showNativeSortHeader = !homeSettings.androidNativeLiquidGlassEnabled,
+                        showSortControlInHeader = true,
                     )
                 }
             }
@@ -852,6 +853,7 @@ fun VideoContentSection(
         ) {
             VideoContentTabBar(
                 tabs = tabs,
+                replyCount = replyCount,
                 selectedTabIndex = pagerState.currentPage,
                 onTabSelected = onTabSelected,
                 sortMode = sortMode,
@@ -859,7 +861,6 @@ fun VideoContentSection(
                 onDanmakuSendClick = onDanmakuSendClick,
                 danmakuEnabled = danmakuEnabled,
                 onDanmakuToggle = onDanmakuToggle,
-                onDanmakuSettingsClick = { showDanmakuSettings = true },
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight(unbounded = tabBarMaxHeightPx > 0f)
@@ -884,6 +885,24 @@ fun VideoContentSection(
                 },
                 isScrollInProgressProvider = { pagerState.isScrollInProgress },
             )
+        }
+
+        if (pagerState.currentPage == 1 && homeSettings.androidNativeLiquidGlassEnabled) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        top = tabBarVisibleHeightDp + 6.dp,
+                        end = 16.dp,
+                    ),
+                contentAlignment = Alignment.TopEnd,
+            ) {
+                CommentSortFilterBar(
+                    sortMode = sortMode,
+                    onSortModeChange = onSortModeChange,
+                    miuixBackdrop = videoContentMiuixBackdrop,
+                )
+            }
         }
 
         // Inline 弹幕设置不是 Dialog，必须在详情内容之后绘制，避免被列表盖住。
@@ -918,11 +937,6 @@ fun VideoContentSection(
             }
         }
 
-        if (showDanmakuSettings) {
-            VideoDetailDanmakuSettingsPanel(
-                onDismiss = { showDanmakuSettings = false }
-            )
-        }
 
         VideoNoteEditorSheet(
             noteState = videoNoteState,
@@ -1150,12 +1164,18 @@ internal fun VideoCommentTab(
     onDissolveStart: (Long) -> Unit,
     // [新增] 点赞回调
     onCommentLike: (Long) -> Unit,
+    onCommentHate: (Long) -> Unit,
     likedComments: Set<Long>,
+    hatedComments: Set<Long>,
     onCommentUrlClick: (String) -> Unit,
     onReportComment: (Long, Int) -> Unit,
     onToggleTopComment: (ReplyItem) -> Unit,
     showIdentityDecorations: Boolean,
     lightweightCommentRendering: Boolean,
+    sortMode: CommentSortMode = CommentSortMode.HOT,
+    onSortModeChange: (CommentSortMode) -> Unit = {},
+    showNativeSortHeader: Boolean = false,
+    showSortControlInHeader: Boolean = false,
 ) {
     val commentAppearance = rememberVideoCommentAppearance()
     val scope = rememberCoroutineScope()
@@ -1190,9 +1210,25 @@ internal fun VideoCommentTab(
         }
     }
     Column(modifier = modifier.fillMaxSize()) {
-        CommentListHeader(
-            count = replyCount,
-        )
+        if (showSortControlInHeader) {
+            if (showNativeSortHeader) {
+                CommentSortHeader(
+                    count = replyCount,
+                    sortMode = sortMode,
+                    onSortModeChange = onSortModeChange,
+                )
+            } else {
+                CommentListHeader(
+                    count = replyCount,
+                    title = "${sortMode.label}评论",
+                )
+            }
+        } else {
+            CommentListHeader(
+                count = replyCount,
+                title = "${sortMode.label}评论",
+            )
+        }
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(
                 state = listState,
@@ -1247,6 +1283,7 @@ internal fun VideoCommentTab(
                             },
                             // [新增] 点赞事件
                             onLikeClick = { onCommentLike(reply.rpid) },
+                            onHateClick = { onCommentHate(reply.rpid) },
                             onReplyClick = { onCommentReplyClick(reply) },
                             onReportClick = { reason -> onReportComment(reply.rpid, reason) },
                             canToggleTop = shouldShowReplyTopAction(
@@ -1257,6 +1294,7 @@ internal fun VideoCommentTab(
                             onToggleTopClick = { onToggleTopComment(reply) },
                             // [修复] 正确传递点赞状态 (API数据 或 本地乐观更新)
                             isLiked = reply.action == 1 || reply.rpid in likedComments,
+                            isHated = reply.action == 2 || reply.rpid in hatedComments,
                             // [新增] 仅当评论 mid 与当前登录用户 mid 一致时显示删除按钮
                             onDeleteClick = if (currentMid > 0 && reply.mid == currentMid) {
                                 { onDissolveStart(reply.rpid) }
@@ -1334,6 +1372,7 @@ internal fun LandscapeCommentPanel(
     showIdentityDecorations: Boolean,
     dissolvingIds: Set<Long>,
     likedComments: Set<Long>,
+    hatedComments: Set<Long>,
     onSortModeChange: (CommentSortMode) -> Unit,
     onUpClick: (Long) -> Unit,
     onSubReplyClick: (ReplyItem, Long) -> Unit,
@@ -1342,6 +1381,7 @@ internal fun LandscapeCommentPanel(
     onDeleteComment: (Long) -> Unit,
     onDissolveStart: (Long) -> Unit,
     onCommentLike: (Long) -> Unit,
+    onCommentHate: (Long) -> Unit,
     onCommentUrlClick: (String) -> Unit,
     onReportComment: (Long, Int) -> Unit,
     onToggleTopComment: (ReplyItem) -> Unit,
@@ -1427,7 +1467,9 @@ internal fun LandscapeCommentPanel(
                         onDeleteComment = onDeleteComment,
                         onDissolveStart = onDissolveStart,
                         onCommentLike = onCommentLike,
+                        onCommentHate = onCommentHate,
                         likedComments = likedComments,
+                        hatedComments = hatedComments,
                         onCommentUrlClick = onCommentUrlClick,
                         onReportComment = onReportComment,
                         onToggleTopComment = onToggleTopComment,
@@ -1618,128 +1660,7 @@ private fun VideoHeaderContent(
             )
         }
     }
-}
 
-@Composable
-private fun VideoDetailDanmakuSettingsPanel(
-    onDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val danmakuScope = com.android.purebilibili.core.store.DanmakuSettingsScope.PORTRAIT
-    val danmakuSettings by SettingsManager
-        .getDanmakuSettings(context, danmakuScope)
-        .collectAsStateWithLifecycle(initialValue = DanmakuSettings(),
-            context = kotlin.coroutines.EmptyCoroutineContext
-        )
-
-    var localOpacity by remember(danmakuSettings.opacity) { mutableFloatStateOf(danmakuSettings.opacity) }
-    var localFontScale by remember(danmakuSettings.fontScale) { mutableFloatStateOf(danmakuSettings.fontScale) }
-    var localSpeed by remember(danmakuSettings.speed) { mutableFloatStateOf(danmakuSettings.speed) }
-    var localDisplayArea by remember(danmakuSettings.displayArea) { mutableFloatStateOf(danmakuSettings.displayArea) }
-    var localMergeDuplicates by remember(danmakuSettings.mergeDuplicates) { mutableStateOf(danmakuSettings.mergeDuplicates) }
-    var localDuplicateMergeWindowMs by remember(danmakuSettings.duplicateMergeWindowMs) {
-        mutableIntStateOf(danmakuSettings.duplicateMergeWindowMs)
-    }
-    var localDuplicateMergeCountThreshold by remember(danmakuSettings.duplicateMergeCountThreshold) {
-        mutableIntStateOf(danmakuSettings.duplicateMergeCountThreshold)
-    }
-    var localAllowScroll by remember(danmakuSettings.allowScroll) { mutableStateOf(danmakuSettings.allowScroll) }
-    var localAllowTop by remember(danmakuSettings.allowTop) { mutableStateOf(danmakuSettings.allowTop) }
-    var localAllowBottom by remember(danmakuSettings.allowBottom) { mutableStateOf(danmakuSettings.allowBottom) }
-    var localAllowColorful by remember(danmakuSettings.allowColorful) { mutableStateOf(danmakuSettings.allowColorful) }
-    var localAllowSpecial by remember(danmakuSettings.allowSpecial) { mutableStateOf(danmakuSettings.allowSpecial) }
-    var localHideInteractiveCommands by remember(danmakuSettings.hideInteractiveCommands) {
-        mutableStateOf(danmakuSettings.hideInteractiveCommands)
-    }
-    var localPortraitDisplayAreaMode by remember(danmakuSettings.portraitDisplayAreaMode) {
-        mutableStateOf(danmakuSettings.portraitDisplayAreaMode)
-    }
-    var localBlockRulesRaw by remember(danmakuSettings.blockRulesRaw) { mutableStateOf(danmakuSettings.blockRulesRaw) }
-
-    DanmakuSettingsPanel(
-        isFullscreen = false,
-        settingsScope = danmakuScope,
-        opacity = localOpacity,
-        fontScale = localFontScale,
-        speed = localSpeed,
-        displayArea = localDisplayArea,
-        mergeDuplicates = localMergeDuplicates,
-        duplicateMergeWindowMs = localDuplicateMergeWindowMs,
-        duplicateMergeCountThreshold = localDuplicateMergeCountThreshold,
-        allowScroll = localAllowScroll,
-        allowTop = localAllowTop,
-        allowBottom = localAllowBottom,
-        allowColorful = localAllowColorful,
-        allowSpecial = localAllowSpecial,
-        hideInteractiveCommands = localHideInteractiveCommands,
-        portraitDisplayAreaMode = localPortraitDisplayAreaMode,
-        showBlockRuleEditor = true,
-        showSmartOcclusionSection = false,
-        blockRulesRaw = localBlockRulesRaw,
-        smartOcclusion = danmakuSettings.smartOcclusion,
-        onOpacityChange = {
-            localOpacity = it
-            scope.launch { SettingsManager.setDanmakuOpacity(context, it, danmakuScope) }
-        },
-        onFontScaleChange = {
-            localFontScale = it
-            scope.launch { SettingsManager.setDanmakuFontScale(context, it, danmakuScope) }
-        },
-        onSpeedChange = {
-            localSpeed = it
-            scope.launch { SettingsManager.setDanmakuSpeed(context, it, danmakuScope) }
-        },
-        onDisplayAreaChange = {
-            localDisplayArea = it
-            scope.launch { SettingsManager.setDanmakuArea(context, it, danmakuScope) }
-        },
-        onMergeDuplicatesChange = {
-            localMergeDuplicates = it
-            scope.launch { SettingsManager.setDanmakuMergeDuplicates(context, it, danmakuScope) }
-        },
-        onDuplicateMergeWindowMsChange = {
-            localDuplicateMergeWindowMs = it
-            scope.launch { SettingsManager.setDanmakuDuplicateMergeWindowMs(context, it, danmakuScope) }
-        },
-        onDuplicateMergeCountThresholdChange = {
-            localDuplicateMergeCountThreshold = it
-            scope.launch { SettingsManager.setDanmakuDuplicateMergeCountThreshold(context, it, danmakuScope) }
-        },
-        onAllowScrollChange = {
-            localAllowScroll = it
-            scope.launch { SettingsManager.setDanmakuAllowScroll(context, it, danmakuScope) }
-        },
-        onAllowTopChange = {
-            localAllowTop = it
-            scope.launch { SettingsManager.setDanmakuAllowTop(context, it, danmakuScope) }
-        },
-        onAllowBottomChange = {
-            localAllowBottom = it
-            scope.launch { SettingsManager.setDanmakuAllowBottom(context, it, danmakuScope) }
-        },
-        onAllowColorfulChange = {
-            localAllowColorful = it
-            scope.launch { SettingsManager.setDanmakuAllowColorful(context, it, danmakuScope) }
-        },
-        onAllowSpecialChange = {
-            localAllowSpecial = it
-            scope.launch { SettingsManager.setDanmakuAllowSpecial(context, it, danmakuScope) }
-        },
-        onHideInteractiveCommandsChange = {
-            localHideInteractiveCommands = it
-            scope.launch { SettingsManager.setDanmakuHideInteractiveCommands(context, it) }
-        },
-        onPortraitDisplayAreaModeChange = {
-            localPortraitDisplayAreaMode = it
-            scope.launch { SettingsManager.setPortraitDanmakuDisplayAreaMode(context, it) }
-        },
-        onBlockRulesRawChange = {
-            localBlockRulesRaw = it
-            scope.launch { SettingsManager.setDanmakuBlockRulesRaw(context, it, danmakuScope) }
-        },
-        onDismiss = onDismiss
-    )
 }
 
 /**
@@ -1748,6 +1669,7 @@ private fun VideoDetailDanmakuSettingsPanel(
 @Composable
 private fun VideoContentTabBar(
     tabs: List<String>,
+    replyCount: Int,
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit,
     sortMode: CommentSortMode,
@@ -1755,7 +1677,6 @@ private fun VideoContentTabBar(
     onDanmakuSendClick: () -> Unit,
     danmakuEnabled: Boolean,
     onDanmakuToggle: () -> Unit,
-    onDanmakuSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
     isPlayerCollapsed: Boolean = false,
     onRestorePlayer: () -> Unit = {},
@@ -1806,38 +1727,49 @@ private fun VideoContentTabBar(
                 Arrangement.Start
             }
         ) {
-            BottomBarLiquidSegmentedControl(
-                items = tabs,
-                selectedIndex = selectedTabIndex,
-                onSelected = onTabSelected,
-                modifier = if (liquidChromeSpec.reusesLiquidGlassDock) {
-                    Modifier
-                } else {
-                    Modifier
-                        .weight(layoutSpec.tabsRowWeight)
-                        .padding(start = 0.dp, top = 2.dp, end = 8.dp, bottom = 2.dp)
-                },
-                itemWidth = liquidChromeSpec.itemWidthDp?.dp,
-                height = liquidChromeSpec.segmentedControlHeightDp.dp,
-                indicatorHeight = liquidChromeSpec.segmentedControlIndicatorHeightDp.dp,
-                labelFontSize = liquidChromeSpec.labelFontSizeSp.sp,
-                miuixBackdrop = miuixBackdrop,
-                forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
-                liquidGlassEffectsEnabled = liquidChromeSpec.liquidGlassEffectsEnabled,
-                tapPressRefractionEnabled = true,
-                indicatorPositionProvider = indicatorPositionProvider,
-                isScrollInProgressProvider = isScrollInProgressProvider,
-                externalPagerMotionEffectsEnabled = liquidChromeSpec.reusesLiquidGlassDock,
-            )
-
-            if (selectedTabIndex == 1) {
-                CommentSortFilterBar(
-                    sortMode = sortMode,
-                    onSortModeChange = onSortModeChange,
-                    modifier = Modifier.padding(end = 8.dp),
+            if (liquidChromeSpec.reusesLiquidGlassDock) {
+                BottomBarLiquidSegmentedControl(
+                    items = tabs,
+                    selectedIndex = selectedTabIndex,
+                    onSelected = onTabSelected,
+                    modifier = Modifier,
+                    itemWidth = liquidChromeSpec.itemWidthDp?.dp,
+                    height = liquidChromeSpec.segmentedControlHeightDp.dp,
+                    indicatorHeight = liquidChromeSpec.segmentedControlIndicatorHeightDp.dp,
+                    labelFontSize = liquidChromeSpec.labelFontSizeSp.sp,
                     miuixBackdrop = miuixBackdrop,
+                    forceLiquidChrome = homeSettings.androidNativeLiquidGlassEnabled,
+                    liquidGlassEffectsEnabled = liquidChromeSpec.liquidGlassEffectsEnabled,
+                    tapPressRefractionEnabled = true,
+                    indicatorPositionProvider = indicatorPositionProvider,
+                    isScrollInProgressProvider = isScrollInProgressProvider,
+                    externalPagerMotionEffectsEnabled = liquidChromeSpec.reusesLiquidGlassDock,
                 )
             } else {
+                AppPrimaryTabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    modifier = Modifier.weight(layoutSpec.tabsRowWeight),
+                ) {
+                    tabs.forEachIndexed { index, label ->
+                        AppTab(
+                            selected = selectedTabIndex == index,
+                            onClick = { onTabSelected(index) },
+                            text = {
+                                AppText(
+                                    // 评论计数在列表头（「热评 68」）展示，Tab 上不带数字，
+                                    // 避免窄 Tab 下数字换行或被截断
+                                    text = label,
+                                    tapToCopyEnabled = false,
+                                    fontSize = layoutSpec.unselectedTabFontSizeSp.sp,
+                                    maxLines = 1,
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+
+            if (selectedTabIndex != 1) {
                 // [新增] 恢复画面按钮 (仅在播放器折叠时显示)
                 AnimatedVisibility(
                     visible = isPlayerCollapsed,
@@ -1868,6 +1800,8 @@ private fun VideoContentTabBar(
                     )
                 }
                 }
+
+                Spacer(modifier = Modifier.weight(1f))
 
                 val danmakuToggleInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                 val danmakuActiveColor = MaterialTheme.colorScheme.primary
@@ -1936,23 +1870,6 @@ private fun VideoContentTabBar(
                 }
                 }
 
-                AppSurface(
-                modifier = Modifier
-                    .padding(start = danmakuActionLayoutPolicy.settingsLeadingPaddingDp.dp)
-                    .size(danmakuActionLayoutPolicy.settingsButtonSizeDp.dp)
-                    .clickable(onClick = onDanmakuSettingsClick),
-                shape = RoundedCornerShape(danmakuActionLayoutPolicy.secondaryControlCornerRadiusDp.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                ) {
-                Box(contentAlignment = Alignment.Center) {
-                    AppIcon(
-                        imageVector = rememberAppSettingsIcon(),
-                        contentDescription = "弹幕设置",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(danmakuActionLayoutPolicy.settingsIconSizeDp.dp)
-                    )
-                }
-                }
             }
         }
         AppHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))

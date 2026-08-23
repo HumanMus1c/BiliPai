@@ -261,7 +261,7 @@ class TopTabMotionVelocityTest {
     }
 
     @Test
-    fun `top tab indicator leaves horizontal gestures to the screen pager`() {
+    fun `top tab indicator supports direct horizontal drag while screen pager remains available`() {
         val source = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
         val lazyRowSource = source
             .substringAfter("LazyRow(")
@@ -269,9 +269,21 @@ class TopTabMotionVelocityTest {
 
         assertTrue(source.contains(".zIndex(3f)"))
         assertTrue(source.contains(".then(indicatorGestureModifier)"))
+        assertTrue(source.contains(".then(indicatorDragModifier)"))
+        assertTrue(source.contains("Modifier.draggable("))
+        assertTrue(source.contains("orientation = Orientation.Horizontal"))
+        assertTrue(source.contains("topTabIndicatorDirectDragPosition"))
         assertFalse(lazyRowSource.contains("topTabIndicatorDrag("))
         assertFalse(source.contains("topTabIndicatorDrag("))
         assertFalse(source.contains("awaitHorizontalTouchSlopOrCancellation"))
+    }
+
+    @Test
+    fun `top tab direct drag snaps to nearest bounded item`() {
+        assertEquals(0, resolveTopTabIndicatorDragTargetIndex(-0.4f, itemCount = 5))
+        assertEquals(2, resolveTopTabIndicatorDragTargetIndex(1.6f, itemCount = 5))
+        assertEquals(4, resolveTopTabIndicatorDragTargetIndex(5.2f, itemCount = 5))
+        assertEquals(0, resolveTopTabIndicatorDragTargetIndex(1f, itemCount = 0))
     }
 
     @Test

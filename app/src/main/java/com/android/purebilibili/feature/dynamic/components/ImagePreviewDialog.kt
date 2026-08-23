@@ -28,7 +28,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -58,7 +57,6 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
@@ -73,6 +71,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import android.app.Activity
 import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContextWrapper
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
@@ -89,9 +88,7 @@ import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import com.android.purebilibili.core.ui.motion.continuityTween
 import com.android.purebilibili.core.ui.motion.emphasizedEnterTween
 import com.android.purebilibili.core.ui.motion.emphasizedExitTween
-import com.android.purebilibili.core.ui.motion.indicatorSpring
 import com.android.purebilibili.core.ui.motion.interactiveSnapSpring
-import com.android.purebilibili.core.ui.motion.softLandingSpring
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.core.util.rememberHapticFeedback
@@ -110,6 +107,7 @@ internal const val IMAGE_PREVIEW_BACKDROP_TAG = "image_preview_backdrop"
 internal const val IMAGE_PREVIEW_PAGE_TAG = "image_preview_page"
 internal const val IMAGE_PREVIEW_COMMENT_PANEL_TAG = "image_preview_comment_panel"
 internal const val IMAGE_PREVIEW_ORIGINAL_CHIP_TAG = "image_preview_original_chip"
+internal const val IMAGE_PREVIEW_PAGE_INDICATOR_TAG = "image_preview_page_indicator"
 private const val IMAGE_PREVIEW_SHARE_CACHE_MAX_AGE_MS = 24L * 60L * 60L * 1000L
 
 private data class ImagePreviewOverlayRequest(
@@ -234,9 +232,11 @@ private fun ImagePreviewOverlayContent(
     val likeIcon = rememberAppLikeIcon()
     val likeFilledIcon = rememberAppLikeFilledIcon()
     val commentContext = textContent?.commentContext
-    val useCommentPreviewChrome = commentContext != null
+    // 普通图片与评论图片共用同一套 PiliPlus 风格画廊，不再分叉评论专用 chrome。
+    val useCommentPreviewChrome = false
     var isSaving by remember { mutableStateOf(false) }
     var isSharing by remember { mutableStateOf(false) }
+    var showOrdinaryImageActions by remember { mutableStateOf(false) }
     
     //  获取 Activity 和 Window 用于沉浸式控制
     val activity = remember {
@@ -275,6 +275,8 @@ private fun ImagePreviewOverlayContent(
     var isVerticalDismissDragging by remember { mutableStateOf(false) }
     val longPressSaveEnabled by SettingsManager.getImagePreviewLongPressSaveEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val gallery3dPageEnabled by SettingsManager.getImagePreview3dPageEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     var imagePreviewTextVisible by remember(textContent, defaultTextVisible) {
         mutableStateOf(
             resolveImagePreviewInitialTextVisibility(
@@ -325,15 +327,16 @@ private fun ImagePreviewOverlayContent(
     }
     
     //  存储权限状态（Android 9 及以下需要）
-    var pendingSaveUrl by remember { mutableStateOf<String?>(null) }
+    var pendingSaveUrls by remember { mutableStateOf<List<String>>(emptyList()) }
     val storagePermission = com.android.purebilibili.core.util.rememberStoragePermissionState { granted ->
-        if (granted && pendingSaveUrl != null) {
+        if (granted && pendingSaveUrls.isNotEmpty()) {
             // 权限授予后执行保存
+            val urls = pendingSaveUrls
+            pendingSaveUrls = emptyList()
             isSaving = true
             scope.launch {
-                val success = saveImageToGallery(context, pendingSaveUrl!!)
+                val success = urls.map { saveImageToGallery(context, it) }.all { it }
                 isSaving = false
-                pendingSaveUrl = null
                 withContext(Dispatchers.Main) {
                     handleImageSaveResult(success)
                 }
@@ -357,7 +360,23 @@ private fun ImagePreviewOverlayContent(
                 }
             }
         } else {
-            pendingSaveUrl = imageUrl
+            pendingSaveUrls = listOf(imageUrl)
+            storagePermission.request()
+        }
+    }
+
+    fun requestSaveAllImages() {
+        if (images.isEmpty() || isSaving) return
+        val urls = images.map(::normalizeImageUrl).filter(String::isNotEmpty)
+        if (storagePermission.isGranted) {
+            isSaving = true
+            scope.launch {
+                val success = urls.map { saveImageToGallery(context, it) }.all { it }
+                isSaving = false
+                withContext(Dispatchers.Main) { handleImageSaveResult(success) }
+            }
+        } else {
+            pendingSaveUrls = urls
             storagePermission.request()
         }
     }
@@ -604,8 +623,7 @@ private fun ImagePreviewOverlayContent(
                         activeZoomScale <= 1.01f,
                     key = { images.getOrElse(it) { "" } }
                 ) { page ->
-                    // 🎭 3D 立体旋转动画 - Cube 效果
-                    // 仅当完全打开时才应用复杂变换，避免动画冲突
+                    // 所有图片默认平面横滑，可由同一个设置启用轻量 3D。
                     val apply3D = transitionFrame.visualProgress > 0.92f
 
                     Box(
@@ -619,42 +637,21 @@ private fun ImagePreviewOverlayContent(
                                 // 放进 graphicsLayer lambda 后只触发重绘，不触发重组。
                                 val pageOffset =
                                     (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-                                if (apply3D) {
-                                    if (useCommentPreviewChrome) {
-                                        val transform = resolveCommentImagePreviewPageTransform(
-                                            pageOffsetFraction = pageOffset,
-                                            containerWidthPx = fullWidthPx
-                                        )
-                                        rotationY = transform.rotationY
-                                        translationX = transform.translationXPx
-                                        cameraDistance = 8f * density.density
-                                        transformOrigin = TransformOrigin(
-                                            pivotFractionX = transform.pivotFractionX,
-                                            pivotFractionY = 0.5f
-                                        )
-                                        scaleX = transform.scale
-                                        scaleY = transform.scale
-                                        alpha = transform.alpha
-                                    } else {
-                                        //  3D 旋转角度（最大45度）
-                                        val rotationAngle = pageOffset * 45f
-                                        rotationY = rotationAngle
-
-                                        //  设置旋转中心点
-                                        cameraDistance = 12f * density.density
-                                        transformOrigin = TransformOrigin(
-                                            pivotFractionX = if (pageOffset < 0) 1f else 0f,
-                                            pivotFractionY = 0.5f
-                                        )
-
-                                        //  缩放效果
-                                        val scale = 1f - (abs(pageOffset) * 0.1f).coerceIn(0f, 0.15f)
-                                        scaleX = scale
-                                        scaleY = scale
-
-                                        //  透明度渐变
-                                        alpha = 1f - (abs(pageOffset) * 0.3f).coerceIn(0f, 0.5f)
-                                    }
+                                if (apply3D && gallery3dPageEnabled) {
+                                    val transform = resolveImagePreviewGalleryPageTransform(
+                                        pageOffsetFraction = pageOffset,
+                                        containerWidthPx = fullWidthPx
+                                    )
+                                    rotationY = transform.rotationY
+                                    translationX = transform.translationXPx
+                                    cameraDistance = 16f * density.density
+                                    transformOrigin = TransformOrigin(
+                                        pivotFractionX = transform.pivotFractionX,
+                                        pivotFractionY = 0.5f
+                                    )
+                                    scaleX = transform.scale
+                                    scaleY = transform.scale
+                                    alpha = transform.alpha
                                 }
                             }
                             .pointerInput(Unit) {
@@ -741,6 +738,11 @@ private fun ImagePreviewOverlayContent(
                                     }
                                 }
                             },
+                            onExtremeAspectRatioDetected = {
+                                // 长条图在 4096 方形采样档下短边像素不足，放大后仍会发糊。
+                                // 自动提升到现有原图解码档；极端长宽比下实际内存远低于方形上限。
+                                originalQualityPages = originalQualityPages + page
+                            },
                             onVerticalDismissDragCancel = {
                                 if (page == pagerState.currentPage && !isDismissing) {
                                     isVerticalDismissDragging = false
@@ -765,7 +767,13 @@ private fun ImagePreviewOverlayContent(
                                     )
                                 ) {
                                     haptic(resolveImagePreviewLongPressSaveStartFeedback())
-                                    requestSaveCurrentImage(imageUrl)
+                                    if (onImageLongPress != null) {
+                                        onImageLongPress(imageUrl)
+                                    } else if (!useCommentPreviewChrome) {
+                                        showOrdinaryImageActions = true
+                                    } else {
+                                        requestSaveCurrentImage(imageUrl)
+                                    }
                                 }
                             },
                             onClick = {
@@ -805,7 +813,7 @@ private fun ImagePreviewOverlayContent(
                 val shouldShowResolvedText = shouldShowImagePreviewText(
                     hasText = resolvedText != null,
                     textVisible = imagePreviewTextVisible
-                )
+                ) && useCommentPreviewChrome
 
                 if (!useCommentPreviewChrome &&
                     resolvedText != null &&
@@ -915,43 +923,34 @@ private fun ImagePreviewOverlayContent(
                     }
                 }
 
-                //  页码指示器（圆点样式）
-                if (!useCommentPreviewChrome && images.size > 1) {
-                    Row(
+                // PiliPlus 普通画廊：底部轻渐变 + 紧凑数字页码，单图也显示 1/1。
+                if (!useCommentPreviewChrome) {
+                    Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(bottom = overlayPadding.bottom)
-                            .background(MediaContrastPalette.Scrim.copy(0.5f), AppShapes.container(ContainerLevel.Dialog))
-                            .padding(horizontal = AppSpacingTokens.Medium, vertical = AppSpacingTokens.Small),
-                        horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-                        verticalAlignment = Alignment.CenterVertically
+                            .fillMaxWidth()
+                            .testTag(IMAGE_PREVIEW_PAGE_INDICATOR_TAG)
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        MediaContrastPalette.Scrim.copy(alpha = 0.3f)
+                                    )
+                                )
+                            )
+                            .padding(
+                                start = overlayPadding.start + AppSpacingTokens.Medium,
+                                top = AppSpacingTokens.Small,
+                                end = overlayPadding.end + AppSpacingTokens.Medium,
+                                bottom = overlayPadding.bottom + AppSpacingTokens.Small
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        images.forEachIndexed { index, _ ->
-                            val isSelected = pagerState.currentPage == index
-                            // 动画过渡
-                            val dotSize by animateFloatAsState(
-                                targetValue = if (isSelected) 10f else 6f,
-                                animationSpec = indicatorSpring(),
-                                label = "dotSize"
-                            )
-                            val dotAlpha by animateFloatAsState(
-                                targetValue = if (isSelected) 1f else 0.5f,
-                                animationSpec = softLandingSpring(),
-                                label = "dotAlpha"
-                            )
-                            
-                            Box(
-                                modifier = Modifier
-                                    .size(dotSize.dp)
-                                    .clip(CircleShape)
-                                    .background(MediaContrastPalette.Foreground.copy(alpha = dotAlpha))
-                                    .clickable {
-                                        scope.launch {
-                                            pagerState.animateScrollToPage(index)
-                                        }
-                                    }
-                            )
-                        }
+                        AppText(
+                            text = "${pagerState.currentPage + 1}/${images.size}",
+                            color = Color.White,
+                            fontSize = MaterialTheme.typography.bodyMedium.fontSize
+                        )
                     }
                 }
                 
@@ -966,7 +965,7 @@ private fun ImagePreviewOverlayContent(
                 }
 
                 // 顶部按钮栏（关闭 + 页码 + 下载）
-                if (commentContext != null) {
+                if (useCommentPreviewChrome && commentContext != null) {
                     val currentPage = pagerState.currentPage
                     val isOriginalQuality = currentPage in originalQualityPages
                     ImagePreviewCommentTopBar(
@@ -996,7 +995,7 @@ private fun ImagePreviewOverlayContent(
                             )
                             .then(chromeModifier)
                     )
-                } else {
+                } else if (useCommentPreviewChrome && textContent != null) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1194,7 +1193,7 @@ private fun ImagePreviewOverlayContent(
                 }
                 }
 
-                if (commentContext != null) {
+                if (useCommentPreviewChrome && commentContext != null) {
                     ImagePreviewCommentPanel(
                         context = commentContext,
                         likeIcon = likeIcon,
@@ -1219,6 +1218,71 @@ private fun ImagePreviewOverlayContent(
                     )
                 }
             }
+    }
+
+    if (showOrdinaryImageActions) {
+        AlertDialog(
+            onDismissRequest = { showOrdinaryImageActions = false },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    ImagePreviewActionButton(
+                        label = "分享",
+                        onClick = {
+                            showOrdinaryImageActions = false
+                            requestShareCurrentImage(currentImageUrl)
+                        }
+                    )
+                    ImagePreviewActionButton(
+                        label = "复制链接",
+                        onClick = {
+                            showOrdinaryImageActions = false
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            clipboard?.setPrimaryClip(ClipData.newPlainText("图片链接", currentImageUrl))
+                        }
+                    )
+                    ImagePreviewActionButton(
+                        label = "保存图片",
+                        onClick = {
+                            showOrdinaryImageActions = false
+                            requestSaveCurrentImage(currentImageUrl)
+                        }
+                    )
+                    if (images.size > 1) {
+                        ImagePreviewActionButton(
+                            label = "保存全部图片",
+                            onClick = {
+                                showOrdinaryImageActions = false
+                                requestSaveAllImages()
+                            }
+                        )
+                    }
+                }
+            },
+            confirmButton = {}
+        )
+    }
+}
+
+@Composable
+private fun ImagePreviewActionButton(
+    label: String,
+    onClick: () -> Unit
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = AppChromeSizeTokens.MinimumTouchTarget),
+        contentPadding = PaddingValues(horizontal = AppSpacingTokens.Medium),
+        colors = ButtonDefaults.textButtonColors(
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
+        AppText(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -1524,6 +1588,7 @@ suspend fun shareImageFromPreview(context: Context, imageUrl: String): Boolean {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             val chooser = Intent.createChooser(sendIntent, "分享图片").apply {
+                putExtra(Intent.EXTRA_TITLE, "分享图片")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 if (context !is Activity) {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

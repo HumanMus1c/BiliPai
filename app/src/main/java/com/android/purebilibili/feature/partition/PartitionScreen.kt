@@ -479,10 +479,12 @@ fun PartitionContent(
     val liquidGlassTuning = remember(
         homeSettings.liquidGlassProgress,
         homeSettings.liquidGlassAdvancedSettings,
+        homeSettings.liquidGlassReadabilityMode,
     ) {
         resolveLiquidGlassTuning(
             homeSettings.liquidGlassProgress,
             homeSettings.liquidGlassAdvancedSettings,
+            homeSettings.liquidGlassReadabilityMode,
         )
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()

@@ -12,17 +12,18 @@ internal const val FLOATING_DOCK_MIN_INDICATOR_ASPECT = 1.35f
 
 internal const val FLOATING_DOCK_PREDICTIVE_BACK_EDGE_DP = 24f
 
-internal const val FLOATING_DOCK_REFERENCE_SHELL_HEIGHT_DP = 64f
+/** Geometry copied from the Miuix liquid navigation sample for the standard bottom dock. */
+internal const val MIUIX_UPSTREAM_DOCK_SHELL_HEIGHT_DP = 64f
 
-internal const val FLOATING_DOCK_SHELL_LENS_DP = 24f
+internal const val MIUIX_UPSTREAM_DOCK_SHELL_LENS_DP = 24f
 
-internal const val FLOATING_DOCK_PRESS_BLOOM_DP = 16f
+internal const val MIUIX_UPSTREAM_DOCK_PRESS_BLOOM_DP = 16f
 
-internal const val FLOATING_DOCK_INDICATOR_LENS_HEIGHT_DP = 10f
+internal const val MIUIX_UPSTREAM_DOCK_INDICATOR_LENS_HEIGHT_DP = 10f
 
-internal const val FLOATING_DOCK_INDICATOR_LENS_AMOUNT_DP = 14f
+internal const val MIUIX_UPSTREAM_DOCK_INDICATOR_LENS_AMOUNT_DP = 14f
 
-internal const val FLOATING_DOCK_INNER_SHADOW_RADIUS_DP = 8f
+internal const val MIUIX_UPSTREAM_DOCK_INNER_SHADOW_RADIUS_DP = 8f
 
 internal const val FLOATING_DOCK_TAB_PRESS_SCALE_EXTRA = 0.2f
 
@@ -36,35 +37,44 @@ internal data class FloatingDockCaptureInsets(
 )
 
 /**
- * Short chrome (search 36dp, top tabs ~40dp) cannot use the home dock's 24dp lens:
- * top and bottom refraction meet in the middle as a black shrimp line.
- * Scale lens with shell height so a 64dp dock stays full strength.
+ * The 64dp bottom dock uses the Miuix upstream geometry unchanged. Short chrome
+ * (search 36dp, top tabs ~40dp) is not defined by that sample, so it derives the
+ * same geometry proportionally from its height. This keeps top and bottom
+ * refraction from meeting in the middle as a dark line.
  */
-internal fun resolveCompactDockShellLensIntensity(
+internal fun resolveFloatingDockGeometryScale(
     shellHeightDp: Float,
-    referenceShellHeightDp: Float = FLOATING_DOCK_REFERENCE_SHELL_HEIGHT_DP,
+    referenceShellHeightDp: Float = MIUIX_UPSTREAM_DOCK_SHELL_HEIGHT_DP,
 ): Float {
     if (shellHeightDp <= 0f || referenceShellHeightDp <= 0f) return 0f
     return (shellHeightDp / referenceShellHeightDp).coerceIn(0f, 1f)
 }
 
 internal fun resolveCompactDockLensDp(shellHeightDp: Float): Float =
-    FLOATING_DOCK_SHELL_LENS_DP * resolveCompactDockShellLensIntensity(shellHeightDp)
+    MIUIX_UPSTREAM_DOCK_SHELL_LENS_DP * resolveFloatingDockGeometryScale(shellHeightDp)
 
 internal fun resolveCompactDockPressBloomDp(shellHeightDp: Float): Float =
-    FLOATING_DOCK_PRESS_BLOOM_DP * resolveCompactDockShellLensIntensity(shellHeightDp)
+    MIUIX_UPSTREAM_DOCK_PRESS_BLOOM_DP * resolveFloatingDockGeometryScale(shellHeightDp)
+
+internal fun resolveFloatingDockEffectPaddingDp(
+    refractionAmountDp: Float,
+    pressBloomDp: Float,
+): Float = refractionAmountDp.coerceAtLeast(0f) + pressBloomDp.coerceAtLeast(0f)
 
 internal fun resolveCompactDockIndicatorLensHeightDp(shellHeightDp: Float): Float =
-    FLOATING_DOCK_INDICATOR_LENS_HEIGHT_DP * resolveCompactDockShellLensIntensity(shellHeightDp)
+    MIUIX_UPSTREAM_DOCK_INDICATOR_LENS_HEIGHT_DP *
+        resolveFloatingDockGeometryScale(shellHeightDp)
 
 internal fun resolveCompactDockIndicatorLensAmountDp(shellHeightDp: Float): Float =
-    FLOATING_DOCK_INDICATOR_LENS_AMOUNT_DP * resolveCompactDockShellLensIntensity(shellHeightDp)
+    MIUIX_UPSTREAM_DOCK_INDICATOR_LENS_AMOUNT_DP *
+        resolveFloatingDockGeometryScale(shellHeightDp)
 
 internal fun resolveCompactDockInnerShadowRadiusDp(shellHeightDp: Float): Float =
-    FLOATING_DOCK_INNER_SHADOW_RADIUS_DP * resolveCompactDockShellLensIntensity(shellHeightDp)
+    MIUIX_UPSTREAM_DOCK_INNER_SHADOW_RADIUS_DP *
+        resolveFloatingDockGeometryScale(shellHeightDp)
 
 internal fun resolveCompactDockTabPressScale(shellHeightDp: Float): Float =
-    1f + FLOATING_DOCK_TAB_PRESS_SCALE_EXTRA * resolveCompactDockShellLensIntensity(shellHeightDp)
+    1f + FLOATING_DOCK_TAB_PRESS_SCALE_EXTRA * resolveFloatingDockGeometryScale(shellHeightDp)
 
 /**
  * Half the extra height a pressed indicator needs beyond the dock.

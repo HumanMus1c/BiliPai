@@ -106,6 +106,14 @@ internal data class CommentImagePreviewPageTransform(
     val alpha: Float
 )
 
+internal data class ImagePreviewGalleryPageTransform(
+    val rotationY: Float,
+    val pivotFractionX: Float,
+    val translationXPx: Float,
+    val scale: Float,
+    val alpha: Float
+)
+
 internal data class ImagePreviewOverlayPadding(
     val start: Dp,
     val top: Dp,
@@ -415,6 +423,29 @@ internal fun resolveCommentImagePreviewPageTransform(
         translationXPx = -clampedOffset * safeWidth * 0.23f,
         scale = lerpFloat(1f, 0.86f, absOffset),
         alpha = lerpFloat(1f, 0.76f, absOffset)
+    )
+}
+
+/**
+ * 普通画廊的可选 3D 翻页。角度和位移比评论面板更轻，减少边缘拉伸与切页时的黑缝。
+ */
+internal fun resolveImagePreviewGalleryPageTransform(
+    pageOffsetFraction: Float,
+    containerWidthPx: Float
+): ImagePreviewGalleryPageTransform {
+    val clampedOffset = pageOffsetFraction.coerceIn(-1f, 1f)
+    val absOffset = kotlin.math.abs(clampedOffset)
+    val pivot = when {
+        clampedOffset > 0.001f -> 1f
+        clampedOffset < -0.001f -> 0f
+        else -> 0.5f
+    }
+    return ImagePreviewGalleryPageTransform(
+        rotationY = -clampedOffset * 48f,
+        pivotFractionX = pivot,
+        translationXPx = -clampedOffset * containerWidthPx.coerceAtLeast(1f) * 0.08f,
+        scale = lerpFloat(1f, 0.94f, absOffset),
+        alpha = lerpFloat(1f, 0.84f, absOffset)
     )
 }
 

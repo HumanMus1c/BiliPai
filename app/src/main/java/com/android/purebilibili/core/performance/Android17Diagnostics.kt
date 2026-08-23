@@ -12,6 +12,9 @@ import com.android.purebilibili.BuildConfig
 import com.android.purebilibili.core.util.CrashReporter
 import com.android.purebilibili.core.util.Logger
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.function.Consumer
@@ -21,6 +24,26 @@ internal data class ProfilingArtifactSnapshot(
     val sizeBytes: Long,
     val lastModifiedMillis: Long
 )
+
+internal fun resolveProcessExitReasonLabel(reason: Int): String = when (reason) {
+    ApplicationExitInfo.REASON_EXIT_SELF -> "应用主动退出"
+    ApplicationExitInfo.REASON_SIGNALED -> "收到系统信号"
+    ApplicationExitInfo.REASON_LOW_MEMORY -> "系统内存不足"
+    ApplicationExitInfo.REASON_CRASH -> "Java/Kotlin 崩溃"
+    ApplicationExitInfo.REASON_CRASH_NATIVE -> "Native 崩溃"
+    ApplicationExitInfo.REASON_ANR -> "应用无响应（ANR）"
+    ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "初始化失败"
+    ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "权限变更"
+    ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "资源占用过高"
+    ApplicationExitInfo.REASON_USER_REQUESTED -> "用户请求停止"
+    ApplicationExitInfo.REASON_USER_STOPPED -> "用户强制停止"
+    ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "依赖进程退出"
+    ApplicationExitInfo.REASON_OTHER -> "其他系统原因"
+    ApplicationExitInfo.REASON_FREEZER -> "系统冻结进程"
+    ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE -> "应用状态变更"
+    ApplicationExitInfo.REASON_PACKAGE_UPDATED -> "应用更新"
+    else -> "未知原因($reason)"
+}
 
 internal fun selectProfilingArtifactPathsToKeep(
     artifacts: List<ProfilingArtifactSnapshot>,
@@ -88,6 +111,48 @@ internal object Android17Diagnostics {
             }.onFailure { Logger.w(TAG, "Failed to prepare profiling artifact for export", it) }
                 .getOrNull()
         }
+    }
+
+    /**
+     * 返回最近的进程退出记录，补足 Java 未捕获异常处理器看不到的 Native 崩溃、
+     * ANR、LMK 和信号退出。只包含系统诊断字段，不读取或导出用户内容。
+     */
+    fun recentProcessExitSummaries(context: Context, maxCount: Int = 3): List<String> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || maxCount <= 0) return emptyList()
+        val manager = context.getSystemService(ActivityManager::class.java) ?: return emptyList()
+        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+        return runCatching {
+            manager.getHistoricalProcessExitReasons(context.packageName, 0, maxCount)
+                .take(maxCount)
+                .mapIndexed { index, exitInfo ->
+                    buildString {
+                        append(index + 1)
+                        append(". ")
+                        append(formatter.format(Date(exitInfo.timestamp)))
+                        append(" · ")
+                        append(resolveProcessExitReasonLabel(exitInfo.reason))
+                        append(" · status=")
+                        append(exitInfo.status)
+                        append(" · importance=")
+                        append(exitInfo.importance)
+                        append(" · pss=")
+                        append(exitInfo.pss)
+                        append("KB · rss=")
+                        append(exitInfo.rss)
+                        append("KB")
+                        exitInfo.description
+                            ?.trim()
+                            ?.takeIf(String::isNotEmpty)
+                            ?.take(240)
+                            ?.let { description ->
+                                append(" · description=")
+                                append(description.replace('\n', ' ').replace('\r', ' '))
+                            }
+                    }
+                }
+        }.onFailure { error ->
+            Logger.w(TAG, "Failed to read historical process exit reasons", error)
+        }.getOrDefault(emptyList())
     }
 
     @RequiresApi(37)

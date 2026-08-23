@@ -32,6 +32,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedback
@@ -1539,7 +1540,8 @@ fun AdaptiveSearchFieldRenderer(
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String = "搜索",
-    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+    containerColor: Color = Color.Unspecified,
+    shapeOverride: Shape? = null,
     heightOverride: Dp? = null,
     forceExpandedInput: Boolean = false,
     topBarChrome: Boolean = false,
@@ -1556,11 +1558,16 @@ fun AdaptiveSearchFieldRenderer(
         resolveAdaptiveListComponentVisualSpec(uiStyle)
     }
     val searchBarCornerRadius = visualSpec.searchBarCornerRadiusDp.dp
-    val resolvedContainerColor = resolveAdaptiveSearchBarContainerColor(
-        uiStyle = uiStyle,
-        colorScheme = colorScheme,
-        globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
-    )
+    val searchBarShape = shapeOverride ?: RoundedCornerShape(searchBarCornerRadius)
+    val resolvedContainerColor = if (containerColor == Color.Unspecified) {
+        resolveAdaptiveSearchBarContainerColor(
+            uiStyle = uiStyle,
+            colorScheme = colorScheme,
+            globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
+        )
+    } else {
+        containerColor
+    }
     val resolvedHeight = heightOverride ?: visualSpec.searchBarHeightDp.dp
 
     if (forceExpandedInput) {
@@ -1593,7 +1600,7 @@ fun AdaptiveSearchFieldRenderer(
             val textStyle = MaterialTheme.typography.bodyLarge
             val resolvedInteraction = interactionSource ?: remember { MutableInteractionSource() }
             val isFocused by resolvedInteraction.collectIsFocusedAsState()
-            val fieldShape = RoundedCornerShape(searchBarCornerRadius)
+            val fieldShape = searchBarShape
             BasicTextField(
                 value = query,
                 onValueChange = onQueryChange,
@@ -1704,7 +1711,7 @@ fun AdaptiveSearchFieldRenderer(
             textStyle = textStyle.copy(
                 color = MaterialTheme.colorScheme.onSurface,
             ),
-            shape = RoundedCornerShape(searchBarCornerRadius),
+            shape = searchBarShape,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color.Transparent,
                 unfocusedBorderColor = Color.Transparent,
@@ -1741,8 +1748,8 @@ fun AdaptiveSearchFieldRenderer(
         modifier = modifier
             .fillMaxWidth()
             .height(resolvedHeight)
-            .clip(RoundedCornerShape(searchBarCornerRadius))
-            .background(resolvedContainerColor),
+            .clip(searchBarShape)
+            .background(resolvedContainerColor, searchBarShape),
         textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
         singleLine = true,
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),

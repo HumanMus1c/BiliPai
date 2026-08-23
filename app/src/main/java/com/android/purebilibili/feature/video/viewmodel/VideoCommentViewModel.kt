@@ -370,6 +370,12 @@ class VideoCommentViewModel : ViewModel() {
                 
                 _commentState.value = current.copy(
                     replies = combinedReplies.toImmutableList(),
+                    likedComments = (current.likedComments + combinedReplies.flatMap { root ->
+                        (listOf(root) + root.replies.orEmpty()).filter { it.action == 1 }.map { it.rpid }
+                    }).toImmutableSet(),
+                    hatedComments = (current.hatedComments + combinedReplies.flatMap { root ->
+                        (listOf(root) + root.replies.orEmpty()).filter { it.action == 2 }.map { it.rpid }
+                    }).toImmutableSet(),
                     replyCount = totalCount,
                     isRepliesLoading = false,
                     repliesError = null,
@@ -722,6 +728,11 @@ class VideoCommentViewModel : ViewModel() {
                     error = null,
                     grpcNextOffset = null,
                     baseGrpcNextOffset = null
+                )
+                val commentState = _commentState.value
+                _commentState.value = commentState.copy(
+                    likedComments = (commentState.likedComments + updatedItems.filter { it.action == 1 }.map { it.rpid }).toImmutableSet(),
+                    hatedComments = (commentState.hatedComments + updatedItems.filter { it.action == 2 }.map { it.rpid }).toImmutableSet()
                 )
             }.onFailure {
                 val current = _subReplyState.value

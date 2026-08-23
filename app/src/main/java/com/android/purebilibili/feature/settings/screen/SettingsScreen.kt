@@ -138,6 +138,12 @@ fun SettingsScreen(
     val customDownloadPath by SettingsManager.getDownloadPath(context).collectAsStateWithLifecycle(initialValue = null)
     val downloadExportTreeUri by SettingsManager.getDownloadExportTreeUri(context).collectAsStateWithLifecycle(initialValue = null)
     val imageSaveTreeUri by SettingsManager.getImageSaveTreeUri(context).collectAsStateWithLifecycle(initialValue = null)
+    val autoCacheClearInterval by SettingsManager.getAutoCacheClearInterval(context)
+        .collectAsStateWithLifecycle(initialValue = SettingsManager.AutoCacheClearInterval.NEVER)
+    val autoCacheClearThresholdGb by SettingsManager.getAutoCacheClearThresholdGb(context)
+        .collectAsStateWithLifecycle(
+            initialValue = SettingsManager.DEFAULT_AUTO_CACHE_CLEAR_THRESHOLD_GB
+        )
     val feedApiType by SettingsManager.getFeedApiType(context).collectAsStateWithLifecycle(initialValue = SettingsManager.FeedApiType.WEB
     )
     val autoCheckUpdateEnabled by SettingsManager.getAutoCheckAppUpdate(context)
@@ -456,25 +462,23 @@ fun SettingsScreen(
     // Effects
     LaunchedEffect(showCacheAnimation) {
         if (showCacheAnimation) {
-            val breakdown = CacheUtils.getCacheBreakdown(context)
-            val totalSize = breakdown.totalSize
-            val clearedSizeStr = breakdown.format()
-            for (i in 0..100 step 10) {
-                cacheProgress = CacheClearProgress(
-                    current = (totalSize * i / 100),
-                    total = totalSize,
-                    isComplete = false,
-                    clearedSize = clearedSizeStr
-                )
-                kotlinx.coroutines.delay(150)
-            }
+            val before = CacheUtils.getCacheBreakdown(context)
+            val selectedBytesBefore = resolveSelectedCacheBytes(before, pendingCacheClearTargets)
+            cacheProgress = CacheClearProgress(
+                current = 0L,
+                total = selectedBytesBefore,
+                isComplete = false
+            )
             val clearResult = viewModel.clearCache(pendingCacheClearTargets)
             if (shouldMarkCacheClearAnimationComplete(clearResult.isSuccess)) {
+                val after = clearResult.getOrThrow()
+                val selectedBytesAfter = resolveSelectedCacheBytes(after, pendingCacheClearTargets)
+                val actuallyClearedBytes = (selectedBytesBefore - selectedBytesAfter).coerceAtLeast(0L)
                 cacheProgress = CacheClearProgress(
-                    current = totalSize,
-                    total = totalSize,
+                    current = actuallyClearedBytes,
+                    total = selectedBytesBefore,
                     isComplete = true,
-                    clearedSize = clearedSizeStr
+                    clearedSize = formatCacheClearBytes(actuallyClearedBytes)
                 )
             } else {
                 Toast.makeText(
@@ -1024,6 +1028,14 @@ fun SettingsScreen(
                     onDownloadPathClick = onDownloadPathAction,
                     onImageSavePathClick = onImageSavePathAction,
                     onClearCacheClick = onClearCacheAction,
+                    onAutoCacheClearIntervalChange = { interval ->
+                        scope.launch { SettingsManager.setAutoCacheClearInterval(context, interval) }
+                    },
+                    onAutoCacheClearThresholdChange = { thresholdGb ->
+                        scope.launch {
+                            SettingsManager.setAutoCacheClearThresholdGb(context, thresholdGb)
+                        }
+                    },
                     onDonateClick = { showDonateDialog = true },
                     onOpenLinksClick = onOpenLinksAction,
                     onBlockedListClick = onBlockedListClickAction,
@@ -1039,6 +1051,8 @@ fun SettingsScreen(
                     customDownloadPath = downloadExportTreeUri ?: customDownloadPath,
                     customImageSavePath = imageSaveTreeUri,
                     cacheSize = state.cacheSize,
+                    autoCacheClearInterval = autoCacheClearInterval,
+                    autoCacheClearThresholdGb = autoCacheClearThresholdGb,
                     crashTrackingEnabled = crashTrackingEnabled,
                     analyticsEnabled = analyticsEnabled,
                     enhancedDiagnosticLoggingEnabled = enhancedDiagnosticLoggingEnabled,
@@ -1179,6 +1193,8 @@ private fun MobileSettingsNavLayout(
     onDownloadPathClick: () -> Unit,
     onImageSavePathClick: () -> Unit,
     onClearCacheClick: () -> Unit,
+    onAutoCacheClearIntervalChange: (SettingsManager.AutoCacheClearInterval) -> Unit,
+    onAutoCacheClearThresholdChange: (Int) -> Unit,
     onDonateClick: () -> Unit,
     onOpenLinksClick: () -> Unit,
     onBlockedListClick: () -> Unit,
@@ -1195,6 +1211,8 @@ private fun MobileSettingsNavLayout(
     customDownloadPath: String?,
     customImageSavePath: String?,
     cacheSize: String,
+    autoCacheClearInterval: SettingsManager.AutoCacheClearInterval,
+    autoCacheClearThresholdGb: Int,
     crashTrackingEnabled: Boolean,
     analyticsEnabled: Boolean,
     enhancedDiagnosticLoggingEnabled: Boolean,
@@ -1262,6 +1280,8 @@ private fun MobileSettingsNavLayout(
         onDownloadPathClick = onDownloadPathClick,
         onImageSavePathClick = onImageSavePathClick,
         onClearCacheClick = onClearCacheClick,
+        onAutoCacheClearIntervalChange = onAutoCacheClearIntervalChange,
+        onAutoCacheClearThresholdChange = onAutoCacheClearThresholdChange,
         onGithubClick = onGithubClick,
         onTelegramClick = onTelegramClick,
         onTelegramGroupClick = onTelegramGroupClick,
@@ -1305,6 +1325,8 @@ private fun MobileSettingsNavLayout(
         customDownloadPath = customDownloadPath,
         customImageSavePath = customImageSavePath,
         cacheSize = cacheSize,
+        autoCacheClearInterval = autoCacheClearInterval,
+        autoCacheClearThresholdGb = autoCacheClearThresholdGb,
         versionName = versionName,
         appIcon = appIcon,
         easterEggEnabled = easterEggEnabled,

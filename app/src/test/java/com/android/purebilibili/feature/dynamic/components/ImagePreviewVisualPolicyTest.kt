@@ -86,6 +86,21 @@ class ImagePreviewVisualPolicyTest {
     }
 
     @Test
+    fun `optional gallery 3d transform is subtle and symmetric`() {
+        val centered = resolveImagePreviewGalleryPageTransform(0f, 390f)
+        val left = resolveImagePreviewGalleryPageTransform(1f, 390f)
+        val right = resolveImagePreviewGalleryPageTransform(-1f, 390f)
+
+        assertEquals(0f, centered.rotationY, 0.001f)
+        assertEquals(1f, centered.scale, 0.001f)
+        assertEquals(-48f, left.rotationY, 0.001f)
+        assertEquals(48f, right.rotationY, 0.001f)
+        assertEquals(left.translationXPx, -right.translationXPx, 0.001f)
+        assertTrue(left.scale >= 0.94f)
+        assertTrue(left.alpha >= 0.84f)
+    }
+
+    @Test
     fun `comment original image size label uses k and m units`() {
         assertEquals("查看原图", resolveCommentImageOriginalSizeLabel(null))
         assertEquals("查看原图 (369K)", resolveCommentImageOriginalSizeLabel(369f))

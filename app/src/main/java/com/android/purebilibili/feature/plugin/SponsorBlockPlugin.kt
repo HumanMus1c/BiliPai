@@ -326,6 +326,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                 reason = "已跳过: ${segment.categoryName}",
                 segmentId = segment.UUID,
                 startMs = segment.startTimeMs,
+                category = segment.category,
                 categoryName = segment.categoryName,
                 showToast = config.skipToastEnabled,
             )
@@ -339,6 +340,7 @@ class SponsorBlockPlugin : PlayerPluginApi {
                     reason = "本次跳过: ${segment.categoryName}",
                     segmentId = segment.UUID,
                     startMs = segment.startTimeMs,
+                    category = segment.category,
                     categoryName = segment.categoryName,
                     showToast = config.skipToastEnabled,
                 )

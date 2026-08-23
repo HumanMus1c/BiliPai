@@ -1499,8 +1499,8 @@ fun VideoPlayerOverlay(
                     //  [新增] 竖屏模式弹幕和清晰度控制
                     danmakuEnabled = danmakuEnabled,
                     onDanmakuToggle = onDanmakuToggle,
-                    onDanmakuInputClick = onDanmakuInputClick,
                     onDanmakuSettingsClick = { showDanmakuSettings = true },
+                    onDanmakuInputClick = onDanmakuInputClick,
                     isLoggedIn = isLoggedIn,
                     subtitleControlState = subtitleControlState,
                     subtitleControlCallbacks = subtitleControlCallbacks,
@@ -2051,6 +2051,10 @@ fun VideoPlayerOverlay(
                 sleepTimerMinutes = sleepTimerMinutes,
                 onSleepTimerChange = onSleepTimerChange,
                 onReload = onReloadVideo,
+                onDanmakuSettingsClick = {
+                    showVideoSettings = false
+                    showDanmakuSettings = true
+                },
                 currentQualityLabel = currentQualityLabel,
                 qualityLabels = qualityLabels,
                 qualityIds = qualityIds,

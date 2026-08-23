@@ -87,9 +87,9 @@ private fun biliPaiTunedBottomBarGlassMaterial(
     BottomBarGlassMaterialSpec(
         blurRadiusDp = tuning.backdropBlurRadius,
         vibrancy = true,
-        shellRefractionHeightDp = tuning.refractionHeight,
-        shellRefractionAmountDp = tuning.refractionAmount,
-        shellChromaticAberration = tuning.chromaticAberrationAmount,
+        shellRefractionHeightDp = tuning.refractionHeight * tuning.contentDistortionScale,
+        shellRefractionAmountDp = tuning.refractionAmount * tuning.contentDistortionScale,
+        shellChromaticAberration = tuning.shellChromaticAberrationAmount,
         foregroundTint = Color.Transparent,
         highlightWidthScale = 1f,
         shadowAlphaScale = 1f,
@@ -113,8 +113,10 @@ private fun ios26BottomBarGlassMaterial(
     return BottomBarGlassMaterialSpec(
         blurRadiusDp = liquidGlassTuning.backdropBlurRadius,
         vibrancy = true,
-        shellRefractionHeightDp = liquidGlassTuning.refractionHeight,
-        shellRefractionAmountDp = liquidGlassTuning.refractionAmount,
+        shellRefractionHeightDp = liquidGlassTuning.refractionHeight *
+            liquidGlassTuning.contentDistortionScale,
+        shellRefractionAmountDp = liquidGlassTuning.refractionAmount *
+            liquidGlassTuning.contentDistortionScale,
         shellChromaticAberration = 0f,
         foregroundTint = Color.Transparent,
         highlightWidthScale = 1f,

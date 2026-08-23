@@ -60,6 +60,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -126,6 +127,7 @@ import com.android.purebilibili.core.ui.LocalSharedTransitionScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
 import com.android.purebilibili.core.ui.rememberAppBackIcon
 import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
+import com.android.purebilibili.core.ui.rememberAppBookmarkIcon
 import com.android.purebilibili.core.ui.rememberAppFolderIcon
 import com.android.purebilibili.core.ui.rememberAppHeadphonesIcon
 import com.android.purebilibili.core.ui.rememberAppPlayIcon
@@ -147,6 +149,8 @@ import com.android.purebilibili.feature.article.ArticleSharedElementSlot
 import com.android.purebilibili.feature.article.resolveHistoryArticleCoverAspectRatio
 import com.android.purebilibili.feature.article.resolveArticleSharedTransitionKey
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import com.android.purebilibili.feature.home.components.BottomBarMatchedReusableLiquidDock
+import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
 import com.android.purebilibili.feature.space.SeasonSeriesDetailViewModel
 import com.android.purebilibili.feature.video.player.ExternalPlaylistSource
 import com.android.purebilibili.feature.video.player.PlayMode
@@ -226,6 +230,7 @@ fun CommonListScreen(
     // Fix: 手机端(Compact)使用较小的最小宽度以保证2列显示 (360dp / 170dp = 2.1 -> 2列)
     // 平板端(Expanded)使用较大的最小宽度以避免卡片过小
     val context = LocalContext.current
+    val density = LocalDensity.current
     val showOnlineCount by SettingsManager.getShowOnlineCount(context).collectAsStateWithLifecycle(initialValue = false
         )
     val homeSettings by SettingsManager.getHomeSettings(context).collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.HomeSettings(),
@@ -630,10 +635,23 @@ fun CommonListScreen(
     var commonListHeaderSettleJob by remember { androidx.compose.runtime.mutableStateOf<Job?>(null) }
     val commonListHeaderCollapseMode = resolveCommonListHeaderCollapseModeForScreen(
         configuredMode = homeSettings.commonListHeaderCollapseMode,
-        isFavoritePage = favoriteViewModel != null
+        isFavoritePage = favoriteViewModel != null,
+        isHistoryPage = historyViewModel != null,
+        homeHeaderCollapseMode = homeSettings.homeHeaderCollapseMode,
     )
     val commonListHeaderCollapseEnabled = supportsCollapsibleCommonListHeader &&
         commonListHeaderCollapseMode != CommonListHeaderCollapseMode.ALWAYS_VISIBLE
+    val statusBarHeightPx = with(LocalDensity.current) {
+        WindowInsets.statusBars.asPaddingValues().calculateTopPadding().toPx()
+    }
+    val commonListHeaderMaxCollapsePx = resolveCommonListHeaderMaxCollapsePx(
+        headerHeightPx = headerHeightPx,
+        pinnedDockHeightPx = 0,
+        topInsetPx = statusBarHeightPx,
+        // 历史页的搜索与筛选 Dock 都应像首页顶部一样随内容收起，
+        // 不再把筛选 Dock 留作固定的 pinned chrome。
+        retainPinnedDock = false,
+    )
     fun animateCommonListHeaderOffsetTo(targetOffsetPx: Float) {
         if (kotlin.math.abs(commonListHeaderOffsetPx - targetOffsetPx) <= 0.5f) {
             commonListHeaderOffsetPx = targetOffsetPx
@@ -689,7 +707,7 @@ fun CommonListScreen(
     }
     LaunchedEffect(
         commonListHeaderCollapseMode,
-        headerHeightPx,
+        commonListHeaderMaxCollapsePx,
         supportsCollapsibleCommonListHeader,
         isSubscribedBrowse,
         favoriteContentMode,
@@ -710,7 +728,7 @@ fun CommonListScreen(
         val targetOffsetPx = resolveCommonListHeaderOffsetForSettledContent(
             firstVisibleItemIndex = firstVisibleItemIndex,
             firstVisibleItemScrollOffset = firstVisibleItemScrollOffset,
-            maxCollapsePx = headerHeightPx.toFloat(),
+            maxCollapsePx = commonListHeaderMaxCollapsePx,
             mode = if (supportsCollapsibleCommonListHeader) {
                 commonListHeaderCollapseMode
             } else {
@@ -721,21 +739,17 @@ fun CommonListScreen(
     }
     val commonListHeaderScrollConnection = remember(
         commonListHeaderCollapseMode,
-        headerHeightPx,
+        commonListHeaderMaxCollapsePx,
         isCommonListAtTop,
         supportsCollapsibleCommonListHeader
     ) {
         object : NestedScrollConnection {
-            // 仅跟随内容实际消费的位移，避免横向标签行的纵向手势让顶部栏与列表占位失步。
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource
-            ): Offset {
+            // 与首页一致，在内容消费滚动前更新顶部位移，保证 Dock 与手势同帧跟随。
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (
                     !supportsCollapsibleCommonListHeader ||
-                    kotlin.math.abs(consumed.y) < 0.5f ||
-                    kotlin.math.abs(consumed.y) < kotlin.math.abs(consumed.x)
+                    kotlin.math.abs(available.y) < 0.5f ||
+                    kotlin.math.abs(available.y) < kotlin.math.abs(available.x)
                 ) {
                     return Offset.Zero
                 }
@@ -743,8 +757,8 @@ fun CommonListScreen(
                 commonListHeaderSettleJob = null
                 commonListHeaderOffsetPx = resolveCommonListHeaderOffsetAfterContentScroll(
                     currentOffsetPx = commonListHeaderOffsetPx,
-                    contentConsumedDeltaYPx = consumed.y,
-                    maxCollapsePx = headerHeightPx.toFloat(),
+                    contentConsumedDeltaYPx = available.y,
+                    maxCollapsePx = commonListHeaderMaxCollapsePx,
                     isAtTop = isCommonListAtTop,
                     mode = commonListHeaderCollapseMode
                 )
@@ -776,6 +790,21 @@ fun CommonListScreen(
             topChromePolicy = topChromePolicy,
         )
     }
+    val historyUsesFloatingLiquidDocks = shouldUseFloatingCommonListHeaderChrome(
+        isHistoryPage = historyViewModel != null,
+        globalLiquidGlassReuseEnabled = historyFilterChrome.useLiquidDock,
+    )
+    val historyLiquidGlassTuning = remember(
+        homeSettings.liquidGlassProgress,
+        homeSettings.liquidGlassAdvancedSettings,
+        homeSettings.liquidGlassReadabilityMode,
+    ) {
+        resolveLiquidGlassTuning(
+            progress = homeSettings.liquidGlassProgress,
+            advancedSettings = homeSettings.liquidGlassAdvancedSettings,
+            readabilityMode = homeSettings.liquidGlassReadabilityMode,
+        )
+    }
     val blurIntensity = currentUnifiedBlurIntensity()
     val backgroundAlpha = BlurStyles.getBackgroundAlpha(blurIntensity)
     val headerBackgroundAlpha = if (favoriteViewModel != null) {
@@ -798,7 +827,10 @@ fun CommonListScreen(
     )
 
     // 决定顶栏背景 (使用私有的 localHazeState)
-    val topBarBackgroundModifier = if (shouldUseHeaderLocalBlur) {
+    val topBarBackgroundModifier = if (historyUsesFloatingLiquidDocks) {
+        // 悬浮 Dock 必须直接采样下方列表；整块顶栏背景会把动态折射退化成纯色壳。
+        Modifier.fillMaxWidth()
+    } else if (shouldUseHeaderLocalBlur) {
         Modifier
             .fillMaxWidth()
             .unifiedBlur(
@@ -1500,7 +1532,8 @@ fun CommonListScreen(
                         scrollBehavior = scrollBehavior
                     )
 
-                    // 🔍 搜索栏
+                    // 🔍 搜索栏。历史页开启全局液态玻璃复用后，搜索与筛选各自成为
+                    // 一条独立 Dock，结构与首页顶部一致。
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1509,19 +1542,54 @@ fun CommonListScreen(
                                 vertical = favoriteHeaderLayout.searchBarVerticalPaddingDp.dp
                             )
                     ) {
-                        AppSearchField(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            placeholder = when {
-                                isSubscribedBrowse -> "搜索追更"
-                                historyViewModel != null -> "搜索历史"
-                                favoriteViewModel != null && favoriteSection != FavoriteSection.VIDEO ->
-                                    "搜索${favoriteSection.label}收藏"
-                                else -> "搜索视频"
-                            },
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
-                            heightOverride = favoriteHeaderLayout.searchBarHeightDp.dp
-                        )
+                        val searchPlaceholder = when {
+                            isSubscribedBrowse -> "搜索追更"
+                            historyViewModel != null -> "搜索历史"
+                            favoriteViewModel != null && favoriteSection != FavoriteSection.VIDEO ->
+                                "搜索${favoriteSection.label}收藏"
+                            else -> "搜索视频"
+                        }
+                        val searchField: @Composable () -> Unit = {
+                            AppSearchField(
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = searchPlaceholder,
+                                containerColor = if (historyFilterChrome.useLiquidDock) {
+                                    Color.Transparent
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)
+                                },
+                                shapeOverride = if (historyFilterChrome.useLiquidDock) {
+                                    CircleShape
+                                } else {
+                                    null
+                                },
+                                heightOverride = if (historyFilterChrome.useLiquidDock) {
+                                    historyFilterChrome.heightDp.dp
+                                } else {
+                                    favoriteHeaderLayout.searchBarHeightDp.dp
+                                }
+                            )
+                        }
+                        if (historyViewModel != null && historyFilterChrome.useLiquidDock) {
+                            BottomBarMatchedReusableLiquidDock(
+                                backdrop = commonListChromeBackdrop,
+                                shape = CircleShape,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(historyFilterChrome.heightDp.dp),
+                                reuseEnabled = true,
+                                drawShellLens = false,
+                                isScrollInProgressProvider = {
+                                    primaryGridState.isScrollInProgress
+                                },
+                            ) { _ ->
+                                searchField()
+                            }
+                        } else {
+                            searchField()
+                        }
                     }
 
                     if (favoriteViewModel != null) {
@@ -1577,16 +1645,23 @@ fun CommonListScreen(
                     if (
                         favoriteViewModel != null &&
                         favoriteSection == FavoriteSection.VIDEO &&
-                        !isSubscribedBrowse &&
-                        foldersState.isNotEmpty()
+                        (foldersState.isNotEmpty() || subscribedFoldersState.isNotEmpty())
                     ) {
                         FavoriteFolderSelector(
                             folders = foldersState,
                             selectedFolderIndex = selectedFolderIndex,
                             selectedFolderItems = selectedFolderUiState.items,
+                            subscribedSelected = isSubscribedBrowse,
                             layout = favoriteHeaderLayout,
                             onFolderSelected = { index ->
+                                favoriteBrowseSection = FavoriteBrowseSection.OWNED
                                 favoriteViewModel.switchFolder(index)
+                                searchQuery = ""
+                            },
+                            onSubscribedSelected = {
+                                favoriteBrowseSection = FavoriteBrowseSection.SUBSCRIBED
+                                isFavoriteBatchMode = false
+                                selectedFavoriteResourceIds = emptySet()
                                 searchQuery = ""
                             },
                         )
@@ -1652,7 +1727,8 @@ fun CommonListScreen(
                                     tapPressRefractionEnabled = true,
                                     isScrollInProgressProvider = {
                                         primaryGridState.isScrollInProgress
-                                    }
+                                    },
+                                    liquidGlassTuningOverride = historyLiquidGlassTuning,
                                 )
                             } else {
                                 FlowRow(
@@ -2027,16 +2103,21 @@ private fun FavoriteFolderSelector(
     folders: List<com.android.purebilibili.data.model.response.FavFolder>,
     selectedFolderIndex: Int,
     selectedFolderItems: List<com.android.purebilibili.data.model.response.VideoItem>,
+    subscribedSelected: Boolean,
     layout: CommonListFavoriteHeaderLayout,
     onFolderSelected: (Int) -> Unit,
+    onSubscribedSelected: () -> Unit,
 ) {
-    val selectedFolder = folders.getOrNull(selectedFolderIndex) ?: return
+    val selectedFolder = folders.getOrNull(selectedFolderIndex)
+    if (selectedFolder == null && !subscribedSelected) return
     var expanded by remember { androidx.compose.runtime.mutableStateOf(false) }
-    val selectedPreviewCover = remember(selectedFolder.cover, selectedFolderItems) {
-        resolveFavoriteFolderPreviewCover(
-            folder = selectedFolder,
-            loadedItems = selectedFolderItems,
-        )
+    val selectedPreviewCover = remember(selectedFolder?.cover, selectedFolderItems, subscribedSelected) {
+        selectedFolder?.takeUnless { subscribedSelected }?.let { folder ->
+            resolveFavoriteFolderPreviewCover(
+                folder = folder,
+                loadedItems = selectedFolderItems,
+            )
+        }
     }
 
     Box(
@@ -2067,7 +2148,7 @@ private fun FavoriteFolderSelector(
                     selected = true,
                 )
                 AppText(
-                    text = selectedFolder.title,
+                    text = if (subscribedSelected) "追更（订阅）" else selectedFolder?.title.orEmpty(),
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -2076,7 +2157,8 @@ private fun FavoriteFolderSelector(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 AppText(
-                    text = "${selectedFolderIndex + 1}/${folders.size}",
+                    text = if (subscribedSelected) "1/${folders.size + 1}" else
+                        "${selectedFolderIndex + 2}/${folders.size + 1}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -2093,8 +2175,42 @@ private fun FavoriteFolderSelector(
             onDismissRequest = { expanded = false },
             modifier = Modifier.widthIn(min = 280.dp, max = 420.dp),
         ) {
+            AppDropdownMenuItem(
+                text = {
+                    AppText(
+                        text = "追更（订阅）",
+                        fontWeight = if (subscribedSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    )
+                },
+                leadingIcon = {
+                    AppIcon(
+                        imageVector = rememberAppBookmarkIcon(),
+                        contentDescription = null,
+                        tint = if (subscribedSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                },
+                trailingIcon = if (subscribedSelected) {
+                    {
+                        AppIcon(
+                            imageVector = Icons.Rounded.CheckCircle,
+                            contentDescription = "当前为追更",
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                } else {
+                    null
+                },
+                onClick = {
+                    expanded = false
+                    onSubscribedSelected()
+                },
+            )
             folders.forEachIndexed { index, folder ->
-                val isSelected = index == selectedFolderIndex
+                val isSelected = !subscribedSelected && index == selectedFolderIndex
                 AppDropdownMenuItem(
                     text = {
                         AppText(

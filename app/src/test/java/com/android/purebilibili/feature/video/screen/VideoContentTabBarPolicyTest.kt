@@ -187,14 +187,12 @@ class VideoContentTabBarPolicyTest {
     }
 
     @Test
-    fun `danmaku action layout keeps settings target comfortably tappable`() {
+    fun `danmaku action layout keeps send controls comfortably tappable`() {
         val policy = resolveVideoContentTabBarDanmakuActionLayoutPolicy(widthDp = 412)
 
         assertEquals("发弹幕", policy.sendLabel)
         assertEquals(40, policy.secondaryControlHeightDp)
         assertEquals(20, policy.secondaryControlCornerRadiusDp)
-        assertEquals(40, policy.settingsButtonSizeDp)
-        assertEquals(18, policy.settingsIconSizeDp)
     }
 
     @Test
@@ -216,8 +214,6 @@ class VideoContentTabBarPolicyTest {
         assertEquals("发弹幕", policy.sendLabel)
         assertEquals(40, policy.secondaryControlHeightDp)
         assertEquals(20, policy.secondaryControlCornerRadiusDp)
-        assertEquals(40, policy.settingsButtonSizeDp)
-        assertEquals(18, policy.settingsIconSizeDp)
     }
 
     @Test
@@ -227,10 +223,23 @@ class VideoContentTabBarPolicyTest {
 
         listOf(compact, regular).forEach { policy ->
             assertEquals(40, policy.secondaryControlHeightDp)
-            assertEquals(policy.secondaryControlHeightDp, policy.settingsButtonSizeDp)
             assertEquals(policy.toggleVerticalPaddingDp, policy.sendVerticalPaddingDp)
             assertEquals(policy.toggleTextSizeSp, policy.sendTextSizeSp)
         }
+    }
+
+    @Test
+    fun `danmaku actions are right aligned and settings leave the tab bar`() {
+        val source = loadSource(
+            "app/src/main/java/com/android/purebilibili/feature/video/screen/VideoContentSection.kt"
+        )
+        val tabBarBlock = source
+            .substringAfter("private fun VideoContentTabBar(")
+            .substringBefore("private fun VideoRecommendationHeader")
+
+        assertTrue(tabBarBlock.contains("Spacer(modifier = Modifier.weight(1f))"))
+        assertFalse(tabBarBlock.contains("onDanmakuSettingsClick"))
+        assertFalse(tabBarBlock.contains("contentDescription = \"弹幕设置\""))
     }
 
     @Test
@@ -277,9 +286,15 @@ class VideoContentTabBarPolicyTest {
         )
         val commentTabSource = source.substringAfter("internal fun VideoCommentTab(")
             .substringBefore("internal fun LandscapeCommentPanel(")
-        assertTrue(commentTabSource.contains("CommentListHeader("))
+        assertTrue(commentTabSource.contains("CommentSortHeader("))
         assertFalse(commentTabSource.contains("CommentSortFilterBar("))
-        assertTrue(source.contains("if (selectedTabIndex == 1)"))
+        assertTrue(source.contains("if (selectedTabIndex != 1)"))
+        assertTrue(source.contains("AppPrimaryTabRow("))
+        assertTrue(source.contains("showNativeSortHeader = !homeSettings.androidNativeLiquidGlassEnabled"))
+        assertTrue(source.contains("showSortControlInHeader = true"))
+        assertTrue(source.contains("pagerState.currentPage == 1 && homeSettings.androidNativeLiquidGlassEnabled"))
+        assertTrue(source.contains("top = tabBarVisibleHeightDp + 6.dp"))
+        assertTrue(source.contains("contentAlignment = Alignment.TopEnd"))
         val pagerBlock = source
             .substringAfter("HorizontalPager(")
             .substringBefore(") { page ->")

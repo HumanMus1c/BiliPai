@@ -94,7 +94,7 @@ class HomeFeedScrollStatePersistenceStructureTest {
     }
 
     @Test
-    fun `home skin feed atmosphere is drawn once behind grid container`() {
+    fun `home feed does not misuse drawer or profile skin backgrounds`() {
         val screenSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeScreen.kt")
         val pageSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/HomeCategoryPage.kt")
         val pageCallSource = screenSource
@@ -103,19 +103,11 @@ class HomeFeedScrollStatePersistenceStructureTest {
         val pageFunctionSource = pageSource
             .substringAfter("internal fun HomeCategoryPageContent(")
             .substringBefore("@Composable\nprivate fun PopularSubCategorySegmentedControl")
-        val gridContainerSource = pageFunctionSource
-            .substringAfter("val feedAtmosphereImagePath = resolveHomeFeedSkinAtmosphereImagePath(uiSkinDecoration)")
-            .substringBefore("LazyVerticalGrid(")
-        val videoItemSource = pageFunctionSource
-            .substringAfter("categoryState.videos.forEachIndexed")
-
-        assertTrue(pageCallSource.contains("uiSkinDecoration = homeUiSkinDecoration"))
-        assertTrue(pageFunctionSource.contains("uiSkinDecoration: HomeUiSkinDecoration? = null"))
-        assertTrue(pageFunctionSource.contains("val feedAtmosphereImagePath = resolveHomeFeedSkinAtmosphereImagePath(uiSkinDecoration)"))
-        assertTrue(gridContainerSource.contains("AsyncImage("))
-        assertTrue(gridContainerSource.contains("model = File(feedAtmosphereImagePath)"))
-        assertFalse(videoItemSource.contains("resolveHomeFeedSkinAtmosphereImagePath(uiSkinDecoration)"))
-        assertFalse(videoItemSource.contains("model = File(feedAtmosphereImagePath)"))
+        assertFalse(pageCallSource.contains("uiSkinDecoration = homeUiSkinDecoration"))
+        assertFalse(pageFunctionSource.contains("uiSkinDecoration: HomeUiSkinDecoration? = null"))
+        assertFalse(pageSource.contains("resolveHomeFeedSkinAtmosphereImagePath"))
+        assertFalse(pageSource.contains("sideBackgroundImagePath"))
+        assertFalse(pageSource.contains("profileBackgroundImagePath"))
     }
 
     @Test

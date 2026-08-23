@@ -48,14 +48,14 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun standalonePortraitPager_skipsEnterAnimationOnDirectPortraitMorph() {
+    fun standalonePortraitPager_alwaysEntersDirectlyWithoutCenteredCrossfade() {
         assertFalse(
             shouldAnimateStandalonePortraitPager(
                 useSharedPlayer = true,
                 directPortraitEntry = true
             )
         )
-        assertTrue(
+        assertFalse(
             shouldAnimateStandalonePortraitPager(
                 useSharedPlayer = true,
                 directPortraitEntry = false
@@ -148,6 +148,77 @@ class PortraitDetailPresentationPolicyTest {
         assertEquals(412f, collapsed.widthDp)
         assertTrue(collapsed.heightDp < expanded.heightDp)
         assertEquals(231.75f, collapsed.heightDp)
+    }
+
+    @Test
+    fun pausedOnlyCollapse_usesPiliPlusToolbarHeightOnlyWhilePaused() {
+        assertEquals(
+            56f,
+            resolvePiliPlusCollapsedPlayerViewportHeightDp(
+                standardCollapsedHeightDp = 231.75f,
+                collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
+                isPlaybackPaused = true,
+            )
+        )
+        assertEquals(
+            231.75f,
+            resolvePiliPlusCollapsedPlayerViewportHeightDp(
+                standardCollapsedHeightDp = 231.75f,
+                collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
+                isPlaybackPaused = false,
+            )
+        )
+    }
+
+    @Test
+    fun regularCollapseModes_keepExistingCompactPlayerHeight() {
+        listOf(
+            PortraitPlayerCollapseMode.OFF,
+            PortraitPlayerCollapseMode.INTRO_ONLY,
+            PortraitPlayerCollapseMode.COMMENT_ONLY,
+            PortraitPlayerCollapseMode.BOTH,
+        ).forEach { mode ->
+            assertEquals(
+                231.75f,
+                resolvePiliPlusCollapsedPlayerViewportHeightDp(
+                    standardCollapsedHeightDp = 231.75f,
+                    collapseMode = mode,
+                    isPlaybackPaused = true,
+                )
+            )
+        }
+    }
+
+    @Test
+    fun piliPlusPlayAction_appearsOnlyWhenPausedOnlyPlayerIsFullyCollapsed() {
+        assertTrue(
+            shouldShowPiliPlusCollapsedPlayAction(
+                collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
+                isPlaybackPaused = true,
+                collapseProgress = 1f,
+            )
+        )
+        assertFalse(
+            shouldShowPiliPlusCollapsedPlayAction(
+                collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
+                isPlaybackPaused = false,
+                collapseProgress = 1f,
+            )
+        )
+        assertFalse(
+            shouldShowPiliPlusCollapsedPlayAction(
+                collapseMode = PortraitPlayerCollapseMode.PAUSED_ONLY,
+                isPlaybackPaused = true,
+                collapseProgress = 0.75f,
+            )
+        )
+        assertFalse(
+            shouldShowPiliPlusCollapsedPlayAction(
+                collapseMode = PortraitPlayerCollapseMode.BOTH,
+                isPlaybackPaused = true,
+                collapseProgress = 1f,
+            )
+        )
     }
 
     @Test
@@ -469,7 +540,7 @@ class PortraitDetailPresentationPolicyTest {
     fun standalonePortraitPagerMotionSpec_keepsExitTransitionShortAndTight() {
         val spec = resolveStandalonePortraitPagerMotionSpec()
 
-        assertEquals(220, spec.enterDurationMillis)
+        assertEquals(0, spec.enterDurationMillis)
         assertEquals(220, spec.exitDurationMillis)
         assertEquals(0.96f, spec.exitScaleTarget)
         assertEquals(0.08f, spec.exitTranslateUpFraction)
@@ -515,9 +586,9 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun sharedPlayerPortraitExit_keepsPagerAnimationForDetailReturn() {
-        assertTrue(shouldAnimateStandalonePortraitPager(useSharedPlayer = true))
-        assertTrue(shouldAnimateStandalonePortraitPager(useSharedPlayer = false))
+    fun standalonePortraitEntry_isDirectForSharedAndDedicatedPlayers() {
+        assertFalse(shouldAnimateStandalonePortraitPager(useSharedPlayer = true))
+        assertFalse(shouldAnimateStandalonePortraitPager(useSharedPlayer = false))
     }
 
     @Test

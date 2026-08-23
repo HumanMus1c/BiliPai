@@ -1,5 +1,7 @@
 // 文件路径: feature/settings/AnimationSettingsScreen.kt
 package com.android.purebilibili.feature.settings
+import android.content.Intent
+import android.widget.Toast
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
@@ -27,6 +29,8 @@ import com.android.purebilibili.core.ui.blur.BlurIntensity
 import com.android.purebilibili.core.ui.blur.shouldAllowHomeChromeLiquidGlass
 import com.android.purebilibili.core.store.AppNavigationSettings
 import com.android.purebilibili.core.store.LiquidGlassAdvancedSettings
+import com.android.purebilibili.core.store.LiquidGlassReadabilityMode
+import com.android.purebilibili.core.store.home.LiquidGlassSettingsStore
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
@@ -35,12 +39,15 @@ import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_TRANSITION_CUSTOM_MAX_MILLIS
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
+import com.android.purebilibili.feature.settings.share.SettingsShareService
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_TRANSITION_CUSTOM_MIN_MILLIS
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionSpeed
 import com.android.purebilibili.core.ui.transition.normalizeVideoSharedTransitionCustomDurationMillis
 import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackAnimationStyle
 import com.android.purebilibili.navigation3.predictiveback.BiliPaiPredictiveBackExitDirection
+import com.android.purebilibili.navigation.resolveVisibleBottomBarItems
+import com.android.purebilibili.feature.home.components.resolveBottomBarVisibleItemsForSearchMode
 import androidx.compose.material.icons.outlined.*
 import com.android.purebilibili.core.ui.components.*
 import com.android.purebilibili.core.ui.animation.EntranceGroup
@@ -93,6 +100,9 @@ fun AnimationSettingsContent(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val liquidGlassShareService = remember(context.applicationContext) {
+        SettingsShareService(context.applicationContext)
+    }
     val listState = rememberLazyListState()
     val focusRequest by SettingsSearchFocusController.request.collectAsStateWithLifecycle()
     val windowSizeClass = LocalWindowSizeClass.current
@@ -130,10 +140,29 @@ fun AnimationSettingsContent(
         .collectAsStateWithLifecycle(
             initialValue = LiquidGlassAdvancedSettings()
         )
+    val liquidGlassReadabilityMode by LiquidGlassSettingsStore
+        .observeReadabilityMode(context)
+        .collectAsStateWithLifecycle(initialValue = LiquidGlassReadabilityMode.STABLE)
     val uiEntranceAnimationEnabled by SettingsManager.getUiEntranceAnimationEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val globalTextTapCopyEnabled by SettingsManager
+        .getGlobalTextTapCopyEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = false)
     val appNavigationSettings by SettingsManager.getAppNavigationSettings(context)
         .collectAsStateWithLifecycle(initialValue = AppNavigationSettings())
+    val previewBottomBarItems = remember(
+        appNavigationSettings.orderedVisibleTabIds,
+        state.bottomBarSearchEnabled,
+        state.bottomBarSearchLayoutMode,
+    ) {
+        resolveBottomBarVisibleItemsForSearchMode(
+            visibleItems = resolveVisibleBottomBarItems(
+                appNavigationSettings.orderedVisibleTabIds
+            ),
+            bottomBarSearchEnabled = state.bottomBarSearchEnabled,
+            searchLayoutMode = state.bottomBarSearchLayoutMode,
+        )
+    }
     val videoTransitionRealtimeBlurEnabled by SettingsManager
         .getVideoTransitionRealtimeBlurEnabled(context)
         .collectAsStateWithLifecycle(initialValue = false)
@@ -237,6 +266,19 @@ fun AnimationSettingsContent(
                             checked = state.hapticFeedbackEnabled,
                             onCheckedChange = viewModel::toggleHapticFeedback,
                             iconTint = iOSBlue,
+                        )
+                        AppPreferenceDivider()
+                        AppSwitchPreference(
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.COPY_TEXT),
+                            title = "点按文字复制",
+                            subtitle = "点按非交互文字时复制内容；按钮、标签与导航不参与复制",
+                            checked = globalTextTapCopyEnabled,
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    SettingsManager.setGlobalTextTapCopyEnabled(context, enabled)
+                                }
+                            },
+                            iconTint = iOSOrange,
                         )
                         if (entranceDowngradedBySystem) {
                             AppPreferenceDivider()
@@ -471,7 +513,7 @@ fun AnimationSettingsContent(
                             AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_GLASS),
                                 title = "底栏液态玻璃",
-                                subtitle = "底部导航栏的液态玻璃折射效果",
+                                subtitle = "按 Miuix 上游参数呈现底部导航栏液态玻璃效果",
                                 checked = bottomBarLiquidGlassEnabled,
                                 onCheckedChange = { viewModel.toggleBottomBarLiquidGlass(it) },
                                 iconTint = iOSBlue
@@ -489,10 +531,62 @@ fun AnimationSettingsContent(
                                         persistedProgress = state.liquidGlassProgress,
                                         previewImageUri = liquidGlassPreviewImageUri,
                                         persistedAdvancedSettings = liquidGlassAdvancedSettings,
+                                        persistedReadabilityMode = liquidGlassReadabilityMode,
+                                        bottomBarItems = previewBottomBarItems,
+                                        bottomBarSearchEnabled = state.bottomBarSearchEnabled,
                                         onProgressCommitted = viewModel::setLiquidGlassProgress,
                                         onPreviewImageChanged = viewModel::setLiquidGlassPreviewImageUri,
                                         onAdvancedSettingsCommitted =
                                             viewModel::setLiquidGlassAdvancedSettings,
+                                        onReadabilityModeChanged =
+                                            viewModel::setLiquidGlassReadabilityMode,
+                                        onShareSettings = {
+                                            scope.launch {
+                                                liquidGlassShareService
+                                                    .createLiquidGlassShareUri()
+                                                    .onSuccess { shareUri ->
+                                                        runCatching {
+                                                            val shareIntent = Intent(
+                                                                Intent.ACTION_SEND
+                                                            ).apply {
+                                                                type = "application/json"
+                                                                putExtra(
+                                                                    Intent.EXTRA_STREAM,
+                                                                    shareUri,
+                                                                )
+                                                                putExtra(
+                                                                    Intent.EXTRA_TEXT,
+                                                                    "BiliPai 液态玻璃设置，可在“设置分享”中导入。",
+                                                                )
+                                                                addFlags(
+                                                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                                                )
+                                                            }
+                                                            context.startActivity(
+                                                                Intent.createChooser(
+                                                                    shareIntent,
+                                                                    "分享液态玻璃设置",
+                                                                )
+                                                            )
+                                                        }.onFailure { error ->
+                                                            Toast.makeText(
+                                                                context,
+                                                                error.message
+                                                                    ?: "无法打开系统分享",
+                                                                Toast.LENGTH_SHORT,
+                                                            ).show()
+                                                        }
+                                                    }
+                                                    .onFailure { error ->
+                                                        Toast.makeText(
+                                                            context,
+                                                            error.message
+                                                                ?: "液态玻璃设置导出失败",
+                                                            Toast.LENGTH_SHORT,
+                                                        ).show()
+                                                    }
+                                            }
+                                        },
                                     )
                                 }
                             }

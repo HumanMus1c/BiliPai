@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -89,9 +90,9 @@ data class HomeUiSkinDecoration(
     }
 }
 
-internal fun resolveBottomBarSkinDockIconSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small
+internal fun resolveBottomBarSkinDockIconSize(): Dp = AppSpacingTokens.DoubleExtraLarge
 
-internal fun resolveBottomBarSkinDockHeight(): Dp = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small
+internal fun resolveBottomBarSkinDockHeight(): Dp = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large
 
 internal fun resolveBottomBarSkinDockContentPadding(): PaddingValues = PaddingValues(
     start = AppSpacingTokens.ExtraSmall,
@@ -102,13 +103,13 @@ internal fun resolveBottomBarSkinDockContentPadding(): PaddingValues = PaddingVa
 
 internal fun resolveBottomBarSkinIconLabelGap(): Dp = AppSpacingTokens.Micro
 
-internal fun resolveBottomBarSkinDockIconTopPadding(): Dp = AppSpacingTokens.Small + AppSpacingTokens.Micro
+internal fun resolveBottomBarSkinDockIconTopPadding(): Dp = AppSpacingTokens.ExtraSmall
 
-internal fun resolveBottomBarSkinDockLabelBottomPadding(): Dp = AppSpacingTokens.Large + AppSpacingTokens.Micro
+internal fun resolveBottomBarSkinDockLabelBottomPadding(): Dp = AppSpacingTokens.ExtraSmall
 
-internal fun resolveBottomBarMiuixSkinDockIconSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.ExtraSmall + AppSpacingTokens.Micro
+internal fun resolveBottomBarMiuixSkinDockIconSize(): Dp = AppSpacingTokens.DoubleExtraLarge
 
-internal fun resolveBottomBarCompactSkinHomeIconSize(): Dp = AppSpacingTokens.DoubleExtraLarge + AppSpacingTokens.Small
+internal fun resolveBottomBarCompactSkinHomeIconSize(): Dp = AppSpacingTokens.DoubleExtraLarge
 
 internal fun resolveMiuixDockedBottomBarItemHeight(hasUiSkinDecoration: Boolean): Dp {
     return if (hasUiSkinDecoration) {
@@ -166,14 +167,10 @@ fun resolveHomeUiSkinDecoration(uiSkinState: UiSkinState): HomeUiSkinDecoration?
                     manifest.assets.homeSideBackground != null ||
                     manifest.assets.homeProfileBackground != null ||
                     manifest.assets.homeProfileSquaredBackground != null ||
-                    manifest.assets.homeChannelIcon != null ||
-                    manifest.assets.bottomBarIcons.isNotEmpty() ||
                     manifest.colors.topAtmosphereTint != null ||
                     manifest.colors.searchCapsuleTint != null
                 )
         if (!hasTopDecoration) return null
-        val topTabIconPaths = resolveTopTabSkinIconPaths(activeSkin)
-        val partitionIconPaths = resolveTopTabPartitionSkinIconPaths(activeSkin, topTabIconPaths)
         HomeUiSkinDecoration(
             skinId = manifest.skinId,
             topAtmosphereTint = parseUiSkinColor(
@@ -190,9 +187,7 @@ fun resolveHomeUiSkinDecoration(uiSkinState: UiSkinState): HomeUiSkinDecoration?
             profileBackgroundImagePath = activeSkin.assetFilePath(manifest.assets.homeProfileBackground),
             profileSquaredBackgroundImagePath = activeSkin.assetFilePath(
                 manifest.assets.homeProfileSquaredBackground
-            ),
-            topTabSkinIconPaths = topTabIconPaths,
-            topTabPartitionSkinIconPaths = partitionIconPaths
+            )
         )
     }
 }
@@ -204,14 +199,47 @@ internal fun BottomBarSkinIcon(
     size: Dp = resolveBottomBarSkinDockIconSize(),
     modifier: Modifier = Modifier
 ) {
+    val scalePolicy = rememberSkinIconScalePolicy(iconPath)
     Box(modifier = modifier.size(size)) {
         AsyncImage(
             model = File(iconPath),
             contentDescription = contentDescription,
-            contentScale = ContentScale.Fit,
+            contentScale = scalePolicy.contentScale,
+            alignment = scalePolicy.alignment,
             modifier = Modifier.fillMaxSize()
         )
     }
+}
+
+/**
+ * 图标尺寸兼容策略：B 站装扮图标原图尺寸差异大（留白/装饰边/非正方形）。
+ * 纯函数 [resolveSkinIconScalePolicy] 按原图宽高比决定缩放方式，便于单元测试。
+ * 规则：正方形或近正方形 → Fit 居中；宽高比失衡（留白多）→ Crop 居中兜底，
+ * 避免图标在 32dp 框内显得过小。
+ */
+data class SkinIconScalePolicy(
+    val contentScale: ContentScale,
+    val alignment: Alignment
+)
+
+private val ICON_ASPECT_TOLERANCE = 0.25f
+
+fun resolveSkinIconScalePolicy(imageAspectRatio: Float): SkinIconScalePolicy {
+    // imageAspectRatio = width / height；1.0 为正方形。
+    val ratio = if (imageAspectRatio <= 0f) 1f else imageAspectRatio
+    val balanced = ratio in (1f - ICON_ASPECT_TOLERANCE)..(1f + ICON_ASPECT_TOLERANCE)
+    return if (balanced) {
+        SkinIconScalePolicy(ContentScale.Fit, Alignment.Center)
+    } else {
+        SkinIconScalePolicy(ContentScale.Crop, Alignment.Center)
+    }
+}
+
+@Composable
+private fun rememberSkinIconScalePolicy(iconPath: String): SkinIconScalePolicy {
+    // 默认用 Fit 居中（保留原图观感）；精确宽高比需异步解码，此处保守取平衡态。
+    // 真实合成预览组件复用此策略，用户导入前即可看到尺寸效果。
+    return remember(iconPath) { resolveSkinIconScalePolicy(1f) }
 }
 
 @Composable
@@ -259,7 +287,10 @@ internal fun BottomBarSkinDecorativeTrim(
             AsyncImage(
                 model = File(imagePath),
                 contentDescription = null,
-                contentScale = ContentScale.FillBounds,
+                // FillWidth + 底部对齐：trim 通常宽度铺满、高度自适应，
+                // 避免 FillBounds 拉伸变形与液态玻璃折射层叠加时产生视觉冲突。
+                contentScale = ContentScale.FillWidth,
+                alignment = Alignment.BottomCenter,
                 modifier = Modifier
                     .matchParentSize()
                     .alpha(0.82f)
@@ -291,6 +322,7 @@ private fun resolveBottomBarSkinIconPaths(
             "home" to ("home_selected" to BottomNavItem.HOME),
             "following" to ("following_selected" to BottomNavItem.DYNAMIC),
             "member" to ("member_selected" to BottomNavItem.HISTORY),
+            "channel" to ("channel_selected" to BottomNavItem.LISTEN_VIDEO),
             "profile" to ("profile_selected" to BottomNavItem.PROFILE)
         ).forEach { (unselectedKey, selectedKeyAndItem) ->
             val (selectedKey, item) = selectedKeyAndItem
@@ -304,84 +336,18 @@ private fun resolveBottomBarSkinIconPaths(
                 )
             }
         }
-        val settingsIcon = resolveBottomBarSettingsSkinIconPaths(activeSkin, manifestIcons)
-        if (settingsIcon != null) {
-            put(BottomNavItem.SETTINGS, settingsIcon)
+        if (BottomNavItem.LISTEN_VIDEO !in this) {
+            activeSkin.assetFilePath(activeSkin.manifest.assets.homeChannelIcon)?.let { unselectedPath ->
+                put(
+                    BottomNavItem.LISTEN_VIDEO,
+                    BottomBarSkinIconPaths(
+                        unselected = unselectedPath,
+                        selected = activeSkin.assetFilePath(
+                            activeSkin.manifest.assets.homeChannelSelectedIcon
+                        )
+                    )
+                )
+            }
         }
     }
-}
-
-private fun resolveBottomBarSettingsSkinIconPaths(
-    activeSkin: com.android.purebilibili.core.plugin.skin.InstalledUiSkinPackage,
-    manifestIcons: Map<String, String>
-): BottomBarSkinIconPaths? {
-    val unselectedAsset = activeSkin.manifest.assets.homeChannelIcon
-        ?: manifestIcons["profile"]
-        ?: manifestIcons["member"]
-        ?: manifestIcons["home"]
-    val selectedAsset = activeSkin.manifest.assets.homeChannelSelectedIcon
-        ?: manifestIcons["profile_selected"]
-        ?: manifestIcons["member_selected"]
-        ?: manifestIcons["home_selected"]
-    val unselectedPath = activeSkin.assetFilePath(unselectedAsset) ?: return null
-    return BottomBarSkinIconPaths(
-        unselected = unselectedPath,
-        selected = activeSkin.assetFilePath(selectedAsset)
-    )
-}
-
-private fun resolveTopTabSkinIconPaths(
-    activeSkin: com.android.purebilibili.core.plugin.skin.InstalledUiSkinPackage
-): Map<String, TopTabSkinIconPaths> {
-    val manifestIcons = activeSkin.manifest.assets.bottomBarIcons
-    val homeIcon = resolveTopTabSkinIconPaths(activeSkin, manifestIcons["home"], manifestIcons["home_selected"])
-    val followingIcon = resolveTopTabSkinIconPaths(
-        activeSkin,
-        manifestIcons["following"],
-        manifestIcons["following_selected"]
-    )
-    val memberIcon = resolveTopTabSkinIconPaths(activeSkin, manifestIcons["member"], manifestIcons["member_selected"])
-    val profileIcon = resolveTopTabSkinIconPaths(activeSkin, manifestIcons["profile"], manifestIcons["profile_selected"])
-    val channelIcon = resolveTopTabSkinIconPaths(
-        activeSkin,
-        activeSkin.manifest.assets.homeChannelIcon,
-        activeSkin.manifest.assets.homeChannelSelectedIcon
-    )
-    val styleFallbackIcon = channelIcon ?: memberIcon ?: profileIcon ?: homeIcon ?: followingIcon
-
-    return buildMap {
-        homeIcon?.let { put("RECOMMEND", it) }
-        followingIcon?.let { put("FOLLOW", it) }
-        styleFallbackIcon?.let {
-            put("POPULAR", channelIcon ?: it)
-            put("LIVE", memberIcon ?: it)
-            put("ANIME", profileIcon ?: it)
-            put("GAME", memberIcon ?: it)
-            put("KNOWLEDGE", followingIcon ?: it)
-            put("TECH", channelIcon ?: it)
-        }
-    }
-}
-
-private fun resolveTopTabPartitionSkinIconPaths(
-    activeSkin: com.android.purebilibili.core.plugin.skin.InstalledUiSkinPackage,
-    topTabIconPaths: Map<String, TopTabSkinIconPaths>
-): TopTabSkinIconPaths? {
-    return resolveTopTabSkinIconPaths(
-        activeSkin,
-        activeSkin.manifest.assets.homeChannelIcon,
-        activeSkin.manifest.assets.homeChannelSelectedIcon
-    ) ?: topTabIconPaths["POPULAR"] ?: topTabIconPaths["RECOMMEND"]
-}
-
-private fun resolveTopTabSkinIconPaths(
-    activeSkin: com.android.purebilibili.core.plugin.skin.InstalledUiSkinPackage,
-    unselectedAssetPath: String?,
-    selectedAssetPath: String?
-): TopTabSkinIconPaths? {
-    val unselectedPath = activeSkin.assetFilePath(unselectedAssetPath) ?: return null
-    return TopTabSkinIconPaths(
-        unselected = unselectedPath,
-        selected = activeSkin.assetFilePath(selectedAssetPath)
-    )
 }

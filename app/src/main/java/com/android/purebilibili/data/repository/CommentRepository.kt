@@ -7,6 +7,7 @@ import com.android.purebilibili.core.network.WbiUtils
 import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.data.model.CommentFraudStatus
 import com.android.purebilibili.data.model.response.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -1048,6 +1049,8 @@ object CommentRepository {
     private const val IMAGE_EXTRA_WAIT_MS = 10000L
     /** 删除判定前的二次确认等待 */
     private const val DELETE_CONFIRM_RETRY_DELAY_MS = 2200L
+    private const val SUB_REPLY_PROBE_PAGE_SIZE = 20
+    private const val SUB_REPLY_PROBE_MAX_PAGES = 50
 
     /**
      * [新增] 评论反诈检测 - 检查刚发送的评论是否被 ShadowBan / 秒删 / 审核
@@ -1093,6 +1096,8 @@ object CommentRepository {
             } else {
                 Result.success(checkRootComment(aid, rpid))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e("CommentFraud", "检测异常: ${e.message}", e)
             Result.success(CommentFraudStatus.UNKNOWN)
@@ -1102,15 +1107,16 @@ object CommentRepository {
     /**
      * 检查回复评论（楼中楼）的状态
      * 流程:
-     * 1) guest seek_rpid 精确探测
-     * 2) auth seek_rpid 精确探测
+     * 1) guest 逐页扫描楼中楼
+     * 2) auth 逐页扫描楼中楼
      * 3) 仅在双端持续未命中时才判秒删，避免瞬时延迟误判
      */
     private suspend fun checkReplyComment(aid: Long, rpid: Long, rootId: Long): CommentFraudStatus {
-        Logger.d("CommentFraud", "[回复] Step1: guest seek_rpid 检测 rpid=$rpid root=$rootId")
-        val guestProbe = probeCommentPresenceBySeekRpid(
+        Logger.d("CommentFraud", "[回复] Step1: guest 分页检测 rpid=$rpid root=$rootId")
+        val guestProbe = probeSubReplyPresence(
             apiClient = guestApi,
             aid = aid,
+            rootRpid = rootId,
             targetRpid = rpid
         )
         if (guestProbe.requestSucceeded && guestProbe.found) {
@@ -1122,10 +1128,11 @@ object CommentRepository {
             )
         }
 
-        Logger.d("CommentFraud", "[回复] Step2: auth seek_rpid 检测 rpid=$rpid")
-        val authProbe = probeCommentPresenceBySeekRpid(
+        Logger.d("CommentFraud", "[回复] Step2: auth 分页检测 rpid=$rpid root=$rootId")
+        val authProbe = probeSubReplyPresence(
             apiClient = api,
             aid = aid,
+            rootRpid = rootId,
             targetRpid = rpid
         )
 
@@ -1137,7 +1144,11 @@ object CommentRepository {
             !authProbe.deletedHint
         ) {
             Logger.d("CommentFraud", "[回复] Step3: 二次确认未命中，避免瞬时误判")
-            confirmedNotFoundAfterRetry = confirmDeletedBySecondProbe(aid = aid, rpid = rpid)
+            confirmedNotFoundAfterRetry = confirmDeletedSubReplyBySecondProbe(
+                aid = aid,
+                rootRpid = rootId,
+                rpid = rpid
+            )
         }
 
         val status = resolveReplyFraudStatus(
@@ -1270,6 +1281,8 @@ object CommentRepository {
                     )
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e("CommentFraud", "seek_rpid probe exception: ${e.message}")
             CommentPresenceProbe(
@@ -1278,6 +1291,72 @@ object CommentRepository {
                 deletedHint = false
             )
         }
+    }
+
+    /**
+     * 主评论 seek_rpid 通常只携带少量楼中楼预览，不能证明深层回复不存在。
+     * 因此对楼中楼按 PiliPlus 的方式分页精确扫描，并限制最大页数避免无界请求。
+     */
+    private suspend fun probeSubReplyPresence(
+        apiClient: BilibiliApi,
+        aid: Long,
+        rootRpid: Long,
+        targetRpid: Long
+    ): CommentPresenceProbe {
+        var page = 1
+        while (page <= SUB_REPLY_PROBE_MAX_PAGES) {
+            try {
+                val response = apiClient.getReplyReply(
+                    oid = aid,
+                    root = rootRpid,
+                    pn = page,
+                    ps = SUB_REPLY_PROBE_PAGE_SIZE
+                )
+                when (response.code) {
+                    0 -> {
+                        val data = response.data
+                        val replies = data?.replies.orEmpty()
+                        replies.firstOrNull { it.rpid == targetRpid }?.let { reply ->
+                            return CommentPresenceProbe(
+                                requestSucceeded = true,
+                                found = true,
+                                invisible = reply.invisible
+                            )
+                        }
+                        val totalCount = maxOf(data?.page?.count ?: 0, data?.root?.rcount ?: 0)
+                        if (!shouldContinueSubReplyFraudScan(
+                                page = page,
+                                pageSize = SUB_REPLY_PROBE_PAGE_SIZE,
+                                receivedCount = replies.size,
+                                totalCount = totalCount,
+                                maxPages = SUB_REPLY_PROBE_MAX_PAGES
+                            )
+                        ) {
+                            return CommentPresenceProbe(requestSucceeded = true, found = false)
+                        }
+                    }
+                    12022, 12009 -> return CommentPresenceProbe(
+                        requestSucceeded = true,
+                        found = false,
+                        deletedHint = true
+                    )
+                    else -> {
+                        Logger.w(
+                            "CommentFraud",
+                            "sub-reply probe failed: page=$page code=${response.code}, message=${response.message}"
+                        )
+                        return CommentPresenceProbe(requestSucceeded = false, found = false)
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("CommentFraud", "sub-reply probe exception: page=$page ${e.message}")
+                return CommentPresenceProbe(requestSucceeded = false, found = false)
+            }
+            page++
+        }
+        return CommentPresenceProbe(requestSucceeded = true, found = false)
     }
 
     private data class CommentTargetMatch(
@@ -1335,6 +1414,8 @@ object CommentRepository {
                     )
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e("CommentFraud", "reply page probe exception: ${e.message}")
             return CommentReplyPageProbe(
@@ -1358,6 +1439,28 @@ object CommentRepository {
         val authRetryProbe = probeCommentPresenceBySeekRpid(
             apiClient = api,
             aid = aid,
+            targetRpid = rpid
+        )
+        return authRetryProbe.requestSucceeded && !authRetryProbe.found
+    }
+
+    private suspend fun confirmDeletedSubReplyBySecondProbe(
+        aid: Long,
+        rootRpid: Long,
+        rpid: Long
+    ): Boolean {
+        delay(DELETE_CONFIRM_RETRY_DELAY_MS)
+        val guestRetryProbe = probeSubReplyPresence(
+            apiClient = guestApi,
+            aid = aid,
+            rootRpid = rootRpid,
+            targetRpid = rpid
+        )
+        if (!guestRetryProbe.requestSucceeded || guestRetryProbe.found) return false
+        val authRetryProbe = probeSubReplyPresence(
+            apiClient = api,
+            aid = aid,
+            rootRpid = rootRpid,
             targetRpid = rpid
         )
         return authRetryProbe.requestSucceeded && !authRetryProbe.found

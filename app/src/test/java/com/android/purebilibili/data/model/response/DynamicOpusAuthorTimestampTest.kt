@@ -94,4 +94,126 @@ class DynamicOpusAuthorTimestampTest {
             item?.modules?.module_dynamic?.major?.opus?.contentBlocks
         )
     }
+
+    @Test
+    fun opusDetail_acceptsExplicitNullModuleSlotsFromRealResponse() {
+        val payload = """
+            {
+              "code": 0,
+              "data": {
+                "item": {
+                  "id_str": "1236693664944619527",
+                  "type": 0,
+                  "modules": [
+                    {
+                      "module_type": "MODULE_TYPE_TITLE",
+                      "module_title": { "text": "感觉新翼神龙卡组" },
+                      "module_author": null,
+                      "module_content": null,
+                      "module_stat": null
+                    },
+                    {
+                      "module_type": "MODULE_TYPE_AUTHOR",
+                      "module_title": null,
+                      "module_author": {
+                        "mid": 178991353,
+                        "name": "凯尔菌",
+                        "pub_ts": "1786778582",
+                        "following": 0
+                      },
+                      "module_content": null,
+                      "module_stat": null
+                    },
+                    {
+                      "module_type": "MODULE_TYPE_TRIBEE",
+                      "module_title": null,
+                      "module_author": null,
+                      "module_content": null,
+                      "module_stat": null,
+                      "module_tribee": {}
+                    },
+                    {
+                      "module_type": "MODULE_TYPE_CONTENT",
+                      "module_title": null,
+                      "module_author": null,
+                      "module_content": {
+                        "paragraphs": [
+                          {
+                            "para_type": 1,
+                            "text": {
+                              "nodes": [
+                                {
+                                  "word": { "words": "第一段正文" },
+                                  "rich": null,
+                                  "formula": null
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "para_type": 2,
+                            "pic": {
+                              "pics": [
+                                {
+                                  "url": "http://i0.hdslb.com/deck.jpg",
+                                  "width": 1080,
+                                  "height": 2400
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "para_type": 1,
+                            "text": {
+                              "nodes": [
+                                {
+                                  "word": null,
+                                  "rich": { "text": "图片后的富文本" },
+                                  "formula": null
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      },
+                      "module_stat": null
+                    },
+                    {
+                      "module_type": "MODULE_TYPE_STAT",
+                      "module_title": null,
+                      "module_author": null,
+                      "module_content": null,
+                      "module_stat": {
+                        "comment": { "count": 52, "forbidden": false },
+                        "forward": { "count": 0, "forbidden": false },
+                        "like": { "count": 355, "forbidden": false }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val item = json.decodeFromString<DynamicDetailResponse>(payload).data?.item
+        val opus = item?.modules?.module_dynamic?.major?.opus
+
+        assertEquals("感觉新翼神龙卡组", opus?.title)
+        assertEquals(1786778582L, item?.modules?.module_author?.pub_ts)
+        assertEquals(
+            listOf(
+                OpusContentBlock.Text("第一段正文"),
+                OpusContentBlock.Image(
+                    OpusPic(
+                        url = "https://i0.hdslb.com/deck.jpg",
+                        width = 1080,
+                        height = 2400
+                    )
+                ),
+                OpusContentBlock.Text("图片后的富文本")
+            ),
+            opus?.contentBlocks
+        )
+        assertEquals(52, item?.modules?.module_stat?.comment?.count)
+    }
 }

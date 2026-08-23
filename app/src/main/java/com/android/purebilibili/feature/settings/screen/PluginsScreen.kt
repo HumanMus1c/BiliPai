@@ -66,6 +66,7 @@ import com.android.purebilibili.core.theme.iOSPurple
 import com.android.purebilibili.core.theme.iOSTeal
 import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
 import com.android.purebilibili.feature.settings.SettingsLocalBackHandler
+import com.android.purebilibili.feature.settings.screen.SkinCatalogScreen
 import com.android.purebilibili.feature.settings.ui.SettingsBottomBarScrollEffect
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.core.ui.AppAlertDialog
@@ -172,6 +173,7 @@ fun PluginsScreen(
     //  编辑插件状态
     var editingPlugin by remember { mutableStateOf<com.android.purebilibili.core.plugin.json.JsonRulePlugin?>(null) }
     var selectedBuiltInPluginId by remember { mutableStateOf<String?>(null) }
+    var showSkinCatalog by remember { mutableStateOf(false) }
     
     //  如果正在编辑插件，显示编辑器全屏覆盖 (Mobile behavior)
     //  In Tablet, this will be handled differently.
@@ -199,6 +201,15 @@ fun PluginsScreen(
         }
     }
 
+    if (showSkinCatalog) {
+        SettingsLocalBackHandler { showSkinCatalog = false }
+        SkinCatalogScreen(
+            onBack = { showSkinCatalog = false },
+            onInstalled = { showSkinCatalog = false }
+        )
+        return
+    }
+
     val bottomContentPadding = LocalBottomBarContentPadding.current
 
     SettingsPageScaffold(
@@ -215,6 +226,7 @@ fun PluginsScreen(
             onEditJsonPlugin = { editingPlugin = it },
             initialImportUrl = initialImportUrl,
             onOpenJsPlugin = onOpenJsPlugin,
+            onOpenSkinCatalog = { showSkinCatalog = true },
         )
     }
 }
@@ -227,14 +239,15 @@ fun PluginsContent(
     onOpenBuiltInPlugin: (String) -> Unit,
     onEditJsonPlugin: (com.android.purebilibili.core.plugin.json.JsonRulePlugin) -> Unit,
     initialImportUrl: String? = null,
-    onOpenJsPlugin: (String) -> Unit = {}
+    onOpenJsPlugin: (String) -> Unit = {},
+    onOpenSkinCatalog: () -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     SettingsBottomBarScrollEffect(listState)
     val contentBottomPadding = LocalBottomBarContentPadding.current + 16.dp
-    
+
     // Statistics
     val totalPlugins = plugins.size + jsonPlugins.size
     val enabledPlugins = plugins.count { it.enabled } + jsonPlugins.count { it.enabled }
@@ -885,6 +898,62 @@ fun PluginsContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 32.dp, bottom = 8.dp)
                 )
+            }
+
+            item {
+                AppSurface(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .clip(AppShapes.container(ContainerLevel.Card))
+                        .clickable { onOpenSkinCatalog() },
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                    tonalElevation = 0.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .adaptiveSquircleBackground(uiSkinTint, 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AppIcon(
+                                imageVector = Icons.Filled.Cloud,
+                                contentDescription = null,
+                                tint = uiSkinIconContentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            AppText(
+                                text = "在线装扮目录",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            AppText(
+                                text = "浏览 Rovniced/bilibili-skin 主题存档，真实预览后一键导入",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        AppSurface(
+                            shape = AppShapes.container(ContainerLevel.Chip),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)
+                        ) {
+                            AppText(
+                                text = "在线",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
             }
 
             item {

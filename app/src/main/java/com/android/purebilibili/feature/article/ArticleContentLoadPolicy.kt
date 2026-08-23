@@ -18,13 +18,42 @@ internal fun scoreArticleBlocks(blocks: List<ArticleContentBlock>): Int {
         }
     }
     val imageCount = blocks.count { it is ArticleContentBlock.Image }
-    return blocks.size * 100 + imageCount * 20 + textLength
+    val semanticScore = blocks.sumOf { block ->
+        when (block) {
+            is ArticleContentBlock.Heading -> 60
+            is ArticleContentBlock.Quote -> 40
+            is ArticleContentBlock.ListBlock -> 60 + block.items.size * 10
+            is ArticleContentBlock.Code -> 80
+            is ArticleContentBlock.Paragraph,
+            is ArticleContentBlock.Image -> 0
+        }
+    }
+    // Completeness should dominate. A source split into many plain paragraphs must not
+    // beat an equally complete structured source merely because it has more blocks.
+    return textLength + imageCount * 200 + blocks.size * 8 + semanticScore
 }
 
 internal fun selectRicherArticleBlocks(
     vararg candidates: List<ArticleContentBlock>
 ): List<ArticleContentBlock> {
     return candidates.maxByOrNull(::scoreArticleBlocks).orEmpty()
+}
+
+internal fun shouldShowArticleSummary(
+    summary: String,
+    blocks: List<ArticleContentBlock>
+): Boolean {
+    if (summary.isBlank()) return false
+    return blocks.none { block ->
+        when (block) {
+            is ArticleContentBlock.Heading -> block.text.isNotBlank()
+            is ArticleContentBlock.Paragraph -> block.text.isNotBlank()
+            is ArticleContentBlock.Quote -> block.text.isNotBlank()
+            is ArticleContentBlock.ListBlock -> block.items.any { it.isNotBlank() }
+            is ArticleContentBlock.Code -> block.content.isNotBlank()
+            is ArticleContentBlock.Image -> false
+        }
+    }
 }
 
 internal fun scoreOpusContentBlocks(blocks: List<OpusContentBlock>): Int {

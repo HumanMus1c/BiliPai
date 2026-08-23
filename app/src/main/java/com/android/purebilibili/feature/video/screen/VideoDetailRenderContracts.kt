@@ -79,6 +79,7 @@ internal data class VideoDetailCommentActions(
     val startSubDissolve: (Long) -> Unit,
     val deleteSubComment: (Long) -> Unit,
     val likeComment: (Long) -> Unit,
+    val hateComment: (Long) -> Unit,
     val reportComment: (Long, Int) -> Unit,
     val toggleTopComment: (ReplyItem) -> Unit
 )

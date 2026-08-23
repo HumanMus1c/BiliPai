@@ -55,6 +55,8 @@ internal enum class SeekPreviewBubblePlacement {
     Centered
 }
 
+internal const val PORTRAIT_SEEK_PREVIEW_ASPECT_RATIO = 9f / 16f
+
 private data class SeekPreviewBubbleStyle(
     val widthDp: Int,
     val heightDp: Int,

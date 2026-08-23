@@ -147,6 +147,23 @@ class DynamicCommentStructureTest {
     }
 
     @Test
+    fun `dynamic comments share video comment typography tokens`() {
+        val sheetSource = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicCommentSheet.kt"
+        ).readText()
+        val commentItem = sheetSource
+            .substringAfter("private fun CommentItem(")
+            .substringBefore("private fun formatTime(")
+
+        assertTrue(commentItem.contains("VideoCommentTypographyTokens.author"))
+        assertTrue(commentItem.contains("VideoCommentTypographyTokens.metadata"))
+        assertTrue(commentItem.contains("VideoCommentTypographyTokens.body"))
+        assertTrue(commentItem.contains("VideoCommentTypographyTokens.action"))
+        assertTrue(commentItem.contains("VideoCommentTypographyTokens.subReply"))
+        assertTrue(!commentItem.contains("MaterialTheme.typography.labelSmall.fontSize"))
+    }
+
+    @Test
     fun `feed and space comment buttons open dynamic detail`() {
         val screenSource = File(
             "src/main/java/com/android/purebilibili/feature/dynamic/DynamicScreen.kt"

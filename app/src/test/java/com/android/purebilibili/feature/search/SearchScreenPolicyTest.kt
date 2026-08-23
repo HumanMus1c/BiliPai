@@ -419,7 +419,7 @@ class SearchScreenPolicyTest {
         assertTrue(topBar.contains(".fillMaxWidth()"))
         assertTrue(topBar.contains("TextFieldValue("))
         assertTrue(topBar.contains("resolveSearchInputShape(topChromePolicy)"))
-        assertFalse(topBar.contains("AppShapes.container(chromeSpec.inputShapeLevel)"))
+        assertFalse(topBar.contains("RoundedCornerShape("))
     }
 
     @Test

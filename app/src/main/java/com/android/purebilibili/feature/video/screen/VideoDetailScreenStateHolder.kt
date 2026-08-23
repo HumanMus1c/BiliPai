@@ -55,6 +55,8 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -254,6 +256,35 @@ private val commentBackToTopRestoreFlow =
 private const val CONTINUOUS_PLAYER_MORPH_DURATION_MILLIS = 280
 
 private const val VIDEO_DETAIL_COLLAPSE_SIGNAL_IDLE_TIMEOUT_MS = 120L
+
+@Composable
+private fun CollapsedPlayerPlayAction(
+    visible: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn(animationSpec = tween(durationMillis = 120)),
+        exit = fadeOut(animationSpec = tween(durationMillis = 90)),
+    ) {
+        TextButton(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(horizontal = 12.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.PlayArrow,
+                contentDescription = "立即播放",
+            )
+            Spacer(Modifier.width(4.dp))
+            Text("立即播放")
+        }
+    }
+}
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @OptIn(
@@ -466,6 +497,7 @@ internal fun VideoDetailScreenStateHolder(
             startSubDissolve = commentViewModel::startSubDissolve,
             deleteSubComment = commentViewModel::deleteSubComment,
             likeComment = commentViewModel::likeComment,
+            hateComment = commentViewModel::hateComment,
             reportComment = { rpid, reason -> commentViewModel.reportComment(rpid, reason) },
             toggleTopComment = commentViewModel::toggleTopComment
         )
@@ -2925,7 +2957,10 @@ internal fun VideoDetailScreenStateHolder(
                             onSubReplyClick = commentActions.openSubReply,
                             onCommentReplyClick = playbackActions.replyTo, onLoadMoreReplies = commentActions.loadComments,
                             onDeleteComment = commentActions.deleteComment, onDissolveStart = commentActions.startDissolve,
-                            onCommentLike = commentActions.likeComment, onCommentUrlClick = openCommentUrl,
+                            onCommentLike = commentActions.likeComment,
+                            onCommentHate = commentActions.hateComment,
+                            hatedComments = commentState.hatedComments,
+                            onCommentUrlClick = openCommentUrl,
                             onReportComment = commentActions.reportComment, onToggleTopComment = commentActions.toggleTopComment,
                             onTimestampClick = { position -> seekPlayerFromUserAction(playerState.player, position) },
                             onDismiss = {
@@ -2958,6 +2993,7 @@ internal fun VideoDetailScreenStateHolder(
                                         onDissolveStart = commentActions.startSubDissolve,
                                         onDeleteComment = commentActions.deleteSubComment,
                                         onCommentLike = commentActions.likeComment,
+                                        onCommentHate = commentActions.hateComment,
                                         onReportComment = commentActions.reportComment,
                                         onUrlClick = openCommentUrl,
                                         showIdentityDecorations = commentMemberDecorationsEnabled,
@@ -3158,6 +3194,8 @@ internal fun VideoDetailScreenStateHolder(
                             onDeleteComment = commentActions.deleteComment,
                             onDissolveStart = commentActions.startDissolve,
                             onCommentLike = commentActions.likeComment,
+                            onCommentHate = commentActions.hateComment,
+                            hatedComments = commentState.hatedComments,
                             onCommentUrlClick = openCommentUrl,
                             onReportComment = commentActions.reportComment,
                             onToggleTopComment = commentActions.toggleTopComment,
@@ -3192,6 +3230,7 @@ internal fun VideoDetailScreenStateHolder(
                                         onDissolveStart = commentActions.startSubDissolve,
                                         onDeleteComment = commentActions.deleteSubComment,
                                         onCommentLike = commentActions.likeComment,
+                                        onCommentHate = commentActions.hateComment,
                                         onReportComment = commentActions.reportComment,
                                         onUrlClick = openCommentUrl,
                                         showIdentityDecorations = commentMemberDecorationsEnabled,
@@ -3371,11 +3410,23 @@ internal fun VideoDetailScreenStateHolder(
                                 isCollapsed = false
                             )
                         }
-                        val collapsedPortraitInlineSpec = remember(configuration.screenWidthDp, configuration.screenHeightDp) {
-                            resolvePortraitInlinePlayerLayoutSpec(
+                        val collapsedPortraitInlineSpec = remember(
+                            configuration.screenWidthDp,
+                            configuration.screenHeightDp,
+                            portraitPlayerCollapseMode,
+                            isPlaybackPaused,
+                        ) {
+                            val standardSpec = resolvePortraitInlinePlayerLayoutSpec(
                                 screenWidthDp = configuration.screenWidthDp.toFloat(),
                                 screenHeightDp = configuration.screenHeightDp.toFloat(),
                                 isCollapsed = true
+                            )
+                            standardSpec.copy(
+                                heightDp = resolvePiliPlusCollapsedPlayerViewportHeightDp(
+                                    standardCollapsedHeightDp = standardSpec.heightDp,
+                                    collapseMode = portraitPlayerCollapseMode,
+                                    isPlaybackPaused = isPlaybackPaused,
+                                )
                             )
                         }
                         val collapseRangePx = with(LocalDensity.current) {
@@ -3998,6 +4049,20 @@ internal fun VideoDetailScreenStateHolder(
                             )
                             }
                             }
+                            CollapsedPlayerPlayAction(
+                                visible = shouldShowPiliPlusCollapsedPlayAction(
+                                    collapseMode = portraitPlayerCollapseMode,
+                                    isPlaybackPaused = isPlaybackPaused,
+                                    collapseProgress = layoutCollapseProgress,
+                                ),
+                                onClick = {
+                                    playPlayerFromUserAction(playerState.player)
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .height(56.dp)
+                                    .zIndex(2f),
+                            )
                         }
                         Box(
                             modifier = Modifier

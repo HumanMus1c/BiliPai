@@ -179,4 +179,17 @@ class SeekPreviewBubblePolicyTest {
             )
         )
     }
+
+    @Test
+    fun portraitPlayerLandscapeContent_usesDetectedVideoAspectRatio() {
+        assertEquals(
+            CompactSeekPreviewSize(widthDp = 144, heightDp = 81),
+            resolveCompactSeekPreviewSize(
+                sourceWidthPx = 160,
+                sourceHeightPx = 90,
+                screenWidthDp = 393,
+                videoAspectRatio = 16f / 9f
+            )
+        )
+    }
 }

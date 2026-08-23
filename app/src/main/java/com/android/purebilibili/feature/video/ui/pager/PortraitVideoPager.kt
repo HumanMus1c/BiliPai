@@ -165,6 +165,7 @@ import com.android.purebilibili.feature.video.ui.components.UpPreviewSheet
 import com.android.purebilibili.feature.video.ui.components.UP_PREVIEW_SHEET_HEIGHT_FRACTION
 import com.android.purebilibili.feature.video.ui.components.resolvePortraitOverlaySheetExpansion
 import com.android.purebilibili.feature.video.ui.components.VideoAspectRatio
+import com.android.purebilibili.feature.video.ui.components.PORTRAIT_SEEK_PREVIEW_ASPECT_RATIO
 import com.android.purebilibili.feature.video.ui.components.resolveSafeVideoAspectRatio
 import com.android.purebilibili.feature.video.ui.overlay.FullscreenDoubleTapAction
 import com.android.purebilibili.feature.video.ui.overlay.ImmersiveAmbientLetterboxBackdrop
@@ -2681,7 +2682,7 @@ private fun VideoPageItem(
                         sourceWidthPx = gestureVideoshotData.img_x_size,
                         sourceHeightPx = gestureVideoshotData.img_y_size,
                         screenWidthDp = previewConfiguration.screenWidthDp,
-                        videoAspectRatio = 9f / 16f
+                        videoAspectRatio = PORTRAIT_SEEK_PREVIEW_ASPECT_RATIO
                     )
                 }
                 val previewWidthPx = with(density) { gesturePreviewSize.widthDp.dp.toPx() }
@@ -2700,7 +2701,7 @@ private fun VideoPageItem(
                     videoshotData = gestureVideoshotData,
                     targetPositionMs = seekTargetPosition.toLong(),
                     durationMs = progressState.duration,
-                    videoAspectRatio = 9f / 16f,
+                    videoAspectRatio = PORTRAIT_SEEK_PREVIEW_ASPECT_RATIO,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .offset {
@@ -3145,7 +3146,7 @@ private fun VideoPageItem(
             danmakuEnabled = danmakuEnabled,
             isStatusBarHidden = true,
             videoshotData = currentSuccess?.videoshotData,
-            videoAspectRatio = 9f / 16f,
+            videoAspectRatio = PORTRAIT_SEEK_PREVIEW_ASPECT_RATIO,
             isPlaybackRecovering = isCurrentPage && shouldShowPlaybackRecoveryUiAfterSeek(
                 state = seekSession,
                 playWhenReady = exoPlayer.playWhenReady,

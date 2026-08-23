@@ -1113,6 +1113,18 @@ internal fun shouldShowCoverImage(
 }
 
 /**
+ * 竖屏视频手动起播时只保留黑色播放器与播放按钮，不请求详情封面。
+ * 返回共享转场仍允许封面承接，避免返回列表时媒体区域突然变黑。
+ */
+internal fun shouldLoadVideoPlayerCoverImage(
+    isVerticalVideo: Boolean,
+    shouldKeepCoverForManualStart: Boolean,
+    forceCoverDuringReturnAnimation: Boolean,
+): Boolean = forceCoverDuringReturnAnimation ||
+    !isVerticalVideo ||
+    !shouldKeepCoverForManualStart
+
+/**
  * 即播路径的封面是透明 TextureView 下的底图，不能持续压在视频帧上；
  * CoverFirst 与返回则继续由封面承担最上层交互/共享 morph。
  */

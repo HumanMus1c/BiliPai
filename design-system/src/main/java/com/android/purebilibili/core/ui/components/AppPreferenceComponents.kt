@@ -177,7 +177,8 @@ fun AppSearchField(
     presentation: AppSearchFieldPresentation = AppSearchFieldPresentation.STANDARD,
     autoFocusEnabled: Boolean = false,
     focusRequester: FocusRequester? = null,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+    containerColor: Color = Color.Unspecified,
+    shapeOverride: Shape? = null,
     heightOverride: Dp? = null,
     interactionSource: MutableInteractionSource? = null,
 ) = AdaptiveSearchFieldRenderer(
@@ -186,6 +187,7 @@ fun AppSearchField(
     modifier = modifier,
     placeholder = placeholder,
     containerColor = containerColor,
+    shapeOverride = shapeOverride,
     heightOverride = heightOverride,
     forceExpandedInput = presentation == AppSearchFieldPresentation.TOP_BAR,
     topBarChrome = presentation == AppSearchFieldPresentation.TOP_BAR,

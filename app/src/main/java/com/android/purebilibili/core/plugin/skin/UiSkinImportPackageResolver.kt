@@ -9,14 +9,15 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.nio.charset.Charset
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-private const val BILIBILI_SKIN_SOURCE_NAME = "KimmyXYC/bilibili-skin"
-private const val BILIBILI_SKIN_SOURCE_URL = "https://github.com/KimmyXYC/bilibili-skin"
+private const val BILIBILI_SKIN_SOURCE_NAME = "Rovniced/bilibili-skin"
+private const val BILIBILI_SKIN_SOURCE_URL = "https://github.com/Rovniced/bilibili-skin"
 private const val BILIBILI_SKIN_LICENSE_NOTE =
-    "由用户本地 KimmyXYC/bilibili-skin 主题目录转换，输出包包含原存档/官方装扮素材；" +
+    "由用户本地 Rovniced/bilibili-skin 主题目录转换，输出包包含原存档/官方装扮素材；" +
         "仅供本地私用或在已获得授权时分享，不要将官方付费主题原图、角色立绘、图标原件或动效资源作为社区包分发。"
 private const val MAX_THEME_ENTRY_COUNT = 256
 private const val MAX_THEME_TOTAL_BYTES = 128 * 1024 * 1024
@@ -37,12 +38,14 @@ object UiSkinImportPackageResolver {
         "tail_icon_main" to "home",
         "tail_icon_dynamic" to "following",
         "tail_icon_shop" to "member",
+        "tail_icon_channel" to "channel",
         "tail_icon_myself" to "profile"
     )
     private val selectedIconMapping = mapOf(
         "tail_icon_selected_main" to "home_selected",
         "tail_icon_selected_dynamic" to "following_selected",
         "tail_icon_selected_shop" to "member_selected",
+        "tail_icon_selected_channel" to "channel_selected",
         "tail_icon_selected_myself" to "profile_selected"
     )
 
@@ -143,10 +146,7 @@ object UiSkinImportPackageResolver {
         packageUrl: String,
         remotePackageFetcher: ((String) -> ByteArray)?
     ): ByteArray {
-        val normalizedUrl = packageUrl.trim()
-        if (!normalizedUrl.startsWith("https://")) {
-            throw IllegalArgumentException("皮肤 package_url 不是安全 HTTPS 链接")
-        }
+        val normalizedUrl = normalizeSkinPackageUrl(packageUrl)
         return remotePackageFetcher?.invoke(normalizedUrl)
             ?: throw IllegalArgumentException("皮肤 JSON 需要下载 package_url，请检查网络后重试")
     }
@@ -183,7 +183,7 @@ object UiSkinImportPackageResolver {
     }
 
     private fun parseThemeJson(bytes: ByteArray): BilibiliSkinTheme {
-        val root = json.parseToJsonElement(bytes.decodeToString()).jsonObject
+        val root = json.parseToJsonElement(bytes.decodeBilibiliSkinJson()).jsonObject
         val dataObject = root.objectOrNull("data")
         val themeObject = root.resolveThemeObject()
         val properties = themeObject?.objectOrNull("properties")
@@ -223,11 +223,11 @@ object UiSkinImportPackageResolver {
     }
 
     private fun looksLikeJson(bytes: ByteArray): Boolean {
-        return bytes.decodeToString().trimStart().startsWith("{")
+        return bytes.decodeBilibiliSkinJson().trimStart().startsWith("{")
     }
 
     private fun ByteArray.packageUrlOrNull(): String? {
-        val root = runCatching { json.parseToJsonElement(decodeToString()).jsonObject }.getOrNull()
+        val root = runCatching { json.parseToJsonElement(decodeBilibiliSkinJson()).jsonObject }.getOrNull()
             ?: return null
         val dataObject = root.objectOrNull("data")
         val themeObject = root.resolveThemeObject()
@@ -240,6 +240,15 @@ object UiSkinImportPackageResolver {
             ?: root.stringOrNull("package_url")
             ?: root.stringOrNull("packageUrl")
             ?: root.findStringDeep("package_url", "packageUrl")
+    }
+
+    private fun ByteArray.decodeBilibiliSkinJson(): String {
+        val utf8 = decodeToString()
+        return if ('\uFFFD' in utf8) {
+            String(this, Charset.forName("GB18030"))
+        } else {
+            utf8
+        }
     }
 
     private fun buildAssetBytes(packageEntries: Map<String, ByteArray>): Map<String, ByteArray> {
@@ -533,6 +542,21 @@ object UiSkinImportPackageResolver {
         return idSlug?.takeIf { it.isNotBlank() }
             ?: nameSlug.takeIf { it.isNotBlank() }
             ?: "theme"
+    }
+}
+
+/**
+ * 规范化皮肤 package_url：HTTPS 直通；B 站官方装扮 CDN（hdslb.com）的 http 链接升级为 https；
+ * 其余 http 链接拒绝下载。抽成顶层 internal 函数便于单元测试。
+ */
+internal fun normalizeSkinPackageUrl(packageUrl: String): String {
+    val trimmed = packageUrl.trim()
+    return when {
+        trimmed.startsWith("https://") -> trimmed
+        trimmed.startsWith("http://") && trimmed.contains("hdslb.com") -> {
+            "https://" + trimmed.removePrefix("http://")
+        }
+        else -> throw IllegalArgumentException("皮肤 package_url 不是安全 HTTPS 链接")
     }
 }
 

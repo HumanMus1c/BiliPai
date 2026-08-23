@@ -3,8 +3,11 @@ package com.android.purebilibili.feature.settings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Analytics
 import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.BatteryFull
+import androidx.compose.material.icons.outlined.BrightnessMedium
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.core.ui.AppSemanticIconFamily
@@ -15,10 +18,10 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Backup
+import top.yukonga.miuix.kmp.icon.extended.Home as MiuixHome
 import top.yukonga.miuix.kmp.icon.extended.Lock
 import top.yukonga.miuix.kmp.icon.extended.Play
 import top.yukonga.miuix.kmp.icon.extended.Theme
-import top.yukonga.miuix.kmp.icon.extended.Th1
 
 class SettingsSemanticIconPolicyTest {
 
@@ -65,7 +68,7 @@ class SettingsSemanticIconPolicyTest {
             resolveSettingsSemanticIcon(SettingsIconRole.PLAYBACK_QUALITY, AppSemanticIconFamily.MIUIX),
         )
         assertSameVectorAsset(
-            MiuixIcons.Th1,
+            MiuixIcons.MiuixHome,
             resolveSettingsSemanticIcon(SettingsIconRole.HOME_FEED, AppSemanticIconFamily.MIUIX),
         )
         assertSameVectorAsset(
@@ -75,6 +78,51 @@ class SettingsSemanticIconPolicyTest {
         assertSameVectorAsset(
             MiuixIcons.Backup,
             resolveSettingsSemanticIcon(SettingsIconRole.DATA_BACKUP, AppSemanticIconFamily.MIUIX),
+        )
+    }
+
+    @Test
+    fun miuixSemanticIcons_useOpticallyBalancedSizes() {
+        assertEquals(
+            19,
+            resolveSettingsSemanticIconSizeDp(
+                SettingsIconRole.HOME_FEED,
+                AppSemanticIconFamily.MIUIX,
+            ),
+        )
+        assertEquals(
+            21,
+            resolveSettingsSemanticIconSizeDp(
+                SettingsIconRole.PLAYBACK_QUALITY,
+                AppSemanticIconFamily.MIUIX,
+            ),
+        )
+        assertEquals(
+            20,
+            resolveSettingsSemanticIconSizeDp(
+                SettingsIconRole.HOME_FEED,
+                AppSemanticIconFamily.MATERIAL,
+            ),
+        )
+    }
+
+    @Test
+    fun miuixMissingGlyphs_fallBackToAccurateMaterialSymbols() {
+        assertSameVectorAsset(
+            Icons.Outlined.BatteryFull,
+            resolveSettingsSemanticIcon(SettingsIconRole.BATTERY_STATUS, AppSemanticIconFamily.MIUIX),
+        )
+        assertSameVectorAsset(
+            Icons.Outlined.Memory,
+            resolveSettingsSemanticIcon(SettingsIconRole.HARDWARE_DECODER, AppSemanticIconFamily.MIUIX),
+        )
+        assertSameVectorAsset(
+            Icons.Outlined.BrightnessMedium,
+            resolveSettingsSemanticIcon(SettingsIconRole.SYSTEM_BRIGHTNESS, AppSemanticIconFamily.MIUIX),
+        )
+        assertSameVectorAsset(
+            Icons.Outlined.Analytics,
+            resolveSettingsSemanticIcon(SettingsIconRole.ANALYTICS, AppSemanticIconFamily.MIUIX),
         )
     }
 

@@ -80,7 +80,7 @@ class HomeChromeLiquidSurfaceStructureTest {
                 topHeaderSource.contains("drawChromeSurface = drawTopTabDockChrome") &&
                 topHeaderSource.contains("useBottomBarMatchedSurface = useTopTabBottomBarMatchedDock") &&
                 topHeaderSource.contains("drawMatchedShellLens = useTopTabBottomBarMatchedDock") &&
-                topHeaderSource.contains("matchedShellLensIntensity = resolveCompactDockShellLensIntensity(") &&
+                topHeaderSource.contains("matchedShellLensIntensity = resolveFloatingDockGeometryScale(") &&
                 topHeaderSource.contains("tabChromeRenderMode = if (useTopTabBottomBarMatchedDock)") &&
                 topHeaderSource.contains("val bottomBarLiquidGlassPreset = homeSettings?.bottomBarLiquidGlassPreset") &&
                 topHeaderSource.contains("liquidGlassPreset = bottomBarLiquidGlassPreset") &&

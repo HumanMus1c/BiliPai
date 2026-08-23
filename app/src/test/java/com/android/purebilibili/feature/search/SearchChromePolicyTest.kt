@@ -6,7 +6,7 @@ import com.android.purebilibili.core.theme.UiPreset
 import com.android.purebilibili.core.theme.resolveUiStyle
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.resolveAppTopChromePolicy
-import com.android.purebilibili.feature.home.components.resolveHomeTopSearchContainerShape
+import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -21,10 +21,10 @@ class SearchChromePolicyTest {
         )
 
         assertEquals(56, spec.inputHeightDp)
-        assertEquals(ContainerLevel.Field, spec.inputShapeLevel)
-        assertEquals(ContainerLevel.Card, spec.actionShapeLevel)
+        assertEquals(ContainerLevel.Pill, spec.inputShapeLevel)
+        assertEquals(ContainerLevel.Pill, spec.actionShapeLevel)
         assertEquals(ContainerLevel.Card, spec.suggestionShapeLevel)
-        assertEquals(ContainerLevel.Chip, spec.chipShapeLevel)
+        assertEquals(ContainerLevel.Pill, spec.chipShapeLevel)
         assertEquals(48, spec.clearActionSizeDp)
         assertEquals(48, spec.submitActionSizeDp)
         assertEquals(24, spec.actionIconSizeDp)
@@ -40,8 +40,8 @@ class SearchChromePolicyTest {
         )
 
         assertEquals(48, spec.inputHeightDp)
-        assertEquals(ContainerLevel.Field, spec.inputShapeLevel)
-        assertEquals(ContainerLevel.Card, spec.actionShapeLevel)
+        assertEquals(ContainerLevel.Pill, spec.inputShapeLevel)
+        assertEquals(ContainerLevel.Pill, spec.actionShapeLevel)
         assertEquals(48, spec.clearActionSizeDp)
         assertEquals(48, spec.submitActionSizeDp)
         assertEquals(14, spec.inputHorizontalPaddingDp)
@@ -56,23 +56,23 @@ class SearchChromePolicyTest {
         )
 
         assertEquals(48, spec.inputHeightDp)
-        assertEquals(ContainerLevel.Field, spec.inputShapeLevel)
-        assertEquals(ContainerLevel.Card, spec.actionShapeLevel)
+        assertEquals(ContainerLevel.Pill, spec.inputShapeLevel)
+        assertEquals(ContainerLevel.Pill, spec.actionShapeLevel)
         assertEquals(48, spec.clearActionSizeDp)
         assertEquals(48, spec.submitActionSizeDp)
         assertEquals(14, spec.inputHorizontalPaddingDp)
         assertTrue(spec.useFilledSearchAction)
         assertEquals(ContainerLevel.Card, spec.suggestionShapeLevel)
-        assertEquals(ContainerLevel.Chip, spec.chipShapeLevel)
+        assertEquals(ContainerLevel.Pill, spec.chipShapeLevel)
     }
 
     @Test
-    fun `search input shape follows home top search tokens`() {
+    fun `search input shape follows result type capsule`() {
         val md3 = resolveAppTopChromePolicy(resolveUiStyle(UiPreset.MD3, AndroidNativeVariant.MATERIAL3))
         val miuix = resolveAppTopChromePolicy(resolveUiStyle(UiPreset.MD3, AndroidNativeVariant.MIUIX))
 
-        assertEquals(resolveHomeTopSearchContainerShape(md3), resolveSearchInputShape(md3))
-        assertEquals(resolveHomeTopSearchContainerShape(miuix), resolveSearchInputShape(miuix))
+        assertEquals(resolveSharedBottomBarCapsuleShape(), resolveSearchInputShape(md3))
+        assertEquals(resolveSharedBottomBarCapsuleShape(), resolveSearchInputShape(miuix))
     }
 
     @Test

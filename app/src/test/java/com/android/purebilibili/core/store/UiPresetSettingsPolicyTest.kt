@@ -89,4 +89,22 @@ class UiPresetSettingsPolicyTest {
         assertFalse("ui_preset" in appearanceKeys)
         assertFalse("android_native_variant_v1" in appearanceKeys)
     }
+
+    @Test
+    fun liquidGlassShare_includesEveryPortableGlassSetting() {
+        val keys = SettingsManager.getLiquidGlassShareableSettingsEntryDefinitions()
+            .mapTo(mutableSetOf()) { it.storageKey }
+
+        assertTrue("android_native_liquid_glass_enabled" in keys)
+        assertTrue("top_bar_liquid_glass_enabled" in keys)
+        assertTrue("home_search_liquid_glass_enabled" in keys)
+        assertTrue("bottom_bar_liquid_glass_enabled" in keys)
+        assertTrue("liquid_glass_material_progress_v2" in keys)
+        assertTrue("liquid_glass_advanced_preset" in keys)
+        assertTrue("liquid_glass_readability_mode" in keys)
+        assertTrue("liquid_glass_content_readability" in keys)
+        assertTrue("liquid_glass_chromatic_aberration" in keys)
+        assertTrue("liquid_glass_content_distortion" in keys)
+        assertFalse("liquid_glass_preview_image_uri" in keys)
+    }
 }

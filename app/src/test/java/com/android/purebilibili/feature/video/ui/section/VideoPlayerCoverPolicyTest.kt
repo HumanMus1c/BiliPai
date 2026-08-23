@@ -470,4 +470,29 @@ class VideoPlayerCoverPolicyTest {
         assertTrue(residentCoverBlock.contains("detailTransitionProgress.value"))
         assertFalse(residentCoverBlock.contains("coverCrossfadeAlpha"))
     }
+
+    @Test
+    fun verticalManualStart_usesBlackPlayerWithoutLoadingCover() {
+        assertFalse(
+            shouldLoadVideoPlayerCoverImage(
+                isVerticalVideo = true,
+                shouldKeepCoverForManualStart = true,
+                forceCoverDuringReturnAnimation = false,
+            )
+        )
+        assertTrue(
+            shouldLoadVideoPlayerCoverImage(
+                isVerticalVideo = true,
+                shouldKeepCoverForManualStart = true,
+                forceCoverDuringReturnAnimation = true,
+            )
+        )
+        assertTrue(
+            shouldLoadVideoPlayerCoverImage(
+                isVerticalVideo = false,
+                shouldKeepCoverForManualStart = true,
+                forceCoverDuringReturnAnimation = false,
+            )
+        )
+    }
 }

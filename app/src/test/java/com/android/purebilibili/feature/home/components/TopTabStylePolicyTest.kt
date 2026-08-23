@@ -342,7 +342,7 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `top tab indicator keeps liquid rendering without owning horizontal drag`() {
+    fun `top tab indicator keeps liquid rendering while owning direct horizontal drag`() {
         val source = sourceText("app/src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
         val iosIndicatorBlock = source
             .substringAfter("if (shouldUseMovingIosCapsule) {")
@@ -357,6 +357,8 @@ class TopTabStylePolicyTest {
 
         assertFalse(source.contains("topTabIndicatorDrag("))
         assertFalse(source.contains("awaitHorizontalTouchSlopOrCancellation"))
+        assertTrue(source.contains("Modifier.draggable("))
+        assertTrue(source.contains(".then(indicatorDragModifier)"))
         assertTrue(iosIndicatorBlock.contains("BiliPaiFloatingDockIndicator("))
         assertEquals(1, iosIndicatorBlock.split("BiliPaiFloatingDockIndicator(").size - 1)
         assertTrue(iosIndicatorBlock.contains("combinedBackdrop = indicatorCombinedBackdrop"))

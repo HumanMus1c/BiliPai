@@ -42,6 +42,12 @@ class LivePlayerControlsStructureTest {
     }
 
     @Test
+    fun `brightness and volume feedback reuse the ordinary video edge host`() {
+        assertTrue(source.contains("GestureLevelOverlayHost("))
+        assertFalse(source.contains("GestureLevelOverlayContent("))
+    }
+
+    @Test
     fun `all icon button call sites provide localized labels and required state`() {
         val expectedLabels = listOf(
             "返回",

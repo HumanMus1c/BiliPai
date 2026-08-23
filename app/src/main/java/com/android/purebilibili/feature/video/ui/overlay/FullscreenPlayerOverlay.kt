@@ -1111,6 +1111,13 @@ fun FullscreenPlayerOverlay(
                                 isHighlighted = aspectRatio != VideoAspectRatio.FIT,
                                 onClick = { showRatioMenu = true }
                             )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            //  弹幕设置按钮（横屏/全屏底栏右侧）
+                            FullscreenControlButton(
+                                text = "弹幕",
+                                isHighlighted = false,
+                                onClick = { showDanmakuSettings = true }
+                            )
                         }
                     }
                 }

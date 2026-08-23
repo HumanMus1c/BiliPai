@@ -210,6 +210,8 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                 onDeleteComment = commentActions.deleteComment,
                                 onDissolveStart = commentActions.startDissolve,
                                 onCommentLike = commentActions.likeComment,
+                                onCommentHate = commentActions.hateComment,
+                                hatedComments = commentState.hatedComments,
                                 likedComments = commentState.likedComments,
                                 isFollowing = engagementState.isFollowing,
                                 isFavorited = engagementState.isFavorited,

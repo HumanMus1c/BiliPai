@@ -78,6 +78,7 @@ import com.android.purebilibili.feature.home.components.liquid.innerShadow
 import com.android.purebilibili.feature.home.components.liquid.lens
 import com.android.purebilibili.feature.home.components.liquid.rememberCombinedBackdrop
 import com.android.purebilibili.feature.home.components.liquid.vibrancy
+import com.android.purebilibili.core.store.LiquidGlassReadabilityMode
 import com.android.purebilibili.core.ui.resolveMatchedLiquidIndicatorGeometry
 import com.android.purebilibili.feature.home.components.miuix.DampedDragAnimation
 import com.android.purebilibili.feature.home.components.miuix.DampedDragTrackingMode
@@ -140,6 +141,7 @@ enum class FloatingBottomBarMode {
     None
 }
 
+/** Keep the Miuix upstream resting indicator height for the standard bottom dock. */
 val FloatingBottomBarIndicatorHeight: Dp = 56.dp
 
 val FloatingBottomBarDefaultShellHeight: Dp = 64.dp
@@ -346,6 +348,16 @@ fun FloatingBottomBar(
     val pillShape = remember { CircleShape }
     val isLiquidGlassMode = mode == FloatingBottomBarMode.LiquidGlass
     val isBlurMode = mode == FloatingBottomBarMode.Blur
+    val adaptiveReadabilityEnabled = isLiquidGlassMode &&
+        liquidGlassTuning.readabilityMode == LiquidGlassReadabilityMode.ADAPTIVE
+    val adaptiveReadabilityState = rememberLiquidGlassAdaptiveReadabilityState(
+        enabled = adaptiveReadabilityEnabled,
+    )
+    val resolvedContentColor = rememberLiquidGlassAdaptiveContentColor(
+        stableColor = colors.contentColor,
+        state = adaptiveReadabilityState,
+        enabled = adaptiveReadabilityEnabled,
+    )
     val readabilityScrimColor = if (isInDark) Color.Black else Color.White
     val containerColor =
         if (isLiquidGlassMode) {
@@ -356,8 +368,23 @@ fun FloatingBottomBar(
 
     val tabsBackdrop = rememberLayerBackdrop()
     val density = LocalDensity.current
-    val shellLensPx = with(density) { resolveCompactDockLensDp(shellHeight.value).dp.toPx() }
-    val pressBloomPx = with(density) { resolveCompactDockPressBloomDp(shellHeight.value).dp.toPx() }
+    val shellLensDp = resolveCompactDockLensDp(shellHeight.value)
+    val pressBloomDp = resolveCompactDockPressBloomDp(shellHeight.value)
+    val shellRefractionHeightDp = shellLensDp *
+        liquidGlassTuning.refractionHeight / MIUIX_UPSTREAM_DOCK_SHELL_LENS_DP *
+        liquidGlassTuning.contentDistortionScale
+    val shellRefractionAmountDp = shellLensDp *
+        liquidGlassTuning.refractionAmount / MIUIX_UPSTREAM_DOCK_SHELL_LENS_DP *
+        liquidGlassTuning.contentDistortionScale
+    val shellRefractionHeightPx = with(density) { shellRefractionHeightDp.dp.toPx() }
+    val shellRefractionAmountPx = with(density) { shellRefractionAmountDp.dp.toPx() }
+    val shellEffectPaddingPx = with(density) {
+        resolveFloatingDockEffectPaddingDp(
+            refractionAmountDp = shellRefractionAmountDp,
+            pressBloomDp = pressBloomDp,
+        ).dp.toPx()
+    }
+    val pressBloomPx = with(density) { pressBloomDp.dp.toPx() }
     val indicatorLensHeightPx = with(density) {
         resolveCompactDockIndicatorLensHeightDp(shellHeight.value).dp.toPx()
     }
@@ -600,6 +627,10 @@ fun FloatingBottomBar(
 
     Box(
         modifier = modifier
+            .trackLiquidGlassAdaptiveReadability(
+                state = adaptiveReadabilityState,
+                enabled = adaptiveReadabilityEnabled,
+            )
             .floatingDockScaleOverflow(
                 overflow = scaleOverflowDp,
                 shellHeight = shellHeight,
@@ -607,7 +638,9 @@ fun FloatingBottomBar(
             .graphicsLayer { clip = false },
         contentAlignment = Alignment.CenterStart
     ) {
-        CompositionLocalProvider(LocalFloatingBottomBarContentColor provides colors.contentColor) {
+        CompositionLocalProvider(
+            LocalFloatingBottomBarContentColor provides resolvedContentColor
+        ) {
             Row(
                 Modifier
                     .onGloballyPositioned { coords ->
@@ -640,18 +673,20 @@ fun FloatingBottomBar(
                                     backdrop = backdrop,
                                     shape = { pillShape },
                                     effects = {
+                                        padding = maxOf(
+                                            padding,
+                                            shellEffectPaddingPx,
+                                        )
                                         vibrancy(liquidGlassTuning.saturation)
                                         blur(
                                             liquidGlassTuning.backdropBlurRadius.dp.toPx(),
                                             liquidGlassTuning.backdropBlurRadius.dp.toPx()
                                         )
                                         lens(
-                                            refractionHeight = shellLensPx *
-                                                liquidGlassTuning.refractionHeight / 24f,
-                                            refractionAmount = shellLensPx *
-                                                liquidGlassTuning.refractionAmount / 24f,
-                                            depthEffect = liquidGlassTuning.depthEffectEnabled,
-                                            chromaticAberration = liquidGlassTuning.chromaticAberrationAmount,
+                                            refractionHeight = shellRefractionHeightPx,
+                                            refractionAmount = shellRefractionAmountPx,
+                                            chromaticAberration =
+                                                liquidGlassTuning.shellChromaticAberrationAmount,
                                         )
                                     },
                                     highlight = { baseHighlight.copy(alpha = 0.75f) },
@@ -735,12 +770,10 @@ fun FloatingBottomBar(
                                     liquidGlassTuning.backdropBlurRadius.dp.toPx()
                                 )
                                 lens(
-                                    refractionHeight = shellLensPx *
-                                        liquidGlassTuning.refractionHeight / 24f,
-                                    refractionAmount = shellLensPx *
-                                        liquidGlassTuning.refractionAmount / 24f,
-                                    depthEffect = liquidGlassTuning.depthEffectEnabled,
-                                    chromaticAberration = liquidGlassTuning.chromaticAberrationAmount,
+                                    refractionHeight = shellRefractionHeightPx,
+                                    refractionAmount = shellRefractionAmountPx,
+                                    chromaticAberration =
+                                        liquidGlassTuning.shellChromaticAberrationAmount,
                                 )
                             },
                             onDrawSurface = {
@@ -809,7 +842,7 @@ fun FloatingBottomBar(
                                     refractionAmount = indicatorLensAmountPx * progress *
                                         liquidGlassTuning.indicatorEdgeWarpBoost *
                                         liquidGlassTuning.contentDistortionScale,
-                                    depthEffect = liquidGlassTuning.depthEffectEnabled,
+                                    depthEffect = true,
                                     chromaticAberration =
                                         resolveLiquidGlassIndicatorChromaticAberration(
                                             liquidGlassTuning

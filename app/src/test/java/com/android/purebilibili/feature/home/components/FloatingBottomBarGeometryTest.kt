@@ -8,11 +8,24 @@ import kotlin.test.assertTrue
 class FloatingBottomBarGeometryTest {
 
     @Test
-    fun `home-sized slots keep the 56dp resting indicator`() {
+    fun `upstream effect padding combines 24dp lens and 16dp press bloom`() {
+        assertEquals(
+            40f,
+            resolveFloatingDockEffectPaddingDp(
+                refractionAmountDp = MIUIX_UPSTREAM_DOCK_SHELL_LENS_DP,
+                pressBloomDp = MIUIX_UPSTREAM_DOCK_PRESS_BLOOM_DP,
+            ),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun `upstream bottom dock keeps the 56dp resting indicator in a 78dp slot`() {
         assertEquals(
             56f,
             resolveFloatingDockIndicatorHeightDp(requestedHeightDp = 56f, tabWidthDp = 78f),
         )
+        assertTrue(78f / 56f >= FLOATING_DOCK_MIN_INDICATOR_ASPECT)
     }
 
     @Test
@@ -56,9 +69,11 @@ class FloatingBottomBarGeometryTest {
 
     @Test
     fun `short search and top docks scale lens so refraction cannot meet in the middle`() {
-        assertEquals(1f, resolveCompactDockShellLensIntensity(shellHeightDp = 64f))
-        assertEquals(36f / 64f, resolveCompactDockShellLensIntensity(shellHeightDp = 36f), 0.001f)
-        val shortLens = FLOATING_DOCK_SHELL_LENS_DP * resolveCompactDockShellLensIntensity(36f)
+        assertEquals(1f, resolveFloatingDockGeometryScale(shellHeightDp = 64f))
+        assertEquals(40f / 64f, resolveFloatingDockGeometryScale(40f), 0.001f)
+        assertEquals(36f / 64f, resolveFloatingDockGeometryScale(36f), 0.001f)
+        val shortLens = MIUIX_UPSTREAM_DOCK_SHELL_LENS_DP *
+            resolveFloatingDockGeometryScale(36f)
         assertTrue(shortLens * 2f < 36f)
     }
 

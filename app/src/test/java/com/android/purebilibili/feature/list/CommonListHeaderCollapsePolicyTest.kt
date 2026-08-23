@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.list
 
 import com.android.purebilibili.core.store.CommonListHeaderCollapseMode
+import com.android.purebilibili.core.store.HomeHeaderCollapseMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -28,6 +29,40 @@ class CommonListHeaderCollapsePolicyTest {
             resolveCommonListHeaderCollapseModeForScreen(
                 configuredMode = CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
                 isFavoritePage = false
+            )
+        )
+    }
+
+    @Test
+    fun `history header follows home top bar toggle`() {
+        // 首页顶部折叠开启 → 历史页使用同款下滑收起、回顶恢复。
+        assertEquals(
+            CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
+            resolveCommonListHeaderCollapseModeForScreen(
+                configuredMode = CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
+                isFavoritePage = false,
+                isHistoryPage = true,
+                homeHeaderCollapseMode = HomeHeaderCollapseMode.BOTH
+            )
+        )
+        // 首页「首页顶栏显示」开关关闭（始终显示）→ 历史页顶栏始终显示
+        assertEquals(
+            CommonListHeaderCollapseMode.ALWAYS_VISIBLE,
+            resolveCommonListHeaderCollapseModeForScreen(
+                configuredMode = CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL,
+                isFavoritePage = false,
+                isHistoryPage = true,
+                homeHeaderCollapseMode = HomeHeaderCollapseMode.OFF
+            )
+        )
+        // 历史页不再受「列表顶部栏」独立配置影响
+        assertEquals(
+            CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
+            resolveCommonListHeaderCollapseModeForScreen(
+                configuredMode = CommonListHeaderCollapseMode.ALWAYS_VISIBLE,
+                isFavoritePage = false,
+                isHistoryPage = true,
+                homeHeaderCollapseMode = HomeHeaderCollapseMode.BOTH
             )
         )
     }

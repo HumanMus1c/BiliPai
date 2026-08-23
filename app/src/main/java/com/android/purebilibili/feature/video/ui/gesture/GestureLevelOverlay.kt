@@ -101,7 +101,7 @@ fun BoxScope.GestureLevelOverlayHost(
                 when (style) {
                     GestureLevelOverlayStyle.Md3 -> Modifier.padding(horizontal = 24.dp)
                     GestureLevelOverlayStyle.Miuix -> Modifier.padding(horizontal = 22.dp)
-                    else -> Modifier
+                    GestureLevelOverlayStyle.Ios -> Modifier.padding(horizontal = 22.dp)
                 }
             )
             .zIndex(40f),

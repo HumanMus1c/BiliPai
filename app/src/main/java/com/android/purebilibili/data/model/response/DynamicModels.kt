@@ -195,11 +195,13 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
                     )
 
                     val moduleType = obj["module_type"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                    if (moduleType == "MODULE_TYPE_TITLE" || obj["module_title"] != null) {
-                        opusTitle = obj["module_title"]?.jsonObject?.get("text")?.jsonPrimitive?.contentOrNull
+                    val titleModule = obj["module_title"] as? JsonObject
+                    if (moduleType == "MODULE_TYPE_TITLE" || titleModule != null) {
+                        opusTitle = titleModule?.get("text")?.jsonPrimitive?.contentOrNull
                     }
-                    if (moduleType == "MODULE_TYPE_CONTENT" || obj["module_content"] != null) {
-                        val paragraphs = obj["module_content"]?.jsonObject?.get("paragraphs") as? JsonArray
+                    val contentModule = obj["module_content"] as? JsonObject
+                    if (moduleType == "MODULE_TYPE_CONTENT" || contentModule != null) {
+                        val paragraphs = contentModule?.get("paragraphs") as? JsonArray
                         paragraphs?.forEach { paragraphNode ->
                             val paragraph = paragraphNode as? JsonObject ?: return@forEach
                             opusContentBlocks += extractParagraphBlocks(paragraph)
@@ -279,23 +281,19 @@ object DynamicModulesFlexibleSerializer : KSerializer<DynamicModules> {
         return buildString {
             nodes.forEach { node ->
                 val nodeObject = node as? JsonObject ?: return@forEach
-                val words = nodeObject["word"]
-                    ?.jsonObject
+                val words = (nodeObject["word"] as? JsonObject)
                     ?.get("words")
                     ?.jsonPrimitive
                     ?.contentOrNull
-                    ?: nodeObject["rich"]
-                        ?.jsonObject
+                    ?: (nodeObject["rich"] as? JsonObject)
                         ?.get("text")
                         ?.jsonPrimitive
                         ?.contentOrNull
-                    ?: nodeObject["rich"]
-                        ?.jsonObject
+                    ?: (nodeObject["rich"] as? JsonObject)
                         ?.get("orig_text")
                         ?.jsonPrimitive
                         ?.contentOrNull
-                    ?: nodeObject["formula"]
-                        ?.jsonObject
+                    ?: (nodeObject["formula"] as? JsonObject)
                         ?.get("latex_content")
                         ?.jsonPrimitive
                         ?.contentOrNull

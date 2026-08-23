@@ -101,6 +101,7 @@ import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.rememberContentCardSurfaceSpec
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import com.android.purebilibili.feature.home.components.resolveSharedBottomBarCapsuleShape
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
@@ -170,7 +171,6 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 
-import com.android.purebilibili.feature.home.components.resolveHomeTopSearchContainerShape
 
 internal fun shouldShowSearchHotSection(
     hotItemCount: Int,
@@ -234,9 +234,9 @@ internal fun shouldUseSearchTopBarHeaderBlur(
  */
 internal data class SearchChromeVisualSpec(
     val inputHeightDp: Int,
-    /** Search input shell — [ContainerLevel.Field] (input / search bars). */
+    /** Search input shell — same [ContainerLevel.Pill] silhouette as the result type row. */
     val inputShapeLevel: ContainerLevel,
-    /** Square search-action hit target beside the field. */
+    /** Search-action hit target beside the field, using the same capsule curvature. */
     val actionShapeLevel: ContainerLevel,
     val useFilledSearchAction: Boolean,
     /** Suggestion / history / discover surface cards. */
@@ -253,18 +253,18 @@ internal data class SearchChromeVisualSpec(
 )
 
 internal fun resolveSearchInputShape(
-    chromePolicy: AppTopChromePolicy,
-): androidx.compose.ui.graphics.Shape = resolveHomeTopSearchContainerShape(chromePolicy)
+    @Suppress("UNUSED_PARAMETER") chromePolicy: AppTopChromePolicy,
+): androidx.compose.ui.graphics.Shape = resolveSharedBottomBarCapsuleShape()
 
 internal fun resolveSearchChromeVisualSpec(
     chromePolicy: AppTopChromePolicy,
 ): SearchChromeVisualSpec {
     val compactChrome = chromePolicy.compactChromeSpec
     // Shared semantic levels for all tab presentations — theme scale does the rest.
-    val inputShapeLevel = ContainerLevel.Field
-    val actionShapeLevel = ContainerLevel.Card
+    val inputShapeLevel = ContainerLevel.Pill
+    val actionShapeLevel = ContainerLevel.Pill
     val suggestionShapeLevel = ContainerLevel.Card
-    val chipShapeLevel = ContainerLevel.Chip
+    val chipShapeLevel = ContainerLevel.Pill
     return if (chromePolicy.tabPresentation == AppTopTabPresentation.TONAL_CAPSULE) {
         SearchChromeVisualSpec(
             inputHeightDp = compactChrome.primaryHeightDp,

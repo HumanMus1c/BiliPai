@@ -22,15 +22,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toSize
 import coil.ImageLoader
 import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
-import coil.request.ImageRequest
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -56,6 +52,7 @@ fun ZoomableImage(
     onVerticalDismissDrag: (Float) -> Unit = {},
     onVerticalDismissDragEnd: () -> Unit = {},
     onVerticalDismissDragCancel: () -> Unit = {},
+    onExtremeAspectRatioDetected: () -> Unit = {},
     onLongPress: () -> Unit = {},
     onClick: () -> Unit = {}
 ) {
@@ -70,12 +67,6 @@ fun ZoomableImage(
     // 容器在窗口中的原点，便于与缩略图 sourceRect（boundsInWindow）对齐
     var containerWindowOrigin by remember { mutableStateOf(Offset.Zero) }
     
-    // 是否正在加载
-    var isLoading by remember { mutableStateOf(true) }
-    var isLongImage by remember { mutableStateOf(false) }
-
-    val scope = rememberCoroutineScope()
-
     fun resolveDisplayedRectOrNull(): Rect? {
         if (containerSize == IntSize.Zero || imageSize == IntSize.Zero) return null
 
@@ -108,8 +99,14 @@ fun ZoomableImage(
             offsetY = 0f
             onZoomChange(1f)
         } else {
-            // 放大 2.5 倍
-            scale = 2.5f
+            val scaleLimits = resolveZoomableImageScaleLimits(
+                imageWidth = imageSize.width,
+                imageHeight = imageSize.height,
+                containerWidth = containerSize.width,
+                containerHeight = containerSize.height
+            )
+            // 普通图片保持 2.5 倍；长条图片直接放到短边铺满视口，避免双击后仍然看不清。
+            scale = scaleLimits.doubleTapScale
             
             // 计算偏移量，使点击点居中
             if (containerSize != IntSize.Zero) {
@@ -221,7 +218,13 @@ fun ZoomableImage(
                                     val centroid = event.calculateCentroid(useCurrent = false)
                                     if (zoomChange != 1f || panChange != Offset.Zero) {
                                         val oldScale = scale
-                                        scale = (scale * zoomChange).coerceIn(1f, 5f)
+                                        val maxScale = resolveZoomableImageScaleLimits(
+                                            imageWidth = imageSize.width,
+                                            imageHeight = imageSize.height,
+                                            containerWidth = containerSize.width,
+                                            containerHeight = containerSize.height
+                                        ).maxScale
+                                        scale = (scale * zoomChange).coerceIn(1f, maxScale)
 
                                         if (oldScale != scale) {
                                             val zoomFactor = scale / oldScale
@@ -290,18 +293,15 @@ fun ZoomableImage(
                     scaleY = scale
                     translationX = offsetX
                     translationY = offsetY
-                },
+            },
             onSuccess = { state ->
-                isLoading = false
                 val originalSize = state.painter.intrinsicSize
                 if (originalSize.width > 0 && originalSize.height > 0) {
                     imageSize = IntSize(originalSize.width.toInt(), originalSize.height.toInt())
                     
-                    // 判断是否为长图 (高宽比 > 3 且高度 > 容器高度)
-                    isLongImage = originalSize.height / originalSize.width > 3
-                    
-                    // 初始长图处理：如果不需要双击就直接看长图细节，可以把 scale 设置为 fillWidth 对应的 scale
-                    // 但标准的图片预览通常还是先看全图，再放大
+                    if (isExtremeAspectRatio(imageSize.width, imageSize.height)) {
+                        onExtremeAspectRatioDetected()
+                    }
                 }
             },
             // 使用 Fit 模式确保初始完整显示

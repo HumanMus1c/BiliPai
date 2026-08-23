@@ -39,6 +39,8 @@ class FavoriteContentModeResolverTest {
         )
 
         assertTrue(listSource.contains("FavoriteFolderSelector("))
+        assertTrue(listSource.contains("text = \"追更（订阅）\""))
+        assertTrue(listSource.contains("onSubscribedSelected"))
         assertFalse(listSource.contains("selectedValue = favoriteBrowseSection"))
         assertFalse(listSource.contains("FavoriteFolderSummary("))
         assertFalse(listSource.contains("AppSegmentOption(FavoriteBrowseSection.OWNED"))

@@ -15,6 +15,7 @@ import java.io.File
 import java.time.Instant
 
 internal const val DEFAULT_SETTINGS_SHARE_PROFILE_NAME = "BiliPai 设置分享"
+internal const val LIQUID_GLASS_SETTINGS_SHARE_PROFILE_NAME = "BiliPai 液态玻璃设置"
 
 interface SettingsShareServiceContract {
     suspend fun exportToUri(
@@ -71,6 +72,28 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
         )
     }
 
+    internal suspend fun createLiquidGlassExportArtifact(): SettingsShareExportArtifact =
+        withContext(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            val profile = buildSettingsShareProfile(
+                profileName = LIQUID_GLASS_SETTINGS_SHARE_PROFILE_NAME,
+                appVersion = BuildConfig.VERSION_NAME,
+                exportedAtIso = Instant.ofEpochMilli(now).toString(),
+                rawSettings = SettingsManager.exportLiquidGlassShareableSettingsSnapshot(context),
+                definitions = SettingsManager
+                    .getLiquidGlassShareableSettingsEntryDefinitions(),
+                deviceDebug = null,
+            )
+            SettingsShareExportArtifact(
+                fileName = buildLiquidGlassSettingsShareFileName(
+                    appVersion = BuildConfig.VERSION_NAME,
+                    epochMs = now,
+                ),
+                json = json.encodeToString(SettingsShareProfile.serializer(), profile),
+                profile = profile,
+            )
+        }
+
     override suspend fun exportToUri(
         uri: Uri,
         profileName: String,
@@ -97,15 +120,26 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
                 profileName = profileName,
                 includeDeviceDebug = includeDeviceDebug,
             )
-            val shareDir = File(context.cacheDir, "logs/settings-share").apply { mkdirs() }
-            val shareFile = File(shareDir, artifact.fileName)
-            shareFile.writeText(artifact.json, Charsets.UTF_8)
-            FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                shareFile
-            )
+            writeShareArtifactToCache(artifact)
         }
+    }
+
+    suspend fun createLiquidGlassShareUri(): Result<Uri> = withContext(Dispatchers.IO) {
+        runCatching {
+            val artifact = createLiquidGlassExportArtifact()
+            writeShareArtifactToCache(artifact)
+        }
+    }
+
+    private fun writeShareArtifactToCache(artifact: SettingsShareExportArtifact): Uri {
+        val shareDir = File(context.cacheDir, "logs/settings-share").apply { mkdirs() }
+        val shareFile = File(shareDir, artifact.fileName)
+        shareFile.writeText(artifact.json, Charsets.UTF_8)
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            shareFile,
+        )
     }
 
     private fun captureDeviceDebugInfo(

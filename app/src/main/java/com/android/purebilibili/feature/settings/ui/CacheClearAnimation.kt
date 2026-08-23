@@ -1,6 +1,10 @@
 package com.android.purebilibili.feature.settings
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.rememberTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -32,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -366,20 +371,7 @@ fun CacheClearAnimationDialog(
                     ) {
                         when {
                             progress.isComplete -> {
-                                Surface(
-                                    modifier = Modifier.size(72.dp),
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        AppIcon(
-                                            imageVector = Icons.Filled.Check,
-                                            contentDescription = "清理完成",
-                                            modifier = Modifier.size(36.dp),
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                    }
-                                }
+                                CacheClearSuccessAnimation()
                             }
 
                             progressValue <= 0f -> {
@@ -418,6 +410,65 @@ fun CacheClearAnimationDialog(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CacheClearSuccessAnimation() {
+    val transitionState = remember {
+        MutableTransitionState(false).apply { targetState = true }
+    }
+    val transition = rememberTransition(transitionState = transitionState, label = "cacheClearSuccess")
+    val scale by transition.animateFloat(
+        transitionSpec = { tween(durationMillis = 420) },
+        label = "cacheClearSuccessScale"
+    ) { complete -> if (complete) 1f else 0.65f }
+    val sparkleAlpha by transition.animateFloat(
+        transitionSpec = { tween(durationMillis = 650, delayMillis = 180) },
+        label = "cacheClearSparkleAlpha"
+    ) { complete -> if (complete) 1f else 0f }
+    val successColor = Color(0xFF34C759)
+
+    Box(modifier = Modifier.size(96.dp), contentAlignment = Alignment.Center) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = sparkleAlpha }
+        ) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            repeat(10) { index ->
+                val angle = Math.toRadians(index * 36.0)
+                val radius = size.minDimension * (0.39f + (index % 3) * 0.045f)
+                val point = Offset(
+                    x = center.x + kotlin.math.cos(angle).toFloat() * radius,
+                    y = center.y + kotlin.math.sin(angle).toFloat() * radius
+                )
+                drawCircle(
+                    color = successColor.copy(alpha = 0.35f + (index % 2) * 0.25f),
+                    radius = if (index % 2 == 0) 4.dp.toPx() else 2.5.dp.toPx(),
+                    center = point
+                )
+            }
+        }
+        Surface(
+            modifier = Modifier
+                .size(72.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+            shape = CircleShape,
+            color = successColor.copy(alpha = 0.14f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                AppIcon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = "存储已清除",
+                    modifier = Modifier.size(40.dp),
+                    tint = successColor
+                )
             }
         }
     }

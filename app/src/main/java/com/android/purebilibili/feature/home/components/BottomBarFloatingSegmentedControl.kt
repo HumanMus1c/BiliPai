@@ -57,6 +57,7 @@ internal fun BottomBarFloatingSegmentedControl(
     indicatorPositionProvider: (() -> Float)?,
     onIndicatorPositionChanged: ((Float) -> Unit)?,
     isScrollInProgressProvider: () -> Boolean = { false },
+    liquidGlassTuningOverride: LiquidGlassTuning? = null,
 ) {
     if (items.isEmpty()) return
 
@@ -71,15 +72,18 @@ internal fun BottomBarFloatingSegmentedControl(
         supportsIndependentLiquidGlass = false,
         androidNativeLiquidGlassEnabled = nativeGlassEnabled,
     )
-    val liquidGlassTuning = remember(
+    val storedLiquidGlassTuning = remember(
         homeSettings.liquidGlassProgress,
         homeSettings.liquidGlassAdvancedSettings,
+        homeSettings.liquidGlassReadabilityMode,
     ) {
         resolveLiquidGlassTuning(
             homeSettings.liquidGlassProgress,
             homeSettings.liquidGlassAdvancedSettings,
+            homeSettings.liquidGlassReadabilityMode,
         )
     }
+    val liquidGlassTuning = liquidGlassTuningOverride ?: storedLiquidGlassTuning
     val isDarkTheme = isSystemInDarkTheme()
     val itemCount = items.size
     val maxTabIndex = (itemCount - 1).coerceAtLeast(0)

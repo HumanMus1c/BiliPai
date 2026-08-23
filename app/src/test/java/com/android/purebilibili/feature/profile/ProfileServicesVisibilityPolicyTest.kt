@@ -2,10 +2,45 @@ package com.android.purebilibili.feature.profile
 
 import java.io.File
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ProfileServicesVisibilityPolicyTest {
+
+    @Test
+    fun `skin profile background follows phone and split layout aspect`() {
+        assertEquals(
+            "/skin/wide.jpg",
+            resolveProfileSkinBackgroundImagePath(
+                useSplitLayout = false,
+                wideImagePath = "/skin/wide.jpg",
+                squaredImagePath = "/skin/square.jpg",
+            )
+        )
+        assertEquals(
+            "/skin/square.jpg",
+            resolveProfileSkinBackgroundImagePath(
+                useSplitLayout = true,
+                wideImagePath = "/skin/wide.jpg",
+                squaredImagePath = "/skin/square.jpg",
+            )
+        )
+        assertEquals(
+            "/skin/square.jpg",
+            resolveProfileSkinBackgroundImagePath(
+                useSplitLayout = false,
+                wideImagePath = " ",
+                squaredImagePath = "/skin/square.jpg",
+            )
+        )
+        assertNull(resolveProfileSkinBackgroundImagePath(false, null, ""))
+
+        val source = File("src/main/java/com/android/purebilibili/feature/profile/ProfileScreen.kt").readText()
+        assertTrue(source.contains("File(user.topPhoto).takeIf(File::isAbsolute) ?: user.topPhoto"))
+        assertTrue(source.contains(".data(wallpaperModel)"))
+    }
 
     @Test
     fun `history service hides when history is already visible in bottom bar`() {

@@ -55,6 +55,7 @@ sealed class SkipAction {
         val reason: String,
         val segmentId: String? = null,
         val startMs: Long? = null,
+        val category: String? = null,
         val categoryName: String? = null,
         val showToast: Boolean = true,
     ) : SkipAction()

@@ -104,10 +104,18 @@ class MusicPlayerContentStructureTest {
     @Test
     fun `glass controls reuse home search backdrop instead of shader background`() {
         val source = loadSource()
+        val topButtons = source.substringAfter("private fun GlassIconButton(")
 
         assertTrue(source.contains("MiuixBackdrop?"))
         assertTrue(source.contains("rememberMiuixLayerBackdrop()"))
         assertTrue(source.contains(".miuixLayerBackdrop(musicBackdrop)"))
+        assertTrue(topButtons.contains(".biliPaiFloatingDockShell("))
+        assertTrue(topButtons.contains("backdrop = miuixBackdrop"))
+        assertTrue(topButtons.contains("enabled = glassEnabled"))
+        assertTrue(topButtons.contains("liquidGlassTuning = liquidGlassTuning"))
+        assertTrue(source.contains("homeSettings.liquidGlassProgress"))
+        assertTrue(source.contains("homeSettings.liquidGlassAdvancedSettings"))
+        assertTrue(source.contains("homeSettings.liquidGlassReadabilityMode"))
         assertTrue(!source.contains("BottomBarMatchedReusableLiquidDock("))
         assertTrue(!source.contains("biliPaiMiuixFloatingDockSurface("))
         assertTrue(!source.contains("liquidGlassBackground("))

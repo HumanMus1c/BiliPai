@@ -257,6 +257,26 @@ internal fun shouldResumePlaybackAfterSponsorBlockSkip(
     return true
 }
 
+private const val SPONSOR_SKIP_END_GUARD_MS = 1_000L
+
+internal fun resolveSponsorBlockSkipTargetPositionMs(
+    requestedPositionMs: Long,
+    durationMs: Long,
+    category: String?,
+): Long {
+    val safeRequestedPositionMs = requestedPositionMs.coerceAtLeast(0L)
+    if (durationMs <= 0L) return safeRequestedPositionMs
+
+    // 片尾跳过允许自然进入播放完成；其他社区片段不能因时间轴误差 seek 到
+    // duration 或其后，否则部分 Media3/解码器组合会直接进入 STATE_ENDED。
+    if (category == com.android.purebilibili.data.model.response.SponsorCategory.OUTRO) {
+        return safeRequestedPositionMs.coerceAtMost(durationMs)
+    }
+    val latestContinuousPlaybackPositionMs =
+        (durationMs - SPONSOR_SKIP_END_GUARD_MS).coerceAtLeast(0L)
+    return safeRequestedPositionMs.coerceAtMost(latestContinuousPlaybackPositionMs)
+}
+
 internal fun buildSponsorBlockVideoSnapshot(currentState: VideoPlaybackUiState): SponsorBlockVideoSnapshot? {
     val success = currentState as? VideoPlaybackUiState.Success ?: return null
     val info = success.info
@@ -7616,9 +7636,15 @@ class VideoPlaybackViewModel : ViewModel() {
                         when (val action = plugin.onPositionUpdate(currentPos)) {
                             is SkipAction.SkipTo -> {
                                 val snapshot = buildSponsorBlockVideoSnapshot(_uiState.value)
+                                val playerDurationMs = playbackUseCase.getDuration()
+                                val resolvedTargetPositionMs = resolveSponsorBlockSkipTargetPositionMs(
+                                    requestedPositionMs = action.positionMs,
+                                    durationMs = playerDurationMs,
+                                    category = action.category,
+                                )
                                 clearSponsorSkipUi()
                                 playbackUseCase.seekTo(
-                                    position = action.positionMs,
+                                    position = resolvedTargetPositionMs,
                                     resumePlayback = shouldResumePlaybackAfterSponsorBlockSkip(
                                         playWhenReadyBeforeSkip = exoPlayer?.playWhenReady == true
                                     )
@@ -7628,11 +7654,17 @@ class VideoPlaybackViewModel : ViewModel() {
                                     segmentId = action.segmentId,
                                     segmentCategoryName = action.categoryName,
                                     startMs = action.startMs,
-                                    endMs = action.positionMs,
+                                    endMs = resolvedTargetPositionMs,
                                     trigger = SponsorBlockSkipTrigger.AUTO
                                 )
                                 if (action.showToast) toast(action.reason)
-                                Logger.d("PlayerVM", " Plugin ${plugin.name} skipped to ${action.positionMs}ms")
+                                Logger.d(
+                                    "PlayerVM",
+                                    "Plugin ${plugin.name} skip: requested=${action.positionMs}ms, " +
+                                        "resolved=${resolvedTargetPositionMs}ms, duration=${playerDurationMs}ms, " +
+                                        "category=${action.category}, state=${exoPlayer?.playbackState}, " +
+                                        "playWhenReady=${exoPlayer?.playWhenReady}"
+                                )
                             }
                             is SkipAction.ShowButton -> {
                                 val nextUiState = reduceSponsorSkipUiState(
@@ -7693,9 +7725,11 @@ class VideoPlaybackViewModel : ViewModel() {
         val targetPosition = _sponsorSkipUiState.value.skipToMs.takeIf { it > 0L } ?: return
         val segmentId = _sponsorSkipUiState.value.segmentId
         val snapshot = buildSponsorBlockVideoSnapshot(_uiState.value)
+        var segmentCategory: String? = null
         PluginManager.getEnabledPlayerPlugins().forEach { plugin ->
             if (plugin is com.android.purebilibili.feature.plugin.SponsorBlockPlugin && segmentId != null) {
                 val segment = plugin.markAsSkipped(segmentId)
+                segmentCategory = segment?.category
                 recordSponsorBlockSkip(
                     snapshot = snapshot,
                     segmentId = segment?.UUID ?: segmentId,
@@ -7706,8 +7740,13 @@ class VideoPlaybackViewModel : ViewModel() {
                 )
             }
         }
+        val resolvedTargetPosition = resolveSponsorBlockSkipTargetPositionMs(
+            requestedPositionMs = targetPosition,
+            durationMs = playbackUseCase.getDuration(),
+            category = segmentCategory,
+        )
         playbackUseCase.seekTo(
-            position = targetPosition,
+            position = resolvedTargetPosition,
             resumePlayback = shouldResumePlaybackAfterSponsorBlockSkip(
                 playWhenReadyBeforeSkip = exoPlayer?.playWhenReady == true
             )

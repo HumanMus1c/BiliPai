@@ -152,6 +152,24 @@ class DanmakuPlaybackSyncPolicyTest {
     }
 
     @Test
+    fun `episode data ready uses current player position instead of stale request position`() {
+        assertEquals(
+            4_800L,
+            resolveDanmakuDataReadyPositionMs(
+                currentPlayerPositionMs = 4_800L,
+                requestedPositionMs = 0L,
+            )
+        )
+        assertEquals(
+            1_200L,
+            resolveDanmakuDataReadyPositionMs(
+                currentPlayerPositionMs = null,
+                requestedPositionMs = 1_200L,
+            )
+        )
+    }
+
+    @Test
     fun `player attach resyncs cached data only for an enabled bound session`() {
         assertTrue(
             shouldResyncDanmakuAfterPlayerAttach(

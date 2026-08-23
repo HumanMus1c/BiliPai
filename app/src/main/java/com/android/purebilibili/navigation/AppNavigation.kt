@@ -161,6 +161,7 @@ import com.android.purebilibili.feature.home.components.BottomNavItem
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockEdge
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisibility
 import com.android.purebilibili.feature.home.components.rememberBottomBarUiSkinDecoration
+import com.android.purebilibili.feature.home.components.rememberHomeUiSkinDecoration
 import com.android.purebilibili.feature.profile.shouldShowProfileHistoryService
 import com.android.purebilibili.core.store.AppNavigationSettings
 import com.android.purebilibili.core.store.AccountSessionStore
@@ -377,6 +378,7 @@ fun AppNavigation(
     }
     val uiSkinState by rememberUiSkinState(context)
     val bottomBarUiSkinDecoration = rememberBottomBarUiSkinDecoration(uiSkinState)
+    val homeUiSkinDecoration = rememberHomeUiSkinDecoration(uiSkinState)
     val appearance = remember(homeSettings) {
         resolveAppNavigationAppearance(
             homeSettings = homeSettings,
@@ -2337,6 +2339,8 @@ fun AppNavigation(
                                     }
                                 },
                                 onBangumiMoreClick = { navigateFromProfile(ScreenRoutes.Bangumi.createRoute(1)) },
+                                skinBackgroundImagePath = homeUiSkinDecoration?.profileBackgroundImagePath,
+                                skinSquaredBackgroundImagePath = homeUiSkinDecoration?.profileSquaredBackgroundImagePath,
                                 deferImmersiveRenderBudget = bottomPagerRenderBudget.deferProfileImmersiveBackground,
                                 scrollToTopChannel = profileScrollChannel
                             )

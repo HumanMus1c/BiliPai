@@ -743,8 +743,10 @@ fun VideoCommentSheetHost(
                                         onDissolveStart = { rpid -> commentViewModel.startSubDissolve(rpid) },
                                         onDeleteComment = { rpid -> commentViewModel.deleteSubComment(rpid) },
                                         onCommentLike = commentViewModel::likeComment,
+                                        onCommentHate = commentViewModel::hateComment,
                                         onReportComment = commentViewModel::reportComment,
                                         likedComments = commentState.likedComments,
+                                        hatedComments = commentState.hatedComments,
                                         onUrlClick = openCommentUrl,
                                         onAvatarClick = { mid ->
                                             mid.toLongOrNull()?.let(onUserClick)
@@ -810,7 +812,6 @@ internal fun VideoCommentMainList(
                     SettingsManager.setCommentDefaultSortMode(context, mode.apiMode)
                 }
             },
-            miuixBackdrop = commentChromeBackdrop
         )
 
         CommentFraudDetectingBanner(isDetecting = state.isDetectingFraud)
@@ -868,6 +869,8 @@ internal fun VideoCommentMainList(
                             maxTimestampMs = maxTimestampMs,
                             onImagePreview = onImagePreview,
                             onLikeClick = { viewModel.likeComment(reply.rpid) },
+                            onHateClick = { viewModel.hateComment(reply.rpid) },
+                            isHated = reply.action == 2 || reply.rpid in state.hatedComments,
                             onReplyClick = {
                                 if (shouldOpenPortraitCommentReplyComposer()) {
                                     onReplyClick(reply)

@@ -69,17 +69,14 @@ import com.android.purebilibili.core.ui.components.AppDropdownMenu
 import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppSmallFloatingActionButton
 import com.android.purebilibili.core.ui.AdaptivePullToRefreshBox
-import com.android.purebilibili.core.ui.LocalGlobalWallpaperBackdropVisible
 import com.android.purebilibili.core.ui.LocalBottomBarContentPadding
 import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.ui.LoadingAnimation
-import com.android.purebilibili.core.ui.TopReadabilityChrome
 import com.android.purebilibili.core.ui.globalWallpaperAwareBackground
 import com.android.purebilibili.core.ui.rememberAppChevronUpIcon
 import com.android.purebilibili.core.ui.rememberBackToTopButtonEnabled
 import com.android.purebilibili.core.ui.rememberAppDynamicIcon
-import com.android.purebilibili.core.ui.resolveGlobalWallpaperChromeColor
 import com.android.purebilibili.core.store.AccountSessionStore
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.store.TokenManager
@@ -96,7 +93,6 @@ import com.android.purebilibili.feature.dynamic.components.DynamicCommentOverlay
 import com.android.purebilibili.feature.dynamic.components.DynamicSidebar
 import com.android.purebilibili.feature.dynamic.components.DynamicUserLiveBadge
 import com.android.purebilibili.feature.dynamic.components.DynamicTopBarWithTabs
-import com.android.purebilibili.feature.dynamic.components.shouldUseDynamicTopBarHeaderBlur
 import com.android.purebilibili.core.ui.rememberAppVisibilityOffIcon
 import com.android.purebilibili.core.ui.rememberAppVisibilityOnIcon
 import com.android.purebilibili.feature.dynamic.components.DynamicDisplayMode
@@ -111,13 +107,10 @@ import com.android.purebilibili.feature.home.LocalHomeScrollOffset
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockEdge
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisibility
 import com.android.purebilibili.feature.home.policy.resolveBottomBarChromeScrollOffset
-import dev.chrisbanes.haze.HazeState
-import com.android.purebilibili.core.ui.blur.hazeSourceCompat
-import com.android.purebilibili.core.ui.blur.BlurStyles
-import com.android.purebilibili.core.ui.blur.currentUnifiedBlurIntensity
-import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.util.resolveScrollToTopPlan
 import kotlinx.coroutines.channels.Channel
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -287,8 +280,8 @@ fun DynamicScreen(
         )
     }
 
-    //  [Haze] 模糊状态
-    val hazeState = rememberRecoverableHazeState()
+    // Dock 只采集内容用于折射，顶部 tuning 将 blur 半径固定为 0。
+    val dynamicDockBackdrop = rememberLayerBackdrop()
     val scope = rememberCoroutineScope()
     val onDynamicTabSelected: (Int) -> Unit = { visibleIndex ->
         scope.launch {
@@ -658,6 +651,7 @@ fun DynamicScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .layerBackdrop(dynamicDockBackdrop)
                                     .background(AppSurfaceTokens.background())
                             ) {
                             HorizontalPager(
@@ -761,7 +755,7 @@ fun DynamicScreen(
                                         },
                                         likedDynamics = likedDynamics,
                                         feedLayoutMode = dynamicFeedLayoutMode,
-                                        modifier = Modifier.hazeSourceCompat(hazeState)
+                                        modifier = Modifier
                                     )
                                 }
                             }
@@ -781,12 +775,8 @@ fun DynamicScreen(
                                     displayMode = displayMode,
                                     onDisplayModeChange = { viewModel.setDisplayMode(it) },
                                     onPublishClick = { showPublishDialog = true },
-                                    hazeState = hazeState,
+                                    dockBackdrop = dynamicDockBackdrop,
                                     indicatorPositionProvider = dynamicTabIndicatorPositionProvider,
-                                    isScrollInProgressProvider = {
-                                        activeListState?.isScrollInProgress == true ||
-                                            pagerState.isScrollInProgress
-                                    },
                                 )
                             }
 
@@ -831,6 +821,7 @@ fun DynamicScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .layerBackdrop(dynamicDockBackdrop)
                                 .background(AppSurfaceTokens.background())
                         ) {
                         HorizontalPager(
@@ -938,85 +929,55 @@ fun DynamicScreen(
                                     },
                                     likedDynamics = likedDynamics,
                                     feedLayoutMode = dynamicFeedLayoutMode,
-                                    modifier = Modifier.hazeSourceCompat(hazeState)
+                                    modifier = Modifier
                                 )
                             }
                         }
                         }
 
                         // 顶部区域：顶栏 + 横向用户列表
-                        Column(modifier = Modifier.align(Alignment.TopCenter)) {
-                            // 获取模糊设置
-                            val blurIntensity = currentUnifiedBlurIntensity()
-                            val backgroundAlpha = BlurStyles.getBackgroundAlpha(blurIntensity)
-                            val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
-                            val headerColor = resolveGlobalWallpaperChromeColor(
-                                requestedColor = AppSurfaceTokens.surface().copy(alpha = backgroundAlpha),
-                                defaultBackgroundColor = AppSurfaceTokens.background(),
-                                defaultSurfaceColor = AppSurfaceTokens.surface(),
-                                globalWallpaperVisible = globalWallpaperVisible
-                            )
-
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                TopReadabilityChrome(
-                                    height = resolveDynamicListTopPaddingExtraDp(
-                                        isHorizontalMode = true,
-                                        isHorizontalUserListCollapsed = shouldCollapseHorizontalUserList,
-                                        shouldShowHorizontalUserList = shouldShowHorizontalUserList,
-                                        isTopBarCollapsed = shouldCollapseTopBar
-                                    ).dp,
-                                    surfaceColor = headerColor,
-                                    surfaceAlpha = backgroundAlpha,
-                                    hazeState = hazeState,
-                                    hazeEnabled = shouldUseDynamicTopBarHeaderBlur(
-                                        hasHazeState = true,
-                                        globalWallpaperVisible = globalWallpaperVisible,
-                                    )
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .fillMaxWidth()
+                        ) {
+                            // 顶栏（下滑折叠，回顶复现）
+                            BottomBarMatchedDockVisibility(
+                                visible = !shouldCollapseTopBar,
+                                edge = BottomBarMatchedDockEdge.TOP,
+                                animateScale = false,
+                            ) {
+                                DynamicTopBarWithTabs(
+                                    selectedTab = displayedTabIndex,
+                                    tabs = tabTitles,
+                                    onTabSelected = onDynamicTabSelected,
+                                    displayMode = displayMode,
+                                    onDisplayModeChange = { viewModel.setDisplayMode(it) },
+                                    onPublishClick = { showPublishDialog = true },
+                                    dockBackdrop = dynamicDockBackdrop,
+                                    indicatorPositionProvider = dynamicTabIndicatorPositionProvider,
                                 )
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    // 顶栏（下滑折叠，回顶复现）
-                                    BottomBarMatchedDockVisibility(
-                                        visible = !shouldCollapseTopBar,
-                                        edge = BottomBarMatchedDockEdge.TOP,
-                                        animateScale = false,
-                                    ) {
-                                        DynamicTopBarWithTabs(
-                                            selectedTab = displayedTabIndex,
-                                            tabs = tabTitles,
-                                            onTabSelected = onDynamicTabSelected,
-                                            displayMode = displayMode,
-                                            onDisplayModeChange = { viewModel.setDisplayMode(it) },
-                                            onPublishClick = { showPublishDialog = true },
-                                            hazeState = hazeState,
-                                            indicatorPositionProvider = dynamicTabIndicatorPositionProvider,
-                                            isScrollInProgressProvider = {
-                                                activeListState?.isScrollInProgress == true ||
-                                                    pagerState.isScrollInProgress
-                                            },
-                                        )
-                                    }
+                            }
 
-                                    AnimatedVisibility(
-                                        visible = shouldShowHorizontalUserList && !shouldCollapseHorizontalUserList,
-                                        enter = expandVertically(animationSpec = AppMotionTokens.standardSpec()) + fadeIn(animationSpec = AppMotionTokens.standardSpec()),
-                                        exit = shrinkVertically(animationSpec = AppMotionTokens.standardSpec()) + fadeOut(animationSpec = AppMotionTokens.standardSpec())
-                                    ) {
-                                        HorizontalUserList(
-                                            users = displayUsers,
-                                            selectedUserId = selectedUserId,
-                                            selfUid = selfUid,
-                                            listState = horizontalUserListState,
-                                            showHiddenUsers = showHiddenUsers,
-                                            hiddenCount = hiddenUserIds.size,
-                                            uplistUpdateMids = state.uplistUpdateMids,
-                                            onUserClick = handleUserSelection,
-                                            onToggleShowHidden = { viewModel.toggleShowHiddenUsers() },
-                                            onTogglePin = { viewModel.togglePinUser(it) },
-                                            onToggleHidden = { viewModel.toggleHiddenUser(it) },
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                    }
-                                }
+                            AnimatedVisibility(
+                                visible = shouldShowHorizontalUserList && !shouldCollapseHorizontalUserList,
+                                enter = expandVertically(animationSpec = AppMotionTokens.standardSpec()) + fadeIn(animationSpec = AppMotionTokens.standardSpec()),
+                                exit = shrinkVertically(animationSpec = AppMotionTokens.standardSpec()) + fadeOut(animationSpec = AppMotionTokens.standardSpec())
+                            ) {
+                                HorizontalUserList(
+                                    users = displayUsers,
+                                    selectedUserId = selectedUserId,
+                                    selfUid = selfUid,
+                                    listState = horizontalUserListState,
+                                    showHiddenUsers = showHiddenUsers,
+                                    hiddenCount = hiddenUserIds.size,
+                                    uplistUpdateMids = state.uplistUpdateMids,
+                                    onUserClick = handleUserSelection,
+                                    onToggleShowHidden = { viewModel.toggleShowHiddenUsers() },
+                                    onTogglePin = { viewModel.togglePinUser(it) },
+                                    onToggleHidden = { viewModel.toggleHiddenUser(it) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
                         }
 

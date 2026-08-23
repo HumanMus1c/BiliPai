@@ -3,6 +3,7 @@ package com.android.purebilibili.core.ui
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AppThemeConfigTest {
@@ -13,6 +14,7 @@ class AppThemeConfigTest {
 
         assertEquals(BlurIntensity.THIN, config.blurIntensity)
         assertTrue(config.hapticFeedbackEnabled)
+        assertFalse(config.globalTextTapCopyEnabled)
         assertTrue(config.uiEntranceAnimationEnabled)
         assertTrue(config.runtimeVisualGuardEnabled)
     }

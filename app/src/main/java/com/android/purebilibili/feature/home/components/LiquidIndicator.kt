@@ -484,7 +484,7 @@ internal fun resolveLiquidStyleTuning(tuning: LiquidGlassTuning): LiquidStyleTun
             deformationMultiplier = 0.92f + tuning.strength * 0.14f,
             idleBlurRadius = tuning.backdropBlurRadius,
             depthEffectEnabled = true,
-            allowChromaticAberration = tuning.chromaticAberrationAmount > 0.01f
+            allowChromaticAberration = tuning.indicatorChromaticAberrationAmount > 0.01f
         )
         LiquidGlassMode.FROSTED -> LiquidStyleTuning(
             idleThresholdPxPerSecond = 220f,
@@ -639,7 +639,11 @@ private fun DrawScope.drawLiquidSphereSurface(
         )
     }
 
-    if (isMoving && lensProfile.aberrationStrength > 0f && tuning.chromaticAberrationAmount > 0f) {
+    if (
+        isMoving &&
+        lensProfile.aberrationStrength > 0f &&
+        tuning.indicatorChromaticAberrationAmount > 0f
+    ) {
         val fringe = (lensProfile.aberrationStrength * 3.2f * clearWeight).coerceIn(0f, 0.18f)
         drawRect(
             brush = Brush.horizontalGradient(

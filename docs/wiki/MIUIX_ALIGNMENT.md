@@ -1,12 +1,13 @@
 # Miuix 对齐记录
 
-最后更新：2026-07-31
+最后更新：2026-08-22
 
 ## 背景
 
 本页记录 Miuix 技术接入状态；面向设计与页面实施的正式规则见 [UI 设计规范](ui-design/README.md)。两者发生差异时，前者回答“当前接入到哪里”，后者回答“目标应该怎样”。
 
-本仓库通过 Maven Central 引入 `top.yukonga.miuix.kmp`（当前钉扎 **0.9.3**），并在
+本仓库通过 GitHub Packages 引入 `top.yukonga.miuix.kmp`（当前钉扎上游主线快照
+**0.9.4-4f86de92-SNAPSHOT**），并在
 `AndroidNativeVariant.MIUIX` 下经由 `PresetPrimitiveRenderer.MIUIX_BRIDGED` 分发到官方组件。
 
 Navigation3 需单独看待：Miuix 0.9.3 的 `miuix-navigation3-ui` 编译于 Navigation3 runtime
@@ -41,7 +42,7 @@ P0–P5 深度适配主路径已落地；后续属于可选加深，而非阻塞
 - 播放器 `VideoSettingsPanel`：可点击项走 `ArrowPreference`，开关行走 `SwitchPreference`。
 - 迷你播放器壳：`MiniPlayerOverlayShellPolicy`（更圆角、更扁 elevation、`AppSurfaceTokens.primary` 强调色）。
 - 设置外观说明卡：`AdaptivePlainTooltipBox` → 官方 `TooltipBox`（长按/悬停）。
-- 工具链：Kotlin `2.4.0` + KSP `2.3.10` + miuix `0.9.3`（含 `miuix-shader`）。
+- 工具链：Kotlin `2.4.0` + KSP `2.3.10` + miuix `0.9.4-4f86de92-SNAPSHOT`（含 `miuix-shader`）。
 - `TextOnly`：MD3 设置保留；Miuix 路径映射为 `IconWithSelectedLabel`（非死分支，属 0.9.3 兼容）。
 
 ## 后续对齐顺序（深度适配）

@@ -37,6 +37,7 @@ import com.android.purebilibili.core.store.normalizeAppIconKey
 import com.android.purebilibili.core.store.resolveAppIconLauncherAlias
 import com.android.purebilibili.core.store.supportsAppIconAppearance
 import com.android.purebilibili.core.util.AnalyticsHelper
+import com.android.purebilibili.core.util.CacheUtils
 import com.android.purebilibili.core.util.CrashReporter
 import com.android.purebilibili.core.util.Logger
 import com.android.purebilibili.feature.settings.applyAppLanguage
@@ -129,6 +130,9 @@ class PureApplication : Application(), ImageLoaderFactory, ComponentCallbacks2 {
         launcherIconUiModeSnapshot = resources.configuration.uiMode
         Logger.init(this)
         CrashReporter.installGlobalExceptionHandler()
+        AppScope.ioScope.launch {
+            CacheUtils.clearCacheAutomaticallyIfDue(this@PureApplication)
+        }
 
         // 启动即确保首页视觉默认值生效：底栏悬浮 + 液态玻璃 + 顶部模糊
         // 冷启动路径不阻塞主线程，迁移改为后台执行。

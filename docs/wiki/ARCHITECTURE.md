@@ -12,7 +12,7 @@
 | Compose | BOM 2026.06.00、Material3 1.5.0-alpha25、Lifecycle 2.11.0 |
 | 导航 | Navigation3 runtime/UI 1.2.0-alpha07、NavigationEvent 1.2.0-alpha03 |
 | 媒体 | Media3 1.10.1、DASH/HLS、MediaSession、Texture surface 连续返回 |
-| 视觉 | Miuix 0.9.3、Haze 2.0.0-alpha03、Miuix Backdrop / Liquid Glass、Compose Cupertino |
+| 视觉 | Miuix 0.9.4-4f86de92-SNAPSHOT、Haze 2.0.0-alpha03、Miuix Backdrop / Liquid Glass、Compose Cupertino |
 
 ## Gradle 模块
 
@@ -59,7 +59,8 @@ baselineprofile ──(benchmark target)──> app
 5. 整卡几何只由一个 shell/shared bounds 所有；封面、标题、UP 和统计跟随卡片，不创建竞争的独立 bounds。
 6. 转场时钟负责 Opening、SettledHidden、BackPreview、Returning、Restoring；详情稳态保留返回会话，但停止无收益的模糊、Miuix Backdrop 和来源重录。
 
-Miuix `0.9.3` 继续用于组件与视觉，但它的 Nav3 UI 模块编译于 runtime `1.1.4`，因此当前项目不再混用该 NavDisplay；runtime/UI 必须保持官方同版。
+Miuix `0.9.4-4f86de92-SNAPSHOT` 继续用于组件与视觉；当前项目仍不混用其 NavDisplay，
+Navigation3 runtime/UI 必须保持官方同版。
 
 ## 播放主链路
 

@@ -9,7 +9,7 @@ lifecycleRuntimeKtx = "2.11.0"
 activityCompose = "1.13.0"
 composeBom = "2026.06.00"
 window = "1.5.1"
-miuix = "0.9.3-a370b370-SNAPSHOT"
+miuix = "0.9.4-4f86de92-SNAPSHOT"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

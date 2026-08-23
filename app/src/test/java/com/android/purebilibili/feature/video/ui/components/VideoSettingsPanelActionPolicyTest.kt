@@ -59,6 +59,8 @@ class VideoSettingsPanelActionPolicyTest {
         assertTrue(source.contains("AppSwitchPreference("))
         assertTrue(source.contains("AppPreference("))
         assertTrue(source.contains("rememberAppPlayerChromeProfile()"))
+        assertTrue(source.contains("title = \"弹幕设置\""))
+        assertTrue(source.contains("onDanmakuSettingsClick"))
     }
 
 }

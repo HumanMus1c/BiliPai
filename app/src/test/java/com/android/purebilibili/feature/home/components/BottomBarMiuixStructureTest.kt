@@ -95,8 +95,8 @@ class BottomBarMiuixStructureTest {
             .substringBefore("if (isLiquidGlassMode && backdrop != null)")
         val movingIndicator = floatingBody.substringAfter("if (tabWidthPx > 0f)")
 
-        assertTrue(floating.contains("vibrancy()"))
-        assertTrue(floating.contains("blur(4.dp.toPx(), 4.dp.toPx())"))
+        assertTrue(floating.contains("vibrancy(liquidGlassTuning.saturation)"))
+        assertTrue(floating.contains("liquidGlassTuning.backdropBlurRadius.dp.toPx()"))
         assertTrue(floating.contains("rememberCombinedBackdrop(backdrop, tabsBackdrop)"))
         assertTrue(floating.contains(".layerBackdrop(tabsBackdrop)"))
         // Floating-bar-local interaction stack, not the design-system drag stack.
@@ -111,7 +111,7 @@ class BottomBarMiuixStructureTest {
         assertTrue(floating.contains("onSelected(index)"))
         assertFalse(floating.contains("horizontalDragGesture"))
         assertFalse(floating.contains("rememberDampedDragAnimationState"))
-        assertTrue(floating.contains("chromaticAberration = 0.5f"))
+        assertTrue(floating.contains("resolveLiquidGlassIndicatorChromaticAberration("))
         assertTrue(floating.contains("rememberGravityRotatedHighlight("))
 
         // Host must not re-implement the three-layer drawBackdrop path.
@@ -205,6 +205,7 @@ class BottomBarMiuixStructureTest {
         val navigationSource = loadSource("app/src/main/java/com/android/purebilibili/navigation/AppNavigation.kt")
         val sidebarSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/SideBar.kt")
         val headerSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/HomeHeader.kt")
+        val topTabChromeSource = loadSource("app/src/main/java/com/android/purebilibili/feature/home/components/HomeTopTabChrome.kt")
 
         val sideBarCallSource = navigationSource
             .substringAfter("FrostedSideBar(")
@@ -218,8 +219,8 @@ class BottomBarMiuixStructureTest {
         assertTrue(sideBarBodySource.contains("BottomBarSkinIcon("))
         assertTrue(headerSource.contains("val topAtmosphereImagePath = uiSkinDecoration?.topAtmosphereImagePath"))
         assertTrue(headerSource.contains("model = File(topAtmosphereImagePath)"))
-        assertFalse(headerSource.contains("val topTabBackgroundImagePath = uiSkinDecoration?.topTabBackgroundImagePath"))
-        assertFalse(headerSource.contains("model = File(topTabBackgroundImagePath)"))
+        assertTrue(headerSource.contains("skinBackgroundImagePath = uiSkinDecoration?.topTabBackgroundImagePath"))
+        assertTrue(topTabChromeSource.contains("model = File(skinBackgroundImagePath)"))
         assertTrue(headerSource.contains("ContentScale.Crop"))
     }
 

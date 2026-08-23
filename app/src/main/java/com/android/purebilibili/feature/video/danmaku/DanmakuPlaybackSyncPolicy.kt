@@ -71,7 +71,11 @@ internal fun resolveDanmakuActionForIsPlayingChange(
     hasData: Boolean
 ): DanmakuSyncAction {
     if (!isPlayerPlaying) return DanmakuSyncAction.PauseOnly
-    return if (danmakuEnabled && hasData) DanmakuSyncAction.HardResync else DanmakuSyncAction.None
+    // A normal pause/resume does not invalidate the loaded timeline. Re-anchoring the
+    // engine clock is sufficient and preserves the currently visible render layers.
+    // Explicit seeks, buffering recovery and player/view replacement keep their hard
+    // resync paths because those events can invalidate the active window.
+    return if (danmakuEnabled && hasData) DanmakuSyncAction.SoftResync else DanmakuSyncAction.None
 }
 
 /**
@@ -82,12 +86,21 @@ internal fun resolveDanmakuActionForIsPlayingChange(
  * 的 None 分支（hasData=false）吃掉；若随后数据就绪时仅按 `isPlaying` 瞬时快照判断，
  * 引擎会停在 paused 且没有新的 isPlaying 事件恢复它（表现为弹幕开关显示「开」却无弹幕，
  * 需手动重开开关才显示）。因此数据就绪时应按「播放意图」（正在播放或即将播放）启动引擎，
- * 由后续 drift sync / HardResync 校正缓冲造成的少量时间线偏差。
+ * 由后续 drift sync / buffering HardResync 校正缓冲造成的少量时间线偏差。
  */
 internal fun shouldStartDanmakuOnDataReady(
     isPlaying: Boolean,
     playWhenReady: Boolean
 ): Boolean = isPlaying || playWhenReady
+
+/**
+ * Network loading is asynchronous, so the position captured when an episode request starts can
+ * already be stale when its first segment commits. Always prefer the currently attached player.
+ */
+internal fun resolveDanmakuDataReadyPositionMs(
+    currentPlayerPositionMs: Long?,
+    requestedPositionMs: Long,
+): Long = (currentPlayerPositionMs ?: requestedPositionMs).coerceAtLeast(0L)
 
 /**
  * 新 DanmakuView attach 时是否要把已缓存弹幕时间线补到当前 controller。

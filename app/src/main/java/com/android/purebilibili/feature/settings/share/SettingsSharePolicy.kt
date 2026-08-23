@@ -237,3 +237,13 @@ fun buildSettingsShareFileName(
     val timestamp = LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMs), ZoneOffset.UTC)
     return "bilipai-settings-$appVersion-${timestamp.format(SETTINGS_SHARE_FILE_TIME_FORMATTER)}.json"
 }
+
+fun buildLiquidGlassSettingsShareFileName(
+    appVersion: String,
+    epochMs: Long,
+): String {
+    val timestamp = LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMs), ZoneOffset.UTC)
+    return "bilipai-liquid-glass-$appVersion-${
+        timestamp.format(SETTINGS_SHARE_FILE_TIME_FORMATTER)
+    }.json"
+}
