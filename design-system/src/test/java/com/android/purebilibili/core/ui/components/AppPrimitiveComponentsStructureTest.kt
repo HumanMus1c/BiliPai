@@ -2,17 +2,15 @@ package com.android.purebilibili.core.ui.components
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AppPrimitiveComponentsStructureTest {
 
     @Test
-    fun neutralPrimitiveApisDelegateToMaterialRenderersInsideDesignSystem() {
+    fun remainingLegacyPrimitiveApisStayAvailableDuringRendererMigration() {
         val source = loadSource()
 
-        assertTrue(source.contains("fun AppSurface("))
-        assertTrue(source.contains(") = Surface("))
-        assertTrue(source.contains("onClick = onClick"))
         assertTrue(source.contains("fun AppButton("))
         assertTrue(source.contains(") = Button("))
         assertTrue(source.contains("colors: ButtonColors"))
@@ -75,6 +73,26 @@ class AppPrimitiveComponentsStructureTest {
         assertTrue(source.contains(") = SuggestionChip("))
     }
 
+    @Test
+    fun surfaceFacadeRoutesEachThemeToItsNativeRenderer() {
+        val facade = loadSource("components/AppSurface.kt")
+        val material = loadSource("renderer/material3/AppMaterial3Surface.kt")
+        val miuix = loadSource("renderer/miuix/AppMiuixSurface.kt")
+
+        assertTrue(facade.contains("AppUiStyle.MATERIAL3 -> AppMaterial3Surface("))
+        assertTrue(facade.contains("AppUiStyle.MIUIX -> AppMiuixSurface("))
+        assertTrue(facade.contains("Color.Unspecified"))
+        assertTrue(facade.contains("Dp.Unspecified"))
+        assertFalse(facade.contains("import androidx.compose.material3"))
+        assertFalse(facade.contains("import top.yukonga.miuix"))
+
+        assertTrue(material.contains("import androidx.compose.material3.Surface"))
+        assertTrue(material.contains("import androidx.compose.material3.HorizontalDivider"))
+        assertTrue(miuix.contains("import top.yukonga.miuix.kmp.basic.Surface"))
+        assertTrue(miuix.contains("import top.yukonga.miuix.kmp.basic.HorizontalDivider"))
+        assertFalse(miuix.contains("import androidx.compose.material3"))
+    }
+
     private fun loadSource(): String {
         val path = "src/main/java/com/android/purebilibili/core/ui/components/AppPrimitiveComponents.kt"
         return listOf(
@@ -82,5 +100,14 @@ class AppPrimitiveComponentsStructureTest {
             File("design-system/$path"),
         ).firstOrNull(File::exists)?.readText()
             ?: error("Cannot locate AppPrimitiveComponents.kt from ${File(".").absolutePath}")
+    }
+
+    private fun loadSource(relativePath: String): String {
+        val path = "src/main/java/com/android/purebilibili/core/ui/$relativePath"
+        return listOf(
+            File(path),
+            File("design-system/$path"),
+        ).firstOrNull(File::exists)?.readText()
+            ?: error("Cannot locate $path from ${File(".").absolutePath}")
     }
 }

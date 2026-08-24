@@ -179,6 +179,8 @@ class BottomBarMiuixStructureTest {
         val renderer = biliPaiFloatingBody(source)
 
         assertTrue(skinDecorationSource.contains("fun iconPathFor(item: BottomNavItem, selected: Boolean = false): String?"))
+        assertTrue(skinDecorationSource.contains("targetState = iconPath"))
+        assertTrue(skinDecorationSource.contains("contentKey = { stableIconPath -> stableIconPath }"))
         assertTrue(renderer.contains("uiSkinDecoration?.iconPathFor("))
         assertTrue(tabVisual.contains("BottomBarSkinIcon(") || renderer.contains("BottomBarSkinIcon("))
         assertTrue(source.contains("FloatingBottomBarItem("))
@@ -217,9 +219,9 @@ class BottomBarMiuixStructureTest {
         assertTrue(sideBarBodySource.contains("uiSkinDecoration: BottomBarUiSkinDecoration? = null"))
         assertTrue(sideBarBodySource.contains("val skinIconPath = uiSkinDecoration?.iconPathFor(item, selected = isSelected)"))
         assertTrue(sideBarBodySource.contains("BottomBarSkinIcon("))
-        assertTrue(headerSource.contains("val topAtmosphereImagePath = uiSkinDecoration?.topAtmosphereImagePath"))
-        assertTrue(headerSource.contains("model = File(topAtmosphereImagePath)"))
-        assertTrue(headerSource.contains("skinBackgroundImagePath = uiSkinDecoration?.topTabBackgroundImagePath"))
+        assertTrue(headerSource.contains("val topTrimImagePath = uiSkinDecoration?.topAtmosphereImagePath"))
+        assertTrue(headerSource.contains("model = File(topTrimImagePath)"))
+        assertFalse(headerSource.contains("skinBackgroundImagePath = uiSkinDecoration?.topTabBackgroundImagePath"))
         assertTrue(topTabChromeSource.contains("model = File(skinBackgroundImagePath)"))
         assertTrue(headerSource.contains("ContentScale.Crop"))
     }

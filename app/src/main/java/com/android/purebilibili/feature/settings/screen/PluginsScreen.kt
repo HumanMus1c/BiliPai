@@ -1929,16 +1929,33 @@ private fun UiSkinImagePreviewGrid(
                 modifier = Modifier.width(88.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                AsyncImage(
-                    model = item.localPath,
-                    contentDescription = item.label,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .clip(AppShapes.container(ContainerLevel.Chip))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                )
+                if (item.isVideo) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .clip(AppShapes.container(ContainerLevel.Chip))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        AppIcon(
+                            imageVector = Icons.Outlined.PlayCircle,
+                            contentDescription = item.label,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                } else {
+                    AsyncImage(
+                        model = item.localPath,
+                        contentDescription = item.label,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .clip(AppShapes.container(ContainerLevel.Chip))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    )
+                }
                 AppText(
                     text = item.label,
                     style = MaterialTheme.typography.labelSmall,

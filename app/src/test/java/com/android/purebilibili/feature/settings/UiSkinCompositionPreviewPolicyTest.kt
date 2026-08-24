@@ -74,7 +74,11 @@ class UiSkinCompositionPreviewPolicyTest {
     fun resolveLayersFallsBackWhenNoAssets() {
         val layers = resolveUiSkinCompositionLayers(data(manifest()))
         assertNull(layers.bottomBarTrimImagePath)
+        assertNull(layers.drawerBottomTrimImagePath)
         assertNull(layers.topAtmosphereImagePath)
+        assertNull(layers.topTabBackgroundImagePath)
+        assertNull(layers.profileVideoBackgroundPath)
+        assertNull(layers.publishIconImagePath)
         assertTrue(layers.bottomBarIconPaths.isEmpty())
         assertFalse(layers.hasBottomBarIcons)
         assertFalse(layers.hasTopAtmosphere)
@@ -122,6 +126,30 @@ class UiSkinCompositionPreviewPolicyTest {
         assertTrue(resolveUiSkinCompositionLayers(data(withTop)).hasTopAtmosphere)
         assertTrue(resolveUiSkinCompositionLayers(data(withTab)).hasTopAtmosphere)
         assertFalse(resolveUiSkinCompositionLayers(data(without)).hasTopAtmosphere)
+    }
+
+    @Test
+    fun resolveLayersMapsEveryExtendedUpstreamSurface() {
+        val assets = UiSkinAssets(
+            drawerBottomTrim = "assets/side_bg_bottom.png",
+            homeTopTabBackground = "assets/head_tab_bg.jpg",
+            homeSideBackground = "assets/side_bg.jpg",
+            homeProfileBackground = "assets/head_myself_bg.jpg",
+            homeProfileSquaredBackground = "assets/head_myself_squared_bg.jpg",
+            homeProfileVideoBackground = "assets/head_myself_mp4_bg.mp4",
+            dynamicPublishIcon = "assets/tail_icon_pub_btn_bg.png",
+        )
+        val assetFiles = assets.declaredPaths().associateWith { path -> "/cache/${path.substringAfterLast('/')}" }
+
+        val layers = resolveUiSkinCompositionLayers(data(manifest(assets), assetFiles))
+
+        assertEquals("/cache/side_bg_bottom.png", layers.drawerBottomTrimImagePath)
+        assertEquals("/cache/head_tab_bg.jpg", layers.topTabBackgroundImagePath)
+        assertEquals("/cache/side_bg.jpg", layers.sideBackgroundImagePath)
+        assertEquals("/cache/head_myself_bg.jpg", layers.profileBackgroundImagePath)
+        assertEquals("/cache/head_myself_squared_bg.jpg", layers.profileSquaredBackgroundImagePath)
+        assertEquals("/cache/head_myself_mp4_bg.mp4", layers.profileVideoBackgroundPath)
+        assertEquals("/cache/tail_icon_pub_btn_bg.png", layers.publishIconImagePath)
     }
 
     @Test

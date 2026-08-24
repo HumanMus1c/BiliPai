@@ -81,7 +81,7 @@ internal class BilibiliListenVideoLibraryDataSource : ListenVideoLibraryDataSour
 
 internal class ListenVideoLibraryLoader(
     private val source: ListenVideoLibraryDataSource,
-    maxConcurrentFolders: Int = 3,
+    maxConcurrentFolders: Int = 1,
     private val previewCoverSelector: (List<String>) -> String? = { covers ->
         covers.randomOrNull()
     }
@@ -93,7 +93,9 @@ internal class ListenVideoLibraryLoader(
     }
 
     suspend fun loadFolder(mediaId: Long): Result<List<FavoriteData>> {
-        return loadResourcePages { page -> source.folderPage(mediaId, page) }
+        return folderSemaphore.withPermit {
+            loadFolderPages(mediaId)
+        }
     }
 
     suspend fun loadAlbum(seasonId: Long): Result<List<FavoriteData>> {
@@ -129,7 +131,7 @@ internal class ListenVideoLibraryLoader(
         val results = validFolders.map { folder ->
             async {
                 folderSemaphore.withPermit {
-                    val result = folder.id to loadFolder(folder.id)
+                    val result = folder.id to loadFolderPages(folder.id)
                     onFolderIndexed(completedCount.incrementAndGet(), validFolders.size)
                     result
                 }
@@ -187,5 +189,14 @@ internal class ListenVideoLibraryLoader(
         } catch (error: Throwable) {
             Result.failure(error)
         }
+    }
+
+    /**
+     * Must be called while [folderSemaphore] is held. Keeping the permit for the whole
+     * pagination sequence prevents detail, preview and indexing requests from bursting
+     * against the same risk-controlled favorite endpoint.
+     */
+    private suspend fun loadFolderPages(mediaId: Long): Result<List<FavoriteData>> {
+        return loadResourcePages { page -> source.folderPage(mediaId, page) }
     }
 }

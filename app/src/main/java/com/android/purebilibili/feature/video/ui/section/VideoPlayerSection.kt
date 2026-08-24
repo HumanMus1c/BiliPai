@@ -98,7 +98,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.foundation.BorderStroke
-import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -5327,7 +5326,9 @@ fun VideoPlayerSection(
     val hapticScope = rememberCoroutineScope()
 
     // 拦截系统返回事件 (仅在全屏时拦截以处理退出全屏，否则交给系统处理预测性返回)
-    BackHandler(enabled = !isScreenLocked && isFullscreen) {
+    com.android.purebilibili.core.ui.LocalNavigationBackHandler(
+        enabled = !isScreenLocked && isFullscreen,
+    ) {
         onToggleFullscreen()
     }
     }

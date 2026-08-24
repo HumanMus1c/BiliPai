@@ -1,6 +1,6 @@
 # Miuix 对齐记录
 
-最后更新：2026-08-22
+最后更新：2026-08-24
 
 ## 背景
 
@@ -8,11 +8,12 @@
 
 本仓库通过 GitHub Packages 引入 `top.yukonga.miuix.kmp`（当前钉扎上游主线快照
 **0.9.4-4f86de92-SNAPSHOT**），并在
-`AndroidNativeVariant.MIUIX` 下经由 `PresetPrimitiveRenderer.MIUIX_BRIDGED` 分发到官方组件。
+`AppUiStyle.MIUIX` 下经由设计系统 facade 分发到官方组件或 Miuix 基元组合。
 
-Navigation3 需单独看待：Miuix 0.9.3 的 `miuix-navigation3-ui` 编译于 Navigation3 runtime
-1.1.4，而当前应用使用官方 runtime/UI 1.2.0-alpha07。为避免 SceneState 与预测返回版本错配，
-当前只保留 Miuix 主题/组件/blur/shader/squircle/icons，不使用 Miuix NavDisplay 实现。
+Navigation3 需单独看待：项目已经通过本地依赖替换接入 Miuix navigation，
+`BiliPaiNavDisplayHost` 实际使用 Miuix `NavDisplay`。该宿主及配套 back stack、transition、
+预测返回和手势桥接由 MD3 与 MIUIX 两主题共用，是本轮“各主题使用各自原生可见组件”规则的
+固定导航子系统例外。
 
 上游发布说明：<https://github.com/compose-miuix-ui/miuix/releases/tag/v0.9.3>
 
@@ -25,7 +26,9 @@ Navigation3 需单独看待：Miuix 0.9.3 的 `miuix-navigation3-ui` 编译于 N
 
 ## 对 BiliPai 当前实现的判断
 
-P0–P5 深度适配主路径已落地；后续属于可选加深，而非阻塞性缺口：
+主题、壳层、Preference 与少量高频组件已经接入 Miuix，但普通原语和大量 feature 仍直接依赖
+Material 3；因此不能再将当前状态描述为“主路径已完成”。完整迁移进度见
+[双主题原生组件迁移](NATIVE_THEME_COMPONENT_MIGRATION.md)。
 
 - 颜色通过 `Material ColorScheme -> Miuix Colors` 桥接 + `AppSurfaceTokens` 消费。
 - 壳层 / Preference / 内容卡 / 播放器设置与迷你播放器壳 / Tooltip 均已挂 `MIUIX_BRIDGED`。
@@ -45,18 +48,14 @@ P0–P5 深度适配主路径已落地；后续属于可选加深，而非阻塞
 - 工具链：Kotlin `2.4.0` + KSP `2.3.10` + miuix `0.9.4-4f86de92-SNAPSHOT`（含 `miuix-shader`）。
 - `TextOnly`：MD3 设置保留；Miuix 路径映射为 `IconWithSelectedLabel`（非死分支，属 0.9.3 兼容）。
 
-## 后续对齐顺序（深度适配）
+## 后续对齐顺序
 
-1. ~~P1 壳层~~（底栏 Badge、平板 Rail）
-2. ~~P2 Preference 主路径~~（Switch / Slider / Arrow）
-3. ~~P3 内容面~~（`ContentCardSurfacePolicy` → 消息 / 搜索 / 动态 GlassCard）
-4. ~~P4 播放器~~（设置 Preference + 迷你播放器壳）
-5. ~~P5 Tooltip / 文档收尾~~
-
-可选加深：首页视频卡 squircle、更多长按 Tooltip 接入点。
+以[双主题原生组件迁移](NATIVE_THEME_COMPONENT_MIGRATION.md)的阶段 0–9 为唯一执行顺序。
+现有壳层、Preference、播放器和 Tooltip 接入视为可复用基础，不代表其余 App 原语已经完成双渲染。
 
 ## 非目标
 
-- 一次性去掉 MaterialTheme 单主题树
-- 大规模重做 iOS / MD3
-- 通过新增无关依赖解决风格问题
+- 改造液态玻璃效果
+- 为迁移新增无关依赖
+- 改变主题持久化或业务状态语义
+- 将 48dp 触控下限写死为所有组件的视觉尺寸

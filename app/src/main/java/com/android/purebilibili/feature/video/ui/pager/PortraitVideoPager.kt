@@ -53,9 +53,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.graphics.toArgb
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.android.purebilibili.core.ui.AppWindowSystemUiController
 import com.android.purebilibili.feature.video.screen.VideoDetailHiddenSystemBars
 import com.android.purebilibili.feature.video.screen.VideoDetailSystemBarsApplySpec
 import com.android.purebilibili.feature.video.screen.applyVideoDetailSystemBarsSpec
@@ -284,7 +284,7 @@ fun PortraitVideoPager(
     // Immersive: hide status + nav bars while portrait pager is active (Story + detail overlay).
     LaunchedEffect(isActive, window, insetsController) {
         if (!isActive || window == null || insetsController == null) return@LaunchedEffect
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        AppWindowSystemUiController.ensureEdgeToEdge(window)
         val immersiveSpec = resolveVideoDetailSystemBarsApplySpec(
             visibilityPolicy = resolveVideoDetailSystemBarsVisibilityPolicy(
                 isFullscreenMode = false,

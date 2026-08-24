@@ -3,7 +3,6 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.content.Intent
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
@@ -34,6 +33,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -70,6 +70,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -421,7 +422,7 @@ internal fun VideoInlineSubReplyDetailContent(
     val rootReply = state.rootReply
     if (!state.visible || rootReply == null) return
 
-    BackHandler(enabled = true) {
+    com.android.purebilibili.core.ui.LocalNavigationBackHandler(enabled = true) {
         onDismiss()
     }
 
@@ -1267,14 +1268,14 @@ private fun SubReplyDetailItem(
                     Spacer(modifier = Modifier.weight(1f))
 
                     if (onDeleteClick != null) {
-                        AppIcon(
-                            imageVector = Icons.Outlined.Delete,
-                            contentDescription = "Delete",
-                            tint = appearance.actionTint,
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clickable { onDeleteClick() }
-                        )
+                        AppIconButton(onClick = onDeleteClick) {
+                            AppIcon(
+                                imageVector = Icons.Outlined.Delete,
+                                contentDescription = "删除",
+                                tint = appearance.actionTint,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                         Spacer(modifier = Modifier.width(18.dp))
                     }
 
@@ -1417,7 +1418,9 @@ private fun SubReplyTextAction(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clickable(onClick = onClick)
+        modifier = Modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .clickable(role = Role.Button, onClick = onClick)
     ) {
         AppIcon(
             imageVector = Icons.AutoMirrored.Outlined.Reply,

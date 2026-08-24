@@ -186,7 +186,7 @@ fun <T> AppNativeSegmentedControl(
             selectedValue = selectedValue,
             enabled = enabled,
             colors = colors,
-            pillCornerRadius = policy.pillCornerRadius,
+            preferredCornerRadius = policy.preferredCornerRadius,
             modifier = modifier,
             onSelectionChange = onSelectionChange,
         )
@@ -239,7 +239,7 @@ fun <T> AppNativeTabRow(
             scrollable = scrollable,
             minTabWidth = minTabWidth,
             colors = colors,
-            pillCornerRadius = policy.pillCornerRadius,
+            preferredCornerRadius = policy.preferredCornerRadius,
             modifier = modifier,
             onSelectionChange = onSelectionChange,
         )

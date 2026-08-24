@@ -59,7 +59,8 @@ data class InstalledUiSkinPreviewUiModel(
 
 data class UiSkinImagePreviewItem(
     val label: String,
-    val localPath: String
+    val localPath: String,
+    val isVideo: Boolean = false,
 )
 
 private val capabilityOrder = listOf(
@@ -238,7 +239,8 @@ fun buildUiSkinImagePreviewItems(
         .map { (assetPath, localPath) ->
             UiSkinImagePreviewItem(
                 label = assetPath.previewLabel,
-                localPath = localPath
+                localPath = localPath,
+                isVideo = assetPath.endsWith(".mp4", ignoreCase = true),
             )
         }
 }
@@ -247,25 +249,34 @@ private val UiSkinSurface.displayLabel: String
     get() = when (this) {
         UiSkinSurface.HOME_BOTTOM_BAR -> "首页底栏"
         UiSkinSurface.HOME_TOP_CHROME -> "首页顶部"
+        UiSkinSurface.HOME_DRAWER -> "首页侧栏"
+        UiSkinSurface.PROFILE -> "个人页"
+        UiSkinSurface.DYNAMIC_PUBLISH -> "动态发布"
     }
 
 private val String.previewOrder: Int
     get() = when (substringAfterLast("/")) {
-        "tail_bg.png", "tail_bg.jpg", "side_bg_bottom.png", "side_bg_bottom.jpg" -> 0
+        "tail_bg.png", "tail_bg.jpg" -> 0
+        "side_bg_bottom.png", "side_bg_bottom.jpg" -> 1
         "head_bg.jpg", "head_bg.png", "head_tab_bg.jpg", "head_tab_bg.png" -> 1
         "side_bg.jpg", "side_bg.png" -> 2
         "head_myself_bg.jpg", "head_myself_bg.png",
-        "head_myself_squared_bg.jpg", "head_myself_squared_bg.png" -> 3
+        "head_myself_squared_bg.jpg", "head_myself_squared_bg.png",
+        "head_myself_mp4_bg.mp4" -> 3
         else -> if (substringAfterLast("/").startsWith("tail_icon_")) 4 else 5
     }
 
 private val String.previewLabel: String
     get() = when (substringAfterLast("/")) {
-        "tail_bg.png", "tail_bg.jpg", "side_bg_bottom.png", "side_bg_bottom.jpg" -> "底栏饰面"
+        "tail_bg.png", "tail_bg.jpg" -> "底栏饰面"
+        "side_bg_bottom.png", "side_bg_bottom.jpg" -> "侧栏底饰"
         "head_bg.jpg", "head_bg.png", "head_tab_bg.jpg", "head_tab_bg.png" -> "顶部氛围"
         "side_bg.jpg", "side_bg.png" -> "侧栏背景"
         "head_myself_bg.jpg", "head_myself_bg.png" -> "个人页背景"
         "head_myself_squared_bg.jpg", "head_myself_squared_bg.png" -> "个人页方图"
+        "head_myself_mp4_bg.mp4" -> "个人页动态背景"
+        "tail_icon_pub_btn_bg.png", "tail_icon_pub_btn_bg.jpg" -> "发布图标"
+        "tail_icon_selected_pub_btn_bg.png", "tail_icon_selected_pub_btn_bg.jpg" -> "按下发布图标"
         "tail_icon_channel.png", "tail_icon_channel.jpg" -> "频道图标"
         "tail_icon_selected_channel.png", "tail_icon_selected_channel.jpg" -> "选中频道图标"
         else -> if (substringAfterLast("/").startsWith("tail_icon_")) "底栏图标" else "资源图片"

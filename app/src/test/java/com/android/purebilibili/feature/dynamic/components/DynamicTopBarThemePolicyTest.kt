@@ -3,6 +3,8 @@ package com.android.purebilibili.feature.dynamic.components
 import androidx.compose.ui.graphics.Color
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import java.io.File
 
 class DynamicTopBarThemePolicyTest {
 
@@ -11,6 +13,29 @@ class DynamicTopBarThemePolicyTest {
         val themeColor = Color(0xFFFF6F6F)
 
         assertEquals(themeColor, resolveDynamicTabSelectedColor(themeColor))
+    }
+
+    @Test
+    fun `publish action consumes image and native color skin modes`() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt"
+        ).readText()
+
+        assertTrue(source.contains("publishSkinDecoration: DynamicPublishSkinDecoration? = null"))
+        assertTrue(source.contains("publishIconPaths.pathFor(publishPressed)"))
+        assertTrue(source.contains("Brush.verticalGradient("))
+        assertTrue(source.contains("publishSkinDecoration?.iconTint"))
+    }
+
+    @Test
+    fun `dynamic tab dock uses solid theme surface when liquid glass is disabled`() {
+        val source = File(
+            "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt"
+        ).readText()
+
+        assertTrue(source.contains("if (liquidGlassEnabled)"))
+        assertTrue(source.contains(".clip(dockShape)"))
+        assertTrue(source.contains(".background(dockColor)"))
     }
 
 }

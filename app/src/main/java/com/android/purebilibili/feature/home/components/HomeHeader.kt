@@ -152,9 +152,6 @@ internal fun resolveHomeSkinTopTabContentColor(
 internal fun resolveHomeSkinTopTabUnselectedContentColor(contentColor: Color): Color =
     contentColor.copy(alpha = if (contentColor.luminance() > 0.5f) 0.84f else 0.78f)
 
-internal fun shouldUseHomeSkinPlainTopTabs(uiSkinDecoration: HomeUiSkinDecoration?): Boolean =
-    false
-
 internal fun resolveHomeSkinTopTabIndicatorColor(contentColor: Color): Color =
     contentColor.copy(alpha = maxOf(contentColor.alpha, 0.92f))
 
@@ -1418,7 +1415,6 @@ fun HomeHeader(
     val contentCardSurfaceSpec = rememberContentCardSurfaceSpec()
     val usesNativeContainerTreatment = semanticVisualPolicy.prefersNativeChrome
     val usesTonalContainerTreatment = contentCardSurfaceSpec.usesTonalContainerTreatment
-    val shouldUseSkinPlainTopTabs = shouldUseHomeSkinPlainTopTabs(uiSkinDecoration)
     val haptic = rememberHapticFeedback()
     val density = LocalDensity.current
     val resolvedHeaderBlurMode = homeSettings?.headerBlurMode ?: HomeHeaderBlurMode.FOLLOW_PRESET
@@ -1925,9 +1921,6 @@ fun HomeHeader(
     } else {
         tabSurfaceColor.copy(alpha = tabOverlayAlpha)
     }
-    val skinTintedTabSurfaceColor = uiSkinDecoration?.topAtmosphereTint?.copy(
-        alpha = effectiveTabSurfaceColor.alpha.coerceAtLeast(0.36f)
-    ) ?: effectiveTabSurfaceColor
     val renderUnifiedTopPanelChrome = embedTopTabsInUnifiedPanel && shouldRenderHomeTopUnifiedPanelChrome(
         searchHeightDp = currentSearchHeight.value,
         tabHeightDp = currentTabHeight.value,
@@ -1941,8 +1934,11 @@ fun HomeHeader(
             drawUnifiedTopPanelChrome &&
             currentSearchHeight > AppSpacingTokens.None &&
             searchRevealFraction > 0f
-    val useTopTabBottomBarMatchedDock = resolveHomeTopChromeLiquidGlassEnabled(homeSettings)
-    val drawTopTabDockChrome = drawTopTabOuterChromeSurface || useTopTabBottomBarMatchedDock || useDetachedTopTabDock
+    val topTabLiquidGlassEnabled = resolveHomeTopChromeLiquidGlassEnabled(homeSettings)
+    // 顶部分类始终复用底栏 dock 壳层；关闭液态玻璃时由同一表面降级为实色/轻 tint，
+    // 避免标签直接叠在首页头图上而失去可读性。
+    val useTopTabBottomBarMatchedDock = true
+    val drawTopTabDockChrome = drawTopTabOuterChromeSurface || useDetachedTopTabDock
     val topTabLabelMode = homeSettings?.topTabLabelMode
         ?: com.android.purebilibili.core.store.SettingsManager.TopTabLabelMode.TEXT_ONLY
     // Floating dock shell + tabs share one wrap decision so glass length matches content.
@@ -1972,7 +1968,7 @@ fun HomeHeader(
         tabContentAlpha = tabContentAlpha
     )
     val tabBorderAlpha = if (isTabFloating) tabChromeStyle.borderAlpha else 0f
-    val topAtmosphereImagePath = uiSkinDecoration?.topAtmosphereImagePath
+    val topTrimImagePath = uiSkinDecoration?.topAtmosphereImagePath
     val topLayoutOrder = homeSettings?.homeTopLayoutOrder ?: HomeTopLayoutOrder.SEARCH_THEN_TABS
     val topTabsContent: @Composable (Dp) -> Unit = { maxDockWidth ->
         HomeTopTabChrome(
@@ -2005,7 +2001,7 @@ fun HomeHeader(
             } else {
                 effectiveTabChromeRenderMode
             },
-            tabSurfaceColor = skinTintedTabSurfaceColor,
+            tabSurfaceColor = effectiveTabSurfaceColor,
             hazeState = hazeState,
             miuixBackdrop = miuixBackdrop,
             liquidStyle = liquidStyle,
@@ -2039,7 +2035,7 @@ fun HomeHeader(
             onTabsCollapsedChange = onTopTabsCollapsedChange,
             drawChromeSurface = drawTopTabDockChrome,
             useBottomBarMatchedSurface = useTopTabBottomBarMatchedDock,
-            drawMatchedShellLens = useTopTabBottomBarMatchedDock,
+            drawMatchedShellLens = topTabLiquidGlassEnabled,
             matchedShellLensIntensity = resolveFloatingDockGeometryScale(
                 currentTabHeight.value
             ),
@@ -2047,7 +2043,6 @@ fun HomeHeader(
             wrapDockWidth = wrapTopTabDockWidth,
             dockCategoryCount = topCategories.size,
             dockLabelMode = topTabLabelMode,
-            skinBackgroundImagePath = uiSkinDecoration?.topTabBackgroundImagePath,
         ) {
             CategoryTabRow(
                 categories = topCategories,
@@ -2079,10 +2074,6 @@ fun HomeHeader(
                 isTransitionRunning = isTransitionRunning,
                 forceLowBlurBudget = forceLowBlurBudget,
                 isViewportSyncEnabled = isTopTabViewportSyncEnabled,
-                skinPlainStyle = shouldUseSkinPlainTopTabs,
-                skinPlainContentColor = null,
-                topTabSkinIconPaths = uiSkinDecoration?.topTabSkinIconPaths.orEmpty(),
-                partitionSkinIconPath = uiSkinDecoration?.topTabPartitionIconPath(),
                 maxDockWidthDp = maxDockWidth.value,
                 forceMaterialUnderline = false
             )
@@ -2122,7 +2113,38 @@ fun HomeHeader(
                         isScrolling = topChromeMotionPolicy.isScrolling,
                         isTransitionRunning = topChromeMotionPolicy.isTransitionRunning,
                         forceLowBlurBudget = forceLowBlurBudget
+                )
+            )
+        }
+        // The skin head artwork belongs to the complete pinned header, not only the
+        // search/tabs panel. Drawing it here lets the same crop continue behind the
+        // transparent status bar while the controls remain layered above it.
+        if (!topTrimImagePath.isNullOrBlank()) {
+            AsyncImage(
+                model = File(topTrimImagePath),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(continuousSlabHeight)
+                    .graphicsLayer {
+                        alpha = 0.76f
+                    }
+                    .clearAndSetSemantics {}
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(continuousSlabHeight)
+                    .background(
+                        Brush.verticalGradient(
+                            0.00f to Color.Transparent,
+                            0.72f to Color.Transparent,
+                            1.00f to headerChromeColors.containerColor.copy(alpha = 0.42f),
+                        )
                     )
+                    .clearAndSetSemantics {}
             )
         }
         Column(
@@ -2196,30 +2218,6 @@ fun HomeHeader(
                         }
                     )
             ) {
-                if (!topAtmosphereImagePath.isNullOrBlank()) {
-                    AsyncImage(
-                        model = File(topAtmosphereImagePath),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .matchParentSize()
-                            .alpha(0.30f)
-                            .clearAndSetSemantics {}
-                    )
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        headerChromeColors.containerColor.copy(alpha = 0.52f)
-                                    )
-                                )
-                            )
-                            .clearAndSetSemantics {}
-                    )
-                }
                 if (
                     drawUnifiedTopPanelChrome &&
                     useUnifiedTopPanel &&
@@ -2551,6 +2549,20 @@ fun HomeHeader(
                                         .padding(horizontal = resolveHomeTopSearchContentHorizontalPadding(topChromePolicy)),
                                     contentAlignment = Alignment.CenterStart
                                 ) {
+                                    uiSkinDecoration?.searchCapsuleImagePath
+                                        ?.takeIf { it.isNotBlank() }
+                                        ?.let { searchCapsuleImagePath ->
+                                            AsyncImage(
+                                                model = File(searchCapsuleImagePath),
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .matchParentSize()
+                                                    .clip(searchContainerShape)
+                                                    .alpha(0.52f)
+                                                    .clearAndSetSemantics {}
+                                            )
+                                        }
                                     if (
                                         shouldDrawHomeTopSearchLegacyHighlight(
                                             presentation = topChromePolicy.tabPresentation,

@@ -4,6 +4,9 @@ package com.android.purebilibili.core.util
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.res.Configuration
+import android.hardware.input.InputManager
+import android.view.InputDevice
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.widthIn
@@ -11,11 +14,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
@@ -27,15 +32,19 @@ import kotlin.math.min
 
 /**
  * 🖥️ 窗口宽度尺寸类型
- * 基于 Material 3 响应式设计规范
+ * 基于 Android WindowManager 1.5 的 V2 断点。
  */
 enum class WindowWidthSizeClass {
     /** 手机竖屏 (< 600dp) */
     Compact,
     /** 平板竖屏/手机横屏 (600dp - 840dp) */
     Medium,
-    /** 平板横屏/大屏设备 (> 840dp) */
-    Expanded
+    /** 平板横屏/小型桌面窗口 (840dp - 1200dp) */
+    Expanded,
+    /** 大型平板/桌面窗口 (1200dp - 1600dp) */
+    Large,
+    /** 超宽桌面窗口 (>= 1600dp) */
+    ExtraLarge,
 }
 
 /**
@@ -54,7 +63,9 @@ internal fun resolveWindowWidthSizeClass(widthDp: Dp): WindowWidthSizeClass {
     return when {
         widthDp < 600.dp -> WindowWidthSizeClass.Compact
         widthDp < 840.dp -> WindowWidthSizeClass.Medium
-        else -> WindowWidthSizeClass.Expanded
+        widthDp < 1200.dp -> WindowWidthSizeClass.Expanded
+        widthDp < 1600.dp -> WindowWidthSizeClass.Large
+        else -> WindowWidthSizeClass.ExtraLarge
     }
 }
 
@@ -96,27 +107,75 @@ data class WindowSizeClass(
     
     /** 是否为大屏设备（平板横屏） */
     val isExpandedScreen: Boolean
-        get() = widthSizeClass == WindowWidthSizeClass.Expanded
+        get() = widthSizeClass >= WindowWidthSizeClass.Expanded
+
+    val isExtraLargeScreen: Boolean
+        get() = widthSizeClass == WindowWidthSizeClass.ExtraLarge
     
     /** 是否应该使用分栏布局 */
     val shouldUseSplitLayout: Boolean
-        get() = isTablet // [Modified] Enable split layout for Medium (600dp+) and Expanded
+        get() = isTablet && heightSizeClass != WindowHeightSizeClass.Compact
     
     /** 是否应该使用侧边导航栏（仅大屏） */
     val shouldUseSideNavigation: Boolean
-        get() = isTablet // [Modified] Enable side navigation for Medium (600dp+) and Expanded
+        get() = isTablet
+
+    val shouldUseExpandedNavigationRail: Boolean
+        get() = widthSizeClass >= WindowWidthSizeClass.Expanded
+
+    val shouldUseThreePaneLayout: Boolean
+        get() = isExtraLargeScreen && heightSizeClass != WindowHeightSizeClass.Compact
+}
+
+enum class AppFoldPosture {
+    None,
+    Flat,
+    Book,
+    Tabletop,
+}
+
+enum class AppHingeOrientation {
+    None,
+    Vertical,
+    Horizontal,
+}
+
+data class AppFoldingFeatureInfo(
+    val posture: AppFoldPosture = AppFoldPosture.None,
+    val hingeOrientation: AppHingeOrientation = AppHingeOrientation.None,
+    val hingeBounds: IntRect? = null,
+    val isSeparating: Boolean = false,
+    val isOccluding: Boolean = false,
+)
+
+data class AppWindowAdaptiveInfo(
+    val windowSizeClass: WindowSizeClass,
+    val foldingFeature: AppFoldingFeatureInfo = AppFoldingFeatureInfo(),
+    val precisePointerConnected: Boolean = false,
+    val hardwareKeyboardConnected: Boolean = false,
+) {
+    val posture: AppFoldPosture
+        get() = foldingFeature.posture
+
+    val shouldAvoidHinge: Boolean
+        get() = (foldingFeature.isSeparating || foldingFeature.isOccluding) &&
+            windowSizeClass.heightSizeClass != WindowHeightSizeClass.Compact
 }
 
 /**
  * 📦 CompositionLocal 提供全局 WindowSizeClass 访问
  */
-val LocalWindowSizeClass = compositionLocalOf { 
-    WindowSizeClass(
-        widthSizeClass = WindowWidthSizeClass.Compact,
-        heightSizeClass = WindowHeightSizeClass.Medium,
-        widthDp = 360.dp,
-        heightDp = 800.dp
-    )
+private val DefaultWindowSizeClass = WindowSizeClass(
+    widthSizeClass = WindowWidthSizeClass.Compact,
+    heightSizeClass = WindowHeightSizeClass.Medium,
+    widthDp = 360.dp,
+    heightDp = 800.dp,
+)
+
+val LocalWindowSizeClass = compositionLocalOf { DefaultWindowSizeClass }
+
+val LocalAppWindowAdaptiveInfo = compositionLocalOf {
+    AppWindowAdaptiveInfo(windowSizeClass = DefaultWindowSizeClass)
 }
 
 /**
@@ -128,19 +187,100 @@ val LocalWindowSizeClass = compositionLocalOf {
  */
 @Composable
 fun rememberIsFlatFoldable(): Boolean {
+    return LocalAppWindowAdaptiveInfo.current.posture == AppFoldPosture.Flat
+}
+
+@Composable
+fun rememberAppWindowAdaptiveInfo(
+    windowSizeClass: WindowSizeClass,
+): AppWindowAdaptiveInfo {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     val activity = remember(context) { context.findActivity() }
-    val isFlatFoldable = produceState(initialValue = false, activity) {
+    val foldingFeatureInfo by produceState(AppFoldingFeatureInfo(), activity) {
         val hostActivity = activity ?: return@produceState
         WindowInfoTracker.getOrCreate(hostActivity)
             .windowLayoutInfo(hostActivity)
             .collect { layoutInfo ->
                 value = layoutInfo.displayFeatures
                     .filterIsInstance<FoldingFeature>()
-                    .any { feature -> feature.state == FoldingFeature.State.FLAT }
+                    .firstOrNull()
+                    ?.toAppFoldingFeatureInfo()
+                    ?: AppFoldingFeatureInfo()
             }
     }
-    return isFlatFoldable.value
+    val precisePointerConnected by produceState(
+        initialValue = context.hasPrecisePointer(),
+        key1 = context,
+    ) {
+        val inputManager = context.getSystemService(InputManager::class.java)
+            ?: return@produceState
+        val listener = object : InputManager.InputDeviceListener {
+            override fun onInputDeviceAdded(deviceId: Int) {
+                value = context.hasPrecisePointer()
+            }
+
+            override fun onInputDeviceRemoved(deviceId: Int) {
+                value = context.hasPrecisePointer()
+            }
+
+            override fun onInputDeviceChanged(deviceId: Int) {
+                value = context.hasPrecisePointer()
+            }
+        }
+        inputManager.registerInputDeviceListener(listener, null)
+        awaitDispose { inputManager.unregisterInputDeviceListener(listener) }
+    }
+    val hardwareKeyboardConnected = configuration.keyboard != Configuration.KEYBOARD_NOKEYS
+    return remember(
+        windowSizeClass,
+        foldingFeatureInfo,
+        precisePointerConnected,
+        hardwareKeyboardConnected,
+    ) {
+        AppWindowAdaptiveInfo(
+            windowSizeClass = windowSizeClass,
+            foldingFeature = foldingFeatureInfo,
+            precisePointerConnected = precisePointerConnected,
+            hardwareKeyboardConnected = hardwareKeyboardConnected,
+        )
+    }
+}
+
+private fun FoldingFeature.toAppFoldingFeatureInfo(): AppFoldingFeatureInfo {
+    val orientation = when (orientation) {
+        FoldingFeature.Orientation.VERTICAL -> AppHingeOrientation.Vertical
+        FoldingFeature.Orientation.HORIZONTAL -> AppHingeOrientation.Horizontal
+        else -> AppHingeOrientation.None
+    }
+    val posture = when (state) {
+        FoldingFeature.State.FLAT -> AppFoldPosture.Flat
+        FoldingFeature.State.HALF_OPENED -> when (orientation) {
+            AppHingeOrientation.Vertical -> AppFoldPosture.Book
+            AppHingeOrientation.Horizontal -> AppFoldPosture.Tabletop
+            AppHingeOrientation.None -> AppFoldPosture.None
+        }
+        else -> AppFoldPosture.None
+    }
+    return AppFoldingFeatureInfo(
+        posture = posture,
+        hingeOrientation = orientation,
+        hingeBounds = IntRect(bounds.left, bounds.top, bounds.right, bounds.bottom),
+        isSeparating = isSeparating,
+        isOccluding = occlusionType == FoldingFeature.OcclusionType.FULL,
+    )
+}
+
+private fun Context.hasPrecisePointer(): Boolean {
+    val inputManager = getSystemService(InputManager::class.java) ?: return false
+    return inputManager.inputDeviceIds.any { deviceId ->
+        val device = inputManager.getInputDevice(deviceId) ?: return@any false
+        device.isEnabled && (
+            device.supportsSource(InputDevice.SOURCE_MOUSE) ||
+                device.supportsSource(InputDevice.SOURCE_MOUSE_RELATIVE) ||
+                device.supportsSource(InputDevice.SOURCE_TOUCHPAD)
+            )
+    }
 }
 
 private fun Context.findActivity(): Activity? {
@@ -193,14 +333,18 @@ fun calculateWindowSizeClass(
 fun <T> rememberResponsiveValue(
     compact: T,
     medium: T = compact,
-    expanded: T = medium
+    expanded: T = medium,
+    large: T = expanded,
+    extraLarge: T = large,
 ): T {
     val windowSizeClass = LocalWindowSizeClass.current
-    return remember(windowSizeClass.widthSizeClass, compact, medium, expanded) {
+    return remember(windowSizeClass.widthSizeClass, compact, medium, expanded, large, extraLarge) {
         when (windowSizeClass.widthSizeClass) {
             WindowWidthSizeClass.Compact -> compact
             WindowWidthSizeClass.Medium -> medium
             WindowWidthSizeClass.Expanded -> expanded
+            WindowWidthSizeClass.Large -> large
+            WindowWidthSizeClass.ExtraLarge -> extraLarge
         }
     }
 }
@@ -295,6 +439,16 @@ fun rememberResponsiveSpacing(): ResponsiveSpacing {
                 medium = 24.dp,
                 large = 32.dp
             )
+            WindowWidthSizeClass.Large -> ResponsiveSpacing(
+                small = 20.dp,
+                medium = 28.dp,
+                large = 36.dp
+            )
+            WindowWidthSizeClass.ExtraLarge -> ResponsiveSpacing(
+                small = 24.dp,
+                medium = 32.dp,
+                large = 40.dp
+            )
         }
     }
 }
@@ -318,6 +472,8 @@ fun rememberResponsiveFontSize(
             WindowWidthSizeClass.Compact -> compactSize
             WindowWidthSizeClass.Medium -> compactSize.scaledIfSpecified(mediumScale)
             WindowWidthSizeClass.Expanded -> compactSize.scaledIfSpecified(expandedScale)
+            WindowWidthSizeClass.Large -> compactSize.scaledIfSpecified(expandedScale)
+            WindowWidthSizeClass.ExtraLarge -> compactSize.scaledIfSpecified(expandedScale)
         }
     }
 }
@@ -378,7 +534,7 @@ fun Modifier.centeredContent(
 @Composable
 fun isTabletLandscape(): Boolean {
     val windowSizeClass = LocalWindowSizeClass.current
-    return windowSizeClass.isTabletDevice && windowSizeClass.widthDp > windowSizeClass.heightDp
+    return windowSizeClass.isTablet && windowSizeClass.widthDp > windowSizeClass.heightDp
 }
 
 /**
@@ -387,7 +543,7 @@ fun isTabletLandscape(): Boolean {
 @Composable
 fun isTabletPortrait(): Boolean {
     val windowSizeClass = LocalWindowSizeClass.current
-    return windowSizeClass.isTabletDevice && windowSizeClass.widthDp <= windowSizeClass.heightDp
+    return windowSizeClass.isTablet && windowSizeClass.widthDp <= windowSizeClass.heightDp
 }
 
 /**
@@ -416,6 +572,18 @@ fun rememberImageGridColumns(imageCount: Int): Int {
                 imageCount <= 4 -> 2
                 imageCount <= 6 -> 3
                 else -> 4
+            }
+            WindowWidthSizeClass.Large -> when {
+                imageCount == 1 -> 1
+                imageCount <= 4 -> 2
+                imageCount <= 6 -> 3
+                else -> 4
+            }
+            WindowWidthSizeClass.ExtraLarge -> when {
+                imageCount == 1 -> 1
+                imageCount <= 4 -> 2
+                imageCount <= 6 -> 3
+                else -> 5
             }
         }
     }

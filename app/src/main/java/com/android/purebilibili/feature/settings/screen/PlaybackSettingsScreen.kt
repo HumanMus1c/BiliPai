@@ -748,7 +748,7 @@ fun PlaybackSettingsContent(
 	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.PLAYER_DIAGNOSTIC_LOGS),
                             title = "播放器诊断日志",
-                            subtitle = "记录黑屏、卡顿、点击无响应等播放器诊断信息",
+                            subtitle = "遇到黑屏、卡顿或无响应时记录排查信息；反馈问题后可关闭",
                             checked = playerDiagnosticLoggingEnabled,
                             onCheckedChange = {
                                 scope.launch {
@@ -778,7 +778,7 @@ fun PlaybackSettingsContent(
 	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.QUALITY_WARNING_ONCE),
                             title = "画质降档诊断弹窗",
-                            subtitle = "仅在明确切换失败、权限或接口异常时提示；视频本身无更高档不打断播放",
+                            subtitle = "只在画质切换失败或权限异常时提示，不会因视频没有更高画质而打断播放",
                             checked = qualitySwitchFailureDialogEnabled,
                             onCheckedChange = { enabled ->
                                 scope.launch {
@@ -1848,13 +1848,13 @@ private fun PlaybackFullscreenGestureSettingsSection(
         )
         AppPreferenceDivider()
 	        AppSwitchPreference(
-	            icon = rememberSettingsSemanticIcon(SettingsIconRole.SYSTEM_BRIGHTNESS),
+            icon = rememberSettingsSemanticIcon(SettingsIconRole.SYSTEM_BRIGHTNESS),
             title = "调节系统亮度",
             subtitle = when {
                 !slideVolumeBrightnessEnabled -> "依赖“左右侧滑动调节亮度/音量”开关"
                 setSystemBrightnessEnabled && canWriteSystemSettings ->
-                    "亮度手势优先调节当前窗口，并同步系统亮度"
-                else -> "开启时需要在系统设置中允许修改系统设置"
+                    "亮度手势会同时修改当前画面和设备系统亮度"
+                else -> "关闭时只临时调整当前播放画面；开启需要系统授权"
             },
             checked = setSystemBrightnessEnabled && canWriteSystemSettings,
             enabled = slideVolumeBrightnessEnabled,

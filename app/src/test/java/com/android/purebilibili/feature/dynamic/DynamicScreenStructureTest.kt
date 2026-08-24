@@ -28,6 +28,7 @@ class DynamicScreenStructureTest {
 
         assertTrue(source.contains("resolveDynamicTabReselectAction("))
         assertTrue(source.contains("DynamicTabReselectAction.SCROLL_TO_TOP"))
+        assertTrue(source.contains("pagerState.scrollToPage(page = visibleIndex)"))
         assertTrue(source.contains("resolveDynamicUpPanelUsers("))
         assertTrue(source.contains("isDynamicUpPanelAllShortcut(clickedUserId)"))
         assertTrue(source.contains("onTabSelected = onDynamicTabSelected"))
@@ -42,8 +43,10 @@ class DynamicScreenStructureTest {
         val topBarSource = File(
             "src/main/java/com/android/purebilibili/feature/dynamic/components/DynamicTopBar.kt"
         ).readText()
-        assertTrue(topBarSource.contains("forceLiquidChrome = true"))
-        assertTrue(topBarSource.contains("liquidGlassEffectsEnabled = true"))
+        assertTrue(topBarSource.contains("forceLiquidChrome = liquidGlassEnabled"))
+        assertTrue(topBarSource.contains("liquidGlassEffectsEnabled = liquidGlassEnabled"))
+        assertTrue(topBarSource.contains("if (liquidGlassEnabled)"))
+        assertTrue(topBarSource.contains("Modifier.background(dockColor, dockShape)"))
         assertTrue(topBarSource.contains("miuixBackdrop = dockBackdrop"))
         assertTrue(topBarSource.contains("biliPaiFloatingDockShell("))
         assertTrue(topBarSource.contains("liquidGlassTuningOverride = liquidGlassTuning"))

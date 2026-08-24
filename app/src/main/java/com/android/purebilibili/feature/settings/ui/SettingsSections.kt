@@ -208,6 +208,7 @@ internal data class SettingsRootCategoryActions(
     val onBottomBarClick: () -> Unit,
     val onPermissionClick: () -> Unit,
     val onBlockedListClick: () -> Unit,
+    val onCommentFraudHistoryClick: () -> Unit,
     val onPluginsClick: () -> Unit,
     val onExportLogsClick: () -> Unit,
     val onSettingsShareClick: () -> Unit,
@@ -796,6 +797,7 @@ internal fun SettingsRootCategoryContent(
                             onPrivacyContentAuthenticationChange = actions.onPrivacyContentAuthenticationChange,
                             onPermissionClick = actions.onPermissionClick,
                             onBlockedListClick = actions.onBlockedListClick,
+                            onCommentFraudHistoryClick = actions.onCommentFraudHistoryClick // [New]
                         )
                     }
                 }
@@ -1018,7 +1020,8 @@ internal fun SettingsRootCategoryContent(
                             onPrivacyModeChange = actions.onPrivacyModeChange,
                             onPrivacyContentAuthenticationChange = actions.onPrivacyContentAuthenticationChange,
                             onPermissionClick = actions.onPermissionClick,
-                            onBlockedListClick = actions.onBlockedListClick
+                            onBlockedListClick = actions.onBlockedListClick,
+                            onCommentFraudHistoryClick = actions.onCommentFraudHistoryClick // [New]
                         )
                     }
                 }
@@ -1490,7 +1493,8 @@ fun PrivacySection(
     onPrivacyModeChange: (Boolean) -> Unit,
     onPrivacyContentAuthenticationChange: (Boolean) -> Unit,
     onPermissionClick: () -> Unit,
-    onBlockedListClick: () -> Unit // [New]
+    onBlockedListClick: () -> Unit, // [New]
+    onCommentFraudHistoryClick: () -> Unit // [New]
 ) {
     val siblingTints = remember { resolveSettingsSiblingIconTints(4, paletteOffset = 4) }
     val permissionVisual = rememberSettingsEntryVisual(SettingsSearchTarget.PERMISSION)
@@ -1504,7 +1508,7 @@ fun PrivacySection(
         SettingSwitchItem(
             icon = visibilityOffIcon,
             title = "不记录历史",
-            subtitle = "启用后不记录播放历史和搜索历史",
+            subtitle = "开启后不再新增播放和搜索历史，已有记录不会被删除",
             checked = privacyModeEnabled,
             onCheckedChange = onPrivacyModeChange,
             iconTint = siblingTints[0]
@@ -1513,7 +1517,7 @@ fun PrivacySection(
         SettingSwitchItem(
             icon = contentAuthenticationIcon,
             title = "进入隐私内容时验证",
-            subtitle = "进入收藏、历史等页面时使用指纹、人脸或锁屏密码",
+            subtitle = "进入收藏、历史等页面前使用指纹、人脸或锁屏密码确认身份",
             checked = privacyContentAuthenticationEnabled,
             onCheckedChange = onPrivacyContentAuthenticationChange,
             iconTint = siblingTints[1]
@@ -1527,7 +1531,7 @@ fun PrivacySection(
             onClick = onPermissionClick,
             iconTint = siblingTints[2]
         )
-         SettingsAdaptiveDivider()
+        SettingsAdaptiveDivider()
         SettingClickableItem(
             icon = blockedListVisual.icon,
             iconPainter = blockedListVisual.iconResId?.let { painterResource(id = it) },
@@ -1535,6 +1539,14 @@ fun PrivacySection(
             value = "管理已屏蔽的 UP 主",
             onClick = onBlockedListClick,
             iconTint = siblingTints[3]
+        )
+        SettingsAdaptiveDivider()
+        SettingClickableItem(
+            icon = Icons.Outlined.Shield,
+            title = "发评反诈历史",
+            value = "查看历史发评与风控状态",
+            onClick = onCommentFraudHistoryClick,
+            iconTint = com.android.purebilibili.core.theme.iOSPink
         )
     }
 }
@@ -1615,7 +1627,7 @@ fun DataStorageSection(
         SettingsAdaptiveDivider()
         SettingsSingleChoicePreference(
             title = "自动清理缓存",
-            subtitle = "应用启动时按周期清理可重建缓存",
+            subtitle = "到达设定周期后，在应用启动时删除可重新下载的缓存",
             options = SettingsManager.AutoCacheClearInterval.entries.map { interval ->
                 com.android.purebilibili.core.ui.components.AppSegmentOption(
                     value = interval,
@@ -1631,7 +1643,7 @@ fun DataStorageSection(
         SettingSliderItem(
             icon = clearCacheVisual.icon,
             title = "缓存容量上限",
-            subtitle = "应用启动时达到上限即自动清理；默认 5 GB",
+            subtitle = "缓存超过设定容量后，在应用启动时自动清理；默认 5 GB",
             value = autoCacheClearThresholdGb.toFloat(),
             onValueChange = { value -> onAutoCacheClearThresholdChange(value.roundToInt()) },
             valueRange = 1f..20f,
@@ -1683,7 +1695,7 @@ private fun DiagnosticsSection(
         SettingSwitchItem(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.CRASH_TRACKING),
             title = "崩溃追踪",
-            subtitle = "默认开启，仅用于定位崩溃与严重故障",
+            subtitle = "记录崩溃和严重故障信息，帮助定位问题；默认开启",
             checked = crashTrackingEnabled,
             onCheckedChange = onCrashTrackingChange,
             iconTint = siblingTints[0],
@@ -1692,7 +1704,7 @@ private fun DiagnosticsSection(
         SettingSwitchItem(
             icon = rememberSettingsSemanticIcon(SettingsIconRole.ANALYTICS),
             title = "使用情况统计",
-            subtitle = "默认开启，用于匿名统计每日活跃与基础使用情况",
+            subtitle = "匿名统计每日活跃和基础功能使用情况，不包含账号内容；默认开启",
             checked = analyticsEnabled,
             onCheckedChange = onAnalyticsChange,
             iconTint = siblingTints[1],
@@ -1718,7 +1730,7 @@ private fun DiagnosticsSection(
             icon = Icons.Outlined.Lan,
             title = "HTTP 代理",
             subtitle = formatAppHttpProxySummary(proxySettings) +
-                "（API/登录；播放流仍直连）",
+                "（仅应用接口和登录请求，视频播放仍直接连接）",
             checked = proxySettings.enabled,
             onCheckedChange = { enabled ->
                 if (enabled && !isAppHttpProxyConfigured(proxySettings)) {
@@ -1734,7 +1746,7 @@ private fun DiagnosticsSection(
             icon = Icons.Outlined.Dns,
             title = "代理地址",
             value = formatAppHttpProxyEndpoint(proxySettings),
-            subtitle = "host:port，如 127.0.0.1:7890",
+            subtitle = "填写“主机:端口”，例如 127.0.0.1:7890",
             onClick = { showProxyDialog = true },
             iconTint = siblingTints[4],
         )

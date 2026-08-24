@@ -20,6 +20,8 @@ import androidx.media3.common.Player
 import androidx.window.layout.WindowMetricsCalculator
 import kotlin.math.abs
 import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
+import com.android.purebilibili.core.ui.setWindowNavigationBarColor
+import com.android.purebilibili.core.ui.setWindowStatusBarColor
 
 internal data class VideoDetailSystemBarsSnapshot(
     val statusBarColor: Int,
@@ -266,8 +268,8 @@ internal fun applyVideoDetailSystemBarsSpec(
     insetsController.systemBarsBehavior = spec.systemBarsBehavior
     insetsController.isAppearanceLightStatusBars = spec.lightStatusBars
     insetsController.isAppearanceLightNavigationBars = spec.lightNavigationBars
-    window.statusBarColor = spec.statusBarColor
-    window.navigationBarColor = spec.navigationBarColor
+    setWindowStatusBarColor(window, spec.statusBarColor)
+    setWindowNavigationBarColor(window, spec.navigationBarColor)
 }
 
 

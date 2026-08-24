@@ -80,6 +80,17 @@ internal fun flattenSettingsShareSections(
     }
 }
 
+internal fun filterSettingsShareSections(
+    sections: SettingsShareSections,
+    allowedKeys: Set<String>,
+): SettingsShareSections = SettingsShareSections(
+    appearance = sections.appearance.filterKeys(allowedKeys::contains),
+    playback = sections.playback.filterKeys(allowedKeys::contains),
+    gesture = sections.gesture.filterKeys(allowedKeys::contains),
+    danmaku = sections.danmaku.filterKeys(allowedKeys::contains),
+    navigation = sections.navigation.filterKeys(allowedKeys::contains),
+)
+
 fun buildSettingsShareProfile(
     profileName: String,
     appVersion: String,

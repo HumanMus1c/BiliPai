@@ -4,6 +4,8 @@ enum class AdaptiveWidthClass {
     Compact,
     Medium,
     Expanded,
+    Large,
+    ExtraLarge,
 }
 
 data class DeviceUiProfileSpec(
@@ -14,7 +16,7 @@ data class DeviceUiProfileSpec(
 fun resolveDeviceUiProfileSpec(
     widthClass: AdaptiveWidthClass,
 ): DeviceUiProfileSpec {
-    val motionTier = if (widthClass == AdaptiveWidthClass.Expanded) {
+    val motionTier = if (widthClass >= AdaptiveWidthClass.Expanded) {
         MotionTier.Enhanced
     } else {
         MotionTier.Normal

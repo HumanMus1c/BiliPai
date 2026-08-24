@@ -1,6 +1,5 @@
 package com.android.purebilibili.feature.video.ui.components
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -185,7 +184,7 @@ fun UpPreviewSheet(
         loading = false
     }
 
-    BackHandler(enabled = visible) { onDismiss() }
+    com.android.purebilibili.core.ui.LocalNavigationBackHandler(enabled = visible) { onDismiss() }
 
     // Header + grid share one LazyVerticalGrid so the top band is not a dead zone.
     val gridState = rememberLazyGridState()

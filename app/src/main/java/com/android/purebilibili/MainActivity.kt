@@ -107,6 +107,7 @@ import com.android.purebilibili.core.theme.buildDisplayMetricsSnapshot
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.AppThemeConfig
+import com.android.purebilibili.core.ui.AppWindowSystemUiController
 import com.android.purebilibili.core.ui.ProvideAppThemeConfig
 import com.android.purebilibili.core.ui.components.LocalAppSingleChoicePresentation
 import com.android.purebilibili.core.ui.blur.BlurIntensity
@@ -114,7 +115,9 @@ import com.android.purebilibili.core.ui.blur.ProvideUnifiedBlurIntensity
 import com.android.purebilibili.core.ui.performance.ProvideRuntimeVisualGuard
 import com.android.purebilibili.core.util.BilibiliUrlParser
 import com.android.purebilibili.core.util.LocalWindowSizeClass
+import com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo
 import com.android.purebilibili.core.util.calculateWindowSizeClass
+import com.android.purebilibili.core.util.rememberAppWindowAdaptiveInfo
 import com.android.purebilibili.data.repository.VideoRepository
 import com.android.purebilibili.feature.cast.LocalProxyServer
 import com.android.purebilibili.feature.onboarding.USER_AGREEMENT_ACK_KEY
@@ -962,6 +965,7 @@ open class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         //  初始调用，后续会根据主题动态更新
         enableEdgeToEdge()
+        AppWindowSystemUiController.configureEdgeToEdgeHost(this)
         
         // 初始化小窗管理器
         miniPlayerManager = MiniPlayerManager.getInstance(this)
@@ -1343,6 +1347,7 @@ open class MainActivity : AppCompatActivity() {
                 densityMultiplier = displayMetricsSnapshot.effectiveDensityMultiplier,
                 metrics = windowMetrics!!
             )
+            val appWindowAdaptiveInfo = rememberAppWindowAdaptiveInfo(windowSizeClass)
 
             // 6. 传入参数
             PureBiliBiliTheme(
@@ -1371,6 +1376,7 @@ open class MainActivity : AppCompatActivity() {
                     CompositionLocalProvider(
                         LocalDensity provides effectiveDensity,
                         LocalWindowSizeClass provides windowSizeClass,
+                        LocalAppWindowAdaptiveInfo provides appWindowAdaptiveInfo,
                         LocalDisplayMetricsSnapshot provides displayMetricsSnapshot,
                         LocalAppSingleChoicePresentation provides
                             appThemeSettings.singleChoicePresentation,
@@ -1765,7 +1771,7 @@ open class MainActivity : AppCompatActivity() {
                                                 scaleY = 1f + (splashFadeProgress * 0.015f)
                                             )
                                             .fillMaxWidth(
-                                                if (windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded) {
+                                                if (windowSizeClass.widthSizeClass >= WindowWidthSizeClass.Expanded) {
                                                     0.34f
                                                 } else {
                                                     0.48f
@@ -2075,6 +2081,19 @@ open class MainActivity : AppCompatActivity() {
             }
             }
         }
+    }
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (
+            event.keyCode == android.view.KeyEvent.KEYCODE_ESCAPE &&
+            !event.isCtrlPressed && !event.isAltPressed && !event.isMetaPressed
+        ) {
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                onBackPressedDispatcher.onBackPressed()
+            }
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

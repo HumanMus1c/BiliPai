@@ -123,7 +123,7 @@ fun SearchVideoFilterBar(
         val filterInteraction = remember { MutableInteractionSource() }
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(48.dp)
                 .clip(CircleShape)
                 .clickable(
                     interactionSource = filterInteraction,

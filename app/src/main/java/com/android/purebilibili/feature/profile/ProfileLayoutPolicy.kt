@@ -34,6 +34,8 @@ fun resolveProfileHeroHeightDp(
     val tokens = resolveProfileLayoutTokens()
     val widthScale = when (widthSizeClass) {
         WindowWidthSizeClass.Expanded,
+        WindowWidthSizeClass.Large,
+        WindowWidthSizeClass.ExtraLarge,
         WindowWidthSizeClass.Medium -> 0.92f
         WindowWidthSizeClass.Compact -> 1f
     }
@@ -53,6 +55,8 @@ internal fun referenceProfileScreenHeightDp(widthSizeClass: WindowWidthSizeClass
         WindowWidthSizeClass.Compact -> 800
         WindowWidthSizeClass.Medium -> 900
         WindowWidthSizeClass.Expanded -> 1000
+        WindowWidthSizeClass.Large -> 1000
+        WindowWidthSizeClass.ExtraLarge -> 1000
     }
 }
 

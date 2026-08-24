@@ -468,7 +468,7 @@ fun AppearanceSettingsContent(
         .getShowOnlineCount(context)
         .collectAsStateWithLifecycle(initialValue = false)
     val isLiquidGlassAvailable = shouldAllowHomeChromeLiquidGlass(Build.VERSION.SDK_INT)
-    val showThemeColorPicker = state.md3ColorSource == Md3ColorSource.CUSTOM
+    val showThemeColorPicker = shouldShowMd3CustomColorControls(state.md3ColorSource)
     var showMd3ColorPickerDialog by remember { mutableStateOf(false) }
     var roleColorTarget by remember { mutableStateOf<ThemeRoleColorTarget?>(null) }
     val md3ColorSourceOptions = remember { resolveMd3ColorSourceOptions() }
@@ -542,7 +542,7 @@ fun AppearanceSettingsContent(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.ANDROID_LIQUID_GLASS),
                                 title = "安卓原生液态玻璃",
                                 subtitle = if (isLiquidGlassAvailable) {
-                                    "开启后仅首页底栏与评论区底栏使用液态玻璃"
+                                    "开启后，首页顶部标签栏、搜索框、底部导航栏和评论区底栏统一使用液态玻璃"
                                 } else {
                                     "当前 Android 版本暂不支持液态玻璃效果"
                                 },
@@ -579,7 +579,7 @@ fun AppearanceSettingsContent(
 
                         SettingsSingleChoicePreference(
                             title = "图标样式",
-                            subtitle = "主题色容器：图标置于主题色圆角容器内；MD3 官方推荐：onSurfaceVariant 单色图标（全局生效）",
+                            subtitle = "选择彩色圆角底图或简洁单色图标，修改会应用到全局",
                             options = resolveAppIconStyleOptions(),
                             selectedValue = state.appIconStyle,
                             onSelectionChange = { style ->
@@ -593,7 +593,7 @@ fun AppearanceSettingsContent(
 
                         SettingsSingleChoicePreference(
                             title = "列表条目样式",
-                            subtitle = "自定义条目：圆角图标容器；原生组件：各预设原生条目（MIUIX/MD3 均可选用）",
+                            subtitle = "选择统一圆角条目，或使用当前界面预设自带的列表样式",
                             options = resolveAppListItemStyleOptions(),
                             selectedValue = state.appListItemStyle,
                             onSelectionChange = { style ->
@@ -607,7 +607,7 @@ fun AppearanceSettingsContent(
 
                         SettingsSingleChoicePreference(
                             title = "单选项展示方式",
-                            subtitle = "跟随选项弹出与截图一致；也可切回居中弹窗",
+                            subtitle = "选择从条目附近展开，或在屏幕中央显示选择窗口",
                             options = singleChoicePresentationOptions,
                             selectedValue = singleChoicePresentation,
                             onSelectionChange = { presentation ->
@@ -659,9 +659,9 @@ fun AppearanceSettingsContent(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         SettingsSingleChoicePreference(
-                            title = "MD3 颜色来源：$selectedMd3ColorSourceLabel",
+                            title = "主题颜色来源：$selectedMd3ColorSourceLabel",
                             subtitle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                "可跟随系统壁纸，也可使用自定义主题色"
+                                "跟随时直接使用系统当前壁纸配色；自定义模式可选择色彩风格"
                             } else {
                                 "当前系统不支持 Monet 壁纸取色，可使用自定义主题色"
                             },
@@ -684,7 +684,7 @@ fun AppearanceSettingsContent(
                         AppPreferenceDivider()
                         AppPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.CUSTOM_MD3_COLOR),
-                            title = "自定义 MD3 颜色",
+                            title = "自定义主题颜色",
                             subtitle = if (state.md3ColorSource == Md3ColorSource.CUSTOM) {
                                 "可直接使用取色器，也可输入 #RRGGBB 色值"
                             } else {
@@ -695,57 +695,65 @@ fun AppearanceSettingsContent(
                             iconTint = selectedCustomThemeColor
                         )
 
-                        AppPreferenceDivider()
-                        AppSwitchPreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.ADVANCED_COLOR),
-                            title = "高级配色",
-                            subtitle = "分别覆盖明暗模式的背景、文字与控件色",
-                            checked = themeRoleOverrides.enabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    SettingsManager.setThemeRoleOverrides(
-                                        context,
-                                        if (enabled) {
-                                            baseThemeRoleOverrides.copy(enabled = true)
-                                        } else {
-                                            themeRoleOverrides.copy(enabled = false)
-                                        }
-                                    )
-                                }
-                            },
-                            iconTint = MaterialTheme.colorScheme.primary
-                        )
-
                         AnimatedVisibility(
-                            visible = themeRoleOverrides.enabled,
+                            visible = showThemeColorPicker,
                             enter = expandVertically() + fadeIn(),
                             exit = shrinkVertically() + fadeOut()
                         ) {
-                            ThemeRoleOverrideEditor(
-                                overrides = themeRoleOverrides,
-                                onColorClick = { roleColorTarget = it }
-                            )
+                            Column {
+                                AppPreferenceDivider()
+                                AppSwitchPreference(
+                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.ADVANCED_COLOR),
+                                    title = "高级配色",
+                                    subtitle = "自定义明暗模式的背景、文字与控件色",
+                                    checked = themeRoleOverrides.enabled,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            SettingsManager.setThemeRoleOverrides(
+                                                context,
+                                                if (enabled) {
+                                                    baseThemeRoleOverrides.copy(enabled = true)
+                                                } else {
+                                                    themeRoleOverrides.copy(enabled = false)
+                                                }
+                                            )
+                                        }
+                                    },
+                                    iconTint = MaterialTheme.colorScheme.primary
+                                )
+
+                                AnimatedVisibility(
+                                    visible = themeRoleOverrides.enabled,
+                                    enter = expandVertically() + fadeIn(),
+                                    exit = shrinkVertically() + fadeOut()
+                                ) {
+                                    ThemeRoleOverrideEditor(
+                                        overrides = themeRoleOverrides,
+                                        onColorClick = { roleColorTarget = it }
+                                    )
+                                }
+
+                                AppPreferenceDivider()
+	                                ThemePresetChoiceSetting(
+	                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.COLOR_STYLE),
+                                    title = "色彩风格",
+                                    selectedValue = state.colorStyle,
+                                    options = colorStyleOptions,
+                                    onSelectionChange = viewModel::setThemeColorStyle,
+                                    iconTint = iOSPurple
+                                )
+
+                                AppPreferenceDivider()
+	                                ThemePresetChoiceSetting(
+	                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.COLOR_SPEC),
+                                    title = "色彩标准",
+                                    selectedValue = state.colorSpec,
+                                    options = colorSpecOptions,
+                                    onSelectionChange = viewModel::setThemeColorSpec,
+                                    iconTint = iOSBlue
+                                )
+                            }
                         }
-
-                        AppPreferenceDivider()
-	                        ThemePresetChoiceSetting(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.COLOR_STYLE),
-                            title = "色彩风格",
-                            selectedValue = state.colorStyle,
-                            options = colorStyleOptions,
-                            onSelectionChange = viewModel::setThemeColorStyle,
-                            iconTint = iOSPurple
-                        )
-
-                        AppPreferenceDivider()
-	                        ThemePresetChoiceSetting(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.COLOR_SPEC),
-                            title = "色彩标准",
-                            selectedValue = state.colorSpec,
-                            options = colorSpecOptions,
-                            onSelectionChange = viewModel::setThemeColorSpec,
-                            iconTint = iOSBlue
-                        )
 
                         // 主题色选择 (仅当动态取色关闭时显示)
                         androidx.compose.animation.AnimatedVisibility(
@@ -969,7 +977,7 @@ fun AppearanceSettingsContent(
 
 	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.DISPLAY_SCALE),
-                            title = "应用显示缩放（高级）",
+                            title = "精细调整显示大小",
                             subtitle = resolveDpiOverrideSubtitle(
                                 systemDensityDpi = displayMetricsSnapshot.systemDensityDpi,
                                 systemSmallestWidthDp = displayMetricsSnapshot.systemSmallestWidthDp,

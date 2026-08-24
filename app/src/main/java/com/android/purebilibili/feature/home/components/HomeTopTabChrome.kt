@@ -115,6 +115,7 @@ internal fun HomeTopTabChrome(
     } else {
         tabAlpha * tabContentAlpha
     }
+    val hasSkinBackground = !skinBackgroundImagePath.isNullOrBlank()
 
     Box(
         modifier = Modifier
@@ -194,7 +195,7 @@ internal fun HomeTopTabChrome(
             Box(
                 modifier = dockModifier
                     .then(
-                        if (drawChromeSurface && effectiveTabShadowElevation > AppSpacingTokens.None) {
+                        if (drawChromeSurface && !hasSkinBackground && effectiveTabShadowElevation > AppSpacingTokens.None) {
                             Modifier.shadow(
                                 elevation = effectiveTabShadowElevation,
                                 shape = tabShape,
@@ -206,7 +207,7 @@ internal fun HomeTopTabChrome(
                         }
                     )
                     .then(
-                        if (drawChromeSurface) {
+                        if (drawChromeSurface && !hasSkinBackground) {
                             if (useBottomBarMatchedSurface) {
                                 Modifier.homeTopBottomBarMatchedSurface(
                                     renderMode = tabChromeRenderMode,
@@ -245,7 +246,7 @@ internal fun HomeTopTabChrome(
                         }
                     )
                     .then(
-                        if (drawChromeSurface && isTabFloating) {
+                        if (drawChromeSurface && !hasSkinBackground && isTabFloating) {
                             Modifier.border(
                                 width = AppSpacingTokens.Micro * 0.4f,
                                 color = OpticalContrastPalette.Highlight.copy(alpha = tabBorderAlpha),
@@ -257,7 +258,7 @@ internal fun HomeTopTabChrome(
                     )
                     .graphicsLayer { alpha = tabContentAlpha }
             ) {
-                if (drawChromeSurface) {
+                if (drawChromeSurface && !hasSkinBackground) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -284,11 +285,12 @@ internal fun HomeTopTabChrome(
                     AsyncImage(
                         model = File(skinBackgroundImagePath),
                         contentDescription = null,
-                        contentScale = ContentScale.FillBounds,
+                        contentScale = ContentScale.FillWidth,
+                        alignment = Alignment.Center,
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(tabShape)
-                            .alpha(0.56f)
+                            .alpha(0.94f)
                             .clearAndSetSemantics {}
                     )
                 }

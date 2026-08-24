@@ -7,6 +7,7 @@ import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.android.purebilibili.feature.settings.AppThemeMode
 import com.android.purebilibili.feature.settings.Md3ColorSource
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertNotEquals
 import kotlin.test.assertEquals
@@ -134,6 +135,22 @@ class ThemeDynamicColorPolicyTest {
     }
 
     @Test
+    fun `wallpaper changes refresh AndroidX dynamic schemes immediately and on resume`() {
+        val source = File(
+            "app/src/main/java/com/android/purebilibili/core/theme/Theme.kt"
+        ).readText()
+        val observer = source
+            .substringAfter("private fun rememberSystemWallpaperRefreshToken(")
+            .substringBefore("private const val SYSTEM_WALLPAPER_PALETTE_SETTLE_DELAY_MS")
+
+        assertTrue(observer.contains("WallpaperManager.OnColorsChangedListener"))
+        assertTrue(observer.contains("Intent.ACTION_WALLPAPER_CHANGED"))
+        assertTrue(observer.contains("androidx.lifecycle.Lifecycle.Event.ON_RESUME"))
+        assertTrue(observer.contains("wallpaperManager.removeOnColorsChangedListener(listener)"))
+        assertTrue(observer.contains("lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)"))
+    }
+
+    @Test
     fun `md3 color source maps wallpaper to monet and custom to static seed`() {
         assertTrue(
             resolveMd3DynamicColorEnabled(
@@ -164,6 +181,27 @@ class ThemeDynamicColorPolicyTest {
                 themeColorIndex = 0
             )
         )
+    }
+
+    @Test
+    fun `wallpaper color scheme remains the exact AndroidX resolved scheme`() {
+        val wallpaperScheme = lightColorScheme(
+            primary = Color(0xFF246A73),
+            secondary = Color(0xFF4F6367),
+            tertiary = Color(0xFF526A92),
+            surface = Color(0xFFF5FAF8)
+        )
+
+        val result = createBiliPaiStyleColorScheme(
+            seedColor = Color.Red,
+            darkTheme = false,
+            amoledDarkTheme = true,
+            paletteStyle = PaletteStyle.Expressive,
+            colorSpec = ColorSpec.SpecVersion.SPEC_2025,
+            dynamicBaseScheme = wallpaperScheme
+        )
+
+        assertEquals(wallpaperScheme, result)
     }
 
     @Test

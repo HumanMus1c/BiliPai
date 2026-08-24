@@ -114,8 +114,10 @@ internal fun resolveSegmentedControlChromeStyle(
     preferInlineContentStyle: Boolean = false
 ): SegmentedControlChromeStyle {
     @Suppress("UNUSED_PARAMETER")
+    val ignoredNativeChrome = prefersNativeChrome
+    @Suppress("UNUSED_PARAMETER")
     val ignoredInline = preferInlineContentStyle
-    return if (androidNativeLiquidGlassEnabled || !prefersNativeChrome) {
+    return if (androidNativeLiquidGlassEnabled) {
         SegmentedControlChromeStyle.LIQUID_PILL
     } else {
         SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE

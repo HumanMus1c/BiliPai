@@ -70,6 +70,7 @@
             android:enabled="true"
             android:theme="@style/Theme.PureBiliBili"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|smallestScreenSize|uiMode"
+            android:windowSoftInputMode="adjustResize"
             android:supportsPictureInPicture="true">
             <!-- 🔗 Deep Link: Video (/video/) -->
             <intent-filter android:autoVerify="true">
@@ -957,6 +958,7 @@
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|keyboardHidden|uiMode"
             android:supportsPictureInPicture="true"
             android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.PureBiliBili" />
 
         <service

@@ -990,13 +990,10 @@ private fun CinemaSideCurtain(
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             AppSurface(
+                onClick = onToggle,
                 modifier = Modifier
-                    .width(20.dp)
-                    .fillMaxHeight()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null // 移除点击视觉反馈
-                    ) { onToggle() },
+                    .width(48.dp)
+                    .fillMaxHeight(),
                 color = Color.Transparent
             ) {
                 Box(
@@ -1009,7 +1006,7 @@ private fun CinemaSideCurtain(
                         } else {
                             Icons.Outlined.KeyboardDoubleArrowLeft
                         },
-                        contentDescription = "toggle curtain",
+                        contentDescription = "切换侧栏",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

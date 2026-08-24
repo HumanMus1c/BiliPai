@@ -3,6 +3,7 @@ package com.android.purebilibili.feature.video.ui.components
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppTextButton
 
 import androidx.compose.animation.*
@@ -107,14 +108,14 @@ fun SponsorSkipButton(
                     AppTextButton(onClick = { onVote(-1) }) { AppText("不准确") }
                     
                     // 关闭按钮
-                    AppIcon(
-                        imageVector = clearIcon,
-                        contentDescription = "忽略",
-                        tint = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable { onDismiss() }
-                    )
+                    AppIconButton(onClick = onDismiss) {
+                        AppIcon(
+                            imageVector = clearIcon,
+                            contentDescription = "忽略",
+                            tint = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
             }
         }

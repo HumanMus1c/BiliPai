@@ -28,6 +28,7 @@ data class SkinCatalogEntry(
     val previewUrl: String,
     val packageZipUrl: String? = null,
     val packageUrlCdn: String? = null,
+    val themeMetadataUrl: String? = null,
     val colorMode: String? = null,
     val color: String? = null,
     val colorSecondPage: String? = null,
@@ -36,6 +37,12 @@ data class SkinCatalogEntry(
 ) {
     /** 优先用 GitHub raw https 包；回退官方 CDN（已由 normalizeSkinPackageUrl 升级为 https）。 */
     fun preferredPackageUrl(): String? = packageZipUrl ?: packageUrlCdn
+
+    /** GitHub 目录中的主题元数据；旧版内置索引无需新增字段即可按 zip 同目录推导。 */
+    fun resolvedThemeMetadataUrl(): String? = themeMetadataUrl ?: (packageZipUrl ?: previewUrl)
+        .substringBeforeLast('/', missingDelimiterValue = "")
+        .takeIf { it.isNotBlank() }
+        ?.plus("/%E4%B8%AA%E6%80%A7%E8%A3%85%E6%89%AE.json")
 
     /**
      * 旧索引曾混入 GB18030 字节；decodeToString 会将无效序列替换为 U+FFFD。
@@ -50,20 +57,34 @@ data class SkinCatalogEntry(
 @Serializable
 data class SkinCatalogCapabilities(
     val bottomBarIcons: Boolean = false,
+    val bottomBarTrim: Boolean = false,
     val profileBackground: Boolean = false,
+    val profileVideo: Boolean = false,
     val topAtmosphere: Boolean = false,
-    val sideBackground: Boolean = false
+    val topTabBackground: Boolean = false,
+    val sideBackground: Boolean = false,
+    val drawerBottomTrim: Boolean = false,
+    val publishIcon: Boolean = false,
+    val animatedIcons: Boolean = false,
 ) {
     /** 该主题可提供的能力位标签（用于浏览页卡片角标）。 */
     fun labels(): List<String> = buildList {
         if (bottomBarIcons) add("底栏图标")
+        if (bottomBarTrim) add("底栏饰面")
         if (profileBackground) add("个人页背景")
+        if (profileVideo) add("个人页动效")
         if (topAtmosphere) add("顶部氛围")
+        if (topTabBackground) add("标签背景")
         if (sideBackground) add("侧栏背景")
+        if (drawerBottomTrim) add("侧栏底饰")
+        if (publishIcon) add("发布图标")
+        if (animatedIcons) add("底栏动效")
     }
 
     val isEmpty: Boolean get() =
-        !bottomBarIcons && !profileBackground && !topAtmosphere && !sideBackground
+        !bottomBarIcons && !bottomBarTrim && !profileBackground && !profileVideo &&
+            !topAtmosphere && !topTabBackground && !sideBackground &&
+            !drawerBottomTrim && !publishIcon && !animatedIcons
 }
 
 object SkinCatalogLoader {

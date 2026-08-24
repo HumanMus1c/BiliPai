@@ -78,6 +78,7 @@ import androidx.core.view.WindowCompat
 import androidx.compose.ui.graphics.toArgb
 import com.android.purebilibili.core.ui.LocalPredictiveBackGestureEnabled
 import com.android.purebilibili.core.ui.rememberAppShareIcon
+import com.android.purebilibili.core.ui.setWindowNavigationBarColor
 import com.android.purebilibili.core.ui.rememberAppLikeFilledIcon
 import com.android.purebilibili.core.ui.rememberAppLikeIcon
 import com.android.purebilibili.core.ui.rememberAppClearIcon
@@ -257,11 +258,11 @@ private fun ImagePreviewOverlayContent(
     
     //  进入时设置沉浸式导航栏（透明黑色），退出时恢复
     DisposableEffect(Unit) {
-        window?.navigationBarColor = Color.Transparent.toArgb()
+        window?.let { setWindowNavigationBarColor(it, Color.Transparent.toArgb()) }
         insetsController?.isAppearanceLightNavigationBars = false
         
         onDispose {
-            window?.navigationBarColor = originalNavBarColor
+            window?.let { setWindowNavigationBarColor(it, originalNavBarColor) }
         }
     }
     

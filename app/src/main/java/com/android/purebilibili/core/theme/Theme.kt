@@ -174,8 +174,8 @@ internal fun resolveMiuixColorSchemeMode(
     themeMode: AppThemeMode,
     dynamicColorEnabled: Boolean
 ): ColorSchemeMode {
-    // Material Kolor resolves both wallpaper and static seed palettes before the
-    // Miuix bridge, so keep Miuix on explicit colors instead of its own Monet mode.
+    // AndroidX resolves wallpaper palettes and MaterialKolor resolves custom seed
+    // palettes before the Miuix bridge, so keep Miuix on the explicit bridged colors.
     return when (themeMode) {
         AppThemeMode.FOLLOW_SYSTEM -> ColorSchemeMode.System
         AppThemeMode.LIGHT -> ColorSchemeMode.Light
@@ -781,13 +781,14 @@ private fun rememberSystemWallpaperRefreshToken(
     dynamicColorActive: Boolean
 ): Int {
     val context = LocalContext.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var token by remember { mutableIntStateOf(0) }
     val shouldObserve = shouldObserveSystemWallpaperForDynamicColor(
         dynamicColorActive = dynamicColorActive,
         sdkInt = Build.VERSION.SDK_INT
     )
 
-    DisposableEffect(context, shouldObserve) {
+    DisposableEffect(context, lifecycleOwner, shouldObserve) {
         if (!shouldObserve || Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) {
             return@DisposableEffect onDispose { }
         }
@@ -817,10 +818,19 @@ private fun rememberSystemWallpaperRefreshToken(
                 }
             }
         }
+        val lifecycleObserver = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                // Some OEM wallpaper pickers update the runtime resource overlay after their
+                // wallpaper callback. Re-read once when returning to the app as a reliable
+                // fallback for callbacks that arrived early or while composition was paused.
+                requestPaletteRefresh()
+            }
+        }
         wallpaperManager.addOnColorsChangedListener(
             listener,
             handler
         )
+        lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
         ContextCompat.registerReceiver(
             context,
             wallpaperChangedReceiver,
@@ -829,6 +839,7 @@ private fun rememberSystemWallpaperRefreshToken(
         )
         onDispose {
             handler.removeCallbacks(settledPaletteRefresh)
+            lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
             wallpaperManager.removeOnColorsChangedListener(listener)
             context.unregisterReceiver(wallpaperChangedReceiver)
         }
@@ -873,44 +884,28 @@ internal fun createBiliPaiStyleColorScheme(
     colorSpec: ColorSpec.SpecVersion,
     dynamicBaseScheme: ColorScheme? = null,
 ): ColorScheme {
-    val scheme = if (dynamicBaseScheme != null) {
-        dynamicColorScheme(
-            seedColor = Color.Unspecified,
-            isDark = darkTheme,
-            isAmoled = amoledDarkTheme,
-            style = paletteStyle,
-            specVersion = colorSpec,
-            primary = dynamicBaseScheme.primary,
-            secondary = dynamicBaseScheme.secondary,
-            tertiary = dynamicBaseScheme.tertiary,
-            neutral = dynamicBaseScheme.surface,
-            neutralVariant = dynamicBaseScheme.surfaceVariant,
-            error = dynamicBaseScheme.error
-        )
-    } else {
-        dynamicColorScheme(
-            seedColor = seedColor,
-            isDark = darkTheme,
-            isAmoled = amoledDarkTheme,
-            style = paletteStyle,
-            specVersion = colorSpec
-        )
-    }
+    // AndroidX already returns the user's final wallpaper-derived light/dark scheme.
+    // Re-generating it from resolved roles changes the palette selected in system settings.
+    if (dynamicBaseScheme != null) return dynamicBaseScheme
+
+    val scheme = dynamicColorScheme(
+        seedColor = seedColor,
+        isDark = darkTheme,
+        isAmoled = amoledDarkTheme,
+        style = paletteStyle,
+        specVersion = colorSpec
+    )
 
     val readableScheme = if (!darkTheme) {
         enforceDynamicLightTextContrast(scheme)
     } else {
         scheme
     }
-    return if (dynamicBaseScheme == null) {
-        alignStaticColorSchemeWithThemePrimary(
-            scheme = readableScheme,
-            themePrimaryColor = seedColor,
-            darkTheme = darkTheme
-        )
-    } else {
-        readableScheme
-    }
+    return alignStaticColorSchemeWithThemePrimary(
+        scheme = readableScheme,
+        themePrimaryColor = seedColor,
+        darkTheme = darkTheme
+    )
 }
 
 @Composable
@@ -1004,11 +999,14 @@ fun PureBiliBiliTheme(
         dynamicBaseScheme = dynamicDarkBaseScheme
     )
 
-    val resolvedLightMaterialScheme = remember(lightMaterialScheme, themeRoleOverrides) {
-        applyThemeRoleOverrides(lightMaterialScheme, themeRoleOverrides, darkTheme = false)
+    val effectiveThemeRoleOverrides = remember(md3ColorSource, themeRoleOverrides) {
+        resolveEffectiveThemeRoleOverrides(md3ColorSource, themeRoleOverrides)
     }
-    val resolvedDarkMaterialScheme = remember(darkMaterialScheme, themeRoleOverrides) {
-        applyThemeRoleOverrides(darkMaterialScheme, themeRoleOverrides, darkTheme = true)
+    val resolvedLightMaterialScheme = remember(lightMaterialScheme, effectiveThemeRoleOverrides) {
+        applyThemeRoleOverrides(lightMaterialScheme, effectiveThemeRoleOverrides, darkTheme = false)
+    }
+    val resolvedDarkMaterialScheme = remember(darkMaterialScheme, effectiveThemeRoleOverrides) {
+        applyThemeRoleOverrides(darkMaterialScheme, effectiveThemeRoleOverrides, darkTheme = true)
     }
     val baseThemeRoleOverrides = remember(lightMaterialScheme, darkMaterialScheme) {
         themeRoleOverridesFromSchemes(

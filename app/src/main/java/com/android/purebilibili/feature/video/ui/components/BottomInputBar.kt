@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -305,10 +307,10 @@ private fun FloatingLiquidBottomInputBarContentRow(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(36.dp)
+                .height(48.dp)
                 .clip(commentFieldShape)
                 .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                .clickable { onCommentClick() }
+                .clickable(role = Role.Button) { onCommentClick() }
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -367,10 +369,10 @@ private fun BottomInputBarContentRow(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(36.dp)
+                .height(48.dp)
                 .clip(AppShapes.container(ContainerLevel.Card))
                 .background(inputContainerColor)
-                .clickable { onCommentClick() }
+                .clickable(role = Role.Button) { onCommentClick() }
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -463,7 +465,10 @@ private fun IconActionButton(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
-        modifier = Modifier.clickable(onClick = onClick).padding(4.dp)
+        modifier = Modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(4.dp)
     ) {
         AppIcon(
             imageVector = icon,

@@ -304,7 +304,7 @@ class BottomBarSurfaceColorPolicyTest {
     }
 
     @Test
-    fun `md3 segmented control falls back to android underline when global liquid glass is disabled`() {
+    fun `segmented controls use md3 underline whenever global liquid glass is disabled`() {
         assertEquals(
             SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE,
             resolveSegmentedControlChromeStyle(
@@ -322,7 +322,7 @@ class BottomBarSurfaceColorPolicyTest {
         )
 
         assertEquals(
-            SegmentedControlChromeStyle.LIQUID_PILL,
+            SegmentedControlChromeStyle.ANDROID_NATIVE_UNDERLINE,
             resolveSegmentedControlChromeStyle(
                 prefersNativeChrome = false,
                 androidNativeLiquidGlassEnabled = false

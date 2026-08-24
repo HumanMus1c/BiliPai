@@ -5,6 +5,7 @@ import com.android.purebilibili.core.ui.AppListItemStyle
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -104,5 +105,11 @@ class AppearanceThemeSegmentPolicyTest {
             listOf(ColorSpec.SpecVersion.SPEC_2021, ColorSpec.SpecVersion.SPEC_2025),
             specOptions.map { it.value }
         )
+    }
+
+    @Test
+    fun `advanced palette controls are only shown for custom color source`() {
+        assertTrue(shouldShowMd3CustomColorControls(Md3ColorSource.CUSTOM))
+        assertFalse(shouldShowMd3CustomColorControls(Md3ColorSource.FOLLOW_WALLPAPER))
     }
 }

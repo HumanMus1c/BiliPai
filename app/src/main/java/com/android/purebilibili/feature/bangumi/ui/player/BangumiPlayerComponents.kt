@@ -1004,7 +1004,7 @@ fun BangumiSlimProgressBar(
     
     Box(
         modifier = modifier
-            .height(24.dp)  // 触摸区域高度
+            .height(48.dp)
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     val newProgress = (offset.x / size.width).coerceIn(0f, 1f)

@@ -67,6 +67,31 @@ object UiSkinImportPackageResolver {
         }
     }
 
+    fun resolveBilibiliPackageWithMetadata(
+        packageBytes: ByteArray,
+        themeJsonBytes: ByteArray,
+    ): Result<UiSkinImportPackage> {
+        return runCatching {
+            val theme = parseThemeJson(themeJsonBytes)
+            val packageEntries = scanZip(
+                inputBytes = packageBytes,
+                illegalPathMessage = "装扮资源包包含非法路径"
+            )
+            val assetBytesByPath = buildAssetBytes(packageEntries)
+            if (assetBytesByPath.isEmpty()) {
+                throw IllegalArgumentException("装扮资源包缺少可转换资源")
+            }
+            val manifest = buildManifest(
+                theme = theme,
+                assetPaths = assetBytesByPath.keys.toSet()
+            )
+            UiSkinImportPackage(
+                source = UiSkinImportSource.BILIBILI_SKIN_ARCHIVE,
+                packageBytes = buildBpskinPackage(manifest, assetBytesByPath),
+            )
+        }
+    }
+
     private fun convertBilibiliThemeArchive(
         inputBytes: ByteArray,
         remotePackageFetcher: ((String) -> ByteArray)?
@@ -95,7 +120,21 @@ object UiSkinImportPackageResolver {
                 version = "1.0.0",
                 color = null,
                 colorSecondPage = null,
-                tailColor = null
+                tailColor = null,
+                tailSelectedColor = null,
+                tailIconColor = null,
+                tailIconDarkColor = null,
+                tailIconSelectedColor = null,
+                tailIconSelectedDarkColor = null,
+                sideBackgroundColor = null,
+                publishPlusColor = null,
+                publishShadeTopColor = null,
+                publishShadeBottomColor = null,
+                colorMode = null,
+                tailIconAnimated = false,
+                tailIconAnimationMode = null,
+                tailIconMode = null,
+                profileVideoPlayMode = null
             )
         } else {
             parseThemeJson(themeJson ?: throw IllegalArgumentException("装扮存档缺少主题 JSON"))
@@ -218,7 +257,22 @@ object UiSkinImportPackageResolver {
             version = version,
             color = properties.stringOrNull("color"),
             colorSecondPage = properties.stringOrNull("color_second_page"),
-            tailColor = properties.stringOrNull("tail_color")
+            tailColor = properties.stringOrNull("tail_color"),
+            tailSelectedColor = properties.stringOrNull("tail_color_selected"),
+            tailIconColor = properties.stringOrNull("tail_icon_color"),
+            tailIconDarkColor = properties.stringOrNull("tail_icon_color_dark"),
+            tailIconSelectedColor = properties.stringOrNull("tail_icon_color_selected"),
+            tailIconSelectedDarkColor = properties.stringOrNull("tail_icon_color_selected_dark"),
+            sideBackgroundColor = properties.stringOrNull("side_bg_color"),
+            publishPlusColor = properties.stringOrNull("pub_btn_plus_color"),
+            publishShadeTopColor = properties.stringOrNull("pub_btn_shade_color_top"),
+            publishShadeBottomColor = properties.stringOrNull("pub_btn_shade_color_bottom"),
+            colorMode = properties.stringOrNull("color_mode"),
+            tailIconAnimated = properties.stringOrNull("tail_icon_ani")
+                ?.equals("true", ignoreCase = true) == true,
+            tailIconAnimationMode = properties.stringOrNull("tail_icon_ani_mode"),
+            tailIconMode = properties.stringOrNull("tail_icon_mode"),
+            profileVideoPlayMode = properties.stringOrNull("head_myself_mp4_play")
         )
     }
 
@@ -253,10 +307,13 @@ object UiSkinImportPackageResolver {
 
     private fun buildAssetBytes(packageEntries: Map<String, ByteArray>): Map<String, ByteArray> {
         val assetBytes = linkedMapOf<String, ByteArray>()
-        firstExisting(packageEntries, "tail_bg.png", "tail_bg.jpg", "side_bg_bottom.png", "side_bg_bottom.jpg")?.let { (path, bytes) ->
+        firstExisting(packageEntries, "tail_bg.png", "tail_bg.jpg")?.let { (path, bytes) ->
             assetBytes["assets/${path.substringAfterLast("/")}"] = bytes
         }
-        firstExisting(packageEntries, "head_bg.jpg", "head_tab_bg.jpg", "side_bg.jpg")?.let { (path, bytes) ->
+        firstExisting(packageEntries, "side_bg_bottom.png", "side_bg_bottom.jpg")?.let { (path, bytes) ->
+            assetBytes["assets/${path.substringAfterLast("/")}"] = bytes
+        }
+        firstExisting(packageEntries, "head_bg.jpg", "head_bg.png")?.let { (path, bytes) ->
             assetBytes["assets/${path.substringAfterLast("/")}"] = bytes
         }
         firstExisting(packageEntries, "head_tab_bg.jpg", "head_tab_bg.png")?.let { (path, bytes) ->
@@ -272,6 +329,19 @@ object UiSkinImportPackageResolver {
             packageEntries,
             "head_myself_squared_bg.jpg",
             "head_myself_squared_bg.png"
+        )?.let { (path, bytes) ->
+            assetBytes["assets/${path.substringAfterLast("/")}"] = bytes
+        }
+        firstExisting(packageEntries, "head_myself_mp4_bg.mp4")?.let { (path, bytes) ->
+            assetBytes["assets/${path.substringAfterLast("/")}"] = bytes
+        }
+        firstExisting(packageEntries, "tail_icon_pub_btn_bg.png", "tail_icon_pub_btn_bg.jpg")?.let { (path, bytes) ->
+            assetBytes["assets/${path.substringAfterLast("/")}"] = bytes
+        }
+        firstExisting(
+            packageEntries,
+            "tail_icon_selected_pub_btn_bg.png",
+            "tail_icon_selected_pub_btn_bg.jpg"
         )?.let { (path, bytes) ->
             assetBytes["assets/${path.substringAfterLast("/")}"] = bytes
         }
@@ -313,6 +383,43 @@ object UiSkinImportPackageResolver {
             }
             path?.let { hostKey to it }
         }.toMap()
+        val surfaces = buildSet {
+            if (
+                assetPaths.any { it.contains("tail_bg") } ||
+                iconPaths.isNotEmpty() ||
+                theme.tailIconMode.equals("color", ignoreCase = true) ||
+                theme.tailIconColor != null ||
+                theme.tailIconSelectedColor != null ||
+                theme.tailColor != null ||
+                theme.tailSelectedColor != null
+            ) {
+                add(UiSkinSurface.HOME_BOTTOM_BAR)
+            }
+            if (
+                assetPaths.any { it.contains("head_bg") || it.contains("head_tab_bg") } ||
+                theme.color != null ||
+                theme.colorSecondPage != null
+            ) {
+                add(UiSkinSurface.HOME_TOP_CHROME)
+            }
+            if (
+                assetPaths.any { it.contains("side_bg.") || it.contains("side_bg_bottom") } ||
+                theme.sideBackgroundColor != null
+            ) {
+                add(UiSkinSurface.HOME_DRAWER)
+            }
+            if (assetPaths.any { it.contains("head_myself_") }) {
+                add(UiSkinSurface.PROFILE)
+            }
+            if (
+                assetPaths.any { it.contains("tail_icon_pub_btn_bg") } ||
+                theme.publishPlusColor != null ||
+                theme.publishShadeTopColor != null ||
+                theme.publishShadeBottomColor != null
+            ) {
+                add(UiSkinSurface.DYNAMIC_PUBLISH)
+            }
+        }
         return UiSkinManifest(
             formatVersion = 1,
             skinId = "local.bilibili_skin.${theme.safeSkinIdSegment()}",
@@ -320,23 +427,19 @@ object UiSkinImportPackageResolver {
             version = theme.version,
             apiVersion = 1,
             author = "BiliPai local converter",
-            surfaces = setOf(UiSkinSurface.HOME_BOTTOM_BAR, UiSkinSurface.HOME_TOP_CHROME),
+            surfaces = surfaces,
             assets = UiSkinAssets(
                 bottomBarTrim = assetPaths.firstOrNull {
-                    it.endsWith("tail_bg.png") ||
-                        it.endsWith("tail_bg.jpg") ||
-                        it.endsWith("side_bg_bottom.png") ||
-                        it.endsWith("side_bg_bottom.jpg")
+                    it.endsWith("tail_bg.png") || it.endsWith("tail_bg.jpg")
+                },
+                drawerBottomTrim = assetPaths.firstOrNull {
+                    it.endsWith("side_bg_bottom.png") || it.endsWith("side_bg_bottom.jpg")
                 },
                 topAtmosphere = assetPaths.firstOrNull {
-                    it.endsWith("head_bg.jpg") || it.endsWith("head_tab_bg.jpg")
+                    it.endsWith("head_bg.jpg") || it.endsWith("head_bg.png")
                 },
                 homeTopTabBackground = assetPaths.firstOrNull {
                     it.endsWith("head_tab_bg.jpg") || it.endsWith("head_tab_bg.png")
-                }?.takeUnless { path ->
-                    path == assetPaths.firstOrNull {
-                        it.endsWith("head_bg.jpg") || it.endsWith("head_tab_bg.jpg")
-                    }
                 },
                 homeSideBackground = assetPaths.firstOrNull {
                     it.endsWith("side_bg.jpg") || it.endsWith("side_bg.png")
@@ -347,19 +450,38 @@ object UiSkinImportPackageResolver {
                 homeProfileSquaredBackground = assetPaths.firstOrNull {
                     it.endsWith("head_myself_squared_bg.jpg") || it.endsWith("head_myself_squared_bg.png")
                 },
-                homeChannelIcon = assetPaths.firstOrNull {
-                    it.endsWith("tail_icon_channel.png") || it.endsWith("tail_icon_channel.jpg")
+                homeProfileVideoBackground = assetPaths.firstOrNull {
+                    it.endsWith("head_myself_mp4_bg.mp4")
                 },
-                homeChannelSelectedIcon = assetPaths.firstOrNull {
-                    it.endsWith("tail_icon_selected_channel.png") ||
-                        it.endsWith("tail_icon_selected_channel.jpg")
+                dynamicPublishIcon = assetPaths.firstOrNull {
+                    it.endsWith("tail_icon_pub_btn_bg.png") || it.endsWith("tail_icon_pub_btn_bg.jpg")
+                },
+                dynamicPublishSelectedIcon = assetPaths.firstOrNull {
+                    it.endsWith("tail_icon_selected_pub_btn_bg.png") ||
+                        it.endsWith("tail_icon_selected_pub_btn_bg.jpg")
                 },
                 bottomBarIcons = iconPaths
             ),
             colors = UiSkinColorTokens(
                 bottomBarTrimTint = theme.tailColor.validColorOrNull(),
+                bottomBarIconTint = theme.tailIconColor.validColorOrNull(),
+                bottomBarIconDarkTint = theme.tailIconDarkColor.validColorOrNull(),
+                bottomBarSelectedTint = (theme.tailIconSelectedColor ?: theme.tailSelectedColor)
+                    .validColorOrNull(),
+                bottomBarSelectedDarkTint = theme.tailIconSelectedDarkColor.validColorOrNull(),
                 topAtmosphereTint = (theme.colorSecondPage ?: theme.color).validColorOrNull(),
-                searchCapsuleTint = theme.color.validColorOrNull()
+                searchCapsuleTint = theme.color.validColorOrNull(),
+                sideBackgroundTint = theme.sideBackgroundColor.validColorOrNull(),
+                dynamicPublishIconTint = theme.publishPlusColor.validColorOrNull(),
+                dynamicPublishShadeTop = theme.publishShadeTopColor.validColorOrNull(),
+                dynamicPublishShadeBottom = theme.publishShadeBottomColor.validColorOrNull(),
+                colorMode = theme.colorMode,
+            ),
+            motion = UiSkinMotionTokens(
+                bottomBarIconAnimated = theme.tailIconAnimated,
+                bottomBarIconAnimationMode = theme.tailIconAnimationMode,
+                bottomBarIconMode = theme.tailIconMode,
+                profileVideoPlayMode = theme.profileVideoPlayMode,
             ),
             styleSourceName = BILIBILI_SKIN_SOURCE_NAME,
             styleSourceUrl = BILIBILI_SKIN_SOURCE_URL,
@@ -526,8 +648,8 @@ object UiSkinImportPackageResolver {
     }
 
     private fun String?.validColorOrNull(): String? {
-        val value = this?.trim() ?: return null
-        return if (Regex("#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?").matches(value)) value else null
+        val value = this?.trim()?.removePrefix("#") ?: return null
+        return if (Regex("[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?").matches(value)) "#$value" else null
     }
 
     private fun BilibiliSkinTheme.safeSkinIdSegment(): String {
@@ -566,7 +688,21 @@ private data class BilibiliSkinTheme(
     val version: String,
     val color: String?,
     val colorSecondPage: String?,
-    val tailColor: String?
+    val tailColor: String?,
+    val tailSelectedColor: String?,
+    val tailIconColor: String?,
+    val tailIconDarkColor: String?,
+    val tailIconSelectedColor: String?,
+    val tailIconSelectedDarkColor: String?,
+    val sideBackgroundColor: String?,
+    val publishPlusColor: String?,
+    val publishShadeTopColor: String?,
+    val publishShadeBottomColor: String?,
+    val colorMode: String?,
+    val tailIconAnimated: Boolean,
+    val tailIconAnimationMode: String?,
+    val tailIconMode: String?,
+    val profileVideoPlayMode: String?
 )
 
 private fun ZipOutputStream.putStableEntry(name: String) {

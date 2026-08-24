@@ -211,6 +211,49 @@ class SettingsShareService(private val context: Context) : SettingsShareServiceC
             }
         }
 
+    suspend fun readLiquidGlassImportSession(uri: Uri): Result<SettingsShareImportSession> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val rawJson = context.contentResolver.openInputStream(uri)?.use { input ->
+                    input.bufferedReader(Charsets.UTF_8).readText()
+                } ?: error("无法读取导入文件")
+                val profile = decodeProfile(rawJson)
+                val definitions = SettingsManager.getLiquidGlassShareableSettingsEntryDefinitions()
+                val allowedKeys = definitions.mapTo(linkedSetOf()) { it.storageKey }
+                val filteredSections = filterSettingsShareSections(profile.sections, allowedKeys)
+                if (flattenSettingsShareSections(filteredSections).isEmpty()) {
+                    error("所选文件中没有可导入的液态玻璃设置")
+                }
+                val filteredProfile = profile.copy(sections = filteredSections)
+                SettingsShareImportSession(
+                    profile = filteredProfile,
+                    preview = resolveSettingsShareImportPreview(
+                        profile = filteredProfile,
+                        definitions = definitions,
+                    ),
+                    rawJson = rawJson,
+                )
+            }
+        }
+
+    suspend fun applyLiquidGlassImport(
+        session: SettingsShareImportSession,
+    ): Result<SettingsShareApplyResult> = withContext(Dispatchers.IO) {
+        runCatching {
+            val allowedKeys = SettingsManager.getLiquidGlassShareableSettingsEntryDefinitions()
+                .mapTo(linkedSetOf()) { it.storageKey }
+            val settings = flattenSettingsShareSections(session.profile.sections)
+                .filterKeys(allowedKeys::contains)
+            if (settings.isEmpty()) {
+                error("导入文件中没有可应用的液态玻璃设置")
+            }
+            SettingsManager.applyShareableSettingsSnapshot(
+                context = context,
+                settings = settings,
+            )
+        }
+    }
+
     override suspend fun applyImport(session: SettingsShareImportSession): Result<SettingsShareApplyResult> =
         withContext(Dispatchers.IO) {
             runCatching {

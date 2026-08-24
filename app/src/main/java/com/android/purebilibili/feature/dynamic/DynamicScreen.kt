@@ -136,6 +136,7 @@ fun DynamicScreen(
     onBack: () -> Unit,
     onLoginClick: () -> Unit = {},
     onHomeClick: () -> Unit = {},
+    publishSkinDecoration: com.android.purebilibili.feature.home.components.DynamicPublishSkinDecoration? = null,
     globalHazeState: dev.chrisbanes.haze.HazeState? = null  // [新增] 全局底栏模糊状态
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -290,10 +291,9 @@ fun DynamicScreen(
                     activeListState?.animateScrollToItem(0)
                 }
                 DynamicTabReselectAction.SWITCH_TAB -> {
-                    pagerState.animateScrollToPage(
-                        page = visibleIndex,
-                        animationSpec = AppMotionTokens.spatialSpec()
-                    )
+                    // 点击标签时页面与指示器在同一帧提交，避免内容已经切换、
+                    // 外部 Pager 指示器仍在补间追赶的迟滞感。横向手势仍保留跟手动画。
+                    pagerState.scrollToPage(page = visibleIndex)
                 }
             }
         }
@@ -775,6 +775,7 @@ fun DynamicScreen(
                                     displayMode = displayMode,
                                     onDisplayModeChange = { viewModel.setDisplayMode(it) },
                                     onPublishClick = { showPublishDialog = true },
+                                    publishSkinDecoration = publishSkinDecoration,
                                     dockBackdrop = dynamicDockBackdrop,
                                     indicatorPositionProvider = dynamicTabIndicatorPositionProvider,
                                 )
@@ -954,6 +955,7 @@ fun DynamicScreen(
                                     displayMode = displayMode,
                                     onDisplayModeChange = { viewModel.setDisplayMode(it) },
                                     onPublishClick = { showPublishDialog = true },
+                                    publishSkinDecoration = publishSkinDecoration,
                                     dockBackdrop = dynamicDockBackdrop,
                                     indicatorPositionProvider = dynamicTabIndicatorPositionProvider,
                                 )

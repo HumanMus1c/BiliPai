@@ -776,20 +776,6 @@ class TopTabStylePolicyTest {
     }
 
     @Test
-    fun `skin decoration keeps host top tab readability strategy`() {
-        assertFalse(shouldUseHomeSkinPlainTopTabs(null))
-        assertFalse(
-            shouldUseHomeSkinPlainTopTabs(
-                HomeUiSkinDecoration(
-                    skinId = "test",
-                    topAtmosphereTint = Color(0xFFE4F6FF),
-                    searchCapsuleTint = Color.White
-                )
-            )
-        )
-    }
-
-    @Test
     fun `skin top tabs render sticker image before host vector icon fallback`() {
         val source = sourceText("src/main/java/com/android/purebilibili/feature/home/components/TopBar.kt")
         val rowCallSource = source

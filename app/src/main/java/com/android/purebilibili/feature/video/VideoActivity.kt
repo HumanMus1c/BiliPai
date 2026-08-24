@@ -19,25 +19,31 @@ import com.android.purebilibili.core.util.Logger
 import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.metrics.performance.JankStats
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppThemeConfig
+import com.android.purebilibili.core.ui.AppWindowSystemUiController
 import com.android.purebilibili.core.ui.ProvideAppThemeConfig
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import com.android.purebilibili.core.ui.performance.AppRuntimeVisualGuardTracker
 import com.android.purebilibili.core.ui.performance.ProvideRuntimeVisualGuard
-import com.android.purebilibili.core.util.resolveWindowWidthSizeClass
+import com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo
+import com.android.purebilibili.core.util.LocalWindowSizeClass
+import com.android.purebilibili.core.util.calculateWindowSizeClass
+import com.android.purebilibili.core.util.rememberAppWindowAdaptiveInfo
 import com.android.purebilibili.core.util.applyPlayerRequestedOrientation
+import androidx.window.layout.WindowMetricsCalculator
 // Imports for moved classes
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackViewModel
 import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
@@ -87,6 +93,8 @@ class VideoActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        AppWindowSystemUiController.configureEdgeToEdgeHost(this)
         if (savedInstanceState == null && resources.configuration.smallestScreenWidthDp < 600) {
             applyPlayerRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
         }
@@ -116,9 +124,19 @@ class VideoActivity : ComponentActivity() {
         updateStateFromConfig(resources.configuration)
 
         setContent {
-            val windowWidthSizeClass = resolveWindowWidthSizeClass(
-                LocalConfiguration.current.screenWidthDp.dp
+            val configuration = LocalConfiguration.current
+            val maximumWindowMetrics = remember(
+                configuration.screenWidthDp,
+                configuration.screenHeightDp,
+            ) {
+                WindowMetricsCalculator.getOrCreate()
+                    .computeMaximumWindowMetrics(this@VideoActivity)
+            }
+            val windowSizeClass = calculateWindowSizeClass(
+                metrics = maximumWindowMetrics,
             )
+            val windowWidthSizeClass = windowSizeClass.widthSizeClass
+            val appWindowAdaptiveInfo = rememberAppWindowAdaptiveInfo(windowSizeClass)
             val blurIntensity by SettingsManager.getBlurIntensity(this@VideoActivity)
                 .collectAsStateWithLifecycle(initialValue = BlurIntensity.THIN)
             val hapticFeedbackEnabled by SettingsManager
@@ -154,6 +172,10 @@ class VideoActivity : ComponentActivity() {
                 ProvideAppThemeConfig(config = appThemeConfig) {
                 ProvideRuntimeVisualGuard(widthSizeClass = windowWidthSizeClass) {
                 com.android.purebilibili.core.ui.blur.ProvideUnifiedBlurIntensity {
+                CompositionLocalProvider(
+                    LocalWindowSizeClass provides windowSizeClass,
+                    LocalAppWindowAdaptiveInfo provides appWindowAdaptiveInfo,
+                ) {
                 // VideoDetailScreen handles its own UI state and player initialization
                 com.android.purebilibili.feature.video.screen.VideoDetailScreen(
                     bvid = bvid,
@@ -170,6 +192,7 @@ class VideoActivity : ComponentActivity() {
                     // VideoPlayerState's reuse logic handles checking MiniPlayerManager if applicable.
                     // For pure Activity launch, it creates/reuses logic internally.
                 )
+                }
                 }
                 }
                 }
@@ -196,6 +219,19 @@ class VideoActivity : ComponentActivity() {
                 Logger.w(TAG, "无法启动独立播放器性能采样", throwable)
             }.getOrNull()
         }
+    }
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (
+            event.keyCode == android.view.KeyEvent.KEYCODE_ESCAPE &&
+            !event.isCtrlPressed && !event.isAltPressed && !event.isMetaPressed
+        ) {
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                onBackPressedDispatcher.onBackPressed()
+            }
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onStop() {

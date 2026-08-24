@@ -84,14 +84,14 @@ fun CommentInputBar(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                AppIcon(
-                    imageVector = clearIcon,
-                    contentDescription = "取消回复",
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clickable { onCancelReply() },
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                AppIconButton(onClick = onCancelReply) {
+                    AppIcon(
+                        imageVector = clearIcon,
+                        contentDescription = "取消回复",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
         

@@ -107,9 +107,9 @@ fun VideoPreviewDialog(
     }
 
     // Handle Back Press manually since we are not in a Dialog anymore
-    androidx.activity.compose.BackHandler(onBack = {
+    com.android.purebilibili.core.ui.LocalNavigationBackHandler(enabled = true) {
         if (isPlaying) isPlaying = false else onDismiss()
-    })
+    }
 
     Box(
         modifier = Modifier

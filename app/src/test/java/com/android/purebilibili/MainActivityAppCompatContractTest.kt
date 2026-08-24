@@ -324,23 +324,16 @@ class MainActivityAppCompatContractTest {
     }
 
     @Test
-    fun blueSnowMaidAdaptiveForegrounds_shouldKeepThemeAwareOuterShell() {
+    fun blueSnowMaidAdaptiveForegrounds_shouldRemainMaskAgnostic() {
         listOf(
             "drawable/ic_launcher_blue_snow_maid_background.xml",
-            "drawable/ic_launcher_blue_snow_maid_background_light.xml"
-        ).forEach { resourcePath ->
-            assertTrue(
-                loadResourceText(resourcePath).contains("#FFFFFFFF"),
-                "$resourcePath should keep a light outer field around the circular portrait"
-            )
-        }
-        listOf(
+            "drawable/ic_launcher_blue_snow_maid_background_light.xml",
             "drawable/ic_launcher_blue_snow_maid_background_dark.xml",
             "drawable-night/ic_launcher_blue_snow_maid_background.xml"
         ).forEach { resourcePath ->
             assertTrue(
-                loadResourceText(resourcePath).contains("#FF090A0C"),
-                "$resourcePath should keep a dark outer field around the circular portrait"
+                loadResourceText(resourcePath).contains("#FF0A9FE8"),
+                "$resourcePath should stay full-bleed blue under every launcher mask"
             )
         }
         assertTrue(
@@ -370,8 +363,8 @@ class MainActivityAppCompatContractTest {
             }
             val foregroundWidthRatio = (opaqueXs.max() - opaqueXs.min() + 1).toFloat() / imageWidth
             assertTrue(
-                foregroundWidthRatio in 0.57f..0.59f,
-                "$fileName should preserve the circular portrait and theme-aware outer field on rounded-square launchers"
+                foregroundWidthRatio in 0.66f..0.68f,
+                "$fileName should fill the adaptive masked viewport without exposing an outer shell"
             )
         }
 
@@ -389,8 +382,8 @@ class MainActivityAppCompatContractTest {
         val frontWidthRatio =
             (frontOpaqueXs.max() - frontOpaqueXs.min() + 1).toFloat() / frontWidth
         assertTrue(
-            frontWidthRatio in 0.57f..0.59f,
-            "Front maid foreground should preserve the same theme-aware outer field without being cropped"
+            frontWidthRatio in 0.66f..0.68f,
+            "Front maid foreground should fill the adaptive masked viewport without exposing an outer shell"
         )
 
         val announcementRows = readPngRgbaRows(
@@ -462,11 +455,11 @@ class MainActivityAppCompatContractTest {
     }
 
     @Test
-    fun blueSnowMaidLauncherIcons_shouldUseThemeAwareAdaptiveShellsAndCircularFallbacks() {
+    fun blueSnowMaidLauncherIcons_shouldUseMaskAgnosticAdaptiveFieldsAndCircularFallbacks() {
         assertTrue(
             loadResourceText("drawable-night/ic_launcher_blue_snow_maid_background.xml")
-                .contains("#FF090A0C"),
-            "Dark mode adaptive icons should use the dark outer field around the circular portrait"
+                .contains("#FF0A9FE8"),
+            "Dark mode adaptive icons should retain the full-bleed brand blue field"
         )
         assertTrue(
             loadResourceText("drawable-night/ic_launcher_blue_snow_maid_announcement_background.xml")

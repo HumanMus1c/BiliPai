@@ -48,6 +48,22 @@ class SkinCatalogPolicyTest {
     }
 
     @Test
+    fun themeMetadataUrlUsesPackageZipDirectoryAndSupportsLegacyCatalog() {
+        assertEquals(
+            "https://raw.githubusercontent.com/Rovniced/bilibili-skin/main/%E8%90%A7%E9%80%B8/" +
+                "%E4%B8%AA%E6%80%A7%E8%A3%85%E6%89%AE.json",
+            entry(
+                packageZipUrl = "https://raw.githubusercontent.com/Rovniced/bilibili-skin/main/" +
+                    "%E8%90%A7%E9%80%B8/%E8%90%A7%E9%80%B8_package.zip"
+            ).resolvedThemeMetadataUrl()
+        )
+        assertEquals(
+            "https://example.com/%E4%B8%AA%E6%80%A7%E8%A3%85%E6%89%AE.json",
+            entry(packageUrlCdn = "https://i0.hdslb.com/package.zip").resolvedThemeMetadataUrl()
+        )
+    }
+
+    @Test
     fun isDarkReflectsColorMode() {
         assertTrue(entry(colorMode = "dark").isDark)
         assertFalse(entry(colorMode = "light").isDark)
@@ -71,12 +87,29 @@ class SkinCatalogPolicyTest {
     fun capabilityLabelsListedInDisplayOrder() {
         val caps = SkinCatalogCapabilities(
             bottomBarIcons = true,
+            bottomBarTrim = true,
             profileBackground = true,
+            profileVideo = true,
             topAtmosphere = true,
-            sideBackground = true
+            topTabBackground = true,
+            sideBackground = true,
+            drawerBottomTrim = true,
+            publishIcon = true,
+            animatedIcons = true,
         )
         assertEquals(
-            listOf("底栏图标", "个人页背景", "顶部氛围", "侧栏背景"),
+            listOf(
+                "底栏图标",
+                "底栏饰面",
+                "个人页背景",
+                "个人页动效",
+                "顶部氛围",
+                "标签背景",
+                "侧栏背景",
+                "侧栏底饰",
+                "发布图标",
+                "底栏动效",
+            ),
             caps.labels()
         )
     }

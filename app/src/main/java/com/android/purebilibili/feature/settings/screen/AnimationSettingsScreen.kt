@@ -2,6 +2,8 @@
 package com.android.purebilibili.feature.settings
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
@@ -34,12 +36,16 @@ import com.android.purebilibili.core.store.home.LiquidGlassSettingsStore
 import com.android.purebilibili.core.store.SettingsManager
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.AppAlertDialog
+import com.android.purebilibili.core.ui.AppDialogAction
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.adaptive.MotionTier
 import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_TRANSITION_CUSTOM_MAX_MILLIS
 import com.android.purebilibili.feature.settings.ui.SettingsPageScaffold
 import com.android.purebilibili.feature.settings.share.SettingsShareService
+import com.android.purebilibili.feature.settings.share.SettingsShareImportSession
+import com.android.purebilibili.feature.settings.share.flattenSettingsShareSections
 import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_TRANSITION_CUSTOM_MIN_MILLIS
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionSpeed
 import com.android.purebilibili.core.ui.transition.normalizeVideoSharedTransitionCustomDurationMillis
@@ -102,6 +108,31 @@ fun AnimationSettingsContent(
     val scope = rememberCoroutineScope()
     val liquidGlassShareService = remember(context.applicationContext) {
         SettingsShareService(context.applicationContext)
+    }
+    var pendingLiquidGlassImport by remember {
+        mutableStateOf<SettingsShareImportSession?>(null)
+    }
+    var isLiquidGlassImporting by remember { mutableStateOf(false) }
+    val liquidGlassImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            isLiquidGlassImporting = true
+            try {
+                liquidGlassShareService.readLiquidGlassImportSession(uri)
+                    .onSuccess { pendingLiquidGlassImport = it }
+                    .onFailure { error ->
+                        Toast.makeText(
+                            context,
+                            error.message ?: "无法读取液态玻璃设置文件",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+            } finally {
+                isLiquidGlassImporting = false
+            }
+        }
     }
     val listState = rememberLazyListState()
     val focusRequest by SettingsSearchFocusController.request.collectAsStateWithLifecycle()
@@ -347,7 +378,7 @@ fun AnimationSettingsContent(
                         SettingsSingleChoicePreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.PREDICTIVE_BACK),
                             title = "全局返回动画",
-                            subtitle = "普通返回与预测性返回统一使用 Miuix 导航动画",
+                            subtitle = "让按钮返回和侧滑返回使用一致的过渡动画",
                             options = predictiveBackStyleOptions,
                             selectedValue = predictiveBackStyle,
                             onSelectionChange = { style ->
@@ -485,7 +516,7 @@ fun AnimationSettingsContent(
             // ✨ 视觉效果
             item {
                 Box(modifier = Modifier.entrance()) {
-                    AppPreferenceSectionTitle("玻璃效果")
+                    AppPreferenceSectionTitle("液态玻璃与磨砂")
                 }
             }
             item {
@@ -495,7 +526,7 @@ fun AnimationSettingsContent(
                             AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_DOCK_GLASS),
                                 title = "顶部标签栏液态玻璃",
-                                subtitle = "为首页顶部的搜索框和标签栏增加折射与滑动效果",
+                                subtitle = "让首页顶部标签栏呈现通透、折射和高光效果",
                                 checked = state.topBarLiquidGlassEnabled,
                                 onCheckedChange = { viewModel.toggleTopBarLiquidGlass(it) },
                                 iconTint = iOSBlue
@@ -504,7 +535,7 @@ fun AnimationSettingsContent(
                             AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_SEARCH_GLASS),
                                 title = "首页搜索框液态玻璃",
-                                subtitle = "首页搜索框上下滑动时的液态玻璃折射效果",
+                                subtitle = "让搜索框在滑动时呈现玻璃折射和光泽",
                                 checked = state.homeSearchLiquidGlassEnabled,
                                 onCheckedChange = { viewModel.toggleHomeSearchLiquidGlass(it) },
                                 iconTint = iOSBlue
@@ -512,8 +543,8 @@ fun AnimationSettingsContent(
                             AppPreferenceDivider()
                             AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_GLASS),
-                                title = "底栏液态玻璃",
-                                subtitle = "按 Miuix 上游参数呈现底部导航栏液态玻璃效果",
+                                title = "底部导航栏液态玻璃",
+                                subtitle = "让首页底部导航栏呈现通透、折射和高光效果",
                                 checked = bottomBarLiquidGlassEnabled,
                                 onCheckedChange = { viewModel.toggleBottomBarLiquidGlass(it) },
                                 iconTint = iOSBlue
@@ -540,6 +571,16 @@ fun AnimationSettingsContent(
                                             viewModel::setLiquidGlassAdvancedSettings,
                                         onReadabilityModeChanged =
                                             viewModel::setLiquidGlassReadabilityMode,
+                                        onImportSettings = {
+                                            liquidGlassImportLauncher.launch(
+                                                arrayOf(
+                                                    "application/json",
+                                                    "text/json",
+                                                    "text/plain",
+                                                )
+                                            )
+                                        },
+                                        isImportingSettings = isLiquidGlassImporting,
                                         onShareSettings = {
                                             scope.launch {
                                                 liquidGlassShareService
@@ -556,7 +597,7 @@ fun AnimationSettingsContent(
                                                                 )
                                                                 putExtra(
                                                                     Intent.EXTRA_TEXT,
-                                                                    "BiliPai 液态玻璃设置，可在“设置分享”中导入。",
+                                                                    "BiliPai 液态玻璃设置，可在“动画与效果 > 液态玻璃与磨砂”中导入。",
                                                                 )
                                                                 addFlags(
                                                                     Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -594,18 +635,18 @@ fun AnimationSettingsContent(
                         }
                         // 磨砂效果 (始终显示)
 	                        AppSwitchPreference(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.TOP_BAR_BLUR),
                             title = "顶部栏磨砂",
-                            subtitle = "顶部导航栏的毛玻璃模糊效果",
+                            subtitle = "只模糊顶部栏背后的内容，不启用折射和彩光",
                             checked = state.headerBlurEnabled,
                             onCheckedChange = { viewModel.toggleHeaderBlur(it) },
                             iconTint = iOSBlue
                         )
                         AppPreferenceDivider()
 	                        AppSwitchPreference(
-	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_BLUR),
+                            icon = rememberSettingsSemanticIcon(SettingsIconRole.BOTTOM_BAR_BLUR),
                             title = "底栏磨砂",
-                            subtitle = "底部导航栏的毛玻璃模糊效果",
+                            subtitle = "只模糊底部栏背后的内容，不启用折射和彩光",
                             checked = state.bottomBarBlurEnabled,
                             onCheckedChange = { viewModel.toggleBottomBarBlur(it) },
                             iconTint = iOSBlue
@@ -645,7 +686,7 @@ fun AnimationSettingsContent(
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             AppText(
-                                text = "关闭动画可以减少电量消耗，提升流畅度",
+                                text = "如果出现掉帧或耗电增加，可关闭部分动画或玻璃效果。",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -656,5 +697,81 @@ fun AnimationSettingsContent(
             
             item { Spacer(modifier = Modifier.height(32.dp)) }
         }
+    }
+
+    val importSession = pendingLiquidGlassImport
+    if (importSession != null) {
+        val importCount = remember(importSession) {
+            flattenSettingsShareSections(importSession.profile.sections).size
+        }
+        AppAlertDialog(
+            onDismissRequest = {
+                if (!isLiquidGlassImporting) pendingLiquidGlassImport = null
+            },
+            title = {
+                AppText(
+                    text = "导入液态玻璃设置？",
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppText(
+                        text = "配置：${importSession.profile.profileName}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    AppText(
+                        text = "将替换 $importCount 项液态玻璃参数，包括启用区域、质感强度、预设、图标与文字颜色以及高级调节。",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    AppText(
+                        text = "预览图片和其他应用设置不会改变。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            },
+            confirmButton = {
+                AppDialogAction(
+                    onClick = {
+                        if (isLiquidGlassImporting) return@AppDialogAction
+                        scope.launch {
+                            isLiquidGlassImporting = true
+                            try {
+                                liquidGlassShareService.applyLiquidGlassImport(importSession)
+                                    .onSuccess { result ->
+                                        pendingLiquidGlassImport = null
+                                        Toast.makeText(
+                                            context,
+                                            "已导入 ${result.appliedKeys.size} 项液态玻璃设置",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                                    .onFailure { error ->
+                                        Toast.makeText(
+                                            context,
+                                            error.message ?: "液态玻璃设置导入失败",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                            } finally {
+                                isLiquidGlassImporting = false
+                            }
+                        }
+                    },
+                ) {
+                    AppText(if (isLiquidGlassImporting) "正在应用" else "确认导入")
+                }
+            },
+            dismissButton = {
+                AppDialogAction(
+                    onClick = {
+                        if (!isLiquidGlassImporting) pendingLiquidGlassImport = null
+                    },
+                ) {
+                    AppText("取消")
+                }
+            },
+        )
     }
 }

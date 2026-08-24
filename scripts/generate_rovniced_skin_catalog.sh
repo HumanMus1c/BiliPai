@@ -9,11 +9,12 @@
 #   previewUrl      —— preview.jpg 的 GitHub raw https 直链
 #   packageZipUrl   —— <主题名>_package.zip 的 GitHub raw https 直链（优先下载源）
 #   packageUrlCdn   —— 个性装扮.json 里的官方 CDN package_url（http/https，回退源）
+#   themeMetadataUrl—— 个性装扮.json 的 GitHub raw https 直链
 #   colorMode       —— light / dark
 #   color           —— 主色
 #   colorSecondPage —— 副色
 #   tailColor       —— 底栏饰面色
-#   capabilities    —— 资源能力位（bottomBarIcons / profileBackground / topAtmosphere / sideBackground）
+#   capabilities    —— 资源能力位（底栏、顶部、侧栏、个人页、发布入口与动效）
 #
 # 用法：
 #   ./scripts/generate_rovniced_skin_catalog.sh [输出路径]
@@ -27,7 +28,7 @@ set -euo pipefail
 REPO="Rovniced/bilibili-skin"
 BRANCH="main"
 RAW_BASE="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
-TREE_API="https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1"
+BRANCH_API="https://api.github.com/repos/${REPO}/branches/${BRANCH}"
 TREE_CACHE="${TMPDIR:-/tmp}/rovniced_tree.json"
 JSON_CACHE_DIR="${TMPDIR:-/tmp}/rovniced_json_cache"
 
@@ -44,7 +45,21 @@ mkdir -p "${JSON_CACHE_DIR}"
 # ---------- 1. 获取仓库文件树 ----------
 if [[ ! -s "${TREE_CACHE}" ]] || ! grep -q '"tree"' "${TREE_CACHE}" 2>/dev/null; then
   echo ">> 下载仓库文件树..."
-  curl -sfL "${TREE_API}" -o "${TREE_CACHE}"
+  tree_sha=$(curl -sfL "${BRANCH_API}" | awk '
+    /"tree": *\{/ { in_tree = 1; next }
+    in_tree && /"sha":/ {
+      value = $0
+      sub(/^.*"sha": *"/, "", value)
+      sub(/".*$/, "", value)
+      print value
+      exit
+    }
+  ')
+  if [[ -z "${tree_sha}" ]]; then
+    echo "!! 无法解析 ${BRANCH} 分支的 tree SHA" >&2
+    exit 1
+  fi
+  curl -sfL "https://api.github.com/repos/${REPO}/git/trees/${tree_sha}?recursive=1" -o "${TREE_CACHE}"
 fi
 
 TRUNCATED=$(grep -oE '"truncated": *(true|false)' "${TREE_CACHE}" | head -1 | grep -oE '(true|false)' || echo "false")
@@ -122,11 +137,19 @@ while IFS= read -r dir; do
   color_second=$(extract_field "${json}" "color_second_page" || true)
   tail_color=$(extract_field "${json}" "tail_color" || true)
 
-  caps_bottom="false"; caps_profile="false"; caps_top="false"; caps_side="false"
-  echo "${json}" | grep -q '"tail_icon_main"' && caps_bottom="true"
-  echo "${json}" | grep -q '"head_myself_bg"' && caps_profile="true"
-  echo "${json}" | grep -qE '"head_bg"|"head_tab_bg"' && caps_top="true"
-  echo "${json}" | grep -q '"side_bg"' && caps_side="true"
+  caps_bottom="false"; caps_trim="false"; caps_profile="false"; caps_profile_video="false"
+  caps_top="false"; caps_top_tab="false"; caps_side="false"; caps_drawer_trim="false"
+  caps_publish="false"; caps_animated="false"
+  echo "${json}" | grep -qE '"tail_icon_main":|"tail_icon_mode":"color"|"tail_icon_color":' && caps_bottom="true"
+  echo "${json}" | grep -q '"tail_bg":' && caps_trim="true"
+  echo "${json}" | grep -q '"head_myself_bg":' && caps_profile="true"
+  echo "${json}" | grep -q '"head_myself_mp4_bg":' && caps_profile_video="true"
+  echo "${json}" | grep -qE '"head_bg":|"head_tab_bg":' && caps_top="true"
+  echo "${json}" | grep -q '"head_tab_bg":' && caps_top_tab="true"
+  echo "${json}" | grep -q '"side_bg":' && caps_side="true"
+  echo "${json}" | grep -q '"side_bg_bottom":' && caps_drawer_trim="true"
+  echo "${json}" | grep -qE '"tail_icon_pub_btn_bg":|"pub_btn_plus_color":|"pub_btn_shade_color_top":' && caps_publish="true"
+  echo "${json}" | grep -q '"tail_icon_ani":"true"' && caps_animated="true"
 
   # 跳过既无本地 zip 也无 CDN url 的目录
   if [[ -z "${pkg_zip_url}" && -z "${pkg_cdn}" ]]; then
@@ -137,11 +160,12 @@ while IFS= read -r dir; do
   entry="  {\"id\":$(jq_escape "${dir}"),\"name\":$(jq_escape "${name}"),\"previewUrl\":$(jq_escape "${preview_url}")"
   [[ -n "${pkg_zip_url}" ]] && entry="${entry},\"packageZipUrl\":$(jq_escape "${pkg_zip_url}")"
   [[ -n "${pkg_cdn}" ]] && entry="${entry},\"packageUrlCdn\":$(jq_escape "${pkg_cdn}")"
+  [[ -n "${json}" ]] && entry="${entry},\"themeMetadataUrl\":$(jq_escape "${json_url}")"
   [[ -n "${color_mode}" ]] && entry="${entry},\"colorMode\":$(jq_escape "${color_mode}")"
   [[ -n "${color}" ]] && entry="${entry},\"color\":$(jq_escape "${color}")"
   [[ -n "${color_second}" ]] && entry="${entry},\"colorSecondPage\":$(jq_escape "${color_second}")"
   [[ -n "${tail_color}" ]] && entry="${entry},\"tailColor\":$(jq_escape "${tail_color}")"
-  entry="${entry},\"capabilities\":{\"bottomBarIcons\":${caps_bottom},\"profileBackground\":${caps_profile},\"topAtmosphere\":${caps_top},\"sideBackground\":${caps_side}}}"
+  entry="${entry},\"capabilities\":{\"bottomBarIcons\":${caps_bottom},\"bottomBarTrim\":${caps_trim},\"profileBackground\":${caps_profile},\"profileVideo\":${caps_profile_video},\"topAtmosphere\":${caps_top},\"topTabBackground\":${caps_top_tab},\"sideBackground\":${caps_side},\"drawerBottomTrim\":${caps_drawer_trim},\"publishIcon\":${caps_publish},\"animatedIcons\":${caps_animated}}}"
   ENTRIES+=("${entry}")
   COUNT=$((COUNT + 1))
   [[ $((COUNT % 50)) -eq 0 ]] && echo "   ...已处理 ${COUNT} 个"
@@ -149,7 +173,7 @@ done <<<"${TOP_DIRS}"
 
 # ---------- 3. 写出索引 ----------
 {
-  printf '{\n  "catalogVersion": 1,\n  "sourceRepo": "%s",\n  "sourceBranch": "%s",\n  "frozen": true,\n  "themes": [\n' "${REPO}" "${BRANCH}"
+  printf '{\n  "catalogVersion": 2,\n  "sourceRepo": "%s",\n  "sourceBranch": "%s",\n  "frozen": true,\n  "themes": [\n' "${REPO}" "${BRANCH}"
   for i in "${!ENTRIES[@]}"; do
     [[ $i -gt 0 ]] && printf ',\n'
     printf '%s' "${ENTRIES[$i]}"

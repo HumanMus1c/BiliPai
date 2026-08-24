@@ -1105,7 +1105,7 @@ private fun OfflineProgressBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(24.dp)
+            .height(48.dp)
             .pointerInput(duration) {
                 detectTapGestures { offset ->
                     val targetPosition = resolveOfflineSeekPositionFromTouch(

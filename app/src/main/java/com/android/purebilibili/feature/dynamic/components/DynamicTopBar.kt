@@ -9,7 +9,10 @@ import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Edit
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -28,6 +31,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -41,6 +46,9 @@ import com.android.purebilibili.core.ui.rememberAppListLayoutIcon
 import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarHorizontalPadding
 import com.android.purebilibili.feature.dynamic.resolveDynamicTopBarLiquidTabSpec
 import com.android.purebilibili.feature.home.components.BottomBarLiquidSegmentedControl
+import com.android.purebilibili.feature.home.components.DynamicPublishSkinDecoration
+import coil.compose.AsyncImage
+import java.io.File
 import com.android.purebilibili.feature.home.components.biliPaiFloatingDockShell
 import com.android.purebilibili.feature.home.components.resolveLiquidGlassTuning
 import top.yukonga.miuix.kmp.blur.layerBackdrop
@@ -87,6 +95,7 @@ fun DynamicTopBarWithTabs(
     displayMode: DynamicDisplayMode = DynamicDisplayMode.SIDEBAR,
     onDisplayModeChange: (DynamicDisplayMode) -> Unit = {},
     onPublishClick: (() -> Unit)? = null,
+    publishSkinDecoration: DynamicPublishSkinDecoration? = null,
     dockBackdrop: Backdrop? = null,
     indicatorPositionProvider: (() -> Float)? = null,
 ) {
@@ -97,6 +106,7 @@ fun DynamicTopBarWithTabs(
     val homeSettings by SettingsManager
         .getHomeSettings(context)
         .collectAsStateWithLifecycle(initialValue = HomeSettings())
+    val liquidGlassEnabled = homeSettings.androidNativeLiquidGlassEnabled
     val liquidGlassTuning = remember(
         homeSettings.liquidGlassProgress,
         homeSettings.liquidGlassAdvancedSettings,
@@ -129,14 +139,24 @@ fun DynamicTopBarWithTabs(
                 items = tabs,
                 selectedIndex = selectedTab,
                 onSelected = onTabSelected,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        if (liquidGlassEnabled) {
+                            Modifier
+                        } else {
+                            Modifier
+                                .clip(dockShape)
+                                .background(dockColor)
+                        }
+                    ),
                 height = liquidTabSpec.heightDp.dp,
                 indicatorHeight = liquidTabSpec.indicatorHeightDp.dp,
                 labelFontSize = liquidTabSpec.labelFontSizeSp.sp,
                 indicatorPositionProvider = indicatorPositionProvider,
                 isScrollInProgressProvider = { false },
-                forceLiquidChrome = true,
-                liquidGlassEffectsEnabled = true,
+                forceLiquidChrome = liquidGlassEnabled,
+                liquidGlassEffectsEnabled = liquidGlassEnabled,
                 miuixBackdrop = dockBackdrop,
                 containerColorOverride = dockColor,
                 liquidGlassTuningOverride = liquidGlassTuning,
@@ -156,12 +176,18 @@ fun DynamicTopBarWithTabs(
                 }
                 Row(
                     modifier = Modifier
-                        .biliPaiFloatingDockShell(
-                            backdrop = actionDockBackdrop,
-                            containerColor = dockColor,
-                            pressProgress = 0f,
-                            shape = dockShape,
-                            liquidGlassTuning = liquidGlassTuning,
+                        .then(
+                            if (liquidGlassEnabled) {
+                                Modifier.biliPaiFloatingDockShell(
+                                    backdrop = actionDockBackdrop,
+                                    containerColor = dockColor,
+                                    pressProgress = 0f,
+                                    shape = dockShape,
+                                    liquidGlassTuning = liquidGlassTuning,
+                                )
+                            } else {
+                                Modifier.background(dockColor, dockShape)
+                            }
                         )
                         .clip(dockShape),
                     verticalAlignment = Alignment.CenterVertically,
@@ -198,16 +224,52 @@ fun DynamicTopBarWithTabs(
 
                     //  发布动态入口（对齐 BiliPai AppBar actions 的发布按钮）
                     if (onPublishClick != null) {
+                        val publishInteractionSource = remember { MutableInteractionSource() }
+                        val publishPressed by publishInteractionSource.collectIsPressedAsState()
+                        val publishIconPaths = publishSkinDecoration?.iconPaths
                         AppIconButton(
                             onClick = onPublishClick,
-                            modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget)
+                            modifier = Modifier.size(AppChromeSizeTokens.MinimumTouchTarget),
+                            interactionSource = publishInteractionSource,
                         ) {
-                            AppIcon(
-                                imageVector = Icons.Outlined.Edit,
-                                contentDescription = "发布动态",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
-                            )
+                            if (publishIconPaths != null) {
+                                AsyncImage(
+                                    model = File(publishIconPaths.pathFor(publishPressed)),
+                                    contentDescription = "发布动态",
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.size(AppSpacingTokens.DoubleExtraLarge),
+                                )
+                            } else {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(AppSpacingTokens.DoubleExtraLarge)
+                                        .then(
+                                            if (publishSkinDecoration?.hasShade == true) {
+                                                Modifier.background(
+                                                    brush = Brush.verticalGradient(
+                                                        listOf(
+                                                            publishSkinDecoration.shadeTop,
+                                                            publishSkinDecoration.shadeBottom,
+                                                        )
+                                                    ),
+                                                    shape = CircleShape,
+                                                )
+                                            } else {
+                                                Modifier
+                                            }
+                                        ),
+                                ) {
+                                    AppIcon(
+                                        imageVector = Icons.Outlined.Edit,
+                                        contentDescription = "发布动态",
+                                        tint = publishSkinDecoration?.iconTint
+                                            ?.takeUnless { it == Color.Unspecified }
+                                            ?: MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppIconButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -188,15 +189,17 @@ private fun RecallConfirmMenu(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            AppIcon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = PrimaryColor,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(24.dp)
-                    .clickable(onClick = onBack)
-            )
+            AppIconButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                AppIcon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "返回",
+                    tint = PrimaryColor,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
             AppText(
                 text = "确认撤回",
                 color = Color.White,
@@ -379,15 +382,17 @@ private fun ReportReasonMenu(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            AppIcon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = PrimaryColor,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(24.dp)
-                    .clickable(onClick = onBack)
-            )
+            AppIconButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                AppIcon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "返回",
+                    tint = PrimaryColor,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
             AppText(
                 text = "举报原因",
                 color = Color.White,

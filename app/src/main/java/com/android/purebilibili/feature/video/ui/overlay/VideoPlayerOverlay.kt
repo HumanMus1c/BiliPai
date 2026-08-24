@@ -2656,11 +2656,9 @@ fun LandscapeEndDrawer(
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val widthSizeClass = remember(configuration.screenWidthDp) {
-        when {
-            configuration.screenWidthDp < 600 -> WindowWidthSizeClass.Compact
-            configuration.screenWidthDp < 840 -> WindowWidthSizeClass.Medium
-            else -> WindowWidthSizeClass.Expanded
-        }
+        com.android.purebilibili.core.util.resolveWindowWidthSizeClass(
+            configuration.screenWidthDp.dp
+        )
     }
     val deviceUiProfile = remember(widthSizeClass) {
         resolveDeviceUiProfile(

@@ -25,4 +25,6 @@ internal fun WindowWidthSizeClass.toAdaptiveWidthClass(): AdaptiveWidthClass = w
     WindowWidthSizeClass.Compact -> AdaptiveWidthClass.Compact
     WindowWidthSizeClass.Medium -> AdaptiveWidthClass.Medium
     WindowWidthSizeClass.Expanded -> AdaptiveWidthClass.Expanded
+    WindowWidthSizeClass.Large -> AdaptiveWidthClass.Large
+    WindowWidthSizeClass.ExtraLarge -> AdaptiveWidthClass.ExtraLarge
 }

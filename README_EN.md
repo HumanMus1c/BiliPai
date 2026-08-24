@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <sub>Last updated: 2026-08-22 · Current build: 0.2.3-beta.10 · Latest documented release: v0.2.3-beta.10</sub>
+  <sub>Last updated: 2026-08-23 · Current build: 0.2.3-beta.11 · Latest documented release: v0.2.3-beta.11</sub>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.10-fb7299?style=flat-square" alt="Release">
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.11-fb7299?style=flat-square" alt="Release">
   <img src="https://img.shields.io/github/stars/jay3-yy/BiliPai?style=flat-square&color=yellow" alt="Stars">
   <img src="https://img.shields.io/github/forks/jay3-yy/BiliPai?style=flat-square&color=green" alt="Forks">
   <img src="https://img.shields.io/github/last-commit/jay3-yy/BiliPai?style=flat-square&color=purple" alt="Last Commit">
@@ -28,26 +28,32 @@
   <a href="https://x.com/YangY_0x00"><img src="https://img.shields.io/badge/X-Follow-000000?style=flat-square&logo=x" alt="X"></a>
 </p>
 
-## 🚀 Quick Links
+## 🚀 Repository Navigation
 
-| Category | Entry |
+| I want to… | Quick entry |
 | --- | --- |
-| Get Started | [Telegram channel](https://t.me/bilipai666) · [Group](https://t.me/bilipai888/1) · [Changelog](CHANGELOG.md) |
-| Docs | [Roadmap](docs/wiki/ROADMAP.md) · [Wiki Home](docs/wiki/README.md) · [User FAQ](docs/wiki/FAQ.md) · [AI / LLM Entry](llms.txt) |
-| Developer Reference | [JSON Plugin Guide](docs/PLUGIN_DEVELOPMENT.md) · [Native Plugin Guide](docs/NATIVE_PLUGIN_DEVELOPMENT.md) |
+| Download and try BiliPai | [Install](#-download--install) · [Changelog](CHANGELOG.md) · [Telegram channel](https://t.me/bilipai666) · [FAQ](docs/wiki/FAQ.md) |
+| Explore the project | [Device previews](#-preview) · [Features](#-features) · [Feature matrix](docs/wiki/FEATURE_MATRIX.md) · [Roadmap](docs/wiki/ROADMAP.md) |
+| Read the docs | [Wiki home](docs/wiki/README.md) · [Architecture](docs/wiki/ARCHITECTURE.md) · [UI design guide](docs/wiki/ui-design/README.md) · [QA guide](docs/wiki/QA.md) |
+| Build and develop | [Build](#️-build) · [Structure guidelines](STRUCTURE_GUIDELINES.adoc) · [Versioning](docs/wiki/VERSIONING.md) · [Release workflow](docs/wiki/RELEASE_WORKFLOW.md) |
+| Develop plugins | [JSON plugin guide](docs/PLUGIN_DEVELOPMENT.md) · [Native plugin guide](docs/NATIVE_PLUGIN_DEVELOPMENT.md) · [Plugin SDK](plugins/sdk/README.md) · [Samples](plugins/samples/) |
+| Contribute | [Contributing](#-contributing) · [Open an issue](https://github.com/jay3-yy/BiliPai/issues/new/choose) · [Pull requests](https://github.com/jay3-yy/BiliPai/pulls) · [AI / LLM entry](llms.txt) |
 
 > [!CAUTION]
-> `README`, `AI.txt`, `llm.txt`, `llms.txt`, and the Wiki are maintained periodically, but fast-moving main-branch changes can still make parts of them stale. Treat them as reference only; verify current behavior with source, `CHANGELOG.md`, and real builds.
+> `README`, `AI.txt`, `llms.txt`, and the Wiki are maintained periodically, but fast-moving main-branch changes can still make parts of them stale. Treat them as reference only; verify current behavior with source, `CHANGELOG.md`, and real builds.
 
 ## 📸 Preview
 
 <p align="center">
   <img src="docs/images/screenshot1.png" alt="Preview 1" height="500">
   <img src="docs/images/screenshot2.png" alt="Preview 2" height="500">
+  <img src="docs/images/screenshot3.png" alt="Preview 3" height="500">
   <img src="docs/images/screenshot4.png" alt="Preview 4" height="500">
   <img src="docs/images/screenshot5.png" alt="Preview 5" height="500">
   <img src="docs/images/screenshot6.png" alt="Preview 6" height="500">
   <img src="docs/images/screenshot7.png" alt="Preview 7" height="500">
+  <img src="docs/images/screenshot8.png" alt="Preview 8" height="500">
+  <img src="docs/images/screenshot9.png" alt="Preview 9" height="500">
 </p>
 ---
 
@@ -417,7 +423,7 @@ BiliPai/
 
 - AI / LLM Entry: [`llms.txt`](llms.txt)
 - Current Roadmap: [`docs/wiki/ROADMAP.md`](docs/wiki/ROADMAP.md)
-- Compatibility aliases: `AI.txt` / `llm.txt`
+- Compatibility alias: `AI.txt`
 - AI Navigation Guide: [`docs/wiki/AI.md`](docs/wiki/AI.md)
 - Wiki Home: [`docs/wiki/README.md`](docs/wiki/README.md)
 - Feature Matrix: [`docs/wiki/FEATURE_MATRIX.md`](docs/wiki/FEATURE_MATRIX.md)
@@ -446,14 +452,15 @@ See the [current roadmap](docs/wiki/ROADMAP.md) for priorities, completion crite
 
 See full changelog: [CHANGELOG.md](CHANGELOG.md)
 
-### Current source build (v0.2.3-beta.10 · 2026-08-22)
+### Current source build (v0.2.3-beta.11 · 2026-08-23)
 
-- Current source build: `0.2.3-beta.10` / `versionCode 300`.
-- SMS and password sign-in are restored with stronger captcha, risk-verification, device-identity, and session handling.
-- Night eye protection now applies a gradual warm tint, while plugins show clearer in-app activation feedback.
-- Liquid segmented controls and search tabs use a compact Dock; the Home top indicator spacing and search-state restoration are refined.
-- Portrait video gains seek-thumbnail previews, alongside fixes for playback context, danmaku timing, the dynamic comment composer, and Today Watch collapse navigation.
-- See [CHANGELOG.md](CHANGELOG.md) for the complete beta.9 → beta.10 notes.
+- Current source build: `0.2.3-beta.11` / `versionCode 301`.
+- Archived theme skins now adapt across current surfaces, including paired top artwork, status-bar extension, legacy channel icons, and native tab icons.
+- The new comment fraud history center supports re-checking, deletion, and JSON import/export, alongside corrected pagination and reply detection.
+- Wallpaper changes now refresh Monet colors; liquid-glass profiles can be imported from others, and settings copy is clearer throughout the app.
+- With liquid glass disabled, shared segmented controls use Material 3 underlines while the dynamic header keeps a solid Dock; history header behavior is also corrected.
+- Player window brightness is restored on exit, and repeated favorite-folder requests are throttled.
+- See [CHANGELOG.md](CHANGELOG.md) for the complete beta.10 → beta.11 notes.
 - Official Telegram: channel [@bilipai666](https://t.me/bilipai666), group [@bilipai888](https://t.me/bilipai888/1).
 
 ---
@@ -466,7 +473,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.10-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.10.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
+The installable artifact is exported to `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.11-dev.apk`. Release builds use `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.11.apk`; AGP's internal `app-*.apk` files are not delivery artifacts.
 
 ---
 

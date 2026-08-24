@@ -1563,14 +1563,14 @@ fun ReplyItemView(
                     // [新增] 删除按钮 (仅显示给本人)
                     if (onDeleteClick != null) {
                         Spacer(modifier = Modifier.width(16.dp))
-                        AppIcon(
-                            imageVector = Icons.Outlined.Delete,
-                            contentDescription = "Delete",
-                            tint = appearance.actionTint,
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clickable { onDeleteClick() }
-                        )
+                        AppIconButton(onClick = onDeleteClick) {
+                            AppIcon(
+                                imageVector = Icons.Outlined.Delete,
+                                contentDescription = "删除",
+                                tint = appearance.actionTint,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     }
                 }
 

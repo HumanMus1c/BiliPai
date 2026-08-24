@@ -29,7 +29,6 @@ import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -386,19 +385,6 @@ fun LiveListScreen(
     val context = LocalContext.current
     val palette = rememberLiveChromePalette()
     val coroutineScope = rememberCoroutineScope()
-
-    DisposableEffect(Unit) {
-        val window = (context as? android.app.Activity)?.window
-        val originalNavBarColor = window?.navigationBarColor
-        if (window != null) {
-            window.navigationBarColor = android.graphics.Color.TRANSPARENT
-        }
-        onDispose {
-            if (window != null && originalNavBarColor != null) {
-                window.navigationBarColor = originalNavBarColor
-            }
-        }
-    }
 
     val windowSizeClass = LocalWindowSizeClass.current
     val topChromePolicy = rememberAppTopChromePolicy()

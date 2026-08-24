@@ -60,7 +60,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.INTERFACE_THEME,
         title = "界面与主题",
-        subtitle = "UI 预设、主题、字体、DPI、动态图标与开屏",
+        subtitle = "界面风格、主题颜色、字体、显示大小、应用图标与启动画面",
         section = "设置",
         aliases = listOf("界面", "主题", "ui预设", "md3", "miuix", "字体", "dpi", "动态图标", "应用图标", "开屏", "开屏壁纸")
     ),
@@ -81,7 +81,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK_QUALITY,
         title = "播放与画质",
-        subtitle = "解码、画质、字幕、倍速、连播与网络策略",
+        subtitle = "视频解码、画质、字幕、倍速、连播与省流量设置",
         section = "设置",
         aliases = listOf("播放", "解码", "画质", "音质", "默认画质", "默认音质", "Hi-Res", "杜比", "最高画质", "自动最高画质", "省流量", "定向流量", "字幕", "倍速", "自动连播")
     ),
@@ -332,7 +332,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.PERMISSION,
         title = "权限管理",
-        subtitle = "查看应用权限",
+        subtitle = "查看每项系统权限的用途和当前授权状态",
         section = "隐私与安全",
         aliases = listOf("权限", "存储权限", "通知权限", "相册权限", "文件权限", "系统设置权限")
     ),
@@ -346,21 +346,21 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.SETTINGS_SHARE,
         title = "设置分享",
-        subtitle = "导出并导入可分享设置",
+        subtitle = "把可分享的设置导出给他人，或从文件一键导入",
         section = "数据与存储",
         aliases = listOf("设置分享", "分享设置", "导入", "导出", "json", "配置分享", "设置包", "备份设置", "恢复设置")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.WEBDAV_BACKUP,
         title = "WebDAV 云备份",
-        subtitle = "备份与恢复设置/插件",
+        subtitle = "把设置和插件配置备份到自己的云盘并随时恢复",
         section = "数据与存储",
         aliases = listOf("webdav", "云备份", "备份", "恢复", "自动备份", "测试连接", "远端目录", "服务器", "用户名")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.DOWNLOAD_PATH,
         title = "下载位置",
-        subtitle = "设置导出目录",
+        subtitle = "选择视频等下载内容的保存目录",
         section = "数据与存储",
         aliases = listOf("下载", "目录", "路径", "导出目录", "下载目录", "存储位置", "文件夹")
     ),
@@ -384,14 +384,14 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLUGINS,
         title = "插件中心",
-        subtitle = "管理扩展插件",
+        subtitle = "安装、启用和管理扩展功能",
         section = "开发者选项",
         aliases = listOf("插件", "扩展", "json", "脚本", "规则", "屏蔽规则")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.EXPORT_LOGS,
         title = "导出日志",
-        subtitle = "用于反馈问题",
+        subtitle = "导出已脱敏的运行记录，用于反馈和排查问题",
         section = "开发者选项",
         aliases = listOf(
             "日志", "log", "logs", "反馈", "诊断", "导出log", "导出日志", "分享日志",
@@ -401,7 +401,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.OPEN_SOURCE_LICENSES,
         title = "开源许可证",
-        subtitle = "查看项目 License",
+        subtitle = "查看应用使用的开源项目及其许可协议",
         section = "关于",
         aliases = listOf("license", "许可证", "开源协议")
     ),
@@ -415,14 +415,14 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.CHECK_UPDATE,
         title = "检查更新",
-        subtitle = "检测最新版本",
+        subtitle = "立即检查是否有可用的新版本",
         section = "关于",
         aliases = listOf("更新", "升级", "新版本", "检查", "自动检查更新", "版本更新", "检测渠道", "测试版", "正式版", "预发布", "beta", "稳定版")
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.VIEW_RELEASE_NOTES,
         title = "查看更新日志",
-        subtitle = "最新版本说明",
+        subtitle = "查看当前版本和最近版本的功能变化",
         section = "关于",
         aliases = listOf("更新日志", "changelog", "版本说明")
     ),
@@ -436,7 +436,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.TIPS,
         title = "小贴士 & 隐藏操作",
-        subtitle = "探索更多功能",
+        subtitle = "了解不容易发现的快捷操作和进阶功能",
         section = "帮助与系统",
         aliases = listOf("贴士", "技巧", "帮助", "隐藏操作", "摸鱼模式", "空降助手", "自动连播", "自动横竖屏")
     ),
@@ -450,7 +450,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.DONATE,
         title = "打赏作者",
-        subtitle = "支持开发",
+        subtitle = "自愿支持项目后续开发和维护",
         section = "关注作者",
         aliases = listOf("打赏", "赞助", "支持")
     ),
@@ -477,8 +477,8 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.APPEARANCE,
-        title = "自定义 MD3 颜色",
-        subtitle = "HEX、HSV 取色器和预设主题色",
+        title = "自定义主题颜色",
+        subtitle = "使用取色器、输入色值或选择预设颜色",
         section = "外观设置",
         aliases = listOf("自定义md3颜色", "自定义颜色", "md3颜色", "主题色", "hex", "material you"),
         focusId = SettingsSearchFocusIds.APPEARANCE_THEME
@@ -486,7 +486,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.APPEARANCE,
         title = "界面预设 / 主题模式",
-        subtitle = "iOS、安卓原生、深色风格、MD3 颜色来源、应用语言",
+        subtitle = "切换界面风格、明暗模式、颜色来源和应用语言",
         section = "外观设置",
         // 只保留本项专属别名；MD3 颜色/取色类词归「自定义 MD3 颜色」，避免重叠稀释精准度
         aliases = listOf("界面预设", "主题模式", "深色风格", "应用语言", "语言"),
@@ -495,15 +495,15 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.APPEARANCE,
         title = "安卓原生液态玻璃",
-        subtitle = "仅首页底栏与评论区底栏",
+        subtitle = "统一应用到首页顶部标签栏、搜索框、底部导航栏和评论区底栏",
         section = "外观设置",
         aliases = listOf("全局液态玻璃", "评论区液态玻璃", "Android Native 液态玻璃"),
         focusId = SettingsSearchFocusIds.APPEARANCE_THEME
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.APPEARANCE,
-        title = "字体大小 / 界面缩放 / DPI",
-        subtitle = "显示与排版",
+        title = "字体与显示大小",
+        subtitle = "分别调整文字大小、界面缩放和精细显示比例",
         section = "外观设置",
         aliases = listOf("字体大小", "界面缩放", "dpi", "显示与排版", "应用内dpi", "缩放"),
         focusId = SettingsSearchFocusIds.APPEARANCE_DISPLAY
@@ -547,7 +547,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
         title = "硬件解码 / 编码偏好",
-        subtitle = "解码",
+        subtitle = "选择优先的视频编码，并设置无法播放时的备用编码",
         section = "播放设置",
         aliases = listOf("硬件解码", "首选编码", "次选编码", "hevc", "avc", "av1", "解码"),
         focusId = SettingsSearchFocusIds.PLAYBACK_DECODER
@@ -563,7 +563,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
         title = "后台播放 / 画中画 / 小窗",
-        subtitle = "小窗播放",
+        subtitle = "设置离开播放页后停止、后台继续或进入小窗",
         section = "播放设置",
         aliases = listOf("后台播放", "画中画", "pip", "小窗", "小窗画中画", "音频焦点", "自动进入画中画", "离开播放页后停止"),
         focusId = SettingsSearchFocusIds.PLAYBACK_MINI_PLAYER
@@ -571,7 +571,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
         title = "手势灵敏度",
-        subtitle = "手势控制",
+        subtitle = "调整进度、音量和亮度手势的响应速度",
         section = "播放设置",
         aliases = listOf("手势灵敏度", "手势控制", "灵敏度"),
         focusId = SettingsSearchFocusIds.PLAYBACK_GESTURE
@@ -579,7 +579,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
         title = "自动连播 / 双击点赞 / 双击跳转 / 弹幕屏蔽 / 字幕 / 笔记",
-        subtitle = "交互",
+        subtitle = "管理视频播放中的快捷操作、字幕、弹幕和内容辅助功能",
         section = "播放设置",
         aliases = listOf("自动连播", "自动播放下一个", "进入视频自动播放", "进入视频不要自动播放", "不要自动播放", "双击点赞", "双击跳转", "取消双击跳转", "关闭双击跳转", "双击快进", "双击后退", "快进秒数", "后退秒数", "关注点赞弹幕", "关注弹幕", "点赞弹幕", "三连弹幕", "弹幕屏蔽", "弹幕同步", "弹幕云同步", "同步弹幕设置", "弹幕设置同步", "网页版弹幕", "字幕", "自动启用字幕", "ai总结", "视频简介", "默认展开视频简介", "简介默认展开", "视频笔记", "显示视频笔记", "默认折叠视频笔记", "笔记折叠", "播放器缩小策略", "竖屏视频缩小", "竖屏评论区缩小", "评论上滑缩小播放器", "横屏视频缩小", "上滑隐藏播放器", "暂停时缩小", "暂停评论缩小", "缩小后自动暂停", "自动暂停", "相关推荐暂停", "点击视频直接播放"),
         focusId = SettingsSearchFocusIds.PLAYBACK_INTERACTION
@@ -587,7 +587,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
         title = "自动横竖屏 / 全屏方向 / 平板布局",
-        subtitle = "交互",
+        subtitle = "设置进入和退出全屏的方式，以及平板播放页布局",
         section = "播放设置",
         aliases = listOf("自动横竖屏", "自动旋转", "全屏方向", "固定全屏比例", "全屏手势反向", "自动进入全屏", "自动退出全屏", "横屏适配", "平板评论区宽度", "评论区宽度", "评论折叠数量", "评论回复预览", "评论预览数量", "楼中楼", "评论楼中楼", "评论检测", "发评反诈", "评论发送检测", "评论装扮", "个性装扮", "评论区个性装扮", "图片长按保存", "长按保存图片", "查看图片保存", "播放页隐藏状态栏", "隐藏状态栏", "状态栏", "进度条峰值弹幕", "峰值弹幕", "弹幕热度曲线"),
         focusId = SettingsSearchFocusIds.PLAYBACK_FULLSCREEN
@@ -603,7 +603,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
         title = "省流量模式",
-        subtitle = "省流量",
+        subtitle = "降低移动网络下的画质和首页图片清晰度",
         section = "播放设置",
         aliases = listOf("省流量", "省流量模式", "节省流量"),
         focusId = SettingsSearchFocusIds.PLAYBACK_DATA_SAVER
@@ -611,7 +611,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.PLAYBACK,
         title = "播放器诊断 / 统计信息",
-        subtitle = "调试",
+        subtitle = "显示播放状态并记录黑屏、卡顿等问题的排查信息",
         section = "播放设置",
         aliases = listOf("播放器诊断日志", "详细统计信息", "调试", "日志"),
         focusId = SettingsSearchFocusIds.PLAYBACK_DEBUG
@@ -647,8 +647,8 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     ),
     SettingsSearchEntry(
         target = SettingsSearchTarget.ANIMATION,
-        title = "顶部 Dock / 搜索框 / 底栏液态玻璃",
-        subtitle = "顶部 Dock、首页搜索框、底栏材质",
+        title = "标签栏 / 搜索框 / 底栏液态玻璃",
+        subtitle = "分别控制首页顶部、搜索框和底部导航栏的玻璃效果",
         section = "动画与效果",
         aliases = listOf(
             "顶部 Dock 液态玻璃",
@@ -666,7 +666,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.BOTTOM_BAR,
         title = "顶部标签管理",
-        subtitle = "显示/隐藏、排序、右上角入口",
+        subtitle = "显示、隐藏和排序标签，并设置首页右上角按钮",
         section = "导航设置",
         aliases = listOf(
             "顶部标签",
@@ -690,7 +690,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.BOTTOM_BAR,
         title = "平板侧边导航栏",
-        subtitle = "平板导航",
+        subtitle = "设置平板上是否使用侧边栏以及是否显示账号切换",
         section = "导航设置",
         aliases = listOf("平板布局", "平板导航", "侧边导航栏", "侧边栏"),
         focusId = SettingsSearchFocusIds.BOTTOM_BAR_TABLET
@@ -698,7 +698,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.BOTTOM_BAR,
         title = "当前底栏预览",
-        subtitle = "底栏顺序预览",
+        subtitle = "查看当前显示项目和排列顺序",
         section = "导航设置",
         aliases = listOf("当前底栏", "底栏预览", "底栏顺序"),
         focusId = SettingsSearchFocusIds.BOTTOM_BAR_CURRENT
@@ -706,7 +706,7 @@ private val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(
         target = SettingsSearchTarget.BOTTOM_BAR,
         title = "可用底栏项目",
-        subtitle = "显示/隐藏底栏项目",
+        subtitle = "选择底栏显示哪些项目，并调整顺序",
         section = "导航设置",
         aliases = listOf("可用项目", "底栏项目", "显示隐藏项目", "底栏图标", "底栏文字"),
         focusId = SettingsSearchFocusIds.BOTTOM_BAR_AVAILABLE

@@ -3,7 +3,6 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -71,7 +70,7 @@ fun PortraitDetailSheet(
     val sheetMotion = rememberAppBottomSheetMotion()
     
     // 拦截返回键
-    BackHandler(enabled = visible) {
+    com.android.purebilibili.core.ui.LocalNavigationBackHandler(enabled = visible) {
         onDismiss()
     }
 

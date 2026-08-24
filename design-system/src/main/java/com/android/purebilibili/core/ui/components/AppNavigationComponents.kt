@@ -1,6 +1,7 @@
 package com.android.purebilibili.core.ui.components
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -11,10 +12,15 @@ import androidx.compose.material3.NavigationBarItemColors
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import top.yukonga.miuix.kmp.basic.Badge as MiuixBadge
 import top.yukonga.miuix.kmp.basic.BadgeDefaults as MiuixBadgeDefaults
 import top.yukonga.miuix.kmp.basic.NavigationBar as MiuixNavigationBar
@@ -36,7 +42,7 @@ fun AppNavigationBar(
     windowInsets: WindowInsets = NavigationBarDefaults.windowInsets,
     content: @Composable RowScope.() -> Unit,
 ) = NavigationBar(
-    modifier = modifier,
+    modifier = modifier.focusGroup(),
     containerColor = containerColor,
     contentColor = contentColor,
     tonalElevation = tonalElevation,
@@ -55,17 +61,20 @@ fun RowScope.AppNavigationBarItem(
     alwaysShowLabel: Boolean = true,
     colors: NavigationBarItemColors = NavigationBarItemDefaults.colors(),
     interactionSource: MutableInteractionSource? = null,
-) = NavigationBarItem(
-    selected = selected,
-    onClick = onClick,
-    icon = icon,
-    modifier = modifier,
-    enabled = enabled,
-    label = label,
-    alwaysShowLabel = alwaysShowLabel,
-    colors = colors,
-    interactionSource = interactionSource,
-)
+) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    NavigationBarItem(
+        selected = selected,
+        onClick = onClick,
+        icon = icon,
+        modifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
+        enabled = enabled,
+        label = label,
+        alwaysShowLabel = alwaysShowLabel,
+        colors = colors,
+        interactionSource = resolvedInteractionSource,
+    )
+}
 
 enum class AppPlatformNavigationBarDisplayMode {
     ICON_AND_TEXT,
@@ -90,7 +99,7 @@ fun AppPlatformNavigationBar(
     mode: AppPlatformNavigationBarDisplayMode = AppPlatformNavigationBarDisplayMode.ICON_AND_TEXT,
     content: @Composable RowScope.() -> Unit,
 ) = MiuixNavigationBar(
-    modifier = modifier,
+    modifier = modifier.focusGroup(),
     color = color,
     showDivider = showDivider,
     defaultWindowInsetsPadding = defaultWindowInsetsPadding,
@@ -112,7 +121,12 @@ fun RowScope.AppPlatformNavigationBarItem(
     onClick = onClick,
     icon = icon,
     label = label,
-    modifier = modifier,
+    modifier = modifier
+        .appDesktopFocusableItemVisuals(enabled)
+        .semantics {
+            role = Role.Tab
+            this.selected = selected
+        },
     enabled = enabled,
     badge = badge,
 )
@@ -146,7 +160,7 @@ fun AppPlatformNavigationRail(
         null
     }
     MiuixNavigationRail(
-        modifier = modifier,
+        modifier = modifier.focusGroup(),
         state = state,
         color = color,
         showDivider = showDivider,
@@ -169,6 +183,11 @@ fun ColumnScope.AppPlatformNavigationRailItem(
     onClick = onClick,
     icon = icon,
     label = label,
-    modifier = modifier,
+    modifier = modifier
+        .appDesktopFocusableItemVisuals(enabled)
+        .semantics {
+            role = Role.Tab
+            this.selected = selected
+        },
     enabled = enabled,
 )

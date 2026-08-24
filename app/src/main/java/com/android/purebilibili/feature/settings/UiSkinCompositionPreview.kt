@@ -61,9 +61,14 @@ data class UiSkinCompositionPreviewData(
  */
 data class UiSkinCompositionLayers(
     val bottomBarTrimImagePath: String?,
+    val drawerBottomTrimImagePath: String?,
     val topAtmosphereImagePath: String?,
+    val topTabBackgroundImagePath: String?,
     val profileBackgroundImagePath: String?,
+    val profileSquaredBackgroundImagePath: String?,
+    val profileVideoBackgroundPath: String?,
     val sideBackgroundImagePath: String?,
+    val publishIconImagePath: String?,
     val bottomBarIconPaths: Map<String, String>,
     val bottomBarTrimTint: Color,
     val topAtmosphereTint: Color,
@@ -77,9 +82,14 @@ fun resolveUiSkinCompositionLayers(data: UiSkinCompositionPreviewData): UiSkinCo
     val colors = data.manifest.colors
     return UiSkinCompositionLayers(
         bottomBarTrimImagePath = data.assetPath(assets.bottomBarTrim),
+        drawerBottomTrimImagePath = data.assetPath(assets.drawerBottomTrim),
         topAtmosphereImagePath = data.assetPath(assets.topAtmosphere),
+        topTabBackgroundImagePath = data.assetPath(assets.homeTopTabBackground),
         profileBackgroundImagePath = data.assetPath(assets.homeProfileBackground),
+        profileSquaredBackgroundImagePath = data.assetPath(assets.homeProfileSquaredBackground),
+        profileVideoBackgroundPath = data.assetPath(assets.homeProfileVideoBackground),
         sideBackgroundImagePath = data.assetPath(assets.homeSideBackground),
+        publishIconImagePath = data.assetPath(assets.dynamicPublishIcon),
         bottomBarIconPaths = assets.bottomBarIcons.mapValues { (key, path) ->
             data.assetPath(path) ?: path
         }.filterValues { it.isNotBlank() },
@@ -132,11 +142,11 @@ fun UiSkinCompositionPreview(
         // 顶部氛围区 + 个人页背景预览
         PreviewTopAtmosphere(
             layers = layers,
-            darkMode = data.darkMode,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(120.dp)
         )
+        PreviewExtendedSurfaces(layers = layers)
         // 真实尺寸迷你底栏 dock
         Box(
             modifier = Modifier
@@ -156,6 +166,78 @@ fun UiSkinCompositionPreview(
     }
 }
 
+@Composable
+private fun PreviewExtendedSurfaces(
+    layers: UiSkinCompositionLayers,
+) {
+    val hasDrawer = !layers.sideBackgroundImagePath.isNullOrBlank() ||
+        !layers.drawerBottomTrimImagePath.isNullOrBlank()
+    val profilePath = layers.profileBackgroundImagePath ?: layers.profileSquaredBackgroundImagePath
+    val hasProfile = !profilePath.isNullOrBlank() || !layers.profileVideoBackgroundPath.isNullOrBlank()
+    val hasPublish = !layers.publishIconImagePath.isNullOrBlank()
+    if (!hasDrawer && !hasProfile && !hasPublish) return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (hasDrawer) {
+            Box(
+                modifier = Modifier
+                    .size(width = 72.dp, height = 48.dp)
+                    .clip(AppShapes.container(ContainerLevel.Chip))
+                    .background(layers.topAtmosphereTint.copy(alpha = 0.28f))
+            ) {
+                layers.sideBackgroundImagePath?.let { path ->
+                    AsyncImage(
+                        model = File(path),
+                        contentDescription = "侧栏背景",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                layers.drawerBottomTrimImagePath?.let { path ->
+                    AsyncImage(
+                        model = File(path),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        alignment = Alignment.BottomCenter,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        }
+        if (hasProfile) {
+            Box(
+                modifier = Modifier
+                    .size(width = 72.dp, height = 48.dp)
+                    .clip(AppShapes.container(ContainerLevel.Chip))
+                    .background(layers.topAtmosphereTint.copy(alpha = 0.42f))
+            ) {
+                profilePath?.let { path ->
+                    AsyncImage(
+                        model = File(path),
+                        contentDescription = "个人页背景",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        }
+        layers.publishIconImagePath?.let { path ->
+            AsyncImage(
+                model = File(path),
+                contentDescription = "发布图标",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(40.dp),
+            )
+        }
+    }
+}
+
 /** 迷你 dock 高度，与生产 resolveBottomBarSkinDockHeight() 对齐（48+16=64dp）。 */
 fun previewDockHeight(): Dp = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large
 
@@ -165,12 +247,11 @@ fun previewDockIconSize(): Dp = AppSpacingTokens.DoubleExtraLarge
 @Composable
 private fun PreviewTopAtmosphere(
     layers: UiSkinCompositionLayers,
-    darkMode: Boolean,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
         // 顶部氛围背景图
-        val atmospherePath = layers.topAtmosphereImagePath
+        val atmospherePath = layers.topAtmosphereImagePath ?: layers.topTabBackgroundImagePath
         if (!atmospherePath.isNullOrBlank()) {
             AsyncImage(
                 model = File(atmospherePath),
@@ -195,6 +276,7 @@ private fun PreviewTopAtmosphere(
         }
         // 右下角个人页背景小图预览（若有）
         val profilePath = layers.profileBackgroundImagePath
+            ?: layers.profileSquaredBackgroundImagePath
         if (!profilePath.isNullOrBlank()) {
             AsyncImage(
                 model = File(profilePath),

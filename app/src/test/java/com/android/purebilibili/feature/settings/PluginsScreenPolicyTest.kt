@@ -279,18 +279,27 @@ class PluginsScreenPolicyTest {
             assetFiles = mapOf(
                 "assets/tail_bg.png" to "/tmp/tail_bg.png",
                 "assets/head_bg.jpg" to "/tmp/head_bg.jpg",
+                "assets/head_myself_mp4_bg.mp4" to "/tmp/head_myself_mp4_bg.mp4",
+                "assets/tail_icon_pub_btn_bg.png" to "/tmp/tail_icon_pub_btn_bg.png",
                 "assets/unknown.png" to "/tmp/unknown.png"
             )
         )
 
         assertEquals(
-            listOf("底栏饰面", "顶部氛围", "资源图片"),
+            listOf("底栏饰面", "顶部氛围", "个人页动态背景", "发布图标", "资源图片"),
             models.map { it.label }
         )
         assertEquals(
-            listOf("/tmp/tail_bg.png", "/tmp/head_bg.jpg", "/tmp/unknown.png"),
+            listOf(
+                "/tmp/tail_bg.png",
+                "/tmp/head_bg.jpg",
+                "/tmp/head_myself_mp4_bg.mp4",
+                "/tmp/tail_icon_pub_btn_bg.png",
+                "/tmp/unknown.png",
+            ),
             models.map { it.localPath }
         )
+        assertEquals(listOf(false, false, true, false, false), models.map { it.isVideo })
     }
 
     @Test

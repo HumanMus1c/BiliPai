@@ -5,17 +5,30 @@ import com.android.purebilibili.core.ui.AppSpacingTokens
 import com.android.purebilibili.core.ui.OpticalContrastPalette
 import com.android.purebilibili.feature.home.HomeVisualPalette
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -36,23 +49,60 @@ data class BottomBarUiSkinDecoration(
     val skinId: String,
     val bottomTrimTint: Color,
     val bottomTrimAccent: Color,
+    val bottomUnselectedTint: Color = Color.Unspecified,
+    val bottomSelectedTint: Color = Color.Unspecified,
     val bottomTrimImagePath: String? = null,
+    val iconMotion: BottomBarSkinMotionSpec = BottomBarSkinMotionSpec(),
     val bottomBarIconPaths: Map<BottomNavItem, BottomBarSkinIconPaths> = emptyMap()
 ) {
+    @Suppress("UNUSED_PARAMETER")
     fun iconPathFor(item: BottomNavItem, selected: Boolean = false): String? {
         val paths = bottomBarIconPaths[item] ?: return null
-        return if (selected) {
-            paths.selected ?: paths.unselected
-        } else {
-            paths.unselected
-        }
+        // Keep each destination visually stable. Some archived skins use a completely
+        // different illustration for the selected asset, which reads as a random icon swap
+        // in BiliPai where the moving indicator already communicates selection.
+        return paths.unselected
     }
 }
 
 data class BottomBarSkinIconPaths(
     val unselected: String,
     val selected: String? = null
+) {
+    fun pathFor(selected: Boolean): String {
+        return if (selected) this.selected ?: unselected else unselected
+    }
+}
+
+data class BottomBarSkinMotionSpec(
+    val enabled: Boolean = false,
+    val mode: String? = null,
 )
+
+data class DynamicPublishSkinDecoration(
+    val iconPaths: BottomBarSkinIconPaths? = null,
+    val iconTint: Color = Color.Unspecified,
+    val shadeTop: Color = Color.Transparent,
+    val shadeBottom: Color = Color.Transparent,
+) {
+    val hasShade: Boolean
+        get() = shadeTop != Color.Transparent || shadeBottom != Color.Transparent
+}
+
+private val LocalBottomBarSkinMotionSpec = staticCompositionLocalOf {
+    BottomBarSkinMotionSpec()
+}
+
+@Composable
+internal fun ProvideBottomBarSkinMotion(
+    decoration: BottomBarUiSkinDecoration?,
+    content: @Composable () -> Unit,
+) {
+    CompositionLocalProvider(
+        LocalBottomBarSkinMotionSpec provides (decoration?.iconMotion ?: BottomBarSkinMotionSpec()),
+        content = content,
+    )
+}
 
 data class TopTabSkinIconPaths(
     val unselected: String,
@@ -71,11 +121,17 @@ data class HomeUiSkinDecoration(
     val skinId: String,
     val topAtmosphereTint: Color,
     val searchCapsuleTint: Color,
+    val searchCapsuleImagePath: String? = null,
     val topAtmosphereImagePath: String? = null,
     val topTabBackgroundImagePath: String? = null,
     val sideBackgroundImagePath: String? = null,
+    val sideBottomTrimImagePath: String? = null,
+    val sideBackgroundTint: Color? = null,
     val profileBackgroundImagePath: String? = null,
     val profileSquaredBackgroundImagePath: String? = null,
+    val profileVideoBackgroundPath: String? = null,
+    val profileVideoPlayMode: String? = null,
+    val colorMode: String? = null,
     val topTabSkinIconPaths: Map<String, TopTabSkinIconPaths> = emptyMap(),
     val topTabPartitionSkinIconPaths: TopTabSkinIconPaths? = null
 ) {
@@ -121,8 +177,16 @@ internal fun resolveMiuixDockedBottomBarItemHeight(hasUiSkinDecoration: Boolean)
 
 @Composable
 fun rememberBottomBarUiSkinDecoration(uiSkinState: UiSkinState): BottomBarUiSkinDecoration? {
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    return remember(uiSkinState, isDark) {
+        resolveBottomBarUiSkinDecoration(uiSkinState, isDark)
+    }
+}
+
+@Composable
+fun rememberDynamicPublishSkinDecoration(uiSkinState: UiSkinState): DynamicPublishSkinDecoration? {
     return remember(uiSkinState) {
-        resolveBottomBarUiSkinDecoration(uiSkinState)
+        resolveDynamicPublishSkinDecoration(uiSkinState)
     }
 }
 
@@ -133,9 +197,16 @@ fun rememberHomeUiSkinDecoration(uiSkinState: UiSkinState): HomeUiSkinDecoration
     }
 }
 
-fun resolveBottomBarUiSkinDecoration(uiSkinState: UiSkinState): BottomBarUiSkinDecoration? {
+fun resolveBottomBarUiSkinDecoration(
+    uiSkinState: UiSkinState,
+    isDark: Boolean = false,
+): BottomBarUiSkinDecoration? {
     val activeSkin = uiSkinState.activeSkin
-    return if (!uiSkinState.enabled || activeSkin == null) {
+    return if (
+        !uiSkinState.enabled ||
+        activeSkin == null ||
+        UiSkinSurface.HOME_BOTTOM_BAR !in activeSkin.manifest.surfaces
+    ) {
         null
     } else {
         BottomBarUiSkinDecoration(
@@ -144,13 +215,64 @@ fun resolveBottomBarUiSkinDecoration(uiSkinState: UiSkinState): BottomBarUiSkinD
                 value = activeSkin.manifest.colors.bottomBarTrimTint,
                 fallback = HomeVisualPalette.BottomBarIceLight
             ),
+            bottomUnselectedTint = parseUiSkinColor(
+                value = if (isDark) {
+                    activeSkin.manifest.colors.bottomBarIconDarkTint
+                        ?: activeSkin.manifest.colors.bottomBarIconTint
+                } else {
+                    activeSkin.manifest.colors.bottomBarIconTint
+                },
+                fallback = Color.Unspecified,
+            ),
+            bottomSelectedTint = parseUiSkinColor(
+                value = if (isDark) {
+                    activeSkin.manifest.colors.bottomBarSelectedDarkTint
+                        ?: activeSkin.manifest.colors.bottomBarSelectedTint
+                } else {
+                    activeSkin.manifest.colors.bottomBarSelectedTint
+                },
+                fallback = Color.Unspecified,
+            ),
             bottomTrimAccent = parseUiSkinColor(
                 value = activeSkin.manifest.colors.topAtmosphereTint,
                 fallback = HomeVisualPalette.BottomBarIce
             ),
             bottomTrimImagePath = activeSkin.assetFilePath(activeSkin.manifest.assets.bottomBarTrim),
+            iconMotion = BottomBarSkinMotionSpec(
+                enabled = activeSkin.manifest.motion.bottomBarIconAnimated,
+                mode = activeSkin.manifest.motion.bottomBarIconAnimationMode,
+            ),
             bottomBarIconPaths = resolveBottomBarSkinIconPaths(activeSkin)
         )
+    }
+}
+
+
+fun resolveDynamicPublishSkinDecoration(uiSkinState: UiSkinState): DynamicPublishSkinDecoration? {
+    val activeSkin = uiSkinState.activeSkin
+    if (
+        !uiSkinState.enabled ||
+        activeSkin == null ||
+        UiSkinSurface.DYNAMIC_PUBLISH !in activeSkin.manifest.surfaces
+    ) {
+        return null
+    }
+    val colors = activeSkin.manifest.colors
+    val iconPaths = activeSkin.assetFilePath(activeSkin.manifest.assets.dynamicPublishIcon)
+        ?.let { unselectedPath ->
+            BottomBarSkinIconPaths(
+                unselected = unselectedPath,
+                selected = activeSkin.assetFilePath(activeSkin.manifest.assets.dynamicPublishSelectedIcon),
+            )
+        }
+    val decoration = DynamicPublishSkinDecoration(
+        iconPaths = iconPaths,
+        iconTint = parseUiSkinColor(colors.dynamicPublishIconTint, Color.Unspecified),
+        shadeTop = parseUiSkinColor(colors.dynamicPublishShadeTop, Color.Transparent),
+        shadeBottom = parseUiSkinColor(colors.dynamicPublishShadeBottom, Color.Transparent),
+    )
+    return decoration.takeIf {
+        it.iconPaths != null || it.iconTint != Color.Unspecified || it.hasShade
     }
 }
 
@@ -160,15 +282,23 @@ fun resolveHomeUiSkinDecoration(uiSkinState: UiSkinState): HomeUiSkinDecoration?
         null
     } else {
         val manifest = activeSkin.manifest
-        val hasTopDecoration = UiSkinSurface.HOME_TOP_CHROME in manifest.surfaces &&
+        val hasTopDecoration = manifest.surfaces.any {
+            it == UiSkinSurface.HOME_TOP_CHROME ||
+                it == UiSkinSurface.HOME_DRAWER ||
+                it == UiSkinSurface.PROFILE
+        } &&
             (
                 manifest.assets.topAtmosphere != null ||
                     manifest.assets.homeTopTabBackground != null ||
+                    manifest.assets.searchCapsuleBackground != null ||
                     manifest.assets.homeSideBackground != null ||
+                    manifest.assets.drawerBottomTrim != null ||
                     manifest.assets.homeProfileBackground != null ||
                     manifest.assets.homeProfileSquaredBackground != null ||
+                    manifest.assets.homeProfileVideoBackground != null ||
                     manifest.colors.topAtmosphereTint != null ||
-                    manifest.colors.searchCapsuleTint != null
+                    manifest.colors.searchCapsuleTint != null ||
+                    manifest.colors.sideBackgroundTint != null
                 )
         if (!hasTopDecoration) return null
         HomeUiSkinDecoration(
@@ -181,13 +311,23 @@ fun resolveHomeUiSkinDecoration(uiSkinState: UiSkinState): HomeUiSkinDecoration?
                 value = manifest.colors.searchCapsuleTint,
                 fallback = OpticalContrastPalette.Highlight
             ),
+            searchCapsuleImagePath = activeSkin.assetFilePath(manifest.assets.searchCapsuleBackground),
             topAtmosphereImagePath = activeSkin.assetFilePath(manifest.assets.topAtmosphere),
             topTabBackgroundImagePath = activeSkin.assetFilePath(manifest.assets.homeTopTabBackground),
             sideBackgroundImagePath = activeSkin.assetFilePath(manifest.assets.homeSideBackground),
+            sideBottomTrimImagePath = activeSkin.assetFilePath(manifest.assets.drawerBottomTrim),
+            sideBackgroundTint = manifest.colors.sideBackgroundTint?.let { value ->
+                parseUiSkinColor(value = value, fallback = Color.Transparent)
+            },
             profileBackgroundImagePath = activeSkin.assetFilePath(manifest.assets.homeProfileBackground),
             profileSquaredBackgroundImagePath = activeSkin.assetFilePath(
                 manifest.assets.homeProfileSquaredBackground
-            )
+            ),
+            profileVideoBackgroundPath = activeSkin.assetFilePath(
+                manifest.assets.homeProfileVideoBackground
+            ),
+            profileVideoPlayMode = manifest.motion.profileVideoPlayMode,
+            colorMode = manifest.colors.colorMode,
         )
     }
 }
@@ -196,19 +336,79 @@ fun resolveHomeUiSkinDecoration(uiSkinState: UiSkinState): HomeUiSkinDecoration?
 internal fun BottomBarSkinIcon(
     iconPath: String,
     contentDescription: String?,
+    selected: Boolean = false,
     size: Dp = resolveBottomBarSkinDockIconSize(),
     modifier: Modifier = Modifier
 ) {
-    val scalePolicy = rememberSkinIconScalePolicy(iconPath)
-    Box(modifier = modifier.size(size)) {
-        AsyncImage(
-            model = File(iconPath),
-            contentDescription = contentDescription,
-            contentScale = scalePolicy.contentScale,
-            alignment = scalePolicy.alignment,
-            modifier = Modifier.fillMaxSize()
+    val motion = LocalBottomBarSkinMotionSpec.current
+    val looping = motion.enabled && selected && motion.mode.isLoopingSkinMotionMode()
+    val loopScale = if (looping) {
+        rememberInfiniteTransition(label = "skinIconLoop").animateFloat(
+            initialValue = 0.96f,
+            targetValue = 1.04f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 720),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "skinIconLoopScale",
         )
+    } else {
+        null
     }
+    Box(modifier = modifier.size(size)) {
+        if (motion.enabled) {
+            AnimatedContent(
+                targetState = iconPath,
+                transitionSpec = {
+                    (fadeIn(tween(160)) + scaleIn(tween(220), initialScale = 0.86f)) togetherWith
+                        fadeOut(tween(120))
+                },
+                // Selection may change scale/loop motion, but it must not replace the image
+                // subtree when the destination still resolves to the same fixed asset.
+                contentKey = { stableIconPath -> stableIconPath },
+                label = "skinIconSelection",
+                modifier = Modifier.fillMaxSize(),
+            ) { stableIconPath ->
+                SkinIconImage(
+                    iconPath = stableIconPath,
+                    contentDescription = contentDescription,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val scale = loopScale?.value ?: 1f
+                            scaleX = scale
+                            scaleY = scale
+                        },
+                )
+            }
+        } else {
+            SkinIconImage(
+                iconPath = iconPath,
+                contentDescription = contentDescription,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+}
+
+private fun String?.isLoopingSkinMotionMode(): Boolean {
+    return this?.trim()?.lowercase() in setOf("loop", "cycle", "repeat", "always")
+}
+
+@Composable
+private fun SkinIconImage(
+    iconPath: String,
+    contentDescription: String?,
+    modifier: Modifier,
+) {
+    val scalePolicy = rememberSkinIconScalePolicy(iconPath)
+    AsyncImage(
+        model = File(iconPath),
+        contentDescription = contentDescription,
+        contentScale = scalePolicy.contentScale,
+        alignment = scalePolicy.alignment,
+        modifier = modifier,
+    )
 }
 
 /**

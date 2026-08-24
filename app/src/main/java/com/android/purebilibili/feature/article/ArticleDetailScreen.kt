@@ -39,6 +39,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,6 +57,7 @@ import com.android.purebilibili.data.repository.ArticleRepository
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
+import com.android.purebilibili.core.ui.components.appDesktopFocusableItemVisuals
 
 private const val ARTICLE_BANNER_CORNER_RADIUS_DP = 20f
 private const val ARTICLE_BODY_IMAGE_CORNER_RADIUS_DP = 18f
@@ -286,17 +288,27 @@ private fun ArticleDetailContent(
                 if (article.authorName.isNotBlank() || article.publishTime.isNotBlank()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (article.authorFace.isNotBlank()) {
-                            AsyncImage(
-                                model = article.authorFace,
-                                contentDescription = article.authorName,
+                            Box(
                                 modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(CircleShape)
-                                    .clickable(enabled = article.authorMid > 0) {
+                                    .size(48.dp)
+                                    .appDesktopFocusableItemVisuals(enabled = article.authorMid > 0)
+                                    .clickable(
+                                        enabled = article.authorMid > 0,
+                                        role = Role.Button,
+                                    ) {
                                         if (article.authorMid > 0) onUserClick(article.authorMid)
                                     },
-                                contentScale = ContentScale.Crop
-                            )
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                AsyncImage(
+                                    model = article.authorFace,
+                                    contentDescription = article.authorName,
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
                         }
                         Column(
                             modifier = Modifier.padding(start = if (article.authorFace.isNotBlank()) 12.dp else 0.dp),

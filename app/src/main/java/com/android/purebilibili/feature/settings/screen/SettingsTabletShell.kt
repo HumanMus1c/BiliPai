@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,8 +33,10 @@ import com.android.purebilibili.R
 import com.android.purebilibili.core.ui.AppSplitLayout
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.AppTopBar
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.rememberAppBackIcon
+import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.feature.settings.SettingsHomeSearchEntry
 import com.android.purebilibili.feature.settings.SettingsRootCategory
 import com.android.purebilibili.feature.settings.canonicalSettingsRootCategory
@@ -62,6 +63,43 @@ fun SettingsTabletShell(
     val categoryIconTints = remember(categories.size) {
         resolveSettingsSiblingIconTints(categories.size)
     }
+    val useThreePaneLayout =
+        LocalWindowSizeClass.current.shouldUseThreePaneLayout && selectedCategory != null
+    val emptyDetailPane: @Composable () -> Unit = {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(AppSurfaceTokens.groupedListContainer())
+                .padding(layoutPolicy.detailPanePaddingDp.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AppText(
+                    text = "选择设置分类",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                AppText(
+                    text = "从左侧选择一个分类以查看和修改设置",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+    val detailPane: @Composable () -> Unit = {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(AppSurfaceTokens.groupedListContainer())
+                .padding(horizontal = layoutPolicy.detailPanePaddingDp.dp),
+        ) {
+            rightPane()
+        }
+    }
     AppSplitLayout(
         modifier = modifier.fillMaxSize(),
         primaryRatio = layoutPolicy.primaryRatio,
@@ -69,86 +107,103 @@ fun SettingsTabletShell(
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .background(AppSurfaceTokens.groupedListContainer())
-                    .padding(layoutPolicy.masterPanePaddingDp.dp),
+                    .background(AppSurfaceTokens.groupedListContainer()),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                AppTopBar(
+                    title = stringResource(R.string.settings_title),
+                    navigationIcon = {
+                        AppIconButton(onClick = onBack) {
+                            AppIcon(
+                                imageVector = rememberAppBackIcon(),
+                                contentDescription = stringResource(R.string.common_back),
+                            )
+                        }
+                    },
+                )
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(
+                            horizontal = layoutPolicy.masterPanePaddingDp.dp,
+                            vertical = 8.dp,
+                        ),
                 ) {
-                    AppIconButton(onClick = onBack) {
-                        AppIcon(
-                            imageVector = rememberAppBackIcon(),
-                            contentDescription = stringResource(R.string.common_back),
-                        )
-                    }
-                    AppText(
-                        text = stringResource(R.string.settings_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                SettingsHomeSearchEntry(onClick = onSearchOpen)
-                Spacer(modifier = Modifier.height(8.dp))
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    itemsIndexed(categories) { index, category ->
-                        val visual = rememberSettingsEntryVisual(category.searchTarget)
-                        val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(
-                            categoryIconTints[index]
-                        )
-                        val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
-                        val selected = selectedCategory?.let(::canonicalSettingsRootCategory) == category
-                        AppNavigationDrawerItem(
-                            label = {
-                                Column {
-                                    AppText(category.title, fontWeight = FontWeight.Medium)
-                                    AppText(
-                                        text = category.subtitle,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 2,
-                                    )
-                                }
-                            },
-                            selected = selected,
-                            onClick = { onCategoryClick(category) },
-                            icon = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(resolveSettingsVisualSpec().categoryIconBubbleSize)
-                                        .clip(AppShapes.container(ContainerLevel.Field))
-                                        .background(effectiveIconTint),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    if (visual.icon != null) {
-                                        AppIcon(
-                                            imageVector = visual.icon,
-                                            contentDescription = null,
-                                            tint = iconContentColor,
-                                            modifier = Modifier.size(visual.iconSizeDp.dp),
+                    SettingsHomeSearchEntry(onClick = onSearchOpen)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        itemsIndexed(categories) { index, category ->
+                            val visual = rememberSettingsEntryVisual(category.searchTarget)
+                            val effectiveIconTint = rememberAdaptivePreferenceIconContainerColor(
+                                categoryIconTints[index]
+                            )
+                            val iconContentColor = rememberAdaptivePreferenceIconContentColor(effectiveIconTint)
+                            val selected = selectedCategory?.let(::canonicalSettingsRootCategory) == category
+                            AppNavigationDrawerItem(
+                                label = {
+                                    Column {
+                                        AppText(category.title, fontWeight = FontWeight.Medium)
+                                        AppText(
+                                            text = category.subtitle,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 2,
                                         )
                                     }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                                },
+                                selected = selected,
+                                onClick = { onCategoryClick(category) },
+                                icon = {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(resolveSettingsVisualSpec().categoryIconBubbleSize)
+                                            .clip(AppShapes.container(ContainerLevel.Field))
+                                            .background(effectiveIconTint),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        if (visual.icon != null) {
+                                            AppIcon(
+                                                imageVector = visual.icon,
+                                                contentDescription = null,
+                                                tint = iconContentColor,
+                                                modifier = Modifier.size(visual.iconSizeDp.dp),
+                                            )
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }
         },
         secondaryContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(AppSurfaceTokens.groupedListContainer())
-                    .padding(layoutPolicy.detailPanePaddingDp.dp),
-            ) {
-                rightPane()
+            if (useThreePaneLayout) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(AppSurfaceTokens.groupedListContainer())
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    AppText(
+                        text = selectedCategory?.title ?: stringResource(R.string.settings_title),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    AppText(
+                        text = selectedCategory?.subtitle ?: "选择左侧分类以查看设置",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                if (selectedCategory == null) emptyDetailPane() else detailPane()
             }
         },
+        tertiaryContent = if (useThreePaneLayout) detailPane else null,
     )
 }

@@ -4,13 +4,17 @@ import kotlinx.serialization.Serializable
 
 enum class UiSkinSurface {
     HOME_BOTTOM_BAR,
-    HOME_TOP_CHROME
+    HOME_TOP_CHROME,
+    HOME_DRAWER,
+    PROFILE,
+    DYNAMIC_PUBLISH
 }
 
 enum class UiSkinAssetType {
     PNG,
     WEBP,
-    JPEG
+    JPEG,
+    MP4
 }
 
 @Serializable
@@ -24,6 +28,7 @@ data class UiSkinManifest(
     val surfaces: Set<UiSkinSurface>,
     val assets: UiSkinAssets = UiSkinAssets(),
     val colors: UiSkinColorTokens = UiSkinColorTokens(),
+    val motion: UiSkinMotionTokens = UiSkinMotionTokens(),
     val styleSourceName: String? = null,
     val styleSourceUrl: String? = null,
     val licenseNote: String? = null,
@@ -34,27 +39,35 @@ data class UiSkinManifest(
 @Serializable
 data class UiSkinAssets(
     val bottomBarTrim: String? = null,
+    val drawerBottomTrim: String? = null,
     val topAtmosphere: String? = null,
     val homeTopTabBackground: String? = null,
     val searchCapsuleBackground: String? = null,
     val homeSideBackground: String? = null,
     val homeProfileBackground: String? = null,
     val homeProfileSquaredBackground: String? = null,
+    val homeProfileVideoBackground: String? = null,
     val homeChannelIcon: String? = null,
     val homeChannelSelectedIcon: String? = null,
+    val dynamicPublishIcon: String? = null,
+    val dynamicPublishSelectedIcon: String? = null,
     val bottomBarIcons: Map<String, String> = emptyMap()
 ) {
     fun declaredPaths(): List<String> {
         return buildList {
             bottomBarTrim?.let(::add)
+            drawerBottomTrim?.let(::add)
             topAtmosphere?.let(::add)
             homeTopTabBackground?.let(::add)
             searchCapsuleBackground?.let(::add)
             homeSideBackground?.let(::add)
             homeProfileBackground?.let(::add)
             homeProfileSquaredBackground?.let(::add)
+            homeProfileVideoBackground?.let(::add)
             homeChannelIcon?.let(::add)
             homeChannelSelectedIcon?.let(::add)
+            dynamicPublishIcon?.let(::add)
+            dynamicPublishSelectedIcon?.let(::add)
             addAll(bottomBarIcons.values)
         }
     }
@@ -63,8 +76,25 @@ data class UiSkinAssets(
 @Serializable
 data class UiSkinColorTokens(
     val bottomBarTrimTint: String? = null,
+    val bottomBarIconTint: String? = null,
+    val bottomBarIconDarkTint: String? = null,
+    val bottomBarSelectedTint: String? = null,
+    val bottomBarSelectedDarkTint: String? = null,
     val topAtmosphereTint: String? = null,
-    val searchCapsuleTint: String? = null
+    val searchCapsuleTint: String? = null,
+    val sideBackgroundTint: String? = null,
+    val dynamicPublishIconTint: String? = null,
+    val dynamicPublishShadeTop: String? = null,
+    val dynamicPublishShadeBottom: String? = null,
+    val colorMode: String? = null
+)
+
+@Serializable
+data class UiSkinMotionTokens(
+    val bottomBarIconAnimated: Boolean = false,
+    val bottomBarIconAnimationMode: String? = null,
+    val bottomBarIconMode: String? = null,
+    val profileVideoPlayMode: String? = null
 )
 
 data class UiSkinAssetEntry(

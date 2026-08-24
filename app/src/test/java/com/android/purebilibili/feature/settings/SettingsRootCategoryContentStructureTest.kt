@@ -232,6 +232,10 @@ class SettingsRootCategoryContentStructureTest {
         assertTrue(source.contains("NavigationDrawerItem("))
         assertTrue(source.contains("text = category.subtitle"))
         assertTrue(source.contains("rightPane()"))
+        assertTrue(source.contains("if (selectedCategory == null) emptyDetailPane() else detailPane()"))
+        assertTrue(source.contains("text = \"选择设置分类\""))
+        assertTrue(source.contains("AppTopBar("))
+        assertTrue(source.contains(".padding(horizontal = layoutPolicy.detailPanePaddingDp.dp)"))
     }
 
     @Test
@@ -384,7 +388,7 @@ class SettingsRootCategoryContentStructureTest {
             playback.indexOf("AppPreferenceSectionTitle(\"网络与画质\")") <
                 playback.indexOf("AppPreferenceSectionTitle(\"互动与评论\")")
         )
-        assertTrue(animation.contains("AppPreferenceSectionTitle(\"玻璃效果\")"))
+        assertTrue(animation.contains("AppPreferenceSectionTitle(\"液态玻璃与磨砂\")"))
         assertTrue(animation.contains("title = \"触感反馈\""))
         assertFalse(animation.contains("AppPreferenceSectionTitle(\"底栏入口\")"))
     }

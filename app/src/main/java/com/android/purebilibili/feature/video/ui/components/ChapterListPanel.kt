@@ -2,6 +2,7 @@
 package com.android.purebilibili.feature.video.ui.components
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
+import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import androidx.compose.animation.*
@@ -94,14 +95,14 @@ fun ChapterListPanel(
                         fontWeight = FontWeight.Medium
                     )
                     
-                    AppIcon(
-                        Icons.Outlined.Close,
-                        contentDescription = "关闭",
-                        tint = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable(onClick = onDismiss)
-                    )
+                    AppIconButton(onClick = onDismiss) {
+                        AppIcon(
+                            Icons.Outlined.Close,
+                            contentDescription = "关闭",
+                            tint = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
                 
                 AppHorizontalDivider(color = Color.White.copy(alpha = 0.1f))

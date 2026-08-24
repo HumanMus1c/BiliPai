@@ -31,7 +31,9 @@ fun resolveSplashWallpaperLayout(
             }
         }
         AdaptiveWidthClass.Medium,
-        AdaptiveWidthClass.Expanded -> SplashWallpaperLayout.FULL_CROP
+        AdaptiveWidthClass.Expanded,
+        AdaptiveWidthClass.Large,
+        AdaptiveWidthClass.ExtraLarge -> SplashWallpaperLayout.FULL_CROP
     }
 }
 
@@ -39,6 +41,8 @@ fun resolveProfileWallpaperLayout(widthClass: AdaptiveWidthClass): ProfileWallpa
     return when (widthClass) {
         AdaptiveWidthClass.Compact -> ProfileWallpaperLayout.TOP_BANNER_BLUR_BG
         AdaptiveWidthClass.Medium,
-        AdaptiveWidthClass.Expanded -> ProfileWallpaperLayout.POSTER_CARD_BLUR_BG
+        AdaptiveWidthClass.Expanded,
+        AdaptiveWidthClass.Large,
+        AdaptiveWidthClass.ExtraLarge -> ProfileWallpaperLayout.POSTER_CARD_BLUR_BG
     }
 }

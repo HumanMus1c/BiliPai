@@ -232,8 +232,8 @@ fun LivePlayerScreen(
     // Haze blur 状态 (用于侧边栏实时模糊)
     val hazeState = com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState()
     
-    // 直播布局的设备类别判断走统一 WindowSizeUtils，避免手机横屏误判成平板。
-    val isTablet = windowSizeClass.isTabletDevice
+    // 直播布局只看当前可用窗口，分屏/自由窗口不会沿用物理平板布局。
+    val isTablet = windowSizeClass.isTablet
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val liveLayoutMode = resolveLiveRoomLayoutMode(
         isLandscape = isLandscape,

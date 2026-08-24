@@ -29,6 +29,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Search
@@ -94,7 +95,9 @@ internal fun LiquidGlassAdjustmentPanel(
     onPreviewImageChanged: (String?) -> Unit,
     onAdvancedSettingsCommitted: (LiquidGlassAdvancedSettings) -> Unit,
     onReadabilityModeChanged: (LiquidGlassReadabilityMode) -> Unit,
+    onImportSettings: () -> Unit,
     onShareSettings: () -> Unit,
+    isImportingSettings: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -147,12 +150,12 @@ internal fun LiquidGlassAdjustmentPanel(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 AppText(
-                    text = "液态玻璃质感",
+                    text = "实时预览与调节",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                 )
                 AppText(
-                    text = "底栏遵循 Miuix 上游基准；顶部栏、搜索框和选择控件按高度适配",
+                    text = "先选择一个预设，再按需要微调；修改会自动保存并应用到首页",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -178,7 +181,7 @@ internal fun LiquidGlassAdjustmentPanel(
         )
 
         AppText(
-            text = "内容可读性方案",
+            text = "图标与文字颜色",
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
         )
@@ -187,11 +190,11 @@ internal fun LiquidGlassAdjustmentPanel(
                 listOf(
                     com.android.purebilibili.core.ui.components.AppSegmentOption(
                         LiquidGlassReadabilityMode.STABLE,
-                        "稳定内容色",
+                        "固定主题色",
                     ),
                     com.android.purebilibili.core.ui.components.AppSegmentOption(
                         LiquidGlassReadabilityMode.ADAPTIVE,
-                        "自动适配",
+                        "随背景调整",
                     ),
                 )
             },
@@ -204,9 +207,9 @@ internal fun LiquidGlassAdjustmentPanel(
         )
         AppText(
             text = if (readabilityMode == LiquidGlassReadabilityMode.STABLE) {
-                "默认：图标与文字使用稳定主题色，不进行背景采样。"
+                "推荐：始终使用主题文字色，显示稳定，也更省电。"
             } else {
-                "自动：低频采样玻璃区域，并通过滞回阈值平滑切换内容明暗。"
+                "根据玻璃后方的明暗自动切换文字颜色，复杂背景下更易辨认。"
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -278,9 +281,9 @@ internal fun LiquidGlassAdjustmentPanel(
         }
         AppText(
             text = if (previewImageUri == null) {
-                "左右滑动切换内置背景，上下拖动查看长图；调节滑杆时图片与玻璃效果实时跟随。"
+                "左右滑动可更换测试背景，上下拖动可检查不同内容区域。"
             } else {
-                "所选图片仅用于本页预览；可上下拖动背景，滑杆效果实时跟随。"
+                "这张图片只用于效果预览，不会设为首页背景或分享给别人。"
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -351,30 +354,53 @@ internal fun LiquidGlassAdjustmentPanel(
         }
         AppText(
             text = when (advancedSettings.preset) {
-                LiquidGlassAdvancedPreset.READABLE -> "清晰：关闭内容扭曲，优先保证文字和图标正常显示"
-                LiquidGlassAdvancedPreset.BALANCED -> "均衡：采用 Miuix 上游基准质感"
-                LiquidGlassAdvancedPreset.PRISM -> "棱镜：强化色散与内容折射"
-                LiquidGlassAdvancedPreset.CUSTOM -> "自定：使用下方高级参数"
+                LiquidGlassAdvancedPreset.READABLE -> "清晰：弱化折射和彩光，优先保证文字和图标清楚"
+                LiquidGlassAdvancedPreset.BALANCED -> "均衡：兼顾通透感、可读性和运行性能，适合日常使用"
+                LiquidGlassAdvancedPreset.PRISM -> "棱镜：加强边缘彩光和折射，效果更醒目"
+                LiquidGlassAdvancedPreset.CUSTOM -> "自定：已使用下方的高级参数"
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        AppText(
+            text = "导入与分享",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             AppTextButton(
-                onClick = { advancedSettingsExpanded = !advancedSettingsExpanded },
+                onClick = onImportSettings,
+                enabled = !isImportingSettings,
+                modifier = Modifier.weight(1f),
             ) {
-                Icon(Icons.Outlined.Tune, contentDescription = null)
+                Icon(Icons.Outlined.FileDownload, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
-                AppText(if (advancedSettingsExpanded) "收起高级参数" else "高级参数")
+                AppText(if (isImportingSettings) "正在读取" else "导入他人设置")
             }
-            AppTextButton(onClick = onShareSettings) {
+            AppTextButton(
+                onClick = onShareSettings,
+                enabled = !isImportingSettings,
+                modifier = Modifier.weight(1f),
+            ) {
                 Icon(Icons.Outlined.Share, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
-                AppText("一键分享设置")
+                AppText("分享我的设置")
             }
+        }
+        AppText(
+            text = "导入前会先确认，只替换液态玻璃参数；分享文件不包含预览图片和其他设置。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        AppTextButton(
+            onClick = { advancedSettingsExpanded = !advancedSettingsExpanded },
+        ) {
+            Icon(Icons.Outlined.Tune, contentDescription = null)
+            Spacer(modifier = Modifier.width(6.dp))
+            AppText(if (advancedSettingsExpanded) "收起高级调节" else "展开高级调节")
         }
         AnimatedVisibility(
             visible = advancedSettingsExpanded,
@@ -383,8 +409,8 @@ internal fun LiquidGlassAdjustmentPanel(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LiquidGlassAdvancedSlider(
-                    title = "内容可读性",
-                    description = "通透度越高，越主动保护图标和文字对比度",
+                    title = "文字清晰度保护",
+                    description = "数值越高，越优先保证图标和文字与背景有足够对比度",
                     value = advancedSettings.contentReadability,
                     onValueChange = { value ->
                         val updatedSettings = advancedSettings.copy(
@@ -399,8 +425,8 @@ internal fun LiquidGlassAdjustmentPanel(
                     },
                 )
                 LiquidGlassAdvancedSlider(
-                    title = "色散强度",
-                    description = "控制玻璃边缘的彩色分离效果",
+                    title = "边缘彩光",
+                    description = "控制玻璃边缘出现彩色光晕的明显程度",
                     value = advancedSettings.chromaticAberration,
                     onValueChange = { value ->
                         val updatedSettings = advancedSettings.copy(
@@ -415,8 +441,8 @@ internal fun LiquidGlassAdjustmentPanel(
                     },
                 )
                 LiquidGlassAdvancedSlider(
-                    title = "文字与图标扭曲",
-                    description = "调至 0% 可完全关闭折射，让文字和图标正常显示",
+                    title = "内容折射",
+                    description = "控制文字和图标随玻璃产生形变的程度；调至 0% 可完全关闭",
                     value = advancedSettings.contentDistortion,
                     valueText = if (advancedSettings.contentDistortion <= 0.001f) {
                         "关闭"
@@ -449,7 +475,7 @@ internal fun LiquidGlassAdjustmentPanel(
                 ) {
                     Icon(Icons.Outlined.Restore, contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
-                    AppText("完全关闭文字扭曲")
+                    AppText("关闭内容折射")
                 }
             }
         }
@@ -484,7 +510,7 @@ internal fun LiquidGlassAdjustmentPanel(
         }
 
         AppText(
-            text = "拖动时仅实时更新预览，松手后保存；50% 为 Miuix 上游基准效果。",
+            text = "拖动时实时预览，松手后自动保存；中间位置是推荐强度。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

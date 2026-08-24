@@ -37,6 +37,10 @@ class MineSideDrawerVisualPolicyTest {
         assertTrue(drawerSource.contains("skinBackgroundImagePath: String? = null"))
         assertTrue(drawerSource.contains("model = File(requireNotNull(skinBackgroundImagePath))"))
         assertTrue(homeSource.contains("skinBackgroundImagePath = homeUiSkinDecoration?.sideBackgroundImagePath"))
+        assertTrue(drawerSource.contains("skinBottomTrimImagePath: String? = null"))
+        assertTrue(drawerSource.contains("model = File(skinBottomTrimImagePath)"))
+        assertTrue(homeSource.contains("skinBottomTrimImagePath = homeUiSkinDecoration?.sideBottomTrimImagePath"))
+        assertTrue(homeSource.contains("skinBackgroundTint = homeUiSkinDecoration?.sideBackgroundTint"))
     }
 
     @Test

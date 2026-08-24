@@ -73,13 +73,13 @@ class HomeChromeLiquidSurfaceStructureTest {
             "home header should draw a bottom-bar matched dock around top tabs inside the unified top panel",
             topHeaderSource.contains("val topTabDockChromeRenderMode = if (") &&
                 topHeaderSource.contains("unifiedLocalTabChromeRenderMode == HomeTopChromeRenderMode.PLAIN") &&
-                topHeaderSource.contains("val useTopTabBottomBarMatchedDock =") &&
-                topHeaderSource.contains("effectiveTabMaterialMode == TopTabMaterialMode.LIQUID_GLASS") &&
+                topHeaderSource.contains("val topTabLiquidGlassEnabled =") &&
+                topHeaderSource.contains("val useTopTabBottomBarMatchedDock = true") &&
                 topHeaderSource.contains("topTabDockChromeRenderMode == HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP") &&
-                topHeaderSource.contains("val drawTopTabDockChrome = drawTopTabOuterChromeSurface || useTopTabBottomBarMatchedDock") &&
+                topHeaderSource.contains("val drawTopTabDockChrome = drawTopTabOuterChromeSurface || useDetachedTopTabDock") &&
                 topHeaderSource.contains("drawChromeSurface = drawTopTabDockChrome") &&
                 topHeaderSource.contains("useBottomBarMatchedSurface = useTopTabBottomBarMatchedDock") &&
-                topHeaderSource.contains("drawMatchedShellLens = useTopTabBottomBarMatchedDock") &&
+                topHeaderSource.contains("drawMatchedShellLens = topTabLiquidGlassEnabled") &&
                 topHeaderSource.contains("matchedShellLensIntensity = resolveFloatingDockGeometryScale(") &&
                 topHeaderSource.contains("tabChromeRenderMode = if (useTopTabBottomBarMatchedDock)") &&
                 topHeaderSource.contains("val bottomBarLiquidGlassPreset = homeSettings?.bottomBarLiquidGlassPreset") &&

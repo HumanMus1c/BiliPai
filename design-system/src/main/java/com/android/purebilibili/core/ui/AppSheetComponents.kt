@@ -13,14 +13,18 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -32,6 +36,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
@@ -41,6 +48,35 @@ data class AdaptiveBottomSheetVisualSpec(
     val cornerRadiusDp: Int,
     val useMaterialDragHandle: Boolean
 )
+
+enum class AppModalPresentation {
+    BottomSheet,
+    CenteredDialog,
+}
+
+data class AppModalLayoutSpec(
+    val presentation: AppModalPresentation,
+    val maxWidthDp: Int,
+    val maxHeightFraction: Float,
+)
+
+fun resolveAppModalLayoutSpec(windowWidthDp: Int): AppModalLayoutSpec = when {
+    windowWidthDp < 600 -> AppModalLayoutSpec(
+        presentation = AppModalPresentation.BottomSheet,
+        maxWidthDp = windowWidthDp,
+        maxHeightFraction = 1f,
+    )
+    windowWidthDp < 1200 -> AppModalLayoutSpec(
+        presentation = AppModalPresentation.CenteredDialog,
+        maxWidthDp = 640,
+        maxHeightFraction = 0.86f,
+    )
+    else -> AppModalLayoutSpec(
+        presentation = AppModalPresentation.CenteredDialog,
+        maxWidthDp = 720,
+        maxHeightFraction = 0.86f,
+    )
+}
 
 internal data class AdaptiveBottomSheetMotionSpec(
     val scrimEnterDurationMillis: Int,
@@ -134,7 +170,7 @@ internal fun bottomSheetContentExitTransition(
 }
 
 /**
- * App 通用 Modal Bottom Sheet facade。
+ * App 通用模态弹层 facade。紧凑窗口使用底部弹层，Medium 及以上使用限宽居中弹层。
  *
  * 使用 Material3 ModalBottomSheet 作为中性宿主：即使宿主契约
  * （[resolveBottomSheetHost]）在 MIUIX 下解析为 [BottomSheetHost.MIUIX_OVERLAY]，
@@ -160,6 +196,10 @@ fun AppModalBottomSheet(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val uiStyle = LocalAppUiStyle.current
+    val configuration = LocalConfiguration.current
+    val layoutSpec = remember(configuration.screenWidthDp) {
+        resolveAppModalLayoutSpec(configuration.screenWidthDp)
+    }
     val visualSpec = remember(uiStyle) {
         resolveAdaptiveBottomSheetVisualSpec(uiStyle)
     }
@@ -170,6 +210,7 @@ fun AppModalBottomSheet(
         )
     }
     val sheetShape = shape ?: adaptiveSheetShape
+    val centeredSheetShape = shape ?: RoundedCornerShape(visualSpec.cornerRadiusDp.dp)
     val progressVisual = resolveInteractiveOverlayProgressVisual(
         presentationProgress = presentationProgress,
         surfaceType = InteractiveOverlaySurfaceType.BOTTOM_SHEET,
@@ -181,6 +222,38 @@ fun AppModalBottomSheet(
         AppUiStyle.MATERIAL3 -> MaterialTheme.colorScheme.surfaceContainerLow
     }.let { color ->
         color.copy(alpha = color.alpha * progressVisual.surfaceAlphaMultiplier)
+    }
+    if (layoutSpec.presentation == AppModalPresentation.CenteredDialog) {
+        Dialog(
+            onDismissRequest = onDismissRequest,
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .widthIn(max = layoutSpec.maxWidthDp.dp)
+                        .heightIn(
+                            max = (configuration.screenHeightDp *
+                                layoutSpec.maxHeightFraction).dp
+                        )
+                        .then(modifier)
+                        .fillMaxWidth(),
+                    shape = centeredSheetShape,
+                    color = resolvedContainerColor,
+                    contentColor = contentColor,
+                    tonalElevation = tonalElevation,
+                ) {
+                    Column(content = content)
+                }
+            }
+        }
+        return
     }
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,

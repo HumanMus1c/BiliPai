@@ -1,7 +1,6 @@
 package com.android.purebilibili.core.ui.renderer.material3
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.PrimaryTabRow
@@ -93,7 +92,6 @@ internal fun <T> AppMaterial3TabRow(
                 selected = selected,
                 onClick = { onSelectionChange(option.value) },
                 enabled = enabled,
-                modifier = Modifier.heightIn(min = 48.dp),
                 text = {
                     Text(
                         text = option.label,

@@ -90,6 +90,8 @@ fun MineSideDrawer(
     liquidGlassEnabled: Boolean = false,
     liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
     skinBackgroundImagePath: String? = null,
+    skinBottomTrimImagePath: String? = null,
+    skinBackgroundTint: Color? = null,
 ) {
     val scope = rememberCoroutineScope()
     val configuration = LocalConfiguration.current
@@ -221,6 +223,27 @@ fun MineSideDrawer(
                     modifier = Modifier
                         .matchParentSize()
                         .alpha(if (isDark) 0.58f else 0.72f)
+                        .clearAndSetSemantics {}
+                )
+            }
+            if (!skinBottomTrimImagePath.isNullOrBlank()) {
+                AsyncImage(
+                    model = File(skinBottomTrimImagePath),
+                    contentDescription = null,
+                    contentScale = ContentScale.FillWidth,
+                    alignment = Alignment.BottomCenter,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .alpha(0.90f)
+                        .clearAndSetSemantics {}
+                )
+            }
+            if (skinBackgroundTint != null && skinBackgroundTint != Color.Transparent) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(skinBackgroundTint.copy(alpha = 0.16f))
                         .clearAndSetSemantics {}
                 )
             }

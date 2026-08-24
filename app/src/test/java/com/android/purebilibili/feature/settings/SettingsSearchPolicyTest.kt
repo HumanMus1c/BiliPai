@@ -112,7 +112,7 @@ class SettingsSearchPolicyTest {
     fun queryByCustomMd3Color_focusesAppearanceThemeSection() {
         val results = resolveSettingsSearchResults("自定义md3颜色")
 
-        assertEquals("自定义 MD3 颜色", results.firstOrNull()?.title)
+        assertEquals("自定义主题颜色", results.firstOrNull()?.title)
         assertTrue(
             results.any {
                 it.target == SettingsSearchTarget.APPEARANCE &&

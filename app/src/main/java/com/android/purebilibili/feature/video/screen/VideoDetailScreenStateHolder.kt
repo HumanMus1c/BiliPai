@@ -39,7 +39,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleOut
-import androidx.activity.compose.BackHandler
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
@@ -106,6 +105,9 @@ import com.android.purebilibili.core.ui.blur.rememberRecoverableHazeState
 import com.android.purebilibili.core.store.PortraitPlayerCollapseMode
 import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.AppWindowSystemUiController
+import com.android.purebilibili.core.ui.setWindowNavigationBarColor
+import com.android.purebilibili.core.ui.setWindowStatusBarColor
 //  已改用 MaterialTheme.colorScheme.primary
 
 import com.android.purebilibili.data.model.response.RelatedVideo
@@ -1019,8 +1021,10 @@ internal fun VideoDetailScreenStateHolder(
 
     val interactiveChoicePanel by viewModel.interactiveChoicePanel.collectAsStateWithLifecycle()
 
-    // 📐 [大屏适配] 仅 Expanded 才启用平板分栏布局
+    // 📐 大屏与分离式折叠姿态使用分栏；紧凑高度强制回退单栏。
     val windowSizeClass = com.android.purebilibili.core.util.LocalWindowSizeClass.current
+    val appWindowAdaptiveInfo =
+        com.android.purebilibili.core.util.LocalAppWindowAdaptiveInfo.current
     val isFlatFoldable = com.android.purebilibili.core.util.rememberIsFlatFoldable()
     val horizontalAdaptationEnabled by com.android.purebilibili.core.store.SettingsManager
         .getHorizontalAdaptationEnabled(context)
@@ -1035,10 +1039,12 @@ internal fun VideoDetailScreenStateHolder(
                 .getHideVideoPageStatusBarSync(context),
             lifecycle = lifecycleOwner.lifecycle
         )
-    val useTabletLayout = shouldUseTabletVideoLayout(
-        isExpandedScreen = windowSizeClass.isExpandedScreen,
-        isTabletDevice = windowSizeClass.isTabletDevice
-    ) && horizontalAdaptationEnabled
+    val useTabletLayout = (
+        shouldUseTabletVideoLayout(
+            isExpandedScreen = windowSizeClass.isExpandedScreen,
+            isTabletDevice = windowSizeClass.isTablet,
+        ) && windowSizeClass.shouldUseSplitLayout || appWindowAdaptiveInfo.shouldAvoidHinge
+        ) && horizontalAdaptationEnabled
 
     // 🔧 [修复] 追踪用户是否主动请求全屏（点击全屏按钮）
     // 使用 rememberSaveable 确保状态在横竖屏切换时保持
@@ -1234,8 +1240,8 @@ internal fun VideoDetailScreenStateHolder(
                 insetsController.systemBarsBehavior = originalSystemBarsSnapshot.systemBarsBehavior
                 insetsController.isAppearanceLightStatusBars = originalSystemBarsSnapshot.lightStatusBars
                 insetsController.isAppearanceLightNavigationBars = originalSystemBarsSnapshot.lightNavigationBars
-                window.statusBarColor = originalSystemBarsSnapshot.statusBarColor
-                window.navigationBarColor = originalSystemBarsSnapshot.navigationBarColor
+                setWindowStatusBarColor(window, originalSystemBarsSnapshot.statusBarColor)
+                setWindowNavigationBarColor(window, originalSystemBarsSnapshot.navigationBarColor)
             }
         }
     }
@@ -1508,7 +1514,7 @@ internal fun VideoDetailScreenStateHolder(
     DisposableEffect(Unit) {
         //  [沉浸式] 启用边到边显示，让内容延伸到状态栏下方
         if (window != null) {
-            WindowCompat.setDecorFitsSystemWindows(window, false)
+            AppWindowSystemUiController.ensureEdgeToEdge(window)
         }
 
         onDispose {

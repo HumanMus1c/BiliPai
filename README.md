@@ -14,7 +14,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Release-0.2.3--beta.10-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.10" />
+  <img src="https://img.shields.io/badge/Release-0.2.3--beta.11-007AFF?style=flat-square&labelColor=ffffff" alt="Release 0.2.3-beta.11" />
   <img src="https://img.shields.io/badge/Android-8.0%2B-34C759?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+" />
   <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin" />
   <img src="https://img.shields.io/badge/License-Non--Commercial-FF3B30?style=flat-square" alt="Non-Commercial License" />
@@ -39,6 +39,17 @@
 
 ---
 
+## 仓库导航
+
+| 我想要…… | 快速入口 |
+| --- | --- |
+| 下载与体验 | [下载说明](#下载与安装) · [版本变更](CHANGELOG.md) · [Telegram 频道](https://t.me/bilipai666) · [常见问题](docs/wiki/FAQ.md) |
+| 了解项目 | [真机预览](#真机预览) · [核心能力](#核心能力) · [功能矩阵](docs/wiki/FEATURE_MATRIX.md) · [路线图](docs/wiki/ROADMAP.md) |
+| 阅读文档 | [Wiki 首页](docs/wiki/README.md) · [架构说明](docs/wiki/ARCHITECTURE.md) · [UI 设计规范](docs/wiki/ui-design/README.md) · [QA 手册](docs/wiki/QA.md) |
+| 开发与构建 | [构建说明](#构建) · [代码结构规范](STRUCTURE_GUIDELINES.adoc) · [版本规范](docs/wiki/VERSIONING.md) · [发布流程](docs/wiki/RELEASE_WORKFLOW.md) |
+| 开发插件 | [JSON 插件](docs/PLUGIN_DEVELOPMENT.md) · [原生插件](docs/NATIVE_PLUGIN_DEVELOPMENT.md) · [Plugin SDK](plugins/sdk/README.md) · [示例](plugins/samples/) |
+| 参与项目 | [贡献说明](#参与贡献) · [提交 Issue](https://github.com/jay3-yy/BiliPai/issues/new/choose) · [Pull Requests](https://github.com/jay3-yy/BiliPai/pulls) · [AI / LLM 入口](llms.txt) |
+
 ## 项目定位
 
 BiliPai 是一个基于 Kotlin 与 Jetpack Compose 的第三方 Bilibili Android 客户端，覆盖视频、番剧、直播、动态、消息、离线缓存等日常使用流程，并支持插件扩展与平板/折叠屏等大屏形态。
@@ -60,10 +71,13 @@ BiliPai 是一个基于 Kotlin 与 Jetpack Compose 的第三方 Bilibili Android
 
 <img src="docs/images/screenshot1.png" height="440" alt="BiliPai screenshot 1" />
 <img src="docs/images/screenshot2.png" height="440" alt="BiliPai screenshot 2" />
+<img src="docs/images/screenshot3.png" height="440" alt="BiliPai screenshot 3" />
 <img src="docs/images/screenshot4.png" height="440" alt="BiliPai screenshot 4" />
 <img src="docs/images/screenshot5.png" height="440" alt="BiliPai screenshot 5" />
 <img src="docs/images/screenshot6.png" height="440" alt="BiliPai screenshot 6" />
 <img src="docs/images/screenshot7.png" height="440" alt="BiliPai screenshot 7" />
+<img src="docs/images/screenshot8.png" height="440" alt="BiliPai screenshot 8" />
+<img src="docs/images/screenshot9.png" height="440" alt="BiliPai screenshot 9" />
 
 </div>
 
@@ -175,7 +189,7 @@ cd BiliPai
 ./gradlew :app:assembleDev
 ```
 
-完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.10-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.10.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
+完成后可安装交付包位于 `app/build/outputs/bilipai/dev/BiliPai-0.2.3-beta.11-dev.apk`。正式发布构建对应输出 `app/build/outputs/bilipai/release/BiliPai-0.2.3-beta.11.apk`；AGP 内部的 `app-*.apk` 不作为交付文件。
 
 `google-services.json` 是可选项：放入 `app/` 后启用 Firebase Crashlytics / Analytics；缺失时构建脚本会跳过相关能力。
 
@@ -196,13 +210,14 @@ cd BiliPai
 
 ## 最近更新
 
-当前构建为 `0.2.3-beta.10 / versionCode 300`；最新完整发布记录为 `v0.2.3-beta.10`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
+当前构建为 `0.2.3-beta.11 / versionCode 301`；最新完整发布记录为 `v0.2.3-beta.11`。源码与变更以 GitHub 和 [CHANGELOG.md](CHANGELOG.md) 为准；安装包与公告见 [Telegram 频道](https://t.me/bilipai666) / [交流群](https://t.me/bilipai888/1)：
 
-- 恢复短信、密码登录，并完善验证码、风险验证、设备身份和登录态保持。
-- 夜间护眼改为渐进暖色遮罩，插件启用或生效时增加应用内状态提示。
-- 液态分段控件与搜索标签统一为紧凑 Dock，首页顶部液态指示器和搜索状态恢复进一步优化。
-- 竖屏视频新增拖动缩略图预览，并修复播放上下文、弹幕时序、动态评论输入栏和「今日看点」折叠返回问题。
-- 完整 beta.9 → beta.10 说明见 [CHANGELOG.md](CHANGELOG.md)。
+- 完成归档主题皮肤适配，顶部装饰可延伸到标题区和状态栏，并兼容旧版频道图标与原生标签图标。
+- 新增发评反诈历史中心，支持重新检测、删除和 JSON 导入导出，同时修正评论分页与子回复检测算法。
+- 更换系统壁纸后会及时刷新 Monet 配色；液态玻璃预览新增他人设置导入，并完成全局设置文案优化。
+- 关闭液态玻璃后，共用分段控件统一使用 Material 3 下划线，动态顶部栏保留纯色 Dock；历史页折叠顶栏同步修正。
+- 修复播放器退出后的窗口亮度恢复，并减少收藏歌单的重复请求。
+- 完整 beta.10 → beta.11 说明见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 路线图
 
@@ -264,16 +279,6 @@ BiliPai 依赖并参考了多个优秀开源项目：
 [GNU General Public License v3.0](LICENSE)
 
 你可以依照 GPLv3 使用、研究、修改与分发本项目。分发修改版本或二进制作品时，须按 GPLv3 提供对应源代码并保留许可证与版权声明。
-
-## Star History
-
-<div align="center">
-
-[![Star History Chart](https://api.star-history.com/svg?repos=jay3-yy/BiliPai&type=Date)](https://github.com/jay3-yy/BiliPai/stargazers)
-
-</div>
-
----
 
 <div align="center">
 

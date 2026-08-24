@@ -2,7 +2,6 @@ package com.android.purebilibili.feature.video.ui.components
 
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -136,7 +135,7 @@ fun LandscapeDanmakuComposer(
         onSelectionChange(selectedColor, selectedMode, selectedFontSize)
     }
 
-    BackHandler(enabled = visible) {
+    com.android.purebilibili.core.ui.LocalNavigationBackHandler(enabled = visible) {
         onDismiss()
     }
 

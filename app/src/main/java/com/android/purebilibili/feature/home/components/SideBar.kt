@@ -103,7 +103,8 @@ fun FrostedSideBar(
     onToggleSidebar: (() -> Unit)? = null,
     onAccountSwitchClick: (() -> Unit)? = null,
 ) {
-    if (rememberAppNavigationCapabilities().usePlatformSideRail) {
+    ProvideBottomBarSkinMotion(uiSkinDecoration) {
+        if (rememberAppNavigationCapabilities().usePlatformSideRail) {
             MiuixSideBar(
                 currentItem = currentItem,
                 onItemClick = onItemClick,
@@ -117,7 +118,7 @@ fun FrostedSideBar(
                 onToggleSidebar = onToggleSidebar,
                 onAccountSwitchClick = onAccountSwitchClick,
             )
-    } else {
+        } else {
             FrostedSideBarContent(
                 currentItem = currentItem,
                 onItemClick = onItemClick,
@@ -131,6 +132,7 @@ fun FrostedSideBar(
                 onToggleSidebar = onToggleSidebar,
                 onAccountSwitchClick = onAccountSwitchClick,
             )
+        }
     }
 }
 
@@ -150,7 +152,7 @@ private fun MiuixSideBar(
 ) {
     val haptic = rememberHapticFeedback()
     val isExpandedWidthClass =
-        LocalWindowSizeClass.current.widthSizeClass == WindowWidthSizeClass.Expanded
+        LocalWindowSizeClass.current.widthSizeClass >= WindowWidthSizeClass.Expanded
     val expandable = shouldUseExpandableMiuixSideBar(isExpandedWidthClass)
     val chromeBackground = AppSurfaceTokens.surface()
     val globalWallpaperVisible = LocalGlobalWallpaperBackdropVisible.current
@@ -296,6 +298,7 @@ private fun ColumnScope.MiuixSideBarSkinItem(
                 BottomBarSkinIcon(
                     iconPath = skinIconPath,
                     contentDescription = label,
+                    selected = selected,
                     size = resolveBottomBarMiuixSkinDockIconSize()
                 )
             }
@@ -478,6 +481,7 @@ private fun FrostedSideBarContent(
                                 BottomBarSkinIcon(
                                     iconPath = skinIconPath,
                                     contentDescription = itemLabel,
+                                    selected = isSelected,
                                     size = resolveBottomBarMiuixSkinDockIconSize()
                                 )
                             } else {

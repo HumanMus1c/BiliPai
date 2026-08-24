@@ -86,22 +86,6 @@ fun PermissionSettingsContent(
 ) {
     val context = LocalContext.current
 
-    //  [修复] 设置导航栏透明，确保底部手势栏沉浸式效果
-    androidx.compose.runtime.DisposableEffect(Unit) {
-        val window = (context as? android.app.Activity)?.window
-        val originalNavBarColor = window?.navigationBarColor ?: android.graphics.Color.TRANSPARENT
-        
-        if (window != null) {
-            window.navigationBarColor = android.graphics.Color.TRANSPARENT
-        }
-        
-        onDispose {
-            if (window != null) {
-                window.navigationBarColor = originalNavBarColor
-            }
-        }
-    }
-    
     // 权限列表数据
     val permissions = remember {
         listOf(

@@ -158,6 +158,30 @@ class SettingsSharePolicyTest {
     }
 
     @Test
+    fun filterSettingsShareSections_keepsOnlyRequestedKeysAcrossSections() {
+        val sections = SettingsShareSections(
+            appearance = mapOf(
+                "liquid_glass_progress" to JsonPrimitive(0.5f),
+                "theme_mode" to JsonPrimitive(2),
+            ),
+            playback = mapOf("auto_play" to JsonPrimitive(true)),
+            navigation = mapOf("bottom_glass" to JsonPrimitive(true)),
+        )
+
+        val filtered = filterSettingsShareSections(
+            sections = sections,
+            allowedKeys = setOf("liquid_glass_progress", "bottom_glass"),
+        )
+
+        assertEquals(
+            mapOf("liquid_glass_progress" to JsonPrimitive(0.5f)),
+            filtered.appearance,
+        )
+        assertEquals(mapOf("bottom_glass" to JsonPrimitive(true)), filtered.navigation)
+        assertTrue(filtered.playback.isEmpty())
+    }
+
+    @Test
     fun exportProfile_canAttachDeviceDebugSnapshot() {
         val debug = buildSettingsShareDeviceDebugInfo(
             androidSdkInt = 35,

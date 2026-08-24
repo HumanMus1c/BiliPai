@@ -139,6 +139,9 @@ internal class ListenVideoViewModel(
     }
 
     fun openPlaylist(playlist: ListenVideoPlaylist) {
+        // Playlist covers are best-effort. Stop their background requests before loading
+        // the user-selected folder so the favorite endpoint does not trip HTTP 412.
+        refreshJob?.cancel()
         loadDetail(playlist.title) { loader.loadFolder(playlist.mediaId) }
     }
 

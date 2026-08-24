@@ -161,6 +161,7 @@ import com.android.purebilibili.feature.home.components.BottomNavItem
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockEdge
 import com.android.purebilibili.feature.home.components.BottomBarMatchedDockVisibility
 import com.android.purebilibili.feature.home.components.rememberBottomBarUiSkinDecoration
+import com.android.purebilibili.feature.home.components.rememberDynamicPublishSkinDecoration
 import com.android.purebilibili.feature.home.components.rememberHomeUiSkinDecoration
 import com.android.purebilibili.feature.profile.shouldShowProfileHistoryService
 import com.android.purebilibili.core.store.AppNavigationSettings
@@ -379,6 +380,7 @@ fun AppNavigation(
     val uiSkinState by rememberUiSkinState(context)
     val bottomBarUiSkinDecoration = rememberBottomBarUiSkinDecoration(uiSkinState)
     val homeUiSkinDecoration = rememberHomeUiSkinDecoration(uiSkinState)
+    val dynamicPublishSkinDecoration = rememberDynamicPublishSkinDecoration(uiSkinState)
     val appearance = remember(homeSettings) {
         resolveAppNavigationAppearance(
             homeSettings = homeSettings,
@@ -2197,6 +2199,7 @@ fun AppNavigation(
                             onBack = { pushNavigation3Route(ScreenRoutes.Home.route) },
                             onLoginClick = { pushNavigation3Key(BiliPaiNavKey.Login) },
                             onHomeClick = { pushNavigation3Route(ScreenRoutes.Home.route) },
+                            publishSkinDecoration = dynamicPublishSkinDecoration,
                             globalHazeState = mainHazeState
                         )
                         BiliPaiNavEntryContentRole.SEARCH -> {
@@ -2341,6 +2344,8 @@ fun AppNavigation(
                                 onBangumiMoreClick = { navigateFromProfile(ScreenRoutes.Bangumi.createRoute(1)) },
                                 skinBackgroundImagePath = homeUiSkinDecoration?.profileBackgroundImagePath,
                                 skinSquaredBackgroundImagePath = homeUiSkinDecoration?.profileSquaredBackgroundImagePath,
+                                skinVideoBackgroundPath = homeUiSkinDecoration?.profileVideoBackgroundPath,
+                                skinVideoPlayMode = homeUiSkinDecoration?.profileVideoPlayMode,
                                 deferImmersiveRenderBudget = bottomPagerRenderBudget.deferProfileImmersiveBackground,
                                 scrollToTopChannel = profileScrollChannel
                             )

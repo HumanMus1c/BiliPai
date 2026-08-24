@@ -5,12 +5,29 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.store.ThemeModeRoleOverrides
 import com.android.purebilibili.core.store.ThemeRoleOverrides
+import com.android.purebilibili.feature.settings.Md3ColorSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ThemeRoleOverridePolicyTest {
+
+    @Test
+    fun wallpaperSource_disablesAppRoleOverridesWithoutDeletingThem() {
+        val overrides = ThemeRoleOverrides(enabled = true)
+
+        val wallpaperResult = resolveEffectiveThemeRoleOverrides(
+            Md3ColorSource.FOLLOW_WALLPAPER,
+            overrides
+        )
+        val customResult = resolveEffectiveThemeRoleOverrides(Md3ColorSource.CUSTOM, overrides)
+
+        assertFalse(wallpaperResult.enabled)
+        assertEquals(overrides.light, wallpaperResult.light)
+        assertEquals(overrides.dark, wallpaperResult.dark)
+        assertEquals(overrides, customResult)
+    }
 
     @Test
     fun enabledOverrides_replaceMaterialRolesAndChooseReadableButtonText() {

@@ -34,6 +34,9 @@ internal fun resolveColorSpecOptions(): List<AppSegmentOption<ColorSpec.SpecVers
     }
 }
 
+internal fun shouldShowMd3CustomColorControls(source: Md3ColorSource): Boolean =
+    source == Md3ColorSource.CUSTOM
+
 internal fun resolveMd3ColorSourceOptions(): List<AppSegmentOption<Md3ColorSource>> {
     return listOf(
         AppSegmentOption(Md3ColorSource.FOLLOW_WALLPAPER, Md3ColorSource.FOLLOW_WALLPAPER.label),

@@ -7,3 +7,17 @@ package com.android.purebilibili.feature.home
  * 再次 show(statusBars)，否则会覆盖“播放页隐藏状态栏”的用户选择。
  */
 internal fun shouldApplyHomeSystemBars(isTopLevelActive: Boolean): Boolean = isTopLevelActive
+
+internal fun resolveHomeStatusBarDarkIcons(
+    hasTopSkinArtwork: Boolean,
+    skinColorMode: String?,
+    topSkinTintIsLight: Boolean,
+    defaultBackgroundIsLight: Boolean,
+): Boolean {
+    if (!hasTopSkinArtwork) return defaultBackgroundIsLight
+    return when (skinColorMode?.trim()?.lowercase()) {
+        "dark" -> false
+        "light" -> true
+        else -> topSkinTintIsLight
+    }
+}

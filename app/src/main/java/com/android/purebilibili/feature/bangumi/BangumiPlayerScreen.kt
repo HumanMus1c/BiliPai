@@ -32,6 +32,8 @@ import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.ui.AppSurfaceTokens
+import com.android.purebilibili.core.ui.setWindowNavigationBarColor
+import com.android.purebilibili.core.ui.setWindowStatusBarColor
 import com.android.purebilibili.feature.video.danmaku.rememberDanmakuManager
 import com.android.purebilibili.feature.video.player.MiniPlayerManager
 import com.android.purebilibili.feature.video.player.PlaylistItem
@@ -439,12 +441,12 @@ fun BangumiPlayerScreen(
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = 
                     androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                window.statusBarColor = Color.Black.toArgb()
-                window.navigationBarColor = Color.Black.toArgb()
+                setWindowStatusBarColor(window, Color.Black.toArgb())
+                setWindowNavigationBarColor(window, Color.Black.toArgb())
             } else {
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
-                window.statusBarColor = Color.Transparent.toArgb()
-                window.navigationBarColor = Color.Transparent.toArgb()
+                setWindowStatusBarColor(window, Color.Transparent.toArgb())
+                setWindowNavigationBarColor(window, Color.Transparent.toArgb())
             }
         }
     }

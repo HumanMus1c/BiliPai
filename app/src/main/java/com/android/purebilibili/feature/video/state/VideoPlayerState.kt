@@ -1152,8 +1152,14 @@ fun rememberVideoPlayerState(
                 }
             }
             
-            (context as? ComponentActivity)?.window?.attributes?.screenBrightness =
-                WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            // Window attributes must be assigned back after mutation. Merely changing the
+            // object returned by Window#getAttributes does not reliably notify WindowManager,
+            // which can leave the player brightness override active after navigation.
+            (context as? ComponentActivity)?.window?.let { window ->
+                val layoutParams = window.attributes
+                layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                window.attributes = layoutParams
+            }
         }
     }
 

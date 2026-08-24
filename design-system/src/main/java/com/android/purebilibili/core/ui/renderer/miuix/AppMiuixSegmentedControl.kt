@@ -7,14 +7,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.android.purebilibili.core.ui.AppMiuixSegmentedItemHeightDp
-import com.android.purebilibili.core.ui.AppNativeTabRowHeightDp
 import com.android.purebilibili.core.ui.adaptiveSquircleBackground
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppSegmentedControlColors
 import com.android.purebilibili.core.ui.components.resolveAppMiuixSegmentedColors
 import com.android.purebilibili.core.ui.components.resolveAppSegmentedSelectionIndex
-import com.android.purebilibili.core.ui.resolveHeightCappedCornerRadius
+import com.android.purebilibili.core.ui.resolveRoundedControlVisualGeometry
 import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.TabRowDefaults
 
@@ -24,23 +22,26 @@ internal fun <T> AppMiuixSegmentedControl(
     selectedValue: T,
     enabled: Boolean,
     colors: AppSegmentedControlColors,
-    pillCornerRadius: Dp,
+    preferredCornerRadius: Dp,
     modifier: Modifier,
     onSelectionChange: (T) -> Unit,
 ) {
     val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
     val tabColors = resolveAppMiuixSegmentedColors(colors)
-    val itemHeight = AppMiuixSegmentedItemHeightDp.dp
-    val corner = resolveHeightCappedCornerRadius(itemHeight, pillCornerRadius)
-    // Outer track is itemHeight + 8dp padding; cap that shell separately.
-    val outerHeight = itemHeight + 8.dp
-    val outerCorner = resolveHeightCappedCornerRadius(outerHeight, pillCornerRadius)
+    val itemGeometry = resolveRoundedControlVisualGeometry(
+        preferredCornerRadius = preferredCornerRadius,
+        nativeMinimumHeight = TabRowDefaults.TabRowHeight,
+    )
+    val outerGeometry = resolveRoundedControlVisualGeometry(
+        preferredCornerRadius = preferredCornerRadius,
+        nativeMinimumHeight = itemGeometry.height + 8.dp,
+    )
     Box(
         modifier = modifier
             .fillMaxWidth()
             .adaptiveSquircleBackground(
                 color = colors.outerContainerColor,
-                cornerRadius = outerCorner,
+                cornerRadius = outerGeometry.cornerRadius,
             )
             .padding(4.dp),
     ) {
@@ -57,8 +58,8 @@ internal fun <T> AppMiuixSegmentedControl(
                 selectedBackgroundColor = tabColors.selectedBackgroundColor,
                 selectedContentColor = tabColors.selectedContentColor,
             ),
-            height = itemHeight,
-            cornerRadius = corner,
+            height = itemGeometry.height,
+            cornerRadius = itemGeometry.cornerRadius,
             itemSpacing = 4.dp,
             // 与 AppMiuixTabRow 一致：交给 Miuix 按容器宽度均分，避免默认 minWidth=76dp
             // 在选项较多时压缩文字。
@@ -76,15 +77,16 @@ internal fun <T> AppMiuixTabRow(
     scrollable: Boolean,
     minTabWidth: Dp,
     colors: AppSegmentedControlColors,
-    pillCornerRadius: Dp,
+    preferredCornerRadius: Dp,
     modifier: Modifier,
     onSelectionChange: (T) -> Unit,
 ) {
     val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
     val tabColors = resolveAppMiuixSegmentedColors(colors)
-    // 40dp (not 48): still ≥ min touch via outer padding; avoids half-height capsule look.
-    val itemHeight = AppNativeTabRowHeightDp.dp
-    val corner = resolveHeightCappedCornerRadius(itemHeight, pillCornerRadius)
+    val geometry = resolveRoundedControlVisualGeometry(
+        preferredCornerRadius = preferredCornerRadius,
+        nativeMinimumHeight = TabRowDefaults.TabRowHeight,
+    )
     TabRow(
         tabs = options.map { it.label },
         selectedTabIndex = selectedIndex,
@@ -102,8 +104,8 @@ internal fun <T> AppMiuixTabRow(
         // 一致；scrollable（如时间表/分类）：minTabWidth 兜底保证可读。
         minWidth = if (scrollable) minTabWidth else 0.dp,
         maxWidth = Dp.Infinity,
-        height = itemHeight,
-        cornerRadius = corner,
+        height = geometry.height,
+        cornerRadius = geometry.cornerRadius,
         itemSpacing = 8.dp,
     )
 }

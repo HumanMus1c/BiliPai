@@ -127,7 +127,7 @@ fun SettingsShareScreen(
                 contentPadding = PaddingValues(bottom = 24.dp),
             ) {
             item {
-                AppPreferenceSectionTitle("执行状态")
+                AppPreferenceSectionTitle("当前状态")
                 AppPreferenceGroup {
                     // 状态放 subtitle，避免右侧 value 窄列把长文案拆成「操作」单独一行。
                     AppPreference(
@@ -147,7 +147,7 @@ fun SettingsShareScreen(
                     AppPreference(
                         icon = Icons.Filled.CheckCircle,
                         title = "会一起分享的内容",
-                        subtitle = "外观、播放、手势、弹幕、导航等可交流设置",
+                        subtitle = "外观、播放、手势、弹幕和导航等不含隐私的设置",
                         onClick = null,
                         iconTint = iOSGreen,
                         showChevron = false
@@ -156,7 +156,7 @@ fun SettingsShareScreen(
                     AppPreference(
                         icon = Icons.Filled.Lock,
                         title = "会自动跳过的内容",
-                        subtitle = "账号、下载路径、WebDAV、隐私与设备相关配置",
+                        subtitle = "账号、保存路径、云备份账号、隐私和设备专属配置",
                         onClick = null,
                         iconTint = iOSPurple,
                         showChevron = false
@@ -169,7 +169,7 @@ fun SettingsShareScreen(
                 AppPreferenceGroup {
                     AppSwitchPreference(
                         title = "包含设备调试信息",
-                        subtitle = "安卓版本、UI 名称、密度、分辨率等，便于排查界面问题（导入时忽略）",
+                        subtitle = "附带安卓版本、界面风格和屏幕信息，便于排查问题；导入时不会应用",
                         checked = uiState.includeDeviceDebug,
                         onCheckedChange = viewModel::setIncludeDeviceDebug,
                         icon = Icons.Filled.BugReport,
@@ -185,9 +185,9 @@ fun SettingsShareScreen(
                         icon = Icons.Filled.Download,
                         title = "导出到文件",
                         subtitle = if (uiState.includeDeviceDebug) {
-                            "生成可分享的设置文件（含设备调试信息）"
+                            "保存设置文件，并附带设备排查信息"
                         } else {
-                            "生成可分享的设置文件（JSON）"
+                            "把可分享设置保存为文件"
                         },
                         onClick = {
                             exportLauncher.launch(
@@ -203,7 +203,7 @@ fun SettingsShareScreen(
                     AppPreference(
                         icon = Icons.Filled.Share,
                         title = "分享导出文件",
-                        subtitle = "导出后直接调起系统分享",
+                        subtitle = "生成设置文件后打开系统分享面板",
                         onClick = { viewModel.prepareShare() },
                         iconTint = iOSGreen
                     )
@@ -211,7 +211,7 @@ fun SettingsShareScreen(
                     AppPreference(
                         icon = Icons.Filled.UploadFile,
                         title = "从文件导入",
-                        subtitle = "预览可导入内容后再一键应用",
+                        subtitle = "先查看会修改哪些内容，确认后再应用",
                         onClick = { importLauncher.launch(arrayOf("application/json", "text/plain")) },
                         iconTint = iOSPink
                     )
@@ -224,7 +224,7 @@ fun SettingsShareScreen(
                     AppPreference(
                         icon = Icons.Filled.DataObject,
                         title = "设置包（JSON）",
-                        subtitle = "支持用户查看，也支持应用内一键导入",
+                        subtitle = "通用文本格式，可直接查看，也可在 BiliPai 中导入",
                         value = "格式版本 v$SETTINGS_SHARE_SCHEMA_VERSION",
                         onClick = null,
                         iconTint = iOSOrange,

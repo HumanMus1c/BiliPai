@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import com.android.purebilibili.core.ui.AppSplitLayout
 import com.android.purebilibili.core.ui.components.AppPrimaryTabRow
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -35,6 +34,7 @@ import com.android.purebilibili.core.ui.components.AppTab
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import com.android.purebilibili.core.util.ShareUtils
+import com.android.purebilibili.core.util.LocalWindowSizeClass
 import com.android.purebilibili.data.model.response.BgmInfo
 import com.android.purebilibili.data.model.response.ViewPoint
 import com.android.purebilibili.feature.common.resolveIndexedVideoLazyKey
@@ -156,6 +156,7 @@ internal fun TabletVideoLayout(
         basePrimaryRatio = layoutPolicy.primaryRatio,
         secondaryPaneMode = secondaryPaneMode
     )
+    val useThreePaneLayout = LocalWindowSizeClass.current.shouldUseThreePaneLayout
     
     // 🖥️ [修复] 使用 LocalContext 获取 Activity，而非 playerState.context
     val context = LocalContext.current
@@ -346,10 +347,37 @@ internal fun TabletVideoLayout(
                     showIdentityDecorations = commentMemberDecorationsEnabled,
                     onOpenBilibiliLink = onOpenBilibiliLink,
                     requestedTabName = requestedSecondaryTabName,
-                    onRequestedTabConsumed = { requestedSecondaryTabName = null }
+                    onRequestedTabConsumed = { requestedSecondaryTabName = null },
+                    fixedTab = if (useThreePaneLayout) TabletSecondaryTab.COMMENTS else null,
                 )
             }
         },
+        tertiaryContent = if (useThreePaneLayout) {
+            {
+                if (uiState is VideoPlaybackUiState.Success) {
+                    TabletSecondaryContent(
+                        success = uiState,
+                        commentState = commentState,
+                        subReplyState = subReplyState,
+                        playbackActions = playbackActions,
+                        commentActions = commentActions,
+                        playerState = playerState,
+                        onUpClick = onUpClick,
+                        paneMode = TabletSecondaryPaneMode.EXPANDED,
+                        onPaneModeChange = {},
+                        onPaneModeCycle = {},
+                        onRelatedVideoClick = onRelatedVideoClick,
+                        onSearchKeywordClick = onSearchKeywordClick,
+                        showUpBadge = showUpBadge,
+                        showIdentityDecorations = commentMemberDecorationsEnabled,
+                        onOpenBilibiliLink = onOpenBilibiliLink,
+                        requestedTabName = null,
+                        onRequestedTabConsumed = {},
+                        fixedTab = TabletSecondaryTab.RELATED,
+                    )
+                }
+            }
+        } else null,
         primaryRatio = primaryRatio
     )
 }
@@ -375,20 +403,25 @@ private fun TabletSecondaryContent(
     onSearchKeywordClick: (String) -> Unit,
     onOpenBilibiliLink: ((String) -> Unit)?,
     requestedTabName: String?,
-    onRequestedTabConsumed: () -> Unit
+    onRequestedTabConsumed: () -> Unit,
+    fixedTab: TabletSecondaryTab? = null,
 ) {
     val commentAppearance = rememberVideoCommentAppearance()
-    val tabs = remember(success.info.ugc_season, success.info.owner.mid) {
-        buildList {
-            add(TabletSecondaryTab.COMMENTS)
-            add(TabletSecondaryTab.RELATED)
-            if (success.info.ugc_season != null) add(TabletSecondaryTab.COLLECTION)
-            if (success.info.owner.mid > 0L) add(TabletSecondaryTab.OWNER_UPLOADS)
+    val tabs = remember(success.info.ugc_season, success.info.owner.mid, fixedTab) {
+        if (fixedTab != null) {
+            listOf(fixedTab)
+        } else {
+            buildList {
+                add(TabletSecondaryTab.COMMENTS)
+                add(TabletSecondaryTab.RELATED)
+                if (success.info.ugc_season != null) add(TabletSecondaryTab.COLLECTION)
+                if (success.info.owner.mid > 0L) add(TabletSecondaryTab.OWNER_UPLOADS)
+            }
         }
     }
-    var selectedTab by rememberSaveable(success.info.bvid) {
+    var selectedTab by rememberSaveable(success.info.bvid, fixedTab) {
         mutableIntStateOf(
-            resolveTabletSecondaryDefaultTab(
+            if (fixedTab != null) 0 else resolveTabletSecondaryDefaultTab(
                 replyCount = commentState.replyCount,
                 hasRelatedVideos = success.related.isNotEmpty()
             )
@@ -421,6 +454,7 @@ private fun TabletSecondaryContent(
         }
     }
     LaunchedEffect(requestedTabName, tabs) {
+        if (fixedTab != null) return@LaunchedEffect
         val requestedTab = requestedTabName?.let { name ->
             TabletSecondaryTab.entries.firstOrNull { it.name == name }
         }
@@ -431,7 +465,7 @@ private fun TabletSecondaryContent(
         }
     }
     LaunchedEffect(subReplyState.visible) {
-        if (subReplyState.visible) {
+        if (subReplyState.visible && fixedTab != TabletSecondaryTab.RELATED) {
             selectedTab = 0
             if (paneMode == TabletSecondaryPaneMode.COLLAPSED) {
                 onPaneModeChange(TabletSecondaryPaneMode.COMPACT)
@@ -482,7 +516,7 @@ private fun TabletSecondaryContent(
         )
     }
 
-    if (paneMode == TabletSecondaryPaneMode.COLLAPSED) {
+    if (fixedTab == null && paneMode == TabletSecondaryPaneMode.COLLAPSED) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -515,40 +549,48 @@ private fun TabletSecondaryContent(
             .statusBarsPadding()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.End
-        ) {
-            AppTextButton(onClick = onPaneModeCycle) {
-                AppText(
-                    when (paneMode) {
-                        TabletSecondaryPaneMode.EXPANDED -> "半开"
-                        TabletSecondaryPaneMode.COMPACT -> "收起"
-                        TabletSecondaryPaneMode.COLLAPSED -> "展开"
-                    }
-                )
-            }
-        }
-
-        // Tab 栏
-        AppPrimaryTabRow(
-            selectedTabIndex = pagerState.currentPage,
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ) {
-            tabs.forEachIndexed { index, tab ->
-                AppTab(
-                    selected = pagerState.currentPage == index,
-                    onClick = {
-                        scope.launch {
-                            pagerState.animateScrollToPage(index)
+        if (fixedTab == null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                AppTextButton(onClick = onPaneModeCycle) {
+                    AppText(
+                        when (paneMode) {
+                            TabletSecondaryPaneMode.EXPANDED -> "半开"
+                            TabletSecondaryPaneMode.COMPACT -> "收起"
+                            TabletSecondaryPaneMode.COLLAPSED -> "展开"
                         }
-                    },
-                    text = { AppText(tab.label) }
-                )
+                    )
+                }
             }
+
+            AppPrimaryTabRow(
+                selectedTabIndex = pagerState.currentPage,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                tabs.forEachIndexed { index, tab ->
+                    AppTab(
+                        selected = pagerState.currentPage == index,
+                        onClick = {
+                            scope.launch {
+                                pagerState.animateScrollToPage(index)
+                            }
+                        },
+                        text = { AppText(tab.label) }
+                    )
+                }
+            }
+        } else {
+            AppText(
+                text = fixedTab.label,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
         }
         
         HorizontalPager(

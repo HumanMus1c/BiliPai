@@ -37,7 +37,7 @@ class CommonListAppearancePolicyTest {
     }
 
     @Test
-    fun historyHeaderCollapse_canMoveBothFloatingDocksOffscreen() {
+    fun historyHeaderCollapse_keepsTitleBarAndMovesBothFloatingDocksOffscreen() {
         assertEquals(
             180f,
             resolveCommonListHeaderMaxCollapsePx(
@@ -61,8 +61,8 @@ class CommonListAppearancePolicyTest {
             File("app/src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt"),
             File("src/main/java/com/android/purebilibili/feature/list/CommonListScreen.kt")
         ).first { it.exists() }.readText()
-        assertTrue(source.contains("retainPinnedDock = false"))
-        assertFalse(source.contains("historyPinnedDockHeightPx"))
+        assertTrue(source.contains("retainPinnedDock = historyViewModel != null"))
+        assertTrue(source.contains("pinnedDockHeightPx = if (historyViewModel != null) fixedTopBarHeightPx else 0"))
     }
 
 

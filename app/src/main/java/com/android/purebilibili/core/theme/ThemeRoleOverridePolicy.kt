@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import com.android.purebilibili.core.store.ThemeModeRoleOverrides
 import com.android.purebilibili.core.store.ThemeRoleOverrides
+import com.android.purebilibili.feature.settings.Md3ColorSource
 
 internal val LocalBaseThemeRoleOverrides = staticCompositionLocalOf {
     ThemeRoleOverrides()
@@ -41,6 +42,17 @@ internal fun syncThemeRoleControlAccent(
         light = overrides.light.copy(controlAccentHex = customColorHex),
         dark = overrides.dark.copy(controlAccentHex = customColorHex)
     )
+}
+
+internal fun resolveEffectiveThemeRoleOverrides(
+    source: Md3ColorSource,
+    overrides: ThemeRoleOverrides
+): ThemeRoleOverrides {
+    return if (source == Md3ColorSource.CUSTOM) {
+        overrides
+    } else {
+        overrides.copy(enabled = false)
+    }
 }
 
 internal fun applyThemeRoleOverrides(

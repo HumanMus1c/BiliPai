@@ -6,28 +6,33 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
-import kotlin.math.min
+import kotlin.math.max
 
-/** Default item height for Miuix [AppNativeTabRow] (channel switchers, day chips, …). */
-const val AppNativeTabRowHeightDp = 40
-
-/** Default item height for Miuix compact segmented control. */
-const val AppMiuixSegmentedItemHeightDp = 40
+data class RoundedControlVisualGeometry(
+    val height: Dp,
+    val cornerRadius: Dp,
+)
 
 /**
- * When corner radius ≥ height/2 the control becomes a full capsule ("sausage").
- * Cap preferred radius so 40–48dp bars keep a short flat edge.
+ * Resolves visual geometry without treating the accessibility touch target as component height.
  *
- * @param maxRatio fraction of control height; 0.3 → 48dp max ~14.4dp, 40dp max ~12dp.
+ * [nativeMinimumHeight] comes from the selected renderer's native component. If the semantic
+ * [preferredCornerRadius] would exceed [maxCornerRatio], the visible control grows just enough to
+ * preserve the corner. Touch expansion is intentionally outside this policy.
  */
-fun resolveHeightCappedCornerRadius(
-    controlHeight: Dp,
-    preferred: Dp,
-    maxRatio: Float = 0.3f,
-): Dp {
-    if (controlHeight <= 0.dp) return preferred
-    val capPx = controlHeight.value * maxRatio.coerceIn(0.15f, 0.45f)
-    return min(preferred.value, capPx).dp
+fun resolveRoundedControlVisualGeometry(
+    preferredCornerRadius: Dp,
+    nativeMinimumHeight: Dp,
+    maxCornerRatio: Float = 0.3f,
+): RoundedControlVisualGeometry {
+    val safeCorner = preferredCornerRadius.coerceAtLeast(0.dp)
+    val safeMinimumHeight = nativeMinimumHeight.coerceAtLeast(0.dp)
+    val safeRatio = maxCornerRatio.coerceIn(0.15f, 0.45f)
+    val radiusDrivenHeight = (safeCorner.value / safeRatio).dp
+    return RoundedControlVisualGeometry(
+        height = max(safeMinimumHeight.value, radiusDrivenHeight.value).dp,
+        cornerRadius = safeCorner,
+    )
 }
 
 data class AppSegmentedControlPolicy(
@@ -35,40 +40,33 @@ data class AppSegmentedControlPolicy(
     val usesMaterialFallback: Boolean,
     val usesNativeTabRow: Boolean,
     val usesMaterialColorTokens: Boolean,
-    /** Preferred item corner; still height-capped at render time. */
-    val pillCornerRadius: Dp,
-    val nativeTabRowHeight: Dp,
-    val segmentedItemHeight: Dp,
+    /** Semantic item corner; each native renderer resolves compatible visual geometry. */
+    val preferredCornerRadius: Dp,
 )
 
 internal fun resolveAppSegmentedControlPolicy(
     uiStyle: AppUiStyle,
 ): AppSegmentedControlPolicy {
-    // Prefer Card-level corners, never full Pill (22–28dp) which saturates 40–48dp bars.
+    // Prefer Card-level corners, never the full Pill token. Native renderers keep this corner and
+    // derive any required visual height from it instead of forcing a shared 48dp container.
     val preferred = AppShapes.resolveContainerCornerDp(
         level = ContainerLevel.Card,
         uiStyle = uiStyle,
     )
-    val tabHeight = AppNativeTabRowHeightDp.dp
-    val segmentHeight = AppMiuixSegmentedItemHeightDp.dp
     return when (uiStyle) {
         AppUiStyle.MIUIX -> AppSegmentedControlPolicy(
             usesEmphasizedTitle = true,
             usesMaterialFallback = true,
             usesNativeTabRow = true,
             usesMaterialColorTokens = false,
-            pillCornerRadius = resolveHeightCappedCornerRadius(tabHeight, preferred),
-            nativeTabRowHeight = tabHeight,
-            segmentedItemHeight = segmentHeight,
+            preferredCornerRadius = preferred,
         )
         AppUiStyle.MATERIAL3 -> AppSegmentedControlPolicy(
             usesEmphasizedTitle = true,
             usesMaterialFallback = true,
             usesNativeTabRow = false,
             usesMaterialColorTokens = true,
-            pillCornerRadius = resolveHeightCappedCornerRadius(tabHeight, preferred),
-            nativeTabRowHeight = tabHeight,
-            segmentedItemHeight = segmentHeight,
+            preferredCornerRadius = preferred,
         )
     }
 }

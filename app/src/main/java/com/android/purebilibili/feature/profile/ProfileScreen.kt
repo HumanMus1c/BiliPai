@@ -7,6 +7,7 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
 import android.app.Activity
 import android.content.Context
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.background
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -51,6 +53,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -59,9 +62,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
@@ -144,7 +154,6 @@ import dev.chrisbanes.haze.HazeState
 import com.android.purebilibili.core.ui.blur.hazeSourceCompat
 import com.android.purebilibili.core.ui.blur.unifiedBlur
 
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
@@ -279,6 +288,8 @@ fun ProfileScreen(
     onBangumiMoreClick: () -> Unit = {},
     skinBackgroundImagePath: String? = null,
     skinSquaredBackgroundImagePath: String? = null,
+    skinVideoBackgroundPath: String? = null,
+    skinVideoPlayMode: String? = null,
     deferImmersiveRenderBudget: Boolean = false,
     scrollToTopChannel: kotlinx.coroutines.channels.Channel<Unit>? = null
     // [注意] 移除了 globalHazeState - 双 hazeSource 模式与 Haze 库冲突
@@ -326,7 +337,7 @@ fun ProfileScreen(
         }
     }
     val isImmersiveMobileProfile = !windowSizeClass.shouldUseSplitLayout &&
-        (skinProfileBackgroundPath != null ||
+        (skinProfileBackgroundPath != null || !skinVideoBackgroundPath.isNullOrBlank() ||
             (state as? ProfileUiState.Success)?.user?.topPhoto?.isNotEmpty() == true)
     val shouldControlSystemBars = isLoggedOut || isImmersiveMobileProfile
     var handledAccountSessionRefreshGeneration by remember(viewModel) {
@@ -363,10 +374,9 @@ fun ProfileScreen(
         } ?: android.graphics.Color.TRANSPARENT
         val originalLightStatusBars = insetsController?.isAppearanceLightStatusBars ?: true
         val originalLightNavigationBars = insetsController?.isAppearanceLightNavigationBars ?: true
-        val originalDecorFits = window?.decorView?.fitsSystemWindows ?: true
-        
+
         if (shouldControlSystemBars && window != null) {
-            WindowCompat.setDecorFitsSystemWindows(window, false)
+            com.android.purebilibili.core.ui.AppWindowSystemUiController.ensureEdgeToEdge(window)
             com.android.purebilibili.core.ui.setWindowStatusBarColor(window, Color.Transparent.toArgb())
             com.android.purebilibili.core.ui.setWindowNavigationBarColor(window, Color.Transparent.toArgb())
             insetsController?.isAppearanceLightStatusBars = lightStatusBars
@@ -376,7 +386,6 @@ fun ProfileScreen(
         onDispose {
             // 离开时恢复原始配置
             if (shouldControlSystemBars && window != null && insetsController != null) {
-                WindowCompat.setDecorFitsSystemWindows(window, originalDecorFits)
                 com.android.purebilibili.core.ui.setWindowStatusBarColor(window, originalStatusBarColor)
                 com.android.purebilibili.core.ui.setWindowNavigationBarColor(window, originalNavBarColor)
                 insetsController.isAppearanceLightStatusBars = originalLightStatusBars
@@ -481,7 +490,10 @@ fun ProfileScreen(
                 ProfileBackground(
                     user = guestUser,
                     viewModel = viewModel,
-                    deferImmersiveRenderBudget = deferImmersiveRenderBudget
+                    deferImmersiveRenderBudget = deferImmersiveRenderBudget,
+                    skinVideoBackgroundPath = skinVideoBackgroundPath,
+                    skinVideoPlayMode = skinVideoPlayMode,
+                    playSkinVideo = isCurrentPage,
                 )
                 
                 MobileProfileContent(
@@ -673,7 +685,10 @@ fun ProfileScreen(
                     ProfileBackground(
                         user = decoratedUser,
                         viewModel = viewModel,
-                        deferImmersiveRenderBudget = deferImmersiveRenderBudget
+                        deferImmersiveRenderBudget = deferImmersiveRenderBudget,
+                        skinVideoBackgroundPath = skinVideoBackgroundPath,
+                        skinVideoPlayMode = skinVideoPlayMode,
+                        playSkinVideo = isCurrentPage,
                     )
                     
                     ProfileSpaceContent(
@@ -728,11 +743,15 @@ fun ProfileScreen(
 private fun BoxScope.ProfileBackground(
     user: UserState,
     viewModel: ProfileViewModel,
-    deferImmersiveRenderBudget: Boolean
+    deferImmersiveRenderBudget: Boolean,
+    skinVideoBackgroundPath: String? = null,
+    skinVideoPlayMode: String? = null,
+    playSkinVideo: Boolean = true,
 ) {
     val windowSizeClass = LocalWindowSizeClass.current
     val isTablet = windowSizeClass.shouldUseSplitLayout
-    val hasWallpaper = user.topPhoto.isNotEmpty()
+    val hasSkinVideo = !skinVideoBackgroundPath.isNullOrBlank()
+    val hasWallpaper = user.topPhoto.isNotEmpty() || hasSkinVideo
     val bgTransform by viewModel.getProfileBgTransform(isTablet).collectAsStateWithLifecycle(initialValue = ProfileWallpaperTransform())
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
@@ -783,26 +802,36 @@ private fun BoxScope.ProfileBackground(
             .align(Alignment.TopCenter)
     ) {
         if (shouldRenderProfileImmersiveBackground(hasWallpaper, deferImmersiveRenderBudget)) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(wallpaperModel)
-                    .size(wallpaperDecodeSize.first, wallpaperDecodeSize.second)
-                    .scale(Scale.FILL)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                alignment = androidx.compose.ui.BiasAlignment(
-                    bgTransform.offsetX,
-                    bgTransform.offsetY
-                ),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer(
-                        scaleX = bgTransform.scale,
-                        scaleY = bgTransform.scale
-                    )
-            )
+            if (user.topPhoto.isNotEmpty()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(wallpaperModel)
+                        .size(wallpaperDecodeSize.first, wallpaperDecodeSize.second)
+                        .scale(Scale.FILL)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alignment = androidx.compose.ui.BiasAlignment(
+                        bgTransform.offsetX,
+                        bgTransform.offsetY
+                    ),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer(
+                            scaleX = bgTransform.scale,
+                            scaleY = bgTransform.scale
+                        )
+                )
+            }
+            if (hasSkinVideo) {
+                ProfileSkinVideoBackground(
+                    videoPath = requireNotNull(skinVideoBackgroundPath),
+                    playMode = skinVideoPlayMode,
+                    playbackEnabled = playSkinVideo,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         } else if (heroFallbackGradient != null) {
             Box(
                 modifier = Modifier
@@ -835,6 +864,80 @@ private fun BoxScope.ProfileBackground(
             )
         }
     }
+}
+
+internal fun resolveProfileSkinVideoRepeatMode(playMode: String?): Int {
+    return if (playMode?.trim()?.equals("once", ignoreCase = true) == true) {
+        Player.REPEAT_MODE_OFF
+    } else {
+        Player.REPEAT_MODE_ONE
+    }
+}
+
+@Composable
+@android.annotation.SuppressLint("UnsafeOptInUsageError")
+private fun ProfileSkinVideoBackground(
+    videoPath: String,
+    playMode: String?,
+    playbackEnabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val repeatMode = remember(playMode) { resolveProfileSkinVideoRepeatMode(playMode) }
+    val player = remember(videoPath) {
+        ExoPlayer.Builder(context).build()
+    }
+
+    DisposableEffect(player, videoPath, repeatMode) {
+        player.volume = 0f
+        player.repeatMode = repeatMode
+        player.setMediaItem(MediaItem.fromUri(Uri.fromFile(File(videoPath))))
+        player.prepare()
+        onDispose {
+            player.release()
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, player, playbackEnabled) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> if (playbackEnabled) player.play()
+                Lifecycle.Event.ON_STOP -> player.pause()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (playbackEnabled && lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            player.play()
+        } else {
+            player.pause()
+        }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            player.pause()
+        }
+    }
+
+    SideEffect {
+        if (!playbackEnabled) player.pause()
+    }
+
+    AndroidView(
+        factory = { viewContext ->
+            PlayerView(viewContext).apply {
+                useController = false
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                setKeepContentOnPlayerReset(true)
+                this.player = player
+            }
+        },
+        update = { playerView ->
+            playerView.player = player
+        },
+        modifier = modifier,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

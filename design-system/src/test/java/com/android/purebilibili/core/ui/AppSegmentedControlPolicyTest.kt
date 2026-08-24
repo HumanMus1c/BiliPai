@@ -2,6 +2,7 @@ package com.android.purebilibili.core.ui
 
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.theme.AppUiStyle
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -30,24 +31,55 @@ class AppSegmentedControlPolicyTest {
     }
 
     @Test
-    fun `segmented corners are height-capped below half of tab height`() {
-        // Card preferred then capped at 30% of 40dp tab height → max 12dp.
+    fun `segmented policy exposes semantic corners without a shared visual height`() {
         val material = resolveAppSegmentedControlPolicy(AppUiStyle.MATERIAL3)
         val miuix = resolveAppSegmentedControlPolicy(AppUiStyle.MIUIX)
-        assertEquals(40.dp, material.nativeTabRowHeight)
-        assertEquals(40.dp, miuix.nativeTabRowHeight)
-        // MD3 card 10.8 < 12 cap; Miuix card 13.8 → capped to 12.
-        assertEquals(10.8.dp, material.pillCornerRadius)
-        assertEquals(12.dp, miuix.pillCornerRadius)
-        assertTrue(material.pillCornerRadius < material.nativeTabRowHeight / 2)
-        assertTrue(miuix.pillCornerRadius < miuix.nativeTabRowHeight / 2)
+        assertEquals(10.8.dp, material.preferredCornerRadius)
+        assertEquals(13.8.dp, miuix.preferredCornerRadius)
     }
 
     @Test
-    fun `height cap prevents full capsule on 48dp bars`() {
-        val preferred = 28.dp
-        val capped = resolveHeightCappedCornerRadius(48.dp, preferred)
-        assertEquals(14.4.dp, capped)
-        assertTrue(capped < 24.dp) // half of 48
+    fun `visual height is derived from corner instead of a hardcoded 48dp`() {
+        val geometry = resolveRoundedControlVisualGeometry(
+            preferredCornerRadius = 14.4.dp,
+            nativeMinimumHeight = 40.dp,
+        )
+
+        assertEquals(48f, geometry.height.value, absoluteTolerance = 0.001f)
+        assertEquals(14.4.dp, geometry.cornerRadius)
+        assertTrue(geometry.cornerRadius < geometry.height / 2)
     }
+
+    @Test
+    fun `native minimum wins when semantic corner already fits`() {
+        val geometry = resolveRoundedControlVisualGeometry(
+            preferredCornerRadius = 12.dp,
+            nativeMinimumHeight = 42.dp,
+        )
+
+        assertEquals(42.dp, geometry.height)
+        assertEquals(12.dp, geometry.cornerRadius)
+    }
+
+    @Test
+    fun `native renderers do not force 48dp as visual height`() {
+        val materialSource = loadSource(
+            "src/main/java/com/android/purebilibili/core/ui/renderer/material3/" +
+                "AppMaterial3SegmentedControl.kt"
+        )
+        val miuixSource = loadSource(
+            "src/main/java/com/android/purebilibili/core/ui/renderer/miuix/" +
+                "AppMiuixSegmentedControl.kt"
+        )
+
+        assertFalse(materialSource.contains("heightIn(min = 48.dp)"))
+        assertTrue(miuixSource.contains("TabRowDefaults.TabRowHeight"))
+        assertTrue(miuixSource.contains("resolveRoundedControlVisualGeometry("))
+    }
+
+    private fun loadSource(path: String): String = listOf(
+        File(path),
+        File("design-system/$path"),
+    ).firstOrNull(File::exists)?.readText()
+        ?: error("Cannot locate $path from ${File(".").absolutePath}")
 }

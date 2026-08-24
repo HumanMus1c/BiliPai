@@ -57,6 +57,24 @@ class ListenVideoLibraryLoaderTest {
     }
 
     @Test
+    fun `default loader serializes favorite folder requests`() = runTest {
+        val source = SerialFavoriteRequestDataSource()
+        val loader = ListenVideoLibraryLoader(source)
+
+        val first = async { loader.loadFolder(1L) }
+        source.firstStarted.await()
+        val second = async { loader.loadFolder(2L) }
+        runCurrent()
+
+        assertEquals(listOf(1L), source.startedFolderIds)
+        source.releaseFirst.complete(Unit)
+        first.await()
+        second.await()
+
+        assertEquals(listOf(1L, 2L), source.startedFolderIds)
+    }
+
+    @Test
     fun `index keeps successful folders when one folder fails`() = runTest {
         val source = FakeListenVideoDataSource(
             folderPages = mapOf(
@@ -261,6 +279,31 @@ private class GatedListenVideoDataSource : ListenVideoLibraryDataSource {
 
     override suspend fun folderPage(mediaId: Long, page: Int): Result<FavoriteResourceData> {
         if (mediaId == 1L) firstGate.await() else secondGate.await()
+        return Result.success(FavoriteResourceData(has_more = false))
+    }
+
+    override suspend fun albumPage(seasonId: Long, page: Int): Result<FavoriteResourceData> {
+        return Result.failure(IllegalStateException("unused"))
+    }
+}
+
+private class SerialFavoriteRequestDataSource : ListenVideoLibraryDataSource {
+    val firstStarted = CompletableDeferred<Unit>()
+    val releaseFirst = CompletableDeferred<Unit>()
+    val startedFolderIds = mutableListOf<Long>()
+
+    override suspend fun ownedFolders(mid: Long): Result<List<FavFolder>> = Result.success(emptyList())
+
+    override suspend fun collectedFolders(mid: Long, page: Int): Result<ListenVideoCollectedFoldersPage> {
+        return Result.success(ListenVideoCollectedFoldersPage(emptyList(), hasMore = false))
+    }
+
+    override suspend fun folderPage(mediaId: Long, page: Int): Result<FavoriteResourceData> {
+        startedFolderIds += mediaId
+        if (mediaId == 1L) {
+            firstStarted.complete(Unit)
+            releaseFirst.await()
+        }
         return Result.success(FavoriteResourceData(has_more = false))
     }
 

@@ -120,12 +120,12 @@ class TopTabLayoutPolicyTest {
     }
 
     @Test
-    fun `md3 and miuix multi-tab rows keep leading edge for all label modes`() {
+    fun `md3 and miuix multi-tab rows lead align on phones and center on tablets`() {
         val itemWidth = resolveMd3TopTabItemWidthDp(containerWidthDp = 400f, visibleSlots = 5)
 
         // 400/5 = 80, within the text-only floor/ceiling (64–88).
         assertEquals(80f, itemWidth, 0.001f)
-        // Text-only and icon+text: lead-align (leftover must not center-push "推荐")
+        // Phone rows remain lead-aligned when the tab group is dense.
         assertEquals(
             0f,
             resolveMd3TopTabContentPaddingDp(
@@ -155,6 +155,17 @@ class TopTabLayoutPolicyTest {
                 itemWidthDp = 120f,
                 categoryCount = 2,
                 labelMode = 0
+            ),
+            0.001f
+        )
+        // 5 × 88 on 1000 → leftover 560 → centered padding 280.
+        assertEquals(
+            280f,
+            resolveMd3TopTabContentPaddingDp(
+                containerWidthDp = 1000f,
+                itemWidthDp = 88f,
+                categoryCount = 5,
+                labelMode = 2
             ),
             0.001f
         )

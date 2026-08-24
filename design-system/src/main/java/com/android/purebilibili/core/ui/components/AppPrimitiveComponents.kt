@@ -44,7 +44,6 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FilledIconButton
@@ -65,6 +64,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MenuItemColors
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -84,7 +84,6 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemColors
 import androidx.compose.material3.NavigationDrawerItemDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -118,7 +117,6 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorProducer
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.painter.Painter
@@ -211,38 +209,6 @@ private fun Modifier.globalTextTapCopy(text: String): Modifier = composed {
         }
     }
 }
-
-@Composable
-fun AppSurface(
-    modifier: Modifier = Modifier,
-    shape: Shape = RectangleShape,
-    color: Color = MaterialTheme.colorScheme.surface,
-    contentColor: Color = contentColorFor(color),
-    tonalElevation: Dp = 0.dp,
-    shadowElevation: Dp = 0.dp,
-    border: BorderStroke? = null,
-    content: @Composable () -> Unit,
-) = Surface(
-    modifier = modifier,
-    shape = shape,
-    color = color,
-    contentColor = contentColor,
-    tonalElevation = tonalElevation,
-    shadowElevation = shadowElevation,
-    border = border,
-    content = content,
-)
-
-@Composable
-fun AppHorizontalDivider(
-    modifier: Modifier = Modifier,
-    thickness: Dp = DividerDefaults.Thickness,
-    color: Color = DividerDefaults.color,
-) = HorizontalDivider(
-    modifier = modifier,
-    thickness = thickness,
-    color = color,
-)
 
 @Composable
 fun AppListItem(
@@ -532,33 +498,6 @@ fun AppScrollableTabRow(
 )
 
 @Composable
-fun AppSurface(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    shape: Shape = RectangleShape,
-    color: Color = MaterialTheme.colorScheme.surface,
-    contentColor: Color = contentColorFor(color),
-    tonalElevation: Dp = 0.dp,
-    shadowElevation: Dp = 0.dp,
-    border: BorderStroke? = null,
-    interactionSource: MutableInteractionSource? = null,
-    content: @Composable () -> Unit,
-) = Surface(
-    onClick = onClick,
-    modifier = modifier,
-    enabled = enabled,
-    shape = shape,
-    color = color,
-    contentColor = contentColor,
-    tonalElevation = tonalElevation,
-    shadowElevation = shadowElevation,
-    border = border,
-    interactionSource = interactionSource,
-    content = content,
-)
-
-@Composable
 fun AppButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -574,26 +513,29 @@ fun AppButton(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
-) = Button(
-    onClick = onClick,
-    modifier = modifier,
-    enabled = enabled,
-    shape = shape,
-    colors = ButtonDefaults.buttonColors(
-        containerColor = containerColor,
-        contentColor = contentColor,
-        disabledContainerColor = disabledContainerColor,
-        disabledContentColor = disabledContentColor,
-    ),
-    elevation = ButtonDefaults.buttonElevation(
-        defaultElevation = defaultElevation,
-        pressedElevation = pressedElevation,
-    ),
-    border = border,
-    contentPadding = contentPadding,
-    interactionSource = interactionSource,
-    content = content,
-)
+) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    Button(
+        onClick = onClick,
+        modifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
+        enabled = enabled,
+        shape = shape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+            disabledContainerColor = disabledContainerColor,
+            disabledContentColor = disabledContentColor,
+        ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = defaultElevation,
+            pressedElevation = pressedElevation,
+        ),
+        border = border,
+        contentPadding = contentPadding,
+        interactionSource = resolvedInteractionSource,
+        content = content,
+    )
+}
 
 @Composable
 fun AppButton(
@@ -607,21 +549,24 @@ fun AppButton(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
-) = Button(
-    onClick = onClick,
-    modifier = modifier,
-    enabled = enabled,
-    shape = shape,
-    colors = colors ?: ButtonDefaults.buttonColors(
-        containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
-        contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme),
-    ),
-    elevation = elevation,
-    border = border,
-    contentPadding = contentPadding,
-    interactionSource = interactionSource,
-    content = content,
-)
+) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    Button(
+        onClick = onClick,
+        modifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
+        enabled = enabled,
+        shape = shape,
+        colors = colors ?: ButtonDefaults.buttonColors(
+            containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+            contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme),
+        ),
+        elevation = elevation,
+        border = border,
+        contentPadding = contentPadding,
+        interactionSource = resolvedInteractionSource,
+        content = content,
+    )
+}
 
 @Composable
 fun AppTextButton(
@@ -633,16 +578,19 @@ fun AppTextButton(
     contentPadding: PaddingValues = ButtonDefaults.TextButtonContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
-) = TextButton(
-    onClick = onClick,
-    modifier = modifier,
-    enabled = enabled,
-    shape = shape,
-    colors = colors,
-    contentPadding = contentPadding,
-    interactionSource = interactionSource,
-    content = content,
-)
+) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    TextButton(
+        onClick = onClick,
+        modifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
+        enabled = enabled,
+        shape = shape,
+        colors = colors,
+        contentPadding = contentPadding,
+        interactionSource = resolvedInteractionSource,
+        content = content,
+    )
+}
 
 @Composable
 fun AppIconButton(
@@ -652,14 +600,20 @@ fun AppIconButton(
     colors: IconButtonColors = IconButtonDefaults.iconButtonColors(),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
-) = IconButton(
-    onClick = onClick,
-    modifier = modifier,
-    enabled = enabled,
-    colors = colors,
-    interactionSource = interactionSource,
-    content = content,
-)
+) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .then(modifier)
+            .appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
+        enabled = enabled,
+        colors = colors,
+        interactionSource = resolvedInteractionSource,
+        content = content,
+    )
+}
 
 @Composable
 fun AppFilledIconButton(
@@ -670,15 +624,21 @@ fun AppFilledIconButton(
     colors: IconButtonColors = IconButtonDefaults.filledIconButtonColors(),
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
-) = FilledIconButton(
-    onClick = onClick,
-    modifier = modifier,
-    enabled = enabled,
-    shape = shape,
-    colors = colors,
-    interactionSource = interactionSource,
-    content = content,
-)
+) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    FilledIconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .then(modifier)
+            .appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
+        enabled = enabled,
+        shape = shape,
+        colors = colors,
+        interactionSource = resolvedInteractionSource,
+        content = content,
+    )
+}
 
 @Composable
 fun AppOutlinedTextField(
@@ -802,17 +762,20 @@ fun AppDropdownMenuItem(
     colors: MenuItemColors = MenuDefaults.itemColors(),
     contentPadding: PaddingValues = MenuDefaults.DropdownMenuItemContentPadding,
     interactionSource: MutableInteractionSource? = null,
-) = DropdownMenuItem(
-    text = text,
-    onClick = onClick,
-    modifier = modifier,
-    leadingIcon = leadingIcon,
-    trailingIcon = trailingIcon,
-    enabled = enabled,
-    colors = colors,
-    contentPadding = contentPadding,
-    interactionSource = interactionSource,
-)
+) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    DropdownMenuItem(
+        text = text,
+        onClick = onClick,
+        modifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
+        enabled = enabled,
+        colors = colors,
+        contentPadding = contentPadding,
+        interactionSource = resolvedInteractionSource,
+    )
+}
 
 @Composable
 fun AppModalNavigationDrawer(
@@ -841,16 +804,19 @@ fun AppNavigationDrawerItem(
     badge: (@Composable () -> Unit)? = null,
     colors: NavigationDrawerItemColors = NavigationDrawerItemDefaults.colors(),
     interactionSource: MutableInteractionSource? = null,
-) = NavigationDrawerItem(
-    label = label,
-    selected = selected,
-    onClick = onClick,
-    modifier = modifier,
-    icon = icon,
-    badge = badge,
-    colors = colors,
-    interactionSource = interactionSource,
-)
+) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    NavigationDrawerItem(
+        label = label,
+        selected = selected,
+        onClick = onClick,
+        modifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource),
+        icon = icon,
+        badge = badge,
+        colors = colors,
+        interactionSource = resolvedInteractionSource,
+    )
+}
 
 @Composable
 fun AppCircularProgressIndicator(
@@ -920,14 +886,20 @@ fun AppCheckbox(
     enabled: Boolean = true,
     colors: CheckboxColors = CheckboxDefaults.colors(),
     interactionSource: MutableInteractionSource? = null,
-) = Checkbox(
-    checked = checked,
-    onCheckedChange = onCheckedChange,
-    modifier = modifier,
-    enabled = enabled,
-    colors = colors,
-    interactionSource = interactionSource,
-)
+) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    Checkbox(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier.appDesktopInteractionVisuals(
+            resolvedInteractionSource,
+            enabled && onCheckedChange != null,
+        ),
+        enabled = enabled,
+        colors = colors,
+        interactionSource = resolvedInteractionSource,
+    )
+}
 
 @Composable
 fun AppSwitch(
@@ -940,6 +912,8 @@ fun AppSwitch(
     interactionSource: MutableInteractionSource? = null,
     showThumbIcon: Boolean = true,
 ) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    val interactive = enabled && onCheckedChange != null
     when (resolveAppAdaptiveSwitchTreatment(LocalAppUiStyle.current)) {
         AppAdaptiveSwitchTreatment.MIUIX -> {
             val platformHaptic = LocalHapticFeedback.current
@@ -953,14 +927,14 @@ fun AppSwitch(
                     checked = checked,
                     onCheckedChange = onCheckedChange,
                     enabled = enabled,
-                    modifier = modifier,
+                    modifier = modifier.appDesktopFocusableItemVisuals(interactive),
                 )
             }
         }
         AppAdaptiveSwitchTreatment.MATERIAL -> Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
-            modifier = modifier,
+            modifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, interactive),
             thumbContent = thumbContent ?: if (showThumbIcon) {
                 {
                     Icon(
@@ -979,7 +953,7 @@ fun AppSwitch(
             },
             enabled = enabled,
             colors = colors,
-            interactionSource = interactionSource,
+            interactionSource = resolvedInteractionSource,
         )
     }
 }
@@ -992,14 +966,20 @@ fun AppRadioButton(
     enabled: Boolean = true,
     colors: RadioButtonColors = RadioButtonDefaults.colors(),
     interactionSource: MutableInteractionSource? = null,
-) = RadioButton(
-    selected = selected,
-    onClick = onClick,
-    modifier = modifier,
-    enabled = enabled,
-    colors = colors,
-    interactionSource = interactionSource,
-)
+) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    RadioButton(
+        selected = selected,
+        onClick = onClick,
+        modifier = modifier.appDesktopInteractionVisuals(
+            resolvedInteractionSource,
+            enabled && onClick != null,
+        ),
+        enabled = enabled,
+        colors = colors,
+        interactionSource = resolvedInteractionSource,
+    )
+}
 
 @Composable
 fun AppSlider(
@@ -1017,7 +997,7 @@ fun AppSlider(
         AppPrimitiveRenderer.MIUIX -> MiuixSlider(
             value = value,
             onValueChange = onValueChange,
-            modifier = modifier,
+            modifier = modifier.appDesktopFocusableItemVisuals(enabled),
             enabled = enabled,
             valueRange = valueRange,
             steps = steps,
@@ -1026,7 +1006,7 @@ fun AppSlider(
         AppPrimitiveRenderer.MATERIAL -> Slider(
             value = value,
             onValueChange = onValueChange,
-            modifier = modifier,
+            modifier = modifier.appDesktopInteractionVisuals(interactionSource, enabled),
             enabled = enabled,
             valueRange = valueRange,
             steps = steps,
@@ -1049,18 +1029,21 @@ fun AppOutlinedButton(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
-) = OutlinedButton(
-    onClick = onClick,
-    modifier = modifier,
-    enabled = enabled,
-    shape = shape,
-    colors = colors,
-    elevation = elevation,
-    border = border,
-    contentPadding = contentPadding,
-    interactionSource = interactionSource,
-    content = content,
-)
+) {
+    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled),
+        enabled = enabled,
+        shape = shape,
+        colors = colors,
+        elevation = elevation,
+        border = border,
+        contentPadding = contentPadding,
+        interactionSource = resolvedInteractionSource,
+        content = content,
+    )
+}
 
 @Composable
 fun AppCard(

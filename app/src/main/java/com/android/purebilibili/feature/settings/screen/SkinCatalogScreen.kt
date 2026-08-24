@@ -123,9 +123,20 @@ fun SkinCatalogScreen(
                     val packageUrl = entry.preferredPackageUrl()
                         ?: throw IllegalArgumentException("该主题没有可用的资源包链接")
                     val packageBytes = downloadUiSkinRemotePackage(packageUrl)
-                    val importPackage = UiSkinImportPackageResolver
-                        .resolve(packageBytes, ::downloadUiSkinRemotePackage)
-                        .getOrThrow()
+                    val themeMetadataBytes = entry.resolvedThemeMetadataUrl()?.let { metadataUrl ->
+                        runCatching { downloadUiSkinRemotePackage(metadataUrl) }.getOrNull()
+                    }
+                    val importPackage = if (themeMetadataBytes != null) {
+                        UiSkinImportPackageResolver.resolveBilibiliPackageWithMetadata(
+                            packageBytes = packageBytes,
+                            themeJsonBytes = themeMetadataBytes,
+                        )
+                    } else {
+                        UiSkinImportPackageResolver.resolve(
+                            inputBytes = packageBytes,
+                            remotePackageFetcher = ::downloadUiSkinRemotePackage,
+                        )
+                    }.getOrThrow()
                     val preview = uiSkinStore.previewPackage(importPackage.packageBytes).getOrThrow()
                     val previewAssetFiles = uiSkinStore.extractPreviewAssetFiles(
                         preview = preview,
